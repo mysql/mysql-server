@@ -427,6 +427,9 @@
 #include "mysys_err.h"                  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
+#ifdef _WIN32
+#include <shellapi.h>
+#endif
 #include "sql/auth/auth_common.h"       // grant_init
 #include "sql/auth/sql_authentication.h" // init_rsa_keys
 #include "sql/auth/sql_security_ctx.h"
@@ -470,6 +473,9 @@
 #include "sql/query_options.h"
 #include "sql/replication.h"            // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h" // init, post_init
+#ifdef _WIN32
+#include "sql/restart_monitor_win.h"
+#endif
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"       // Gtid_table_persistor
@@ -501,6 +507,7 @@
 #include "sql/sql_plugin.h"             // opt_plugin_dir
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_reload.h"             // reload_acl_and_cache
+#include "sql/sql_restart_server.h"     // is_mysqld_managed
 #include "sql/sql_servers.h"
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"              // build_table_filename
@@ -532,7 +539,6 @@
 #include "sql/conn_handler/named_pipe_connection.h"
 #include "sql/conn_handler/shared_memory_connection.h"
 #include "sql/named_pipe.h"
-#include "sql/nt_servc.h"
 #endif
 
 #ifdef MY_MSCRT_DEBUG
@@ -619,7 +625,6 @@ extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #  define _FPU_SETCW(cw)
 # endif
 #endif
-
 inline void setup_fpu()
 {
 #ifdef HAVE_FEDISABLEEXCEPT
@@ -736,7 +741,7 @@ static PSI_thread_key key_thread_handle_con_sharedmem;
 static PSI_thread_key key_thread_handle_con_sockets;
 static PSI_mutex_key key_LOCK_handler_count;
 static PSI_cond_key key_COND_handler_count;
-static PSI_thread_key key_thread_handle_shutdown;
+static PSI_thread_key key_thread_handle_shutdown_restart;
 #else
 static PSI_mutex_key key_LOCK_socket_listener_active;
 static PSI_cond_key key_COND_socket_listener_active;
@@ -826,7 +831,7 @@ char *opt_log_syslog_facility;
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
 */
-my_thread_handle shutdown_thr_handle;
+my_thread_handle shutdown_restart_thr_handle;
 #endif
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
@@ -1231,12 +1236,16 @@ static char **remaining_argv;
 
 int orig_argc;
 char **orig_argv;
-
 namespace
 {
 FILE *nstdout= nullptr;
 char my_progpath[FN_REFLEN];
 const char *my_orig_progname= nullptr;
+
+/**
+  This variable holds the exit value of the signal handler thread.
+*/
+std::atomic<int> signal_hand_thr_exit_code(MYSQLD_SUCCESS_EXIT);
 
 /**
   Inspects the program name in argv[0] and substitutes the full path
@@ -1409,18 +1418,23 @@ static my_thread_t main_thread_id;
 /* OS specific variables */
 
 #ifdef _WIN32
+static bool mysqld_early_option= false;
 static bool windows_service= false;
 static bool use_opt_args;
 static int opt_argc;
 static char **opt_argv;
+static char **my_global_argv= nullptr;
+static int my_global_argc;
 
 static mysql_mutex_t LOCK_handler_count;
 static mysql_cond_t COND_handler_count;
 static HANDLE hEventShutdown;
+static HANDLE hEventRestart;
 char *shared_memory_base_name= default_shared_memory_base_name;
 bool opt_enable_shared_memory;
 static char shutdown_event_name[40];
-static   NTService  Service;        ///< Service object for WinNT
+static char restart_event_name[40];
+static NTService  Service;        ///< Service object for WinNT
 #endif /* _WIN32 */
 
 static bool dynamic_plugins_are_initialized= false;
@@ -1808,6 +1822,34 @@ static void close_connections(void)
 }
 
 
+bool signal_restart_server()
+{
+#ifdef _WIN32
+  if (!SetEvent(hEventRestart))
+  {
+    sql_print_error("Got error: %ld from SetEvent", GetLastError());
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Internal operation failure");
+    return true;
+  }
+#else
+  if (!is_mysqld_managed())
+  {
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0),
+             "mysqld is not managed by supervisor process");
+    return true;
+  }
+
+  if (pthread_kill(signal_thread_id.thread, SIGUSR2))
+  {
+    DBUG_PRINT("error", ("Got error %d from pthread_kill", errno));
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Internal operation failure");
+    return true;
+  }
+#endif
+  return false;
+}
+
+
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
@@ -1880,8 +1922,9 @@ static void unireg_abort(int exit_code)
 
 static void mysqld_exit(int exit_code)
 {
-  DBUG_ASSERT(exit_code >= MYSQLD_SUCCESS_EXIT
-              && exit_code <= MYSQLD_FAILURE_EXIT);
+  DBUG_ASSERT((exit_code >= MYSQLD_SUCCESS_EXIT
+              && exit_code <= MYSQLD_ABORT_EXIT) ||
+	          exit_code == MYSQLD_RESTART_EXIT);
   mysql_audit_finalize();
   Srv_session::module_deinit();
   delete_optimizer_cost_module();
@@ -1891,18 +1934,13 @@ static void mysqld_exit(int exit_code)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
 #endif
+
 #if defined(_WIN32)
-  if (Service.IsNT() && windows_service)
-  {
-    Service.Stop();
-  }
-  else
-  {
-    Service.SetShutdownEvent(0);
-    if (hEventShutdown)
-      CloseHandle(hEventShutdown);
-  }
-#endif
+  if (hEventShutdown)
+    CloseHandle(hEventShutdown);
+  close_service_status_pipe_in_mysqld();
+#endif // _WIN32
+
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -2730,13 +2768,14 @@ void my_init_signals()
 
   (void) sigemptyset(&mysqld_signal_mask);
   /*
-    Block SIGQUIT, SIGHUP and SIGTERM.
+    Block SIGQUIT, SIGHUP, SIGTERM and SIGUSR2.
     The signal handler thread does sigwait() on these.
   */
   (void) sigaddset(&mysqld_signal_mask, SIGQUIT);
   (void) sigaddset(&mysqld_signal_mask, SIGHUP);
   (void) sigaddset(&mysqld_signal_mask, SIGTERM);
   (void) sigaddset(&mysqld_signal_mask, SIGTSTP);
+  (void) sigaddset(&mysqld_signal_mask, SIGUSR2);
   /*
     Block SIGINT unless debugging to prevent Ctrl+C from causing
     unclean shutdown of the server.
@@ -2770,7 +2809,7 @@ static void start_signal_handler()
   (void) my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
 
   /*
-    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL can interrupt
+    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL/SIGUSR2 can interrupt
     the socket listener successfully.
   */
   main_thread_id= my_thread_self();
@@ -2803,6 +2842,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
   (void) sigaddset(&set, SIGTERM);
   (void) sigaddset(&set, SIGQUIT);
   (void) sigaddset(&set, SIGHUP);
+  (void) sigaddset(&set, SIGUSR2);
 
   /*
     Signal to start_signal_handler that we are ready.
@@ -2819,19 +2859,38 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
     all server components have been initialized.
   */
   server_components_init_wait();
-
   for (;;)
   {
     int sig;
+#ifdef __APPLE__
     while (sigwait(&set, &sig) == EINTR)
     {}
+#else
+    siginfo_t sig_info;
+    while (sigwaitinfo(&set, &sig_info) == EINTR)
+    {}
+    sig= sig_info.si_signo;
+#endif // __APPLE__
     if (cleanup_done)
     {
       my_thread_end();
       my_thread_exit(0);      // Safety
       return NULL;            // Avoid compiler warnings
     }
-    switch (sig) {
+    switch (sig)
+    {
+    case SIGUSR2:
+      signal_hand_thr_exit_code= MYSQLD_RESTART_EXIT;
+#ifndef __APPLE__ // Mac OS doesn't have sigwaitinfo.
+      //  Log a note if mysqld is restarted via kill command.
+      if (sig_info.si_pid != getpid())
+      {
+        sql_print_information("Received signal SIGUSR2."
+                              " Restarting mysqld (Version %s)",
+                              server_version);
+      }
+#endif // __APPLE__
+      // fall through
     case SIGTERM:
     case SIGQUIT:
       // Switch to the file log message processing.
@@ -2869,7 +2928,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
         close_connections();
       }
       my_thread_end();
-      my_thread_exit(0);
+      my_thread_exit(nullptr);
       return NULL;  // Avoid compiler warnings
       break;
     case SIGHUP:
@@ -3128,6 +3187,7 @@ SHOW_VAR com_status_vars[]= {
   {"replace_select",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REPLACE_SELECT]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"reset",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESET]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"resignal",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESIGNAL]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"restart",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESTART_SERVER]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke_all",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ALL]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke_roles",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ROLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -4512,7 +4572,7 @@ static int init_server_components()
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 #ifdef _WIN32
-    FreeConsole();        // Remove window
+    // FreeConsole();        // Remove window
 #endif /* _WIN32 */
   }
   else
@@ -5191,15 +5251,27 @@ static int init_server_components()
 
 #ifdef _WIN32
 
-extern "C" void *handle_shutdown(void *arg)
+extern "C" void *handle_shutdown_and_restart(void *arg)
 {
   MSG msg;
+  HANDLE event_handles[2];
+  event_handles[0]= hEventShutdown;
+  event_handles[1]= hEventRestart;
+
   my_thread_init();
   /* This call should create the message queue for this thread. */
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
-  if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+  DWORD ret_code= WaitForMultipleObjects(2, static_cast<HANDLE*>(event_handles),
+                                         FALSE, INFINITE);
+
+
+  if (ret_code == WAIT_OBJECT_0 || ret_code == WAIT_OBJECT_0 + 1)
   {
-    LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
+    if (ret_code == WAIT_OBJECT_0)
+      LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
+    else
+      signal_hand_thr_exit_code= MYSQLD_RESTART_EXIT;
+
     set_connection_events_loop_aborted(true);
     close_connections();
     my_thread_end();
@@ -5209,19 +5281,29 @@ extern "C" void *handle_shutdown(void *arg)
 }
 
 
-static void create_shutdown_thread()
+static void create_shutdown_and_restart_thread()
 {
-  hEventShutdown=CreateEvent(0, false, false, shutdown_event_name);
+  DBUG_ENTER("create_shutdown_and_restart_thread");
+
+  const char *errmsg;
   my_thread_attr_t thr_attr;
-  DBUG_ENTER("create_shutdown_thread");
+  SECURITY_ATTRIBUTES *shutdown_sec_attr;
+
+  my_security_attr_create(&shutdown_sec_attr, &errmsg, GENERIC_ALL,
+			  SYNCHRONIZE | EVENT_MODIFY_STATE);
+
+  hEventShutdown= CreateEvent(shutdown_sec_attr, FALSE, FALSE,
+			      shutdown_event_name);
+  hEventRestart= CreateEvent(0, FALSE, FALSE, restart_event_name);
 
   my_thread_attr_init(&thr_attr);
 
-  if (my_thread_create(&shutdown_thr_handle, &thr_attr, handle_shutdown, 0))
+  if (my_thread_create(&shutdown_restart_thr_handle, &thr_attr,
+		       handle_shutdown_and_restart, 0))
     LogErr(WARNING_LEVEL, ER_CANT_CREATE_SHUTDOWN_THREAD, errno);
+
+  my_security_attr_free(shutdown_sec_attr);
   my_thread_attr_destroy(&thr_attr);
-  // On "Stop Service" we have to do regular shutdown
-  Service.SetShutdownEvent(hEventShutdown);
 }
 #endif /* _WIN32 */
 
@@ -5808,7 +5890,16 @@ int mysqld_main(int argc, char **argv)
    Thus set the long running service control manager timeout
   */
 #if defined(_WIN32)
-  Service.SetSlowStarting(slow_start_timeout);
+  if (windows_service)
+  {
+    if (setup_service_status_cmd_processed_handle())
+      unireg_abort(MYSQLD_ABORT_EXIT);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "T %lu", slow_start_timeout);
+    Service_status_msg msg(buf);
+    send_service_status(msg);
+  }
 #endif
 
   if (init_server_components())
@@ -6253,7 +6344,7 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
-  create_shutdown_thread();
+  create_shutdown_and_restart_thread();
 #endif
   start_handle_manager();
 
@@ -6272,7 +6363,11 @@ int mysqld_main(int argc, char **argv)
                     mysqld_port, MYSQL_COMPILATION_COMMENT);
 
 #if defined(_WIN32)
-  Service.SetRunning();
+  if (windows_service)
+  {
+    Service_status_msg s("R");
+    send_service_status(s);
+  }
 #endif
 
   server_components_initialized();
@@ -6350,21 +6445,21 @@ int mysqld_main(int argc, char **argv)
   DBUG_PRINT("info", ("Waiting for shutdown proceed"));
   int ret= 0;
 #ifdef _WIN32
-  if (shutdown_thr_handle.handle)
-    ret= my_thread_join(&shutdown_thr_handle, NULL);
-  shutdown_thr_handle.handle= NULL;
+  if (shutdown_restart_thr_handle.handle)
+    ret= my_thread_join(&shutdown_restart_thr_handle, NULL);
+  shutdown_restart_thr_handle.handle= NULL;
   if (0 != ret)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "shutdown ", ret);
 #else
   if (signal_thread_id.thread != 0)
-    ret= my_thread_join(&signal_thread_id, NULL);
+    ret= my_thread_join(&signal_thread_id, nullptr);
   signal_thread_id.thread= 0;
   if (0 != ret)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "signal_", ret);
-#endif
+#endif // _WIN32
 
   clean_up(1);
-  mysqld_exit(MYSQLD_SUCCESS_EXIT);
+  mysqld_exit(signal_hand_thr_exit_code);
 }
 
 
@@ -6374,18 +6469,58 @@ int mysqld_main(int argc, char **argv)
 ****************************************************************************/
 
 #if defined(_WIN32)
+
+
+bool is_windows_service()
+{
+  return windows_service;
+}
+
+
+NTService *get_win_service_ptr()
+{
+  return &Service;
+}
+
+
 int mysql_service(void *p)
 {
+  int my_argc;
+  char **my_argv;
+
+  if (use_opt_args)
+  {
+    my_argc= opt_argc;
+    my_argv= opt_argv;
+  }
+  else if (is_mysqld_monitor())
+  {
+      my_argc= Service.my_argc;
+      my_argv= Service.my_argv;
+  }
+  else
+  {
+    my_argc= my_global_argc;
+    my_argv= my_global_argv;
+  }
+
+  if (!mysqld_early_option)
+  {
+    int res= start_monitor();
+    if (res != -1)
+    {
+      deinitialize_mysqld_monitor();
+      return res;
+    }
+  }
+
   if (my_thread_init())
   {
     flush_error_log_messages();
     return 1;
   }
 
-  if (use_opt_args)
-    win_main(opt_argc, opt_argv);
-  else
-    win_main(Service.my_argc, Service.my_argv);
+  win_main(my_argc, my_argv);
 
   my_thread_end();
   return 0;
@@ -6478,29 +6613,47 @@ default_service_handling(char **argv,
 
 int mysqld_main(int argc, char **argv)
 {
-  /*
-    When several instances are running on the same machine, we
-    need to have an  unique  named  hEventShudown  through the
-    application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
-  */
-  int10_to_str((int) GetCurrentProcessId(),my_stpcpy(shutdown_event_name,
-                                                  "MySQLShutdown"), 10);
+   bool mysqld_monitor= false;
+   mysqld_early_option= is_early_option(argc, argv);
 
-  /* Must be initialized early for comparison of service name */
-  system_charset_info= &my_charset_utf8_general_ci;
+   if (!mysqld_early_option)
+   {
+     initialize_mysqld_monitor();
+     mysqld_monitor = is_mysqld_monitor();
+   }
 
+   if (mysqld_early_option || !mysqld_monitor)
+   {
+     /*
+       When several instances are running on the same machine, we
+       need to have an  unique  named  hEventShudown  through the
+       application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
+     */
+
+     snprintf(shutdown_event_name, sizeof(shutdown_event_name),
+              "mysqld%s_shutdown",  get_monitor_pid());
+     int10_to_str((int)GetCurrentProcessId(),
+                  my_stpcpy(restart_event_name, "MYSQLRestart"), 10);
+   }
+
+   /* Must be initialized early for comparison of service name */
+   system_charset_info= &my_charset_utf8_general_ci;
+
+   if (mysqld_early_option || !mysqld_monitor)
+   {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  pre_initialize_performance_schema();
+     pre_initialize_performance_schema();
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-  if (my_init())
-  {
-    LogErr(ERROR_LEVEL, ER_MYINIT_FAILED);
-    flush_error_log_messages();
-    return 1;
-  }
+     if (my_init())
+     {
+       LogErr(ERROR_LEVEL, ER_MYINIT_FAILED);
+       flush_error_log_messages();
+       return 1;
+     }
+   }
 
-  if (Service.GetOS())  /* true NT family */
+  if (Service.GetOS() && mysqld_monitor)  /* true NT family */
   {
     char file_path[FN_REFLEN];
     my_path(file_path, argv[0], "");          /* Find name in path */
@@ -6523,6 +6676,7 @@ int mysqld_main(int argc, char **argv)
         if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
           load_default_groups[load_default_groups_sz-2]= argv[1];
         windows_service= true;
+
         Service.Init(argv[1], mysql_service);
         return 0;
       }
@@ -6581,11 +6735,21 @@ int mysqld_main(int argc, char **argv)
       return 0;
     }
   }
-  /* Start as standalone server */
-  Service.my_argc=argc;
-  Service.my_argv=argv;
-  mysql_service(NULL);
-  return 0;
+
+  // Set windows_service value in mysqld
+  if (!mysqld_monitor)
+  {
+    windows_service= is_monitor_win_service();
+    my_global_argc= argc;
+    my_global_argv= argv;
+  }
+  else
+  {
+    Service.my_argc= argc;
+    Service.my_argv= argv;
+  }
+
+  return mysql_service(NULL);
 }
 #endif // _WIN32
 
@@ -10115,7 +10279,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_namedpipes, "con_named_pipes", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_handle_con_sharedmem, "con_shared_mem", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_handle_shutdown_restart, "shutdown_restart", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #endif /* _WIN32 */
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_handle_manager, "manager", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
