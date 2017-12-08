@@ -132,14 +132,8 @@ CREATE TABLE t5 (a int PRIMARY KEY, t5b tinyblob,
    STORAGE disk TABLESPACE ts1 ENGINE ndb;
 
 CREATE INDEX 5d_i ON t5(t5d);
-# Disabling ndb_desc output due to non-determinism in
-#  'Length of frm data'
-#--exec $NDB_DESC --no-defaults -d test t5
 
 DROP INDEX 5d_i on t5;
-# Disabling ndb_desc output due to non-determinism in
-#  'Length of frm data'
-#--exec $NDB_DESC --no-defaults -d test t5
 
 ALTER TABLE t5 ADD INDEX 5d_i(t5d);
 
