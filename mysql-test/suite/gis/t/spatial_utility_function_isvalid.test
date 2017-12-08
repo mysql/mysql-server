@@ -416,15 +416,6 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 --echo # Geographic SRS (shall pass)
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 2000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (2000001, 1, 'TEST2000001', 'Foo', 2000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000001));
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 2000001;
-
 --echo # Verify that ST_IsValid() returns NULL if at least one of its parameters
 --echo # is NULL
 SELECT ST_ISVALID(NULL);

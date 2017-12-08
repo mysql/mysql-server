@@ -4112,13 +4112,6 @@ ST_SRID(ST_GEOMFROMGEOJSON(
 "        { \"type\": \"name\", \"properties\":                     "
 "          { \"name\"
 4326
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 22222222.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22222222;
 #
 # Bug #26941370 ST_GEOMFROMGEOJSON ALLOWS OUT-OF-RANGE COORDINATES
 #

@@ -1655,16 +1655,6 @@ ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 ));
 ERROR 22S00: st_symdifference(POINT, POINT) has not been implemented for geographic spatial reference systems.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (22000001, 1, 'TEST22000001', 'Foo', 22000001, 'FOOBAR', '');
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
-ST_GEOMFROMTEXT('POINT(0 0)', 22000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 22000001)
-));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 22000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22000001;
 #
 # Bug #25510403 SRID OF RESULT OF SET OPERATION IS DIFFERENT FROM INPUT
 # GEOMETRIES

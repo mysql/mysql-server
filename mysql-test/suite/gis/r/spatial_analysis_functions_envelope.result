@@ -405,13 +405,6 @@ DO ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 # Geographic SRS (should fail)
 DO ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 ERROR 22S00: st_envelope(POINT) has not been implemented for geographic spatial reference systems.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (14000001, 1, 'TEST14000001', 'Foo', 14000001, 'FOOBAR', '');
-DO ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 14000001));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 14000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 14000001;
 #
 # WL#11096 Don't do Cartesian computations on geographic geometries
 #

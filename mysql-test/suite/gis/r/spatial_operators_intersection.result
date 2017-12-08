@@ -1596,16 +1596,6 @@ ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 ));
 ERROR 22S00: st_intersection(POINT, POINT) has not been implemented for geographic spatial reference systems.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (16000001, 1, 'TEST16000001', 'Foo', 16000001, 'FOOBAR', '');
-SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMTEXT('POINT(0 0)', 16000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 16000001)
-));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 16000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 16000001;
 #
 # Bug #25510403 SRID OF RESULT OF SET OPERATION IS DIFFERENT FROM INPUT
 # GEOMETRIES
