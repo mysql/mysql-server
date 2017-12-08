@@ -22,7 +22,8 @@
 
 #include "my_io.h"
 #include "my_thread.h"
-#include "sql/log.h"                            /* sql_print_information */
+#include "mysqld_error.h"
+#include <mysql/components/services/log_builtins.h>
 #include "sql/replication.h"
 
 typedef struct st_mysql_show_var SHOW_VAR;
@@ -44,29 +45,30 @@ public:
 
   inline void function_enter(const char *func_name)
   {
-    if (trace_level_ & kTraceFunction)
-      sql_print_information("---> %s enter", func_name);
+    if ((trace_level_ & kTraceFunction) && log_bi)
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_TRACE_ENTER_FUNC, func_name);
   }
 
   inline int  function_exit(const char *func_name, int exit_code)
   {
-    if (trace_level_ & kTraceFunction)
-      sql_print_information("<--- %s exit (%d)", func_name, exit_code);
+    if ((trace_level_ & kTraceFunction) && log_bi)
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_TRACE_EXIT_WITH_INT_EXIT_CODE,
+             func_name, exit_code);
     return exit_code;
   }
 
   inline bool function_exit(const char *func_name, bool exit_code)
   {
-    if (trace_level_ & kTraceFunction)
-      sql_print_information("<--- %s exit (%s)", func_name,
-                            exit_code ? "True" : "False");
+    if ((trace_level_ & kTraceFunction) && log_bi)
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_TRACE_EXIT_WITH_BOOL_EXIT_CODE,
+             func_name, exit_code ? "True" : "False");
     return exit_code;
   }
 
   inline void function_exit(const char *func_name)
   {
-    if (trace_level_ & kTraceFunction)
-      sql_print_information("<--- %s exit", func_name);
+    if ((trace_level_ & kTraceFunction) && log_bi)
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_TRACE_EXIT, func_name);
   }
 
 Trace()

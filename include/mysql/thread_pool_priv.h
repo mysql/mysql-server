@@ -37,11 +37,6 @@
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/debug_sync.h"
 #include "sql/field.h"
-/*
-  Print to the MySQL error log -- ultimately, this should possibly
-  become a service calling another service.
-*/
-#include "sql/log.h"
 #include "sql/sql_profile.h"
 #include "sql/sql_thd_internal_api.h"
 #include "sql/table.h"

@@ -18,6 +18,9 @@
  */
 
 #include "plugin/x/src/xpl_server.h"
+#include "plugin/x/generated/mysqlx_version.h"
+
+#define LOG_SUBSYSTEM_TAG  MYSQLX_PLUGIN_NAME
 
 #include "my_config.h"
 
@@ -25,7 +28,6 @@
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/service_ssl_wrapper.h"
-#include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
@@ -355,7 +357,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
     if (instance)
       instance->server().start_failed();
     instance_rwl.unlock();
-    my_plugin_log_message(&xpl::plugin_handle, MY_ERROR_LEVEL, "Startup failed with error \"%s\"", e.what());
+    LogPluginErr(ERROR_LEVEL, ER_XPLUGIN_STARTUP_FAILED, e.what());
     return 1;
   }
 
@@ -369,8 +371,7 @@ int xpl::Server::exit(MYSQL_PLUGIN)
   exiting = true;
 
   if (nullptr != xpl::plugin_handle)
-    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exiting");
-
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_SERVER_EXITING);
   if (instance)
   {
     instance->unregister_udfs();
@@ -399,7 +400,7 @@ int xpl::Server::exit(MYSQL_PLUGIN)
   }
 
   if (nullptr != xpl::plugin_handle)
-    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exit done");
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_SERVER_EXITED);
 
   xpl::plugin_handle = nullptr;
 
@@ -509,21 +510,17 @@ static xpl::Ssl_config choose_ssl_config(const bool mysqld_have_ssl,
 {
   if (!mysqlx_ssl.is_configured() && mysqld_have_ssl)
   {
-    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
-        "Using SSL configuration from MySQL Server");
-
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_CONF_FROM_SERVER);
     return mysqld_ssl;
   }
 
   if (mysqlx_ssl.is_configured())
   {
-    my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
-        "Using SSL configuration from Mysqlx Plugin");
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_CONF_FROM_MYSQLX);
     return mysqlx_ssl;
   }
 
-  my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
-      "Neither MySQL Server nor Mysqlx Plugin has valid SSL configuration");
+  LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_FAILED_TO_USE_SSL_CONF);
 
   return xpl::Ssl_config();
 }
@@ -601,13 +598,13 @@ bool xpl::Server::on_net_startup()
 
     if (ssl_setup_result)
     {
-      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
-          "Using " IS_YASSL_OR_OPENSSL("YaSSL", "OpenSSL") " for TLS connections");
+      LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION,
+                   IS_YASSL_OR_OPENSSL("YaSSL", "OpenSSL"));
     }
     else
     {
-      my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL,
-          "For more information, please see the Using Secure Connections with X Plugin section in the MySQL documentation.");
+      LogPluginErr(INFORMATION_LEVEL,
+                   ER_XPLUGIN_REFERENCE_TO_SECURE_CONN_WITH_XPLUGIN);
     }
 
     if (instance->server().prepare(ngs::move(ssl_ctx), skip_networking, skip_name_resolve, true))

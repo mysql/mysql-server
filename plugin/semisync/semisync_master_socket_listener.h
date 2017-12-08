@@ -102,9 +102,8 @@ public:
 #ifndef _WIN32
       if (socket_id > FD_SETSIZE)
       {
-        sql_print_error("Semisync slave socket fd is %u. "
-                        "select() cannot handle if the socket fd is "
-                        "bigger than %u (FD_SETSIZE).", socket_id, FD_SETSIZE);
+        LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_TO_HANDLE_SOCKET,
+               socket_id, FD_SETSIZE);
         return false;
       }
 #endif // _WIN32

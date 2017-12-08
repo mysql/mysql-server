@@ -559,7 +559,8 @@ private:
       {
         m_ack_array[i].update(log_file_name, log_file_pos);
         if (trace_level_ & kTraceDetail)
-          sql_print_information("Update an exsiting ack in slot %u", i);
+          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK,
+                 i);
         break;
       }
     }

@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#if defined(HAVE_OPENSSL)
+#define LOG_SUBSYSTEM_TAG  "sha256_password"
+#endif
+
 #include "sql/auth/sql_authentication.h"
 
 #include <string.h>
@@ -79,6 +83,8 @@
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
+#include <mysql/components/my_service.h>
+
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
@@ -3035,6 +3041,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 }
 
 #if defined(HAVE_OPENSSL)
+
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
 
@@ -3318,17 +3325,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (private_key == NULL || public_key == NULL)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-        "Authentication requires either RSA keys or SSL encryption");
+      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
       DBUG_RETURN(CR_ERROR);
     }
 
 
     if ((cipher_length= g_sha256_rsa_keys->get_cipher_length()) > MAX_CIPHER_LENGTH)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-        "RSA key cipher length of %u is too long. Max value is %u.",
-        g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
+      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_RSA_KEY_TOO_LONG,
+                   g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
     }
 
@@ -3395,9 +3400,8 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   if (is_error)
   {
     /* User salt is not correct */
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Password salt for user '%s' is corrupt.",
-                          info->user_name);
+    LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_SALT_FOR_USER_CORRUPT,
+                 info->user_name);
     DBUG_RETURN(CR_ERROR);
   }
 
