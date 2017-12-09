@@ -164,7 +164,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --echo # Ensure that server is ssl enabled
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 #-----------------------------------------------------------------------------
 
@@ -254,7 +254,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -314,7 +314,7 @@ show variables like 'sha256%';
 
 --echo # 6.3 : SSL connection
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 
 
@@ -325,7 +325,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.

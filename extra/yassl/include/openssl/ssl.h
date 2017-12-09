@@ -192,7 +192,7 @@ enum { /* X509 Constants */
 unsigned long ERR_get_error_line_data(const char**, int*, const char**, int *);
 void          ERR_print_errors_fp(FILE*);
 char*         ERR_error_string(unsigned long,char*);
-void          ERR_remove_state(unsigned long);
+void          ERR_remove_thread_state(const void *);
 unsigned long ERR_get_error(void);
 unsigned long ERR_peek_error(void);
 int           ERR_GET_REASON(int);

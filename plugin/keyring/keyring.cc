@@ -165,7 +165,9 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   //not taking a lock here as the calls to keyring_deinit are serialized by
   //the plugin framework
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   ERR_free_strings();
   EVP_cleanup();
 #ifndef HAVE_YASSL

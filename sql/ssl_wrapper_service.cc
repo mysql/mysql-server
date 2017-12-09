@@ -328,6 +328,8 @@ void ssl_wrapper_thread_cleanup()
 {
 #if !defined(HAVE_YASSL)
   ERR_clear_error();
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif // !defined(HAVE_YASSL)
 }
