@@ -152,7 +152,8 @@ lookup_error_stat_index(uint mysql_errno)
 
   for (uint i = 0; i < NUM_SECTIONS; i++)
   {
-    if (mysql_errno < (uint)(errmsg_section_start[i] + errmsg_section_size[i]))
+    if (mysql_errno >= (uint)errmsg_section_start[i] &&
+        mysql_errno < (uint)(errmsg_section_start[i] + errmsg_section_size[i]))
     {
       /* Following +1 is to accomodate NULL row in error_names_array */
       index = mysql_errno - errmsg_section_start[i] + offset + 1;

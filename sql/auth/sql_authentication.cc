@@ -604,7 +604,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_NO_PASSWORD_ERROR,
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR_WITHOUT_PASSWORD,
            mpvio->auth_info.user_name,
            mpvio->auth_info.host_or_ip);
   }
@@ -624,7 +624,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR,
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR_WITH_PASSWORD,
            mpvio->auth_info.user_name,
            mpvio->auth_info.host_or_ip,
            passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
@@ -2645,7 +2645,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
                mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      LogErr(INFORMATION_LEVEL, ER_ACCOUNT_HAS_BEEN_LOCKED,
+      LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED,
              mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
       DBUG_RETURN(1);
     }
@@ -2676,7 +2676,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
                                      "%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_PASSWORD_LOGIN);
+      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);

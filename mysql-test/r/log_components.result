@@ -66,26 +66,26 @@ FLUSH ERROR LOGS;
 ### error log file
 ###
 
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@session.debug="+d,log_error_normalize"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT "*** SWITCHING ERROR LOG TO JSON ***"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT "*** SWITCHING ERROR LOG TO TRAD AND JSON ***"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_json"
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
-[prio=3];[err_code=3621];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "*** SWITCHING ERROR LOG TO JSON ***"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "*** SWITCHING ERROR LOG TO TRAD AND JSON ***"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_json"
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
+[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
 [prio=3];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
 { "prio" : 3, "msg" : "using log_message() in external service", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
 [prio=1];[thread=0];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[label=Error];
@@ -142,16 +142,16 @@ FLUSH ERROR LOGS;
 { "log_type" : 1, "prio" : 3, "wl9651_val1" : -7, "wl9651_val2" : "1", "wl9651_val3a" : 1, "wl9651_val3c" : 3, "msg" : "WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Note" }
 [label=log_sink_test: broken item with class 3, type 131072];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Error];
 { "label" : "log_sink_json: broken item with class 3, type 131072", "prio" : 1, "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "label" : "Error" }
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_filter_rules= DEFAULT", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-[prio=3];[err_code=3621];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-[prio=3];[err_code=3621];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
-{ "prio" : 3, "err_code" : 3621, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: UNINSTALL COMPONENT \"file://component_log_sink_test\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_internal; log_sink_test; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"logging as traditional MySQL error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_filter_rules= DEFAULT", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: FLUSH ERROR LOGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: UNINSTALL COMPONENT \"file://component_log_sink_test\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
 
 ###
 ### done

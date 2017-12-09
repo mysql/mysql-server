@@ -1817,7 +1817,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   if (error > 0)
   {
     char errbuf[MYSQL_ERRMSG_SIZE];
-    LogErr(ERROR_LEVEL, ER_GET_ERRNO, my_errno(),
+    LogErr(ERROR_LEVEL, ER_GET_ERRNO_FROM_STORAGE_ENGINE, my_errno(),
            my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   end_read_record(&read_record_info);

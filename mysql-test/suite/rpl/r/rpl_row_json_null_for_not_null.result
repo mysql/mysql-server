@@ -10,7 +10,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t (i INT, j JSON NOT NULL);
 SET SESSION binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4548	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 include/save_binlog_position.inc
 INSERT IGNORE INTO t VALUES (1, NULL);
 Warnings:

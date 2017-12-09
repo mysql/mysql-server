@@ -1156,7 +1156,7 @@ void check_binlog_cache_size(THD *thd)
     }
     else
     {
-      LogErr(WARNING_LEVEL, ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+      LogErr(WARNING_LEVEL, ER_BINLOG_CACHE_SIZE_TOO_LARGE,
              binlog_cache_size,
              (ulong) max_binlog_cache_size);
     }
@@ -1183,7 +1183,7 @@ void check_binlog_stmt_cache_size(THD *thd)
     }
     else
     {
-      LogErr(WARNING_LEVEL, ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
+      LogErr(WARNING_LEVEL, ER_BINLOG_STMT_CACHE_SIZE_TOO_LARGE,
              binlog_stmt_cache_size,
              (ulong) max_binlog_stmt_cache_size);
     }
@@ -3824,7 +3824,7 @@ int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name,
       my_printf_error(ER_NO_UNIQUE_LOGFILE,
                       ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
                       MYF(ME_FATALERROR), log_name);
-      LogErr(ERROR_LEVEL, ER_NO_UNIQUE_LOGFILE, log_name);
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_GENERATE_UNIQUE_LOGFILE, log_name);
       return 1;
     }
   }
@@ -8227,7 +8227,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       if (cache->error)				// Error on read
       {
         char errbuf[MYSYS_STRERROR_SIZE];
-        LogErr(ERROR_LEVEL, ER_ERROR_ON_READ, cache->file_name,
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_READ_FILE, cache->file_name,
                errno, my_strerror(errbuf, sizeof(errbuf), errno));
         write_error= true; // Don't give more errors
         goto err;
@@ -8243,7 +8243,7 @@ err:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     write_error= true;
-    LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name,
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, name,
            errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   thd->commit_error= THD::CE_FLUSH_ERROR;
@@ -8357,7 +8357,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name, errno,
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, name, errno,
                my_strerror(errbuf, sizeof(errbuf), errno));
       }
 
@@ -8365,7 +8365,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name, errno,
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, name, errno,
                my_strerror(errbuf, sizeof(errbuf), errno));
       }
     }
@@ -8393,7 +8393,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, index_file_name,
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, index_file_name,
              errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
@@ -12156,7 +12156,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   DBUG_ENTER("print_unsafe_warning_in_log");
   sprintf(buf, ER_DEFAULT(ER_BINLOG_UNSAFE_STATEMENT),
           ER_DEFAULT(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-  LogErr(WARNING_LEVEL, ER_MESSAGE_AND_STATEMENT, buf, query);
+  LogErr(WARNING_LEVEL, ER_BINLOG_UNSAFE_MESSAGE_AND_STATEMENT, buf, query);
   DBUG_VOID_RETURN;
 }
 

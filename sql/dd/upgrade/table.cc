@@ -355,7 +355,7 @@ bool Trigger_loader::load_triggers(THD *thd,
       DBUG_RETURN(true);
     }
 
-    LogErr(WARNING_LEVEL, ER_TRG_NO_CREATION_CTX, db_name, table_name);
+    LogErr(WARNING_LEVEL, ER_TRG_CREATION_CTX_NOT_SET, db_name, table_name);
 
 
     /*
@@ -565,7 +565,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     const char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
-    LogErr(WARNING_LEVEL, ER_OLD_FILE_FORMAT, m_path, "TRIGGER");
+    LogErr(WARNING_LEVEL, ER_FILE_HAS_OLD_FORMAT, m_path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
     {
@@ -1072,7 +1072,7 @@ static bool migrate_view_to_dd(THD *thd,
   {
     // Print warning only once in the error log.
     if (!is_fix_view_cols_and_deps)
-      LogErr(WARNING_LEVEL, ER_VIEW_NO_CREATION_CTX,
+      LogErr(WARNING_LEVEL, ER_VIEW_CREATION_CTX_NOT_SET,
              db_name.c_str(), view_name.c_str());
     invalid_ctx= true;
   }
@@ -1595,7 +1595,8 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (was_truncated)
   {
-    LogErr(ERROR_LEVEL, ER_IDENT_CAUSES_TOO_LONG_PATH, sizeof(path) - 1, path);
+    LogErr(ERROR_LEVEL, ER_TABLE_NAME_CAUSES_TOO_LONG_PATH,
+           sizeof(path) - 1, path);
     return true;
   }
 
@@ -1722,7 +1723,7 @@ static bool migrate_table_to_dd(THD *thd,
       LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_DUMP_UPGRADE, schema_name.c_str(),
              table_name.c_str());
     else
-      LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
+      LogErr(ERROR_LEVEL, ER_TABLE_UPGRADE_REQUIRED, table_name.c_str());
 
     return true;
   }

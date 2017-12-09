@@ -3155,7 +3155,7 @@ bool check_acl_tables(TABLE_LIST *tables, bool report_error)
       }
       else
       {
-        LogErr(WARNING_LEVEL, ER_UNSUPPORTED_ENGINE,
+        LogErr(WARNING_LEVEL, ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE,
                ha_resolve_storage_engine_name(t->table->file->ht),
                t->db, t->table_name);
       }

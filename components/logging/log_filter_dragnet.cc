@@ -1900,7 +1900,7 @@ mysql_service_status_t log_filter_init()
              : (const char *) var_value);
 
       if (var_value != nullptr)
-        LogErr(WARNING_LEVEL, ER_COMPONENT_FILTER_FLABBERGASTED,
+        LogErr(WARNING_LEVEL, ER_COMPONENT_FILTER_CONFUSED,
                LOG_FILTER_LANGUAGE_NAME,
                &var_value[rr], state);
 

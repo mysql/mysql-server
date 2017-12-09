@@ -149,7 +149,7 @@ static char *init_syms(udf_func *tmp, char *nm)
   {
     if (!opt_allow_suspicious_udfs)
       return nm;
-    LogErr(WARNING_LEVEL, ER_CANT_FIND_DL_ENTRY, nm);
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_FIND_DL_ENTRY, nm);
   }
   return 0;
 }
@@ -309,7 +309,7 @@ void udf_read_functions_table()
         DLERROR_GENERATE(errmsg, error_number);
 
         // Print warning to log
-        LogErr(ERROR_LEVEL, ER_CANT_OPEN_LIBRARY,
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_OPEN_SHARED_LIBRARY,
                tmp->dl, error_number, errmsg);
         // Keep the udf in the hash so that we can remove it later
         continue;
@@ -321,7 +321,7 @@ void udf_read_functions_table()
       char buf[NAME_LEN+16], *missing;
       if ((missing= init_syms(tmp, buf)))
       {
-        LogErr(ERROR_LEVEL, ER_CANT_FIND_DL_ENTRY, missing);
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_DL_ENTRY, missing);
         udf_hash_delete(tmp);
         if (new_dl)
           dlclose(dl);

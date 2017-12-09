@@ -1713,7 +1713,7 @@ public:
     if (closing_thd->get_protocol()->connection_alive())
     {
       LEX_CSTRING main_sctx_user= closing_thd->m_main_security_ctx.user();
-      LogErr(WARNING_LEVEL, ER_FORCING_CLOSE, my_progname,
+      LogErr(WARNING_LEVEL, ER_FORCE_CLOSE_THREAD, my_progname,
              (long) closing_thd->thread_id(),
              (main_sctx_user.length ? main_sctx_user.str : ""));
       /*
@@ -2104,7 +2104,7 @@ static void clean_up(bool print_message)
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(SYSTEM_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname);
+    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname);
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -3022,10 +3022,12 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
 
   if (!thd || MyFlags & ME_ERRORLOG)
+  {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .errcode(error)
               .message("%s: %s", my_progname, str);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -3719,7 +3721,7 @@ int init_common_variables()
   while (!(my_default_lc_messages=
            my_locale_by_name(NULL, lc_messages)))
   {
-    LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_messages);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_messages);
     if (!my_strcasecmp(&my_charset_latin1,
                        lc_messages, mysqld_default_locale_name))
       return 1;
@@ -3769,7 +3771,8 @@ int init_common_variables()
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation)
     {
-      LogErr(ERROR_LEVEL, ER_UNKNOWN_COLLATION, default_collation_name);
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_COLLATION_NAME,
+             default_collation_name);
       return 1;
     }
     if (!my_charset_same(default_charset_info, default_collation))
@@ -3814,7 +3817,7 @@ int init_common_variables()
   while (!(my_default_lc_time_names=
            my_locale_by_name(NULL, lc_time_names_name)))
   {
-    LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_time_names_name);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_time_names_name);
     if (!my_strcasecmp(&my_charset_latin1,
                        lc_time_names_name, mysqld_default_locale_name))
       return 1;
@@ -4820,8 +4823,8 @@ static int init_server_components()
       Reports an error and aborts, if the same base name is specified
       for both binary and relay logs.
     */
-    LogErr(ERROR_LEVEL, ER_RPL_CANT_HAVE_SAME_BASENAME, log_bin_basename,
-           "--log-bin", default_binlogfile_name,
+    LogErr(ERROR_LEVEL, ER_RPL_CANT_HAVE_SAME_BASENAME,
+           log_bin_basename, "--log-bin",
            default_binlogfile_name_from_hostname,
            "--relay-log", default_relaylogfile_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -5174,7 +5177,7 @@ static int init_server_components()
   if (gtid_mode == GTID_MODE_ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
-    LogErr(ERROR_LEVEL, ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON);
+    LogErr(ERROR_LEVEL, ER_RPL_GTID_MODE_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
@@ -6355,7 +6358,7 @@ int mysqld_main(int argc, char **argv)
 
   LogEvent().type(LOG_TYPE_ERROR)
             .prio(SYSTEM_LEVEL)
-            .lookup(ER_STARTUP,
+            .lookup(ER_SERVER_STARTUP_MSG,
                     my_progname,
                     server_version,
 #  ifdef HAVE_SYS_UN_H
