@@ -78,9 +78,7 @@ void check_exit_hook()
 } // namespace
 
 
-#ifndef XPLUGIN_UNIT_TESTS
 static SERVICE_TYPE(registry) *reg_srv= nullptr;
-#endif
 SERVICE_TYPE(log_builtins) *log_bi= nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
@@ -98,10 +96,8 @@ SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
  */
 int xpl_plugin_init(MYSQL_PLUGIN p)
 {
-#ifndef XPLUGIN_UNIT_TESTS
   if (init_logging_service_for_plugin(&reg_srv))
     return 1;
-#endif  // XPLUGIN_UNIT_TESTS
 
   xpl::Plugin_system_variables::clean_callbacks();
 
@@ -127,9 +123,7 @@ int xpl_plugin_deinit(MYSQL_PLUGIN p)
   check_exit_hook();
   int res= xpl::Server::exit(p);
 
-#ifndef XPLUGIN_UNIT_TESTS
   deinit_logging_service_for_plugin(&reg_srv);
-#endif  // XPLUGIN_UNIT_TESTS
   return res;
 }
 
