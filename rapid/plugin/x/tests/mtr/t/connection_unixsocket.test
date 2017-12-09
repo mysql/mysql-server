@@ -6,6 +6,8 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
+call mtr.add_suppression("Maximum number of authentication attempts reached");
+
 CREATE USER user_127_0_0_1@127.0.0.1 IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_all@'%' IDENTIFIED WITH 'mysql_native_password' BY '';
@@ -200,6 +202,9 @@ let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.s
 # Check if the X Plugin is accessible through
 # new file
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+
+# Connect through unixsocket using PLAIN authentication
+--exec $MYSQLXTEST --plain-auth --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 ## Postamble
 --remove_file $MYSQL_TMP_DIR/basic_connection.tmp

@@ -2486,7 +2486,13 @@ sub mysqlxtest_arguments(){
   {
     valgrind_client_arguments($args, \$exe);
   }
-  
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
+                $path_vardir_trace, "mysqlxtest");
+  }
+
   # Let user provide username and password to command.
   #mtr_add_arg($args, "-u root");
   #mtr_add_arg($args, "--password=");

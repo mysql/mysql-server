@@ -195,7 +195,10 @@ bool Session::handle_auth_message(ngs::Request &command)
     break;
 
   case Authentication_interface::Failed:
+    // It is possible to use different auth methods therefore we should not
+    // call on_auth_failure after first failed attemp
     on_auth_failure(r);
+
     break;
 
   default:
@@ -213,12 +216,35 @@ void Session::on_auth_success(const Authentication_interface::Response &response
   m_state = Ready;
   m_client.on_session_auth_success(*this);
   m_encoder->send_auth_ok(response.data); // send it last, so that on_auth_success() can send session specific notices
+  m_failed_auth_count = 0;
 }
 
 
-void Session::on_auth_failure(const Authentication_interface::Response &responce)
-{
-  log_error("%s.%u: Unsuccessful login attempt: %s", m_client.client_id(), m_id, responce.data.c_str());
-  m_encoder->send_init_error(ngs::Fatal(ER_ACCESS_DENIED_ERROR, "%s", responce.data.c_str()));
-  stop_auth();
+void Session::on_auth_failure(
+    const Authentication_interface::Response &response) {
+  log_debug("%s.%u: Unsuccessful authentication attempt: %s",
+            m_client.client_id(),
+            m_id,
+            response.data.c_str());
+
+  m_encoder->send_init_error(
+      ngs::Fatal(ER_ACCESS_DENIED_ERROR, "%s", response.data.c_str()));
+
+  m_failed_auth_count++;
+
+  if (!can_authenticate_again()) {
+    log_error(
+        "%s.%u: Maximum number of authentication attempts reached,"
+        " login failed.",
+        m_client.client_id(),
+        m_id);
+    stop_auth();
+  }
+
+  m_auth_handler.reset();
+}
+
+
+bool Session::can_authenticate_again() const {
+  return m_failed_auth_count < k_max_auth_attempts;
 }

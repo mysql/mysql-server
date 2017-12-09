@@ -52,9 +52,11 @@ static PSI_cond_info all_x_conds[] = {
 
 
 PSI_rwlock_key KEY_rwlock_x_client_list_clients = PSI_NOT_INSTRUMENTED;
+PSI_rwlock_key KEY_rwlock_x_sha256_password_cache = PSI_NOT_INSTRUMENTED;
 
 static PSI_rwlock_info all_x_rwlocks[] = {
   { &KEY_rwlock_x_client_list_clients, "client_list_clients", 0, 0, PSI_DOCUMENT_ME},
+  { &KEY_rwlock_x_sha256_password_cache, "sha256_password_cache", 0, 0, PSI_DOCUMENT_ME},
 };
 
 

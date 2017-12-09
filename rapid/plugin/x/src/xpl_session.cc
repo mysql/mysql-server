@@ -44,6 +44,9 @@ xpl::Session::~Session()
   if (m_was_authenticated)
     --Global_status_variables::instance().m_sessions_count;
 
+  if (m_failed_auth_count > 0 && !m_was_authenticated)
+    ++Global_status_variables::instance().m_rejected_sessions_count;
+
   m_sql.deinit();
 }
 
@@ -128,8 +131,6 @@ void xpl::Session::on_auth_failure(const ngs::Authentication_interface::Response
   }
   else
     ngs::Session::on_auth_failure(response);
-
-  ++Global_status_variables::instance().m_rejected_sessions_count;
 }
 
 

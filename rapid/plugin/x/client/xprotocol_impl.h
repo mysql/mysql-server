@@ -231,10 +231,17 @@ class Protocol_impl :
   Message *recv_message_with_header(Server_message_type_id *out_mid,
                                     XError *out_error);
 
+  template <typename Auth_continue_handler>
+  XError authenticate_challenge_response(const std::string &user,
+      const std::string &pass, const std::string &db);
+
   XError authenticate_plain(const std::string &user, const std::string &pass,
                             const std::string &db);
   XError authenticate_mysql41(const std::string &user, const std::string &pass,
                               const std::string &db);
+  XError authenticate_sha256_memory(const std::string &user,
+      const std::string &pass, const std::string &db);
+
   XError perform_close();
 
   /**
@@ -298,6 +305,53 @@ class Protocol_impl :
   std::unique_ptr<Query_instances>   m_query_instances;
   std::shared_ptr<Context>           m_context;
 };
+
+template <typename Auth_continue_handler>
+XError Protocol_impl::authenticate_challenge_response(
+    const std::string &user,
+    const std::string &pass,
+    const std::string &db) {
+  Auth_continue_handler auth_continue_handler(this);
+  XError error;
+
+  {
+    Mysqlx::Session::AuthenticateStart auth;
+
+    auth.set_mech_name(auth_continue_handler.get_name());
+
+    error = send(Mysqlx::ClientMessages::SESS_AUTHENTICATE_START, auth);
+
+    if (error)
+      return error;
+  }
+
+  {
+    std::unique_ptr<Message> message{
+      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, &error)};
+
+    if (error)
+      return error;
+
+    Mysqlx::Session::AuthenticateContinue &auth_continue =
+        *static_cast<Mysqlx::Session::AuthenticateContinue *>(
+             message.get());
+
+    error = auth_continue_handler(user, pass, db, auth_continue);
+
+    if (error)
+      return error;
+  }
+
+  {
+    std::unique_ptr<Message> message{
+      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK, &error)};
+
+    if (error)
+      return error;
+  }
+
+  return {};
+}
 
 }  // namespace xcl
 

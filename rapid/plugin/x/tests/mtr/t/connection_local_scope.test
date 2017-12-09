@@ -8,7 +8,6 @@
 --echo #
 --echo ## Testcase
 --echo #
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt: Invalid user or password'");
 call mtr.add_suppression("IP address .* could not be resolved: .*");
 
 --echo

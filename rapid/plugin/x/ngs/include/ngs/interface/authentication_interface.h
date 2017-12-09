@@ -22,6 +22,7 @@
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs_common/bind.h"
 
@@ -50,7 +51,8 @@ class Authentication_interface {
     int error_code;
   };
 
-  typedef Authentication_interface_ptr (*Create)(Session_interface *session);
+  using Create = Authentication_interface_ptr (*)(Session_interface *,
+      SHA256_password_cache_interface *);
 
   Authentication_interface() {}
   Authentication_interface(const Authentication_interface &) = delete;

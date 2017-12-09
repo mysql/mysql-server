@@ -3,7 +3,7 @@ install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 SET GLOBAL mysqlx_connect_timeout = 300;
-call mtr.add_suppression("Unsuccessful login attempt");
+call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER user1_mysqlx@localhost
 IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
 CREATE USER user2_mysqlx@localhost
@@ -35,76 +35,13 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -131,85 +68,13 @@ Enable SSL
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: true
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "PLAIN"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
     }
   }
 }
@@ -219,76 +84,13 @@ setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -404,76 +206,13 @@ setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -866,7 +605,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection.");
 SET GLOBAL require_secure_transport:=1;
 Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
 not ok
@@ -910,7 +648,7 @@ install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 SET GLOBAL mysqlx_connect_timeout = 300;
-call mtr.add_suppression("Unsuccessful login attempt");
+call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER user1_mysqlx@localhost
 IDENTIFIED WITH 'sha256_password' BY 'auth_string1';
 CREATE USER user2_mysqlx@localhost
@@ -942,76 +680,13 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -1038,85 +713,13 @@ Enable SSL
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: true
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "PLAIN"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
     }
   }
 }
@@ -1126,76 +729,13 @@ setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -1311,76 +851,13 @@ setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -1773,7 +1250,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection.");
 SET GLOBAL require_secure_transport:=1;
 Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
 not ok
@@ -1817,7 +1293,7 @@ install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 SET GLOBAL mysqlx_connect_timeout = 300;
-call mtr.add_suppression("Unsuccessful login attempt");
+call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER user1_mysqlx@localhost
 IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string1';
 CREATE USER user2_mysqlx@localhost
@@ -1849,76 +1325,13 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -1945,85 +1358,13 @@ Enable SSL
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: true
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "PLAIN"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
     }
   }
 }
@@ -2033,76 +1374,13 @@ setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -2218,76 +1496,13 @@ setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
-Mysqlx.Connection.Capabilities {
-  capabilities {
-    name: "tls"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "authentication.mechanisms"
-    value {
-      type: ARRAY
-      array {
-        value {
-          type: SCALAR
-          scalar {
-            type: V_STRING
-            v_string {
-              value: "MYSQL41"
-            }
-          }
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "doc.formats"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "text"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.interactive"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
-    }
-  }
-  capabilities {
-    name: "node_type"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_STRING
-        v_string {
-          value: "mysql"
-        }
-      }
-    }
-  }
-  capabilities {
-    name: "client.pwd_expire_ok"
-    value {
-      type: SCALAR
-      scalar {
-        type: V_BOOL
-        v_bool: false
-      }
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
     }
   }
 }
@@ -2680,7 +1895,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection.");
 SET GLOBAL require_secure_transport:=1;
 Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
 not ok

@@ -104,7 +104,7 @@ Command::Command() {
   m_commands["recvtovar"] = &Command::cmd_recvtovar;
   m_commands["recvuntil"] = &Command::cmd_recvuntil;
   m_commands["recvuntildisc"] = &Command::cmd_recv_all_until_disc;
-  m_commands["enablessl"] = &Command::cmd_enablessl;
+  m_commands["do_ssl_handshake"] = &Command::cmd_do_ssl_handshake;
   m_commands["sleep"] = &Command::cmd_sleep;
   m_commands["login"] = &Command::cmd_login;
   m_commands["stmtadmin"] = &Command::cmd_stmtadmin;
@@ -122,7 +122,9 @@ Command::Command() {
   m_commands["fatalerrors"] = &Command::cmd_fatalerrors;
   m_commands["nofatalerrors"] = &Command::cmd_nofatalerrors;
   m_commands["newsession"] = &Command::cmd_newsession;
-  m_commands["newsessionplain"] = &Command::cmd_newsessionplain;
+  m_commands["newsession_plain"] = &Command::cmd_newsession_plain;
+  m_commands["newsession_mysql41"] = &Command::cmd_newsession_mysql41;
+  m_commands["newsession_memory"] = &Command::cmd_newsession_memory;
   m_commands["setsession"] = &Command::cmd_setsession;
   m_commands["closesession"] = &Command::cmd_closesession;
   m_commands["expecterror"] = &Command::cmd_expecterror;
@@ -564,9 +566,10 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
   return Result::Continue;
 }
 
-Command::Result Command::cmd_enablessl(std::istream &input,
-                                       Execution_context *context,
-                                       const std::string &args) {
+Command::Result Command::cmd_do_ssl_handshake(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
   xcl::XError error =
       context->session()->get_protocol().get_connection().activate_tls();
   if (error) {
@@ -663,7 +666,7 @@ Command::Result Command::cmd_sleep(std::istream &input,
 Command::Result Command::cmd_login(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args) {
-  std::string user, pass, db, auth_meth;
+  std::string user, pass, db, auth_meth = "MYSQL41";
 
   if (args.empty()) {
     context->m_connection->get_credentials(&user, &pass);
@@ -694,24 +697,21 @@ Command::Result Command::cmd_login(std::istream &input,
     }
   }
 
-  std::string method = "MYSQL41";
   auto protocol = context->m_connection->active_xprotocol();
 
-  // XXX
-  // Prepered for method map
-  if (0 == strncmp(auth_meth.c_str(), "plain", 5)) {
-    method = "PLAIN";
-  } else if (!(0 == strncmp(auth_meth.c_str(), "mysql41", 5) ||
-               0 == auth_meth.length())) {
-    context->print_error("Wrong authentication method", '\n');
-    return Result::Stop_with_failure;
-  }
+  for (auto &c : auth_meth)
+    c = toupper(c);
 
-  auto error = protocol->execute_authenticate(user, pass, db, method);
+  auto error = protocol->execute_authenticate(user, pass, db, auth_meth);
 
   context->m_connection->active_holder().remove_notice_handler();
 
   if (error) {
+    if (CR_X_UNSUPPORTED_OPTION_VALUE == error.error()) {
+      context->print_error("Wrong authentication method", '\n');
+      return Result::Stop_with_failure;
+    }
+
     if (!context->m_expected_error.check_error(error)) {
       return Result::Stop_with_failure;
     }
@@ -1067,21 +1067,37 @@ Command::Result Command::cmd_nofatalerrors(std::istream &input,
   return Result::Continue;
 }
 
-Command::Result Command::cmd_newsessionplain(std::istream &input,
+Command::Result Command::cmd_newsession_memory(std::istream &input,
                                              Execution_context *context,
                                              const std::string &args) {
-  return do_newsession(input, context, args, true);
+  return do_newsession(input, context, args, {"SHA256_MEMORY"});
+}
+
+Command::Result Command::cmd_newsession_mysql41(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
+  return do_newsession(input, context, args, {"MYSQL41"});
+}
+
+Command::Result Command::cmd_newsession_plain(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
+  return do_newsession(input, context, args, {"PLAIN"});
 }
 
 Command::Result Command::cmd_newsession(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args) {
-  return do_newsession(input, context, args, false);
+  return do_newsession(input, context, args, {});
 }
 
-Command::Result Command::do_newsession(std::istream &input,
-                                       Execution_context *context,
-                                       const std::string &args, bool plain) {
+Command::Result Command::do_newsession(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args,
+    const std::vector<std::string> &auth_methods) {
   if (args.empty()) {
     context->print_error(
         "'newsession' command, requires at "
@@ -1118,7 +1134,7 @@ Command::Result Command::do_newsession(std::istream &input,
   }
 
   try {
-    context->m_connection->create(name, user, pass, db, plain);
+    context->m_connection->create(name, user, pass, db, auth_methods);
     if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
   }
   catch (xcl::XError &err) {
@@ -1281,9 +1297,19 @@ Command::Result Command::cmd_varlet(std::istream &input,
   if (p == std::string::npos) {
     context->m_variables->set(args, "");
   } else {
-    std::string value = args.substr(p + 1);
+    const std::string name  = args.substr(0, p);
+    std::string       value = args.substr(p + 1);
+
     context->m_variables->replace(&value);
-    context->m_variables->set(args.substr(0, p), value);
+
+    if (!context->m_variables->set(name, value)) {
+      context->print_error(
+          "'varlet' command failed, when setting the '",
+          name,
+          "' variable.\n");
+
+      return Result::Stop_with_failure;
+    }
   }
   return Result::Continue;
 }
@@ -1673,8 +1699,10 @@ Command::Result Command::cmd_noquery(std::istream &input,
   return Result::Continue;
 }
 
-void Command::put_variable_to(std::string *result, const std::string &value) {
+bool Command::put_variable_to(std::string *result, const std::string &value) {
   *result = value;
+
+  return true;
 }
 
 void Command::try_result(Result result) {
@@ -1769,6 +1797,24 @@ bool Command::json_string_to_any(const std::string &json_string,
   return !reader.Parse(ss, handler).IsError();
 }
 
+static bool try_open_file_on_different_paths(
+    std::ifstream &stream,
+    const std::string &filename,
+    const std::vector<std::string> &paths) {
+  for (const auto &path : paths) {
+    stream.open(path + filename);
+
+    // Lets access the file to make the "fs.flags" contain
+    // valid values.
+    stream.peek();
+
+    if (stream.good())
+      return true;
+  }
+
+  return stream.good();
+}
+
 Command::Result Command::cmd_import(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
@@ -1777,18 +1823,18 @@ Command::Result Command::cmd_import(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  std::string varg(args);
-  context->m_variables->replace(&varg);
-  const std::string filename = context->m_options.m_import_path + varg;
+  std::string filename(args);
+  context->m_variables->replace(&filename);
 
-  std::ifstream fs(filename.c_str());
+  std::ifstream stream;
 
-  // Lets access the file to make the "fs.flags" contain
-  // valid values.
-  fs.peek();
+  try_open_file_on_different_paths(
+      stream,
+      filename,
+      {context->m_options.m_import_path, ""});
 
   // After the "peek", good can be checked
-  if (!fs.good()) {
+  if (!stream.good()) {
     context->print_error(context->m_script_stack, "Could not open macro file ",
                          args, " (aka ", filename, ")\n");
     return Result::Stop_with_failure;
@@ -1802,7 +1848,7 @@ Command::Result Command::cmd_import(std::istream &input,
     std::make_shared<Indigestion_processor>(context)
   };
 
-  bool r = process_client_input(fs, &processors, &context->m_script_stack,
+  bool r = process_client_input(stream, &processors, &context->m_script_stack,
                                 context->m_console) == 0;
   context->m_script_stack.pop();
 
@@ -1900,8 +1946,8 @@ void print_help_commands() {
   std::cout << "-->macro_delimiter_compress TRUE|FALSE|0|1\n";
   std::cout << "  Enable/disable grouping of adjacent delimiters into\n";
   std::cout << "  single one at \"callmacro\" command.\n";
-  std::cout << "-->enablessl\n";
-  std::cout << "  Enables ssl on current connection\n";
+  std::cout << "-->do_ssl_handshake\n";
+  std::cout << "  Execute SSL handshake, enables SSL on current connection\n";
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
@@ -1966,7 +2012,7 @@ void print_help_commands() {
   std::cout << "-->sleep <SECONDS>\n";
   std::cout << "  Stops execution of mysqlxtest for given number of seconds "
                "(may be fractional)\n";
-  std::cout << "-->login <user>\t<pass>\t<db>\t<mysql41|plain>]\n";
+  std::cout << "-->login <user>\t<pass>\t<db>\t<mysql41|plain|sha256_memory>]\n";
   std::cout << "  Performs authentication steps (use with --no-auth)\n";
   std::cout << "-->loginerror <errno>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Performs authentication steps expecting an error (use with "
@@ -1978,11 +2024,18 @@ void print_help_commands() {
                "something else occurs\n";
   std::cout << "  Works for: newsession, closesession, recvresult, recvok\n";
   std::cout << "-->newsession <name>\t<user>\t<pass>\t<db>\n";
-  std::cout << "  Create a new connection with given name and account (use - "
-               "as user for no-auth)\n";
-  std::cout << "-->newsessionplain <name>\t<user>\t<pass>\t<db>\n";
-  std::cout << "  Create a new connection with given name and account and "
-               "force it to NOT use ssl, even if its generally enabled\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using sequence of mechanisms (AUTO). Use '-' in place of"
+               " the user for raw connection.\n";
+  std::cout << "-->newsession_mysql41 <name>\t<user>\t<pass>\t<db>\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using MYSQL41 mechanism.\n";
+  std::cout << "-->newsession_memory <name>\t<user>\t<pass>\t<db>\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using SHA256_MEMORY mechanism.\n";
+  std::cout << "-->newsession_plain <name>\t<user>\t<pass>\t<db>\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using PLAIN mechanism.\n";
   std::cout << "-->setsession <name>\n";
   std::cout << "  Activate the named session\n";
   std::cout << "-->closesession [abort]\n";

@@ -154,8 +154,9 @@ class Mock_account_verification
     : public ngs::Account_verification_interface {
  public:
   MOCK_CONST_METHOD0(get_salt, const std::string&());
-  MOCK_CONST_METHOD2(verify_authentication_string,
-                     bool(const std::string &, const std::string &));
+  MOCK_CONST_METHOD4(verify_authentication_string,
+                     bool(const std::string &, const std::string &,
+                          const std::string &, const std::string &));
 };
 
 class Mock_sql_data_context : public ngs::Sql_session_interface {

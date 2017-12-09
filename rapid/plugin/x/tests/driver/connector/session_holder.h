@@ -49,7 +49,9 @@ struct Connection_options {
   std::string allowed_tls;
   int64_t     io_timeout { -1 };
   bool        dont_wait_for_disconnect { false };
+  bool        trace_protocol { false };
   xcl::Internet_protocol ip_mode { xcl::Internet_protocol::V4 };
+  bool        compatible { false };
 
   bool is_ssl_set() const {
     return !ssl_ca.empty() ||
@@ -76,7 +78,7 @@ class Session_holder {
   xcl::XError setup_session(const Connection_options &options);
   xcl::XError setup_connection(const Connection_options &options);
   void setup_ssl(const Connection_options &options);
-  void setup_msg_callbacks();
+  void setup_msg_callbacks(const bool force_trace_protocol);
 
   void remove_notice_handler();
 

@@ -46,16 +46,6 @@ namespace {
 const char *_dig_vec_upper =
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-char *octet2hex(char *to, const char *str, size_t len) {
-  const char *str_end = str + len;
-  for (; str != str_end; ++str) {
-    *to++ = _dig_vec_upper[((uint8_t) * str) >> 4];
-    *to++ = _dig_vec_upper[((uint8_t) * str) & 0x0F];
-  }
-  *to = '\0';
-  return to;
-}
-
 void compute_two_stage_mysql41_hash(const char *password,
                                     size_t pass_len,
                                     uint8_t *hash_stage1,
@@ -80,6 +70,27 @@ void my_crypt(char *to, const uint8_t *s1, const uint8_t *s2,
 
 }  // namespace
 
+/**
+  Convert given octet sequence to asciiz string of hex characters;
+  str..str+len and 'to' may not overlap.
+
+  @param [out] to Output buffer. Must be at least 2*len+1 bytes
+  @param [in] str Input string
+  @param [in] len Length of the input string
+
+  @return End of output buffer at position buf+len*2
+ */
+char *octet2hex(char *to, const char *str, size_t len) {
+  const char *str_end = str + len;
+  for (; str != str_end; ++str) {
+    *to++ = _dig_vec_upper[((uint8_t) * str) >> 4];
+    *to++ = _dig_vec_upper[((uint8_t) * str) & 0x0F];
+  }
+  *to = '\0';
+  return to;
+}
+
+
 /** Generate human readable string from the binary
  *  result from hashing function.
  *
@@ -87,7 +98,9 @@ void my_crypt(char *to, const uint8_t *s1, const uint8_t *s2,
  *          human readable version of hash_stage2.
  */
 std::string get_password_from_salt(const std::string &hash_stage2) {
-  std::string result(2 * MYSQL41_HASH_SIZE + 1, '\0');
+  const std::uint8_t result_size = 2 * MYSQL41_HASH_SIZE +
+      1 /* '\0' sign */ + 1 /* '*' sign */;
+  char result[result_size] = {0};
 
   if (hash_stage2.length() != MYSQL41_HASH_SIZE)
     return "";
@@ -95,7 +108,8 @@ std::string get_password_from_salt(const std::string &hash_stage2) {
   result[0] = PVERSION41_CHAR;
   octet2hex(&result[1], &hash_stage2[0], MYSQL41_HASH_SIZE);
 
-  return result;
+  // Skip the additional \0 sign added by octet2hex
+  return {std::begin(result), std::end(result) - 1};
 }
 
 std::string generate_user_salt() {

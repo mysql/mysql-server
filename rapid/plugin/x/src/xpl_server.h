@@ -20,6 +20,7 @@
 #ifndef _XPL_SERVER_H_
 #define _XPL_SERVER_H_
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,7 @@
 #include "plugin/x/ngs/include/ngs_common/atomic.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
+#include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_session.h"
@@ -37,6 +39,8 @@
 
 namespace xpl
 {
+
+extern std::atomic<bool> g_cache_plugin_started;
 
 class Session;
 class Sql_data_context;
@@ -98,6 +102,10 @@ public:
     return instance ? Server_ptr(ngs::allocate_object<Server_with_lock>(ngs::ref(*instance), ngs::ref(instance_rwl))) : Server_ptr();
   }
 
+  SHA256_password_cache &get_sha256_password_cache() {
+    return m_sha256_password_cache;
+  }
+
 private:
   static Client_ptr      get_client_by_thd(Server_ptr &server, THD *thd);
   static void            verify_mysqlx_user_grants(Sql_data_context &context);
@@ -143,6 +151,8 @@ private:
 
   static bool exiting;
   static bool is_exiting();
+
+  SHA256_password_cache m_sha256_password_cache;
 };
 
 

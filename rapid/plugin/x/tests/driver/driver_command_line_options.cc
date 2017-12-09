@@ -22,6 +22,7 @@
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs_common/to_string.h"
 #include "plugin/x/tests/driver/processor/commands/command.h"
+#include "my_dbug.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
@@ -46,6 +47,12 @@ void Driver_command_line_options::print_help() {
                "by -->sql block (run mode)\n";
   std::cout
       << "--plain-auth          Use PLAIN text authentication mechanism\n";
+  std::cout
+      << "--cached-auth         Use SHA256_MEMORY authentication mechanism\n";
+  std::cout
+      << "--mysql41-auth        Use MYSQL41 authentication mechanism\n";
+  std::cout << "--mysql57-compatible  Use features that are 5.7 compatible:\n";
+  std::cout << "                      * limit auth-mechanisms\n";
   std::cout << "-u, --user=<user>     Connection user\n";
   std::cout << "-p, --password=<pass> Connection password\n";
   std::cout << "-h, --host=<host>     Connection host\n";
@@ -104,6 +111,7 @@ void Driver_command_line_options::print_help() {
                "stopping on fatal error (default: 1)\n";
   std::cout << "-B, --bindump         Dump binary representation of messages "
                "sent, in format suitable for\n";
+  std::cout << "--trace-protocol      Enable X Protocol tracing\n";
   std::cout << "--verbose             Enable extra verbose messages\n";
   std::cout << "--daemon              Work as a daemon (unix only)\n";
   std::cout << "--help                Show command line help\n";
@@ -124,7 +132,6 @@ Driver_command_line_options::Driver_command_line_options(
       m_has_file(false),
       m_cap_expired_password(false),
       m_client_interactive(false),
-      m_use_plain_auth(false),
       m_daemon(false) {
   std::string user;
 
@@ -136,7 +143,15 @@ Driver_command_line_options::Driver_command_line_options(
     } else if (check_arg(argv, i, "--no-auth", "-n")) {
       m_run_without_auth = true;
     } else if (check_arg(argv, i, "--plain-auth", NULL)) {
-      m_use_plain_auth = true;
+      m_auth_methods.push_back("PLAIN");
+    } else if (check_arg(argv, i, "--cached-auth", NULL)) {
+      m_auth_methods.push_back("SHA256_MEMORY");
+    } else if (check_arg(argv, i, "--mysql41-auth", NULL)) {
+      m_auth_methods.push_back("MYSQL41");
+    } else if (check_arg_with_value(argv, i, "--debug", NULL, value)) {
+#ifndef DBUG_OFF
+      DBUG_PUSH(value);
+#endif  // DBUG_OFF
     } else if (check_arg_with_value(argv, i, "--sql", NULL, value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--execute", "-e", value)) {
@@ -177,10 +192,14 @@ Driver_command_line_options::Driver_command_line_options(
       m_connection_options.password = value;
     } else if (check_arg_with_value(argv, i, "--socket", "-S", value)) {
       m_connection_options.socket = value;
+    } else if (check_arg(argv, i, "--mysql57-compatible", NULL)) {
+      m_connection_options.compatible = true;
     } else if (check_arg_with_value(argv, i, NULL, "-v", value)) {
       set_variable_option(value);
     } else if (check_arg(argv, i, "--use-socket", NULL)) {
       m_connection_options.socket = get_socket_name();
+    } else if (check_arg(argv, i, "--trace-protocol", NULL)) {
+      m_connection_options.trace_protocol = true;
     } else if (check_arg(argv, i, "--close-no-sync", NULL)) {
       m_connection_options.dont_wait_for_disconnect = true;
     } else if (check_arg(argv, i, "--bindump", "-B")) {

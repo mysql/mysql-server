@@ -20,21 +20,28 @@
 #ifndef _XPL_SHA256_PLAIN_VERIFICATION_H_
 #define _XPL_SHA256_PLAIN_VERIFICATION_H_
 
+#include <string>
+
 #include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 
 namespace xpl {
 
 class Sha256_plain_verification : public ngs::Account_verification_interface {
  public:
+  explicit Sha256_plain_verification(
+      ngs::SHA256_password_cache_interface *cache)
+    : m_sha256_password_cache(cache) {}
   const std::string &get_salt() const override { return k_empty_salt; }
-  bool verify_authentication_string(const std::string &client_string,
-                                    const std::string &db_string) const
-      override;
+  bool verify_authentication_string(const std::string &user,
+      const std::string &host, const std::string &client_string,
+      const std::string &db_string) const override;
 
  private:
   static const std::string k_empty_salt;
   std::string compute_password_hash(const std::string &password,
                                     const std::string &salt) const;
+  ngs::SHA256_password_cache_interface *m_sha256_password_cache;
 };
 
 }  // namespace xpl

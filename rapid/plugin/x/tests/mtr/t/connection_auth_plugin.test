@@ -4,7 +4,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt: Invalid user or password'");
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
 
 ## Test starts here
 

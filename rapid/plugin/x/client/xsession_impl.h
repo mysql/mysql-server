@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "plugin/x/client/mysqlxclient/xargument.h"
 #include "plugin/x/client/mysqlxclient/xsession.h"
@@ -44,7 +45,8 @@ class Session_impl : public XSession {
   enum class Auth {
     Auto,
     Mysql41,
-    Plain
+    Plain,
+    Sha256_memory
   };
 
  public:
@@ -58,6 +60,8 @@ class Session_impl : public XSession {
                           const bool value) override;
   XError set_mysql_option(const Mysqlx_option option,
                           const std::string &value) override;
+  XError set_mysql_option(const Mysqlx_option option,
+                          const std::vector<std::string> &values_list) override;
   XError set_mysql_option(const Mysqlx_option option,
                           const char *value) override;
   XError set_mysql_option(const Mysqlx_option option,
@@ -108,29 +112,34 @@ class Session_impl : public XSession {
   void   setup_protocol();
   void   setup_session_notices_handler();
   void   setup_general_notices_handler();
-  XError setup_authentication_method_from_text(const std::string &value);
+  XError setup_authentication_methods_from_text(
+      const std::vector<std::string> &value_list);
   XError setup_ssl_mode_from_text(const std::string &value);
   XError setup_ip_mode_from_text(const std::string &value);
 
-  std::string get_method_from_auth(const Auth auth,
-                                   const std::string &auth_auto);
+  static std::string get_method_from_auth(const Auth auth);
 
   bool is_connected();
   XError authenticate(const char *user,
                       const char *pass,
-                      const char *schema);
+                      const char *schema,
+                      Connection_type connection_type);
   static Handler_result handle_notices(
         std::shared_ptr<Context> context,
         const Mysqlx::Notice::Frame::Type,
         const char *,
         const uint32_t);
 
+  std::pair<XError, std::vector<std::string>> validate_and_adjust_auth_methods(
+      std::vector<Auth> auth_methods, const bool can_use_plain);
+
   Object                m_capabilities;
   XProtocol_ptr         m_protocol;
   Context_ptr           m_context;
   Protocol_factory_ptr  m_factory;
   Internet_protocol     m_internet_protocol { Internet_protocol::Any };
-  Auth                  m_auth { Auth::Auto };
+  std::vector<Auth>     m_auth_methods;
+  bool                  m_compatibility_mode = false;
 };
 
 }  // namespace xcl

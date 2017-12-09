@@ -91,11 +91,13 @@ class Connection_state: public XConnection::State {
       Vio *vio,
       const bool is_ssl_configured,
       const bool is_ssl_active,
-      const bool is_connected)
+      const bool is_connected,
+      const Connection_type connection_type)
   : m_vio(vio),
     m_is_ssl_configured(is_ssl_configured),
     m_is_ssl_active(is_ssl_active),
-    m_is_connected(is_connected) {
+    m_is_connected(is_connected),
+    m_connection_type(connection_type) {
   }
 
   bool is_ssl_configured() const override { return m_is_ssl_configured; }
@@ -120,10 +122,15 @@ class Connection_state: public XConnection::State {
         "");
   }
 
+  Connection_type get_connection_type() const override {
+    return m_connection_type;
+  }
+
   Vio *m_vio;
   bool m_is_ssl_configured;
   bool m_is_ssl_active;
   bool m_is_connected;
+  Connection_type m_connection_type;
 };
 
 const char *null_when_empty(const std::string &value) {
@@ -251,6 +258,7 @@ Connection_impl::~Connection_impl() {
 
 XError Connection_impl::connect_to_localhost(
     const std::string &unix_socket) {
+  m_connection_type = Connection_type::Unix_socket;
   m_hostname = "localhost";
 #if defined(HAVE_SYS_UN_H)
   sockaddr_un addr;
@@ -292,6 +300,7 @@ XError Connection_impl::connect(
     const std::string &host,
     const uint16_t port,
     const Internet_protocol ip_mode) {
+  m_connection_type = Connection_type::Tcp;
   struct addrinfo *res_lst, hints, *t_res;
   int gai_errno;
   char port_buf[NI_MAXSERV];
@@ -563,6 +572,9 @@ XError Connection_impl::read(uint8_t *data_head,
       int vio_error = vio_errno(m_vio);
 
       if (SOCKET_EWOULDBLOCK == vio_error || vio_was_timeout(m_vio)) {
+        if (!vio_is_connected(m_vio))
+          return get_socket_error(SOCKET_ECONNRESET);
+
         return XError{ CR_X_READ_TIMEOUT,
           ER_TEXT_CANT_TIMEOUT_WHILE_READING };
       }
@@ -605,7 +617,8 @@ const XConnection::State &Connection_impl::state() {
       m_vio,
       m_context->m_ssl_config.is_configured(),
       m_ssl_active,
-      m_connected));
+      m_connected,
+      m_connection_type));
   return *m_state;
 }
 

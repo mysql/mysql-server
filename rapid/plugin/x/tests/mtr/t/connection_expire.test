@@ -3,12 +3,6 @@
 ## Preamble
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
-call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '4.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '6.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '7.1: Unsuccessful login attempt");
 ## Test starts here
 SELECT password_last_changed into @passwordchanged from mysql.user where host='localhost' and user='x_root';
 create user foo@localhost;

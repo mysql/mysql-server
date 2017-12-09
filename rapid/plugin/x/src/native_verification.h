@@ -20,21 +20,19 @@
 #ifndef _XPL_NATIVE_VERIFICATION_H_
 #define _XPL_NATIVE_VERIFICATION_H_
 
-#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
+#include <string>
+
+#include "plugin/x/src/challenge_response_verification.h"
 
 namespace xpl {
 
-class Native_verification : public ngs::Account_verification_interface {
+class Native_verification : public Challenge_response_verification {
  public:
-  Native_verification() : k_salt(generate_salt()) {}
-  const std::string &get_salt() const override { return k_salt; }
-  bool verify_authentication_string(const std::string &client_string,
-                                    const std::string &db_string) const
-      override;
-
- private:
-  std::string generate_salt();
-  const std::string k_salt;
+  explicit Native_verification(ngs::SHA256_password_cache_interface *cache)
+    : Challenge_response_verification(cache) {}
+  bool verify_authentication_string(const std::string &user,
+      const std::string &host, const std::string &client_string,
+      const std::string &db_string) const override;
 };
 
 }  // namespace xpl

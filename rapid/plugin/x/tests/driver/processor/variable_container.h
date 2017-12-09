@@ -20,38 +20,54 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/processor/variable.h"
+
 
 class Variable_container {
  public:
-  using Container = std::map<std::string, std::string>;
+  using Container_initialization = std::map<std::string, std::string>;
 
- public:
   Variable_container() = default;
-  explicit Variable_container(const Container &variables)
-      : m_variables(variables) {}
+  explicit Variable_container(const Container_initialization &variables) {
+    for (const auto &kv : variables) {
+      set(kv.first, kv.second);
+    }
+  }
 
   void replace(std::string *s) {
-    for (std::map<std::string, std::string>::const_iterator sub =
+    for (Container::const_iterator sub =
              m_variables.begin();
          sub != m_variables.end(); ++sub) {
-      std::string tmp(sub->second);
+      std::string tmp(sub->second->get_value());
 
       aux::replace_all(*s, sub->first, tmp);
     }
   }
 
-  void set(const std::string &key, const std::string &value) {
-    m_variables[key] = value;
+  void make_special_variable(
+      const std::string &key,
+      Variable_interface *value) {
+    m_variables[key].reset(value);
+  }
+
+  bool set(const std::string &key, const std::string &value) {
+    auto &variable = m_variables[key];
+
+    if (!variable)
+      variable.reset(new Variable_string());
+
+    return variable->set_value(value);
   }
 
   std::string get(const std::string &key) const {
     if (!is_present(key))
       return "";
 
-    return m_variables.at(key);
+    return m_variables.at(key)->get_value();
   }
 
   bool is_present(const std::string &key) const {
@@ -62,7 +78,7 @@ class Variable_container {
     std::string s = in;
     for (std::list<std::string>::const_iterator sub = m_to_unreplace.begin();
          sub != m_to_unreplace.end(); ++sub) {
-      aux::replace_all(s, m_variables[*sub], *sub);
+      aux::replace_all(s, m_variables[*sub]->get_value(), *sub);
     }
     if (clear) m_to_unreplace.clear();
     return s;
@@ -74,6 +90,8 @@ class Variable_container {
   }
 
  private:
+  using Container = std::map<std::string, std::unique_ptr<Variable_interface>>;
+
   Container m_variables;
   std::list<std::string> m_to_unreplace;
 };

@@ -26,18 +26,19 @@
 namespace xpl {
 
 ngs::Authentication_interface_ptr Sasl_plain_auth::create(
-    ngs::Session_interface *session) {
+    ngs::Session_interface *session,
+    ngs::SHA256_password_cache_interface *sha256_password_cache) {
   Account_verification_handler *handler =
       ngs::allocate_object<Account_verification_handler>(session);
   handler->add_account_verificator(
       ngs::Account_verification_interface::Account_native,
-      ngs::allocate_object<Native_plain_verification>());
+      ngs::allocate_object<Native_plain_verification>(sha256_password_cache));
   handler->add_account_verificator(
       ngs::Account_verification_interface::Account_sha256,
-      ngs::allocate_object<Sha256_plain_verification>());
+      ngs::allocate_object<Sha256_plain_verification>(sha256_password_cache));
   handler->add_account_verificator(
       ngs::Account_verification_interface::Account_sha2,
-      ngs::allocate_object<Sha2_plain_verification>());
+      ngs::allocate_object<Sha2_plain_verification>(sha256_password_cache));
   return ngs::Authentication_interface_ptr(
       ngs::allocate_object<Sasl_plain_auth>(handler));
 }

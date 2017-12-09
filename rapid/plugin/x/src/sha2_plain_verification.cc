@@ -28,8 +28,10 @@ const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH= MAX_PLAINTEXT_LENGTH;
 const std::string Sha2_plain_verification::k_empty_salt;
 
 bool Sha2_plain_verification::verify_authentication_string(
-    const std::string &client_string, const std::string &db_string) const {
-
+    const std::string &user,
+    const std::string &host,
+    const std::string &client_string,
+    const std::string &db_string) const {
   if (client_string.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
     return false;
 
@@ -51,7 +53,18 @@ bool Sha2_plain_verification::verify_authentication_string(
 
   std::string digest = db_string.substr(b + CRYPT_SALT_LENGTH + 1);
 
- return compute_password_hash(client_string, salt) == digest;
+  // There is no need to perform additional authentication if the given
+  // credentials are already in the cache.
+  if (m_sha256_password_cache &&
+      m_sha256_password_cache->contains(user, host, client_string))
+    return true;
+
+  if (compute_password_hash(client_string, salt) == digest) {
+    if (m_sha256_password_cache)
+      m_sha256_password_cache->upsert(user, host, client_string);
+    return true;
+  }
+  return false;
 }
 
 std::string Sha2_plain_verification::compute_password_hash(

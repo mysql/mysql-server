@@ -51,6 +51,12 @@ enum class Shutdown_type {
   Both
 };
 
+/** 'Enum' that defines the connection type. */
+enum class Connection_type {
+  Unix_socket,
+  Tcp
+};
+
 /**
  Interface defining network layer.
 
@@ -79,6 +85,9 @@ class XConnection {
 
     /** Get cipher used by SSL layer */
     virtual std::string get_ssl_cipher() const = 0;
+
+    /** Get connection type */
+    virtual Connection_type get_connection_type() const = 0;
   };
 
  public:

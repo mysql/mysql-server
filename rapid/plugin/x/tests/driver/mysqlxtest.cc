@@ -20,6 +20,7 @@
 #include <fstream>
 #include <stdexcept>
 
+#include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "plugin/x/tests/driver/driver_command_line_options.h"
@@ -124,7 +125,7 @@ int client_connect_and_process(const Driver_command_line_options &options,
         options.m_cap_expired_password,
         options.m_client_interactive,
         options.m_run_without_auth,
-        options.m_use_plain_auth);
+        options.m_auth_methods);
 
     std::vector<Block_processor_ptr> eaters = create_block_processors(&context);
     int result_code = process_client_input(input,
@@ -197,6 +198,8 @@ static void daemonize() {
 
 int main(int argc, char **argv) {
   MY_INIT(argv[0]);
+  DBUG_ENTER("main");
+
   local_message_hook = ignore_traces_from_libraries;
 
   Driver_command_line_options options(argc, argv);
@@ -215,7 +218,7 @@ int main(int argc, char **argv) {
 #ifdef WIN32
   if (!have_tcpip) {
     std::cerr << "OS doesn't have tcpip\n";
-    return 1;
+    DBUG_RETURN(1);
   }
 #endif
 
@@ -240,5 +243,5 @@ int main(int argc, char **argv) {
 
   vio_end();
   my_end(0);
-  return result;
+  DBUG_RETURN(result);
 }

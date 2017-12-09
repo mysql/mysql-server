@@ -1,14 +1,6 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Invalid user or password'");
-call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unsuccessful login attempt: Invalid user or password'");
-call mtr.add_suppression("Plugin mysqlx reported: '4.1: Unsuccessful login attempt: Your password has expired. To log in you must change it using a client that supports expired passwords.'");
-call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unsuccessful login attempt: Account is locked.'");
-call mtr.add_suppression("Plugin mysqlx reported: '16.1: Unsuccessful login attempt: Account is locked.'");
-call mtr.add_suppression("Plugin mysqlx reported: '6.1: Unsuccessful login attempt: Invalid user or password'");
-call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Server works in offline mode.'");
-call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");

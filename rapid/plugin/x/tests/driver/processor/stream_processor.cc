@@ -19,6 +19,8 @@
 
 #include <memory>
 
+#include "my_dbug.h"
+
 #include "plugin/x/tests/driver/processor/command_multiline_processor.h"
 #include "plugin/x/tests/driver/processor/command_processor.h"
 #include "plugin/x/tests/driver/processor/comment_processor.h"

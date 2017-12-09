@@ -21,6 +21,7 @@
 #define _XPL_ACCOUNT_VERIFICATION_HANDLER_H_
 
 #include <map>
+#include <string>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
@@ -38,7 +39,7 @@ class Account_verification_handler {
       ngs::Session_interface *session,
       const ngs::Account_verification_interface::Account_type account_type,
       ngs::Account_verification_interface *verificator)
-      : m_session(session) {
+      : m_session(session), m_account_type(account_type) {
     add_account_verificator(account_type, verificator);
   }
 
@@ -79,9 +80,15 @@ class Account_verification_handler {
     Sql_user_require user_required;
   };
 
-  bool extract_sub_message(const std::string &message,
-                           std::size_t &element_position,
-                           std::string &sub_message) const;
+  bool extract_sub_message(
+      const std::string &message,
+      std::size_t &element_position,
+      std::string &sub_message) const;
+
+  bool extract_last_sub_message(
+      const std::string &message,
+      std::size_t &element_position,
+      std::string &sub_message) const;
 
   ngs::Account_verification_interface::Account_type
       get_account_verificator_id(const std::string &plugin_name) const;
@@ -95,6 +102,8 @@ class Account_verification_handler {
 
   ngs::Session_interface *m_session;
   Account_verificator_list m_verificators;
+  ngs::Account_verification_interface::Account_type m_account_type =
+      ngs::Account_verification_interface::Account_unsupported;
 };
 
 typedef ngs::Memory_instrumented<Account_verification_handler>::Unique_ptr

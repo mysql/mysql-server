@@ -31,6 +31,7 @@
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_delegate.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/socket_events.h"
@@ -92,6 +93,7 @@ public:
   void add_authentication_mechanism(const std::string &name,
                                     Authentication_interface::Create initiator,
                                     const bool allowed_only_with_secure_connection);
+  void add_sha256_password_cache(SHA256_password_cache_interface *cache);
 
   void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
 
@@ -143,6 +145,7 @@ private:
   bool m_timer_running;
   bool m_skip_name_resolve;
   uint32 m_errors_while_accepting;
+  SHA256_password_cache_interface *m_sha256_password_cache;
 
   ngs::shared_ptr<Server_acceptors> m_acceptors;
   ngs::shared_ptr<Scheduler_dynamic> m_accept_scheduler;

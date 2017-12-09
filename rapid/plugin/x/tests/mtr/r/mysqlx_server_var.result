@@ -1,7 +1,6 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Unsuccessful login attempt");
 # System Variables Testing
 SET GLOBAL mysqlx_idle_worker_thread_timeout=7;
 SET @@global.mysqlx_idle_worker_thread_timeout=7;

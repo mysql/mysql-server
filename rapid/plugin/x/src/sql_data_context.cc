@@ -342,6 +342,10 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
 
   if (security_context_lookup(scontext, m_username.c_str(), hostname,
                               m_address.c_str(), m_db.c_str())) {
+    log_debug("Unable to switch security context to user %s@%s [%s]",
+              username,
+              hostname,
+              address);
     return ngs::Fatal(ER_X_SERVICE_ERROR, "Unable to switch context to user %s",
                       username);
   }

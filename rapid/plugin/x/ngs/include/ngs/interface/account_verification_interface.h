@@ -29,10 +29,11 @@ namespace ngs {
 class Account_verification_interface {
  public:
   enum Account_type {
-    Account_native = 1,
-    Account_sha256 = 2,
-    Account_sha2   = 3,
-    Account_unsupported = 99
+    Account_native        = 1,
+    Account_sha256        = 2,
+    Account_sha2          = 3,
+    Account_sha256_memory = 4,
+    Account_unsupported   = 99
   };
 
   Account_verification_interface() {}
@@ -42,8 +43,9 @@ class Account_verification_interface {
       const Account_verification_interface &) = delete;
 
   virtual const std::string &get_salt() const = 0;
-  virtual bool verify_authentication_string(
-      const std::string &client_string, const std::string &db_string) const = 0;
+  virtual bool verify_authentication_string(const std::string &user,
+      const std::string &host, const std::string &client_string,
+      const std::string &db_string) const = 0;
   virtual ~Account_verification_interface() {}
 };
 
