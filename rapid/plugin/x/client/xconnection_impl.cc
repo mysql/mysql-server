@@ -201,7 +201,11 @@ XError ssl_verify_server_cert(
     };
   }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   const auto cn = reinterpret_cast<char *>(ASN1_STRING_data(cn_asn1));
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  const auto cn = reinterpret_cast<const char *>(ASN1_STRING_get0_data(cn_asn1));
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   const auto cn_len = static_cast<size_t>(ASN1_STRING_length(cn_asn1));
 
   // There should not be any NULL embedded in the CN

@@ -4165,7 +4165,11 @@ static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  OPENSSL_malloc_init();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
   ssl_start();
 #endif
@@ -4194,7 +4198,9 @@ static int init_ssl_communication()
 					  opt_ssl_cipher, &error,
                                           opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p", ssl_acceptor_fd));
-    ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     if (!ssl_acceptor_fd)
     {
       /*

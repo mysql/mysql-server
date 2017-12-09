@@ -11,7 +11,7 @@
 connect (ssl_con,localhost,root,,,,,SSL);
 
 # Check ssl turned on
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_cipher';
 
 # Check ssl expiration
@@ -22,7 +22,7 @@ SHOW STATUS LIKE 'Ssl_server_not_after';
 -- source include/common-tests.inc
 
 # Check ssl turned on
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_cipher';
 
 connection default;

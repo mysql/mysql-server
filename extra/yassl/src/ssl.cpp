@@ -1667,7 +1667,7 @@ int SSLeay_add_ssl_algorithms()  // compatibility only
 }
 
 
-void ERR_remove_state(unsigned long)
+void ERR_remove_thread_state(const void *)
 {
     GetErrors().Remove();
 }
