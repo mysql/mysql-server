@@ -4327,7 +4327,7 @@ static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
                                ER_SQL_MODE_MERGED,
                                ER_THD(thd, ER_SQL_MODE_MERGED));
     else
-      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED);
+      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED_WITH_STRICT_MODE);
   }
 }
 
@@ -6168,9 +6168,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
+  LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_UPDATED,
          previous_gtid_purged, current_gtid_purged);
-  LogErr(SYSTEM_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
+  LogErr(SYSTEM_LEVEL, ER_GTID_EXECUTED_WAS_UPDATED,
          previous_gtid_executed, current_gtid_executed);
 
 end:

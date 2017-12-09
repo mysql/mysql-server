@@ -237,7 +237,7 @@ SET GLOBAL log_error_verbosity= 3;
 
 # Throttle 'Access denied' messages in error log to three
 # entries per hour
-SET GLOBAL dragnet.log_error_filter_rules="IF err_code==ER_ACCESS_DENIED_ERROR THEN throttle 3/3600.";
+SET GLOBAL dragnet.log_error_filter_rules="IF err_code==ER_ACCESS_DENIED_ERROR_WITH_PASSWORD THEN throttle 3/3600.";
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR

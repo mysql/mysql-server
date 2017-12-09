@@ -319,7 +319,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
   }
   if (!info.list)
   {
-    LogErr(ERROR_LEVEL, ER_OUTOFMEMORY,
+    LogErr(ERROR_LEVEL, ER_SERVER_OUTOFMEMORY,
            static_cast<int>(info.len * sizeof(XID)));
     DBUG_RETURN(1);
   }

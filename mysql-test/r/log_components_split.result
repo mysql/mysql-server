@@ -45,18 +45,18 @@ FLUSH ERROR LOGS;
 ### error log file
 ###
 
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@session.debug="+d,log_error_normalize"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
-[prio=3];[err_code=3621];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT "*** TRYING TO LOG THINGS FROM EXTERNAL SERVICE ***"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_test"
+[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
 [prio=3];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Note];
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] using log_message() in external service
 [prio=1];[thread=0];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[label=Error];
@@ -113,21 +113,21 @@ FLUSH ERROR LOGS;
 1970-01-01T00:00:00.000000Z 0 [Note] [MY-000000] WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE
 [label=log_sink_test: broken item with class 3, type 131072];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[label=Error];
 1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-000000] No error message, or error message of non-string type. This is almost certainly a bug!
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
-[prio=3];[err_code=3621];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: FLUSH ERROR LOGS
-[prio=0];[err_code=3621];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=System];
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: FLUSH ERROR LOGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [System] [MY-003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-003621] Parser saw: SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_json; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT "logging as traditional MySQL error log and as JSON"
+[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=Note];
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: FLUSH ERROR LOGS
+[prio=0];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: FLUSH ERROR LOGS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[label=System];
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: FLUSH ERROR LOGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio"
 
 ###
 ### error log file (JSON) -- stream 0

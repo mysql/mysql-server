@@ -8523,7 +8523,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY, &mi->get_public_key);
 
   if (!mi->is_start_user_configured())
-    LogErr(WARNING_LEVEL, ER_INSECURE_CHANGE_MASTER);
+    LogErr(WARNING_LEVEL, ER_RPL_SLAVE_INSECURE_CHANGE_MASTER);
 
   if (mi->get_password(password, &password_size))
   {
@@ -9278,8 +9278,8 @@ bool flush_relay_logs_cmd(THD *thd)
           /*
             Log warning on SQL or worker threads.
           */
-          LogErr(WARNING_LEVEL, ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED,
-                 "FLUSH RELAY LOGS", lex->mi.channel);
+          LogErr(WARNING_LEVEL, ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED,
+                 lex->mi.channel);
         }
         else
         {
@@ -9302,7 +9302,7 @@ bool flush_relay_logs_cmd(THD *thd)
         /*
           Log warning on SQL or worker threads.
         */
-        LogErr(WARNING_LEVEL, ER_SLAVE_CHANNEL_DOES_NOT_EXIST,
+        LogErr(WARNING_LEVEL, ER_RPL_SLAVE_INCORRECT_CHANNEL,
                lex->mi.channel);
       }
       else

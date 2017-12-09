@@ -708,7 +708,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
                           ? ER_THD(thd, THD::KILL_QUERY)
                           : ER_THD(thd, thd->killed))
                        : thd->get_stmt_da()->message_text();
-    const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
+    const char *msg=   ER_THD(thd, ER_FILESORT_TERMINATED);
 
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
@@ -720,7 +720,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     {
       LogEvent().type(LOG_TYPE_ERROR)
                 .prio(INFORMATION_LEVEL)
-                .errcode(ER_FILSORT_ABORT)
+                .errcode(ER_FILESORT_TERMINATED)
                 .user(thd->security_context()->priv_user())
                 .host(thd->security_context()->host_or_ip())
                 .thread_id(thd->thread_id())

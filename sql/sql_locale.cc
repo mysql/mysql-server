@@ -3509,7 +3509,8 @@ MY_LOCALE *my_locale_by_name(THD *thd, const char *name)
     else
     {
       // Send a warning to mysqld error log
-      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_SYNTAX, name, locale->name);
+      LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_WITH_REPLACEMENT, name,
+             locale->name);
     }
   }
   return locale;
