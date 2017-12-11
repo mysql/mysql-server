@@ -100,8 +100,8 @@ void test_2() {
 
   ulint replace_offset = 5;
   ulint replace_bytes = 10;
-  byte* replace_buf = new byte[replace_bytes];
-  memset(replace_buf, '\0', replace_bytes);
+  byte* replace_buf = new byte[replace_bytes + 1];
+  memset(replace_buf, '\0', replace_bytes + 1);
   strcpy((char*)replace_buf, "1234567890");
   lob::replace(12, ref, replace_offset, replace_bytes, replace_buf);
 

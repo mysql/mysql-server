@@ -45,12 +45,16 @@ SET(PLOB_SRC_FILES
   ut0dbg.cc
   lob0int.cc)
 
-ADD_EXECUTABLE(lot0lot ${PLOB_SRC_FILES})
-ADD_EXECUTABLE(ut0plist ut0plist.cc lot0plist.h mtr0log.cc lot0buf.cc ut0dbg.cc)
-ADD_EXECUTABLE(ut0frags ut0frags.cc mtr0log.cc ut0dbg.cc lot0buf.cc fut0lst.cc zlob0int.cc fil0fil.cc)
+ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES})
+ADD_EXECUTABLE(ut0plist-t ut0plist.cc lot0plist.h mtr0log.cc lot0buf.cc ut0dbg.cc)
+ADD_EXECUTABLE(ut0frags-t ut0frags.cc mtr0log.cc ut0dbg.cc lot0buf.cc fut0lst.cc zlob0int.cc fil0fil.cc)
 ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES})
 
-TARGET_LINK_LIBRARIES(zlob0int-t zlib ${GTEST_LIBRARIES} gunit_small)
-TARGET_LINK_LIBRARIES(lot0lot zlib ${GTEST_LIBRARIES} gunit_small)
-TARGET_LINK_LIBRARIES(ut0frags zlib)
+TARGET_LINK_LIBRARIES(zlob0int-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
+TARGET_LINK_LIBRARIES(lot0lot-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
+TARGET_LINK_LIBRARIES(ut0frags-t ${ZLIB_LIBRARY})
 
+ADD_TEST(lot0lot  lot0lot-t)
+ADD_TEST(ut0plist ut0plist-t)
+ADD_TEST(ut0frags ut0frags-t)
+ADD_TEST(zlob0int zlob0int-t)

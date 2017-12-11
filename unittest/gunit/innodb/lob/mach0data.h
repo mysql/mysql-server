@@ -24,7 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0byte.h"
 
 inline uint8_t mach_read_from_1(const byte *b) {
-  ut_ad(b);
+  ut_ad(b != nullptr);
   return ((uint8_t)(b[0]));
 }
 
@@ -80,7 +80,7 @@ ib_uint64_t
 mach_read_from_6(
         const byte*     b)
 {
-        ut_ad(b);
+        ut_ad(b != nullptr);
 
         return(ut_ull_create(mach_read_from_2(b), mach_read_from_4(b + 2)));
 }
@@ -95,7 +95,7 @@ mach_write_to_6(
         byte*           b,
         ib_uint64_t     n)
 {
-        ut_ad(b);
+        ut_ad(b != nullptr);
 
         mach_write_to_2(b, (ulint) (n >> 32));
         mach_write_to_4(b + 2, (ulint) n);
