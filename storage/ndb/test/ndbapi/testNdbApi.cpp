@@ -6277,6 +6277,7 @@ testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
    * 8 : Completed
    */
   NdbRestarter restarter;
+  int result = NDBT_OK;
   
   int dataNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
   int mgmdNodeId = ndb_mgm_get_mgmd_nodeid(restarter.handle);
@@ -6299,12 +6300,18 @@ testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
   {
     ndbout << "  - Getting node status " << count;
     ndb_mgm_cluster_state* state = ndb_mgm_get_status(restarter.handle);
-
-    ndbout << " - ok." << endl;
-
-    if (state)
-      free(state);
+    if (state == NULL)
+    {
+      ndbout << "ndb_mgm_get_status failed"
+	     << ", error: " << ndb_mgm_get_latest_error(restarter.handle)
+             << " - %s\n" <<  ndb_mgm_get_latest_error_msg(restarter.handle)
+	     << endl;
+      result = NDBT_FAILED;
+      break;
+    }
     
+    ndbout << " - ok." << endl;
+    free(state);
     NdbSleep_MilliSleep(1000);
   }
 
@@ -6315,7 +6322,7 @@ testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeReleaseSb, 1) == 0);
   CHECK(ndb_mgm_get_latest_error(restarter.handle) == 0);
 
-  return NDBT_OK;
+  return result;
 }
 
 /*
