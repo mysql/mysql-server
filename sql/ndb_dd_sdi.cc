@@ -19,8 +19,51 @@
 #include "sql/ndb_dd_sdi.h"
 
 // Using
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>     // rapidjson::Document
+#include <rapidjson/writer.h>       // rapidjson::Write
+#include <rapidjson/stringbuffer.h>
+
 #include "sql/dd/impl/sdi.h"
+#include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
+
+typedef rapidjson::Writer<dd::RJ_StringBuffer, dd::RJ_Encoding, dd::RJ_Encoding,
+                          dd::RJ_Allocator, 0>
+    MinifyWriter;
+
+/*
+  @brief minify a JSON formatted SDI. Remove whitespace and other
+  useless data.
+
+  @note the JSON format is normally in 'pretty' format which takes
+  up much more storage space and network bandwidth than 'minified' format.
+
+  @sdi the JSON string to minify
+
+  @return minified JSON string or empty string on failure.
+*/
+
+static dd::sdi_t minify(dd::sdi_t sdi)
+{
+  dd::RJ_Document doc;
+  doc.Parse<0>(sdi.c_str());
+
+  if (doc.HasParseError())
+  {
+    return "";
+  }
+
+  dd::RJ_StringBuffer buf;
+  MinifyWriter w(buf);
+  if (!doc.Accept(w))
+  {
+    return "";
+  }
+
+  return buf.GetString();
+}
+
 
 bool
 ndb_dd_sdi_deserialize(THD* thd, const dd::sdi_t& sdi, dd::Table* table)
@@ -33,5 +76,5 @@ dd::sdi_t
 ndb_dd_sdi_serialize(THD* thd, const dd::Table& table,
                      const dd::String_type& schema_name)
 {
-  return dd::serialize(thd, table, schema_name);
+  return minify(dd::serialize(thd, table, schema_name));
 }
