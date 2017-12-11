@@ -23,7 +23,7 @@ SELECT COUNT(*) FROM mysql.default_roles;
 --echo
 
 --echo # 1.1 : Set the default roles for a valid and an invalid user; Must fail.
---error ER_FAILED_DEFAULT_ROLES
+--error ER_ROLE_NOT_GRANTED
 SET DEFAULT ROLE 'administrator', 'qa' to userX, invalidUser;
 --echo
 

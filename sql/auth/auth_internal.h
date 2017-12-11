@@ -329,6 +329,9 @@ void get_privilege_access_maps(ACL_USER *acl_user,
 bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id > *default_roles);
+bool drop_default_role_policy(THD *thd, TABLE *table,
+                              const Auth_id_ref &default_role_policy,
+                              const Auth_id_ref &user);
 void get_granted_roles(THD *thd, LEX_USER *user,
                        List_of_granted_roles *granted_roles);
 int iterate_granted_roles(Auth_id_ref &authid,

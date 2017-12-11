@@ -158,10 +158,10 @@
    2) after authentication if the role is a default role,
    3) after authentication if the global variable
 opt_always_activate_roles_on_login is set to true.
- 
+
   Example: To set the grated role ``team``\@``%`` as an active role, after
     authentication, execute: SET ROLE team
-  
+
   @subsection DEFAULT_ROLE Default roles
  Each authorization ID has a list of default roles. Default roles belonging to
  an authorization ID are made into active roles after authentication iff they
@@ -187,7 +187,7 @@ opt_always_activate_roles_on_login is set to true.
  of the cache.
 
  The cache is a lockless hash storage and each element is assembled using
- read-only operations on the shared role graph. 
+ read-only operations on the shared role graph.
  @see get_privilege_access_maps
 
  @section AUTHORIZATION_SHOW_GRANTS SHOW GRANTS
@@ -209,9 +209,9 @@ opt_always_activate_roles_on_login is set to true.
  @see mysql_show_grants
 
  To show the role graph use @code SELECT roles_graphml() @endcode
- 
+
  To investigate the role graph use the built in XML functions or the
- mysql.role_edges table. 
+ mysql.role_edges table.
 
  */
 
@@ -389,7 +389,7 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
         /* Remove all connecting edges */
         error= modify_role_edges_in_table(thd, edge_table, from_user, to_user,
                                           false, true);
-        error= modify_role_edges_in_table(thd, edge_table, to_user, from_user,
+        error|= modify_role_edges_in_table(thd, edge_table, to_user, from_user,
                                           false, true);
       }
     }
@@ -408,8 +408,26 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
     boost::clear_vertex(it->second, *g_granted_roles);
     g_authid_to_vertex->erase(it);
   }
-  // Remove all default roles
+  // Remove all default role policies assigned to this authid.
   clear_default_roles(thd, defaults_table, authid_user, 0);
+  // Remove all default role policies in which this authid is a default role.
+  std::vector<Default_roles::iterator > delete_policies;
+  for (auto policy= g_default_roles->begin(); policy != g_default_roles->end();
+       ++policy)
+  {
+    if (policy->second == authid_user)
+    {
+      delete_policies.push_back(policy);
+    }
+  }
+  for (auto &&policy : delete_policies)
+  {
+    modify_default_roles_in_table(thd, defaults_table,
+                                  create_authid_from(policy->first),
+                                  create_authid_from(policy->second),
+                                  true);
+    g_default_roles->erase(policy);
+  }
   DBUG_RETURN(error);
 }
 
@@ -558,7 +576,7 @@ void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
   Helper function for create_roles_vertices. Creates a vertex in the role
   graph and associate it with an ACL_USER. If the ACL_USER already exists in
   the vertex-to-acl-user index then we ignore this request.
- 
+
   @param role_acl_user The acial user to be mapped to a vertex.
 */
 void create_role_vertex(ACL_USER *role_acl_user)
@@ -3113,6 +3131,10 @@ bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
           break;
         }
         revoke_role(thd, acl_role, acl_user);
+        drop_default_role_policy(thd,
+                                 tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
+                                 create_authid_from(acl_role),
+                                 create_authid_from(acl_user));
       }
     }
   }
@@ -6513,8 +6535,9 @@ void get_default_roles(const Auth_id_ref &acl_user,
 
 
 /**
-  Removes all default roles from user. Removed users are copied to the
-  vector supplied in the arguments.
+  Removes all default role policies assigned to user. If the user is used as a
+  default role policy, this policy needs to be removed too.
+  Removed policies are copied to the vector supplied in the arguments.
 
   @param thd Thread handler
   @param table Open table handler
@@ -6544,11 +6567,44 @@ bool clear_default_roles(THD *thd, TABLE *table,
     }
     Auth_id_ref role_auth_id= create_authid_from(role_it->second);
     error= modify_default_roles_in_table(thd, table, user_auth_id,
-                                          role_auth_id, true);
+                                         role_auth_id, true);
   }
   g_default_roles->erase(begin_it, role_end);
 
   DBUG_RETURN(error);
+}
+
+
+/**
+  Drop a specific default role policy given the role- and user names.
+
+  @param thd Thread handler
+  @param table An open table handler to the default_roles table
+  @param default_role_policy The role name
+  @param user The user name
+ 
+  @retval Error state
+    @retval true An error occurred
+    @retval false Success
+*/
+
+bool drop_default_role_policy(THD *thd, TABLE *table,
+                             const Auth_id_ref &default_role_policy,
+                             const Auth_id_ref &user)
+{
+  Role_id id(user);
+  auto range= g_default_roles->equal_range(id);
+  for (;range.first != range.second; ++range.first)
+  {
+    if (range.first->second == default_role_policy)
+    {
+      g_default_roles->erase(range.first);
+      return modify_default_roles_in_table(thd, table, user,
+                                           default_role_policy,
+                                           true);
+    }
+  }
+  return false;
 }
 
 /**
@@ -6565,7 +6621,7 @@ bool clear_default_roles(THD *thd, TABLE *table,
     @retval true An error occurred and DA is set
     @retval false Successful
 */
-bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
+bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                 const List<LEX_USER> *users,
                                 const List<LEX_USER> *roles)
 {
@@ -6607,7 +6663,8 @@ bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
   {
     // Check for CURRENT_USER token
     user= get_current_user(thd, user);
-    if (strcmp(thd->security_context()->priv_user().str, user->user.str) != 0)
+    if (strcmp(thd->security_context()->priv_user().str, user->user.str) != 0 ||
+        strcmp(thd->security_context()->priv_host().str, user->host.str) != 0)
     {
       if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
           check_global_access(thd, CREATE_USER_ACL))
@@ -6623,6 +6680,14 @@ bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
         roles_it= *tmp_roles;
         while ((role= roles_it++))
         {
+          if (!is_granted_role(user->user, user->host,role->user, role->host))
+          {
+            my_error(ER_ROLE_NOT_GRANTED, MYF(0),
+                     role->user.str, role->host.str,
+                     user->user.str,
+                     user->host.str);
+            DBUG_RETURN(true);
+          }
           authid= std::make_pair(role->user, role->host);
           authids.push_back(authid);
         }
@@ -6641,10 +6706,10 @@ bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
                                 thd->security_context()->priv_host(),
                                 role->user, role->host))
           {
-            my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
-                     user->user.str, user->host.str,
-                     (thd->password ? ER_THD(thd, ER_YES) :
-                      ER_THD(thd, ER_NO)));
+            my_error(ER_ROLE_NOT_GRANTED, MYF(0),
+                     role->user.str, role->host.str,
+                     thd->security_context()->priv_user().str,
+                     thd->security_context()->priv_host().str);
             DBUG_RETURN(true);
           }
           authid= std::make_pair(role->user, role->host);
