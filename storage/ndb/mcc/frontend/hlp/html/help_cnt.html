@@ -462,6 +462,10 @@ line.
     If you choose "NEW CONFIGURATION", you will have to confirm the passphrase. If you
     choose existing configuration, you will be moved to PASSPHRASE box immediately and 
     you will not need to confirm it.</li>
+<li><b>VIEW CFG: </b> The button is disabled until all the requirements are met:
+    - Configuration is picked, passphrase is provided.
+    The validation code is triggered when you leave PASSPHRASE/CONFIRM PP boxes either
+    by pressing ENTER or TAB.</li>
 <li><b>CONTINUE: </b> The button is disabled until all the requirements are met:
     - Configuration is picked.
     - In case you picked existing configuration, passphrase is provided.
@@ -481,6 +485,8 @@ line.
     variable and passed to next page where it will be loaded into in-memory stores.
     <br/>Providing existing configuration name when prompted for "NEW CONFIGURATION" name is 
     not treated as error. MCC will simply read the existing configuration and proceed.
+    <br/>VIEW CFG button displays pop-up window with configuration details. Can be blocked by 
+    browser's pop-up blocker.
 </p>
 
 <!-- ======================== Define cluster =============================== -->

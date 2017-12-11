@@ -197,3 +197,10 @@ label {
     width: 60px;
     height: 40px;
 } 
+.viewConfigIcon {
+    background-image: url('../img/icons8-view-50.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+}
