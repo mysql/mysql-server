@@ -380,13 +380,13 @@ static int init_ssl(const char *key_file, const char *cert_file,
                     const char *crl_file, const char *crl_path,
                     const char *cipher, const char *tls_version,
                     SSL_CTX *ssl_ctx) {
-  G_MESSAGE(
+  G_DEBUG(
       "Initializing SSL with key_file: '%s'  cert_file: '%s'  "
       "ca_file: '%s'  ca_path: '%s'",
       key_file ? key_file : "NULL", cert_file ? cert_file : "NULL",
       ca_file ? ca_file : "NULL", ca_path ? ca_path : "NULL");
 
-  G_MESSAGE(
+  G_DEBUG(
       "Additional SSL configuration is "
       "cipher: '%s' crl_file: '%s' crl_path: '%s'",
       cipher ? cipher : "NULL", crl_file ? crl_file : "NULL",
@@ -400,7 +400,7 @@ static int init_ssl(const char *key_file, const char *cert_file,
 
   if (configure_ssl_keys(ssl_ctx, key_file, cert_file)) goto error;
 
-  G_MESSAGE("Success initializing SSL");
+  G_DEBUG("Success initializing SSL");
 
   return 0;
 
@@ -469,7 +469,7 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
     return ssl_init_done;
   }
 
-  G_MESSAGE("Configuring SSL for the server")
+  G_DEBUG("Configuring SSL for the server")
   server_ctx = SSL_CTX_new(SSLv23_server_method());
   if (!server_ctx) {
     G_ERROR("Error allocating SSL Context object for the server");
@@ -483,7 +483,7 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
     verify_server = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   SSL_CTX_set_verify(server_ctx, verify_server, NULL);
 
-  G_MESSAGE("Configuring SSL for the client")
+  G_DEBUG("Configuring SSL for the client")
   client_ctx = SSL_CTX_new(SSLv23_client_method());
   if (!client_ctx) {
     G_ERROR("Error allocating SSL Context object for the client");
@@ -517,7 +517,7 @@ void xcom_cleanup_ssl() {
 void xcom_destroy_ssl() {
   if (!xcom_use_ssl()) return;
 
-  G_MESSAGE("Destroying SSL");
+  G_DEBUG("Destroying SSL");
 
   ssl_init_done = 0;
 
@@ -542,7 +542,7 @@ void xcom_destroy_ssl() {
 
   xcom_cleanup_ssl();
 
-  G_MESSAGE("Success destroying SSL");
+  G_DEBUG("Success destroying SSL");
 }
 
 int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {

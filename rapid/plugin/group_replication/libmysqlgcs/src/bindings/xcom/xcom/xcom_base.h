@@ -242,7 +242,7 @@ void server_push_log(server *srv, synode_no push, node_no node);
   do {                                                      \
     const char *s = xcom_state_name[xcom_fsm(action, arg)]; \
     G_TRACE("%f %s:%d", seconds(), __FILE__, __LINE__);     \
-    G_MESSAGE("new state %s", s);                           \
+    G_DEBUG("new state %s", s);                             \
   } while (0)
 
 #ifdef __cplusplus
