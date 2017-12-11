@@ -31,6 +31,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.gui.clusterdef.showClusterDefinition: Show/edit stored information
  *      mcc.gui.clusterdef.saveClusterDefinition: Save entered information
  *      mcc.gui.clusterdef.getSSHPwd: Get password for ssh
+ *      mcc.gui.clusterdef.getSSHUser: Get ClusterLvL user from variable rather than iterate storage.
+ *      mcc.gui.clusterdef.getSSHkeybased: Get ClusterLvL key-based auth from variable rather than iterate storage.
+ *      mcc.gui.clusterdef.getOpenFW: Same as above.
+ *      mcc.gui.clusterdef.getInstallCl: Same as above.
  *
  *  External data: 
  *      None
@@ -68,15 +72,42 @@ dojo.require("mcc.storage");
 mcc.gui.clusterdef.showClusterDefinition = showClusterDefinition;
 mcc.gui.clusterdef.saveClusterDefinition = saveClusterDefinition;
 mcc.gui.clusterdef.getSSHPwd = getSSHPwd;
+mcc.gui.clusterdef.getSSHUser = getSSHUser;
+mcc.gui.clusterdef.getSSHkeybased = getSSHkeybased;
+mcc.gui.clusterdef.getOpenFW = getOpenFW;
+mcc.gui.clusterdef.getInstallCl = getInstallCl;
 
 /******************************* Internal data ********************************/
 
 var ssh_pwd = "";
-
+var ssh_user = "";
+var ssh_keybased = false;
+var openFW = false;
+var installCl = "NONE";
 /****************************** Implementation  *******************************/
-// Get SSH password
+// Get SSH password.
 function getSSHPwd() {
     return ssh_pwd;
+}
+
+// Get (ClusterLvL) user.
+function getSSHUser() {
+    return ssh_user;
+}
+
+// Get (ClusterLvL) is auth key-based.
+function getSSHkeybased() {
+    return ssh_keybased;
+}
+
+// Get (ClusterLvL) OpenFW ports.
+function getOpenFW() {
+    return openFW;
+}
+
+// Get (ClusterLvL) "Install Cluster".
+function getInstallCl() {
+    return installCl;
 }
 
 // Save data from widgets into the cluster data object
@@ -103,8 +134,9 @@ function saveClusterDefinition() {
         // If there was a change in credentials, try to connect to all hosts
         var old_user = cluster.getValue("ssh_user");
         var old_keybased = cluster.getValue("ssh_keybased");
-        var old_pwd = ssh_pwd; 
-
+        //var old_pwd = ssh_pwd; 
+        var old_pwd = cluster.getValue("ssh_pwd");
+        
         if (old_user != dijit.byId("sd_user").getValue() ||
             old_keybased != dijit.byId("sd_keybased").getValue() ||
             old_pwd != dijit.byId("sd_pwd").getValue()) {
@@ -118,7 +150,9 @@ function saveClusterDefinition() {
                     dijit.byId("sd_pwd").getValue());
 
             ssh_pwd = dijit.byId("sd_pwd").getValue();
-            
+            ssh_user = dijit.byId("sd_user").getValue();
+            ssh_keybased = dijit.byId("sd_keybased").getValue();
+           
             // Try to reconnect all hosts to get resource information.
             mcc.util.dbg("Re-fetch host(s) resource information.");
             hostStorage.forItems({}, function (host) {
@@ -137,6 +171,10 @@ function saveClusterDefinition() {
 
         cluster.setValue("openfw", 
                 dijit.byId("sd_openfw").getValue());
+
+        // Update global vars for later.
+        openFW = dijit.byId("sd_openfw").getValue();
+        installCl = dijit.byId("sd_installCluster").textbox.value;
 
         // Warn if web app or realtime
         if (cluster.getValue("apparea") == "simple testing" &&
@@ -246,6 +284,8 @@ function showClusterDefinition(initialize) {
                 cluster.getValue("ssh_pwd"));
         
         ssh_pwd = cluster.getValue("ssh_pwd");
+        ssh_user = cluster.getValue("ssh_user");
+        ssh_keybased = cluster.getValue("ssh_keybased");
 
         // Cluster details
         dijit.byId("cd_name").setValue(
@@ -259,6 +299,7 @@ function showClusterDefinition(initialize) {
         if (cluster.getValue("installCluster")) {
             dijit.byId("sd_installCluster").textbox.value = 
                 cluster.getValue("installCluster");
+            installCl = cluster.getValue("installCluster");
         } else {
             //First run, set to NONE
             dijit.byId("sd_installCluster").textbox.value = "NONE";
@@ -267,6 +308,7 @@ function showClusterDefinition(initialize) {
         if (cluster.getValue("openfw")) {
             dijit.byId("sd_openfw").setValue(
                 cluster.getValue("openfw"));
+            openFW = cluster.getValue("openfw");
         } else {
             //First run, set to NONE
             dijit.byId("sd_openfw").setValue(false);
