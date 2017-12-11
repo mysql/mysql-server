@@ -9089,6 +9089,8 @@ Encryption::get_master_key(
 	char*	key_type = nullptr;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
+	memset(key_name, 0x0, sizeof(key_name));
+
 	if (srv_uuid != nullptr) {
 
 		ut_ad(strlen(srv_uuid) > 0);
@@ -9160,9 +9162,13 @@ Encryption::get_master_key(
 	char*	key_type = nullptr;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
+	memset(key_name, 0x0, sizeof(key_name));
+
 	*version = Encryption::ENCRYPTION_VERSION_2;
 
 	if (s_master_key_id == 0) {
+
+		memset(s_uuid, 0x0, sizeof(s_uuid));
 
 		/* If m_master_key is 0, means there's no encrypted
 		tablespace, we need to generate the first master key,
@@ -9220,7 +9226,8 @@ Encryption::get_master_key(
 
 			snprintf(key_name,
 				 ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-				 "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+				 "%s-%lu-" ULINTPF,
+				 ENCRYPTION_MASTER_KEY_PRIFIX,
 				 server_id, *master_key_id);
 
 			ret = my_key_fetch(
@@ -9296,6 +9303,8 @@ Encryption::fill_encryption_info(
 		}
 	}
 
+	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+
 	/* Use the new master key to encrypt the key. */
 	ut_ad(encrypt_info != nullptr);
 	auto	ptr = encrypt_info;
@@ -9320,6 +9329,8 @@ Encryption::fill_encryption_info(
 
 	byte	key_info[ENCRYPTION_KEY_LEN * 2];
 
+	memset(key_info, 0x0, sizeof(key_info));
+
 	memcpy(key_info, key, ENCRYPTION_KEY_LEN);
 
 	memcpy(key_info + ENCRYPTION_KEY_LEN, iv, ENCRYPTION_KEY_LEN);
@@ -9340,9 +9351,6 @@ Encryption::fill_encryption_info(
 	auto	crc = ut_crc32(key_info, sizeof(key_info));
 
 	mach_write_to_4(ptr, crc);
-	ptr += sizeof(uint32_t);
-
-	memset(ptr, 0x0, ENCRYPTION_INFO_SIZE_V2 - (ptr - encrypt_info));
 
 	if (is_boot) {
 		ut_free(master_key);
