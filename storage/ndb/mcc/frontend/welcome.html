@@ -49,6 +49,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
             };
             var url = window.location.href;
             var cfgList = parseURLParams(url);
+            var viewORopen = "OPEN";
             console.log("cfgList: " + cfgList);
             let picked = "NEW CONFIGURATION";
             dojo.require("dijit.form.ValidationTextBox");
@@ -87,7 +88,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                       "dojo/dom", "dojo/_base/window", "dojo/domReady!"
                     ], function(CheckedMultiSelect, dom, win){
                         var sel = dojo.byId('sid1');
-                        //var n = 0;
                         var ss1 = new CheckedMultiSelect({
                             name: 'sid1',
                             options: optionData,
@@ -141,10 +141,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                 
                 var pp_textBox = dijit.byId("d_passphrase");
                 var co_textBox = dijit.byId("d_confirm");
-                //pp_textBox.connect("onFocus", function(event) {
                 pp_textBox.on("focus", function(even) {
                     console.log("PP.onfocus");
-                    if (picked == 'NEW CONFIGURATION') { //|| picked == ''
+                    if (picked == 'NEW CONFIGURATION') {
                         console.log("PP.onfocus NEW conf");
                         co_textBox.set("required", "true");
                     }
@@ -154,9 +153,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                 co_textBox.on("focus", function(eve) {
                     console.log("CO.onfocus");
                     if (pp_textBox.getValue() == "") {
-                        //dojo.stopEvent(eve);
                         console.log("CO.onfocus PP empty");
-                        //document.getElementById("d_passphrase").focus(); recursive :-/
                         alert("First set PASSPHRASE please!");
                     };
                     return;
@@ -170,12 +167,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                         if ((pp_textBox.getValue() == co_textBox.getValue()) && pp_textBox.getValue() != "") {
                             dijit.byId("createNewCluster").set("Disabled", false);
                             dijit.byId("createNewCluster").set("iconClass", 'newClusterIcon');
+                            dijit.byId("viewConfig").set("Disabled", false);
                             document.getElementById("createNewCluster").focus();
                             return true;
                         } else {
                             alert("Passphrases do not match!");
                             dijit.byId("createNewCluster").set("Disabled", true);
-                            //document.getElementById("d_confirm").focus();
+                            dijit.byId("viewConfig").set("Disabled", true);
                             return false;
                         }
                     }else{
@@ -198,6 +196,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                                 console.log("createNewCluster.focus");
                                 dijit.byId("createNewCluster").set("Disabled", false);
                                 dijit.byId("createNewCluster").set("iconClass", 'newClusterIcon');
+                                dijit.byId("viewConfig").set("Disabled", false);
                                 document.getElementById("createNewCluster").focus();
                             }
                             break;
@@ -211,11 +210,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                                 console.log("createNewCluster.focus");
                                 dijit.byId("createNewCluster").set("Disabled", false);
                                 dijit.byId("createNewCluster").set("iconClass", 'newClusterIcon');
+                                dijit.byId("viewConfig").set("Disabled", false);
                                 document.getElementById("createNewCluster").focus();
                             }
                             break;
                         default:
-                        //log("some other key: " + event.keyCode);
                     }
                 });
 
@@ -237,7 +236,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                             document.getElementById("createNewCluster").focus();
                             break;
                         default:
-                        //log("some other key: " + event.keyCode);
                     }
                 });
             });
@@ -251,11 +249,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
         <div id="mysql-logo"><img alt="MySQL logo" src="img/welcome-mysql-logo.png"></div>
         <!-- Configuration box: Start from scratch or continue -->
         <div id="configure-box-wrapper">
-            <div id="configure-box" style="display: flex; flex-direction: row; justify-content: space-around">
-                <div id = "configListContainer" style="width: 50%; margin: 0 auto; text-align: left; border: 0;">
+            <div id="configure-box">
+                <div id = "configListContainer" style="width: 50%;height: 70%;margin: 0 auto;float: left;text-align: left;border: 0;">
                     <select id="sid1"></select>
                 </div>
-                <div id = "configBtnContainer" style="width: 50%; margin: 0 auto; text-align: left">
+                <div id = "configPassContainer" style="width: 50%;height: 70%;margin: 0;float: right;text-align: left;">
                     <label for="d_passphrase">PASSPHRASE:</label>
                     <br><input type="password" name="d_passphrase" value=""
                         data-dojo-type="dijit.form.ValidationTextBox"
@@ -264,7 +262,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                     <br><input type="password" name="d_confirm" value=""
                         data-dojo-type="dijit.form.ValidationTextBox"
                         data-dojo-props="trim:true, propercase:false, required:true" id="d_confirm">
-                    <br><br><br><br><button 
+                </div>
+                <div id = "configBtnContainer" style="width: 100%;height: 30%;margin: 0 auto;">
+                    <button 
+                        id="viewConfig"
+                        data-dojo-type="dijit.form.Button"
+                        data-dojo-props="iconClass: 
+                            'viewConfigIcon', showLabel: true, 
+                            label: 'View cfg', disabled: true"
+                        type="button"> View cfg.  
+                            <script type="dojo/on" data-dojo-event="click" data-dojo-args="evt">
+                                viewORopen = "VIEW";
+                                dijit.byId("createNewCluster").onClick();
+                                return;
+                            </script>
+                    </button>
+                    <button 
                         id="createNewCluster"
                         data-dojo-type="dijit.form.Button"
                         data-dojo-props="iconClass: 
@@ -272,7 +285,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                             label: ' Continue  ', disabled: true"
                         type="button"> Continue  
                             <script type="dojo/on" data-dojo-event="click" data-dojo-args="evt">
-                                //class="iconButton" //baseClass: 'iconButton',
                                 require(["dojo/dom"], function(dom){
                                     standby.show();
                                     function do_post(msg) {
@@ -338,7 +350,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                                     var cf = picked;
                                     if (cf) {
                                         if (cf == 'NEW CONFIGURATION') {
-                                            //mcc.util.resetCookies();
                                             var cf = "NewConfig";
                                             cf = prompt("Please provide the name for new configuration file: ");
                                             if (cf == null || cf == "") {
@@ -441,7 +452,26 @@ alert("Unable to create config file " + cf+ " in HOME directory: " + errMsgFNC);
                                                                                          "CF": cf,
                                                                                          "CFPP": mcc.userconfig.getConfKey()});
                                                             standby.hide();
-                                                            window.open('content.html', '_self');
+                                                            if (viewORopen == "VIEW") {
+                                                                //Show cfg
+                                                                viewORopen = "OPEN";
+                                                                var win = window.open("",//meaning "about:blank",
+                                                                                      null,"width=500, height=500, resizable=yes,scrollbars=yes");
+                                                                if (win) {
+                                                                    var doc = win.document;
+                                                                    doc.open("text/html");
+                                                                    var lines = mcc.userconfig.getConfigFileContents().split('\n');
+                                                                    for(var i = 0;i < lines.length;i++){
+                                                                        doc.writeln(lines[i] + '<br>');
+                                                                    }
+                                                                    doc.close();
+                                                                } else {
+                                                                    alert("Pop-up blocker prevented displaying configuration!")
+                                                                }
+                                                                return;
+                                                            } else {
+                                                                window.open('content.html', '_self');
+                                                            }
                                                         }
                                                     });
                                                 } else {
@@ -468,7 +498,26 @@ alert("Unable to create config file " + cf+ " in HOME directory: " + errMsgFNC);
                                                                                          "CF": cf,
                                                                                          "CFPP": mcc.userconfig.getConfKey()});
                                                             standby.hide();
-                                                            window.open('content.html', '_self');
+                                                            if (viewORopen == "VIEW") {
+                                                                //Show cfg
+                                                                viewORopen = "OPEN";
+                                                                var win = window.open("",
+                                                                                      null,"width=500, height=500, resizable=yes,scrollbars=yes");
+                                                                if (win) {
+                                                                    var doc = win.document;
+                                                                    doc.open("text/html");
+                                                                    var lines = mcc.userconfig.getConfigFileContents().split('\n');
+                                                                    for(var i = 0;i < lines.length;i++){
+                                                                        doc.writeln(lines[i] + '<br>');
+                                                                    }
+                                                                    doc.close();
+                                                                } else {
+                                                                    alert("Pop-up blocker prevented displaying configuration!")
+                                                                }
+                                                                return;
+                                                            } else {
+                                                                window.open('content.html', '_self');
+                                                            }
                                                         },
                                                         function (errMsgFNC) {
                                                             console.log("window.location.reload() - errMsgFNC");
@@ -476,6 +525,7 @@ alert("Unable to create config file " + cf+ " in HOME directory: " + errMsgFNC);
                                                             alert("Unable to read config file " + cf + " in HOME directory: " + errMsgFNC); 
                                                             //This is bad, bail out and just work from tree.
                                                             cf = "";
+                                                            viewORopen = "OPEN";
                                                             window.location.reload();
                                                             return;
                                                         }

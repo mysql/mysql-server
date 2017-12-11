@@ -77,6 +77,9 @@ mcc.gui.hostdef.hostGridSetup = hostGridSetup;
 var hostGrid = null;
 
 /****************************** Implementation  *******************************/
+function isEmpty(val){
+    return (val === undefined || val == null || val.length <= 0) ? true : false;
+}
 
 // Split the hostlist, add individual hosts. Check if host exists
 function addHostList(event) {
@@ -416,100 +419,124 @@ function addHostsDialogSetup() {
             destroyOnHide: true
         });
 
-        // Get the (one and only) cluster item and fetch defaults
-        clusterStorage.getItem(0).then(function (cluster) {
-            var old_user = cluster.getValue("ssh_user");
-            var old_pwd = cluster.getValue("ssh_pwd");
-            var old_keybased = cluster.getValue("ssh_keybased");
-            var old_openfw = cluster.getValue("openfw");
-            var old_installcluster = cluster.getValue("installCluster");
-            
-            var sd_key_auth = new dijit.form.CheckBox({}, "sd_key_auth");
-            dojo.connect(sd_key_auth, "onChange", updateHostAuth);
-            var sd_key_auth_tt = new dijit.Tooltip({
-                connectId: ["sd_key_auth", "sd_key_auth_qm"],
-                label: "Check this box if key based ssh login is enabled \
-                        on this host.",
-                destroyOnHide: true
-            });
+        var old_user = mcc.gui.getSSHUser();
+        var old_keybased = mcc.gui.getSSHkeybased();
+        var old_openfw = mcc.gui.getOpenFW();
+        var old_installcluster = mcc.gui.getInstallCl();
+        var old_pwd = mcc.gui.getSSHPwd();
 
-            //"Ordinary" USER/PASSWORD login
-            var sd_usr = new dijit.form.TextBox({style: "width: 120px"}, "sd_usr");
-            dojo.connect(sd_usr, "onChange", updateHostAuth);
-            var sd_usr_tt = new dijit.Tooltip({
-                connectId: ["sd_usr", "sd_usr_qm"],
-                label: "User name for ssh login \
-                        to the hosts running MySQL Cluster.",
-                destroyOnHide: true
-            });
-            var sd_usrpwd = new dijit.form.TextBox({
-                type: "password",
-                style: "width: 120px"
-            }, "sd_usrpwd");
-            dojo.connect(sd_usrpwd, "onChange", updateHostAuth);
-            var sd_usrpwd_tt = new dijit.Tooltip({
-                connectId: ["sd_usrpwd", "sd_usrpwd_qm"],
-                label: "Password for ssh login \
-                        to the hosts running MySQL Cluster.",
-                destroyOnHide: true
-            });
+        var sd_key_auth = new dijit.form.CheckBox({}, "sd_key_auth");
+        dojo.connect(sd_key_auth, "onChange", updateHostAuth);
+        var sd_key_auth_tt = new dijit.Tooltip({
+            connectId: ["sd_key_auth", "sd_key_auth_qm"],
+            label: "Check this box if key based ssh login is enabled \
+                    on this host.",
+            destroyOnHide: true
+        });
 
-            //Key based login.
-            var sd_key_usr = new dijit.form.TextBox({style: "width: 120px"}, "sd_key_usr");
-            dojo.connect(sd_key_usr, "onChange", updateHostAuth);
-            var sd_key_usr_tt = new dijit.Tooltip({
-                connectId: ["sd_key_usr", "sd_key_usr_qm"],
-                label: "User name for key login \
-                        if different than in key.",
-                destroyOnHide: true
-            });
+        //"Ordinary" USER/PASSWORD login
+        var sd_usr = new dijit.form.TextBox({style: "width: 120px"}, "sd_usr");
+        dojo.connect(sd_usr, "onChange", updateHostAuth);
+        var sd_usr_tt = new dijit.Tooltip({
+            connectId: ["sd_usr", "sd_usr_qm"],
+            label: "User name for ssh login \
+                    to the hosts running MySQL Cluster.",
+            destroyOnHide: true
+        });
+        var sd_usrpwd = new dijit.form.TextBox({
+            type: "password",
+            style: "width: 120px"
+        }, "sd_usrpwd");
+        dojo.connect(sd_usrpwd, "onChange", updateHostAuth);
+        var sd_usrpwd_tt = new dijit.Tooltip({
+            connectId: ["sd_usrpwd", "sd_usrpwd_qm"],
+            label: "Password for ssh login \
+                    to the hosts running MySQL Cluster.",
+            destroyOnHide: true
+        });
 
-            var sd_key_passp = new dijit.form.TextBox({
-                type: "password",
-                style: "width: 120px"
-            }, "sd_key_passp");
-            dojo.connect(sd_key_passp, "onChange", updateHostAuth);
-            var sd_key_passp_tt = new dijit.Tooltip({
-                connectId: ["sd_key_passp", "sd_key_passp_qm"],
-                label: "Passphrase for the key.",
-                destroyOnHide: true
-            });
+        //Key based login.
+        var sd_key_usr = new dijit.form.TextBox({style: "width: 120px"}, "sd_key_usr");
+        dojo.connect(sd_key_usr, "onChange", updateHostAuth);
+        var sd_key_usr_tt = new dijit.Tooltip({
+            connectId: ["sd_key_usr", "sd_key_usr_qm"],
+            label: "User name for key login \
+                    if different than in key.",
+            destroyOnHide: true
+        });
 
-            var sd_key_file = new dijit.form.TextBox({style: "width: 245px"}, "sd_key_file");
-            dojo.connect(sd_key_file, "onChange", updateHostAuth);
-            var sd_key_file_tt = new dijit.Tooltip({
-                connectId: ["sd_key_file", "sd_key_file_qm"],
-                label: "Path to file containing the key.",
-                destroyOnHide: true
-            });
+        var sd_key_passp = new dijit.form.TextBox({
+            type: "password",
+            style: "width: 120px"
+        }, "sd_key_passp");
+        dojo.connect(sd_key_passp, "onChange", updateHostAuth);
+        var sd_key_passp_tt = new dijit.Tooltip({
+            connectId: ["sd_key_passp", "sd_key_passp_qm"],
+            label: "Passphrase for the key.",
+            destroyOnHide: true
+        });
 
-            //Firewall and installation
-            var sd_openfwhost = new dijit.form.CheckBox({}, "sd_openfwhost");
-            var sd_openfwhost_tt = new dijit.Tooltip({
-                connectId: ["sd_openfwhost", "sd_openfwhost_qm"],
-                label: "Check this box if you need to open firewall ports \
-                        on this host.",
-                destroyOnHide: true
-            });
+        var sd_key_file = new dijit.form.TextBox({style: "width: 245px"}, "sd_key_file");
+        dojo.connect(sd_key_file, "onChange", updateHostAuth);
+        var sd_key_file_tt = new dijit.Tooltip({
+            connectId: ["sd_key_file", "sd_key_file_qm"],
+            label: "Path to file containing the key.",
+            destroyOnHide: true
+        });
 
-            var sd_installonhost = new dijit.form.CheckBox({}, "sd_installonhost");
-            var sd_installonhost_tt = new dijit.Tooltip({
-                connectId: ["sd_installonhost", "sd_installonhost_qm"],
-                label: "Check this box if you need to install MySQL Cluster \
-                        on this host.",
-                destroyOnHide: true
-            });
+        //Firewall and installation
+        var sd_openfwhost = new dijit.form.CheckBox({}, "sd_openfwhost");
+        var sd_openfwhost_tt = new dijit.Tooltip({
+            connectId: ["sd_openfwhost", "sd_openfwhost_qm"],
+            label: "Check this box if you need to open firewall ports \
+                    on this host.",
+            destroyOnHide: true
+        });
 
-            //Init:
-            if (old_keybased) {
-                sd_key_auth.set("checked", old_keybased);
-            } else {
-                sd_usr.set("value", old_user);
-                sd_usrpwd.set("value", old_pwd);
-            }
+        var sd_installonhost = new dijit.form.CheckBox({}, "sd_installonhost");
+        var sd_installonhost_tt = new dijit.Tooltip({
+            connectId: ["sd_installonhost", "sd_installonhost_qm"],
+            label: "Check this box if you need to install MySQL Cluster \
+                    on this host.",
+            destroyOnHide: true
+        });
+
+        //Init:
+        if (isEmpty(old_keybased)) {
+            sd_key_auth.set("checked", false);
+        } else {
+            sd_key_auth.set("checked", old_keybased);
+        };
+        if (isEmpty(old_user)) {
+            sd_usr.set("value", "");
+        } else {
+            sd_usr.set("value", old_user);
+        };
+        if (isEmpty(old_pwd)) {
+            sd_usrpwd.set("value", "");
+        } else {
+            sd_usrpwd.set("value", old_pwd);
+        };
+        if (isEmpty(old_openfw)) {
+            sd_openfwhost.set("checked", false);
+        } else {
             sd_openfwhost.set("checked", old_openfw);
+        };
+        if (isEmpty(old_installcluster)) {
+            sd_installonhost.set("checked", false);
+        } else {
             sd_installonhost.set("checked", old_installcluster != "NONE");
-        })
+        };
+        /*
+        if (old_keybased) {
+            sd_key_auth.set("checked", old_keybased);
+        } else {
+            sd_usr.set("value", old_user);
+            sd_usrpwd.set("value", old_pwd);
+        }
+        sd_openfwhost.set("checked", old_openfw);
+        sd_installonhost.set("checked", old_installcluster != "NONE");
+        */
     }
 }
 
@@ -1043,6 +1070,44 @@ function hostGridSetup() {
     }, "addHostsButton");
     dojo.connect(addButton, "onClick", function () {
         dijit.byId("hostlist").setValue("");
+        // We are at NEW host dialog so set everything up according to ClusterLvL defaults.
+        var old_keybased = mcc.gui.getSSHkeybased();
+
+        if (isEmpty(old_keybased)) {
+            dijit.byId("sd_key_auth").set("checked", false);
+        } else {
+            dijit.byId("sd_key_auth").set("checked", old_keybased);
+        };
+        if (isEmpty(mcc.gui.getSSHUser())) {
+            dijit.byId("sd_usr").setValue("");
+        } else {
+            dijit.byId("sd_usr").setValue(mcc.gui.getSSHUser());
+        };
+        if (isEmpty(mcc.gui.getSSHPwd())) {
+            dijit.byId("sd_usrpwd").setValue("");
+        } else {
+            dijit.byId("sd_usrpwd").setValue(mcc.gui.getSSHPwd());
+        };
+        if (isEmpty(mcc.gui.getOpenFW())) {
+            dijit.byId("sd_openfwhost").set("checked", false);
+        } else {
+            dijit.byId("sd_openfwhost").set("checked", mcc.gui.getOpenFW());
+        };
+        if (isEmpty(mcc.gui.getInstallCl())) {
+            dijit.byId("sd_installonhost").set("checked", false);
+        } else {
+            dijit.byId("sd_installonhost").set("checked", mcc.gui.getInstallCl() != "NONE");
+        };
+        /*
+        if (old_keybased) {
+            sd_key_auth.set("checked", old_keybased);
+        } else {
+            sd_usr.set("value", mcc.gui.getSSHUser());
+            sd_usrpwd.set("value", mcc.gui.getSSHPwd());
+        }
+        sd_openfwhost.set("checked", mcc.gui.getOpenFW());
+        sd_installonhost.set("checked", mcc.gui.getInstallCl() != "NONE");
+        */
         dijit.byId("addHostsDlg").show();
     });
 
@@ -1121,17 +1186,10 @@ function hostGridSetup() {
     }, "editHostsButton");
     dojo.connect(editButton, "onClick", function () {
         // Get the (one and only) cluster item and fetch default credentials.
-        var old_user = "";
-        var old_keybased = "";
-        var old_openfw = false;
-        var old_installcluster = false;
-
-        mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-            old_user = cluster.getValue("ssh_user");
-            old_keybased = cluster.getValue("ssh_keybased");
-            old_openfw = cluster.getValue("openfw");
-            old_installcluster = cluster.getValue("installCluster");
-        });
+        var old_user = mcc.gui.getSSHUser();
+        var old_keybased = mcc.gui.getSSHkeybased();
+        var old_openfw = mcc.gui.getOpenFW();
+        var old_installcluster = mcc.gui.getInstallCl();
 
         // Check if selected Host has configured credentials already,
         // potentially, from using "Add Host" button.
@@ -1206,12 +1264,30 @@ function hostGridSetup() {
                 // Check if there are credentials at host level.
                 if (!hasCreds) {
                     mcc.util.dbg("No saved credentials for host " + selection[i] + ", switching to default.");
+
+                    if (isEmpty(old_keybased)) {
+                        dijit.byId("sd_key_authedit").set("checked", false);
+                    } else {
+                        dijit.byId("sd_key_authedit").set("checked", old_keybased);
+                    };
+                    if (isEmpty(old_user)) {
+                        dijit.byId("sd_usredit").setValue("");
+                    } else {
+                        dijit.byId("sd_usredit").setValue(old_user);
+                    };
+                    if (isEmpty(mcc.gui.getSSHPwd())) {
+                        dijit.byId("sd_usrpwdedit").setValue("");
+                    } else {
+                        dijit.byId("sd_usrpwdedit").setValue(mcc.gui.getSSHPwd());
+                    };
+                    /*
                     if (old_keybased) {
                         dijit.byId("sd_key_authedit").set("checked", old_keybased);
                     } else {
                         dijit.byId("sd_usredit").set("value", old_user);
                         dijit.byId("sd_usrpwdedit").set("value", mcc.gui.getSSHPwd());
                     }
+                    */
                 }
                 
                 //Set FW and installation from storage.
@@ -1219,13 +1295,25 @@ function hostGridSetup() {
                 if (mcc.storage.hostStorage().store().getValue(selection[i], "openfwhost")) {
                     dijit.byId("sd_openfwhostedit").set("checked", mcc.storage.hostStorage().store().getValue(selection[i], "openfwhost"));
                 } else {
-                    dijit.byId("sd_openfwhostedit").set("checked", old_openfw);
+                    //dijit.byId("sd_openfwhostedit").set("checked", old_openfw);
+                    if (isEmpty(old_openfw)) {
+                        dijit.byId("sd_openfwhostedit").set("checked", false);
+                        old_openfw = false;
+                    } else {
+                        dijit.byId("sd_openfwhostedit").set("checked", old_openfw);
+                    };
                     mcc.storage.hostStorage().store().setValue(selection[i], "openfwhost", old_openfw)
                 }
                 if (mcc.storage.hostStorage().store().getValue(selection[i], "installonhost")) {
                     dijit.byId("sd_installonhostedit").set("checked", mcc.storage.hostStorage().store().getValue(selection[i], "installonhost"));
                 } else {
-                    dijit.byId("sd_installonhostedit").set("checked", old_installcluster != "NONE");
+                    //dijit.byId("sd_installonhostedit").set("checked", old_installcluster != "NONE");
+                    if (isEmpty(old_installcluster)) {
+                        dijit.byId("sd_installonhostedit").set("checked", false);
+                        old_installcluster = "NONE";
+                    } else {
+                        dijit.byId("sd_installonhost").set("checked", old_installcluster != "NONE");
+                    };
                     mcc.storage.hostStorage().store().setValue(selection[i], "installonhost", dijit.byId("sd_installonhostedit").getValue("checked"));
                 }
                 var hsval = mcc.storage.hostStorage().store().getValue(selection[i], "installonhost");
