@@ -63,7 +63,48 @@ struct NDB_SHARE {
   struct NDB_SHARE_KEY* key;
   char *db;
   char *table_name;
+
+private:
+  /*
+    The current TupleIdRange for the table is stored in NDB_SHARE in order
+    for the auto_increment value of a table to be consecutive between
+    different user connections, i.e subsequent INSERTs by two
+    connections should get consecutive values(if that's how the auto
+    increment setting of MySQL Server and ndbcluster plugin are currently
+    configured). The default of NdbApi would otherwise be to give each
+    Ndb object instance their own range.
+
+    NOTE! Protected by NDB_SHARE::mutex, can only be accessed via
+    the Tuple_id_range_guard class
+  */
   Ndb::TupleIdRange tuple_id_range;
+
+public:
+  // RAII style class for accessing tuple_id_range
+  class Tuple_id_range_guard {
+    NDB_SHARE * m_share;
+  public:
+    Ndb::TupleIdRange& range;
+
+    Tuple_id_range_guard(NDB_SHARE* share) :
+      m_share(share),
+      range(share->tuple_id_range)
+    {
+      mysql_mutex_lock(&m_share->mutex);
+    }
+    ~Tuple_id_range_guard()
+    {
+      mysql_mutex_unlock(&m_share->mutex);
+    }
+  };
+
+  // Reset the tuple_id_range
+  void reset_tuple_id_range()
+  {
+    Tuple_id_range_guard g(this);
+    g.range.reset();
+  }
+
   struct Ndb_statistics stat;
   struct Ndb_index_stat* index_stat_list;
 
@@ -368,28 +409,5 @@ public:
     return m_share;
   }
 };
-
-// Utility class for locking access to shared auto_increment prefetch range
-class Ndb_tuple_id_range_guard {
-  NDB_SHARE* m_share;
-public:
-  Ndb_tuple_id_range_guard(NDB_SHARE* share) :
-    m_share(share),
-    range(share->tuple_id_range)
-  {
-    mysql_mutex_lock(&m_share->mutex);
-  }
-  ~Ndb_tuple_id_range_guard()
-  {
-    mysql_mutex_unlock(&m_share->mutex);
-  }
-  Ndb::TupleIdRange& range;
-};
-
-inline void reset_tuple_id_range(NDB_SHARE* share)
-{
-  Ndb_tuple_id_range_guard g(share);
-  g.range.reset();
-}
 
 #endif

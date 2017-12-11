@@ -3891,14 +3891,9 @@ class Ndb_schema_event_handler {
     }
     if (share)
     {
-      /**
-       * We need to reset any pre-fetch auto_increment range
-       * since an open share may be kept during the truncate
-       * operation for mysql servers that don't monitor table
-       * DDL-events (if binlogging is disabled).
-       */
-      if (share->get_binlog_nologging())
-        reset_tuple_id_range(share);
+      // Reset the tables shared auto_increment counter
+      share->reset_tuple_id_range();
+
       NDB_SHARE::release_reference(share, "truncate_table"); // temporary ref.
     }
 

@@ -4560,13 +4560,14 @@ ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
               llstr(value, buff)));
 #endif
   {
-    Ndb_tuple_id_range_guard g(m_share);
+    NDB_SHARE::Tuple_id_range_guard g(m_share);
 
     if (ndb->checkUpdateAutoIncrementValue(g.range, value))
     {
-      if (ndb->setAutoIncrementValue(m_table, g.range, value, true)
-          == -1)
+      if (ndb->setAutoIncrementValue(m_table, g.range, value, true) == -1)
+      {
         ERR_RETURN(ndb->getNdbError());
+      }
     }
   }
   DBUG_RETURN(0);
@@ -5568,7 +5569,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     int retry_sleep= 30; /* 30 milliseconds, transaction */
     for (;;)
     {
-      Ndb_tuple_id_range_guard g(m_share);
+      NDB_SHARE::Tuple_id_range_guard g(m_share);
       if (ndb->getAutoIncrementValue(m_table, g.range, auto_value, 1000) == -1)
       {
 	if (--retries && !thd->killed &&
@@ -7785,7 +7786,7 @@ int ha_ndbcluster::info(uint flag)
       if (check_ndb_connection(thd))
         DBUG_RETURN(HA_ERR_NO_CONNECTION);
       Ndb *ndb= get_ndb(thd);
-      Ndb_tuple_id_range_guard g(m_share);
+      NDB_SHARE::Tuple_id_range_guard g(m_share);
       
       Uint64 auto_increment_value64;
       if (ndb->readAutoIncrementValue(m_table, g.range,
@@ -9620,7 +9621,7 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
         int retry_sleep= 30; /* 30 milliseconds, transaction */
         for (;;)
         {
-          Ndb_tuple_id_range_guard g(m_share);
+          NDB_SHARE::Tuple_id_range_guard g(m_share);
           if (ndb->readAutoIncrementValue(ndbtab, g.range, auto_value))
           {
             if (--retries && !thd->killed &&
@@ -12360,7 +12361,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   int retry_sleep= 30; /* 30 milliseconds, transaction */
   for (;;)
   {
-    Ndb_tuple_id_range_guard g(m_share);
+    NDB_SHARE::Tuple_id_range_guard g(m_share);
     if ((m_skip_auto_increment &&
          ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, 
