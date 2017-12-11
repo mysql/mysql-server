@@ -353,6 +353,9 @@ err:
   */
   finalize_logging();
 
+  m_wait_for_ssl_init_mutex.destroy();
+  m_wait_for_ssl_init_cond.destroy();
+
   return GCS_NOK;
 }
 
