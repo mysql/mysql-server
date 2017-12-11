@@ -17,7 +17,3 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 Drop table test.t1;
 "End of test the bug#21837074"
-Testing for bug#24444908 / bug#25128512
-Restart node 1 while other node(s) keps try sending to it
-Wait for node 1 to go down.
-Waiting for node 1 to get started again
