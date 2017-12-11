@@ -12342,6 +12342,11 @@ innobase_ddse_dict_init(
 	DBUG_ASSERT(tables && tables->is_empty());
 	DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
+	if (innobase_init_files(dict_init_mode, tablespaces)) {
+		DBUG_RETURN(true);
+	}
+
+	/* Instantiate table defs only if we are successful so far. */
 	dd::Object_table *innodb_dynamic_metadata =
 		dd::Object_table::create_object_table();
 	innodb_dynamic_metadata->set_hidden(false);
@@ -12448,7 +12453,7 @@ innobase_ddse_dict_init(
 	tables->push_back(innodb_index_stats);
 	tables->push_back(innodb_ddl_log);
 
-	DBUG_RETURN(innobase_init_files(dict_init_mode, tablespaces));
+	DBUG_RETURN(false);
 }
 
 /** Initialize the set of hard coded DD table ids.

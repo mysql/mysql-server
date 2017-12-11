@@ -152,7 +152,7 @@ bool DD_properties::init_cached_properties(THD *thd)
   m_properties.reset(Properties::parse_properties(val.c_ptr_safe()));
 
   t->file->ha_rnd_end();
-  return false;
+  return (m_properties == nullptr);
 }
 
 
