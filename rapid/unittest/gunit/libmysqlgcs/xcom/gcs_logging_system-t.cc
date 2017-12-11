@@ -77,10 +77,6 @@ TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle)
     static_cast<Gcs_async_buffer *>(common_sink)->get_sink()
   );
 
-  #if defined(_WIN32)
-         times++;
-  #endif
-
   ON_CALL(*mock_sink, initialize()).WillByDefault(Return(GCS_OK));
   EXPECT_CALL(*mock_sink, log_event(_,_)).Times(times);
   ON_CALL(*mock_sink, finalize()).WillByDefault(Return(GCS_OK));

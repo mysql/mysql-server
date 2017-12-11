@@ -205,7 +205,7 @@ int init_net() {
     g_critical("Could not find a usable version of Winsock.dll");
     return 1;
   } else {
-    G_MESSAGE("The Winsock 2.2 dll was found okay");
+    G_DEBUG("The Winsock 2.2 dll was found okay");
     return 0;
   }
 }
