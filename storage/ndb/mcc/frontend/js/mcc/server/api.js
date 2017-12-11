@@ -281,32 +281,30 @@ function hostInfoReq(hostname, onReply, onError) {
             // Do it the old way.
             mcc.util.dbg("Host " + hostname + " has no creds.");
             mcc.util.dbg("Running hostInfoReq for host " + hostname + " with Cluster creds");
-            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-                // Create message
-                var msg = {
-                    head: getHead("hostInfoReq"),
-                    body: {
-                        ssh: getSSH(hostname, cluster.getValue("ssh_keybased"), 
-                                cluster.getValue("ssh_user"),
-                                mcc.gui.getSSHPwd()),
-                        hostName: hostname
-                    }
-                };
+            // Create message
+            var msg = {
+                head: getHead("hostInfoReq"),
+                body: {
+                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                            mcc.gui.getSSHUser(),
+                            mcc.gui.getSSHPwd()),
+                    hostName: hostname
+                }
+            };
 
-                // Register last seq no
-                mcc.storage.hostStorage().getItems({name: hostname}).then(
-                    function (hosts) {
-                        if (hosts[0]) {
-                            hosts[0].setValue("hwResFetchSeq", msg.head.seq);
-                            mcc.storage.hostStorage().save();
+            // Register last seq no
+            mcc.storage.hostStorage().getItems({name: hostname}).then(
+                function (hosts) {
+                    if (hosts[0]) {
+                        hosts[0].setValue("hwResFetchSeq", msg.head.seq);
+                        mcc.storage.hostStorage().save();
 
-                            // Call do_post, provide callbacks
-                            do_post(msg).then(replyHandler(onReply, onError), 
-                                    errorHandler(msg.head, onError));
-                        }
+                        // Call do_post, provide callbacks
+                        do_post(msg).then(replyHandler(onReply, onError), 
+                                errorHandler(msg.head, onError));
                     }
-                );
-            });
+                }
+            );
         }
     }
 }
@@ -357,30 +355,28 @@ function hostDockerReq(hostname, onReply, onError) {
             // Do it the old way.
             mcc.util.dbg("Host " + hostname + " has no creds.");
             mcc.util.dbg("Running hostDockerReq for host " + hostname + " with Cluster creds");
-            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-                // Create message
-                var msg = {
-                    head: getHead("hostDockerReq"),
-                    body: {
-                        ssh: getSSH(hostname, cluster.getValue("ssh_keybased"), 
-                                cluster.getValue("ssh_user"),
-                                mcc.gui.getSSHPwd()),
-                        hostName: hostname
-                    }
-                };
+            // Create message
+            var msg = {
+                head: getHead("hostDockerReq"),
+                body: {
+                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                            mcc.gui.getSSHUser(),
+                            mcc.gui.getSSHPwd()),
+                    hostName: hostname
+                }
+            };
 
-                // Register last seq no
-                mcc.storage.hostStorage().getItems({name: hostname}).then(
-                    function (hosts) {
-                        if (hosts[0]) {
+            // Register last seq no
+            mcc.storage.hostStorage().getItems({name: hostname}).then(
+                function (hosts) {
+                    if (hosts[0]) {
 
-                            // Call do_post, provide callbacks
-                            do_post(msg).then(replyHandler(onReply, onError), 
-                                    errorHandler(msg.head, onError));
-                        }
+                        // Call do_post, provide callbacks
+                        do_post(msg).then(replyHandler(onReply, onError), 
+                                errorHandler(msg.head, onError));
                     }
-                );
-            });
+                }
+            );
         }
     }
 }
@@ -442,34 +438,32 @@ function checkFileReq(hostname, path, filename, contents, overwrite,
         } else {
             // Get SSH info from cluster storage
             mcc.util.dbg("Running checkFileReq for host " + hostname + " with Cluster creds");
-            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-                // Create message
-                var msg = {
-                    head: getHead("checkFileReq"),
-                    body: {
-                         ssh: getSSH(cluster.getValue("ssh_keybased"),
-                            cluster.getValue("ssh_user"),
+            // Create message
+            var msg = {
+                head: getHead("checkFileReq"),
+                body: {
+                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                            mcc.gui.getSSHUser(),
                             mcc.gui.getSSHPwd()),
-                        //ssh: getSSH('localhost', false, "", ""),
-                        file: {
-                            hostName: hostname,
-                            path: path
-                        }
+                    //ssh: getSSH('localhost', false, "", ""),
+                    file: {
+                        hostName: hostname,
+                        path: path
                     }
-                };
-                if (filename) {
-                    msg.body.file.name = filename;
                 }
-                if (contents) {
-                    msg.body.contentString = contents;
-                }
-                if (overwrite) {
-                    msg.body.file.overwrite = overwrite;
-                }
-                // Call do_post, provide callbacks
-                do_post(msg).then(replyHandler(onReply, onError), 
-                        errorHandler(msg.head, onError));
-            });
+            };
+            if (filename) {
+                msg.body.file.name = filename;
+            }
+            if (contents) {
+                msg.body.contentString = contents;
+            }
+            if (overwrite) {
+                msg.body.file.overwrite = overwrite;
+            }
+            // Call do_post, provide callbacks
+            do_post(msg).then(replyHandler(onReply, onError), 
+                    errorHandler(msg.head, onError));
         }
     }
 }
@@ -532,51 +526,49 @@ function createFileReq(hostname, path, filename, contents, overwrite,
         } else {
             // Get SSH info from cluster storage
             mcc.util.dbg("Running createFileReq for host " + hostname + " with Cluster creds");
-            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-                // Create message
-                try {
-                    var msg = {
-                        head: getHead("createFileReq"),
-                        body: {
-                            ssh: getSSH(cluster.getValue("ssh_keybased"), 
-                                    cluster.getValue("ssh_user"),
-                                    mcc.gui.getSSHPwd()),
-                            file: {
-                                hostName: hostname,
-                                path: path
-                            }
+            // Create message
+            try {
+                var msg = {
+                    head: getHead("createFileReq"),
+                    body: {
+                        ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                                mcc.gui.getSSHUser(),
+                                mcc.gui.getSSHPwd()),
+                        file: {
+                            hostName: hostname,
+                            path: path
                         }
-                    };
-                } catch (e){
-                    //IF mcc.gui.getSSHPwd() fails, which is the only case,
-                    //then we can safely assume we are BEFORE gui initialization,
-                    //which means on welcome page and not yet on content. Thus,
-                    //no creds are available, we're on lacalhost.
-                    mcc.util.dbg("Inside CATCH");
-                    msg = {
-                        head: getHead("createFileReq"),
-                        body: {
-                            ssh: getSSH("localhost", false, "",""),
-                            file: {
-                                hostName: hostname,
-                                path: path
-                            }
-                        }
-                    };
+                    }
                 };
-                if (filename) {
-                    msg.body.file.name = filename;
-                }
-                if (contents) {
-                    msg.body.contentString = contents;
-                }
-                if (overwrite) {
-                    msg.body.file.overwrite = overwrite;
-                }
-                // Call do_post, provide callbacks
-                do_post(msg).then(replyHandler(onReply, onError), 
-                        errorHandler(msg.head, onError));
-            });
+            } catch (e){
+                //IF mcc.gui.getSSHPwd() fails, which is the only case,
+                //then we can safely assume we are BEFORE gui initialization,
+                //which means on welcome page and not yet on content. Thus,
+                //no creds are available, we're on lacalhost.
+                mcc.util.dbg("Inside CATCH");
+                msg = {
+                    head: getHead("createFileReq"),
+                    body: {
+                        ssh: getSSH("localhost", false, "",""),
+                        file: {
+                            hostName: hostname,
+                            path: path
+                        }
+                    }
+                };
+            };
+            if (filename) {
+                msg.body.file.name = filename;
+            }
+            if (contents) {
+                msg.body.contentString = contents;
+            }
+            if (overwrite) {
+                msg.body.file.overwrite = overwrite;
+            }
+            // Call do_post, provide callbacks
+            do_post(msg).then(replyHandler(onReply, onError), 
+                    errorHandler(msg.head, onError));
         }
     }
 }
@@ -641,31 +633,29 @@ function appendFileReq(hostname, srcPath, srcName, destPath, destName,
         } else {
             // Get SSH info from cluster storage
             mcc.util.dbg("Running appendFileReq for host " + hostname + " with Cluster creds");
-            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-                // Create message
-                var msg = {
-                    head: getHead("appendFileReq"),
-                    body: {
-                        ssh: getSSH(cluster.getValue("ssh_keybased"), 
-                                cluster.getValue("ssh_user"),
-                                mcc.gui.getSSHPwd()),
-                        sourceFile: {
-                            hostName: hostname,
-                            path: srcPath,
-                            name: srcName
-                        },
-                        destinationFile: {
-                            hostName: hostname,
-                            path: destPath,
-                            name: destName
-                        }
+            // Create message
+            var msg = {
+                head: getHead("appendFileReq"),
+                body: {
+                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                            mcc.gui.getSSHUser(),
+                            mcc.gui.getSSHPwd()),
+                    sourceFile: {
+                        hostName: hostname,
+                        path: srcPath,
+                        name: srcName
+                    },
+                    destinationFile: {
+                        hostName: hostname,
+                        path: destPath,
+                        name: destName
                     }
-                };
+                }
+            };
 
-                // Call do_post, provide callbacks
-                do_post(msg).then(replyHandler(onReply, onError), 
-                        errorHandler(msg.head, onError));
-            });
+            // Call do_post, provide callbacks
+            do_post(msg).then(replyHandler(onReply, onError), 
+                    errorHandler(msg.head, onError));
         }
     }
 }
@@ -715,24 +705,22 @@ function runMgmdCommandReq(hostname, port, cmd, onReply, onError) {
         } else {
             // Get SSH info from cluster storage
             mcc.util.dbg("Running runMgmdCommandReq for host " + hostname + " with Cluster creds");
-            mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
-                // Create message
-                var msg = {
-                    head: getHead("runMgmdCommandReq"),
-                    body: {
-                        ssh: getSSH(cluster.getValue("ssh_keybased"), 
-                                cluster.getValue("ssh_user"),
-                                mcc.gui.getSSHPwd()),
-                        hostName: hostname,
-                        port: port,
-                        mgmd_command: cmd
-                    }
-                };
+            // Create message
+            var msg = {
+                head: getHead("runMgmdCommandReq"),
+                body: {
+                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                            mcc.gui.getSSHUser(),
+                            mcc.gui.getSSHPwd()),
+                    hostName: hostname,
+                    port: port,
+                    mgmd_command: cmd
+                }
+            };
 
-                // Call do_post, provide callbacks
-                do_post(msg).then(replyHandler(onReply, onError), 
-                        errorHandler(msg.head, onError));
-            });
+            // Call do_post, provide callbacks
+            do_post(msg).then(replyHandler(onReply, onError), 
+                    errorHandler(msg.head, onError));
         }
 
     }
@@ -777,9 +765,9 @@ function doReq(reqName, body, cluster, onReply, onError) {
             );
         } else {
             mcc.util.dbg("Running doReq for host " + hostName_fromBody + " with Cluster creds");
-            msg.body.ssh = getSSH(cluster.getValue("ssh_keybased"), 
-                                  cluster.getValue("ssh_user"),
-                                  mcc.gui.getSSHPwd());
+            msg.body.ssh = getSSH(hostName_fromBody, mcc.gui.getSSHkeybased(), 
+                            mcc.gui.getSSHUser(),
+                            mcc.gui.getSSHPwd());
         }
         // Call do_post, provide callbacks
         do_post(msg).then(replyHandler(onReply, onError), 
