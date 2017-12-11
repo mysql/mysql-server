@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,8 +168,8 @@ public:
 
   Uint64 get_total_send_buffer_size() const
   {
-    /* TODO : Should we ignore the reserved space? */
-    return Uint64(m_tot_send_buffer_pages) * m_pagesize;
+    /* We ignore the reserved space which is for 'emergency' use only */
+    return Uint64(m_tot_send_buffer_pages - m_reserved_send_buffer_pages) * m_pagesize;
   }
   Uint64 get_total_used_send_buffer_size() const
   {
