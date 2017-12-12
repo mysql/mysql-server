@@ -118,6 +118,7 @@ Database: information_schema
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
+| KEYWORDS                              |
 | KEY_COLUMN_USAGE                      |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
@@ -184,6 +185,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
+| KEYWORDS                              |
 | KEY_COLUMN_USAGE                      |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |

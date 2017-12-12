@@ -28,6 +28,7 @@
 #include "sql/dd/impl/system_views/innodb_fields.h"      // Innodb_fields
 #include "sql/dd/impl/system_views/innodb_tablespaces_brief.h"   // Innodb_tablespace_brief
 #include "sql/dd/impl/system_views/key_column_usage.h"   // key_column_usage
+#include "sql/dd/impl/system_views/keywords.h"           // keywords
 #include "sql/dd/impl/system_views/parameters.h"         // Parameters
 #include "sql/dd/impl/system_views/partitions.h"         // Partitions
 #include "sql/dd/impl/system_views/referential_constraints.h" // Referential_con...
@@ -205,6 +206,7 @@ void System_views::init()
   register_view<dd::system_views::Innodb_fields>(is);
   register_view<dd::system_views::Innodb_tablespaces_brief>(is);
   register_view<dd::system_views::Key_column_usage>(is);
+  register_view<dd::system_views::Keywords>(is);
   register_view<dd::system_views::Parameters>(is);
   register_view<dd::system_views::Partitions>(is);
   register_view<dd::system_views::Referential_constraints>(is);

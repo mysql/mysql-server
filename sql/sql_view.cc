@@ -371,6 +371,13 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       Ensure that we have some privileges on this table, stricter checks will
       be performed for each referenced column during resolving.
     */
+    if (tbl->is_internal())
+    {
+      // Optimizer internal tables have no ACL entries
+      tbl->set_privileges(SELECT_ACL);
+      continue;
+    }
+
     if (check_some_access(thd, VIEW_ANY_ACL, tbl))
     {
       my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "ANY",
@@ -384,11 +391,8 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       TABLE::grant field. tbl->table_name will be correct name of table
       because VIEWs are not opened yet.
     */
-    if (tbl->is_derived())
-      tbl->set_privileges(SELECT_ACL);
-    else
-      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                      tbl->get_table_name());
+    fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                    tbl->get_table_name());
   }
 
   /*
@@ -663,7 +667,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /*
     Compare/check grants on view with grants of underlying tables
   */
-  if (view->is_derived())
+  if (view->is_internal())
     view->set_privileges(SELECT_ACL);
   else
     fill_effective_table_privileges(thd, &view->grant, view->db,

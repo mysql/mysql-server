@@ -119,6 +119,7 @@ Database: information_schema
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
 | KEY_COLUMN_USAGE                      |
+| KEYWORDS                              |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
@@ -185,6 +186,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
 | KEY_COLUMN_USAGE                      |
+| KEYWORDS                              |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
