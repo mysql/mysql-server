@@ -7,6 +7,7 @@
 --echo "WL-8478"
 disable_query_log;
 
+
 CREATE LOGFILE GROUP lg_1
     ADD UNDOFILE 'undo_1.log'
     INITIAL_SIZE 16M
@@ -26,8 +27,7 @@ CREATE TABLESPACE ts_1
 
 ALTER TABLESPACE ts_1
     ADD DATAFILE 'data_2.dat'
-    INITIAL_SIZE 48M
-    ENGINE NDBCLUSTER;
+    INITIAL_SIZE 48M;
 
 # Create disk-data tables and do some operations on them.
 
