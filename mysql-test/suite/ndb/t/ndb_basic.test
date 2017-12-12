@@ -1,13 +1,7 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
-drop database if exists mysqltest;
---enable_warnings
-
 #
-# Basic test to show that the NDB 
-# table handler is working
+# Basic test of the ndbcluster plugin 
 #
 
 #
@@ -418,6 +412,7 @@ while ($i)
 }
 let $sql=$sql, c512 varchar(10000);
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql charset=latin1;
 let $sql=$sql partition by key(c1);
 #             ^^^^^^^^^^^^^^^^^^^^
 #             also tests bug#17179, more than 31
@@ -447,6 +442,7 @@ while ($i)
 }
 let $sql=$sql, c512 varchar(10000);
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql charset=latin1;
 let $sql=$sql partition by key(c1);
 
 eval $sql; # eval the sql and create the table
@@ -463,7 +459,10 @@ select c1, length(c512) from t1 order by 1;
 delete from t1;
 drop table t1;
 
-create table t1 (a int primary key, b varchar(13000)) engine = ndb;
+create table t1 (
+  a int primary key,
+  b varchar(13000)
+) engine = ndb charset=latin1;
 insert into t1 values (1,@v13000), (2,@v13000);
 select length(b) from t1 order by 1;
 drop table t1;
@@ -478,6 +477,7 @@ while ($i)
   dec $i;
 }
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
+let $sql=$sql charset=latin1;
 
 --error 1296
 eval $sql; # eval the sql and create the table
@@ -687,8 +687,6 @@ drop table t1;
 drop table t2;
 drop table t3;
 
-# End of 4.1 tests
-
 #
 # Test long table name
 #
@@ -789,8 +787,6 @@ replace into t1 values ('bbb', '-bbb');
 replace into t1 values ('ccc', '-ccc');
 select * from t1 order by 1,2;
 drop table t1;
-
---echo End of 5.0 tests
 
 #
 # Bug #18483 Cannot create table with FK constraint
@@ -905,5 +901,3 @@ create table
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
 primary key) engine=ndb;
 show warnings;
-
---echo End of 5.1 tests

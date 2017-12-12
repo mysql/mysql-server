@@ -35,7 +35,6 @@ ndb_dd_restore_check_tablespace_mdl: Need WL#10167 On the fly frm translation
 ndb_restore_compat_compression: Need WL#10167 On the fly frm translation
 ndb_statistics0: Need WL#10167 On the fly frm translation
 
-ndb_basic: Need WL#10665 Extend size of extra table metadata
 ndb_alter_table:  Need WL#10665 Extend size of extra table metadata
 ndb_restore_schema_tolerance: Need WL#10665 Extend size of extra table metadata
 
