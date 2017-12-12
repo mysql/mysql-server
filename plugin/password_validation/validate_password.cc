@@ -536,7 +536,7 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
                        "validate password plugin",
                        "validate_password component");
   // Initialize error logging service.
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return (1);
 
   plugin_info_ptr= plugin_info;
@@ -563,7 +563,7 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused)))
                        "validate_password component");
   free_dictionary_file();
   mysql_rwlock_destroy(&LOCK_dict_file);
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return (0);
 }
 

@@ -1094,7 +1094,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 {
   // Initialize error logging service.
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return 1;
 
   // Register all PSI keys at the time plugin init
@@ -1126,7 +1126,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure during Group Replication handler initialization");
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
     /* purecov: end */
   }
@@ -1137,7 +1137,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure when registering the server state observers");
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
     /* purecov: end */
   }
@@ -1147,7 +1147,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure when registering the transactions state observers");
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
     /* purecov: end */
   }
@@ -1158,7 +1158,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
                 "Failure when registering the binlog state observers");
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
     /* purecov: end */
   }
@@ -1269,7 +1269,7 @@ int plugin_group_replication_deinit(void *p)
 
   plugin_info_ptr= NULL;
 
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 
   return observer_unregister_error;
 }

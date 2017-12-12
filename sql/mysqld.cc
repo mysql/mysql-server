@@ -4829,8 +4829,8 @@ static int init_server_components()
       Reports an error and aborts, if the same base name is specified
       for both binary and relay logs.
     */
-    LogErr(ERROR_LEVEL, ER_RPL_CANT_HAVE_SAME_BASENAME,
-           log_bin_basename, "--log-bin",
+    LogErr(ERROR_LEVEL, ER_RPL_CANT_HAVE_SAME_BASENAME, log_bin_basename,
+           "--log-bin", default_binlogfile_name,
            default_binlogfile_name_from_hostname,
            "--relay-log", default_relaylogfile_name);
     unireg_abort(MYSQLD_ABORT_EXIT);

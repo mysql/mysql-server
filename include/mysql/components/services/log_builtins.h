@@ -1324,29 +1324,39 @@ inline LogEvent &LogEvent::message(const char *fmt, ...)
 /**
   Method to de-initialize logging service in plugin.
 
-  param[in]  reg_srv    Pluin registry service.
+  param[in,out]  reg_srv    Plugin registry service.
+  param[in,out]  log_bi     Error logging service.
+  param[in,out]  log_bs     String service for error logging.
 */
-inline void deinit_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
+inline void deinit_logging_service_for_plugin(
+  SERVICE_TYPE(registry) **reg_srv,
+  SERVICE_TYPE(log_builtins) **log_bi,
+  SERVICE_TYPE(log_builtins_string) **log_bs)
 {
-  if (log_bi)
-    (*reg_srv)->release((my_h_service)log_bi);
-  if (log_bs)
-    (*reg_srv)->release((my_h_service)log_bs);
+  if (*log_bi)
+    (*reg_srv)->release((my_h_service)(*log_bi));
+  if (*log_bs)
+    (*reg_srv)->release((my_h_service)(*log_bs));
   mysql_plugin_registry_release(*reg_srv);
-  log_bi= nullptr;
-  log_bs= nullptr;
+  *log_bi= nullptr;
+  *log_bs= nullptr;
   *reg_srv= nullptr;
 }
 
 /**
   Method to de-initialize logging service in plugin.
 
-  param[out]  reg_srv    Pluin registry service.
+  param[in,out]  reg_srv    Plugin registry service.
+  param[in,out]  log_bi     Error logging service.
+  param[in,out]  log_bs     String service for error logging.
 
   @retval     false  Success.
   @retval     true   Failed.
 */
-inline bool init_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
+inline bool init_logging_service_for_plugin(
+  SERVICE_TYPE(registry) **reg_srv,
+  SERVICE_TYPE(log_builtins) **log_bi,
+  SERVICE_TYPE(log_builtins_string) **log_bs)
 {
   my_h_service log_srv= nullptr;
   my_h_service log_str_srv= nullptr;
@@ -1354,12 +1364,13 @@ inline bool init_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
   if (!(*reg_srv)->acquire("log_builtins.mysql_server", &log_srv) &&
       !(*reg_srv)->acquire("log_builtins_string.mysql_server", &log_str_srv))
   {
-    log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins) *>(log_srv);
-    log_bs= reinterpret_cast<SERVICE_TYPE(log_builtins_string) *>(log_str_srv);
+    (*log_bi)= reinterpret_cast<SERVICE_TYPE(log_builtins) *>(log_srv);
+    (*log_bs)=
+      reinterpret_cast<SERVICE_TYPE(log_builtins_string) *>(log_str_srv);
   }
   else
   {
-    deinit_logging_service_for_plugin(reg_srv);
+    deinit_logging_service_for_plugin(reg_srv, log_bi, log_bs);
     return true;
   }
   return false;
@@ -1370,10 +1381,18 @@ inline bool init_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
 /**
   Method is used by unit tests.
 
-  param[in]  reg_srv    Pluin registry service.
+  param[in,out]  reg_srv    Plugin registry service.
+  param[in,out]  log_bi     Error logging service.
+  param[in,out]  log_bs     String service for error logging.
+
+  @retval     false  Success.
+  @retval     true   Failed.
 */
 inline bool init_logging_service_for_plugin(
-  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)))
+  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)),
+  SERVICE_TYPE(log_builtins) **log_bi MY_ATTRIBUTE((unused)),
+  SERVICE_TYPE(log_builtins_string) **log_bs MY_ATTRIBUTE((unused)))
+
 {
   return false;
 }
@@ -1381,10 +1400,14 @@ inline bool init_logging_service_for_plugin(
 /**
   Method is used by unit tests.
 
-  param[in]  reg_srv    Pluin registry service.
+  param[in,out]  reg_srv    Plugin registry service.
+  param[in,out]  log_bi     Error logging service.
+  param[in,out]  log_bs     String service for error logging.
 */
 inline void deinit_logging_service_for_plugin(
-  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)))
+  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)),
+  SERVICE_TYPE(log_builtins) **log_bi MY_ATTRIBUTE((unused)),
+  SERVICE_TYPE(log_builtins_string) **log_bs MY_ATTRIBUTE((unused)))
 { }
 
 #endif // MYSQL_DYNAMIC_PLUGIN

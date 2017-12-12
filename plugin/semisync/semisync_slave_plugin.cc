@@ -237,18 +237,18 @@ Binlog_relay_IO_observer relay_io_observer = {
 static int semi_sync_slave_plugin_init(void *p)
 {
   // Initialize error logging service.
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return 1;
 
   repl_semisync= new ReplSemiSyncSlave();
   if (repl_semisync->initObject())
   {
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (register_binlog_relay_io_observer(&relay_io_observer, p))
   {
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
 
@@ -261,7 +261,7 @@ static int semi_sync_slave_plugin_deinit(void *p)
     return 1;
   delete repl_semisync;
   repl_semisync= nullptr;
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 

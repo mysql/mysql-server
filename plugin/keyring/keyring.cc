@@ -105,7 +105,7 @@ SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 static int keyring_init(MYSQL_PLUGIN plugin_info)
 {
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return true;
 
   try
@@ -156,7 +156,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     if (logger != NULL)
       logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure due to internal"
                                   " exception inside the plugin");
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return true;
   }
 }
@@ -178,7 +178,7 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
   keyring_file_data.reset();
   mysql_rwlock_destroy(&LOCK_keyring);
 
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 
   return 0;
 }

@@ -91,7 +91,7 @@ mecab_parser_plugin_init(void*)
 	std::string			rcfile_arg;
 
         // Initialize error logging service.
-	if (init_logging_service_for_plugin(&reg_srv))
+	if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
 	  return(1);
 
 	/* Check mecab version. */
@@ -99,7 +99,7 @@ mecab_parser_plugin_init(void*)
 		LogErr(ERROR_LEVEL, ER_MECAB_NOT_SUPPORTED,
 			MeCab::Model::version(),
 			mecab_min_supported_version);
-		deinit_logging_service_for_plugin(&reg_srv);
+		deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 		return(1);
 	}
 
@@ -129,7 +129,7 @@ mecab_parser_plugin_init(void*)
 	if (mecab_model == NULL) {
 		LogErr(ERROR_LEVEL, ER_MECAB_FAILED_TO_CREATE_MODEL,
 			MeCab::getLastError());
-		deinit_logging_service_for_plugin(&reg_srv);
+		deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 		return(1);
 	}
 
@@ -139,7 +139,7 @@ mecab_parser_plugin_init(void*)
 			MeCab::getLastError());
 		delete mecab_model;
 		mecab_model= NULL;
-		deinit_logging_service_for_plugin(&reg_srv);
+		deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 		return(1);
 	}
 
@@ -154,7 +154,7 @@ mecab_parser_plugin_init(void*)
 
                 LogErr(ERROR_LEVEL, ER_MECAB_UNSUPPORTED_CHARSET,
 			mecab_dict->charset);
-		deinit_logging_service_for_plugin(&reg_srv);
+		deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 		return(1);
 	} else {
 		LogErr(INFORMATION_LEVEL, ER_MECAB_CHARSET_LOADED,
@@ -175,7 +175,7 @@ mecab_parser_plugin_deinit(void*)
 	delete mecab_model;
 	mecab_model = NULL;
 
-	deinit_logging_service_for_plugin(&reg_srv);
+	deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 	return(0);
 }
 

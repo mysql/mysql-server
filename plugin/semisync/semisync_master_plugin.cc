@@ -579,7 +579,7 @@ static void init_semisync_psi_keys(void)
 static int semi_sync_master_plugin_init(void *p)
 {
   // Initialize error logging service.
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return 1;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -602,27 +602,27 @@ static int semi_sync_master_plugin_init(void *p)
 
   if (repl_semisync->initObject())
   {
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (ack_receiver->init())
   {
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (register_trans_observer(&trans_observer, p))
   {
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (register_binlog_storage_observer(&storage_observer, p))
   {
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (register_binlog_transmit_observer(&transmit_observer, p))
   {
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   return 0;
@@ -636,21 +636,21 @@ static int semi_sync_master_plugin_deinit(void *p)
   if (unregister_trans_observer(&trans_observer, p))
   {
     LogErr(ERROR_LEVEL, ER_SEMISYNC_UNREGISTER_TRX_OBSERVER_FAILED);
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (unregister_binlog_storage_observer(&storage_observer, p))
   {
     LogErr(ERROR_LEVEL,
            ER_SEMISYNC_UNREGISTER_BINLOG_STORAGE_OBSERVER_FAILED);
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (unregister_binlog_transmit_observer(&transmit_observer, p))
   {
     LogErr(ERROR_LEVEL,
            ER_SEMISYNC_UNREGISTER_BINLOG_TRANSMIT_OBSERVER_FAILED);
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   delete ack_receiver;
@@ -659,7 +659,7 @@ static int semi_sync_master_plugin_deinit(void *p)
   repl_semisync= nullptr;
 
   LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UNREGISTERED_REPLICATOR);
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 
