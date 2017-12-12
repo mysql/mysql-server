@@ -1073,12 +1073,6 @@ int plugin_group_replication_deinit(void *p)
     compatibility_mgr= NULL;
   }
 
-  if (channel_observation_manager != NULL)
-  {
-    delete channel_observation_manager;
-    channel_observation_manager= NULL;
-  }
-
   if (unregister_server_state_observer(&server_state_observer, p))
   {
     log_message(MY_ERROR_LEVEL,
@@ -1104,6 +1098,12 @@ int plugin_group_replication_deinit(void *p)
     log_message(MY_INFORMATION_LEVEL,
                 "All Group Replication server observers"
                 " have been successfully unregistered");
+
+  if (channel_observation_manager != NULL)
+  {
+    delete channel_observation_manager;
+    channel_observation_manager= NULL;
+  }
 
   delete gcs_module;
   gcs_module= NULL;
