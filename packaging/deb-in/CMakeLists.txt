@@ -160,7 +160,7 @@ Description: Debugging symbols for client library
 Package: mysql-${DEB_PRODUCTNAME}-test-dbgsym
 Architecture: any
 Section: debug
-Depends: mysql-${DEB_PRODUCTNAME}-test-core (= \${binary:Version}), \${misc:Depends}
+Depends: mysql-${DEB_PRODUCTNAME}-test (= \${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for test suite
 
 Package: mysql-${DEB_PRODUCTNAME}-client-core-dbgsym
