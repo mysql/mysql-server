@@ -11256,9 +11256,7 @@ Tablespace_dirs::duplicate_check(
 
 		space_id = Fil_system::get_tablespace_id(phy_filename);
 
-		ut_a(space_id != 0);
-
-		if (space_id != ULINT32_UNDEFINED) {
+		if (space_id != 0 && space_id != ULINT32_UNDEFINED) {
 
 			std::lock_guard<std::mutex> guard(*mutex);
 
@@ -11273,7 +11271,8 @@ Tablespace_dirs::duplicate_check(
 				duplicates->insert(space_id);
 			}
 
-		} else if (Fil_path::is_undo_tablespace_name(phy_filename)) {
+		} else if (space_id != 0
+			   && Fil_path::is_undo_tablespace_name(phy_filename)) {
 
 			ib::info()
 				<< "Can't determine the undo file tablespace"
