@@ -1270,17 +1270,17 @@ public:
 };
 
 /**
-  parse_view_definition creates a dummy lex object. Restore the parent_lex for
-  all the selects.
+  Merge a view query expression into the parent expression.
+  Update all LEX pointers inside the view expression to point to the parent LEX.
 
-  @param view_lex  View's LEX object.
-  @param old_lex   Original LEX object.
+  @param view_lex   View's LEX object.
+  @param parent_lex Original LEX object.
 */
-void restore_parent_lex(LEX *view_lex, LEX *old_lex)
+void merge_query_blocks(LEX *view_lex, LEX *parent_lex)
 {
   for (SELECT_LEX *select= view_lex->all_selects_list;
        select != nullptr; select= select->next_select_in_list())
-    select->parent_lex= old_lex;
+    select->parent_lex= parent_lex;
 }
 
 
@@ -1739,7 +1739,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     sl->context.view_error_handler_arg= view_ref;
   }
 
-  restore_parent_lex(thd->lex, old_lex);
+  merge_query_blocks(thd->lex, old_lex);
 
   view_select->linkage= DERIVED_TABLE_TYPE;
 
