@@ -14,8 +14,6 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-%global milestone       rc
-
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
 
@@ -1231,6 +1229,9 @@ fi
 %endif
 
 %changelog
+* Tue Dec 12 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-0.1
+- Removed milestone marker
+
 * Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add meb as sub package
 - Remove obsoleted mysqltest man pages
