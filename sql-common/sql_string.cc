@@ -1046,6 +1046,15 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs,
       }
 
       set_if_smaller(from_length, to_length);
+
+      /*
+        If we operate on a multi-byte fixed-width character set, make
+        sure the string wasn't truncated in the middle of a character.
+        If so, truncate to a character boundary.
+      */
+      if (to_cs->mbmaxlen > 1 && to_cs->mbmaxlen == to_cs->mbminlen)
+        from_length-= from_length % to_cs->mbmaxlen;
+
       res= to_cs->cset->well_formed_len(to_cs, from, from + from_length,
                                         nchars, &well_formed_error);
       if (res > 0)
