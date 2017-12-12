@@ -451,14 +451,18 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_command.length= msg_len;
 
   if (subclass == MYSQL_AUDIT_GENERAL_ERROR ||
-      subclass == MYSQL_AUDIT_GENERAL_STATUS)
+      subclass == MYSQL_AUDIT_GENERAL_STATUS ||
+      subclass == MYSQL_AUDIT_GENERAL_RESULT)
   {
     Ignore_event_error_handler handler(thd, subclass_name);
 
-    return event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
+    return handler.get_result(event_class_dispatch(thd,
+                                                   MYSQL_AUDIT_GENERAL_CLASS,
+                                                   &event));
   }
 
-  return event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
+  return event_class_dispatch_error(thd, MYSQL_AUDIT_GENERAL_CLASS,
+                                    subclass_name, &event);
 }
 
 int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
