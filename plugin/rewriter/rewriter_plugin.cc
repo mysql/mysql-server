@@ -243,7 +243,7 @@ static int rewriter_plugin_init(MYSQL_PLUGIN plugin_ref)
   needs_initial_load= true;
 
   // Initialize error logging service.
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return 1;
 
   return 0;
@@ -254,7 +254,7 @@ static int rewriter_plugin_deinit(void*)
   plugin_info= NULL;
   delete rewriter;
   mysql_rwlock_destroy(&LOCK_table);
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 

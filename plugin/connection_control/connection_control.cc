@@ -118,7 +118,7 @@ static int
 connection_control_init(MYSQL_PLUGIN plugin_info)
 {
   // Initialize error logging service.
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return 1;
 
   connection_control_plugin_info= plugin_info;
@@ -127,7 +127,7 @@ connection_control_init(MYSQL_PLUGIN plugin_info)
   if (!g_connection_event_coordinator)
   {
     error_handler.handle_error("Failed to initialize Connection_event_coordinator");
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
 
@@ -136,7 +136,7 @@ connection_control_init(MYSQL_PLUGIN plugin_info)
                                   &error_handler))
   {
     delete g_connection_event_coordinator;
-    deinit_logging_service_for_plugin(&reg_srv);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
 
@@ -160,7 +160,7 @@ connection_control_deinit(void *arg MY_ATTRIBUTE((unused)))
   connection_control::deinit_connection_delay_event();
   connection_control_plugin_info= 0;
 
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 

@@ -97,7 +97,7 @@ SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
  */
 int xpl_plugin_init(MYSQL_PLUGIN p)
 {
-  if (init_logging_service_for_plugin(&reg_srv))
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return 1;
 
   xpl::Plugin_system_variables::clean_callbacks();
@@ -124,7 +124,7 @@ int xpl_plugin_deinit(MYSQL_PLUGIN p)
   check_exit_hook();
   int res= xpl::Server::exit(p);
 
-  deinit_logging_service_for_plugin(&reg_srv);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return res;
 }
 
