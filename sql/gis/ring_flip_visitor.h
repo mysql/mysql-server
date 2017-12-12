@@ -16,7 +16,11 @@
 // this program; if not, write to the Free Software Foundation, 51 Franklin
 // Street, Suite 500, Boston, MA 02110-1335 USA.
 
+#include <boost/geometry.hpp>
+
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/geometries_traits.h"
 #include "sql/gis/geometry_visitor.h"
 
 namespace gis {
@@ -28,11 +32,21 @@ namespace gis {
 /// direction.
 class Ring_flip_visitor : public Nop_visitor {
  private:
+  /// Strategy used for geographic SRSs.
+  boost::geometry::strategy::area::geographic<Geographic_point>
+      m_geographic_strategy;
   /// Whether a ring with unknown direction has been encountered
   bool m_detected_unknown;
 
  public:
-  Ring_flip_visitor() : m_detected_unknown(false) {}
+  /// Construct a new ring flip visitor.
+  ///
+  /// @param[in] semi_major The semi-major axis of the ellipsoid.
+  /// @param[in] semi_minor The semi-minor axis of the ellipsoid.
+  Ring_flip_visitor(double semi_major, double semi_minor)
+      : m_geographic_strategy(
+            boost::geometry::srs::spheroid<double>(semi_major, semi_minor)),
+        m_detected_unknown(false) {}
 
   /// Check if the visitor has detected any invalid polygon rings during
   /// processing.
