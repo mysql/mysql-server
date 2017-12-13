@@ -20,6 +20,7 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DBUILD_CONFIG=mysql_release \\
 		-DCMAKE_INSTALL_PREFIX=/usr \\
 		-DCMAKE_BUILD_TYPE=Debug \\
+		${DEB_DEBUG_MAINTAINER} \\
 		-DINSTALL_DOCDIR=share/mysql/docs \\
 		-DINSTALL_DOCREADMEDIR=share/mysql \\
 		-DINSTALL_INCLUDEDIR=include/mysql \\
