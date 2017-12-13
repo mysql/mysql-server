@@ -125,6 +125,15 @@ static void dictionary_activate(set_type *dict_words)
   mysql_rwlock_wrlock(&LOCK_dict_file);
   std::swap(dictionary_words, *dict_words);
   validate_password_dictionary_file_words_count= dictionary_words.size();
+  /*
+    We are re-using 'validate_password_dictionary_file_last_parsed'
+    so, we need to make sure to free the previously allocated memory.
+  */
+  if (validate_password_dictionary_file_last_parsed)
+  {
+    my_free(validate_password_dictionary_file_last_parsed);
+    validate_password_dictionary_file_last_parsed= NULL;
+  }
   validate_password_dictionary_file_last_parsed=
                 (char *) my_malloc(PSI_NOT_INSTRUMENTED,
                                    ss.str().length() + 1, MYF(0));
