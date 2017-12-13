@@ -450,6 +450,7 @@
 #include "sql/handler.h"
 #include "sql/hostname.h"               // hostname_cache_init
 #include "sql/init.h"                   // unireg_init
+#include "sql/instance_log_resource.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"           // Arg_comparator
 #include "sql/item_create.h"
@@ -711,6 +712,7 @@ static PSI_mutex_key key_LOCK_log_throttle_qni;
 static PSI_mutex_key key_LOCK_reset_gtid_table;
 static PSI_mutex_key key_LOCK_offline_mode;
 static PSI_mutex_key key_LOCK_compress_gtid_table;
+static PSI_mutex_key key_LOCK_collect_instance_log;
 static PSI_mutex_key key_BINLOG_LOCK_commit;
 static PSI_mutex_key key_BINLOG_LOCK_commit_queue;
 static PSI_mutex_key key_BINLOG_LOCK_done;
@@ -1174,6 +1176,7 @@ mysql_cond_t COND_server_started;
 mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
+mysql_mutex_t LOCK_collect_instance_log;
 #if !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -2192,6 +2195,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_reset_gtid_table);
   mysql_mutex_destroy(&LOCK_compress_gtid_table);
   mysql_cond_destroy(&COND_compress_gtid_table);
+  mysql_mutex_destroy(&LOCK_collect_instance_log);
   mysql_mutex_destroy(&LOCK_password_history);
   mysql_mutex_destroy(&LOCK_password_reuse_interval);
   mysql_cond_destroy(&COND_manager);
@@ -3995,6 +3999,8 @@ static int init_thread_environment()
                    &LOCK_reset_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_compress_gtid_table,
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_collect_instance_log,
+                   &LOCK_collect_instance_log, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
                   &COND_compress_gtid_table);
   Events::init_mutexes();
@@ -4883,6 +4889,19 @@ static int init_server_components()
   {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
     unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  {
+    /*
+      We have to call a function in instance_log_resource.cc, or its references
+      won't be visible to plugins.
+    */
+#ifndef DBUG_OFF
+    int dummy=
+#endif
+      Instance_log_resource::
+      dummy_function_to_ensure_we_are_linked_into_the_server();
+    DBUG_ASSERT(dummy == 1);
   }
 
   /*
@@ -10166,6 +10185,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_collect_instance_log, "LOCK_collect_instance_log", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0, 0, PSI_DOCUMENT_ME},
   { &key_thd_timer_mutex, "thd_timer_mutex", 0, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0, 0, PSI_DOCUMENT_ME},

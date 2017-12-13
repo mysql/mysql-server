@@ -1360,6 +1360,16 @@ int load_mi_and_rli_from_repositories(Master_info* mi,
     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
         && mi->rli->rli_init_info())
       init_error= 1;
+    else
+    {
+      /*
+        During rli_init_info() above, the relay log is opened (if rli was not
+        initialized yet). The function below expects the relay log to be opened
+        to get its coordinates and store as the last flushed relay log
+        coordinates from I/O thread point of view.
+      */
+      mi->update_flushed_relay_log_info();
+    }
   }
 
   DBUG_EXECUTE_IF("enable_mts_worker_failure_init",
@@ -1471,11 +1481,18 @@ int flush_master_info(Master_info* mi, bool force,
     thread will jump from 100 to 150, and replication will silently break.
   */
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
+  mysql_mutex_t *data_lock= &mi->data_lock;
 
   if (need_lock)
+  {
     mysql_mutex_lock(log_lock);
+    mysql_mutex_lock(data_lock);
+  }
   else
+  {
     mysql_mutex_assert_owner(log_lock);
+    mysql_mutex_assert_owner(&mi->data_lock);
+  }
 
   int err= 0;
   /*
@@ -1488,7 +1505,10 @@ int flush_master_info(Master_info* mi, bool force,
   err|= mi->flush_info(force);
 
   if (need_lock)
+  {
+    mysql_mutex_unlock(data_lock);
     mysql_mutex_unlock(log_lock);
+  }
 
   DBUG_RETURN (err);
 }
@@ -1828,11 +1848,14 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
     /*
       Flushes the master info regardles of the sync_master_info option.
     */
+    mysql_mutex_lock(&mi->data_lock);
     if (mi->flush_info(true))
     {
+      mysql_mutex_unlock(&mi->data_lock);
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
+    mysql_mutex_unlock(&mi->data_lock);
 
     /*
       Flushes the relay log regardles of the sync_relay_log option.
@@ -3305,11 +3328,13 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
                  "failed to write a Rotate event"
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
+    mysql_mutex_lock(&mi->data_lock);
     if (flush_master_info(mi, true, false, false))
     {
       error= 1;
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_FLUSH_MASTER_INFO_FILE);
     }
+    mysql_mutex_unlock(&mi->data_lock);
     delete ev;
   }
   else
@@ -7856,6 +7881,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       event from the next binlog (unless the master is presently running
       without --log-bin).
     */
+    do_flush_mi= false;
     goto end;
   case binary_log::ROTATE_EVENT:
   {
@@ -8039,6 +8065,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       mysql_mutex_unlock(&mi->data_lock);
       if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
         goto end;
+      do_flush_mi= false; /* write_rotate_... above flushed master info */
     }
     else
       mysql_mutex_unlock(&mi->data_lock);
@@ -8092,6 +8119,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
       goto err;
 
+    do_flush_mi= false; /* write_rotate_... above flushed master info */
     goto end;
   }
   break;
@@ -8278,7 +8306,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     /* write the event to the relay log */
     if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0))
     {
-      DBUG_SIGNAL_WAIT_FOR("pause_on_queue_event_after_write_buffer",
+      DBUG_SIGNAL_WAIT_FOR(current_thd,
+                           "pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",
                            "receiver_continue_queuing_event");
       mysql_mutex_lock(&mi->data_lock);
@@ -8358,6 +8387,12 @@ end:
                  not in the middle of a transaction. Having a proper
                  relay log recovery can allow us to do this.
     */
+    if (lock_count == 1)
+    {
+      mysql_mutex_lock(&mi->data_lock);
+      lock_count= 2;
+    }
+
     if (flush_master_info(mi,
                           false/*force*/,
                           lock_count == 0/*need_lock*/,

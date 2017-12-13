@@ -450,6 +450,21 @@ ibool
 log_peek_lsn(
 /*=========*/
 	lsn_t*	lsn);	/*!< out: if returns TRUE, current lsn is here */
+/******************************************************//**
+Lock log. */
+void
+log_lock(void);
+/******************************************************//**
+Unlock log. */
+void
+log_unlock(void);
+/******************************************************//**
+Collect log info. */
+void
+log_collect_lsn_info(
+/*=========*/
+	lsn_t*	lsn,	/*!< out: current lsn */
+	lsn_t*	lsn_checkpoint);	/*!< out: current last_checkpoint_lsn */
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
 void

@@ -85,22 +85,6 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 extern bool server_id_supplied;
 
-/**
-  This macro simplifies when a DBUG_EXECUTE_IF will generate a given
-  signal and then will wait for another signal to continue.
-*/
-#define DBUG_SIGNAL_WAIT_FOR(A,B,C) \
-  DBUG_EXECUTE_IF(A,\
-                  {\
-                    const char act[]= "now SIGNAL "\
-                                      B\
-                                      " WAIT_FOR "\
-                                      C;\
-                    DBUG_ASSERT(\
-                      !debug_sync_set_action(current_thd,\
-                                             STRING_WITH_LEN(act)));\
-                  };)
-
 /*****************************************************************************
 
   MySQL Replication

@@ -2593,6 +2593,34 @@ log_peek_lsn(
 }
 
 /******************************************************//**
+Lock log. */
+void
+log_lock(void)
+{
+	log_mutex_enter();
+}
+
+/******************************************************//**
+Unlock log. */
+void
+log_unlock(void)
+{
+	log_mutex_exit();
+}
+
+/******************************************************//**
+Collect log info. */
+void
+log_collect_lsn_info(
+/*=========*/
+	lsn_t*	lsn,	/*!< out: current lsn */
+	lsn_t*	lsn_checkpoint)	/*!< out: current last_checkpoint_lsn */
+{
+	*lsn = log_sys->lsn;
+	*lsn_checkpoint = log_sys->last_checkpoint_lsn;
+}
+
+/******************************************************//**
 Prints info of the log. */
 void
 log_print(

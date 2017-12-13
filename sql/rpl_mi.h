@@ -600,6 +600,41 @@ public:
     @param thd the THD object of current thread
   */
   void wait_until_no_reference(THD *thd);
+
+
+  /**
+    Sync flushed_relay_log_info with current relay log coordinates.
+
+    It will sync the receiver thread relay log coordinates (file name and
+    position) with the last master coordinates that were flushed into the
+    Master_info repository.
+
+    This function shall be called by Master_info::flush_info() at the end of a
+    successful flush of the Master_info content into the repository while still
+    holding the data_lock.
+
+    It is also called my load_mi_and_rli_from_repositories(), right after the
+    successful call to rli_init_info() that opens the relay log.
+  */
+
+  void update_flushed_relay_log_info();
+
+
+  /**
+    Collect relay log coordinates (file name and position) that related to the
+    last Master_info master coordinates flushed into the repository.
+
+    @param [out] linfo Where the relay log coordinates shall be stored.
+  */
+
+  void get_flushed_relay_log_info(LOG_INFO* linfo);
+
+private:
+  /*
+    Holds the relay log coordinates (file name and position) of the last master
+    coordinates flushed into Master_info repository.
+  */
+  LOG_INFO flushed_relay_log_info;
 };
 
 #endif /* RPL_MI_H */

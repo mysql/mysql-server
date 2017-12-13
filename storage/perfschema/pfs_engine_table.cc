@@ -110,6 +110,7 @@
 #include "storage/perfschema/table_replication_connection_status.h"
 #include "storage/perfschema/table_replication_group_member_stats.h"
 #include "storage/perfschema/table_replication_group_members.h"
+#include "storage/perfschema/table_instance_log_status.h"
 #include "storage/perfschema/table_session_account_connect_attrs.h"
 #include "storage/perfschema/table_session_connect_attrs.h"
 #include "storage/perfschema/table_session_status.h"
@@ -658,6 +659,7 @@ static PFS_engine_table_share *all_shares[] = {
   &table_replication_group_member_stats::m_share,
   &table_replication_applier_filters::m_share,
   &table_replication_applier_global_filters::m_share,
+  &table_instance_log_status::m_share,
 
   &table_prepared_stmt_instances::m_share,
 

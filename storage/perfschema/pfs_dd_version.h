@@ -59,6 +59,7 @@
   - setup_timers (removed)
   - metadata_locks (modified, added column COLUMN_NAME)
   - replication_connection_configuration (modified)
+  - instance_log_resource (created)
 */
 static const uint PFS_DD_VERSION= 80004;
 
