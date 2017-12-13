@@ -918,9 +918,9 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function)
 
   if (symbol)
   {
-    lip->yylval->keyword.symbol=symbol;
-    lip->yylval->keyword.str= (char*) tok;
-    lip->yylval->keyword.length=len;
+    lip->yylval->symbol.symbol=symbol;
+    lip->yylval->symbol.str= (char*) tok;
+    lip->yylval->symbol.length=len;
 
     if ((symbol->tok == NOT_SYM) &&
         (lip->m_thd->variables.sql_mode & MODE_HIGH_NOT_PRECEDENCE))

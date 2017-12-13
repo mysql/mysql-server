@@ -370,6 +370,7 @@
 #include "binlog_event.h"
 #include "control_events.h"
 #include "errmsg.h"                     // init_client_errs
+#include "extra/regex/my_regex.h"
 #include "ft_global.h"
 #include "keycache.h"                   // KEY_CACHE
 #include "m_string.h"
