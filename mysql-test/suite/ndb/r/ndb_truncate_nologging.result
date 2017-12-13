@@ -1,11 +1,11 @@
-Check that third mysqld is not writing binlog
+Check that server2 is not writing binlog
 CREATE TABLE t1 (
 a bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
 b int unsigned not null,
 c int unsigned
 ) engine=ndbcluster;
-insert records into table on server 1
-insert records into table on server 3 to get cached auto_increment values
+insert records into table on server1
+insert records into table on server2 to get cached auto_increment values
 Check that auto_increment values are correctly generated
 select count(*) from t1;
 count(*)
@@ -15,7 +15,7 @@ a	b	c
 1	509	2500
 2	510	7
 truncate table t1;
-Check that server 3 has properly reset the cached auto_increment values
+Check that server2 has properly reset the cached auto_increment values
 select count(*) from t1;
 count(*)
 0
