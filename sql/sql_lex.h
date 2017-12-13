@@ -1971,7 +1971,7 @@ union YYSTYPE {
   LEX_CSTRING lex_cstr;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
-  LEX_SYMBOL keyword;
+  LEX_SYMBOL symbol;
   Table_ident *table;
   char *simple_string;
   Item *item;
