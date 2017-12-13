@@ -768,12 +768,6 @@ public:
     while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
       fwrite(buf, 1, bytes, stderr);
 
-    if (!lines)
-    {
-      fprintf(stderr,
-              "\nMore results from queries before failure can be found in %s\n",
-              m_file_name);
-    }
     fflush(stderr);
 
     DBUG_VOID_RETURN;
