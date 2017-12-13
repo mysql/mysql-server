@@ -3491,10 +3491,14 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 	  /* Join over all rows in table;  Return number of found rows */
 	  TABLE *table= first->table();
 
-	  if (table->sort.has_filesort_result())
+	  if (table->unique_result.has_result())
+	  {
+	    join->send_records= table->unique_result.found_records;
+	  }
+	  if (table->sort_result.has_result())
 	  {
 	    /* Using filesort */
-	    join->send_records= table->sort.found_records;
+	    join->send_records= table->sort_result.found_records;
 	  }
 	  else
 	  {
@@ -6271,9 +6275,9 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
   DBUG_ASSERT(!join->plan_is_const() && fsort);
   table=  tab->table();
 
-  table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
-                                             sizeof(IO_CACHE),
-                                             MYF(MY_WME | MY_ZEROFILL));
+  table->sort_result.io_cache=(IO_CACHE*)
+    my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
+              MYF(MY_WME | MY_ZEROFILL));
 
   // If table has a range, move it to select
   if (tab->quick() && tab->ref().key >= 0)
@@ -6296,7 +6300,7 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
   status= filesort(thd, fsort, tab->keep_current_rowid,
                    &examined_rows, &found_rows, &returned_rows);
-  table->sort.found_records= returned_rows;
+  table->sort_result.found_records= returned_rows;
   tab->set_records(found_rows);                     // For SQL_CALC_ROWS
   tab->join()->examined_rows+=examined_rows;
   table->set_keyread(false); // Restore if we used indexes

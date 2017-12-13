@@ -246,12 +246,6 @@ public:
     return Bounds_checked_array<uchar>(m_rawmem, m_size_in_bytes);
   }
 
-  /**
-    We need an assignment operator, see filesort().
-    The default one is OK, we want memberwise assignment, i.e. shallow copy.
-  */
-  Filesort_buffer &operator=(const Filesort_buffer &rhs)= default;
-
 private:
   uchar  *m_next_rec_ptr;    /// The next record will be inserted here.
   uchar  *m_rawmem;          /// The raw memory buffer.
@@ -270,6 +264,10 @@ private:
     without any casting/warning.
   */
   longlong m_idx;
+
+  // Privately movable, but not copyable.
+  Filesort_buffer &operator=(const Filesort_buffer &rhs)= delete;
+  Filesort_buffer &operator=(Filesort_buffer &&rhs)= default;
 };
 
 #endif  // FILESORT_UTILS_INCLUDED

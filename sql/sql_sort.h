@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "map_helpers.h"
 #include "my_base.h"          // ha_rows
 #include "my_dbug.h"
 #include "my_sys.h"
@@ -137,10 +138,50 @@ private:
 
 typedef Bounds_checked_array<Merge_chunk>      Merge_chunk_array;
 
+/*
+  The result of Unique or filesort; can either be stored on disk
+  (in which case io_cache points to the file) or in memory in one
+  of two ways. See sorted_result_in_fsbuf.
+*/
+class Sort_result
+{
+public:
+  Sort_result()
+    : sorted_result_in_fsbuf(false),
+      sorted_result_end(NULL)
+  {
+  }
+
+  bool has_result_in_memory() const
+  {
+    return sorted_result || sorted_result_in_fsbuf;
+  }
+
+  bool has_result() const
+  {
+    return has_result_in_memory() || (io_cache && my_b_inited(io_cache));
+  }
+
+  IO_CACHE *io_cache{nullptr};
+
+  /**
+    If the entire result fits in memory, we skip the merge phase.
+    We may leave the result in the parent Filesort_info's filesort_buffer
+    (indicated by sorted_result_in_fsbuf), or we may strip away
+    the sort keys, and copy the sorted result into a new buffer.
+    Unique always uses the latter.
+    This new buffer is [sorted_result ... sorted_result_end]
+    @see save_index()
+   */
+  bool sorted_result_in_fsbuf{false};
+  unique_ptr_my_free<uchar> sorted_result{nullptr};
+  uchar *sorted_result_end{nullptr};
+
+  ha_rows   found_records{0};        ///< How many records in sort.
+};
+
 /**
   A class wrapping misc buffers used for sorting.
-  It is part of 'struct TABLE' which is still initialized using memset(),
-  so do not add any virtual functions to this class.
  */
 class Filesort_info
 {
@@ -148,47 +189,19 @@ class Filesort_info
   Filesort_buffer filesort_buffer;
 
 public:
-  IO_CACHE *io_cache{nullptr};             ///< If sorted through filesort
   Merge_chunk_array merge_chunks; ///< Array of chunk descriptors
 
   Addon_fields *addon_fields{nullptr};     ///< Addon field descriptors.
 
-  /**
-    If the entire result of filesort fits in memory, we skip the merge phase.
-    We may leave the result in filesort_buffer
-    (indicated by sorted_result_in_fsbuf), or we may strip away
-    the sort keys, and copy the sorted result into a new buffer.
-    This new buffer is [sorted_result ... sorted_result_end]
-    @see save_index()
-   */
-  bool      sorted_result_in_fsbuf{false};
-  uchar     *sorted_result{nullptr};
-  uchar     *sorted_result_end{nullptr};
   bool      m_using_varlen_keys{false};
   uint      m_sort_length{0};
 
-  ha_rows   found_records{0};        ///< How many records in sort.
-
-  // Note that we use the default copy CTOR / assignment operator in filesort().
-  Filesort_info(const Filesort_info&)= default;
-  Filesort_info &operator=(const Filesort_info&)= default;
+  Filesort_info(const Filesort_info&)= delete;
+  Filesort_info &operator=(const Filesort_info&)= delete;
 
   Filesort_info()
-    : sorted_result_in_fsbuf(false),
-      sorted_result(NULL), sorted_result_end(NULL),
-      m_using_varlen_keys(false), m_sort_length(0)
+    : m_using_varlen_keys(false), m_sort_length(0)
   {};
-
-  bool has_filesort_result_in_memory() const
-  {
-    return sorted_result || sorted_result_in_fsbuf;
-  }
-
-  bool has_filesort_result() const
-  {
-    return has_filesort_result_in_memory() ||
-      (io_cache && my_b_inited(io_cache));
-  }
 
   /** Sort filesort_buffer */
   void sort_buffer(Sort_param *param, uint count)

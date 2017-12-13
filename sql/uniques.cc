@@ -981,15 +981,16 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
 
 bool Unique::get(TABLE *table)
 {
-  table->sort.found_records=elements+tree.elements_in_tree;
+  table->unique_result.found_records=elements+tree.elements_in_tree;
 
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    DBUG_ASSERT(table->sort.sorted_result == NULL);
-    if ((record_pointers= table->sort.sorted_result= (uchar*)
+    DBUG_ASSERT(table->unique_result.sorted_result == NULL);
+    table->unique_result.sorted_result.reset((uchar*)
 	 my_malloc(key_memory_Filesort_info_record_pointers,
-                   size * tree.elements_in_tree, MYF(0))))
+                   size * tree.elements_in_tree, MYF(0)));
+    if ((record_pointers= table->unique_result.sorted_result.get()))
     {
       (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
 		       this, left_root_right);
@@ -1000,7 +1001,7 @@ bool Unique::get(TABLE *table)
   if (flush())
     return 1;
 
-  IO_CACHE *outfile=table->sort.io_cache;
+  IO_CACHE *outfile=table->unique_result.io_cache;
   Merge_chunk *file_ptr= file_ptrs.begin();
   size_t num_chunks= file_ptrs.size();
   uchar *sort_memory;
@@ -1008,10 +1009,10 @@ bool Unique::get(TABLE *table)
   bool error=1;
 
       /* Open cached file if it isn't open */
-  DBUG_ASSERT(table->sort.io_cache == NULL);
-  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
-                                                     sizeof(IO_CACHE),
-                                MYF(MY_ZEROFILL));
+  DBUG_ASSERT(table->unique_result.io_cache == NULL);
+  outfile=table->unique_result.io_cache=(IO_CACHE*)
+    my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
+              MYF(MY_ZEROFILL));
 
   if (!outfile || (! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,

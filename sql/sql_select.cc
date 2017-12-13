@@ -4713,7 +4713,8 @@ bool JOIN::make_tmp_tables_info()
           m_select_limit : unit->select_limit_cnt;
     }
     if (!plan_is_const() &&
-        !qep_tab[const_tables].table()->sort.io_cache)
+        !qep_tab[const_tables].table()->unique_result.io_cache &&
+        !qep_tab[const_tables].table()->sort_result.io_cache)
     {
       /*
         If no IO cache exists for the first table then we are using an

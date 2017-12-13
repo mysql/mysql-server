@@ -610,8 +610,8 @@ bool Sql_cmd_update::update_single_table(THD *thd)
         ha_rows sort_examined_rows, sort_found_rows, sort_returned_rows;
         Filesort fsort(&qep_tab, order, limit);
 
-        DBUG_ASSERT(table->sort.io_cache == NULL);
-        table->sort.io_cache=
+        DBUG_ASSERT(table->sort_result.io_cache == NULL);
+        table->sort_result.io_cache=
           (IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                 sizeof(IO_CACHE),
                                 MYF(MY_FAE | MY_ZEROFILL));
@@ -620,7 +620,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
                      &sort_found_rows, &sort_returned_rows))
           DBUG_RETURN(true);
 
-        table->sort.found_records= sort_returned_rows;
+        table->sort_result.found_records= sort_returned_rows;
         thd->inc_examined_row_count(sort_examined_rows);
         /*
           Filesort has already found and selected the rows we want to update,
@@ -727,13 +727,13 @@ bool Sql_cmd_update::update_single_table(THD *thd)
         if (reinit_io_cache(tempfile, READ_CACHE, 0L, 0, 0))
           error=1; /* purecov: inspected */
 
-        DBUG_ASSERT(table->sort.io_cache == NULL);
+        DBUG_ASSERT(table->sort_result.io_cache == NULL);
         /*
           After this assignment, init_read_record() will run, and decide to
-          read from sort.io_cache. This cache will be freed when qep_tab is
+          read from sort_result.io_cache. This cache will be freed when qep_tab is
           destroyed.
          */
-        table->sort.io_cache= tempfile;
+        table->sort_result.io_cache= tempfile;
         qep_tab.set_quick(NULL);
         qep_tab.set_condition(NULL);
         if (error >= 0)

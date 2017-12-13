@@ -56,11 +56,13 @@ struct READ_RECORD
   typedef int (*Read_func)(READ_RECORD*);
   typedef void (*Unlock_row_func)(QEP_TAB *);
   typedef int (*Setup_func)(QEP_TAB*);
+  typedef void (*Cleanup_func)(READ_RECORD*);
 
   TABLE *table{nullptr};                                 /* Head-form */
   TABLE **forms{nullptr};                                /* head and ref forms */
   Unlock_row_func unlock_row{nullptr};
   Read_func read_record{nullptr};
+  Cleanup_func cleanup{nullptr};
   THD *thd{nullptr};
   QUICK_SELECT_I *quick{nullptr};
   uint cache_records{0};

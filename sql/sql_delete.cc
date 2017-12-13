@@ -443,7 +443,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
 
       Filesort fsort(&qep_tab, order, HA_POS_ERROR);
       DBUG_ASSERT(usable_index == MAX_KEY);
-      table->sort.io_cache=
+      table->sort_result.io_cache=
         (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
                                sizeof(IO_CACHE), MYF(MY_FAE | MY_ZEROFILL));
 
@@ -451,7 +451,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
                    &examined_rows, &found_rows, &returned_rows))
         DBUG_RETURN(true);
 
-      table->sort.found_records= returned_rows;
+      table->sort_result.found_records= returned_rows;
       thd->inc_examined_row_count(examined_rows);
       /*
         Filesort has already found and selected the rows we want to delete,

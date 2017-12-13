@@ -65,6 +65,8 @@ static int rr_index_first(READ_RECORD *info);
 static int rr_index_last(READ_RECORD *info);
 static int rr_index(READ_RECORD *info);
 static int rr_index_desc(READ_RECORD *info);
+static void end_read_record_unique(READ_RECORD *info);
+static void end_read_record_sort(READ_RECORD *info);
 
 
 /**
@@ -162,7 +164,9 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
       Used when the above is not true, UPDATE, DELETE and so forth and
       SELECT's involving BLOB's. It is also used when the addon_field
       buffer is not allocated due to that its size was bigger than the
-      session variable max_length_for_sort_data.
+      session variable max_length_for_sort_data. Finally, it is used for
+      the result of Unique, which returns row IDs in the same format as
+      filesort.
       In this case the record data is fetched from the handler using the
       saved reference using the rnd_pos handler call.
 
@@ -208,7 +212,6 @@ bool init_read_record(READ_RECORD *info,THD *thd,
                       bool disable_rr_cache)
 {
   int error= 0;
-  IO_CACHE *tempfile;
   DBUG_ENTER("init_read_record");
 
   // If only 'table' is given, assume no quick, no condition.
@@ -225,7 +228,8 @@ bool init_read_record(READ_RECORD *info,THD *thd,
       !table->sort.using_addon_fields())
     (void) table->file->extra(HA_EXTRA_MMAP);
   
-  if (table->sort.using_addon_fields())
+  if (table->sort_result.has_result() &&
+      table->sort.using_addon_fields())
   {
     info->rec_buf= table->sort.addon_fields->get_addon_buf();
     info->ref_length= table->sort.addon_fields->get_addon_buf_length();
@@ -241,7 +245,7 @@ bool init_read_record(READ_RECORD *info,THD *thd,
   info->unlock_row= rr_unlock_row;
   info->ignore_not_found_rows= 0;
 
-  // Initialize for a scan over a set of rows
+  IO_CACHE *tempfile= nullptr;
   if (info->quick && info->quick->clustered_pk_range())
   {
     /*
@@ -249,12 +253,26 @@ bool init_read_record(READ_RECORD *info,THD *thd,
       use its own access method(i.e QUICK_INDEX_MERGE_SELECT::get_next()) as
       sort file does not contain rowids which satisfy clustered pk range.
     */
-    tempfile= 0;
   }
-  else
-    tempfile= table->sort.io_cache;
-  if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used
+  /*
+    We test for a Unique result before a filesort result, because on
+    any given table, we can have Unique sending its result to filesort
+    (in which case filesort would be half-initialized at this point),
+    but not the other way round. It's possible that we should actually
+    have a “finished” flag instead, though.
+  */
+  else if (table->unique_result.io_cache &&
+           my_b_inited(table->unique_result.io_cache))
   {
+    tempfile= table->unique_result.io_cache;
+    info->read_record= rr_from_tempfile;
+  }
+  else if (table->sort_result.io_cache &&
+           my_b_inited(table->sort_result.io_cache))
+  {
+    tempfile= table->sort_result.io_cache;
+
+    // Test if ref-records was used
     if (table->sort.using_addon_fields())
     {
       DBUG_PRINT("info",("using rr_unpack_from_tempfile"));
@@ -268,7 +286,10 @@ bool init_read_record(READ_RECORD *info,THD *thd,
       DBUG_PRINT("info",("using rr_from_tempfile"));
       info->read_record= rr_from_tempfile;
     }
+  }
 
+  if (tempfile)
+  {
     info->io_cache=tempfile;
     reinit_io_cache(info->io_cache,READ_CACHE,0L,0,0);
     info->ref_pos=table->file->ref;
@@ -306,31 +327,53 @@ bool init_read_record(READ_RECORD *info,THD *thd,
     DBUG_PRINT("info",("using rr_quick"));
     info->read_record=rr_quick;
   }
-  // See save_index() which stores the filesort result set.
-  else if (table->sort.has_filesort_result_in_memory())
+  /*
+    See further up in the function for why we test for Unique before filesort.
+  */
+  else if (table->unique_result.has_result_in_memory())
+  {
+    /*
+      The Unique class never puts its results into table->sort's
+      Filesort_buffer.
+    */
+    DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
+
+    if ((error= table->file->ha_rnd_init(0)))
+      goto err;
+
+    info->cache_pos= table->unique_result.sorted_result.get();
+    DBUG_PRINT("info",("using rr_from_pointers (unique)"));
+    info->read_record= rr_from_pointers;
+    info->cleanup= end_read_record_unique;
+    info->cache_end=
+      info->cache_pos + table->unique_result.found_records * info->ref_length;
+  }
+  // See save_index(), which stores the filesort result set.
+  else if (table->sort_result.has_result_in_memory())
   {
     if ((error= table->file->ha_rnd_init(0)))
       goto err;
 
-    info->cache_pos=table->sort.sorted_result;
+    info->cache_pos= table->sort_result.sorted_result.get();
     if (table->sort.using_addon_fields())
     {
-      DBUG_PRINT("info",("using rr_unpack_from_buffer"));
-      DBUG_ASSERT(table->sort.sorted_result_in_fsbuf);
+      DBUG_PRINT("info",("using rr_unpack_from_buffer (sort)"));
+      DBUG_ASSERT(table->sort_result.sorted_result_in_fsbuf);
       info->unpack_counter= 0;
       if (table->sort.addon_fields->using_packed_addons())
         info->read_record= rr_unpack_from_buffer<true>;
       else
         info->read_record= rr_unpack_from_buffer<false>;
-      info->cache_end= table->sort.sorted_result_end;
+      info->cache_end= table->sort_result.sorted_result_end;
     }
     else
     {
       DBUG_PRINT("info",("using rr_from_pointers"));
       info->read_record= rr_from_pointers;
       info->cache_end=
-        info->cache_pos + table->sort.found_records * info->ref_length;
+        info->cache_pos + table->sort_result.found_records * info->ref_length;
     }
+    info->cleanup= end_read_record_sort;
   }
   else
   {
@@ -374,7 +417,12 @@ err:
 
 
 void end_read_record(READ_RECORD *info)
-{                   /* free cache if used */
+{
+  if (info->cleanup)
+  {
+    info->cleanup(info);
+  }
+  /* free cache if used */
   if (info->cache)
   {
     my_free(info->cache);
@@ -386,7 +434,6 @@ void end_read_record(READ_RECORD *info)
   }
   if (info->table && info->table->is_created())
   {
-    filesort_free_buffers(info->table,0);
     (void) info->table->file->extra(HA_EXTRA_NO_CACHE);
     if (info->read_record != rr_quick) // otherwise quick_range does it
       (void) info->table->file->ha_index_or_rnd_end();
@@ -478,6 +525,24 @@ static int rr_index_last(READ_RECORD *info)
   return tmp;
 }
 
+static void end_read_record_sort(READ_RECORD *info)
+{
+  if (info->table)
+  {
+    info->table->sort_result.sorted_result.reset();
+    info->table->sort_result.sorted_result_in_fsbuf= false;
+  }
+}
+
+static void end_read_record_unique(READ_RECORD *info)
+{
+  if (info->table)
+  {
+    info->table->unique_result.sorted_result.reset();
+    DBUG_ASSERT(!info->table->unique_result.sorted_result_in_fsbuf);
+    info->table->unique_result.sorted_result_in_fsbuf= false;
+  }
+}
 
 /**
   Reads index sequentially after first row.
@@ -691,7 +756,7 @@ static int rr_from_pointers(READ_RECORD *info)
 template<bool Packed_addon_fields>
 static int rr_unpack_from_buffer(READ_RECORD *info)
 {
-  if (info->unpack_counter == info->table->sort.found_records)
+  if (info->unpack_counter == info->table->sort_result.found_records)
     return -1;                      /* End of buffer */
 
   uchar *record= info->table->sort.get_sorted_record(

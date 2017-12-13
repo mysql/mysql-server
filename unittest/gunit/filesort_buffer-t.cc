@@ -116,20 +116,4 @@ TEST_F(FileSortBufferTest, GetNextRecordPointer)
   EXPECT_EQ(second_record, fs_info.get_sort_keys()[1]);
 }
 
-
-TEST_F(FileSortBufferTest, AssignmentOperator)
-{
-  fs_info.alloc_sort_buffer(10, sizeof(char));
-  fs_info.init_record_pointers();
-  Filesort_buffer fs_copy;
-  fs_copy= fs_info;
-  for (uint ix= 0; ix < 10 - 1; ++ix)
-  {
-    EXPECT_EQ(fs_copy.get_sort_keys()[ix], fs_info.get_sort_keys()[ix]);
-  }
-  EXPECT_EQ(fs_copy.get_sort_keys(), fs_info.get_sort_keys());
-  EXPECT_EQ(fs_copy.sort_buffer_size(), fs_info.sort_buffer_size());
-}
-
-
 }  // namespace

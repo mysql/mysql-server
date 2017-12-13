@@ -1246,14 +1246,12 @@ enum index_hint_type
 /* Bitmap of table's fields */
 typedef Bitmap<MAX_FIELDS> Field_map;
 
+/*
+  NOTE: Despite being a struct (for historical reasons), TABLE has
+  a nontrivial destructor.
+*/
 struct TABLE
 {
-  /*
-    Since TABLE instances are often cleared using memset(), do not
-    add virtual members and do not inherit from TABLE.
-    Otherwise memset() will start overwriting the vtable pointer.
-  */
-
   TABLE_SHARE	*s{nullptr};
   handler	*file{nullptr};
   TABLE *next{nullptr}, *prev{nullptr};
@@ -1534,6 +1532,13 @@ public:
    */
   Blob_mem_storage *blob_storage{nullptr};
   Filesort_info sort;
+  /**
+    The result of applying a unique opertion (by row ID) to the table, if done.
+    In particular, this is done in some forms of index merge.
+  */
+  Sort_result unique_result;
+  /// The result of sorting the table, if done.
+  Sort_result sort_result;
   partition_info *part_info{nullptr};            /* Partition related information */
   /* If true, all partitions have been pruned away */
   bool all_partitions_pruned_away{false};

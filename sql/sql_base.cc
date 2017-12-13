@@ -1164,6 +1164,7 @@ void intern_close_table(TABLE *table)
   destroy(table->triggers);
   if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
+  destroy(table);
   my_free(table);
   DBUG_VOID_RETURN;
 }
@@ -1174,11 +1175,17 @@ void intern_close_table(TABLE *table)
 void free_io_cache(TABLE *table)
 {
   DBUG_ENTER("free_io_cache");
-  if (table->sort.io_cache)
+  if (table->sort_result.io_cache)
   {
-    close_cached_file(table->sort.io_cache);
-    my_free(table->sort.io_cache);
-    table->sort.io_cache=0;
+    close_cached_file(table->sort_result.io_cache);
+    my_free(table->sort_result.io_cache);
+    table->sort_result.io_cache= nullptr;
+  }
+  if (table->unique_result.io_cache)
+  {
+    close_cached_file(table->unique_result.io_cache);
+    my_free(table->unique_result.io_cache);
+    table->unique_result.io_cache= nullptr;
   }
   DBUG_VOID_RETURN;
 }
@@ -2628,6 +2635,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
   if (free_share)
   {
     free_table_share(table->s);
+    destroy(table);
     my_free(table);
   }
   DBUG_VOID_RETURN;
@@ -3628,6 +3636,7 @@ share_found:
 
     if (error)
     {
+      destroy(table);
       my_free(table);
 
       if (error == 7)
@@ -3651,6 +3660,7 @@ share_found:
         break;
       default:
         closefrm(table, 0);
+        destroy(table);
         my_free(table);
         my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
         goto err_lock;
@@ -3660,6 +3670,7 @@ share_found:
     if (open_table_entry_fini(thd, share, table_def, table))
     {
       closefrm(table, 0);
+      destroy(table);
       my_free(table);
       goto err_lock;
     }
@@ -7770,6 +7781,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
+    destroy(tmp_table);
     my_free(tmp_table);
     DBUG_RETURN(0);
   }
@@ -7795,6 +7807,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
+    destroy(tmp_table);
     my_free(tmp_table);
     DBUG_RETURN(0);
   }

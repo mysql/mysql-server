@@ -117,23 +117,20 @@
 
 #include "sql/opt_range.h"
 
-#include "my_config.h"
-
 #include <fcntl.h>
 #include <float.h>
-#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>                 // std::log2
 #include <memory>
 #include <new>
-#include <queue>
 #include <set>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "map_helpers.h"
 #include "memory_debugging.h"
 #include "mf_wcomp.h"            // wild_compare
 #include "my_alloc.h"
@@ -155,14 +152,12 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"          // ER_THD
 #include "sql/error_handler.h"   // Internal_error_handler
-#include "sql/filesort.h"        // filesort_free_buffers
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_row.h"
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/key.h"             // is_key_used
-#include "sql/log.h"
 #include "sql/malloc_allocator.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
@@ -173,7 +168,6 @@
 #include "sql/opt_trace_context.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/psi_memory_key.h"
-#include "sql/set_var.h"
 #include "sql/sql_base.h"        // free_io_cache
 #include "sql/sql_class.h"       // THD
 #include "sql/sql_error.h"
@@ -183,6 +177,7 @@
 #include "sql/sql_optimizer.h"   // JOIN
 #include "sql/sql_partition.h"   // HA_USE_AUTO_PARTITION
 #include "sql/sql_select.h"
+#include "sql/sql_sort.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 #include "sql/uniques.h"         // Unique
@@ -11526,7 +11521,9 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   else
   {
     unique->reset();
-    filesort_free_buffers(head, false);
+    head->unique_result.sorted_result.reset();
+    DBUG_ASSERT(!head->unique_result.sorted_result_in_fsbuf);
+    head->unique_result.sorted_result_in_fsbuf= false;
   }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
@@ -11608,7 +11605,17 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
   {
     result= HA_ERR_END_OF_FILE;
     end_read_record(&read_record);
-    free_io_cache(head);
+    /*
+      free_io_cache(head) would free head->sort_result.io_cache, which we
+      don't use (and thus should not be clearing), but unique may have opened
+      head->unique_result.io_cache, so we need to clear that.
+    */
+    if (head->unique_result.io_cache)
+    {
+      close_cached_file(head->unique_result.io_cache);
+      my_free(head->unique_result.io_cache);
+      head->unique_result.io_cache= nullptr;
+    }
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select)
     {

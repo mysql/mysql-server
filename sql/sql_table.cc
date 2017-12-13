@@ -14566,9 +14566,9 @@ copy_data_between_tables(THD * thd,
     }
     else
     {
-      from->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
-                                                sizeof(IO_CACHE),
-                                                MYF(MY_FAE | MY_ZEROFILL));
+      from->sort_result.io_cache=(IO_CACHE*)
+        my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
+                  MYF(MY_FAE | MY_ZEROFILL));
       TABLE_LIST   tables;
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
@@ -14588,7 +14588,7 @@ copy_data_between_tables(THD * thd,
                    &examined_rows, &found_rows, &returned_rows))
         goto err;
 
-      from->sort.found_records= returned_rows;
+      from->sort_result.found_records= returned_rows;
     }
   };
 
