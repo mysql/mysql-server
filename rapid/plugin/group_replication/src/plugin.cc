@@ -1813,7 +1813,7 @@ static int check_if_server_properly_configured()
   if (single_primary_mode_var && enforce_update_everywhere_checks_var)
   {
     log_message(MY_ERROR_LEVEL,
-                "Is is not allowed to run single primary mode with "
+                "It is not allowed to run single primary mode with "
                 "'enforce_update_everywhere_checks' enabled.");
     DBUG_RETURN(1);
   }
