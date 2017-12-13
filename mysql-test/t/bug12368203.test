@@ -12,7 +12,7 @@ connection master;
 # Test 'flush-logs error' command.
 #
 --echo # Test if mysqladmin supports 'flush-logs error' command.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs error
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs error
 
 file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 
@@ -32,7 +32,7 @@ connection master;
 # Test 'flush-logs relay' command.
 #
 --echo # Test if mysqladmin supports 'flush-logs relay' command.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs relay
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs relay
 
 --source include/sync_slave_sql_with_master.inc
 --echo # Check if 'slave-relay-bin.000003' file is created
@@ -49,7 +49,7 @@ file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
 # Test 'flush-logs slow' command.
 #
 --echo # Test if mysqladmin supports 'flush-logs slow' command.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs slow
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs slow
 
 --echo # Make sure binary logs were not be flushed
 --echo # after executing 'flush-logs slow' command.
@@ -60,7 +60,7 @@ file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
 # Test 'flush-logs general' command.
 #
 --echo # Test if mysqladmin supports 'flush-logs general' command.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs general
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs general
 
 --echo # Make sure binary logs were not flushed
 --echo # after execute 'flush-logs general' command.
@@ -71,7 +71,7 @@ file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
 # Test 'flush-logs engine' command.
 #
 --echo # Test if mysqladmin supports 'flush-logs engine' command.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs engine
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs engine
 
 --echo # Make sure binary logs were not flushed
 --echo # after execute 'flush-logs engine' statement.
@@ -87,7 +87,7 @@ file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
 file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000002;
 
 --echo # Test if mysqladmin supports 'flush-logs binary' command.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs binary
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs binary
 
 --echo # Check if 'master-bin.000002' file is created
 --echo # after execution of 'flush-logs binary' statement.
@@ -104,7 +104,7 @@ file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000006;
 connection master;
 
 --echo # Test if mysqladmin support combining multiple kinds of logs into one statement.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs error relay
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs error relay
 
 file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 
@@ -136,7 +136,7 @@ connection master;
 
 --echo # Test if 'flush-logs' command works fine and flush all the logs.
 
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs
 
 file_exists $MYSQLTEST_VARDIR/tmp/master_log.err;
 
@@ -156,10 +156,10 @@ file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 --echo # Test multiple options to flush-logs
 
 --echo # Must work
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs binary error ping
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs binary error ping
 
 --echo # Must work
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs ping
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs ping
 
 --error 1
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs pong 2>&1
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT flush-logs pong 2>&1
