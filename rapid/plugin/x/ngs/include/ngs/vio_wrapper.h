@@ -42,7 +42,7 @@ public:
 
   int shutdown() override;
 
-  Vio *get_vio() { return m_vio; }
+  Vio *get_vio() override { return m_vio; }
 
   ~Vio_wrapper();
 
