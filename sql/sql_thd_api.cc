@@ -810,7 +810,7 @@ void thd_report_row_lock_wait(THD* self, THD *wait_for)
 
 void remove_ssl_err_thread_state()
 {
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && !defined(HAVE_OPENSSL11)
   ERR_remove_thread_state(nullptr);
 #endif
 }
