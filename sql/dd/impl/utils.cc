@@ -41,17 +41,22 @@ void escape(String_type *sp, const String_type &src)
 
 bool unescape(String_type &dest)
 {
+  String_type tmp_dest;
   for (String_type::iterator d= dest.begin(); d != dest.end(); d++)
+  {
     if (*d == '\\')
     {
       // An escape character preceeding end is an error, it must be succeeded
       // by an escapable character.
       if ((d + 1) != dest.end() &&
           (*(d + 1) == '\\' || *(d + 1) == '=' || *(d + 1) == ';'))
-        d= dest.erase(d);
+        d++;
       else
         return true;
     }
+    tmp_dest.push_back(*d);
+  }
+  dest= tmp_dest;
 
   return false;
 }
