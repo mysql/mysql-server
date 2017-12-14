@@ -31,21 +31,28 @@ bool Native_plain_verification::verify_authentication_string(
     const std::string &host,
     const std::string &client_string,
     const std::string &db_string) const {
-  if (client_string.empty())
-    return db_string.empty();
-
   // There is no need to perform additional authentication if the given
   // credentials are already in the cache.
   if (m_sha256_password_cache &&
-      m_sha256_password_cache->contains(user, host, client_string))
-    return true;
-
-  if (compute_password_hash(client_string) == db_string) {
-    if (m_sha256_password_cache)
-      m_sha256_password_cache->upsert(user, host, client_string);
+      m_sha256_password_cache->contains(user, host, client_string)) {
     return true;
   }
-  return false;
+
+  bool client_string_matches =
+      client_string.empty() &&
+      db_string.empty();
+
+  if (!client_string_matches &&
+      compute_password_hash(client_string) == db_string) {
+    client_string_matches = true;
+  }
+
+  if (client_string_matches &&
+      m_sha256_password_cache) {
+    m_sha256_password_cache->upsert(user, host, client_string);
+  }
+
+  return client_string_matches;
 }
 
 std::string Native_plain_verification::compute_password_hash(
