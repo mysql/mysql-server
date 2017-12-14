@@ -989,54 +989,6 @@ NdbImportCsv::g_str_state(Parse::State state)
 
 // eval
 
-NdbImportCsv::Regex::Regex(NdbImportUtil& util,
-                           const char* pattern,
-                           uint nsub) :
-  m_util(util),
-  m_pattern(pattern),
-  m_nsub(nsub)
-{
-  const CHARSET_INFO* cs = get_charset_by_name("latin1_bin", MYF(0));
-  require(cs != 0);
-  int cflags = MY_REG_EXTENDED;
-  int ret = my_regcomp(&m_regex, m_pattern, cflags, cs);
-  if (ret != 0)
-  {
-    char msg[256];
-    my_regerror(ret, &m_regex, msg, sizeof(msg));
-    m_util.c_opt.m_log_level = 1;
-    log1("abort: regcomp error " << ret << ": " << msg);
-    require(false);
-  }
-  require(m_regex.re_nsub == m_nsub);
-  m_subs = new my_regmatch_t[1 + m_nsub];
-}
-
-NdbImportCsv::Regex::~Regex()
-{
-  my_regfree(&m_regex);
-  delete [] m_subs;
-}
-
-bool
-NdbImportCsv::Regex::match(const char* string)
-{
-  int eflags = 0;
-  int ret = my_regexec(&m_regex, string, 1 + m_nsub, m_subs, eflags);
-  if (ret != 0)
-  {
-    if (ret != MY_REG_NOMATCH)
-    {
-      char msg[256];
-      my_regerror(ret, &m_regex, msg, sizeof(msg));
-      m_util.c_opt.m_log_level = 1;
-      log1("abort: regexec error " << ret << ": " << msg);
-      require(false);
-    }
-  }
-  return (ret == 0);
-}
-
 NdbImportCsv::Eval::Eval(Input& input) :
   m_input(input),
   m_csv(m_input.m_csv),
@@ -1181,9 +1133,9 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
 }
 
 /*
- * Parse some fields.  Using my_regex was impossibly slow so here
- * we do a CS101 "turn string into number".  Digits must be ascii
- * digits.  Bengalese numbers are not supported.
+ * Parse some fields by doing a CS101 "turn string into number".
+ * Digits must be ascii digits.
+ * Bengalese numbers are not supported.
  */
 
 struct Ndb_import_csv_error {
@@ -2584,15 +2536,6 @@ NdbOut&
 operator<<(NdbOut& out, const NdbImportCsv::Eval& eval)
 {
   out << "eval";
-  return out;
-}
-
-NdbOut&
-operator<<(NdbOut& out, const NdbImportCsv::Regex& regex)
-{
-  out << "regex";
-  out << " pattern=" << regex.m_pattern;
-  out << " nsub=" << regex.m_nsub;
   return out;
 }
 
