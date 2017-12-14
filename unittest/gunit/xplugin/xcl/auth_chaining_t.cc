@@ -46,7 +46,7 @@ public:
 TEST_F(Auth_chaining_test_suite, auto_auth_method) {
   set_ssl_state(true);
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          {"AUTO"});
+                          "AUTO");
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY")).
       WillOnce(Return(m_failed_auth));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN")).
@@ -61,7 +61,7 @@ TEST_F(Auth_chaining_test_suite, auto_auth_method) {
 TEST_F(Auth_chaining_test_suite, auto_auth_method_ssl_disabled) {
   set_ssl_state(false);
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          {"AUTO"});
+                          "AUTO");
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY")).
       WillOnce(Return(m_failed_auth));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41")).
@@ -76,7 +76,7 @@ TEST_F(Auth_chaining_test_suite, auto_auth_method_unix_socket_connection) {
   EXPECT_CALL(m_mock_connection_state, get_connection_type()).WillOnce(
       Return(Connection_type::Unix_socket));
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          {"AUTO"});
+                          "AUTO");
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY")).
       WillOnce(Return(m_failed_auth));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN")).
