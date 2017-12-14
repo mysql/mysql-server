@@ -1906,12 +1906,16 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
 /**
  * report_connect() / report_disconnect()
  *
- * Connect or disconnect the receiver side of a connector.
- * Is assumed to be called when holding the poll right which serves
- * the purpose of syncronicing it wrt poll/receive of data.
+ * Connect or disconnect the 'TransporterReceiveHandle' and 
+ * enable/disable the send buffers.
  *
- * The sender needs different synchronization and is handled
- * when the Transporter connects or disconnects.
+ * To prevent races wrt poll/receive of data, these methods must
+ * either be called from the same (receive-)thread as performReceive(),
+ * or by the (API) client holding the poll-right.
+ *
+ * The send buffers needs similar protection against concurent
+ * enable/disable of the same send buffers. Thus the sender
+ * side is also handled here.
  */
 void
 TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
@@ -1925,6 +1929,7 @@ TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
 
   if (recvdata.epoll_add((TCP_Transporter*)theTransporters[node_id]))
   {
+    callbackObj->enable_send_buffer(node_id);
     performStates[node_id] = CONNECTED;
     recvdata.reportConnect(node_id);
     DBUG_VOID_RETURN;
@@ -1960,10 +1965,17 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   }
 #endif
 
-  /*
-    No one else should be using the transporter now,
-    reset its send buffer and recvdata
+  /**
+   * No one else should be using the transporter now,
+   * reset its send buffer and recvdata.
+   *
+   * Note that we may 'do_disconnect' due to transporter failure,
+   * while trying to 'CONNECTING'. This cause a transition
+   * from CONNECTING to DISCONNECTING without first being CONNECTED.
+   * Thus there can be multiple reset & disable of the buffers (below)
+   * without being 'enabled' inbetween.
    */
+  callbackObj->disable_send_buffer(node_id);
   performStates[node_id] = DISCONNECTED;
   recvdata.m_recv_transporters.clear(node_id);
   recvdata.m_has_data_transporters.clear(node_id);
@@ -2675,7 +2687,6 @@ TransporterRegistry::disable_send_buffer(NodeId node)
   assert(m_use_default_send_buffer);
 
   SendBuffer *b = m_send_buffers + node;
-  assert(b->m_enabled == true);
   b->m_enabled = false;
   discard_send_buffer(node);
 }
