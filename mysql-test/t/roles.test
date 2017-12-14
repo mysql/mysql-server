@@ -183,6 +183,7 @@ SELECT * FROM mysql.default_roles;
 --echo # WL988.I-9
 ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators;
 SELECT * FROM mysql.default_roles;
+--error ER_ROLE_NOT_GRANTED
 ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators,engineering;
 SELECT * FROM mysql.default_roles;
 ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators;
@@ -635,8 +636,10 @@ DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
 GRANT SELECT ON test.* TO u1@localhost;
 CREATE USER r1;
+--error ER_ROLE_NOT_GRANTED
 ALTER USER u1@localhost DEFAULT ROLE r1;
 GRANT r1 TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE r1;
 GRANT UPDATE ON *.* TO r1;
 SELECT * FROM mysql.default_roles;
 SHOW GRANTS FOR u1@localhost;
@@ -691,19 +694,19 @@ use other;
 #
 --error ER_ROLE_NOT_GRANTED
 SET ROLE `no such role`;
---error ER_ACCESS_DENIED_ERROR
+--error ER_ROLE_NOT_GRANTED
 SET DEFAULT ROLE `rrrrr` TO u1@localhost;
 connection default;
+--error ER_ROLE_NOT_GRANTED
 SET DEFAULT ROLE `rrrrr` TO u1@localhost;
 connection con1;
---error ER_ROLE_NOT_GRANTED
 SET ROLE DEFAULT;
---error ER_ACCESS_DENIED_ERROR
+--error ER_ROLE_NOT_GRANTED
 ALTER USER u1@localhost DEFAULT ROLE `asdasd`;
 connection default;
+--error ER_ROLE_NOT_GRANTED
 ALTER USER u1@localhost DEFAULT ROLE `asdasd`;
 connection con1;
---error ER_ROLE_NOT_GRANTED
 SET ROLE DEFAULT;
 SET ROLE ALL;
 SET ROLE NONE;
@@ -790,7 +793,7 @@ GRANT r1 TO u1@localhost;
 CREATE ROLE r2;
 connect(con1, localhost, u1, foo, test);
 SHOW GRANTS;
---error ER_ACCESS_DENIED_ERROR
+--error ER_ROLE_NOT_GRANTED
 ALTER USER u1@localhost DEFAULT ROLE r2;
 ALTER USER u1@localhost DEFAULT ROLE r1;
 connection default;
@@ -824,15 +827,17 @@ DROP ROLE r1,r2;
 # authentication will generate a warning in the server error log but otherwise
 # be ignored.
 # R-3.8
+# Amendment: Setting a default role which hasn't been previously granted
+# will generate an error.
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
 CREATE ROLE r1,r2;
 GRANT r2 TO u1@localhost;
 GRANT ALL ON test.* TO r2;
+--error ER_ROLE_NOT_GRANTED
 ALTER USER u1@localhost DEFAULT ROLE r1,r2;
 SELECT * FROM mysql.default_roles;
 connect(con1, localhost, u1, foo, test);
 SELECT current_role();
---error ER_ROLE_NOT_GRANTED
 SET ROLE DEFAULT;
 disconnect con1;
 connection default;
@@ -846,12 +851,11 @@ DROP USER IF EXISTS u5, u2, u1, r1,r2, r3;
 CREATE USER u5;
 CREATE ROLE r1,r2,r3;
 GRANT ALL ON test.* TO r2;
-GRANT r1, r2 TO u5;
+GRANT r1, r2, r3 TO u5;
 ALTER USER u5 DEFAULT ROLE r2,r3;
 RENAME USER u5 to u1;
 connect(con1,localhost, u1,,);
 SELECT current_role();
---error ER_ROLE_NOT_GRANTED
 SET ROLE DEFAULT;
 disconnect con1;
 connection default;
@@ -936,6 +940,7 @@ SET @@global.mysql_native_password_proxy_users = OFF;
 --echo #
 --echo # SHOW CREATE USER DOESN'T SHOW DEFAULT ROLE
 --echo #
+CREATE ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 CREATE USER u1 IDENTIFIED BY 'foo' DEFAULT ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 --replace_regex /AS '(.*)'/AS '<hash>'/
 SHOW CREATE USER u1;
@@ -945,17 +950,102 @@ CREATE USER u1;
 --replace_regex /AS '(.*)'/AS '<hash>'/
 SHOW CREATE USER u1;
 --echo # check that we can combine different properties with default roles.
+CREATE ROLE r1;
 CREATE USER u2 DEFAULT ROLE r1 REQUIRE SSL ACCOUNT LOCK;
 SHOW CREATE USER u2;
 SELECT user,host FROM mysql.user;
 SELECT * FROM mysql.default_roles;
 DROP USER u1,u2;
+DROP ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 CREATE USER u1;
 --echo # If I alter user this will show up in show create user
+GRANT r1 TO u1;
 ALTER USER u1 DEFAULT ROLE r1;
 SHOW CREATE USER u1;
 SELECT * FROM mysql.default_roles;
 DROP USER u1;
+DROP ROLE r1;
 SELECT * FROM mysql.default_roles;
+
+--echo #
+--echo # USERS CAN BE ASSIGNED NON-EXISTING ROLES AS DEFAULT
+--echo #
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+--error ER_ROLE_NOT_GRANTED
+SET DEFAULT ROLE 'r1' TO u1@localhost;
+--error ER_ROLE_NOT_GRANTED
+ALTER USER u1@localhost DEFAULT ROLE 'r1';
+GRANT r1 TO u1@localhost;
+SET DEFAULT ROLE 'r1' TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE 'r1';
+DROP USER u1@localhost;
+CREATE ROLE r2;
+--echo # Error if the role doesn't exist.
+--error ER_USER_DOES_NOT_EXIST
+CREATE USER u1@localhost IDENTIFIED BY 'foo' DEFAULT ROLE 'rr1';
+--echo # Grant role if it isn't granted.
+CREATE USER u1@localhost IDENTIFIED BY 'foo' DEFAULT ROLE 'r2';
+GRANT r1 TO u1@localhost;
+--echo # Should show r1,r2 granted to u1
+SELECT * FROM mysql.role_edges;
+SELECT * FROM mysql.default_roles;
+DROP ROLE r1,r2;
+DROP USER u1@localhost;
+CREATE USER foo@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT r1 to foo@localhost;
+SET DEFAULT ROLE ALL TO foo@localhost;
+--echo # One default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+DROP ROLE r1;
+--echo # No default role policies left after DROP ROLE.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+CREATE ROLE r1;
+GRANT r1 TO foo@localhost;
+SET DEFAULT ROLE ALL TO foo@localhost;
+--echo # Restored one default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+DROP USER foo@localhost;
+--echo # No default role policies left after DROP USER.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+CREATE USER foo@localhost IDENTIFIED BY 'foo' DEFAULT ROLE r1;
+--echo # Restored one default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+REVOKE r1 FROM foo@localhost;
+--echo # No default role policies left after REVOKE.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+GRANT CREATE USER ON *.* TO r1;
+GRANT SELECT ON test.* TO r1;
+GRANT r1 TO foo@localhost;
+SET DEFAULT ROLE r1 TO foo@localhost;
+connect(con_foo, localhost, foo, foo,test);
+SELECT CURRENT_USER(),CURRENT_ROLE();
+--echo # foo has the privilege to create new users
+CREATE USER 'ok' IDENTIFIED BY 'ok';
+--echo # foo has not the privilege to grant roles
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE USER 'fail' IDENTIFIED BY 'fail' DEFAULT ROLE 'r1';
+connection default;
+disconnect con_foo;
+DROP USER foo@localhost,ok;
+DROP ROLE r1;
+CREATE USER foo@localhost;
+CREATE ROLE r1;
+GRANT r1 TO foo@localhost;
+SET DEFAULT ROLE ALL TO foo@localhost;
+--echo # One default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+--echo # One entry in role_edges
+SELECT * FROM mysql.role_edges;
+DROP USER r1;
+--echo # No default role policies left after DROP ROLE.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+--echo # 0 entry in role_edges
+SELECT * FROM mysql.role_edges;
+DROP USER foo@localhost;
+
+
+
 
 

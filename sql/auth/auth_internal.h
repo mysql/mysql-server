@@ -331,6 +331,9 @@ bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id > *default_roles);
 void get_granted_roles(LEX_USER *user, List_of_granted_roles *granted_roles);
+bool drop_default_role_policy(THD *thd, TABLE *table,
+                              const Auth_id_ref &default_role_policy,
+                              const Auth_id_ref &user);
 int iterate_granted_roles(Auth_id_ref &authid,
          std::function<bool (const std::pair<const Auth_id_ref &, bool> &p)> f);
 void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user);

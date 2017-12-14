@@ -21,7 +21,7 @@ COUNT(*)
 
 # 1.1 : Set the default roles for a valid and an invalid user; Must fail.
 SET DEFAULT ROLE 'administrator', 'qa' to userX, invalidUser;
-ERROR HY000: Failed to set default roles
+ERROR HY000: `administrator`@`%` is not granted to `invalidUser`@`%`
 
 # No default roles must be added for valid user i.e. userX
 SELECT * FROM mysql.default_roles;
@@ -37,8 +37,6 @@ SET DEFAULT ROLE administrator, qa to userX, userY;
 # Default roles must be added for both users
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
-%	userX	%	administrator
-%	userX	%	qa
 %	userY	%	administrator
 %	userY	%	qa
 
@@ -57,8 +55,6 @@ ERROR HY000: Unknown authorization ID `invalidUser`@`%`
 # No default roles must be added for valid users i.e. userY, userZ
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
-%	userX	%	administrator
-%	userX	%	qa
 %	userY	%	administrator
 %	userY	%	qa
 

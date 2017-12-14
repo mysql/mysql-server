@@ -1825,7 +1825,7 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_alter_user_default_role::execute");
 
-  bool ret= mysql_alter_or_clear_roles(thd, role_type, users, roles);
+  bool ret= mysql_alter_or_clear_default_roles(thd, role_type, users, roles);
   if (!ret)
     my_ok(thd);
 
