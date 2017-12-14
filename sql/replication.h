@@ -105,7 +105,7 @@ typedef struct Trans_context_info {
   This represents the GTID context of the transaction.
  */
 typedef struct Trans_gtid_info {
-  ulong type;                    // enum values in enum_group_type
+  ulong type;                    // enum values in enum_gtid_type
   int sidno;                     // transaction sidno
   long long int gno;             // transaction gno
 } Trans_gtid_info;

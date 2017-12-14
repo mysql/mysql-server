@@ -2080,7 +2080,7 @@ rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
 static bool
 rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
 {
-  if (thd->variables.gtid_next.type == GTID_GROUP)
+  if (thd->variables.gtid_next.type == ASSIGNED_GTID)
   {
     /*
       This statement has been assigned GTID.
@@ -2163,7 +2163,7 @@ rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
            as single multi-table DROP TABLES under single GTID might be
            theoretically possible in some cases, but has its own problems).
         */
-        my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP,
+        my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID,
                  MYF(0));
         return true;
       }
@@ -3025,7 +3025,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
             We don't have GTID assigned and this is not single-table
             DROP TABLE. Commit change to binary log (if there was any)
             and get GTID assigned for our single-table change. Do not
-            release ANONYMOUS_GROUP ownership yet as there can be more
+            release ANONYMOUS_GTID ownership yet as there can be more
             tables to drop and corresponding statements to write to
             binary log. Do not update slave info as there might be more
             groups.
@@ -3198,7 +3198,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           We don't have GTID assigned and this is not fully-atomic DROP TABLES.
           Commit changes to SE, data-dictionary and binary log and get GTID
           assigned for our changes.
-          Do not release ANONYMOUS_GROUP ownership and update slave info yet
+          Do not release ANONYMOUS_GTID ownership and update slave info yet
           as there can be more tables (e.g. temporary) to drop and corresponding
           statements to write to binary log.
         */

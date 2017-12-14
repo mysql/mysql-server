@@ -55,7 +55,7 @@ class THD;
 extern PSI_memory_key key_memory_Gtid_set_to_string;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
 extern PSI_memory_key key_memory_Gtid_state_to_string;
-extern PSI_memory_key key_memory_Group_cache_to_string;
+extern PSI_memory_key key_memory_Gtid_cache_to_string;
 extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
@@ -90,7 +90,7 @@ class THD;
 
 /// Type of SIDNO (source ID number, first component of GTID)
 typedef int rpl_sidno;
-/// Type for GNO (group number, second component of GTID)
+/// Type of GNO, the second (numeric) component of GTID
 typedef long long int rpl_gno;
 typedef int64 rpl_binlog_pos;
 
@@ -1278,7 +1278,7 @@ public:
   */
   Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
   /**
-    Constructs a new Gtid_set that contains the groups in the given
+    Constructs a new Gtid_set that contains the gtids in the given
     string, in the same format as add_gtid_text(char *).
 
     @param sid_map The Sid_map to use for SIDs.
@@ -1302,17 +1302,17 @@ public:
   /// Destroy this Gtid_set.
   ~Gtid_set();
   /**
-    Removes all groups from this Gtid_set.
+    Removes all gtids from this Gtid_set.
 
-    This does not deallocate anything: if groups are added later,
+    This does not deallocate anything: if gtids are added later,
     existing allocated memory will be re-used.
   */
   void clear();
   /**
-    Removes all groups from this Gtid_set and clear all the sidnos
+    Removes all gtids from this Gtid_set and clear all the sidnos
     used by the Gtid_set and it's SID map.
 
-    This does not deallocate anything: if groups are added later,
+    This does not deallocate anything: if gtids are added later,
     existing allocated memory will be re-used.
   */
   void clear_set_and_sid_map();
@@ -1321,8 +1321,8 @@ public:
 
     The SIDNO must exist in the Gtid_set before this function is called.
 
-    @param sidno SIDNO of the group to add.
-    @param gno GNO of the group to add.
+    @param sidno SIDNO of the GTID to add.
+    @param gno GNO of the GTID to add.
   */
   void _add_gtid(rpl_sidno sidno, rpl_gno gno)
   {
@@ -1335,8 +1335,8 @@ public:
   /**
     Removes the given GTID from this Gtid_set.
 
-    @param sidno SIDNO of the group to remove.
-    @param gno GNO of the group to remove.
+    @param sidno SIDNO of the GTID to remove.
+    @param gno GNO of the GTID to remove.
   */
   void _remove_gtid(rpl_sidno sidno, rpl_gno gno)
   {
@@ -1368,7 +1368,7 @@ public:
     _remove_gtid(gtid.sidno, gtid.gno);
   }
   /**
-    Adds all groups from the given Gtid_set to this Gtid_set.
+    Adds all gtids from the given Gtid_set to this Gtid_set.
 
     If sid_lock != NULL, then the read lock must be held before
     calling this function. If a new sidno is added so that the array
@@ -1381,7 +1381,7 @@ public:
   */
   enum_return_status add_gtid_set(const Gtid_set *other);
   /**
-    Removes all groups in the given Gtid_set from this Gtid_set.
+    Removes all gtids in the given Gtid_set from this Gtid_set.
 
     @param other The Gtid_set to remove.
   */
@@ -1429,7 +1429,7 @@ public:
     @param text The string to parse.
     @param [in,out] anonymous If this is NULL, ANONYMOUS is not
     allowed.  If this is not NULL, it will be set to true if the
-    anonymous group was found; false otherwise.
+    anonymous GTID was found; false otherwise.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_gtid_text(const char *text, bool *anonymous= NULL);
@@ -1521,9 +1521,9 @@ public:
 
     @param sidno The SIDNO to test.
     @retval true The SIDNO is less than or equal to the max SIDNO, and
-    there is at least one group with this SIDNO.
+    there is at least one GTID with this SIDNO.
     @retval false The SIDNO is greater than the max SIDNO, or there is
-    no group with this SIDNO.
+    no GTID with this SIDNO.
   */
   bool contains_sidno(rpl_sidno sidno) const
   {
@@ -1684,7 +1684,7 @@ public:
 
   /**
     Provides an array of Intervals that this Gtid_set can use when
-    groups are subsequently added.  This can be used as an
+    gtids are subsequently added.  This can be used as an
     optimization, to reduce allocation for sets that have a known
     number of intervals.
 
@@ -1805,7 +1805,7 @@ public:
 
 
   /**
-    Iterator over all groups in a Gtid_set.  This is a const
+    Iterator over all gtids in a Gtid_set.  This is a const
     iterator; it does not allow modification of the Gtid_set.
   */
   class Gtid_iterator
@@ -1818,11 +1818,11 @@ public:
         gs->sid_lock->assert_some_wrlock();
       next_sidno();
     }
-    /// Advance to next group.
+    /// Advance to next gtid.
     inline void next()
     {
       DBUG_ASSERT(gno > 0 && sidno > 0);
-      // go to next group in current interval
+      // go to next GTID in current interval
       gno++;
       // end of interval? then go to next interval for this sidno
       if (gno == ivit.get()->end)
@@ -1841,7 +1841,7 @@ public:
         gno= iv->start;
       }
     }
-    /// Return next group, or {0,0} if we reached the end.
+    /// Return next gtid, or {0,0} if we reached the end.
     inline Gtid get() const
     {
       Gtid ret= { sidno, gno };
@@ -2041,7 +2041,7 @@ private:
   /**
     Adds the interval (start, end) to the given Interval_iterator.
 
-    This is the lowest-level function that adds groups; this is where
+    This is the lowest-level function that adds gtids; this is where
     Interval objects are added, grown, or merged.
 
     @param ivitp Pointer to iterator.  After this function returns,
@@ -2062,10 +2062,10 @@ private:
   /**
     Removes the interval (start, end) from the given
     Interval_iterator. This is the lowest-level function that removes
-    groups; this is where Interval objects are removed, truncated, or
+    gtids; this is where Interval objects are removed, truncated, or
     split.
 
-    It is not required that the groups in the interval exist in this
+    It is not required that the gtids in the interval exist in this
     Gtid_set.
 
     @param ivitp Pointer to iterator.  After this function returns,
@@ -2255,7 +2255,7 @@ public:
     Add a GTID to this Owned_gtids.
 
     @param gtid The Gtid to add.
-    @param owner The my_thread_id of the group to add.
+    @param owner The my_thread_id of the gtid to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_gtid_owner(const Gtid &gtid, my_thread_id owner);
@@ -2268,7 +2268,7 @@ public:
   /**
     Removes the given GTID.
 
-    If the group does not exist in this Owned_gtids object, does
+    If the gtid does not exist in this Owned_gtids object, does
     nothing.
 
     @param gtid The Gtid.
@@ -2305,7 +2305,7 @@ public:
   }
 
   /**
-    Write a string representation of this Owned_groups to the given buffer.
+    Write a string representation of this Owned_gtids to the given buffer.
 
     @param out Buffer to write to.
     @return Number of characters written.
@@ -2339,7 +2339,7 @@ public:
 
   /**
     Return an upper bound on the length of the string representation
-    of this Owned_groups.  The actual length may be smaller.  This
+    of this Owned_gtids.  The actual length may be smaller.  This
     includes the trailing '\0'.
   */
   size_t get_max_string_length() const
@@ -2357,7 +2357,7 @@ public:
   }
 
   /**
-    Return true if the given thread is the owner of any groups.
+    Return true if the given thread is the owner of any gtids.
   */
   bool thread_owns_anything(my_thread_id thd_id) const
   {
@@ -2414,12 +2414,12 @@ public:
   bool is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const;
 
 private:
-  /// Represents one owned group.
+  /// Represents one owned GTID.
   struct Node
   {
-    /// GNO of the group.
+    /// GNO of the GTID.
     rpl_gno gno;
-    /// Owner of the group.
+    /// Owner of the GTID.
     my_thread_id owner;
   };
   /// Read-write lock that protects updates to the number of SIDs.
@@ -2432,7 +2432,7 @@ private:
     sid_lock->assert_some_lock();
     return sidno_to_hash[sidno - 1];
   }
-  /// Return true iff this Owned_gtids object contains the given group.
+  /// Return true iff this Owned_gtids object contains the given gtid.
   bool contains_gtid(const Gtid &gtid) const;
 
   /// Growable array of hashes.
@@ -2442,7 +2442,7 @@ private:
 
 public:
   /**
-    Iterator over all groups in a Owned_gtids set.  This is a const
+    Iterator over all gtids in a Owned_gtids set.  This is a const
     iterator; it does not allow modification of the set.
   */
   class Gtid_iterator
@@ -2459,7 +2459,7 @@ public:
       }
       next();
     }
-    /// Advance to next group.
+    /// Advance to next GTID.
     inline void next()
     {
 #ifndef DBUG_OFF
@@ -2490,7 +2490,7 @@ public:
       }
       node= NULL;
     }
-    /// Return next group, or {0,0} if we reached the end.
+    /// Return next GTID, or {0,0} if we reached the end.
     inline Gtid get() const
     {
       Gtid ret= { 0, 0 };
@@ -2501,7 +2501,7 @@ public:
       }
       return ret;
     }
-    /// Return next group Node, or NULL if we reached the end.
+    /// Return the current GTID Node, or NULL if we reached the end.
     inline Node* get_node() const
     {
       return node;
@@ -2525,9 +2525,9 @@ public:
 
 
 /**
-  Represents the state of the group log: the set of logged groups, the
-  set of lost groups, the set of owned groups, the owner of each owned
-  group, and a Mutex_cond_array that protects updates to groups of
+  Represents the server's GTID state: the set of committed GTIDs, the
+  set of lost gtids, the set of owned gtids, the owner of each owned
+  gtid, and a Mutex_cond_array that protects updates to gtids of
   each SIDNO.
 
   Locking:
@@ -2562,7 +2562,7 @@ public:
 
     @param _sid_lock Read-write lock that protects updates to the
     number of SIDs.
-    @param _sid_map Sid_map used by this group log.
+    @param _sid_map Sid_map used by this Gtid_state.
   */
   Gtid_state(Checkable_rwlock *_sid_lock, Sid_map *_sid_map)
     : sid_lock(_sid_lock),
@@ -2589,7 +2589,7 @@ public:
   int init();
   /**
     Reset the state and persistor after RESET MASTER: remove all logged
-    and lost groups, but keep owned groups as they are.
+    and lost gtids, but keep owned gtids as they are.
 
     The caller must hold the write lock on sid_lock before calling
     this function.
@@ -2605,8 +2605,8 @@ public:
 
     @param gtid The Gtid to check.
 
-    @retval true The group is logged in the binary log.
-    @retval false The group is not logged in the binary log.
+    @retval true The gtid is logged in the binary log.
+    @retval false The gtid is not logged in the binary log.
   */
   bool is_executed(const Gtid &gtid) const
   {
@@ -2618,7 +2618,7 @@ public:
     Returns true if GTID is owned, otherwise returns 0.
 
     @param gtid The Gtid to check.
-    @return true if some thread owns the group, false if the group is
+    @return true if some thread owns the gtid, false if the gtid is
     not owned
   */
   bool is_owned(const Gtid &gtid) const
@@ -2662,7 +2662,7 @@ public:
      - remove owned GTID from owned_gtids;
      - remove all owned GTIDS from thd->owned_gtid and thd->owned_gtid_set;
 
-    @param thd Thread for which owned groups are updated.
+    @param thd Thread for which owned gtids are updated.
   */
   void update_on_commit(THD *thd);
   /**
@@ -2675,7 +2675,7 @@ public:
      - send a broadcast on the condition variable for every sidno for
        which we released ownership.
 
-    @param thd Thread for which owned groups are updated.
+    @param thd Thread for which owned gtids are updated.
   */
   void update_on_rollback(THD *thd);
 
@@ -2904,7 +2904,7 @@ public:
     for the following set: UUID:1-10, UUID:12, UUID:15-20
     20 will be returned.
 
-    @param sidno The group's SIDNO.
+    @param sidno The GTID's SIDNO.
 
     @retval The GNO or 0 if set is empty.
   */
@@ -3028,15 +3028,15 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
   enum_return_status add_lost_gtids(const Gtid_set *gtid_set);
-  /// Return a pointer to the Gtid_set that contains the lost groups.
+  /// Return a pointer to the Gtid_set that contains the lost gtids.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /*
-    Return a pointer to the Gtid_set that contains the stored groups
+    Return a pointer to the Gtid_set that contains the stored gtids
     in gtid_executed table.
   */
   const Gtid_set *get_executed_gtids() const { return &executed_gtids; }
   /*
-    Return a pointer to the Gtid_set that contains the stored groups
+    Return a pointer to the Gtid_set that contains the stored gtids
     only in gtid_executed table, not in binlog files.
   */
   const Gtid_set *get_gtids_only_in_table() const
@@ -3045,13 +3045,13 @@ public:
   }
   /*
     Return a pointer to the Gtid_set that contains the previous stored
-    groups in the last binlog file.
+    gtids in the last binlog file.
   */
   const Gtid_set *get_previous_gtids_logged() const
   {
     return &previous_gtids_logged;
   }
-  /// Return a pointer to the Owned_gtids that contains the owned groups.
+  /// Return a pointer to the Owned_gtids that contains the owned gtids.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   /// Return the server's SID's SIDNO
   rpl_sidno get_server_sidno() const { return server_sidno; }
@@ -3212,7 +3212,7 @@ private:
     - Send a broadcast on the condition variable for every sidno for
       which we released ownership.
 
-    @param[in] thd Thread for which owned groups are updated.
+    @param[in] thd Thread for which owned gtids are updated.
     @param[in] is_commit If true, the update is for a commit (not a rollback).
   */
   void update_gtids_impl(THD *thd, bool is_commit);
@@ -3476,7 +3476,7 @@ private:
     the call to end_gtid_violating_transaction function when there is no
     more transactions split after the current transaction.
 
-    @param[in] thd - Thread for which owned group is updated.
+    @param[in] thd - Thread for which owned GTID is updated.
     @param[in] more_trx - This is the value returned from
                           Gtid_state::update_gtids_impl_begin and can be
                           changed for transactions owning anonymous GTID at
@@ -3514,20 +3514,21 @@ private:
   enum_return_status ensure_commit_group_sidnos(rpl_sidno sidno);
 };
 
+/*
+  BUG# #18089914 - REFACTORING: RENAME GROUP TO GTID
+  changed AUTOMATIC_GROUP to AUTOMATIC_GTID
+  changed ANONYMOUS_GROUP to ANONYMOUS_GTID
+  changed INVALID_GROUP   to INVALID_GTID
+  changed UNDEFINED_GROUP to UNDEFINED_GTID
+  changed GTID_GROUPto ASSIGNED_GTID
+  changed NOT_YET_DETERMINED_GROUP to NOT_YET_DETERMINED_GTID
+*/
 
 /**
-  Enumeration of group types formed inside a transactions.
-  The structure of a group is as follows:
-  @verbatim
-  Group {
-        SID (16 byte UUID):         The source identifier for the group
-        GNO (8 byte unsigned int):  The group number for the group
-        COMMIT_FLAG (boolean):      True if this is the last group of the
-                                    transaction
-        }
-  @endverbatim
+  Enumeration of different types of values for Gtid_specification,
+  i.e, the different internal states that @@session.gtid_next can be in.
 */
-enum enum_group_type
+enum enum_gtid_type
 {
   /**
     Specifies that the GTID has not been generated yet; it will be
@@ -3539,10 +3540,10 @@ enum enum_group_type
     This is the default value: thd->variables.gtid_next has this state
     when GTID_NEXT="AUTOMATIC".
 
-    It is important that AUTOMATIC_GROUP==0 so that the default value
-    for thd->variables->gtid_next.type is AUTOMATIC_GROUP.
+    It is important that AUTOMATIC_GTID==0 so that the default value
+    for thd->variables->gtid_next.type is AUTOMATIC_GTID.
   */
-  AUTOMATIC_GROUP= 0,
+  AUTOMATIC_GTID= 0,
   /**
     Specifies that the transaction has been assigned a GTID (UUID:NUMBER).
 
@@ -3550,7 +3551,7 @@ enum enum_group_type
 
     This is the state of GTID-transactions replicated to the slave.
   */
-  GTID_GROUP,
+  ASSIGNED_GTID,
   /**
     Specifies that the transaction is anonymous, i.e., it does not
     have a GTID and will never be assigned one.
@@ -3560,7 +3561,7 @@ enum enum_group_type
     This is the state of any transaction generated on a pre-GTID
     server, or on a server with GTID_MODE==OFF.
   */
-ANONYMOUS_GROUP,
+  ANONYMOUS_GTID,
   /**
     GTID_NEXT is set to this state after a transaction with
     GTID_NEXT=='UUID:NUMBER' is committed.
@@ -3587,14 +3588,14 @@ ANONYMOUS_GROUP,
     To detect this case on the slave and generate an appropriate error
     message rather than causing an inconsistency in the GTID state, we
     do as follows.  When committing a transaction that has
-    GTID_NEXT==UUID:NUMBER, we set GTID_NEXT to UNDEFINED_GROUP.  When
+    GTID_NEXT==UUID:NUMBER, we set GTID_NEXT to UNDEFINED_GTID.  When
     the next part of the transaction is being processed, an error is
     generated, because it is not allowed to execute a transaction when
     GTID_NEXT==UNDEFINED.  In the normal case, the error is not
     generated, because there will always be a Gtid_log_event after the
     next transaction.
   */
-  UNDEFINED_GROUP,
+  UNDEFINED_GTID,
   /*
     GTID_NEXT is set to this state by the slave applier thread when it
     reads a Format_description_log_event that does not originate from
@@ -3614,14 +3615,14 @@ ANONYMOUS_GROUP,
     begins with a Gtid_log_event, we have the GTID there; if it begins
     with query_log_event, row events, etc, then this is an old binary
 log.  So at the time the binary log begins, we just set
-    GTID_NEXT=NOT_YET_DETERMINED_GROUP.  If it remains
+    GTID_NEXT=NOT_YET_DETERMINED_GTID.  If it remains
     NOT_YET_DETERMINED when the next transaction begins,
     gtid_pre_statement_checks will automatically turn it into an
     anonymous transaction.  If a Gtid_log_event comes across before
     the next transaction starts, then the Gtid_log_event will just set
     GTID_NEXT='UUID:NUMBER' accordingly.
   */
-  NOT_YET_DETERMINED_GROUP
+  NOT_YET_DETERMINED_GTID
 };
 /// Global state of GTIDs.
 extern Gtid_state *gtid_state;
@@ -3636,54 +3637,54 @@ extern Gtid_state *gtid_state;
 struct Gtid_specification
 {
   /// The type of this GTID
-  enum_group_type type;
+  enum_gtid_type type;
   /**
     The GTID:
     { SIDNO, GNO } if type == GTID;
     { 0, 0 } if type == AUTOMATIC or ANONYMOUS.
   */
   Gtid gtid;
-  /// Set the type to GTID_GROUP and SID, GNO to the given values.
+  /// Set the type to ASSIGNED_GTID and SID, GNO to the given values.
   void set(rpl_sidno sidno, rpl_gno gno)
   {
     gtid.set(sidno, gno);
-    type= GTID_GROUP;
+    type= ASSIGNED_GTID;
   }
-  /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
+  /// Set the type to ASSIGNED_GTID and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
-  /// Set the type to AUTOMATIC_GROUP.
+  /// Set the type to AUTOMATIC_GTID.
   void set_automatic()
   {
-    type= AUTOMATIC_GROUP;
+    type= AUTOMATIC_GTID;
   }
-  /// Set the type to ANONYMOUS_GROUP.
+  /// Set the type to ANONYMOUS_GTID.
   void set_anonymous()
   {
-    type= ANONYMOUS_GROUP;
+    type= ANONYMOUS_GTID;
   }
-  /// Set the type to NOT_YET_DETERMINED_GROUP.
+  /// Set the type to NOT_YET_DETERMINED_GTID.
   void set_not_yet_determined()
   {
-    type= NOT_YET_DETERMINED_GROUP;
+    type= NOT_YET_DETERMINED_GTID;
   }
-  /// Set to undefined. Must only be called if the type is GTID_GROUP.
+  /// Set to undefined. Must only be called if the type is ASSIGNED_GTID.
   void set_undefined()
   {
-    DBUG_ASSERT(type == GTID_GROUP);
-    type= UNDEFINED_GROUP;
+    DBUG_ASSERT(type == ASSIGNED_GTID);
+    type= UNDEFINED_GTID;
   }
   /// Return true if this Gtid_specification is equal to 'other'.
   bool equals(const Gtid_specification &other) const
   {
     return (type == other.type &&
-            (type != GTID_GROUP || gtid.equals(other.gtid)));
+            (type != ASSIGNED_GTID || gtid.equals(other.gtid)));
   }
   /**
-    Return true if this Gtid_specification is a GTID_GROUP with the
+    Return true if this Gtid_specification is a ASSIGNED_GTID with the
     same SID, GNO as 'other_gtid'.
   */
   bool equals(const Gtid &other_gtid) const
-  { return type == GTID_GROUP && gtid.equals(other_gtid); }
+  { return type == ASSIGNED_GTID && gtid.equals(other_gtid); }
 #ifdef MYSQL_SERVER
   /**
     Parses the given string and stores in this Gtid_specification.
@@ -3701,7 +3702,7 @@ struct Gtid_specification
     Writes this Gtid_specification to the given string buffer.
 
     @param sid_map Sid_map to use if the type of this
-    Gtid_specification is GTID_GROUP.
+    Gtid_specification is ASSIGNED_GTID.
     @param [out] buf The buffer
     @param need_lock If true, this function acquires global_sid_lock
     before looking up the sidno in sid_map, and then releases it. If
@@ -3713,8 +3714,8 @@ struct Gtid_specification
     Writes this Gtid_specification to the given string buffer.
 
     @param sid SID to use if the type of this Gtid_specification is
-    GTID_GROUP.  Can be NULL if this Gtid_specification is
-    ANONYMOUS_GROUP or AUTOMATIC_GROUP.
+    ASSIGNED_GTID.  Can be NULL if this Gtid_specification is
+    ANONYMOUS_GTID or AUTOMATIC_GTID.
     @param[out] buf The buffer
     @retval The number of characters written.
   */
@@ -3729,7 +3730,7 @@ struct Gtid_specification
   }
 #endif
   /**
-    Print this Gtid_specificatoin to the trace file if debug is
+    Print this Gtid_specification to the trace file if debug is
     enabled; no-op otherwise.
   */
   void dbug_print(const char *text MY_ATTRIBUTE((unused))= "",
@@ -3741,26 +3742,6 @@ struct Gtid_specification
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
-};
-
-
-/**
-  Represents a group in the group cache.
-
-  Groups in the group cache are slightly different from other groups,
-  because not all information about them is known.
-
-  Automatic groups are marked as such by setting gno<=0.
-*/
-struct Cached_group
-{
-  /// The gtid for this group.
-  Gtid_specification spec;
-  /**
-    The position of this GTID in the cache, i.e., the total size of
-    all previous groups.
-  */
-  rpl_binlog_pos binlog_offset;
 };
 
 
@@ -3792,8 +3773,8 @@ enum enum_gtid_statement_status
   - Check that there is no implicit commit in a transaction when
     GTID_NEXT==UUID:NUMBER.
 
-  - Change thd->variables.gtid_next.type to ANONYMOUS_GROUP if it is
-    currently NOT_YET_DETERMINED_GROUP.
+  - Change thd->variables.gtid_next.type to ANONYMOUS_GTID if it is
+    currently NOT_YET_DETERMINED_GTID.
 
   - Check whether the statement should be cancelled.
 
@@ -3836,7 +3817,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
 /**
   Acquire ownership of the given Gtid_specification.
 
-  The Gtid_specification must be of type GTID_GROUP or ANONYMOUS_GROUP.
+  The Gtid_specification must be of type ASSIGNED_GTID or ANONYMOUS_GTID.
 
   The caller must hold global_sid_lock (normally the rdlock).  The
   lock may be temporarily released and acquired again. In the end,

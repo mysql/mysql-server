@@ -32,20 +32,20 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map, const char *text)
   DBUG_ASSERT(text != NULL);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
   {
-    type= AUTOMATIC_GROUP;
+    type= AUTOMATIC_GTID;
     gtid.sidno= 0;
     gtid.gno= 0;
   }
   else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
   {
-    type= ANONYMOUS_GROUP;
+    type= ANONYMOUS_GTID;
     gtid.sidno= 0;
     gtid.gno= 0;
   }
   else
   {
     PROPAGATE_REPORTED_ERROR(gtid.parse(sid_map, text));
-    type= GTID_GROUP;
+    type= ASSIGNED_GTID;
   }
   RETURN_OK;
 }
@@ -71,10 +71,10 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
   DBUG_ENTER("Gtid_specification::to_string(char*)");
   switch (type)
   {
-  case AUTOMATIC_GROUP:
+  case AUTOMATIC_GTID:
     strcpy(buf, "AUTOMATIC");
     DBUG_RETURN(9);
-  case NOT_YET_DETERMINED_GROUP:
+  case NOT_YET_DETERMINED_GTID:
     /*
       This can happen if user issues SELECT @@SESSION.GTID_NEXT
       immediately after a BINLOG statement containing a
@@ -82,15 +82,15 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
     */
     strcpy(buf, "NOT_YET_DETERMINED");
     DBUG_RETURN(18);
-  case ANONYMOUS_GROUP:
+  case ANONYMOUS_GTID:
     strcpy(buf, "ANONYMOUS");
     DBUG_RETURN(9);
   /*
-    UNDEFINED_GROUP must be printed like GTID_GROUP because of
+    UNDEFINED_GTID must be printed like ASSIGNED_GTID because of
     SELECT @@SESSION.GTID_NEXT.
   */
-  case UNDEFINED_GROUP:
-  case GTID_GROUP:
+  case UNDEFINED_GTID:
+  case ASSIGNED_GTID:
     DBUG_RETURN(gtid.to_string(*sid, buf));
   }
   DBUG_ASSERT(0);
@@ -100,7 +100,7 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
 
 int Gtid_specification::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
 {
-  return to_string(type == GTID_GROUP || type == UNDEFINED_GROUP ?
+  return to_string(type == ASSIGNED_GTID || type == UNDEFINED_GTID ?
                    &sid_map->sidno_to_sid(gtid.sidno, need_lock) : NULL,
                    buf);
 }

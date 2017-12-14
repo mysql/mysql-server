@@ -1507,10 +1507,10 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen)
 
   for (THD *head= first_seen ; head ; head = head->next_to_commit)
   {
-    DBUG_ASSERT(head->variables.gtid_next.type != UNDEFINED_GROUP);
+    DBUG_ASSERT(head->variables.gtid_next.type != UNDEFINED_GTID);
 
     /* Generate GTID */
-    if (head->variables.gtid_next.type == AUTOMATIC_GROUP)
+    if (head->variables.gtid_next.type == AUTOMATIC_GTID)
     {
       if (!is_global_sid_locked)
       {
@@ -1533,11 +1533,11 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen)
                           "thd->owned_gtid.sidno=%d",
                           head->variables.gtid_next.type,
                           head->owned_gtid.sidno));
-      if (head->variables.gtid_next.type == GTID_GROUP)
+      if (head->variables.gtid_next.type == ASSIGNED_GTID)
         DBUG_ASSERT(head->owned_gtid.sidno > 0);
       else
       {
-        DBUG_ASSERT(head->variables.gtid_next.type == ANONYMOUS_GROUP);
+        DBUG_ASSERT(head->variables.gtid_next.type == ANONYMOUS_GTID);
         DBUG_ASSERT(head->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
       }
     }
@@ -1698,7 +1698,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
 
   if (thd->owned_gtid.sidno > 0)
   {
-    DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
+    DBUG_ASSERT(thd->variables.gtid_next.type == ASSIGNED_GTID);
 
     if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
     {
@@ -1764,7 +1764,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   {
     gtid_state->update_on_commit(thd);
   }
-  else if (thd->variables.gtid_next.type == GTID_GROUP &&
+  else if (thd->variables.gtid_next.type == ASSIGNED_GTID &&
            thd->owned_gtid.is_empty())
   {
     DBUG_ASSERT(thd->has_gtid_consistency_violation == false);
@@ -8008,7 +8008,6 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
   if (!is_open())
     DBUG_RETURN(error);
 
-  // @todo make this work with the group log. /sven
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
 #ifndef DBUG_OFF
@@ -8831,15 +8830,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       DBUG_RETURN(RESULT_ABORTED);
   }
 
-  /*
-    If there is anything in the stmt cache, and GTIDs are enabled,
-    then this is a single statement outside a transaction and it is
-    impossible that there is anything in the trx cache.  Hence, we
-    write any empty group(s) to the stmt cache.
-
-    Otherwise, we write any empty group(s) to the trx cache at the end
-    of the transaction.
-  */
   if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
     /*
@@ -11304,7 +11294,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
 {
   DBUG_ENTER("handle_gtid_consistency_violation");
 
-  enum_group_type gtid_next_type= thd->variables.gtid_next.type;
+  enum_gtid_type gtid_next_type= thd->variables.gtid_next.type;
   global_sid_lock->rdlock();
   enum_gtid_consistency_mode gtid_consistency_mode=
     get_gtid_consistency_mode();
@@ -11326,9 +11316,9 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
       commit usinga GTID), or
     - ENFORCE_GTID_CONSISTENCY=ON.
   */
-  if ((gtid_next_type == AUTOMATIC_GROUP &&
+  if ((gtid_next_type == AUTOMATIC_GTID &&
        gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
-      gtid_next_type == GTID_GROUP ||
+      gtid_next_type == ASSIGNED_GTID ||
       gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON)
   {
     global_sid_lock->unlock();
@@ -11353,11 +11343,11 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
     */
     if (!thd->has_gtid_consistency_violation)
     {
-      if (gtid_next_type == AUTOMATIC_GROUP)
+      if (gtid_next_type == AUTOMATIC_GTID)
         gtid_state->begin_automatic_gtid_violating_transaction();
       else
       {
-        DBUG_ASSERT(gtid_next_type == ANONYMOUS_GROUP);
+        DBUG_ASSERT(gtid_next_type == ANONYMOUS_GTID);
         gtid_state->begin_anonymous_gtid_violating_transaction();
       }
 

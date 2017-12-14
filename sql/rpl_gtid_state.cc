@@ -288,11 +288,11 @@ void Gtid_state::end_gtid_violating_transaction(THD *thd)
   DBUG_ENTER("end_gtid_violating_transaction");
   if (thd->has_gtid_consistency_violation)
   {
-    if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+    if (thd->variables.gtid_next.type == AUTOMATIC_GTID)
       end_automatic_gtid_violating_transaction();
     else
     {
-      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
+      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GTID);
       end_anonymous_gtid_violating_transaction();
     }
     thd->has_gtid_consistency_violation= false;
@@ -529,7 +529,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
   DBUG_ENTER("Gtid_state::generate_automatic_gtid");
   enum_return_status ret= RETURN_STATUS_OK;
 
-  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GTID);
   DBUG_ASSERT(specified_sidno >= 0);
   DBUG_ASSERT(specified_gno >= 0);
   DBUG_ASSERT(thd->owned_gtid.is_empty());
@@ -845,7 +845,7 @@ bool Gtid_state::update_gtids_impl_do_nothing(THD *thd)
 {
   if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
   {
-    if (thd->variables.gtid_next.type == GTID_GROUP)
+    if (thd->variables.gtid_next.type == ASSIGNED_GTID)
       thd->variables.gtid_next.set_undefined();
     DBUG_PRINT("info", ("skipping update_gtids_impl because "
                         "thread does not own anything and does not violate "
@@ -982,7 +982,7 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
   }
 
   thd->clear_owned_gtids();
-  if (thd->variables.gtid_next.type == GTID_GROUP)
+  if (thd->variables.gtid_next.type == ASSIGNED_GTID)
   {
     DBUG_ASSERT(!thd->is_commit_in_middle_of_statement);
     thd->variables.gtid_next.set_undefined();
@@ -994,8 +994,8 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
       gtid_pre_statement_checks skips the test for undefined,
       e.g. ROLLBACK.
     */
-    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
-                thd->variables.gtid_next.type == UNDEFINED_GROUP);
+    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GTID ||
+                thd->variables.gtid_next.type == UNDEFINED_GTID);
   }
 }
 
@@ -1019,8 +1019,8 @@ void Gtid_state::update_gtids_impl_broadcast_and_unlock_sidnos()
 void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
                                                  bool *more_trx)
 {
-  DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP ||
-              thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GTID ||
+              thd->variables.gtid_next.type == AUTOMATIC_GTID);
   /*
     If there is more in the transaction cache, set more_trx to indicate this.
 
@@ -1039,7 +1039,7 @@ void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
     }
   }
   if (!(*more_trx &&
-        thd->variables.gtid_next.type == ANONYMOUS_GROUP))
+        thd->variables.gtid_next.type == ANONYMOUS_GTID))
   {
     release_anonymous_ownership();
     thd->clear_owned_gtids();
@@ -1050,7 +1050,7 @@ void Gtid_state::update_gtids_impl_own_nothing(THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR ||
               thd->has_gtid_consistency_violation);
-  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GTID);
 }
 
 void Gtid_state::update_gtids_impl_end(THD *thd, bool more_trx)

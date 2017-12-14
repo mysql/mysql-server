@@ -302,7 +302,7 @@ public:
   void started_processing(Gtid_log_event *gtid_log_ev_arg)
   {
     Gtid gtid= {0, 0};
-    if (gtid_log_ev_arg->get_type() == GTID_GROUP)
+    if (gtid_log_ev_arg->get_type() == ASSIGNED_GTID)
     {
       gtid= {gtid_log_ev_arg->get_sidno(true), gtid_log_ev_arg->get_gno()};
     }

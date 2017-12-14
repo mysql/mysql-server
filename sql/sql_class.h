@@ -3303,15 +3303,15 @@ public:
         used for another transaction, since only one transaction can
         have any given GTID.  To avoid the user mistake of forgetting
         to set back GTID_NEXT, on commit we set
-        thd->variables.gtid_next.type=UNDEFINED_GROUP.  Then, any
+        thd->variables.gtid_next.type=UNDEFINED_GTID.  Then, any
         statement that user tries to execute other than SET GTID_NEXT
         will generate an error.
 
     R2. A thread that holds anonymous ownership releases ownership at
         transaction commit or rollback.  In this case there is no harm
         in leaving GTID_NEXT='ANONYMOUS', so
-        thd->variables.gtid_next.type will remain ANONYMOUS_GROUP and
-        not UNDEFINED_GROUP.
+        thd->variables.gtid_next.type will remain ANONYMOUS_GTID and
+        not UNDEFINED_GTID.
 
     There are statements that generate multiple transactions in the
     binary log. This includes the following:
@@ -3481,7 +3481,7 @@ public:
     REPAIR TABLE) that might call trans_rollback_stmt() and also will be
     sucessfully executed and will have to go to the binary log.
     For these statements, the skip_gtid_rollback flag must be set to avoid
-    problems when the statement is executed with a GTID_NEXT set to GTID_GROUP
+    problems when the statement is executed with a GTID_NEXT set to ASSIGNED_GTID
     (like the SQL thread do when applying events from other server).
     When this flag is set, a call to gtid_rollback() will do nothing.
   */

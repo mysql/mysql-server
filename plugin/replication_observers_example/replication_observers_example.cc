@@ -524,7 +524,7 @@ int validate_plugin_server_requirements(Trans_param *param)
   rpl_gno fake_gno= get_last_executed_gno(fake_sidno)+1;
 
   Gtid gtid= { fake_sidno, fake_gno };
-  Gtid_specification gtid_spec= { GTID_GROUP, gtid };
+  Gtid_specification gtid_spec= { ASSIGNED_GTID, gtid };
   Gtid_log_event *gle=
     new Gtid_log_event(param->server_id, true, 0, 1, true, 0, 0, gtid_spec);
 
@@ -541,7 +541,7 @@ int validate_plugin_server_requirements(Trans_param *param)
   /*
     Instantiate a anonymous Gtid_log_event without a THD parameter.
   */
-  Gtid_specification anonymous_gtid_spec= { ANONYMOUS_GROUP, gtid };
+  Gtid_specification anonymous_gtid_spec= { ANONYMOUS_GTID, gtid };
   gle=
     new Gtid_log_event(param->server_id, true, 0, 1, true, 0, 0, anonymous_gtid_spec);
 

@@ -493,8 +493,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   LEX *lex= thd->lex;
   int result_code;
   bool gtid_rollback_must_be_skipped=
-    ((thd->variables.gtid_next.type == GTID_GROUP ||
-      thd->variables.gtid_next.type == ANONYMOUS_GROUP) &&
+    ((thd->variables.gtid_next.type == ASSIGNED_GTID ||
+      thd->variables.gtid_next.type == ANONYMOUS_GTID) &&
     (!thd->skip_gtid_rollback));
   bool ignore_grl_on_analyze= operator_func == &handler::ha_analyze;
   DBUG_ENTER("mysql_admin_table");

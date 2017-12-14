@@ -114,7 +114,7 @@ START SLAVE SQL_THREAD;
 # Step 3.2: Make gtid_pre_statement_checks to return GTID_STATEMENT_CANCEL.
 #           If a transaction is involved with non-transactional DML followed
 #           by transactional DML, gtid_pre_statement_checks will complain that
-#           GTID_NEXT is set to UNDEFINED_GROUP while it is executing
+#           GTID_NEXT is set to UNDEFINED_GTID while it is executing
 #           transactional DML as GTID that came from Master is utilized by
 #           non-transaction DML alone.
 ###############################################################################
@@ -127,8 +127,8 @@ START SLAVE SQL_THREAD UNTIL SQL_AFTER_MTS_GAPS;
 CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 START SLAVE SQL_THREAD;
 
-# SQL thread should fail with ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
---let $slave_sql_errno= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GROUP)
+# SQL thread should fail with ER_GTID_NEXT_TYPE_UNDEFINED_GTID
+--let $slave_sql_errno= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GTID)
 --source include/wait_for_slave_sql_error.inc
 
 # Cleanup the mess created by this testcase

@@ -6889,7 +6889,7 @@ ER_MALFORMED_PACKET
 ER_READ_ONLY_MODE
         eng "Running in read-only mode"
 
-ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+ER_GTID_NEXT_TYPE_UNDEFINED_GTID
   eng "When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is '%s'."
 
 ER_VARIABLE_NOT_SETTABLE_IN_SP
@@ -7057,7 +7057,7 @@ ER_AES_INVALID_IV
 ER_PLUGIN_CANNOT_BE_UNINSTALLED
   eng "Plugin '%s' cannot be uninstalled now. %s"
 
-ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
+ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
   eng "Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
 ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
