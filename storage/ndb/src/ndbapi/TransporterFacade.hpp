@@ -362,6 +362,11 @@ private:
 
   } m_threads;
 
+  /**
+   * Global set of nodes having their send buffer enabled.
+   * Primary usage is to init the trp_client with enabled
+   * nodes when it 'open' the communication.
+   */
   NodeBitmask m_enabled_nodes_mask;  //need m_open_close_mutex
 
   /**
