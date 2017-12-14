@@ -1,0 +1,194 @@
+
+# Pipeline allows clients to send a batch of commands to the server all at once 
+# and read their responses also all at once, minimizing the number of network 
+# roundtrips and allowing for better performance, specially when network 
+# latency is a bottleneck.
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+DROP DATABASE IF EXISTS xplugintest;
+CREATE DATABASE xplugintest;
+USE xplugintest;
+CREATE TABLE test.counttest1 ( i INT );
+
+
+# Send xmessage in group and do -->recvresult
+--write_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+-->echo Send SELECT SLEEP (?)
+#-- Select with sleep.Make server wait for 5 sec so other messages can be queued
+Mysqlx.Sql.StmtExecute {
+  stmt: " SELECT SLEEP (?) "
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 5
+      }
+  }
+}
+#-- Create table2
+Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+#-- Select
+-->echo send SELECT (100+?)
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT (100+?) "
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 10
+      }
+  }
+}
+
+
+
+-->echo retrive result of send message at once
+-->recvresult
+-->recvresult
+-->recvresult
+
+-->echo send Insert 
+Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Bras\", \"id\": \"1\"\n}"
+        }
+    }
+  }}
+  row {
+    field {
+    type: LITERAL
+    literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"2\"\n}"
+        }
+    }}
+  }
+}
+
+
+-->echo Send SELECT SLEEP (?)
+Mysqlx.Sql.StmtExecute {
+  stmt: " SELECT SLEEP (?) "
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: 2
+      }
+  }
+}
+
+-->echo Send SELECT FROM table2
+Mysqlx.Sql.StmtExecute {
+  stmt: " SELECT * FROM xplugintest.table2"
+}
+
+-->echo Send SELECT FROM table2
+Mysqlx.Sql.StmtExecute {
+  stmt: " DROP DATABASE xplugintest"
+}
+
+-->echo retrive result of send message at once
+-->recvresult
+-->recvresult
+-->recvresult
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+
+
+
+# Send 100 select command and retrive result at the end
+perl;
+ my $dir = $ENV{'MYSQL_TMP_DIR'};
+ open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ $message = <<"END_MESSAGE";
+Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT (100+?) "
+  args {
+      type: SCALAR
+      scalar {
+        type: V_UINT
+        v_unsigned_int: -1
+      }
+  }
+}
+END_MESSAGE
+
+ for ($i=1;$i<=100;$i++) {
+    if ($i%20==0) {
+       print OUTPUT  "\nMysqlx.Sql.StmtExecute { \n stmt: \" SELECT SLEEP (1) \"\n}\n";
+       # send invalid request
+       print OUTPUT  "\nMysqlx.Sql.StmtExecute { \n stmt: \" SELECT * FROM INVALID_TABLE \"\n}\n";
+    }else{
+       $str = $message;
+       $replace = $i;
+       $find = -1;
+       $str =~ s/$find/$replace/g;
+       print OUTPUT "$str\n";
+     }
+ } 
+ for ($i=1;$i<=100;$i++) {
+   print OUTPUT "\n-->recvresult\n";
+   if ($i%20==0) {
+      print OUTPUT "\n-->expecterror 1046\n";
+      print OUTPUT "\n-->recvresult\n";
+   }
+ } 
+   print OUTPUT "\n-->sql\n";
+   print OUTPUT "\nINSERT INTO test.counttest1 VALUES (1);\n";
+   print OUTPUT "\n-->endsql\n";
+ close(OUTPUT);
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out1.tmp 2>&1 &
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+let $wait_timeout= 90;
+let $wait_condition= select count(*)=2 from test.counttest1;
+--source include/wait_condition.inc
+--sleep 1
+
+## Cleanup
+DROP TABLE test.counttest1;
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out1.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
+--source include/xplugin_drop_user.inc

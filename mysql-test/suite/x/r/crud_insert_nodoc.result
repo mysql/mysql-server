@@ -1,0 +1,12 @@
+DROP SCHEMA IF EXISTS xtest;
+Warnings:
+Note	1008	Can't drop database 'xtest'; database doesn't exist
+CREATE SCHEMA xtest;
+USE xtest;
+CREATE TABLE xtable (nodoc JSON);
+Got expected error: Table 'xtable' is not a document collection (code 5117)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

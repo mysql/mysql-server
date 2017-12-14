@@ -1,2 +1,0 @@
---plugin_dir=$MYSQLXPLUGIN_DIR
---default_authentication_plugin=mysql_native_password

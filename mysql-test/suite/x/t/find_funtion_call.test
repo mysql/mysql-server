@@ -1,0 +1,937 @@
+###########  ../t/find_function_call.test                  #############
+###                                                                    #
+### This test runs aims to run FIND operation statements               #
+### variant with mysqlxtest client for Table and Document data models. #
+### Test covers                                                        #
+###  - find with functions                                             #
+###  - find with different function argument                           #
+###  - find with different data types tables               	           #
+###  - find with with multiple recursive functions         	           #
+###                                                                    #
+########################################################################
+#
+
+## =============================================
+##
+##     CRUD FIND FUNCTION CALL
+##
+## =============================================
+
+--echo ================================================================================
+--echo PREAMBLE
+--echo ================================================================================
+--source include/xplugin_preamble.inc
+create user crudfinduser@localhost identified by 'crudfinduser';
+grant all on *.* to crudfinduser@localhost;
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/find_function_tables_setup.tmp
+-->sql
+DROP SCHEMA if EXISTS minisakila;
+CREATE SCHEMA minisakila;
+USE minisakila;
+
+# Table Setup of different data types 
+
+DROP TABLE IF EXISTS t_bin;
+CREATE TABLE t_bin (
+  _bin binary(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_bin VALUES (NULL),('null\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('true\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('12\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('3.14\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"a\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"1\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"3.14\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('{\"a\": 3}\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('[1, 2]\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"b,c\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"b\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"2015-01-15\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"23:24:25.000000\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"2015-01-15 23:24:25.000000\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type16:yv4=\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type13:MTk5Mg==\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type252:yv66vg==\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type251:yv66vg==\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type250:yv66vg==\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type249:yv66vg==\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0'),('\"base64:type15:Zm9v\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0');
+
+DROP TABLE IF EXISTS t_bis;
+CREATE TABLE t_bis (
+  _bis bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_bis VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_bit;
+CREATE TABLE t_bit (
+  _bit bit(64) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_bit VALUES ('\0\0\0\0null'),('\0\0\0\0true'),('\0\0\0\0\0\012'),('\0\0\0\03.14'),('\0\0\0\0\0\"a\"'),('\0\0\0\0\0\"1\"'),('\0\0\"3.14\"'),('{\"a\": 3}'),('\0\0[1, 2]'),('\0\0\0\"b,c\"'),('\0\0\0\0\0\"b\"'),(NULL);
+
+DROP TABLE IF EXISTS t_biu;
+CREATE TABLE t_biu (
+  _biu bigint(20) unsigned DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_biu VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_blb;
+CREATE TABLE t_blb (
+  _blb blob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_blb VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_boo;
+CREATE TABLE t_boo (
+  _boo tinyint(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_boo VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_chr;
+CREATE TABLE t_chr (
+  _chr char(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_chr VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_dat;
+CREATE TABLE t_dat (
+  _dat date DEFAULT '2000-01-01'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_dat VALUES ('2000-01-01'),('2015-01-15'),('2015-05-30'),(NULL);
+
+DROP TABLE IF EXISTS t_dec;
+CREATE TABLE t_dec (
+  _dec decimal(5,2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_dec VALUES (NULL),(1.00),(12.00),(3.14);
+
+DROP TABLE IF EXISTS t_dou;
+CREATE TABLE t_dou (
+  _dou double DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_dou VALUES (NULL),(1),(12),(3.14);
+
+DROP TABLE IF EXISTS t_dtt;
+CREATE TABLE t_dtt (
+  _dtt datetime DEFAULT '2000-01-01 00:00:00'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_dtt VALUES ('2000-01-01 00:00:00'),('2015-01-15 00:00:00'),('2015-05-30 23:24:25'),('2015-01-15 23:24:25'),(NULL);
+
+DROP TABLE IF EXISTS t_enu;
+CREATE TABLE t_enu (
+  _enu enum('a','b','c') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_enu VALUES (NULL);
+
+DROP TABLE IF EXISTS t_flo;
+CREATE TABLE t_flo (
+  _flo float DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_flo VALUES (NULL),(1),(12),(3.14);
+
+DROP TABLE IF EXISTS t_gco;
+CREATE TABLE t_gco (
+  _gco geometrycollection DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_gco VALUES (NULL);
+
+DROP TABLE IF EXISTS t_geo;
+CREATE TABLE t_geo (
+  _geo geometry DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_geo VALUES (NULL);
+
+DROP TABLE IF EXISTS t_ins;
+CREATE TABLE t_ins (
+  _ins int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_ins VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_inu;
+CREATE TABLE t_inu (
+  _inu int(10) unsigned DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_inu VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_lbb;
+CREATE TABLE t_lbb (
+  _lbb longblob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_lbb VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_lst;
+CREATE TABLE t_lst (
+  _lst linestring DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_lst VALUES (NULL);
+
+DROP TABLE IF EXISTS t_ltx;
+CREATE TABLE t_ltx (
+  _ltx longtext
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_ltx VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_mbb;
+CREATE TABLE t_mbb (
+  _mbb mediumblob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_mbb VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_mes;
+CREATE TABLE t_mes (
+  _mes mediumint(9) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_mes VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_meu;
+CREATE TABLE t_meu (
+  _meu mediumint(8) unsigned DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_meu VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_mls;
+CREATE TABLE t_mls (
+  _mls multilinestring DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_mls VALUES (NULL);
+
+DROP TABLE IF EXISTS t_mpt;
+CREATE TABLE t_mpt (
+  _mpt multipoint DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_mpt VALUES (NULL);
+
+DROP TABLE IF EXISTS t_mpy;
+CREATE TABLE t_mpy (
+  _mpy multipolygon DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_mpy VALUES (NULL);
+
+DROP TABLE IF EXISTS t_mtx;
+CREATE TABLE t_mtx (
+  _mtx mediumtext
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_mtx VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_pnt;
+CREATE TABLE t_pnt (
+  _pnt point DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_pnt VALUES (NULL);
+
+DROP TABLE IF EXISTS t_pol;
+CREATE TABLE t_pol (
+  _pol polygon DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_pol VALUES (NULL);
+
+DROP TABLE IF EXISTS t_set;
+CREATE TABLE t_set (
+  _set set('a','b','c') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_set VALUES (NULL);
+
+DROP TABLE IF EXISTS t_smp;
+CREATE TABLE t_smp (
+  _smp timestamp NOT NULL DEFAULT '1999-12-31 18:30:00'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_smp VALUES ('1999-12-31 18:30:00'),('2015-01-14 18:30:00'),('2015-05-30 17:54:25'),('2015-01-15 17:54:25'),('2015-05-30 11:30:51'),('2015-05-30 11:30:54'),('2015-05-30 11:30:58');
+
+DROP TABLE IF EXISTS t_sms;
+CREATE TABLE t_sms (
+  _sms smallint(6) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_sms VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_smu;
+CREATE TABLE t_smu (
+  _smu smallint(5) unsigned DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_smu VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_tbl;
+CREATE TABLE t_tbl (
+  _tbl tinyblob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_tbl VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_tim;
+CREATE TABLE t_tim (
+  _tim time DEFAULT '00:00:00'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_tim VALUES ('00:00:00'),('23:24:25'),(NULL);
+
+DROP TABLE IF EXISTS t_tin;
+CREATE TABLE t_tin (
+  _tin tinyint(8) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_tin VALUES (NULL),(1),(12),(3);
+
+DROP TABLE IF EXISTS t_ttx;
+CREATE TABLE t_ttx (
+  _ttx tinytext
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_ttx VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_txt;
+CREATE TABLE t_txt (
+  _txt text
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_txt VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_vbn;
+CREATE TABLE t_vbn (
+  _vbn varbinary(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_vbn VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_vch;
+CREATE TABLE t_vch (
+  _vch varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_vch VALUES (NULL),('null'),('true'),('12'),('3.14'),('\"a\"'),('\"1\"'),('\"3.14\"'),('{\"a\": 3}'),('[1, 2]'),('\"b,c\"'),('\"b\"'),('\"2015-01-15\"'),('\"23:24:25.000000\"'),('\"2015-01-15 23:24:25.000000\"'),('\"base64:type255:AAAAAAEBAAAAAAAAAAAA8D8AAAAAAADwPw==\"'),('\"base64:type16:yv4=\"'),('\"base64:type13:MTk5Mg==\"'),('\"base64:type252:yv66vg==\"'),('\"base64:type251:yv66vg==\"'),('\"base64:type250:yv66vg==\"'),('\"base64:type249:yv66vg==\"'),('\"base64:type15:Zm9v\"');
+
+DROP TABLE IF EXISTS t_yea;
+CREATE TABLE t_yea (
+  _yea year(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t_yea VALUES (NULL),(2012),(2003);
+
+
+-->endsql
+
+-->echo Table based scenarios
+
+-->echo Find all the rows including all the metadata
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_yea"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+}
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_function_tables_setup.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/find_function_tables_setup.tmp
+
+
+
+--write_file $MYSQL_TMP_DIR/find_functions_test.tmp
+
+# Checking for the COUNT function on all datatypes Tables
+#=========================================================
+#=========================================================
+
+# Binary datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_bin"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_bin"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Big Int Signed datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_bis"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_bis"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Bit datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_bit"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_bit"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Big Int Unsigned datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_biu"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_biu"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Char datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_chr"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_chr"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Date datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_dat"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_dat"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Decimal datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_dec"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_dec"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Double datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_dou"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_dou"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Datetime datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_dtt"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_dtt"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+
+# Geometry datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_geo"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_geo"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Int datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_inu"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_inu"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_crud_find';
+-->endsql
+
+
+# Text datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_txt"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_txt"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# Set datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_set"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_set"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_crud_find';
+-->endsql
+
+
+
+# Time datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_tim"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_tim"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+# varchar datatype
+#==========================
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_vch"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_vch"
+          }
+        }
+      }
+    }
+    alias: "count"
+  }
+}
+-->recvresult
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_crud_find';
+-->endsql
+
+
+
+# Checking with Multi Argument Funtions 
+#=========================================================
+#=========================================================
+
+# DATEDIFF - 2 Arguments
+# =======================
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_dat"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "DATEDIFF"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_dat"
+          }
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_dat"
+          }
+        }
+      }
+    }
+    alias: "DateDiff"
+  }
+}
+-->recvresult
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_crud_find';
+-->endsql
+
+
+# CONV - 3 Arguments
+# =======================
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_inu"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "CONV"
+        }
+        param {
+          type: IDENT
+          identifier {
+            name: "_inu"
+          }
+        }
+         param {
+        		type: LITERAL
+        		literal {
+           			type: V_SINT
+            		v_signed_int: 18
+         	 		
+        			}
+         	}
+         param {
+        		type: LITERAL
+        		literal {
+           			type: V_SINT
+            		v_signed_int: 8
+         	 		
+        			}
+         	}
+      }
+    }
+    alias: "CONV"
+  }
+}
+-->recvresult
+
+
+# Checking with Recursive Funtions 
+#=========================================================
+#=========================================================
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_inu"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "COUNT"
+        }
+        param {
+          type: FUNC_CALL
+          function_call {
+            name {
+              name: "DISTINCT"
+            }
+            param {
+              type: IDENT
+              identifier {
+                name: "_inu"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+# Checking with Funtions which work as Operator
+#=========================================================
+#=========================================================
+
+# DATE_ADD - 
+# =======================
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "t_dat"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: OPERATOR
+      operator {
+        name: "date_add"
+        param {
+  			 type: IDENT
+          	identifier {
+            name: "_dat"
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: 31
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"DAY"}
+          }
+        }
+      }
+    }
+    alias: "DateAdd"
+  }
+}
+-->recvresult
+
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_crud_find';
+-->endsql
+
+
+
+## Cleanup
+-->sql
+DROP SCHEMA IF EXISTS minisakila;
+DROP USER crudfinduser@localhost;
+-->endsql
+EOF
+--exec $MYSQLXTEST -u crudfinduser --password='crudfinduser' --file=$MYSQL_TMP_DIR/find_functions_test.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/find_functions_test.tmp
+

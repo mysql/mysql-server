@@ -231,7 +231,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          qa_auth_server.so replication_observers_example_plugin.so \
          test_security_context.so test_services_plugin_registry.so \
          udf_example.so \
-	 test_udf_services.so component_test_backup_lock_service.so ; do
+         test_udf_services.so component_test_backup_lock_service.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 

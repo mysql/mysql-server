@@ -1,0 +1,62 @@
+## generated
+## Rel: Attempt to break value quoting
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/insert_table_string_quoting.tmp
+## Test data
+-->sql
+drop schema if exists xtest;
+create schema xtest default charset='utf8mb4';
+use xtest;
+create table mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
+create table mytable (i int NOT NULL, ui int unsigned, vc varchar(100), f float, d double, dt datetime, ts timestamp(5), j json);
+create table ` .'"````\\` (` .'"````\\` int);
+-->endsql
+Mysqlx.Crud.Insert {
+  collection {
+    name: "mytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "i"
+  }
+  projection {
+    name: "vc"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: " .\'\"``\\\\"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_string_quoting.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/insert_table_string_quoting.tmp
+--source include/xplugin_drop_user.inc

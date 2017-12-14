@@ -1,0 +1,364 @@
+## XPLUGIN: This is test file for mysqlx plugin server variables testing.
+## Created: 2015-08-10  Lalit Choudhary
+##
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+--echo # System Variables Testing
+#
+# Variable: mysqlx_idle_worker_thread_timeout
+# Default : 60000
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_idle_worker_thread_timeout=7;
+SET @@global.mysqlx_idle_worker_thread_timeout=7;
+show variables like 'mysqlx_idle_worker_thread_timeout';
+#Max valid value
+SET @@global.mysqlx_idle_worker_thread_timeout=3600;
+show variables like 'mysqlx_idle_worker_thread_timeout';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_idle_worker_thread_timeout=7;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_idle_worker_thread_timeout=7;
+# Warning: Truncated incorrect mysqlx_idle_worker_thread_timeout value
+SET @@global.mysqlx_idle_worker_thread_timeout=3601;
+
+#--error ER_GLOBAL_VARIABLE
+SET GLOBAL mysqlx_idle_worker_thread_timeout=0;
+# Warning for negative values
+SET GLOBAL mysqlx_idle_worker_thread_timeout=-1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_idle_worker_thread_timeout='invaid%char';
+
+show variables like 'mysqlx_idle_worker_thread_timeout';
+SET GLOBAL mysqlx_idle_worker_thread_timeout=60;
+
+# Variable: mysqlx_max_allowed_packet
+# Default : 1048576
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_max_allowed_packet=5000000;
+SET @@global.mysqlx_max_allowed_packet=7000000;
+show variables like 'mysqlx_max_allowed_packet';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_max_allowed_packet=5000000;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_max_allowed_packet=5000000;
+
+SET @@global.mysqlx_max_allowed_packet=0;
+
+# Setting negative value for mysqlx_max_allowed_packet
+# is assinging 512 packet size automaticaly.
+SET @@global.mysqlx_max_allowed_packet=-123;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.mysqlx_max_allowed_packet='crash#$%';
+
+show variables like 'mysqlx_max_allowed_packet';
+SET @@global.mysqlx_max_allowed_packet=1048576;
+
+# Variable: mysqlx_max_connections
+# Default : 100
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_max_connections=150;
+show variables like 'mysqlx_max_connections';
+
+SET @@global.mysqlx_max_connections=500;
+show variables like 'mysqlx_max_connections';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_max_connections=150;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_max_connections=150;
+
+# Warning: Truncated incorrect mysqlx_max_connections value
+SET GLOBAL mysqlx_max_connections=0;
+
+# It will set value to 1
+SET GLOBAL mysqlx_max_connections=-848;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_max_connections='%45*#in';
+
+show variables like 'mysqlx_max_connections';
+SET @@global.mysqlx_max_connections=151;
+
+# Variable: mysqlx_min_worker_threads
+# Default : 10
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+#minimum number of worker threads the X plugin will use for handling client requests.
+#The maximum is limited implicitly by Mysqlx_max_connections.
+# Truncated incorrect mysqlx_min_worker_threads value: '150'
+SET GLOBAL mysqlx_min_worker_threads=150;
+SET @@global.mysqlx_min_worker_threads=15;
+show variables like 'mysqlx_min_worker_threads';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_min_worker_threads=15;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_min_worker_threads=15;
+
+SET @@global.mysqlx_min_worker_threads=0;
+SET @@global.mysqlx_min_worker_threads=-4324;
+
+# It will set value to 100
+SET GLOBAL mysqlx_min_worker_threads=+23766;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_min_worker_threads='USDSI75u';
+
+show variables like 'mysqlx_min_worker_threads';
+SET GLOBAL mysqlx_min_worker_threads=10;
+
+# Variable: mysqlx_connect_timeout
+# Default : 300000
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_connect_timeout=20;
+
+# IT will set value to 300000
+SET @@global.mysqlx_connect_timeout=500;
+show variables like 'mysqlx_connect_timeout';
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_connect_timeout=20;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_connect_timeout=20;
+
+# Truncated incorrect mysqlx_connect_timeout value: '0'
+SET GLOBAL mysqlx_connect_timeout=0;
+
+SET GLOBAL mysqlx_connect_timeout=1;
+
+# It will set vaule to 1
+SET GLOBAL mysqlx_connect_timeout=-4686234;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_connect_timeout='gduges7';
+
+show variables like 'mysqlx_connect_timeout';
+SET GLOBAL mysqlx_connect_timeout=300;
+
+# Variable: mysqlx_wait_timeout
+# Default : 28800
+# Scope   : SESSION
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_wait_timeout=20;
+SET @@global.mysqlx_wait_timeout=500;
+
+SET mysqlx_wait_timeout=30;
+SET @@local.mysqlx_wait_timeout=40;
+SET @@mysqlx_wait_timeout=50;
+SET @@session.mysqlx_wait_timeout=60;
+SET SESSION mysqlx_wait_timeout=70;
+
+#Max valid value
+SET @@global.mysqlx_wait_timeout=2147483;
+show variables like 'mysqlx_wait_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_wait_timeout=0;
+
+SET GLOBAL mysqlx_wait_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_wait_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_wait_timeout='gduges7';
+
+show variables like 'mysqlx_wait_timeout';
+SET GLOBAL mysqlx_wait_timeout=28800;
+SET SESSION mysqlx_wait_timeout=28800;
+
+# Variable: mysqlx_interactive_timeout
+# Default : 28800
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_interactive_timeout=20;
+SET @@global.mysqlx_interactive_timeout=500;
+
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_interactive_timeout=30;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_interactive_timeout=40;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_interactive_timeout=50;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_interactive_timeout=60;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_interactive_timeout=70;
+
+#Max valid value
+SET @@global.mysqlx_interactive_timeout=2147483;
+show variables like 'mysqlx_interactive_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_interactive_timeout=0;
+
+SET GLOBAL mysqlx_interactive_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_interactive_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_interactive_timeout='gduges7';
+
+show variables like 'mysqlx_interactive_timeout';
+SET GLOBAL mysqlx_interactive_timeout=28800;
+
+# Variable: mysqlx_read_timeout
+# Default : 30
+# Scope   : SESSION
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_read_timeout=20;
+SET @@global.mysqlx_read_timeout=500;
+
+SET mysqlx_read_timeout=30;
+SET @@local.mysqlx_read_timeout=40;
+SET @@mysqlx_read_timeout=50;
+SET @@session.mysqlx_read_timeout=60;
+SET SESSION mysqlx_read_timeout=70;
+
+#Max valid value
+SET @@global.mysqlx_read_timeout=2147483;
+show variables like 'mysqlx_read_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_read_timeout=0;
+
+SET GLOBAL mysqlx_read_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_read_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_read_timeout='gduges7';
+
+show variables like 'mysqlx_read_timeout';
+SET GLOBAL mysqlx_read_timeout=30;
+SET SESSION mysqlx_read_timeout=30;
+
+# Variable: mysqlx_write_timeout
+# Default : 60
+# Scope   : SESSION
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_write_timeout=20;
+SET @@global.mysqlx_write_timeout=500;
+
+SET mysqlx_write_timeout=300;
+SET @@local.mysqlx_write_timeout=400;
+SET @@mysqlx_write_timeout=500;
+SET @@session.mysqlx_write_timeout=600;
+SET SESSION mysqlx_write_timeout=700;
+
+#Max valid value
+SET @@global.mysqlx_write_timeout=2147483;
+show variables like 'mysqlx_write_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_write_timeout=0;
+
+SET GLOBAL mysqlx_write_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_write_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_write_timeout='gduges7';
+
+show variables like 'mysqlx_write_timeout';
+SET GLOBAL mysqlx_write_timeout=60;
+SET SESSION mysqlx_write_timeout=60;
+
+# Variable: mysqlx_port
+# Default : 33060
+# Scope   : GLOBAL
+# Read only variable
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL mysqlx_port=33060;
+
+--write_file $MYSQL_TMP_DIR/mysqlx-variables.tmp
+-->sql
+SET GLOBAL mysqlx_idle_worker_thread_timeout=7;
+SET @@global.mysqlx_idle_worker_thread_timeout=7;
+
+SET GLOBAL mysqlx_max_allowed_packet=5000000;
+SET @@global.mysqlx_max_allowed_packet=7000000;
+
+SET GLOBAL mysqlx_max_connections=150;
+SET @@global.mysqlx_max_connections=500;
+
+SET GLOBAL mysqlx_min_worker_threads=15;
+SET @@global.mysqlx_min_worker_threads=15;
+
+SET GLOBAL mysqlx_connect_timeout=20;
+SET @@global.mysqlx_connect_timeout=500;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-variables.tmp 2>&1
+
+# Cleanup
+SET GLOBAL mysqlx_idle_worker_thread_timeout= DEFAULT;
+SET GLOBAL mysqlx_max_allowed_packet= DEFAULT;
+SET GLOBAL mysqlx_max_connections= DEFAULT;
+SET GLOBAL mysqlx_min_worker_threads= DEFAULT;
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+--remove_file $MYSQL_TMP_DIR/mysqlx-variables.tmp
+--source include/xplugin_drop_user.inc

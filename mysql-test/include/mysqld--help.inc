@@ -24,7 +24,7 @@ perl;
                language lc-messages-dir
                datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
                tls-version secure-file-priv/;
-               
+
   # Variables which we don't want to display in result file since
   # they depend on type of build
   @build_specific=qw/auto-generate-certs/;
@@ -34,7 +34,7 @@ perl;
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
               sha256-password-auto-generate-rsa-keys caching-sha2-password-auto-generate-rsa-keys
-              keyring-migration-socket/;
+              keyring-migration-socket mysqlx/;
 
   # And substitute the content some environment variables with their
   # names:
