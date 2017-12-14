@@ -408,10 +408,10 @@ REFERENCED_TABLE_NAME	NULL
 REFERENCED_COLUMN_NAME	NULL
 Warnings:
 Level	Warning
-Code	4759
+Code	11265
 Message	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Level	Warning
-Code	4759
+Code	11265
 Message	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT table_name FROM information_schema.key_column_usage
 WHERE table_name LIKE 't1_my_table%';
