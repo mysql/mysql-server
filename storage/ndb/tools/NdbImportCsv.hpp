@@ -24,7 +24,6 @@
 #include <NdbOut.hpp>
 #include <NdbImport.hpp>
 #include "NdbImportUtil.hpp"
-#include "extra/regex/my_regex.h"
 // STL
 #include <algorithm>
 
@@ -350,19 +349,6 @@ public:
 
   // eval
 
-  // not used anymore due to extremely bad my_regex performance
-  // remove later or convert to C++ <regex> if it proves useful
-  struct Regex {
-    Regex(NdbImportUtil& util, const char* pattern, uint nsub);
-    ~Regex();
-    bool match(const char* string);
-    NdbImportUtil& m_util;
-    const char* const m_pattern;
-    const uint m_nsub;
-    my_regex_t m_regex;
-    my_regmatch_t* m_subs;
-  };
-
   struct Eval {
     Eval(Input& input);
     ~Eval();
@@ -417,7 +403,6 @@ public:
 NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Input& input);
 NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Parse& parse);
 NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Eval& eval);
-NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Regex& regex);
 NdbOut& operator<<(NdbOut& out, const NdbImportCsv::Output& output);
 
 #endif
