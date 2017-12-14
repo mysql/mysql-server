@@ -23,5 +23,6 @@ usr/share/man/man1/mysql.1
 usr/share/man/man1/mysqldump.1
 usr/share/man/man1/mysqlpump.1
 # legal
-usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
+usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
+usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/

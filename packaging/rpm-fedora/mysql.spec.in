@@ -50,10 +50,10 @@
 %endif
 
 %if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql %{src_dir}/README
+%global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
+%global license_files_server  %{src_dir}/COPYING %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -924,6 +924,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 - Do not pass SSL option to 5.6 compat build, just use bundled
 - Add component_validate_password component
 - Include udf_example.so in test package
+- Add License Book
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin
