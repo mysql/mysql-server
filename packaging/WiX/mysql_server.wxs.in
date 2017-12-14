@@ -155,7 +155,7 @@
     <!-- License -->
     <WixVariable
       Id="WixUILicenseRtf"
-      Value="@COPYING_RTF@"/>
+      Value="@LICENSE_RTF@"/>
 
     <!-- How to remove the service on uninstall -->
     <Binary Id='wixca.dll' SourceFile='@WIXCA_LOCATION@' />

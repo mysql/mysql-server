@@ -53,7 +53,6 @@ IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
   )
   SET (DEB_CHANGELOG_TIMESTAMP ${DEB_CHANGELOG_TIMESTAMP} CACHE STRING "")
 ENDIF()
-
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   INCLUDE (deb_commercial.cmake)
@@ -62,7 +61,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Commercial")
   SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}community")
   SET (DEB_LICENSENAME "Advanced")
-  SET (DEB_INSTALL_LICENSEFILE "LICENSE.mysql")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
@@ -128,6 +126,9 @@ usr/lib/mysql/plugin/debug/keyring_aws.so
   ENDIF()
   SET (DEB_REMOVEPATTERN "gpl.in")
   SET (DEB_CONTROL_BDEPS_EXTRA ",libldap2-dev, libsasl2-dev")
+  SET (DEB_RULES_DUMMY_COPYING
+    "install -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/mysql/COPYING")
+  SET (DEB_RULES_EXCLUDE_INSTALL "-Xusr/share/mysql/COPYING")
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -135,10 +136,11 @@ ELSE()
   SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Community")
   SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}commercial")
   SET (DEB_LICENSENAME "GPL")
-  SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
   SET (DEB_CONTROL_BDEPS_EXTRA "")
+  SET (DEB_RULES_DUMMY_COPYING "")
+  SET (DEB_RULES_EXCLUDE_INSTALL "")
 ENDIF()
 
 # Generate debug symbol packages (this is done automatically in Debian9+)

@@ -35,7 +35,8 @@ License:
  (GPLv2) at this time for any software where a choice of GPL
  license versions is made available with the language indicating
  that GPLv2 or any later version may be used, or where a choice
+ of which version of the GPL is applied is otherwise unspecified.
  .
  The full text of the GNU General Public License version 2 can
  be found in the file
- `/usr/share/mysql/doc/@DEB_INSTALL_LICENSEFILE@'.
+ `/usr/share/mysql/doc/COPYING'.
