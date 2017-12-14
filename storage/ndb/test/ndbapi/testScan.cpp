@@ -2696,6 +2696,88 @@ runScanOperation(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int
+runScanUsingMultipleNdbObjects(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbScanOperation* pOp = NULL;
+  NdbTransaction* pTrans = NULL;
+  const char* tab_name = ctx->getTab()->getName();
+  Ndb_cluster_connection* pCC = &ctx->m_cluster_connection;
+
+  int numOfNdbObjects = 1000;
+  Vector<Ndb*> ndbList;
+  for (int i = 0; i < numOfNdbObjects; i++)
+  {
+    Ndb * pNdb = new Ndb(pCC, "TEST_DB");
+    ndbList.push_back(pNdb);
+    if (pNdb->init() != 0 &&
+        pNdb->waitUntilReady(30) != 0)
+    {
+      NDB_ERR(pNdb->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      NDB_ERR(pNdb->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    pOp = pTrans->getNdbScanOperation(tab_name);
+    if (pOp == NULL)
+    {
+      NDB_ERR(pTrans->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+    if (pOp->readTuples(NdbOperation::LM_Exclusive) != 0)
+    {
+      NDB_ERR(pTrans->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    if (pTrans->execute(NdbTransaction::NoCommit) != 0)
+    {
+      NDB_ERR(pTrans->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    if (pOp->nextResult(true) < 0)
+    {
+      NDB_ERR(pOp->getNdbError());
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+
+    pOp->close();
+    pOp = NULL;
+    pTrans->close();
+    pTrans = NULL;
+  }
+
+  cleanup:
+  if (pOp != NULL)
+  {
+    pOp->close();
+  }
+  if (pTrans != NULL)
+  {
+    pTrans->close();
+  }
+  for (uint i = 0; i < ndbList.size(); i++)
+  {
+    delete ndbList[i];
+  }
+  return result;
+}
+
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -3366,6 +3448,14 @@ TESTCASE("ScanDuringExpandAndShrinkBack",
   STEP(runScanDuringExpandAndShrinkBack);
 }
 
+TESTCASE("ScanUsingMultipleNdbObjects",
+         "Run scan operations in a loop creating a new Ndb"
+         "object for every run.")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runScanUsingMultipleNdbObjects);
+  FINALIZER(runClearTable);
+}
 
 
 NDBT_TESTSUITE_END(testScan);
