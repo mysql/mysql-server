@@ -11341,9 +11341,10 @@ bool prepare_fields_and_keys(THD *thd,
     if (!def->change)
     {
       /*
-        Check that the DATE/DATETIME not null field we are going to add is
-        either has a default value or the '0000-00-00' is allowed by the
-        set sql mode.
+        Check that the DATE/DATETIME NOT NULL field we are going to
+        add either has a default value, is a generated column, or the
+        date '0000-00-00' is allowed by the set sql mode.
+
         If the '0000-00-00' value isn't allowed then raise the error_if_not_empty
         flag to allow ALTER TABLE only if the table to be altered is empty.
       */
@@ -11352,6 +11353,7 @@ bool prepare_fields_and_keys(THD *thd,
            def->sql_type == MYSQL_TYPE_DATETIME ||
            def->sql_type == MYSQL_TYPE_DATETIME2) &&
           !alter_ctx->datetime_field &&
+          !def->is_gcol() &&
           !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)))
       {
         alter_ctx->datetime_field= def;

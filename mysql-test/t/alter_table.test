@@ -2888,3 +2888,28 @@ SELECT * FROM t1;
 DROP VIEW v1;
 DROP TABLE t3,t1,t2;
 SET SESSION information_schema_stats_expiry=default;
+
+--echo #
+--echo # Bug#27252354: UNABLE TO CREATE INDEX WHEN DATE/DATETIME DATATYPES
+--echo #               ARE USED WITH REQUIRED OPTION
+--echo #
+
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES ();
+# Allow adding NOT NULL generated DATE columns to a non-empty table.
+ALTER TABLE t
+ADD COLUMN b DATE GENERATED ALWAYS AS ('1999-09-09') VIRTUAL NOT NULL;
+ALTER TABLE t
+ADD COLUMN c DATE GENERATED ALWAYS AS ('1999-09-09') STORED NOT NULL;
+# Constraints are not checked when adding virtual generated columns.
+ALTER TABLE t
+ADD COLUMN d DATE GENERATED ALWAYS AS (NULL) VIRTUAL NOT NULL;
+# Constraints are checked when adding an index on a virtual column.
+--error ER_BAD_NULL_ERROR
+CREATE INDEX idx ON t(d);
+# Constraints are checked when adding stored generated columns.
+--error ER_BAD_NULL_ERROR
+ALTER TABLE t
+ADD COLUMN e DATE GENERATED ALWAYS AS (NULL) STORED NOT NULL;
+SELECT * FROM t;
+DROP TABLE t;
