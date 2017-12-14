@@ -166,7 +166,7 @@ TEST_F(Xcl_session_impl_tests_connect, connection_tcp_already_connected) {
 
 TEST_F(Xcl_session_impl_tests_connect, connect_nullptrs) {
   m_sut->set_mysql_option(xcl::XSession::Mysqlx_option::Authentication_method,
-                          {"MYSQL41"});
+                          "MYSQL41");
   EXPECT_CALL(m_mock_connection_state, is_ssl_activated())
       .WillRepeatedly(Return(false));
   EXPECT_CALL(m_mock_connection_state, is_ssl_configured())
@@ -195,7 +195,7 @@ TEST_F(Xcl_session_impl_tests_connect, connect_nullptrs) {
 
 TEST_F(Xcl_session_impl_tests_connect, connect_localhost_nullptrs) {
   m_sut->set_mysql_option(xcl::XSession::Mysqlx_option::Authentication_method,
-                          {"MYSQL41"});
+                          "MYSQL41");
   EXPECT_CALL(m_mock_connection_state, is_ssl_activated())
       .WillRepeatedly(Return(false));
   EXPECT_CALL(m_mock_connection_state, is_ssl_configured())
