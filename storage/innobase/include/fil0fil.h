@@ -784,7 +784,11 @@ extern Fil_path	MySQL_datadir_path;
 
 /** Initial size of a single-table tablespace in pages */
 constexpr size_t	FIL_IBD_FILE_INITIAL_SIZE = 7;
-constexpr size_t	FIL_IBD_FILE_INITIAL_SIZE_5_7 = 6;
+
+/** An empty tablespace (CREATE TABLESPACE) has minimum
+of 4 pages and an empty CREATE TABLE (file_per_table) has 6 pages.
+Minimum of these two is 4 */
+constexpr size_t	FIL_IBD_FILE_INITIAL_SIZE_5_7 = 4;
 
 /** 'null' (undefined) page offset in the context of file spaces */
 constexpr page_no_t	FIL_NULL = std::numeric_limits<page_no_t>::max();
