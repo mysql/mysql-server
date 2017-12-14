@@ -123,6 +123,7 @@ void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
+void remove_ssl_err_thread_state();
 struct st_mysql_keyring
 {
   int interface_version;
