@@ -442,12 +442,13 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
   NDB_TICKS curr_ticks = NdbTick_getCurrentTicks();
   /* Use nanosecond to calculate when wait_time has expired. */
   Int64 remain_wait_nano = ((Int64)wait_time) * 1000000;
-  const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
 #ifdef VM_TRACE
   const bool verbose = (m_waiter->get_state() != WAIT_EVENT);
 #endif
   do
   {
+    const int remain_wait_ms = remain_wait_nano / 1000000;
+    const int maxsleep = (wait_time == -1 || remain_wait_ms > 10) ? 10 : remain_wait_ms;
     wait_for_input(maxsleep);
     const NDB_TICKS start_ticks = curr_ticks;
     curr_ticks = NdbTick_getCurrentTicks();
