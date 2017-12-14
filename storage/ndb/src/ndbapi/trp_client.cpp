@@ -76,6 +76,10 @@ trp_client::open(TransporterFacade* tf, int blockNo,
     {
       return 0;
     }
+
+    /* Initially allowed to communicate with itself */
+    m_enabled_nodes_mask.set(m_facade->theOwnId);
+
     res = tf->open_clnt(this, blockNo);
     if (res != 0)
     {
@@ -119,15 +123,12 @@ trp_client::close()
  * Initial setup of the nodes having their send buffers enabled.
  * Callback from TransporterFacade::open_clnt' called above.
  *
- * Required to be called before this trp_client has been
- * inserted in the TransporterFacade::m_threads[] array.
- * Thus, no locking should be required in order to set
- * the 'm_enabled_nodes_mask'
+ * Protected by having the 'm_mutex' locked
  */
 void
 trp_client::set_enabled_send(const NodeBitmask &nodes)
 {
-  assert(m_enabled_nodes_mask.isclear());
+  assert(NdbMutex_Trylock(m_mutex) != 0);
   m_enabled_nodes_mask.assign(nodes);
 }
 
@@ -213,10 +214,12 @@ trp_client::do_forceSend(int val)
   {
     for (Uint32 i = 0; i < m_send_nodes_cnt; i++)
     {
-      Uint32 n = m_send_nodes_list[i];
-      TFBuffer* b = m_send_buffers + n;
+      Uint32 node = m_send_nodes_list[i];
+      assert(m_send_nodes_mask.get(node));
+      assert(m_enabled_nodes_mask.get(node));
+      TFBuffer* b = m_send_buffers + node;
       TFBufferGuard g0(* b);
-      m_facade->flush_and_send_buffer(n, b);
+      m_facade->flush_and_send_buffer(node, b);
       b->clear();
     }
     m_send_nodes_cnt = 0;
@@ -235,6 +238,7 @@ trp_client::flush_send_buffers()
   {
     const Uint32 node = m_send_nodes_list[i];
     assert(m_send_nodes_mask.get(node));
+    assert(m_enabled_nodes_mask.get(node));
     TFBuffer* b = m_send_buffers + node;
     TFBufferGuard g0(* b);
     m_facade->flush_send_buffer(node, b);
