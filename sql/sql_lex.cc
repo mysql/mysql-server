@@ -1628,6 +1628,10 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 
       if (yylval->lex_str.str[0] == '_')
       {
+        auto charset_name= yylval->lex_str.str + 1;
+        if (native_strcasecmp(charset_name, "utf8") == 0)
+          push_warning(thd, ER_DEPRECATED_UTF8_ALIAS);
+
         CHARSET_INFO *cs= get_charset_by_csname(yylval->lex_str.str + 1,
                                                 MY_CS_PRIMARY, MYF(0));
         if (cs)

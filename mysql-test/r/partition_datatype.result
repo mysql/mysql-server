@@ -85,12 +85,16 @@ a
 2001
 drop table t1;
 create table t1 (a varchar(10) character set utf8 not null) partition by key (a);
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('abc');
 select * from t1 where a = 'abc';
 a
 abc
 drop table t1;
 create table t1 (a varchar(300) character set utf8 not null) partition by key (a);
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('abc');
 select * from t1 where a = 'abc';
 a
@@ -109,6 +113,8 @@ a
 abc
 drop table t1;
 create table t1 (a char(10) character set utf8 not null) partition by key (a);
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('abc');
 select * from t1 where a = 'abc';
 a
@@ -226,12 +232,16 @@ a
 2001
 drop table t1;
 create table t1 (a varchar(10) character set utf8) partition by key (a);
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('abc');
 select * from t1 where a = 'abc';
 a
 abc
 drop table t1;
 create table t1 (a varchar(300) character set utf8) partition by key (a);
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('abc');
 select * from t1 where a = 'abc';
 a
@@ -250,6 +260,8 @@ a
 abc
 drop table t1;
 create table t1 (a char(10) character set utf8) partition by key (a);
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('abc');
 select * from t1 where a = 'abc';
 a

@@ -447,6 +447,12 @@ static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
   return false;
 }
 
+void warn_about_deprecated_national(THD *thd)
+{
+  if (native_strcasecmp(national_charset_info->csname, "utf8") == 0)
+    push_warning(thd, ER_DEPRECATED_NATIONAL);
+}
+
 %}
 
 %yacc
@@ -6197,6 +6203,7 @@ type:
             if (cs == NULL)
               MYSQL_YYABORT;
             $$= NEW_PTN PT_char_type(Char_type::CHAR, $2, cs);
+            warn_about_deprecated_national(YYTHD);
           }
         | nchar opt_bin_mod
           {
@@ -6205,6 +6212,7 @@ type:
             if (cs == NULL)
               MYSQL_YYABORT;
             $$= NEW_PTN PT_char_type(Char_type::CHAR, cs);
+            warn_about_deprecated_national(YYTHD);
           }
         | BINARY_SYM field_length
           {
@@ -6226,6 +6234,7 @@ type:
             if (cs == NULL)
               MYSQL_YYABORT;
             $$= NEW_PTN PT_char_type(Char_type::VARCHAR, $2, cs);
+            warn_about_deprecated_national(YYTHD);
           }
         | VARBINARY_SYM field_length
           {
@@ -6604,6 +6613,8 @@ charset_name:
               my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
+            if (native_strcasecmp($1.str, "utf8") == 0)
+              push_warning(YYTHD, ER_DEPRECATED_UTF8_ALIAS);
           }
         | BINARY_SYM { $$= &my_charset_bin; }
         ;
@@ -10262,6 +10273,7 @@ cast_type:
             $$.charset= national_charset_info;
             $$.length= $2;
             $$.dec= NULL;
+            warn_about_deprecated_national(YYTHD);
           }
         | SIGNED_SYM
           {
@@ -13121,6 +13133,7 @@ text_literal:
           {
             $$= NEW_PTN PTI_text_literal_nchar_string(@$,
                 YYTHD->m_parser_state->m_lip.text_string_is_7bit(), $1);
+            warn_about_deprecated_national(YYTHD);
           }
         | UNDERSCORE_CHARSET TEXT_STRING
           {

@@ -385,6 +385,8 @@ FC	FC	FC	D18C	FC
 FD	FD	FD	D18D	FD	
 FE	FE	FE	D18E	FE	
 FF	FF	FF	D18F	FF	
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 set global LC_TIME_NAMES=convert((-8388608) using cp1251);
 ERROR HY000: Unknown locale: '-8388608'
@@ -3267,6 +3269,8 @@ SET sql_mode='';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
 maketime(`a`,`a`,`a`)

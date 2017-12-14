@@ -1,5 +1,7 @@
 # Test Case : With default row type
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=DEFAULT  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -22,6 +24,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DEFAULT ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -37,6 +42,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DEFAULT ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -1221,6 +1229,8 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
 # Test Case : with compact row type
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=COMPACT  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -1243,6 +1253,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -1258,6 +1271,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -2442,6 +2458,8 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
 # Test Case : With redundant row type
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=REDUNDANT  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -2464,6 +2482,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=REDUNDANT ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -2479,6 +2500,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=REDUNDANT ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -3663,6 +3687,8 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
 # Test Case : With Dynamic row type
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=DYNAMIC  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -3685,6 +3711,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -3700,6 +3729,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;
@@ -4884,6 +4916,8 @@ seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
 # Test Case : With compressed row type
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Create table : Test with row_type ROW_FORMAT=COMPRESSED  with char,varchar,text columns
 CREATE TABLE articles_1 (
 seq INT ,
@@ -4906,6 +4940,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (j1,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE 名字 (
 seq INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
 c1 VARCHAR(200) CHARACTER SET big5 COLLATE big5_chinese_ci,
@@ -4921,6 +4958,9 @@ FULLTEXT KEY con1 (c1) WITH PARSER ngram,
 FULLTEXT KEY con2 (さようなら,j3) WITH PARSER ngram,
 FULLTEXT KEY con3 (k2) WITH PARSER ngram
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET SESSION innodb_ft_enable_stopword=0;
 # Case : run ngram on english text.
 ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_char) WITH PARSER ngram;

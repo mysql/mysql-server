@@ -10,7 +10,7 @@
 #2. CREATE a CJK fulltext index with ngram parser when ngram parser is not loaded.
 #3. CREATE a CJK fulltext index without ngram parser when ngram parser is not loaded.
 
-SET NAMES utf8;
+SET NAMES utf8mb4;
 
 # t1 with default parser
 CREATE TABLE t1 (

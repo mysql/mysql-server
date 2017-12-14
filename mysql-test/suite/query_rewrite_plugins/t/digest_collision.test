@@ -2,7 +2,7 @@
 --echo # Test of the case when two rewrite rule pattern have the same digest.
 --echo #
 
-SET sql_mode = 'PIPES_AS_CONCAT';
+SET sql_mode = concat ( @@sql_mode, ',PIPES_AS_CONCAT' );
 
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 
@@ -12,14 +12,28 @@ CREATE TABLE t1 ( a VARCHAR(10) );
 
 --echo # This will supposedly fill up the token buffer.
 --echo # We have to keep entries in the error log unique, we can't clear it.
-SET @pattern1 =
-  'SELECT * FROM test.t1 WHERE a = "digest_collision.test" ' ||
-   repeat ( 'UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"',
-            120 );
+SET @query_term = 'SELECT * FROM test.t1 WHERE a = "digest_collision.test"';
+SET @a_union_branch = ' UNION ' || @query_term;
+SET @tail1 = 'UNION SELECT 1';
+SET @tail2 = 'UNION SELECT 2';
 
-SET @pattern2 = concat ( @pattern1, 'UNION SELECT 1' );
+SELECT character_maximum_length INTO @max_pattern_length
+FROM information_schema.columns
+WHERE table_name = 'rewrite_rules'
+AND column_name = 'pattern';
 
-SET @nonmatching_query = concat ( @pattern1, 'UNION SELECT 2' );
+SET @no_unions_that_fit =
+  floor(
+    ( @max_pattern_length - char_length(@query_term) - char_length(@tail1) ) /
+    char_length(@a_union_branch));
+
+SELECT @query_term, @a_union_branch, @max_pattern_length, @no_unions_that_fit;
+
+SET @pattern1 = @query_term || repeat( @a_union_branch, @no_unions_that_fit);
+
+SET @pattern2 = concat ( @pattern1, @tail1 );
+
+SET @nonmatching_query = concat ( @pattern1, @tail2 );
 
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement  )
 VALUES ( @pattern1, 'SELECT "Rewrite rule #1"' ),
@@ -54,6 +68,7 @@ SELECT search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELE
                            'WHERE a = "digest_collision.test"%' );
 
 DROP TABLE t1;
+
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
 --source suite/query_rewrite_plugins/include/drop_error_log.inc
 SET sql_mode = DEFAULT;

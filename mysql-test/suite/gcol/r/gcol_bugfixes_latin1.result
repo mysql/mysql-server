@@ -26,6 +26,8 @@ t1	CREATE TABLE `t1` (
   `gc` varchar(20) CHARACTER SET latin1 GENERATED ALWAYS AS (_latin1'?') VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

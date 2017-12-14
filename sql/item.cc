@@ -3535,7 +3535,11 @@ void Item_string::print(String *str, enum_query_type query_type)
   if (print_introducer)
   {
     str->append('_');
-    str->append(collation.collation->csname);
+    auto charset_name= collation.collation->csname;
+    if (native_strcasecmp(charset_name, "utf8") == 0)
+      str->append("utf8mb3");
+    else
+      str->append(charset_name);
   }
 
   str->append('\'');
