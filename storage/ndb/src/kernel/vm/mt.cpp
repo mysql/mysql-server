@@ -4449,7 +4449,6 @@ trp_callback::disable_send_buffer(NodeId node)
 {
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
   lock(&sb->m_send_lock);
-  assert(sb->m_enabled);
   sb->m_enabled = false;
 
   /**

@@ -6413,7 +6413,7 @@ testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout << "ndb_mgm_get_status failed"
 	     << ", error: " << ndb_mgm_get_latest_error(restarter.handle)
-             << " - %s\n" <<  ndb_mgm_get_latest_error_msg(restarter.handle)
+             << " - " <<  ndb_mgm_get_latest_error_msg(restarter.handle)
 	     << endl;
       result = NDBT_FAILED;
       break;
