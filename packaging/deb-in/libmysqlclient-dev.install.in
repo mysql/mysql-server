@@ -23,5 +23,6 @@ usr/bin/mysql_config
 usr/share/man/man1/mysql_config.1
 usr/share/aclocal/mysql.m4
 # legal
-usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/libmysqlclient-dev/
+usr/share/mysql/LICENSE usr/share/doc/libmysqlclient-dev/
 usr/share/mysql/README usr/share/doc/libmysqlclient-dev/
+usr/share/mysql/COPYING usr/share/doc/libmysqlclient-dev/

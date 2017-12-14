@@ -15,5 +15,6 @@
 usr/bin/mcc_config.py
 usr/share/mysql/mcc/*
 # legal
-usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-@DEB_PRODUCTNAME@-auto-installer/
+usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-auto-installer/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-auto-installer/
+usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-auto-installer/

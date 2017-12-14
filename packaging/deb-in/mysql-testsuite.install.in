@@ -14,5 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # legal
-usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-testsuite/
+usr/share/mysql/LICENSE usr/share/doc/mysql-testsuite/
 usr/share/mysql/README usr/share/doc/mysql-testsuite/
+usr/share/mysql/COPYING usr/share/doc/mysql-testsuite/

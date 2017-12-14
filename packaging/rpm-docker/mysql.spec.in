@@ -35,10 +35,10 @@
 %global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
 
 %if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql %{src_dir}/README
+%global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
+%global license_files_server  %{src_dir}/COPYING %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -405,6 +405,7 @@ rm -r $(readlink var) var
 - Do not package udf_example.so
 - Add mysqlbackup
 - Add component_validate_password component
+- Add License Book
 
 * Thu Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_component_sys_status_service plugin

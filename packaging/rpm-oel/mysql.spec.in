@@ -76,10 +76,10 @@
 %endif
 
 %if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql %{src_dir}/README
+%global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
+%global license_files_server  %{src_dir}/COPYING %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -1382,6 +1382,7 @@ fi
 - Independently choose SSL for the 5.6 compat lib, depending on commercial
 - Include udf_example.so in test package
 - Add component_validate_password component
+- Add License Book
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin

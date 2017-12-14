@@ -7,7 +7,10 @@ MySQL is brought to you by Oracle.
 
 Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
-License information can be found in the COPYING file.
+License information can be found in the LICENSE file.
+
+In test packages where this file is renamed README-test, the license
+file is renamed LICENSE-test.
 
 MySQL FOSS License Exception
 We want free and open source software applications under certain
