@@ -660,6 +660,7 @@ void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
+void remove_ssl_err_thread_state();
 typedef char my_svc_bool;
 extern struct security_context_service_st {
   my_svc_bool (*thd_get_security_context)(void*, void* *out_ctx);

@@ -15,10 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <string.h>
-#include <sys/types.h>
 #include <algorithm>
 #include <atomic>
+#include <string.h>
+#include <sys/types.h>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
@@ -832,4 +832,16 @@ void thd_report_row_lock_wait(THD* self, THD *wait_for)
     commit_order_manager_check_deadlock(self, wait_for);
 
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Interface for cleaning the openssl per thread error queue.
+*/
+
+void remove_ssl_err_thread_state()
+{
+#ifndef HAVE_YASSL
+  ERR_remove_thread_state(nullptr);
+#endif
 }

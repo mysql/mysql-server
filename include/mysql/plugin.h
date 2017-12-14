@@ -701,6 +701,14 @@ void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 */
 void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data);
+
+
+/**
+  Interface to remove the per thread openssl error queue.
+  This function is a no-op when openssl is not used.
+*/
+
+void remove_ssl_err_thread_state();
 #ifdef __cplusplus
 }
 #endif
