@@ -1443,9 +1443,19 @@ TransporterFacade::connected()
   DBUG_VOID_RETURN;
 }
 
+/**
+ * perform_close_clnt()
+ *
+ * Invoked from close_clnt via sending a CLOSE_COMREQ signal.
+ * Reason is that the poll-right is needed to guard agains
+ * that clients are taken out of the m_threads[] array while
+ * being looked up by trp_deliver_signal, or iterated by e.g.
+ * for_each(), or enable_ / disable_send_buffer().
+ */
 void
 TransporterFacade::perform_close_clnt(trp_client* clnt)
 {
+  assert(is_poll_owner_thread());
   Guard g(m_open_close_mutex);
   m_threads.close(clnt->m_blockNo);
   dbg("perform_close_clnt: poll_owner: %p", m_poll_owner);
@@ -1529,9 +1539,19 @@ TransporterFacade::close_clnt(trp_client* clnt)
   return 0;
 }
 
+/**
+ * expand_clnt()
+ *
+ * Invoked from open_clnt() with the EXPAND_CLNT signal iff
+ * the m_threads[] array has to be expanded (and relocated).
+ * The poll-right is needed to guard against relocation of
+ * m_threads[] array while being accessed by trp_deliver_signal,
+ * or iterated by e.g. for_each(), or enable_ / disable_send_buffer().
+ */
 void
 TransporterFacade::expand_clnt()  //Handle EXPAND_CLNT signal
 {
+  assert(is_poll_owner_thread());
   Guard g(m_open_close_mutex);
   m_threads.expand(64);
 }
@@ -1544,20 +1564,8 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 
   /**
    * Need 'm_open_close_mutex' as m_threads[] will be updated.
-   * Also needed by the 'protocol' maintaining a consistent
-   * view of 'enabled' nodes across TransporterFacade and trp_clients
    */
   NdbMutex_Lock(m_open_close_mutex);
-
-  /**
-   * Allow this client to send to nodes already having their
-   * (global) send buffers enabled.
-   *
-   * See comments for disable_/enable_send_buffer regarding how
-   * the set of enabled nodes is kept in sync between the
-   * TransporterFacade and each client thread.
-   */
-  clnt->set_enabled_send(m_enabled_nodes_mask);
   
   while (unlikely(m_threads.freeCnt() == 0))
   {
@@ -1617,6 +1625,32 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   {
     DBUG_RETURN(0);
   }
+
+  /**
+   * A successful m_threads.open() above also included this client in
+   * the list of clients receiving enable_send()/disable_send() callbacks
+   * as we (dis)connects to other nodes. First we have to set the initial
+   * known set of enabled nodes:
+   *
+   * As the lock order requires client lock to be taken before
+   * open_close_mutex, we have to release it above, before relocking
+   * below in correct order. This create a possible race inbetween
+   * here, where a Transporter (dis)connect may enable/disable
+   * a send buffer for the client now being in m_client[], without
+   * its enabled_nodes_mask yet being set. This should not really
+   * matter, as we 'set' the updated enabled mask to the latest
+   * value below anyway, overwritting what any races did inbetween here.
+   * The same race could also result in enable/disable notifications
+   * arriving after set_enabled_send(), appearing as duplicates which
+   * should be ignored.
+   *
+   * (Also see disable_/enable_send_buffer comments)
+   */
+  clnt->lock();
+  NdbMutex_Lock(m_open_close_mutex);
+  clnt->set_enabled_send(m_enabled_nodes_mask);
+  NdbMutex_Unlock(m_open_close_mutex);
+  clnt->unlock();
 
   if (unlikely(blockNo != -1))
   {
@@ -3298,36 +3332,53 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
 /**
  * ::enable_send_buffer(), ::disable_send_buffer()
  *
- * Enable / disable send to the specified 'node'
- * under mutex protection. Handle both the 'global' send buffers in
- * the TransporterFacade, and the clients thread-local send buffers.
- * Client buffers are enabled/disabled with required client locks taken.
- * Also update the TransporterFacade 'global mask of 'm_enabled_nodes_mask'.
- *
+ * Enable / disable send to the specified 'node'.
  * Any pending data in the TransporterFacade and trp_client's
  * send buffers are discarded when 'disabled'.
  *
- * Enable/disable synchronization with the client threads 101:
+ * Require the 'poll-right' to be held, and takes the required locks
+ * to update the global and local send buffer structures as needed.
  *
- * 1) TransporterFacade global send buffers are enabled. Allowes
- *    clients to start flushing their local buffers as they are enabled.
+ * Handle both the 'global' send buffers in the TransporterFacade,
+ * and the clients thread-local send buffers. Note, that enable/disable is
+ * *not* an atomic operation across the global TF-buffers and thread-local
+ * client buffers: The consistency requirement is such that the global TF buffer
+ * should be enabled if any of the thread-local client buffers are enabled.
+ * Thus, the 'global' (TF) buffers has to be enabled prior to enabling
+ * any thread-local client buffers. While disabling, all thread-local buffers
+ * must be disabled before disabling the 'global' TF buffers.
  *
- * 2) Update the 'global' TransporterFacade::m_enabled_nodes_mask with
- *    the enabled node. ::open() of new clients will use this to init
- *    their current set of enabled nodes.
+ * The above 'protocol' also ensure that trp_client::isSendEnabled()
+ * correctly reflect the current status of the local trp_client
+ * buffers and its related 'global' TF buffers.
  *
- * 3) Iterate the TransporterFacade m_clients[] list of already
- *    open clients. Notify them by calling trp_client::enable_send()
- *    which allowes them to change their local 'm_enabled_nodes_mask,
+ * The poll-right guarantee that a enable/disable sequence is fully
+ * executed across both the global and local send buffers.
+ * It also protects against races between enable, disable (and close)
+ * of clients, which otherwise could result in an enabling being overtaken
+ * by a disable of the same node, or a client being closed while being
+ * notified about enable/disable.
  *
- * disable_send_buffer() is in the opposite order
+ * A 'global' TransporterFacade::m_enabled_nodes_mask holding the
+ * current set of enabled nodes is also maintained. 'Open' of new
+ * clients will  use this to init their current set of enabled nodes.
+ * (Must be set prior to client enable/disable callback to handle a
+ * a race in ::open_clnt()) 
  *
- * Also see comments for these methods in TransporterCallback.hpp
- */
+ * Also see comments for these methods in TransporterCallback.hpp,
+ * and how ::open_clnt() synchronize its set of enabled nodes. */
 void
 TransporterFacade::enable_send_buffer(NodeId node)
 {
-  // 1)
+  assert(is_poll_owner_thread());
+
+  //Always set the 'outcome' first
+  NdbMutex_Lock(m_open_close_mutex);
+  assert(!m_enabled_nodes_mask.get(node));
+  m_enabled_nodes_mask.set(node);
+  NdbMutex_Unlock(m_open_close_mutex);
+
+  //Enable global buffers
   {
     struct TFSendBuffer *b = &m_send_buffers[node];
     Guard g(&b->m_mutex);
@@ -3339,11 +3390,8 @@ TransporterFacade::enable_send_buffer(NodeId node)
     assert(b->m_node_enabled == false);
     b->m_node_enabled = true;
   }
-  // 2)
-  NdbMutex_Lock(m_open_close_mutex);
-  assert(!m_enabled_nodes_mask.get(node));
-  m_enabled_nodes_mask.set(node);
-  // 3)
+
+  //Enable thread-local buffers
   const Uint32 sz = m_threads.m_clients.size();
   for (Uint32 i = 0; i < sz ; i ++)
   {
@@ -3361,19 +3409,25 @@ TransporterFacade::enable_send_buffer(NodeId node)
       }
     }
   }
-  NdbMutex_Unlock(m_open_close_mutex);
 }
 
 void
 TransporterFacade::disable_send_buffer(NodeId node)
 {
-  /** 3)
+  assert(is_poll_owner_thread());
+
+  //Always set the 'outcome' first.
+  NdbMutex_Lock(m_open_close_mutex);
+  m_enabled_nodes_mask.clear(node);
+  NdbMutex_Unlock(m_open_close_mutex);
+
+  /**
+   * Disable thread local buffers:
    * disable and discard all clients send buffer to 'node'.
    * Avoids these later being flushed to the TransporterFacade send buffer,
    * creating a non-empty transporter send buffer when expecting
    * to be empty after 'disable'.
    */
-  NdbMutex_Lock(m_open_close_mutex);
   const Uint32 sz = m_threads.m_clients.size();
   for (Uint32 i = 0; i < sz ; i ++)
   {
@@ -3391,16 +3445,11 @@ TransporterFacade::disable_send_buffer(NodeId node)
       }
     }
   }
-  // 2)
-  assert(m_enabled_nodes_mask.get(node));
-  m_enabled_nodes_mask.clear(node);
-  NdbMutex_Unlock(m_open_close_mutex);
-  // 1)
+  
+  //Disable global buffers when all thread-locals are disabled.
   {
     struct TFSendBuffer *b = &m_send_buffers[node];
     Guard g(&b->m_mutex);
-
-    assert(b->m_node_enabled == true);
     b->m_node_enabled = false;
     discard_send_buffer(b);
   }

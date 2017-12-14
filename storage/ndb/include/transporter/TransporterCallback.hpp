@@ -157,9 +157,11 @@ public:
    * Iff not synchronized, we allow send buffer allocation to disconnected
    * node and silently discard the written contents later (at next synch point)
    *
-   * The enable/disable calls should be paired, duplicated calls to 
-   * either of these is considdered a misuse and may be asserted by
-   * the implementation.
+   * A send buffer should not be enabled without first being in a
+   * disabled state. This might be asserted by the implementation.
+   * Duplicated disable call is allowed in case a connection attempt
+   * failures, e.g. a couple of direct transitions from CONNECTING
+   * to DISCONNECTING in the TransporterRegistry.
    */
   virtual void enable_send_buffer(NodeId node) = 0;
   virtual void disable_send_buffer(NodeId node) = 0;
