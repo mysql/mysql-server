@@ -54,7 +54,8 @@ TARGET_LINK_LIBRARIES(zlob0int-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
 TARGET_LINK_LIBRARIES(lot0lot-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
 TARGET_LINK_LIBRARIES(ut0frags-t ${ZLIB_LIBRARY})
 
-ADD_TEST(lot0lot  lot0lot-t)
-ADD_TEST(ut0plist ut0plist-t)
-ADD_TEST(ut0frags ut0frags-t)
-ADD_TEST(zlob0int zlob0int-t)
+# Don't run these by default, run manually
+# ADD_TEST(lot0lot  lot0lot-t)
+# ADD_TEST(ut0plist ut0plist-t)
+# ADD_TEST(ut0frags ut0frags-t)
+# ADD_TEST(zlob0int zlob0int-t)
