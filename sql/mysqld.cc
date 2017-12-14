@@ -5452,6 +5452,11 @@ int mysqld_main(int argc, char **argv)
   }
   defaults_argv= argv;
 
+  /* Set data dir directory paths */
+  strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
+    sizeof(mysql_real_data_home) - 1);
+
+
   /*
    Initialize variables cache for persisted variables, load persisted
    config file and append read only persisted variables to command line
@@ -8489,9 +8494,6 @@ static int mysql_init_variables()
   /* set key_cache_hash.default_value = dflt_key_cache */
   multi_keycache_init();
 
-  /* Set directory paths */
-  strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
-          sizeof(mysql_real_data_home)-1);
   /* Replication parameters */
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";

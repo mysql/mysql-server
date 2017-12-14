@@ -248,19 +248,22 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
   free_root(&alloc, MYF(0));
 
   persisted_globals_load= persist_load;
+
+  // mysql_real_data_home must be initialized at this point
+  DBUG_ASSERT(mysql_real_data_home[0]);
+
   /*
     if datadir is set then search in this data dir else search in
     MYSQL_DATADIR
   */
-  dirs= ((datadir) ? datadir : MYSQL_DATADIR);
-  /* expand path if it is a relative path */
-  if (dirs[0] == FN_CURLIB && my_getwd(dir, sizeof(dir), MYF(0)))
+  dirs= ((datadir) ? datadir : mysql_real_data_home);
+  unpack_dirname(dir, dirs);
+  if (fn_format(datadir_buffer, MYSQL_PERSIST_CONFIG_NAME, dir, ".cnf",
+      MY_UNPACK_FILENAME | MY_SAFE_PATH) == NULL)
     return 1;
-  if (fn_format(datadir_buffer, dirs, dir, "",
-      MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH) == NULL)
-    return 1;
-  unpack_dirname(datadir_buffer, datadir_buffer);
-  m_persist_filename= string(datadir_buffer) + MYSQL_PERSIST_CONFIG_NAME + ".cnf";
+  my_realpath(dir, datadir_buffer, MYF(0));
+  unpack_dirname(datadir_buffer, dir);
+  m_persist_filename= string(dir);
 
   mysql_mutex_init(key_persist_variables,
     &m_LOCK_persist_variables, MY_MUTEX_INIT_FAST);
