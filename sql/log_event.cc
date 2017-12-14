@@ -13421,7 +13421,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
   is_valid_param= true;
   spec.type= get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT ?
-             ANONYMOUS_GROUP : GTID_GROUP;
+             ANONYMOUS_GTID : ASSIGNED_GTID;
   sid.copy_from((uchar *)Uuid_parent_struct.bytes);
   spec.gtid.sidno= gtid_info_struct.rpl_gtid_sidno;
   spec.gtid.gno= gtid_info_struct.rpl_gtid_gno;
@@ -13439,7 +13439,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                          may_have_sbr_stmts_arg,
                          original_commit_timestamp_arg,
                          immediate_commit_timestamp_arg),
-  Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
+  Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GTID ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING,
@@ -13459,7 +13459,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
     sid.clear();
   }
 
-  Log_event_type event_type= (spec.type == ANONYMOUS_GROUP ?
+  Log_event_type event_type= (spec.type == ANONYMOUS_GTID ?
                               binary_log::ANONYMOUS_GTID_LOG_EVENT :
                               binary_log::GTID_LOG_EVENT);
   common_header->type_code= event_type;
@@ -13493,7 +13493,7 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   server_id= server_id_arg;
   common_header->unmasked_server_id= server_id_arg;
 
-  if (spec_arg.type == GTID_GROUP)
+  if (spec_arg.type == ASSIGNED_GTID)
   {
     DBUG_ASSERT(spec_arg.gtid.sidno > 0 && spec_arg.gtid.gno > 0);
     spec.set(spec_arg.gtid);
@@ -13503,14 +13503,14 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   }
   else
   {
-    DBUG_ASSERT(spec_arg.type == ANONYMOUS_GROUP);
+    DBUG_ASSERT(spec_arg.type == ANONYMOUS_GTID);
     spec.set_anonymous();
     spec.gtid.clear();
     sid.clear();
     common_header->flags|= LOG_EVENT_IGNORABLE_F;
   }
 
-  Log_event_type event_type= (spec.type == ANONYMOUS_GROUP ?
+  Log_event_type event_type= (spec.type == ANONYMOUS_GTID ?
                               binary_log::ANONYMOUS_GTID_LOG_EVENT :
                               binary_log::GTID_LOG_EVENT);
   common_header->type_code= event_type;
@@ -13727,18 +13727,18 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
   /*
     In rare cases it is possible that we already own a GTID (either
-    ANONYMOUS or GTID_GROUP). This can happen if a transaction was truncated
+    ANONYMOUS or ASSIGNED_GTID). This can happen if a transaction was truncated
     in the middle in the relay log and then next relay log begins with a
     Gtid_log_events without closing the transaction context from the previous
     relay log. In this case the only sensible thing to do is to discard the
     truncated transaction and move on.
 
     Note that when the applier is "GTID skipping" a transactions it
-    owns nothing, but its gtid_next->type == GTID_GROUP.
+    owns nothing, but its gtid_next->type == ASSIGNED_GTID.
   */
   const Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (!thd->owned_gtid.is_empty() ||
-      (thd->owned_gtid.is_empty() && gtid_next->type == GTID_GROUP))
+      (thd->owned_gtid.is_empty() && gtid_next->type == ASSIGNED_GTID))
   {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
@@ -13770,7 +13770,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   global_sid_lock->rdlock();
 
   // make sure that sid has been converted to sidno
-  if (spec.type == GTID_GROUP)
+  if (spec.type == ASSIGNED_GTID)
   {
     if (get_sidno(false) < 0)
     {

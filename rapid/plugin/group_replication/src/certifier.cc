@@ -732,7 +732,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     If the current transaction doesn't have a specified GTID, one
     for group UUID will be generated.
     This situation happens when transactions are executed with
-    GTID_NEXT equal to AUTOMATIC_GROUP (the default case).
+    GTID_NEXT equal to AUTOMATIC_GTID (the default case).
   */
   if (generate_group_id)
   {

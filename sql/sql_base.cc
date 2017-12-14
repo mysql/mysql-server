@@ -1975,7 +1975,7 @@ bool close_temporary_tables(THD *thd)
     did SET GTID_NEXT just before disconnecting the client), we must
     ensure that it will be able to generate GTIDs for the statements
     with this server's UUID. Therefore we set gtid_next to
-    AUTOMATIC_GROUP.
+    AUTOMATIC_GTID.
   */
   gtid_state->update_on_rollback(thd);
   thd->variables.gtid_next.set_automatic();

@@ -358,7 +358,7 @@ int group_replication_trans_before_commit(Trans_param *param)
   const ulong transaction_size_limit= get_transaction_size_limit();
   my_off_t transaction_size= 0;
 
-  const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
+  const bool is_gtid_specified= param->gtid_info.type == ASSIGNED_GTID;
   Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
   if (!is_gtid_specified)
   {
@@ -367,7 +367,7 @@ int group_replication_trans_before_commit(Trans_param *param)
     gtid.gno= 1;
   }
 
-  const Gtid_specification gtid_specification= { GTID_GROUP, gtid };
+  const Gtid_specification gtid_specification= { ASSIGNED_GTID, gtid };
   Gtid_log_event *gle= NULL;
 
   Transaction_context_log_event *tcle= NULL;

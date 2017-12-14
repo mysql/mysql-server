@@ -78,11 +78,11 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
   // At this point we should not own any GTID.
   DBUG_ASSERT(thd->owned_gtid.is_empty());
 
-  if (spec.type == AUTOMATIC_GROUP)
+  if (spec.type == AUTOMATIC_GTID)
   {
     thd->variables.gtid_next.set_automatic();
   }
-  else if (spec.type == ANONYMOUS_GROUP)
+  else if (spec.type == ANONYMOUS_GTID)
   {
     if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_ON)
     {
@@ -97,7 +97,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
   }
   else
   {
-    DBUG_ASSERT(spec.type == GTID_GROUP);
+    DBUG_ASSERT(spec.type == ASSIGNED_GTID);
     DBUG_ASSERT(spec.gtid.sidno >= 1);
     DBUG_ASSERT(spec.gtid.gno >= 1);
     while (true)
@@ -190,7 +190,7 @@ err:
 
 
 /**
-  Acquire ownership of all groups in a Gtid_set.  This is used to
+  Acquire ownership of all gtids in a Gtid_set.  This is used to
   begin a commit-sequence when @@SESSION.GTID_NEXT_LIST != NULL.
 */
 #ifdef HAVE_GTID_NEXT_LIST
@@ -199,7 +199,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
   const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
   rpl_sidno greatest_sidno= 0;
   DBUG_ENTER("gtid_acquire_ownership_multiple");
-  // first check if we need to wait for any group
+  // first check if we need to wait for any GTID
   while (true)
   {
     Gtid_set::Gtid_iterator git(gtid_next_list);
@@ -228,7 +228,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
       g= git.get();
     }
 
-    // we don't need to wait for any groups, and all SIDNOs in the
+    // we don't need to wait for any GTIDs, and all SIDNOs in the
     // set are locked
     if (g.sidno == 0)
       break;
@@ -270,7 +270,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
      - None of the GTIDs in GTID_NEXT_LIST is owned by any thread.
      - We hold a lock on global_sid_lock.
      - We hold a lock on all SIDNOs in GTID_NEXT_LIST.
-    So we acquire ownership of all groups that we need.
+    So we acquire ownership of all GTIDs that we need.
   */
   int ret= 0;
   Gtid_set::Gtid_iterator git(gtid_next_list);
@@ -327,7 +327,7 @@ static inline bool is_already_logged_transaction(const THD *thd)
 
   if (gtid_next_list == NULL)
   {
-    if (gtid_next->type == GTID_GROUP)
+    if (gtid_next->type == ASSIGNED_GTID)
     {
       if (thd->owned_gtid.sidno == 0)
         DBUG_RETURN(true);
@@ -341,7 +341,7 @@ static inline bool is_already_logged_transaction(const THD *thd)
   else
   {
 #ifdef HAVE_GTID_NEXT_LIST
-    if (gtid_next->type == GTID_GROUP)
+    if (gtid_next->type == ASSIGNED_GTID)
     {
       DBUG_ASSERT(gtid_next_list->contains_gtid(gtid_next->gtid));
       if (!thd->owned_gtid_set.contains_gtid(gtid_next->gtid))
@@ -394,15 +394,15 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
     When the slave applier thread executes a
     Format_description_log_event originating from a master
     (corresponding to a new master binary log), it sets gtid_next to
-    NOT_YET_DETERMINED_GROUP.  This allows any following
+    NOT_YET_DETERMINED_GTID.  This allows any following
     Gtid_log_event to set the GTID appropriately, but if there is no
     Gtid_log_event, gtid_next will be converted to ANONYMOUS.
   */
   DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%s",
                       gtid_next->type,
                       get_gtid_mode_string(GTID_MODE_LOCK_NONE)));
-  if (gtid_next->type == NOT_YET_DETERMINED_GROUP ||
-      (gtid_next->type == ANONYMOUS_GROUP && thd->owned_gtid.sidno == 0))
+  if (gtid_next->type == NOT_YET_DETERMINED_GTID ||
+      (gtid_next->type == ANONYMOUS_GTID && thd->owned_gtid.sidno == 0))
   {
     Gtid_specification spec;
     spec.set_anonymous();
@@ -463,13 +463,13 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
                       "owned_gtid.{sidno,gno}={%d,%lld}",
                       gtid_next->type,
                       thd->owned_gtid.sidno, thd->owned_gtid.gno));
-  DBUG_ASSERT(gtid_next->type != AUTOMATIC_GROUP ||
+  DBUG_ASSERT(gtid_next->type != AUTOMATIC_GTID ||
               thd->owned_gtid.is_empty());
 
   if ((stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
        thd->lex->sql_command == SQLCOM_BEGIN) &&
       thd->in_active_multi_stmt_transaction() &&
-      gtid_next->type == GTID_GROUP)
+      gtid_next->type == ASSIGNED_GTID)
   {
     my_error(ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET, MYF(0));
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
@@ -514,13 +514,13 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
     being executed after a statement that updated a non-transactional
     table.
   */
-  if (UNDEFINED_GROUP == gtid_next->type)
+  if (UNDEFINED_GTID == gtid_next->type)
   {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
     global_sid_lock->rdlock();
     gtid_next->to_string(global_sid_map, buf);
     global_sid_lock->unlock();
-    my_error(ER_GTID_NEXT_TYPE_UNDEFINED_GROUP, MYF(0), buf);
+    my_error(ER_GTID_NEXT_TYPE_UNDEFINED_GTID, MYF(0), buf);
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
   }
 
@@ -549,20 +549,20 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 #ifdef HAVE_GTID_NEXT_LIST
     switch (gtid_next->type)
     {
-    case AUTOMATIC_GROUP:
+    case AUTOMATIC_GTID:
       my_error(ER_GTID_NEXT_CANT_BE_AUTOMATIC_IF_GTID_NEXT_LIST_IS_NON_NULL,
                MYF(0));
       DBUG_RETURN(GTID_STATEMENT_CANCEL);
-    case GTID_GROUP:
+    case ASSIGNED_GTID:
       if (skip_transaction)
       {
         skip_statement(thd);
         DBUG_RETURN(GTID_STATEMENT_SKIP);
       }
       /*FALLTHROUGH*/
-    case ANONYMOUS_GROUP:
+    case ANONYMOUS_GTID:
       DBUG_RETURN(GTID_STATEMENT_EXECUTE);
-    case INVALID_GROUP:
+    case INVALID_GTID:
       DBUG_ASSERT(0);/*NOTREACHED*/
     }
 #else
@@ -618,21 +618,21 @@ void gtid_set_performance_schema_values(const THD *thd MY_ATTRIBUTE((unused)))
     // Thread owns GTID.
     if (thd->owned_gtid.sidno >= 1)
     {
-      spec.type= GTID_GROUP;
+      spec.type= ASSIGNED_GTID;
       spec.gtid= thd->owned_gtid;
     }
 
     // Thread owns ANONYMOUS.
     else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
     {
-      spec.type= ANONYMOUS_GROUP;
+      spec.type= ANONYMOUS_GTID;
     }
 
     // Thread does not own anything.
     else
     {
       DBUG_ASSERT(thd->owned_gtid.sidno == 0);
-      spec.type= AUTOMATIC_GROUP;
+      spec.type= AUTOMATIC_GTID;
     }
     MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid, &spec);
   }

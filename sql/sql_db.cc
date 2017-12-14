@@ -769,7 +769,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
           (some tables were removed).  So we generate an error and let
           user fix the situation.
         */
-        if (thd->variables.gtid_next.type == GTID_GROUP &&
+        if (thd->variables.gtid_next.type == ASSIGNED_GTID &&
             dropped_non_atomic)
         {
           char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];

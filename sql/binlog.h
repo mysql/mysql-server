@@ -791,7 +791,7 @@ public:
                    class Binlog_event_writer *writer);
   /**
     Assign automatic generated GTIDs for all commit group threads in the flush
-    stage having gtid_next.type == AUTOMATIC_GROUP.
+    stage having gtid_next.type == AUTOMATIC_GTID.
 
     @param first_seen The first thread seen entering the flush stage.
     @return Returns false if succeeds, otherwise true is returned.

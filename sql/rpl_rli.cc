@@ -2503,10 +2503,10 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
     {
       // See rpl_rli_pdb.h:Slave_worker::set_rli_description_event.
       if (!is_in_group() &&
-          (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
-           info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
+          (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
+           info_thd->variables.gtid_next.type == UNDEFINED_GTID))
       {
-        DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GROUP"));
+        DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
         info_thd->variables.gtid_next.set_not_yet_determined();
       }
 

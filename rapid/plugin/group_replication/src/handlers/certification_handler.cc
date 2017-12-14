@@ -397,7 +397,7 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
       {
         // Create new GTID event.
         Gtid gtid= { group_sidno, seq_number };
-        Gtid_specification gtid_specification= { GTID_GROUP, gtid };
+        Gtid_specification gtid_specification= { ASSIGNED_GTID, gtid };
         Gtid_log_event *gle_generated= new Gtid_log_event(gle->server_id,
                                                 gle->is_using_trans_cache(),
                                                 gle->last_committed,
@@ -615,7 +615,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
     cont->signal(1, true);
     DBUG_RETURN(1);
   }
-  Gtid_specification gtid_specification= { GTID_GROUP, gtid };
+  Gtid_specification gtid_specification= { ASSIGNED_GTID, gtid };
   /**
    The original_commit_timestamp of this Gtid_log_event will be zero
    because the transaction corresponds to a View_change_event, which is

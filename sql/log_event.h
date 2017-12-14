@@ -58,7 +58,7 @@
 #include "sql/item_create.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"       // OPTION_AUTO_IS_NULL
-#include "sql/rpl_gtid.h"            // enum_group_type
+#include "sql/rpl_gtid.h"            // enum_gtid_type
 #include "sql/rpl_utility.h"         // Hash_slave_rows
 #include "sql/session_tracker.h"
 #include "sql/sql_const.h"
@@ -3974,10 +3974,10 @@ public:
 #endif
 
   /**
-    Return the group type for this Gtid_log_event: this can be
-    either ANONYMOUS_GROUP, AUTOMATIC_GROUP, or GTID_GROUP.
+    Return the gtid type for this Gtid_log_event: this can be
+    either ANONYMOUS_GTID, AUTOMATIC_GTID, or ASSIGNED_GTID.
   */
-  enum_group_type get_type() const { return spec.type; }
+  enum_gtid_type get_type() const { return spec.type; }
 
   /**
     Return the SID for this GTID.  The SID is shared with the
