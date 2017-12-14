@@ -13281,9 +13281,13 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
    *  messing with if's below...
    */
   Uint32 keyLen ;
-  if (refToMain(ref) == SUMA)
+  /* The blockReference ref could belong to an API node.
+   * But the refToMain() is supposed to be used with only data nodes
+   * as certain BlockReference numbers of API nodes will also
+   * return true for 'refToMain(ref) == SUMA' which is not right.
+   * So check the node id first before checking for the block */
+  if (refToNode(ref) == getOwnNodeId() && refToMain(ref) == SUMA)
   {
-    ndbassert(refToNode(ref) == getOwnNodeId());
     keyLen = 0;
   }
   else
