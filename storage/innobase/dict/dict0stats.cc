@@ -3645,6 +3645,13 @@ dict_stats_rename_table(
 		if (ret == DB_STATS_DO_NOT_EXIST) {
 			ret = DB_SUCCESS;
 		}
+		DBUG_EXECUTE_IF("rename_stats",
+				mutex_exit(&dict_sys->mutex);
+				rw_lock_x_unlock(dict_operation_lock);
+				os_thread_sleep(20000000);
+				DEBUG_SYNC_C("rename_stats");
+				rw_lock_x_lock(dict_operation_lock);
+				mutex_enter(&dict_sys->mutex););
 
 		if (ret != DB_SUCCESS) {
 			mutex_exit(&dict_sys->mutex);
