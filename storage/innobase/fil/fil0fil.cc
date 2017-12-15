@@ -912,14 +912,12 @@ public:
 
 	/** Check pending operations on a tablespace.
 	@param[in]	space_id	Tablespace ID
-	@param[in]	operation	File operation
 	@param[out]	space		tablespace instance in memory
 	@param[out]	path		tablespace path
 	@return DB_SUCCESS or DB_TABLESPACE_NOT_FOUND. */
 	dberr_t space_check_pending_operations(
 		space_id_t	space_id,
-		fil_operation_t	operation,
-		fil_space_t**	space,
+		fil_space_t*&	space,
 		char**		path) const
 		MY_ATTRIBUTE((warn_unused_result));
 
@@ -1126,9 +1124,9 @@ public:
 
 	/** We are going to do a rename file and want to stop new I/O
 	for a while.
-	@param[in,out]	space		Tablespace for which we want to
+	@param[in]	space		Tablespace for which we want to
 					wait for IO to stop */
-	static void wait_for_io_to_stop(fil_space_t* space);
+	static void wait_for_io_to_stop(const fil_space_t* space);
 
 private:
 
@@ -1170,15 +1168,14 @@ private:
 
 	/** Check for pending IO.
 	@param[in]	operation	File operation
-	@param[in,out]	space		Tablespace to check
-	@param[out]	file		File in space list
+	@param[in]	space		Tablespace to check
+	@param[in]	file		File in space list
 	@param[in]	count		number of attempts so far
 	@return 0 if no pending else count + 1. */
 	ulint check_pending_io(
-		fil_operation_t	operation,
-		fil_space_t*	space,
-		fil_node_t**	file,
-		ulint		count) const
+		const fil_space_t*	space,
+		const fil_node_t&	file,
+		ulint			count) const
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Flushes to disk possible writes cached by the OS. */
@@ -2876,10 +2873,10 @@ Fil_system::close_file_in_all_LRU(bool print_info)
 }
 
 /** We are going to do a rename file and want to stop new I/O for a while.
-@param[in,out]	space		Tablespace for which we want to wait for IO
+@param[in]	space		Tablespace for which we want to wait for IO
 				to stop */
 void
-Fil_shard::wait_for_io_to_stop(fil_space_t* space)
+Fil_shard::wait_for_io_to_stop(const fil_space_t* space)
 {
 	/* Note: We are reading the value of space->stop_ios without the
 	cover of the Fil_shard::mutex. We incremented the in_use counter
@@ -4112,44 +4109,32 @@ Fil_shard::space_check_pending_operations(fil_space_t* space, ulint count) const
 }
 
 /** Check for pending IO.
-@param[in]	operation	File operation
-@param[in,out]	space		Tablespace to check
-@param[out]	file		File in space list
+@param[in]	space		Tablespace to check
+@param[in]	file		File in space list
 @param[in]	count		number of attempts so far
 @return 0 if no pending else count + 1. */
 ulint
 Fil_shard::check_pending_io(
-	fil_operation_t	operation,
-	fil_space_t*	space,
-	fil_node_t**	file,
-	ulint		count) const
+	const fil_space_t*	space,
+	const fil_node_t&	file,
+	ulint			count) const
 {
 	ut_ad(mutex_owned());
 	ut_a(space->n_pending_ops == 0);
-
-	switch (operation) {
-	case FIL_OPERATION_CLOSE:
-	case FIL_OPERATION_DELETE:
-		break;
-	}
 
 	ut_a(space->id == TRX_SYS_SPACE
 	     || space->purpose == FIL_TYPE_TEMPORARY
 	     || space->id == dict_sys_t::s_log_space_first_id
 	     || space->files.size() == 1);
 
-	*file = &space->files.front();
-
-	if (space->n_pending_flushes > 0 || (*file)->n_pending > 0) {
-
-		ut_a((*file)->in_use == 0);
+	if (space->n_pending_flushes > 0 || file.n_pending > 0) {
 
 		if (count > 1000) {
 			ib::warn() << "Trying to delete/close"
 				" tablespace '" << space->name
 				<< "' but there are "
 				<< space->n_pending_flushes
-				<< " flushes and " << (*file)->n_pending
+				<< " flushes and " << file.n_pending
 				<< " pending I/O's on it.";
 		}
 
@@ -4161,20 +4146,18 @@ Fil_shard::check_pending_io(
 
 /** Check pending operations on a tablespace.
 @param[in]	space_id	Tablespace ID
-@param[in]	operation	File operation
 @param[out]	space		tablespace instance in memory
 @param[out]	path		tablespace path
 @return DB_SUCCESS or DB_TABLESPACE_NOT_FOUND. */
 dberr_t
 Fil_shard::space_check_pending_operations(
 	space_id_t	space_id,
-	fil_operation_t	operation,
-	fil_space_t**	space,
+	fil_space_t*&	space,
 	char**		path) const
 {
 	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 
-	*space = nullptr;
+	space = nullptr;
 
 	mutex_acquire();
 
@@ -4221,12 +4204,12 @@ Fil_shard::space_check_pending_operations(
 			return(DB_TABLESPACE_NOT_FOUND);
 		}
 
-		fil_node_t*	file;
+		const fil_node_t&	file = sp->files.front();
 
-		count = check_pending_io(operation, sp, &file, count);
+		count = check_pending_io(sp, file, count);
 
 		if (count == 0) {
-			*path = mem_strdup(file->name);
+			*path = mem_strdup(file.name);
 		}
 
 		mutex_release();
@@ -4239,7 +4222,7 @@ Fil_shard::space_check_pending_operations(
 
 	ut_ad(sp != nullptr);
 
-	*space = sp;
+	space = sp;
 
 	return(DB_SUCCESS);
 }
@@ -4311,8 +4294,9 @@ fil_close_tablespace(trx_t* trx, space_id_t space_id)
 
 	auto	shard = fil_system->shard_by_id(space_id);
 
-	dberr_t	err = shard->space_check_pending_operations(
-		space_id, FIL_OPERATION_CLOSE, &space, &path);
+	dberr_t	err;
+
+	err = shard->space_check_pending_operations(space_id, space, &path);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -4481,8 +4465,7 @@ Fil_shard::space_delete(
 	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 	ut_ad(!fsp_is_undo_tablespace(space_id));
 
-	dberr_t err = space_check_pending_operations(
-		space_id, FIL_OPERATION_DELETE, &space, &path);
+	dberr_t err = space_check_pending_operations(space_id, space, &path);
 
 	if (err != DB_SUCCESS) {
 
@@ -4650,8 +4633,7 @@ Fil_shard::space_prepare_for_truncate(space_id_t space_id)
 	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
 	ut_ad(fsp_is_undo_tablespace(space_id));
 
-	dberr_t err = space_check_pending_operations(
-		space_id, FIL_OPERATION_CLOSE, &space, &path);
+	dberr_t err = space_check_pending_operations(space_id, space, &path);
 
 	ut_free(path);
 
