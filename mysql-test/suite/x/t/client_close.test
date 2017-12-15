@@ -449,7 +449,7 @@ select sleep(10);
 show global status like 'mysqlx_sessions';
 show global status like 'mysqlx_connections_%';
 --replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
-SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC;
 drop procedure test.get_stuck;
 
 ## Cleanup

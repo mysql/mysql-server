@@ -22,9 +22,6 @@ GRANT ALL ON *.* TO xuser_cache2@localhost;
 #
 
 #######################################################################
-# Install the mysqlx_cache_cleaner plugin (activate the cache)
-
-#######################################################################
 # Cache is empty, the sha256_memory request must fail
 -- Expecting failure with parameters: DISABLED	memory	xuser_native	native
 --

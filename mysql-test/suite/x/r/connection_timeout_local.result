@@ -1,4 +1,5 @@
 Preamble
+# restart
 SHOW VARIABLES LIKE 'mysqlx_connect_timeout';
 Variable_name	Value
 mysqlx_connect_timeout	30

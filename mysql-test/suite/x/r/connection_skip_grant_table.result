@@ -15,12 +15,6 @@ Mysqlx.Ok {
 ok
 
 #
-# Try to install X Plugin (already installed) when
-# skip-grant-tables is set
-#
-# restart: --skip-grant-tables
-
-#
 # Try login with valid user when server started with
 # skip-grant-tables and mysqlx loaded
 #

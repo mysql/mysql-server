@@ -5,6 +5,9 @@
 
 if ($dont_reset_global_status_variables != 1)
 {
+  let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions';
+  source include/wait_condition_or_abort.inc;
+
   if ($MYSQLXGLOBALRESET_DIR == '')
   {
     skip Mysqlx global status variables reset component not available.;

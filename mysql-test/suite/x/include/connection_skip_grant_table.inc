@@ -26,19 +26,6 @@ exec $MYSQLXTEST $USER_CIPHER
 
 --echo
 --echo #
---echo # Try to install X Plugin (already installed) when
---echo # skip-grant-tables is set
---echo #
-
---let $restart_parameters = restart: --skip-grant-tables
---source include/restart_mysqld.inc
---let $wait_for_tcpsocket_status = no_wait
---let $wait_for_unixsocket_status = no_wait
---let $dont_reset_global_status_variables = 1
---source include/xplugin_reset_and_wait.inc
-
---echo
---echo #
 --echo # Try login with valid user when server started with
 --echo # skip-grant-tables and mysqlx loaded
 --echo #

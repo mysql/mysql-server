@@ -1,9 +1,7 @@
 ## Test cases for authorization plugins
 
 --source include/have_ssl.inc
---let $dont_load_mysqlx_cleaner_plugin = 0
 --source include/xplugin_preamble.inc
-
 
 #
 ## Setup

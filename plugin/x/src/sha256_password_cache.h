@@ -48,16 +48,6 @@ public:
   SHA256_password_cache(SHA256_password_cache&&) = default;
   SHA256_password_cache& operator=(SHA256_password_cache&&) = default;
 
-  // TODO(lkotula) We need to enable/disable the cache depending
-  //               on if the cache_plugin is installed or not.
-  //
-  //               1. If it is not installed the cache must be cleared
-  //               and any attempt of inserting data to cache must fail.
-  //
-  //               2. There is possibility that the mysqlx plugin and
-  //               mysqlx_cache_cleaner plugin, may be merged into single
-  //               anyway it needs to be investigated.
-  //               In this case we do not need the methods enable/disable.
   void enable() override;
   void disable() override;
 
