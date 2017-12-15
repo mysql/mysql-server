@@ -325,12 +325,10 @@ private:
   /* The recovery state transfer class */
   Recovery_state_transfer recovery_state_transfer;
 
-  /* Recovery running flag */
-  bool recovery_running;
+  /* Recovery thread state */
+  thread_state recovery_thd_state;
   /* Recovery abort flag */
   bool recovery_aborted;
-  /* Recovery starting flag */
-  bool recovery_starting;
 
   //run conditions and locks
   mysql_mutex_t run_lock;

@@ -161,7 +161,7 @@ private:
   mysql_cond_t broadcast_run_cond;
   mysql_mutex_t broadcast_dispatcher_lock;
   mysql_cond_t broadcast_dispatcher_cond;
-  bool broadcast_thd_running;
+  thread_state broadcast_thd_state;
   size_t broadcast_counter;
   int broadcast_gtid_executed_period;
 

@@ -467,8 +467,7 @@ Session_plugin_thread(Sql_service_commands* command_interface)
   : command_interface(command_interface), m_server_interface(NULL),
    incoming_methods(NULL), m_plugin_pointer(NULL),
    m_method_execution_completed(false), m_method_execution_return_value(0),
-   m_session_thread_running(false), m_session_thread_starting(false),
-   m_session_thread_terminate(false),
+   m_session_thread_state(), m_session_thread_terminate(false),
    m_session_thread_error(0)
 {
   mysql_mutex_init(key_GR_LOCK_session_thread_run, &m_run_lock,
@@ -544,7 +543,6 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var, const cha
 
   m_session_thread_error= 0;
   m_session_thread_terminate= false;
-  m_session_thread_starting= true;
   m_plugin_pointer= plugin_pointer_var;
   session_user= user;
 
@@ -554,12 +552,12 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var, const cha
                            launch_handler_thread,
                            (void*)this)))
   {
-    m_session_thread_starting= false;
     mysql_mutex_unlock(&m_run_lock); /* purecov: inspected */
     DBUG_RETURN(1);                /* purecov: inspected */
   }
+  m_session_thread_state.set_created();
 
-  while (!m_session_thread_running && !m_session_thread_error)
+  while (m_session_thread_state.is_alive_not_running() && !m_session_thread_error)
   {
     DBUG_PRINT("sleep",("Waiting for the plugin session thread to start"));
     mysql_cond_wait(&m_run_cond, &m_run_lock);
@@ -581,7 +579,7 @@ Session_plugin_thread::terminate_session_thread()
 
   int stop_wait_timeout= GR_PLUGIN_SESSION_THREAD_TIMEOUT;
 
-  while (m_session_thread_running || m_session_thread_starting)
+  while (m_session_thread_state.is_thread_alive())
   {
     DBUG_PRINT("loop", ("killing plugin session thread"));
 
@@ -597,7 +595,7 @@ Session_plugin_thread::terminate_session_thread()
     {
       stop_wait_timeout= stop_wait_timeout - 1;
     }
-    else if (m_session_thread_running || m_session_thread_starting) // quit waiting
+    else if (m_session_thread_state.is_thread_alive()) // quit waiting
     {
       mysql_mutex_unlock(&m_run_lock);
       DBUG_RETURN(1);
@@ -605,7 +603,7 @@ Session_plugin_thread::terminate_session_thread()
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!m_session_thread_running);
+  DBUG_ASSERT(!m_session_thread_state.is_running());
 
   while (!this->incoming_methods->empty())
   {
@@ -634,8 +632,7 @@ Session_plugin_thread::session_thread_handler()
     m_session_thread_error= m_server_interface->set_session_user(session_user);
 
   mysql_mutex_lock(&m_run_lock);
-  m_session_thread_starting= false;
-  m_session_thread_running= true;
+  m_session_thread_state.set_running();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
@@ -676,7 +673,7 @@ Session_plugin_thread::session_thread_handler()
   m_server_interface = NULL;
 
   mysql_mutex_lock(&m_run_lock);
-  m_session_thread_running= false;
+  m_session_thread_state.set_terminated();
   mysql_mutex_unlock(&m_run_lock);
 
   DBUG_RETURN(m_session_thread_error);

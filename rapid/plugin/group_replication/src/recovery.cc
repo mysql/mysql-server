@@ -51,7 +51,7 @@ Recovery_module(Applier_module_interface *applier,
                 ulong components_stop_timeout)
   : applier_module(applier), recovery_state_transfer(recovery_channel_name,
     local_member_info->get_uuid(), channel_obsr_mngr),
-    recovery_running(false), recovery_starting(false),
+    recovery_thd_state(),
     recovery_completion_policy(RECOVERY_POLICY_WAIT_CERTIFIED),
     stop_wait_timeout(components_stop_timeout)
 {
@@ -90,8 +90,6 @@ Recovery_module::start_recovery(const string& group_name,
   //reset the recovery aborted status here to avoid concurrency
   recovery_aborted= false;
 
-  recovery_starting= true;
-
   if (mysql_thread_create(key_GR_THD_recovery,
                           &recovery_pthd,
                           get_connection_attrib(),
@@ -103,8 +101,9 @@ Recovery_module::start_recovery(const string& group_name,
     DBUG_RETURN(1);
     /* purecov: end */
   }
+  recovery_thd_state.set_created();
 
-  while (!recovery_running && !recovery_aborted)
+  while (recovery_thd_state.is_alive_not_running() && !recovery_aborted)
   {
     DBUG_PRINT("sleep",("Waiting for recovery thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
@@ -121,18 +120,15 @@ Recovery_module::stop_recovery()
 
   mysql_mutex_lock(&run_lock);
 
-  if (!recovery_running)
+  if (recovery_thd_state.is_thread_dead())
   {
-    if (!recovery_starting)
-    {
-      mysql_mutex_unlock(&run_lock);
-      DBUG_RETURN(0);
-    }
+    mysql_mutex_unlock(&run_lock);
+    DBUG_RETURN(0);
   }
 
   recovery_aborted= true;
 
-  while (recovery_running || recovery_starting)
+  while (recovery_thd_state.is_thread_alive())
   {
     DBUG_PRINT("loop", ("killing group replication recovery thread"));
 
@@ -161,7 +157,7 @@ Recovery_module::stop_recovery()
       stop_wait_timeout= stop_wait_timeout - 2;
     }
     /* purecov: begin inspected */
-    else if (recovery_running) // quit waiting
+    else if (recovery_thd_state.is_thread_alive()) // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
       DBUG_RETURN(1);
@@ -170,7 +166,7 @@ Recovery_module::stop_recovery()
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!recovery_running);
+  DBUG_ASSERT(!recovery_thd_state.is_running());
 
   mysql_mutex_unlock(&run_lock);
 
@@ -302,8 +298,7 @@ Recovery_module::recovery_thread_handle()
   recovery_state_transfer.initialize_group_info();
 
   mysql_mutex_lock(&run_lock);
-  recovery_running= true;
-  recovery_starting= false;
+  recovery_thd_state.set_running();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -432,7 +427,7 @@ cleanup:
   delete recovery_thd;
 
   recovery_aborted= true;  // to avoid the start missing signals
-  recovery_running= false;
+  recovery_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -451,7 +446,7 @@ Recovery_module::update_recovery_process(bool did_members_left, bool is_leaving)
 
   int error= 0;
 
-  if (recovery_running)
+  if (recovery_thd_state.is_running())
   {
     /*
       If I left the Group... the group manager will only have me so recovery

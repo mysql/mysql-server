@@ -72,8 +72,8 @@ private:
 
   //Delayed_initialization_thread variables
 
-  /* Is the thread running */
-  bool thread_running;
+  /* Delayed_initialization_thread state */
+  thread_state delayed_thd_state;
 
   /* Is the server ready*/
   bool is_server_ready;

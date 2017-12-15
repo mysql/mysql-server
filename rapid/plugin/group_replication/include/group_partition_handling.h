@@ -119,8 +119,8 @@ private:
   /** Is member in partition */
   bool member_in_partition;
 
-  /** Is the thread running */
-  bool thread_running;
+  /** Group partition thread state */
+  thread_state group_partition_thd_state;
 
   /** Should we abort the process that will kill pending transaction */
   bool partition_handling_aborted;

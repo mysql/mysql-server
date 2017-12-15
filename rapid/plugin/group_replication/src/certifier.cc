@@ -36,7 +36,7 @@ static void *launch_broadcast_thread(void* arg)
 }
 
 Certifier_broadcast_thread::Certifier_broadcast_thread()
-  :aborted(false), broadcast_thd_running(false), broadcast_counter(0),
+  :aborted(false), broadcast_thd_state(), broadcast_counter(0),
    broadcast_gtid_executed_period(BROADCAST_GTID_EXECUTED_PERIOD)
 {
   DBUG_EXECUTE_IF("group_replication_certifier_broadcast_thread_big_period",
@@ -67,7 +67,7 @@ int Certifier_broadcast_thread::initialize()
   DBUG_ENTER("Certifier_broadcast_thread::initialize");
 
   mysql_mutex_lock(&broadcast_run_lock);
-  if (broadcast_thd_running)
+  if (broadcast_thd_state.is_thread_alive())
   {
     mysql_mutex_unlock(&broadcast_run_lock); /* purecov: inspected */
     DBUG_RETURN(0); /* purecov: inspected */
@@ -84,8 +84,9 @@ int Certifier_broadcast_thread::initialize()
     mysql_mutex_unlock(&broadcast_run_lock); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
+  broadcast_thd_state.set_created();
 
-  while (!broadcast_thd_running)
+  while (broadcast_thd_state.is_alive_not_running())
   {
     DBUG_PRINT("sleep",("Waiting for certifier broadcast thread to start"));
     mysql_cond_wait(&broadcast_run_cond, &broadcast_run_lock);
@@ -101,14 +102,14 @@ int Certifier_broadcast_thread::terminate()
   DBUG_ENTER("Certifier_broadcast_thread::terminate");
 
   mysql_mutex_lock(&broadcast_run_lock);
-  if (!broadcast_thd_running)
+  if (broadcast_thd_state.is_thread_dead())
   {
     mysql_mutex_unlock(&broadcast_run_lock);
     DBUG_RETURN(0);
   }
 
   aborted= true;
-  while (broadcast_thd_running)
+  while (broadcast_thd_state.is_thread_alive())
   {
     DBUG_PRINT("loop", ("killing certifier broadcast thread"));
     mysql_mutex_lock(&broadcast_thd->LOCK_thd_data);
@@ -142,7 +143,7 @@ void Certifier_broadcast_thread::dispatcher()
   broadcast_thd= thd;
 
   mysql_mutex_lock(&broadcast_run_lock);
-  broadcast_thd_running= true;
+  broadcast_thd_state.set_running();
   mysql_cond_broadcast(&broadcast_run_cond);
   mysql_mutex_unlock(&broadcast_run_lock);
 
@@ -189,7 +190,7 @@ void Certifier_broadcast_thread::dispatcher()
   delete thd;
 
   mysql_mutex_lock(&broadcast_run_lock);
-  broadcast_thd_running= false;
+  broadcast_thd_state.set_terminated();
   mysql_cond_broadcast(&broadcast_run_cond);
   mysql_mutex_unlock(&broadcast_run_lock);
 

@@ -201,7 +201,7 @@ public:
   */
   bool is_running()
   {
-    return applier_running;
+    return (applier_thd_state.is_running());
   }
 
   /**
@@ -471,7 +471,7 @@ public:
 
   virtual Member_applier_state get_applier_status()
   {
-    if(applier_running)
+    if(applier_thd_state.is_running())
       return APPLIER_STATE_ON;
     else if(suspended)          /* purecov: inspected */
       return APPLIER_STATE_OFF; /* purecov: inspected */
@@ -663,10 +663,8 @@ private:
   //run conditions and locks
   mysql_mutex_t run_lock;
   mysql_cond_t  run_cond;
-  /* Applier running flag */
-  bool applier_running;
-  /* Applier thread running flag */
-  bool applier_thread_running;
+  /* Applier thread state */
+  thread_state applier_thd_state;
   /* Applier abort flag */
   bool applier_aborted;
   /* Applier error during execution */

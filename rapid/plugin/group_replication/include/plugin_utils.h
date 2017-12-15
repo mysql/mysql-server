@@ -30,6 +30,69 @@
 
 void log_primary_member_details();
 
+struct thread_state
+{
+  /**
+   * @enum  thread_state_enum
+   * @brief Maintains thread status
+  */
+  enum thread_state_enum
+  {
+    THREAD_INIT     =0, /**< THREAD_NOT_CREATED */
+    THREAD_CREATED, /**< THREAD_CREATED */
+
+    THREAD_RUNNING, /**< THREAD_RUNNING */
+
+    THREAD_TERMINATED,/**< THREAD_EXIT */
+    THREAD_END/**< END OF ENUM */
+  };
+
+private:
+  thread_state_enum thread_state_var;
+
+public:
+  thread_state()
+  {
+    thread_state_var= thread_state_enum::THREAD_INIT;
+  }
+
+  void set_running()
+  {
+    thread_state_var= thread_state_enum::THREAD_RUNNING;
+  }
+
+  void set_terminated()
+  {
+    thread_state_var= thread_state_enum::THREAD_TERMINATED;
+  }
+
+  void set_created()
+  {
+    thread_state_var= thread_state_enum::THREAD_CREATED;
+  }
+
+  bool is_running()
+  {
+    return thread_state_var == thread_state_enum::THREAD_RUNNING;
+  }
+
+  bool is_alive_not_running()
+  {
+    return thread_state_var < thread_state_enum::THREAD_RUNNING;
+  }
+
+  bool is_thread_alive()
+  {
+    return ((thread_state_var >= thread_state_enum::THREAD_CREATED) &&
+            (thread_state_var < thread_state_enum::THREAD_TERMINATED));
+  }
+
+  bool is_thread_dead()
+  {
+    return !is_thread_alive();
+  }
+};
+
 class Blocked_transaction_handler
 {
 public:

@@ -39,7 +39,7 @@ static void *launch_handler_thread(void* arg)
 }
 
 Applier_module::Applier_module()
-  :applier_running(false), applier_aborted(false), applier_error(0),
+  :applier_thd_state(), applier_aborted(false), applier_error(0),
    suspended(false), waiting_for_applier_suspension(false),
    shared_stop_write_lock(NULL), incoming(NULL), pipeline(NULL),
    stop_wait_timeout(LONG_TIMEOUT),
@@ -364,10 +364,6 @@ Applier_module::applier_thread_handle()
   //set the thread context
   set_applier_thread_context();
 
-  mysql_mutex_lock(&run_lock);
-  applier_thread_running=true;
-  mysql_mutex_unlock(&run_lock);
-
   Handler_THD_setup_action *thd_conf_action= NULL;
   Format_description_log_event* fde_evt= NULL;
   Continuation* cont= NULL;
@@ -412,7 +408,7 @@ Applier_module::applier_thread_handle()
 
   mysql_mutex_lock(&run_lock);
   applier_thread_is_exiting= false;
-  applier_running= true;
+  applier_thd_state.set_running();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -474,7 +470,7 @@ end:
       ->unregister_channel_observer(applier_channel_observer);
 
   //only try to leave if the applier managed to start
-  if (applier_error && applier_running)
+  if (applier_error && applier_thd_state.is_running())
     leave_group_on_failure();
 
   //Even on error cases, send a stop signal to all handlers that could be active
@@ -517,9 +513,8 @@ end:
   else
     local_applier_error= applier_error;
 
-  applier_running= false;
   applier_killed_status= false;
-  applier_thread_running= false;
+  applier_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -545,17 +540,19 @@ Applier_module::initialize_applier_thread()
   applier_killed_status= false;
   applier_error= 0;
 
+  applier_thd_state.set_created();
   if ((mysql_thread_create(key_GR_THD_applier_module_receiver,
                            &applier_pthd,
                            get_connection_attrib(),
                            launch_handler_thread,
                            (void*)this)))
   {
+    applier_thd_state.set_terminated();
     mysql_mutex_unlock(&run_lock); /* purecov: inspected */
     DBUG_RETURN(1);                /* purecov: inspected */
   }
 
-  while (!applier_running && !applier_error)
+  while (applier_thd_state.is_alive_not_running() && !applier_error)
   {
     DBUG_PRINT("sleep",("Waiting for applier thread to start"));
     if (current_thd != NULL && current_thd->is_killed())
@@ -604,12 +601,12 @@ Applier_module::terminate_applier_thread()
 
   applier_aborted= true;
 
-  if (!applier_thread_running)
+  if (applier_thd_state.is_thread_dead())
   {
     goto delete_pipeline;
   }
 
-  while (applier_thread_running)
+  while (applier_thd_state.is_thread_alive())
   {
     DBUG_PRINT("loop", ("killing group replication applier thread"));
 
@@ -643,7 +640,7 @@ Applier_module::terminate_applier_thread()
     {
       stop_wait_timeout= stop_wait_timeout - 2;
     }
-    else if (applier_thread_running) // quit waiting
+    else if (applier_thd_state.is_thread_alive()) // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
       DBUG_RETURN(1);
@@ -651,7 +648,7 @@ Applier_module::terminate_applier_thread()
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!applier_thread_running);
+  DBUG_ASSERT(!applier_thd_state.is_running());
 
 delete_pipeline:
 
@@ -681,7 +678,7 @@ void Applier_module::inform_of_applier_stop(char* channel_name,
   DBUG_ENTER("Applier_module::inform_of_applier_stop");
 
   if (!strcmp(channel_name, applier_module_channel_name) &&
-      aborted && applier_running )
+      aborted && applier_thd_state.is_thread_alive() )
   {
     log_message(MY_ERROR_LEVEL,
                 "The applier thread execution was aborted."

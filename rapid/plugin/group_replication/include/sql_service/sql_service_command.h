@@ -234,10 +234,8 @@ private:
   bool m_method_execution_completed;
   /** The method return value */
   long m_method_execution_return_value;
-  /** Session thread running flag */
-  bool m_session_thread_running;
-  /** Session thread starting flag */
-  bool m_session_thread_starting;
+  /** Session thread state */
+  thread_state m_session_thread_state;
   /** Session termination flag */
   bool m_session_thread_terminate;
   /** Session tread error flag */

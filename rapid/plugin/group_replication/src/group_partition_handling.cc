@@ -33,7 +33,7 @@ Group_partition_handling::
 Group_partition_handling(Shared_writelock *shared_stop_lock,
                          ulong unreachable_timeout)
   : member_in_partition(false),
-    thread_running(false), partition_handling_aborted(false),
+    group_partition_thd_state(), partition_handling_aborted(false),
     partition_handling_terminated(false),
     timeout_on_unreachable(unreachable_timeout),
     shared_stop_write_lock(shared_stop_lock)
@@ -76,7 +76,7 @@ bool Group_partition_handling::is_member_on_partition()
 
 bool Group_partition_handling::is_partition_handler_running()
 {
-  return thread_running;
+  return group_partition_thd_state.is_running();
 }
 
 bool Group_partition_handling::is_partition_handling_terminated()
@@ -171,7 +171,7 @@ bool Group_partition_handling::abort_partition_handler_if_running()
     This check is safe to invoke as the start method and abort method are only
     invoked in GCS serialized operations.
   */
-  if (thread_running)
+  if (group_partition_thd_state.is_thread_alive())
     terminate_partition_handler_thread();
 
   DBUG_RETURN(partition_handling_terminated);
@@ -191,7 +191,7 @@ int Group_partition_handling::launch_partition_handler_thread()
 
   partition_handling_aborted= false;
 
-  if(thread_running)
+  if (group_partition_thd_state.is_thread_alive())
   {
     mysql_mutex_unlock(&run_lock); /* purecov: inspected */
     DBUG_RETURN(0);                /* purecov: inspected */
@@ -205,8 +205,9 @@ int Group_partition_handling::launch_partition_handler_thread()
   {
     DBUG_RETURN(1); /* purecov: inspected */
   }
+  group_partition_thd_state.set_created();
 
-  while (!thread_running)
+  while (group_partition_thd_state.is_alive_not_running())
   {
     DBUG_PRINT("sleep",("Waiting for the partition handler thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
@@ -222,7 +223,7 @@ int Group_partition_handling::terminate_partition_handler_thread()
 
   mysql_mutex_lock(&run_lock);
 
-  if (!thread_running)
+  if (group_partition_thd_state.is_thread_dead())
   {
     mysql_mutex_unlock(&run_lock);
     DBUG_RETURN(0);
@@ -235,7 +236,7 @@ int Group_partition_handling::terminate_partition_handler_thread()
 
   ulong stop_wait_timeout= TRANSACTION_KILL_TIMEOUT;
 
-  while (thread_running)
+  while (group_partition_thd_state.is_thread_alive())
   {
     DBUG_PRINT("loop", ("killing group replication partition handler thread"));
 
@@ -250,7 +251,7 @@ int Group_partition_handling::terminate_partition_handler_thread()
       stop_wait_timeout= stop_wait_timeout - 2;
     }
       /* purecov: begin inspected */
-    else if (thread_running) // quit waiting
+    else if (group_partition_thd_state.is_thread_alive()) // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
       DBUG_RETURN(1);
@@ -259,7 +260,7 @@ int Group_partition_handling::terminate_partition_handler_thread()
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!thread_running);
+  DBUG_ASSERT(!group_partition_thd_state.is_running());
 
   mysql_mutex_unlock(&run_lock);
 
@@ -271,7 +272,7 @@ int Group_partition_handling::partition_thread_handler()
   DBUG_ENTER("Group_partition_handling::partition_thread_handler");
 
   mysql_mutex_lock(&run_lock);
-  thread_running= true;
+  group_partition_thd_state.set_running();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -300,7 +301,7 @@ int Group_partition_handling::partition_thread_handler()
   }
 
   mysql_mutex_lock(&run_lock);
-  thread_running= false;
+  group_partition_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
