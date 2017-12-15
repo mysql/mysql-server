@@ -31,11 +31,12 @@ call mtr.add_suppression("Retry in 60 secs. *");
 call mtr.add_suppression("Error writing file*");
 call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
-call mtr.add_suppression("Can't generate a unique log-filename binlog");
 call mtr.add_suppression("The server was unable to create a new log file *");
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("An error occurred during sync stage of the commit");
 call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Can't open file:*");
+call mtr.add_suppression("Can't generate a unique log-filename*");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 let $old=`select @@debug`;
 

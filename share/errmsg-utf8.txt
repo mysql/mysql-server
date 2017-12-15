@@ -8390,6 +8390,9 @@ ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
 #  End of 8.0 error messages.
 #
 
+ER_OOM_SAVE_GTIDS
+  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
+
 #
 # Start of 8.0 Server error messages
 #
