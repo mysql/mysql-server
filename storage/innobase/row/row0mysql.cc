@@ -31,6 +31,7 @@ Created 9/17/2000 Heikki Tuuri
 #include <log.h>
 #include <mysys_err.h>
 #include <sql_error.h>
+#include <vector>
 
 #include "row0mysql.h"
 
@@ -5327,6 +5328,7 @@ row_rename_table_for_mysql(
 	pars_info_add_str_literal(info, "new_table_name", new_name);
 	pars_info_add_str_literal(info, "old_table_name", old_name);
 
+	DEBUG_SYNC_C("rename_table");
 	err = que_eval_sql(info,
 			   "PROCEDURE RENAME_TABLE () IS\n"
 			   "BEGIN\n"
@@ -5697,6 +5699,10 @@ row_rename_partitions_for_mysql(
 	memcpy(from_name, old_name, from_len);
 	from_name[from_len] = '#';
 	from_name[from_len + 1] = 0;
+	typedef std::vector<std::pair<std::string, std::string> > partition_names;
+	partition_names store_name;
+	partition_names::iterator it;
+
 	while ((table_name = dict_get_first_table_name_in_db(from_name))) {
 		ut_a(memcmp(table_name, from_name, from_len) == 0);
 		/* Must match #[Pp]#<partition_name> */
@@ -5716,16 +5722,12 @@ row_rename_partitions_for_mysql(
 		error = row_rename_table_for_mysql(table_name, to_name,
 						trx, false);
 		if (error == DB_SUCCESS) {
-			char    errstr[512];
-			error = dict_stats_rename_table(true, table_name, to_name,
-                                              errstr, sizeof(errstr));
-			if (error != DB_SUCCESS) {
-				ib::error() << errstr;
-				push_warning(thd, Sql_condition::SL_WARNING,
-                                     ER_LOCK_WAIT_TIMEOUT, errstr);
-			}
-		}
-		if (error != DB_SUCCESS) {
+			std::pair<std::string, std::string> pair_names;
+			pair_names.first = table_name;
+			pair_names.second = to_name;
+			store_name.push_back(pair_names);
+		} else {
+			store_name.clear();
 			/* Rollback and return. */
 			trx_rollback_for_mysql(trx);
 			ut_free(table_name);
@@ -5734,6 +5736,22 @@ row_rename_partitions_for_mysql(
 		ut_free(table_name);
 	}
 	trx_commit_for_mysql(trx);
+
+	char    errstr[512];
+	for (it = store_name.begin(); it != store_name.end(); ++it) {
+		error = dict_stats_rename_table(
+			   true, it->first.c_str(), it->second.c_str(),
+			   errstr, sizeof(errstr));
+
+		if (error != DB_SUCCESS) {
+			ib::error() << errstr;
+			push_warning(thd, Sql_condition::SL_WARNING,
+				     ER_LOCK_WAIT_TIMEOUT, errstr);
+			break;
+		}
+	}
+
+	store_name.clear();
 	return(error);
 }
 
