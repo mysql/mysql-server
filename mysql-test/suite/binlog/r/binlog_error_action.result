@@ -4,17 +4,18 @@ call mtr.add_suppression("Retry in 60 secs. *");
 call mtr.add_suppression("Error writing file*");
 call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
-call mtr.add_suppression("Can't generate a unique log-filename binlog");
 call mtr.add_suppression("The server was unable to create a new log file *");
 call mtr.add_suppression("An error occurred during flush stage of the commit");
 call mtr.add_suppression("An error occurred during sync stage of the commit");
 call mtr.add_suppression("Either disk is full or file system is read only");
+call mtr.add_suppression("Can't open file:*");
+call mtr.add_suppression("Can't generate a unique log-filename*");
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
 RESET MASTER;
 Test case1
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
+ERROR HY000: Binary logging not possible. Message: Can't open file: './binlog.index' (errno: 1 - Operation not permitted), while rotating the binlog. Aborting the server
 Test case2
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= ABORT_SERVER;
@@ -88,7 +89,7 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 SET GLOBAL binlog_error_action=ABORT_SERVER;
 SET SESSION debug='+d,error_unique_log_filename';
 FLUSH LOGS;
-ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while rotating the binlog. Aborting the server.
+ERROR HY000: Binary logging not possible. Message: Can't generate a unique log-filename binlog.(1-999), while rotating the binlog. Aborting the server
 DROP TABLE t1;
 Test case11
 # restart

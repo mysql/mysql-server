@@ -7042,6 +7042,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   int error= 0;
   bool close_on_error= false;
   char new_name[FN_REFLEN], *new_name_ptr= NULL, *old_name, *file_to_open;
+  const size_t ERR_CLOSE_MSG_LEN = 1024;
+  char close_on_error_msg[ERR_CLOSE_MSG_LEN];
+  memset(close_on_error_msg, 0, sizeof close_on_error_msg);
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
   if (!is_open())
@@ -7088,6 +7091,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
     {
       close_on_error= true;
+      snprintf(close_on_error_msg, sizeof close_on_error_msg, "%s",
+               ER_THD(current_thd, ER_OOM_SAVE_GTIDS));
       goto end;
     }
   }
@@ -7103,6 +7108,12 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     // Use the old name if generation of new name fails.
     strcpy(new_name, name);
     close_on_error= true;
+    snprintf(close_on_error_msg, sizeof close_on_error_msg,
+             ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE), name);
+    if (strlen(close_on_error_msg))
+    {
+      close_on_error_msg[strlen(close_on_error_msg) - 1] = '\0';
+    }
     goto end;
   }
 
@@ -7133,6 +7144,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       char errbuf[MYSYS_STRERROR_SIZE];
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
       close_on_error= true;
+      snprintf(close_on_error_msg, sizeof close_on_error_msg,
+               ER_THD(current_thd, ER_ERROR_ON_WRITE), name);
       my_printf_error(ER_ERROR_ON_WRITE,
                       ER_THD(current_thd, ER_ERROR_ON_WRITE),
                       MYF(ME_FATALERROR), name,
@@ -7144,6 +7157,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     if ((error= flush_io_cache(&log_file)))
     {
       close_on_error= true;
+      snprintf(close_on_error_msg, sizeof close_on_error_msg, "%s",
+               "Either disk is full or file system is read only");
       goto end;
     }
   }
@@ -7163,18 +7178,18 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     binlog_checksum_options= checksum_alg_reset;
   }
   /*
-     Note that at this point, atomic_log_state != LOG_CLOSED
-     (important for is_open()).
+    Note that at this point, atomic_log_state != LOG_CLOSED
+    (important for is_open()).
   */
 
   DEBUG_SYNC(current_thd, "before_rotate_binlog_file");
   /*
-     new_file() is only used for rotation (in FLUSH LOGS or because size >
-     max_binlog_size or max_relay_log_size).
-     If this is a binary log, the Format_description_log_event at the beginning of
-     the new file should have created=0 (to distinguish with the
-     Format_description_log_event written at server startup, which should
-     trigger temp tables deletion on slaves.
+    new_file() is only used for rotation (in FLUSH LOGS or because size >
+    max_binlog_size or max_relay_log_size).
+    If this is a binary log, the Format_description_log_event at the beginning of
+    the new file should have created=0 (to distinguish with the
+    Format_description_log_event written at server startup, which should
+    trigger temp tables deletion on slaves.
   */
 
   /* reopen index binlog file, BUG#34582 */
@@ -7199,6 +7214,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
                     MYF(ME_FATALERROR), file_to_open,
                     error, my_strerror(errbuf, sizeof(errbuf), error));
     close_on_error= true;
+    snprintf(close_on_error_msg, sizeof close_on_error_msg,
+             ER_THD(current_thd, ER_CANT_OPEN_FILE), file_to_open,
+             error, my_strerror(errbuf, sizeof(errbuf), error));
   }
   my_free(old_name);
 
@@ -7220,9 +7238,13 @@ end:
     */
     if (binlog_error_action == ABORT_SERVER)
     {
-      exec_binlog_error_action_abort("Either disk is full or file system is"
-                                     " read only while rotating the binlog."
-                                     " Aborting the server.");
+      char abort_msg[ERR_CLOSE_MSG_LEN];
+      memset(abort_msg, 0, sizeof abort_msg);
+      snprintf(
+               abort_msg, sizeof abort_msg,
+               "%s, while rotating the binlog. "
+               "Aborting the server", close_on_error_msg);
+      exec_binlog_error_action_abort(abort_msg);
     }
     else
       LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING,
