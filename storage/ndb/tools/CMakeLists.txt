@@ -41,7 +41,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbtools
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
-  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
 ADD_CONVENIENCE_LIBRARY(ndbtools
@@ -131,13 +130,13 @@ TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
 MYSQL_ADD_EXECUTABLE(ndb_import
   ndb_import.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_import ndbtools ndbclient_static regex)
+TARGET_LINK_LIBRARIES(ndb_import ndbtools ndbclient_static)
 
 NDB_ADD_TEST(NdbImportUtil-t NdbImportUtil.cpp
-             LIBS ndbtools ndbclient_static regex)
+             LIBS ndbtools ndbclient_static)
 
 NDB_ADD_TEST(NdbImportCsv-t NdbImportCsv.cpp
-             LIBS ndbtools ndbclient_static regex)
+             LIBS ndbtools ndbclient_static)
 
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
