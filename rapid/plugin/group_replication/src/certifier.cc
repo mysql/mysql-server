@@ -36,7 +36,7 @@ static void *launch_broadcast_thread(void* arg)
 }
 
 Certifier_broadcast_thread::Certifier_broadcast_thread()
-  :aborted(false), broadcast_thd_running(false), broadcast_counter(0),
+  :aborted(false), broadcast_thd_running(false), broadcast_thd_terminated(false), broadcast_counter(0),
    broadcast_gtid_executed_period(BROADCAST_GTID_EXECUTED_PERIOD)
 {
   DBUG_EXECUTE_IF("group_replication_certifier_broadcast_thread_big_period",
@@ -85,7 +85,7 @@ int Certifier_broadcast_thread::initialize()
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
-  while (!broadcast_thd_running)
+  while (!broadcast_thd_running && !broadcast_thd_terminated)
   {
     DBUG_PRINT("sleep",("Waiting for certifier broadcast thread to start"));
     mysql_cond_wait(&broadcast_run_cond, &broadcast_run_lock);
@@ -190,6 +190,7 @@ void Certifier_broadcast_thread::dispatcher()
 
   mysql_mutex_lock(&broadcast_run_lock);
   broadcast_thd_running= false;
+  broadcast_thd_terminated= true;
   mysql_cond_broadcast(&broadcast_run_cond);
   mysql_mutex_unlock(&broadcast_run_lock);
 

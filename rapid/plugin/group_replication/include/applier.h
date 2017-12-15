@@ -665,6 +665,8 @@ private:
   mysql_cond_t  run_cond;
   /* Applier running flag */
   bool applier_running;
+  /* Applier terminated */
+  bool applier_terminated;
   /* Applier thread running flag */
   bool applier_thread_running;
   /* Applier abort flag */

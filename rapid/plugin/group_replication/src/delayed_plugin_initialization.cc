@@ -32,7 +32,7 @@ static void *launch_handler_thread(void* arg)
 }
 
 Delayed_initialization_thread::Delayed_initialization_thread()
-  : thread_running(false), is_server_ready(false), is_super_read_only_set(false)
+  : thread_running(false), thread_terminated(false), is_server_ready(false), is_super_read_only_set(false)
 {
   mysql_mutex_init(key_GR_LOCK_delayed_init_run, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_GR_LOCK_delayed_init_server_ready,
@@ -130,7 +130,7 @@ int Delayed_initialization_thread::launch_initialization_thread()
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
-  while (!thread_running)
+  while (!thread_running && !thread_terminated)
   {
     DBUG_PRINT("sleep",("Waiting for the Delayed initialization thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
@@ -183,6 +183,7 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
   mysql_mutex_lock(&run_lock);
   thread_running= false;
+  thread_terminated= true;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 

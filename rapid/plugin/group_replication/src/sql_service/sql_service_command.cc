@@ -559,7 +559,8 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var, const cha
     DBUG_RETURN(1);                /* purecov: inspected */
   }
 
-  while (!m_session_thread_running && !m_session_thread_error)
+  //Either m_session_thread_error or m_session_thread_terminate will be true
+  while (!m_session_thread_running && !m_session_thread_error && !m_session_thread_terminate)
   {
     DBUG_PRINT("sleep",("Waiting for the plugin session thread to start"));
     mysql_cond_wait(&m_run_cond, &m_run_lock);

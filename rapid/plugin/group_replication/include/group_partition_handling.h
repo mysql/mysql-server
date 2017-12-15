@@ -122,6 +122,9 @@ private:
   /** Is the thread running */
   bool thread_running;
 
+  /** Is the thread terminated */
+  bool thread_terminated;
+
   /** Should we abort the process that will kill pending transaction */
   bool partition_handling_aborted;
 

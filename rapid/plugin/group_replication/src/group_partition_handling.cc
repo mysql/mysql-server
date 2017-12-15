@@ -33,7 +33,7 @@ Group_partition_handling::
 Group_partition_handling(Shared_writelock *shared_stop_lock,
                          ulong unreachable_timeout)
   : member_in_partition(false),
-    thread_running(false), partition_handling_aborted(false),
+    thread_running(false), thread_terminated(false), partition_handling_aborted(false),
     partition_handling_terminated(false),
     timeout_on_unreachable(unreachable_timeout),
     shared_stop_write_lock(shared_stop_lock)
@@ -206,7 +206,7 @@ int Group_partition_handling::launch_partition_handler_thread()
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
-  while (!thread_running)
+  while (!thread_running && !thread_terminated)
   {
     DBUG_PRINT("sleep",("Waiting for the partition handler thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
@@ -301,6 +301,7 @@ int Group_partition_handling::partition_thread_handler()
 
   mysql_mutex_lock(&run_lock);
   thread_running= false;
+  thread_terminated= true;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 

@@ -75,6 +75,9 @@ private:
   /* Is the thread running */
   bool thread_running;
 
+  /* Is the thread terminated */
+  bool thread_terminated;
+
   /* Is the server ready*/
   bool is_server_ready;
 

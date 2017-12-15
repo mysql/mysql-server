@@ -39,7 +39,7 @@ static void *launch_handler_thread(void* arg)
 }
 
 Applier_module::Applier_module()
-  :applier_running(false), applier_aborted(false), applier_error(0),
+  :applier_running(false), applier_terminated(false), applier_aborted(false), applier_error(0),
    suspended(false), waiting_for_applier_suspension(false),
    shared_stop_write_lock(NULL), incoming(NULL), pipeline(NULL),
    stop_wait_timeout(LONG_TIMEOUT),
@@ -518,6 +518,7 @@ end:
     local_applier_error= applier_error;
 
   applier_running= false;
+  applier_terminated= true;
   applier_killed_status= false;
   applier_thread_running= false;
   mysql_cond_broadcast(&run_cond);
@@ -542,6 +543,7 @@ Applier_module::initialize_applier_thread()
   mysql_mutex_lock(&run_lock);
 
   applier_thread_is_exiting= false;
+  applier_terminated= false;
   applier_killed_status= false;
   applier_error= 0;
 
@@ -555,7 +557,7 @@ Applier_module::initialize_applier_thread()
     DBUG_RETURN(1);                /* purecov: inspected */
   }
 
-  while (!applier_running && !applier_error)
+  while (!applier_running && !applier_error && !applier_terminated)
   {
     DBUG_PRINT("sleep",("Waiting for applier thread to start"));
     if (current_thd != NULL && current_thd->is_killed())
