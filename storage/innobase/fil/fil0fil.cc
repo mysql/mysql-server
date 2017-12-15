@@ -11113,10 +11113,7 @@ Datafile::find_space_id().
 space_id_t
 Fil_system::get_tablespace_id(const std::string& filename)
 {
-	dberr_t		err = DB_CORRUPTION;
 	char		buf[sizeof(space_id_t)];
-	space_id_t	space_id = ULINT32_UNDEFINED;
-	space_id_t	prev_space_id = ULINT32_UNDEFINED;
 	std::ifstream	ifs(filename, std::ios::binary);
 
 	if (!ifs) {
@@ -11124,7 +11121,10 @@ Fil_system::get_tablespace_id(const std::string& filename)
 		return(ULINT32_UNDEFINED);
 	}
 
+	std::vector<space_id_t>	space_ids;
 	auto	page_size = srv_page_size;
+
+	space_ids.reserve(MAX_PAGES_TO_CHECK);
 
 	for (page_no_t page_no = 0; page_no < MAX_PAGES_TO_CHECK; ++page_no) {
 
@@ -11169,7 +11169,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 		    || (ifs.rdstate() & std::ifstream::badbit) != 0) {
 
 			/* Trucated files can be a single page */
-			return(page_no > 0 ? space_id : ULINT32_UNDEFINED);
+			break;
 		}
 
 		ifs.read(buf, sizeof(buf));
@@ -11177,42 +11177,39 @@ Fil_system::get_tablespace_id(const std::string& filename)
 		if (!ifs.good() || (size_t) ifs.gcount() < sizeof(buf)) {
 
 			/* Trucated files can be a single page */
-			return(page_no > 0 ? space_id : ULINT32_UNDEFINED);
+			break;
 		}
+
+		space_id_t	space_id;
 
 		space_id = mach_read_from_4(reinterpret_cast<byte*>(buf));
 
-		if (space_id == 0 || space_id == ULINT32_UNDEFINED) {
-
-			/* We don't write the space ID to new pages. */
-			if (prev_space_id != ULINT32_UNDEFINED
-			    && prev_space_id != 0) {
-
-				err = DB_SUCCESS;
-				space_id = prev_space_id;
-
-				break;
-			}
-
-			continue;
-
-		} else if (space_id > 0 && prev_space_id == space_id) {
-
-			ut_a(prev_space_id != ULINT32_UNDEFINED);
-
-			err = DB_SUCCESS;
-			break;
-
-		} else if (space_id > 0) {
-
-			prev_space_id = space_id;
-		}
+		space_ids.push_back(space_id);
 	}
 
 	ifs.close();
 
+	space_id_t	space_id;
+
+	if (!space_ids.empty()) {
+
+		space_id = space_ids.front();
+
+		for (auto id : space_ids) {
+
+			if (space_id != id) {
+
+				space_id = ULINT32_UNDEFINED;
+
+				break;
+			}
+		}
+	} else {
+		space_id = ULINT32_UNDEFINED;
+	}
+
 	/* Try the more heavy duty method, as a last resort. */
-	if (err != DB_SUCCESS) {
+	if (space_id == ULINT32_UNDEFINED) {
 
 		/* The ifstream will work for all file formats compressed or
 		otherwise because the header of the page is not compressed.
@@ -11224,7 +11221,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 
 		file.set_filepath(filename.c_str());
 
-		err = file.open_read_only(false);
+		dberr_t	err = file.open_read_only(false);
 
 		ut_a(file.is_open());
 		ut_a(err == DB_SUCCESS);
@@ -11240,7 +11237,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 		file.close();
 	}
 
-	return(err != DB_SUCCESS) ? ULINT32_UNDEFINED : space_id;
+	return(space_id);
 }
 
 /** Check for duplicate tablespace IDs.
