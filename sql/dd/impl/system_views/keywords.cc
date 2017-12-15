@@ -15,6 +15,7 @@
 
 #include "sql/dd/impl/system_views/keywords.h"
 
+#include <algorithm>
 #include <string>
 
 #include "sql/stateless_allocator.h"
