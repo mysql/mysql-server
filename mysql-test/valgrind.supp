@@ -1712,15 +1712,15 @@
 #
 # Bug#22833138 KEYRING_OKV : MEMORY LEAKS FROM OKV CLIENT LIB
 {
-  Keyring_OKV_workaround_addtoTagObj
-  Memcheck:Leak
-  fun:malloc
-  fun:okimem_nat_malloc
-  fun:OKIMemAlloc
-  fun:addtoTagObj
+   Keyring_OKV_workaround_addtoTagObj
+   Memcheck:Leak
+   fun:malloc
+   fun:okimem_nat_malloc
+   fun:OKIMemAlloc
+   fun:addtoTagObj
 }
 {
-  Keyring_OKV_workaround_OKIGetKey
+   Keyring_OKV_workaround_OKIGetKey
    Memcheck:Leak
    fun:malloc
    fun:okimem_nat_malloc
@@ -1729,13 +1729,21 @@
    fun:OKIGetKey
 }
 {
-  Keyring_OKV_workaround_OKICreateKey
+   Keyring_OKV_workaround_OKICreateKey
    Memcheck:Leak
    fun:malloc
    fun:okimem_nat_malloc
    fun:OKIMemAlloc
    fun:OKIAPIResultAlloc
    fun:OKICreateKey
+}
+{
+   Keyring_OKV_workaround_okiconn_ssl_send_recv
+   Memcheck:Leak
+   fun:calloc
+   ...
+   fun:OKIConnSendRecvBytes
+   fun:OKIOpsExecuteOp
 }
 {
    Keyring_OKV_workaround_OKIGetAttributes
@@ -1778,7 +1786,6 @@
 {
    Keyring_OKV_workaround_OKILocate
    Memcheck:Leak
-   match-leak-kinds: definite
    fun:malloc
    fun:okimem_nat_malloc
    fun:OKIMemAlloc
@@ -1816,7 +1823,6 @@
 {
    Keyring_OKV_workaround_OKIEnvCreate
    Memcheck:Leak
-   match-leak-kinds: definite
    fun:malloc
    fun:okimem_nat_malloc
    fun:OKIMemAlloc
