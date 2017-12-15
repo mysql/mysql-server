@@ -657,4 +657,25 @@ connection default;
 disable_connect_log;
 SET GLOBAL regexp_time_limit = DEFAULT;
 
+
+--echo #
+--echo # Bug#27252630: REGEXP FUNCTIONS IGNORE NULLS
+--echo #
+
+SELECT regexp_instr ( 'a', 'a', NULL );
+SELECT regexp_instr ( 'a', 'a', 1, NULL );
+SELECT regexp_instr ( 'a', 'a', 1, 0, NULL );
+SELECT regexp_instr ( 'a', 'a', 1, 0, 0, NULL );
+
+SELECT regexp_like ( 'a', 'a', NULL );
+
+SELECT regexp_replace ( 'a', 'a', 'a', NULL );
+SELECT regexp_replace ( 'a', 'a', 'a', 1, NULL );
+SELECT regexp_replace ( 'a', 'a', 'a', 1, 0, NULL );
+
+SELECT regexp_substr ( 'a', 'a', NULL );
+SELECT regexp_substr ( 'a', 'a', 1, NULL );
+SELECT regexp_substr ( 'a', 'a', 1, 0, NULL );
+
+
 --source ../mysql-test/include/cleanup_icu_utils.inc
