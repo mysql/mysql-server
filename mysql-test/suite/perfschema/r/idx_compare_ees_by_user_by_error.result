@@ -52,6 +52,38 @@ SET @pfs_columns = "USER, ERROR_NUMBER";
 
 ===== BEGIN TEST =====
 ========
+SELECT USER, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_user_by_error WHERE user is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_user_by_error WHERE user is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_user_by_error WHERE user = 'user1' and error_number is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_user_by_error WHERE user = 'user1' and error_number is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT USER, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_user_by_error WHERE user= 'user1'
 
 OK: Handler_read_key

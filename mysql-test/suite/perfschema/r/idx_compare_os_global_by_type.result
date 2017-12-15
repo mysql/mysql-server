@@ -67,6 +67,38 @@ OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
+SELECT * FROM performance_schema.objects_summary_global_by_type WHERE object_type = 'PROCEDURE' and object_schema is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.objects_summary_global_by_type WHERE object_type = 'PROCEDURE' and object_schema is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.objects_summary_global_by_type WHERE object_type = 'PROCEDURE' and object_schema = 'TEST' and object_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.objects_summary_global_by_type WHERE object_type = 'PROCEDURE' and object_schema = 'TEST' and object_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.objects_summary_global_by_type WHERE object_type = 'PROCEDURE'
 
 OK: Handler_read_key
@@ -75,7 +107,7 @@ OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
-SELECT * FROM performance_schema.objects_summary_global_by_type WHERE object_type = 'PROCEDURE' AND object_schema = 'TEST'
+SELECT * FROM performance_schema.objects_summary_global_by_type WHERE object_type = 'PROCEDURE' and object_schema = 'TEST'
 
 OK: Handler_read_key
 

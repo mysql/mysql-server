@@ -67,6 +67,54 @@ OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name = 't1' and index_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE' and object_schema = 'test' and object_name = 't1' and index_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE object_type = 'TABLE'
 
 OK: Handler_read_key

@@ -51,6 +51,38 @@ CALL SampleProc1();
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.status_by_user WHERE user is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.status_by_user WHERE user is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.status_by_user WHERE user = 'user1' and variable_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.status_by_user WHERE user = 'user1' and variable_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.status_by_user WHERE user= 'user1'
 
 OK: Handler_read_key

@@ -70,9 +70,9 @@ EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
 UNINSTALL PLUGIN pfs_example_plugin_employee;
 "===== Check table lock status "
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
 "===== Check Thread Status for default connection "
 NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
 thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee
@@ -94,9 +94,9 @@ EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
 3	foo3	bar3
 "===== Check table lock status "
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
 "===== Check Thread Status for default connection "
 NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
 thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee
@@ -182,9 +182,9 @@ EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
 UNINSTALL PLUGIN pfs_example_plugin_employee;
 "===== Check table lock status "
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
 "===== Check Thread Status for default connection "
 NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
 thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee
@@ -206,9 +206,9 @@ EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
 3	foo3	bar3
 "===== Check table lock status "
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OWNER_THREAD_ID	INTERNAL_LOCK	EXTERNAL_LOCK
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
-TABLE	performance_schema	pfs_example_employee_name	0	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
+TABLE	performance_schema	pfs_example_employee_name	NULL	NULL	NULL
 "===== Check Thread Status for default connection "
 NAME	PROCESSLIST_COMMAND	PROCESSLIST_STATE	PROCESSLIST_INFO
 thread/sql/one_connection	Query	Waiting for table metadata lock	UNINSTALL PLUGIN pfs_example_plugin_employee

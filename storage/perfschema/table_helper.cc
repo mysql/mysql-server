@@ -1871,7 +1871,8 @@ PFS_key_string<SIZE>::do_match_prefix(bool record_null,
 bool
 PFS_key_thread_id::match(ulonglong thread_id)
 {
-  return do_match(false, thread_id);
+  bool record_null = (thread_id == 0);
+  return do_match(record_null, thread_id);
 }
 
 bool
@@ -1891,7 +1892,8 @@ PFS_key_thread_id::match_owner(const PFS_table *pfs)
     return do_match(true, 0);
   }
 
-  return do_match(false, thread->m_thread_internal_id);
+  bool record_null = (thread->m_thread_internal_id == 0);
+  return do_match(record_null, thread->m_thread_internal_id);
 }
 
 bool
@@ -1923,13 +1925,15 @@ PFS_key_thread_id::match_owner(const PFS_mutex *pfs)
 bool
 PFS_key_thread_id::match_owner(const PFS_prepared_stmt *pfs)
 {
-  return do_match(false, pfs->m_owner_thread_id);
+  bool record_null = (pfs->m_owner_thread_id == 0);
+  return do_match(record_null, pfs->m_owner_thread_id);
 }
 
 bool
 PFS_key_thread_id::match_owner(const PFS_metadata_lock *pfs)
 {
-  return do_match(false, pfs->m_owner_thread_id);
+  bool record_null = (pfs->m_owner_thread_id == 0);
+  return do_match(record_null, pfs->m_owner_thread_id);
 }
 
 bool
@@ -2040,15 +2044,13 @@ PFS_key_port::match(const PFS_socket *pfs)
 bool
 PFS_key_error_number::match_error_index(uint error_index)
 {
-  if (error_index > 0 && error_index < PFS_MAX_SERVER_ERRORS)
-  {
-    server_error *temp_error;
-    temp_error = &error_names_array[pfs_to_server_error_map[error_index]];
+  DBUG_ASSERT(error_index < PFS_MAX_SERVER_ERRORS);
 
-    return do_match(false, (int32)temp_error->mysql_errno);
-  }
+  server_error *temp_error;
+  temp_error = &error_names_array[pfs_to_server_error_map[error_index]];
 
-  return false;
+  bool record_null = (temp_error->mysql_errno == 0);
+  return do_match(record_null, (int32)temp_error->mysql_errno);
 }
 
 bool

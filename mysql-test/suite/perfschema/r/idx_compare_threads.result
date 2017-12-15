@@ -55,6 +55,22 @@ CALL SampleProc1();
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.threads WHERE THREAD_ID is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.threads WHERE THREAD_ID is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.threads WHERE THREAD_ID = @target_id
 
 OK: Handler_read_key
@@ -86,18 +102,26 @@ OK: Handler_read_key
 OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
+
+## Test NAME
+
+===== BEGIN TEST =====
 ========
-SELECT * FROM performance_schema.threads WHERE THREAD_ID IS NOT NULL
+SELECT * FROM performance_schema.threads WHERE NAME is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.threads WHERE NAME is not null
 
 OK: Handler_read_key
 
 OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
-
-## Test NAME
-
-===== BEGIN TEST =====
 ========
 SELECT * FROM performance_schema.threads WHERE NAME = 'thread/sql/one_connection'
 
@@ -134,6 +158,38 @@ OK: Extra rows: 0  Missing rows: 0
 ## Test PROCESSLIST_USER, PROCESSLIST_HOST
 
 ===== BEGIN TEST =====
+========
+SELECT * FROM performance_schema.threads WHERE processlist_user is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.threads WHERE processlist_user is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.threads WHERE processlist_user = 'user1' and processlist_host is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.threads WHERE processlist_user = 'user1' and processlist_host is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.threads WHERE processlist_host = 'localhost'
 
@@ -223,6 +279,22 @@ OK: Extra rows: 0  Missing rows: 0
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.threads WHERE THREAD_OS_ID is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.threads WHERE THREAD_OS_ID is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.threads WHERE THREAD_OS_ID = @target_id
 
 OK: Handler_read_key
@@ -252,14 +324,6 @@ SELECT * FROM performance_schema.threads WHERE THREAD_OS_ID = 9999999 ORDER BY T
 OK: Handler_read_key
 
 OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT * FROM performance_schema.threads WHERE THREAD_OS_ID IS NOT NULL
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 

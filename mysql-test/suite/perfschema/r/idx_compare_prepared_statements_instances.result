@@ -58,6 +58,22 @@ WHERE STATEMENT_NAME = 'st2' LIMIT 1;
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE object_instance_begin is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE object_instance_begin is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.prepared_statements_instances WHERE object_instance_begin = @object_instance_begin
 
 OK: Handler_read_key
@@ -86,6 +102,22 @@ OK: Extra rows: 0  Missing rows: 0
 SET @target_id = @target_statement_id;
 
 ===== BEGIN TEST =====
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE STATEMENT_ID is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE STATEMENT_ID is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.prepared_statements_instances WHERE STATEMENT_ID = @target_id
 
@@ -118,18 +150,26 @@ OK: Handler_read_key
 OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
+
+## Test STATEMENT_NAME
+
+===== BEGIN TEST =====
 ========
-SELECT * FROM performance_schema.prepared_statements_instances WHERE STATEMENT_ID IS NOT NULL
+SELECT * FROM performance_schema.prepared_statements_instances WHERE STATEMENT_NAME is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE STATEMENT_NAME is not null
 
 OK: Handler_read_key
 
 OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
-
-## Test STATEMENT_NAME
-
-===== BEGIN TEST =====
 ========
 SELECT * FROM performance_schema.prepared_statements_instances WHERE STATEMENT_NAME = 'st2'
 
@@ -167,6 +207,22 @@ OK: Extra rows: 0  Missing rows: 0
 
 ===== BEGIN TEST =====
 ========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_thread_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_thread_id is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_thread_id = @target_thread_id
 
 OK: Handler_read_key
@@ -200,6 +256,22 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_thread_id = @target_thread_id ORDER BY owner_thread_id DESC
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_thread_id = @target_thread_id AND owner_event_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_thread_id = @target_thread_id AND owner_event_id is not null
 
 OK: Handler_read_key
 
@@ -268,6 +340,38 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'PROCEDURE' and owner_object_schema is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'PROCEDURE' and owner_object_schema is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'PROCEDURE' and owner_object_schema = 'test' and owner_object_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.prepared_statements_instances WHERE owner_object_type = 'PROCEDURE' and owner_object_schema = 'test' and owner_object_name is not null
 
 OK: Handler_read_key
 
