@@ -558,7 +558,16 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(st_plugin_dl *plugin_dl)
 
 static inline void free_plugin_mem(st_plugin_dl *p)
 {
-  if (p->handle)
+ /*
+    The valgrind leak report is done at the end of the program execution.
+    But since the plugins are unloaded from the memory,
+    it is impossible for valgrind to correctly report the leak locations.
+    So leave the shared objects (.DLL/.so) open for the symbols definition.
+  */
+  bool preserve_shared_objects_after_unload= false;
+  DBUG_EXECUTE_IF("preserve_shared_objects_after_unload",
+                 { preserve_shared_objects_after_unload= true; } );
+  if (p->handle != nullptr && !preserve_shared_objects_after_unload)
     dlclose(p->handle);
   my_free(p->dl.str);
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
