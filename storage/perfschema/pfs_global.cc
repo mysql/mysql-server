@@ -38,6 +38,9 @@
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
+#endif
 
 bool pfs_initialized= false;
 
