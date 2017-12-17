@@ -19,7 +19,7 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
 
 # Query the temporary table
 let $value = `SELECT TRIM(TRAILING "\r" FROM a) FROM test.desc
-  WHERE a LIKE BINARY "ForceVarPart%"`;
+  WHERE a LIKE "ForceVarPart%"`;
 echo $value;
 
 DROP TABLE test.desc;

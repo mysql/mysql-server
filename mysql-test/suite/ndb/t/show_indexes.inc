@@ -13,7 +13,7 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
 
 # Query the temporary table
 SELECT TRIM(TRAILING "\r" FROM a) as 'Indexes:' FROM test.desc
-  WHERE a REGEXP BINARY "- (UniqueHashIndex|OrderedIndex)"
+  WHERE a REGEXP "- (UniqueHashIndex|OrderedIndex)"
   AND a NOT LIKE "PRIMARY KEY%"
   ORDER BY a;
 

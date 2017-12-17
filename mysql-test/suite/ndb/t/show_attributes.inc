@@ -14,7 +14,7 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
 # Query the temporary table
 --replace_regex /BT=NDB\$BLOB_[0-9]+_[0-9]+/BT=NDB$BLOB_#_#/
 SELECT TRIM(TRAILING "\r" FROM a) as 'Attributes:' FROM test.desc
-  WHERE a LIKE BINARY "%ST=%";
+  WHERE a LIKE "%ST=%";
 
 DROP TABLE test.desc;
 --enable_query_log
