@@ -2988,9 +2988,7 @@ Fil_shard::mutex_acquire_and_get_space(
 	auto	begin_time = ut_time();
 	auto	start_time = begin_time;
 
-	size_t	i;
-
-	for (i = 0; i < 3; ++i) {
+	for (size_t i = 0; i < 3; ++i) {
 
 		/* Flush tablespaces so that we can close modified
 		files in the LRU list */
@@ -3033,15 +3031,14 @@ Fil_shard::mutex_acquire_and_get_space(
 #endif /* !UNIV_HOTBACKUP */
 	}
 
-	if (i >= 2) {
-
-		ib::warn()
-			<< "Too many (" << s_n_open
-			<< ") files are open the maximum allowed"
-			<< " value is " << fil_system->m_max_n_open
-			<< ". You should raise the value of"
-			<< " --innodb-open-files in my.cnf.";
-	}
+#ifdef UNIV_DEBUG
+	ib::warn()
+		<< "Too many (" << s_n_open
+		<< ") files are open the maximum allowed"
+		<< " value is " << fil_system->m_max_n_open
+		<< ". You should raise the value of"
+		<< " --innodb-open-files in my.cnf.";
+#endif /* UNIV_DEBUG */
 
 	mutex_acquire();
 
