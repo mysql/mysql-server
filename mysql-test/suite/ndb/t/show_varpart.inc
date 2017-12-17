@@ -11,7 +11,8 @@ if (`select LENGTH('$show_varpart_table') = 0`)
 --exec $NDB_DESC --no-defaults -d test $show_varpart_table > $dump_file
 
 # Load the file into a temporary table
-CREATE TEMPORARY TABLE test.desc (a varchar(512)) ENGINE = HEAP;
+CREATE TEMPORARY TABLE test.desc (a varchar(512))
+CHARSET latin1 ENGINE = HEAP;
 
 --replace_result $dump_file DUMP_FILE
 eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
