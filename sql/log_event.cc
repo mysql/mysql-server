@@ -10493,7 +10493,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
-     if ( m_width == table->s->fields && bitmap_is_set_all(&m_cols))
+    if (m_width == table->s->fields && bitmap_is_set_all(&m_cols))
       set_flags(COMPLETE_ROWS_F);
 
     /*
@@ -10504,35 +10504,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       Write_set equals the m_cols bitmap sent from master but it can be
       longer if slave has extra columns.
-     */
-
-    DBUG_PRINT_BITSET("debug", "Setting table's read_set from: %s", &m_cols);
+    */
 
     bitmap_set_all(table->read_set);
     bitmap_set_all(table->write_set);
-
-    switch (get_general_type_code())
-    {
-      case binary_log::DELETE_ROWS_EVENT:
-        bitmap_intersect(table->read_set,  &m_cols);
-        stage= & stage_rpl_apply_row_evt_delete;
-        break;
-      case binary_log::UPDATE_ROWS_EVENT:
-        bitmap_intersect(table->read_set,  &m_cols);
-        bitmap_intersect(table->write_set, &m_cols_ai);
-        /* Skip update rows events that don't have data for this server's table. */
-        if (!is_any_column_signaled_for_table(table, &m_cols_ai))
-          no_columns_to_update= true;
-        stage= & stage_rpl_apply_row_evt_update;
-        break;
-      case binary_log::WRITE_ROWS_EVENT:
-        /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
-        bitmap_intersect(table->write_set, &m_cols);
-        stage= & stage_rpl_apply_row_evt_write;
-        break;
-      default:
-        DBUG_ASSERT(false);
-    }
 
     /*
       Call mark_generated_columns() to set read_set/write_set bits of the
@@ -10550,9 +10525,57 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       are no spurious fields (all generated columns are required to be written
       into the binlog).
     */
+    switch (get_general_type_code())
+    {
+      case binary_log::DELETE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        stage= & stage_rpl_apply_row_evt_delete;
+        if (m_table->vfield)
+          m_table->mark_generated_columns(false);
+        break;
+      case binary_log::UPDATE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        bitmap_intersect(table->write_set, &m_cols_ai);
+        if (m_table->vfield)
+          m_table->mark_generated_columns(true);
+        /* Skip update rows events that don't have data for this server's table. */
+        if (!is_any_column_signaled_for_table(table, &m_cols_ai))
+          no_columns_to_update= true;
+        stage= & stage_rpl_apply_row_evt_update;
+        break;
+      case binary_log::WRITE_ROWS_EVENT:
+        /*
+          For 'WRITE_ROWS_EVENT, the execution order for 'mark_generated_rows()'
+          and bitset intersection between 'write_set' and 'm_cols', is inverted.
+          This behaviour is necessary due to an inconsistency, between storage
+          engines, regarding the 'm_cols' bitset and generated columns: while
+          non-NDB engines always include the generated columns for write-rows
+          events, NDB doesnot if not necessary. The previous execution order
+          would set all generated columns bits to '1' in 'write_set', since
+          'mark_generated_columns()' is expecting that every column is present
+          in the log event. This would break replication of generated columns
+          for NDB.
 
-    if (m_table->vfield)
-      m_table->mark_generated_columns(get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
+          For engines that include every column in write-rows events, this order 
+          makes no difference, assuming that the master uses the same engine, 
+          since the master will include all the bits in the image.
+
+          For use-cases that use different storage engines, specifically NDB
+          and some other, this order may break replication due to the 
+          differences in behaviour regarding generated columns bits, in 
+          wrote-rows event bitsets. This issue should be further addressed by 
+          storage engines handlers, by converging behaviour regarding such use
+          cases.
+        */
+        /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
+        if (m_table->vfield)
+          m_table->mark_generated_columns(false);
+        bitmap_intersect(table->write_set, &m_cols);
+        stage= & stage_rpl_apply_row_evt_write;
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
 
     if (thd->slave_thread) // set the mode for slave
       this->rbr_exec_mode= slave_exec_mode_options;
