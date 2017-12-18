@@ -36,8 +36,6 @@ extern "C" {
    	Nonblocking IO and event handling need to be rewritten for each new OS.
 */
 
-/* #define USE_SELECT */
-
 #if 0
 void add_base_event(double when, char const *file, int state);
 #define ADD_BASE_EVENT { add_base_event(seconds(),__FILE__, __LINE__); add_event(string_arg(__func__));}
