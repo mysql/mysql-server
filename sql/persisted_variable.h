@@ -26,6 +26,7 @@
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "sql_string.h"
+#include "sql/json_dom.h"
 
 class THD;
 class set_var;
@@ -35,16 +36,25 @@ using std::string;
 using std::map;
 using std::vector;
 
+/**
+  STRUCT st_persist_var
+
+  This structure represents information of a variable which is to
+  be persisted in mysql-auto.cnf file.
+*/
 struct st_persist_var
 {
   string key;
   string value;
-  st_persist_var() {}
-  st_persist_var(const string key, const string value)
-  {
-    this->key= key;
-    this->value= value;
-  }
+  ulonglong timestamp;
+  string user;
+  string host;
+  st_persist_var();
+  st_persist_var(THD *thd);
+  st_persist_var(const st_persist_var& var);
+  st_persist_var(const string key, const string value,
+                 const ulonglong timestamp, const string user,
+                 const string host);
 };
 
 /**
@@ -104,7 +114,7 @@ public:
   /**
     Get persisted static variables
   */
-  map<string, string>* get_persist_ro_variables();
+  map<string, st_persist_var>* get_persist_ro_variables();
   /**
     Append read only persisted variables to command line options with a
     separator.
@@ -119,6 +129,12 @@ private:
     sys_var *system_var, String *str);
   /* Helper function to get variable name */
   static const char* get_variable_name(sys_var *system_var);
+  /* Helper function to construct json formatted string */
+  static String* construct_json_string(string name, string value,
+    ulonglong timestamp, string user, string host, String *dest);
+  /* Helper function to extract variables from json formatted string */
+  bool extract_variables_from_json(Json_dom *dom, bool is_read_only= false);
+
 
 private:
   /* Helper functions for file IO */
@@ -131,7 +147,7 @@ private:
   /* Copy of plugin variables whose plugin is not yet installed */
   vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
-  map<string, string> m_persist_ro_variables;
+  map<string, st_persist_var> m_persist_ro_variables;
 
   mysql_mutex_t m_LOCK_persist_variables;
   static Persisted_variables_cache* m_instance;

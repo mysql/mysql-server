@@ -12212,6 +12212,10 @@ ER_DEPRECATED_NATIONAL
 
 ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
   eng "A commit for an atomic DDL statement was unsuccessful on the master and the slave. The slave supports atomic DDL statements but the master does not, so the action taken by the slave and master might differ. Check that their states have not diverged before proceeding."
+
+ER_PERSIST_OPTION_STATUS
+  eng "Configuring persisted options failed: \"%s\"."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

@@ -121,10 +121,10 @@ SELECT @@global.log_slave_updates;
 @@global.log_slave_updates
 1
 # check contents of persistent config file
-{ "mysql_server": {"mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" } } }
+
 SET @@persist_only.max_connections=99;
 SET PERSIST_ONLY table_open_cache_instances= 8;
-{ "mysql_server": {"max_connections": "99" , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" , "table_open_cache_instances": "8" } } }# try persist_only for dynamic variables
+# try persist_only for dynamic variables
 SELECT @@global.max_connections, @@global.session_track_system_variables;
 @@global.max_connections	@@global.session_track_system_variables
 151	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
@@ -163,8 +163,6 @@ session_track_system_variables
 table_open_cache_instances
 transaction_isolation
 # Restart server with persisted_globals_load disabled.
-# check contents of persistent config file
-{ "mysql_server": {"max_connections": "99" , "session_track_system_variables": "max_connections" , "transaction_isolation": "READ-COMMITTED" , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" , "table_open_cache_instances": "8" } } }
 # should have values different from persistent config file
 SELECT @@global.max_connections, @@global.session_track_system_variables;
 @@global.max_connections	@@global.session_track_system_variables
@@ -373,7 +371,7 @@ COMPILED	NULL	NULL
 SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
 WHERE VARIABLE_NAME = 'max_connections';
 VARIABLE_SOURCE	SET_USER	SET_HOST
-PERSISTED	NULL	NULL
+PERSISTED	root	localhost
 RESET PERSIST;
 #
 # Bug27193853: ASSERT `(0)' AT SYS_VARS.H:2416 FOR SET PERSIST_ONLY
