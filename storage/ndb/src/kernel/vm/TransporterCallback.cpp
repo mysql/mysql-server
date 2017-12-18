@@ -503,7 +503,7 @@ TransporterCallbackKernelNonMT::allocate_send_buffers(
    */
   assert(nTransporters <= maxTransporters);
   m_send_buffers = new SendBuffer[maxTransporters];
-  for (unsigned i = 0; i < maxTransporters; i++)
+  for (int i = 0; i < maxTransporters; i++)
   {
     SendBuffer &b = m_send_buffers[i];
     b.m_first_page = NULL;
