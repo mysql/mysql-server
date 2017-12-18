@@ -822,7 +822,7 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
   while (!var_iter.empty())
   {
     string var_name, var_value, var_user, var_host;
-    ulonglong timestamp;
+    ulonglong timestamp= 0;
     Json_dom *dom_obj;
 
     var_name= var_iter.elt().first;
