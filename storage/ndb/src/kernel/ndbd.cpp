@@ -367,7 +367,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   }
 
   Uint32 sbpages = 0;
-  if (globalTransporterRegistry.get_using_default_send_buffer() == false)
+  if (globalData.isNdbMt)
   {
     /**
      * This path is normally always taken for ndbmtd as the transporter

@@ -524,7 +524,7 @@ SimulatedBlock::getSendBufferLevel(NodeId node, SB_LevelType &level)
 #ifdef NDBD_MULTITHREADED
   mt_getSendBufferLevel(m_threadId, node, level);
 #else
-  globalTransporterRegistry.getSendBufferLevel(node, level);
+  getNonMTTransporterSendHandle()->getSendBufferLevel(node, level);
 #endif
 }
 
@@ -760,9 +760,11 @@ SimulatedBlock::sendSignal(BlockReference ref,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, 0);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-                                               &signal->theData[0], recNode,
-                                               (LinearSectionPtr*)0);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer,
+                       &signal->theData[0], recNode,
+                       (LinearSectionPtr*)0);
 #endif
     
     if (unlikely(! (ss == SEND_OK ||
@@ -867,9 +869,11 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, 0);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer, 
-                                               &signal->theData[0], recNode,
-                                               (LinearSectionPtr*)0);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer, 
+                       &signal->theData[0], recNode,
+                       (LinearSectionPtr*)0);
 #endif
 
     if (unlikely(! (ss == SEND_OK ||
@@ -986,9 +990,11 @@ SimulatedBlock::sendSignal(BlockReference ref,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, ptr);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-                                               &signal->theData[0], recNode,
-                                               ptr);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer,
+                       &signal->theData[0], recNode,
+                       ptr);
 #endif
 
     if (unlikely(! (ss == SEND_OK ||
@@ -1116,9 +1122,11 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, ptr);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-                                               &signal->theData[0], recNode,
-                                               ptr);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer,
+                       &signal->theData[0], recNode,
+                       ptr);
 #endif
 
     if (unlikely(! (ss == SEND_OK ||
@@ -1225,10 +1233,11 @@ SimulatedBlock::sendSignal(BlockReference ref,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-                                               &signal->theData[0], recNode,
-                                               g_sectionSegmentPool,
-                                               sections->m_ptr);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer,
+                       &signal->theData[0], recNode,
+                       g_sectionSegmentPool, sections->m_ptr);
 #endif
 
     if (unlikely(! (ss == SEND_OK ||
@@ -1354,10 +1363,11 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-                                               &signal->theData[0], recNode,
-                                               g_sectionSegmentPool,
-                                               sections->m_ptr);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer,
+                       &signal->theData[0], recNode,
+                       g_sectionSegmentPool, sections->m_ptr);
 #endif
 
     if (unlikely(! (ss == SEND_OK ||
@@ -1484,10 +1494,11 @@ SimulatedBlock::sendSignalNoRelease(BlockReference ref,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-                                               &signal->theData[0], recNode,
-                                               g_sectionSegmentPool,
-                                               sections->m_ptr);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer,
+                       &signal->theData[0], recNode,
+                       g_sectionSegmentPool, sections->m_ptr);
 #endif
 
     if (unlikely(! (ss == SEND_OK ||
@@ -1623,10 +1634,11 @@ SimulatedBlock::sendSignalNoRelease(NodeReceiverGroup rg,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
-    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-                                               &signal->theData[0], recNode,
-                                               g_sectionSegmentPool,
-                                               sections->m_ptr);
+    ss = globalTransporterRegistry.
+           prepareSend(getNonMTTransporterSendHandle(),
+                       &sh, jobBuffer,
+                       &signal->theData[0], recNode,
+                       g_sectionSegmentPool, sections->m_ptr);
 #endif
 
     if (unlikely(! (ss == SEND_OK ||
