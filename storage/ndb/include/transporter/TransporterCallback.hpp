@@ -266,6 +266,20 @@ public:
  */
 class TransporterSendBufferHandle {
 public:
+
+  /**
+   * - Allocate send buffer for default send buffer handling.
+   *
+   * - Upper layer that implements their own TransporterSendBufferHandle do not
+   * - use this, instead they manage their own send buffers.
+   *
+   * Argument is the value of config parameter TotalSendBufferMemory. If 0,
+   * a default will be used of sum(max send buffer) over all transporters.
+   * The second is the config parameter ExtraSendBufferMemory
+   */
+  virtual void allocate_send_buffers(Uint64 total_send_buffer,
+			             Uint64 extra_send_buffer) {};
+
   /**
    * Check that send bufferes are enabled for the specified node.
    * Calling getWritePtr() for a node with a disabled send buffer
@@ -318,5 +332,11 @@ public:
 
   virtual ~TransporterSendBufferHandle() { };
 };
+
+/**
+ * Return the TransporterSendBufferHandle if the 'default' (non-mt) 
+ * implementation of the SendBufferHandle is used, NULL otherwise.
+ */
+TransporterSendBufferHandle *getNonMTTransporterSendHandle();
 
 #endif

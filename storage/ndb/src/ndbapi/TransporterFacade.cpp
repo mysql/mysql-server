@@ -481,7 +481,7 @@ TransporterFacade::start_instance(NodeId nodeId,
   (void)signal(SIGPIPE, SIG_IGN);
 #endif
 
-  theTransporterRegistry = new TransporterRegistry(this, this, false);
+  theTransporterRegistry = new TransporterRegistry(this, this);
   if (theTransporterRegistry == NULL)
     return -1;
 
