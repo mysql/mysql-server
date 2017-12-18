@@ -1982,7 +1982,7 @@ Fil_shard::file_opened(fil_node_t* file)
 
 	file->is_open = true;
 
-	++fil_n_file_opened;
+	fil_n_file_opened = s_n_open;
 }
 
 /** Remove the file node from the LRU list.
@@ -2781,9 +2781,7 @@ Fil_shard::close_file(fil_node_t* file, bool LRU_close)
 
 	--s_n_open;
 
-	ut_a(fil_n_file_opened > 0);
-
-	--fil_n_file_opened;
+	fil_n_file_opened = s_n_open;
 
 	remove_from_LRU(file);
 }
@@ -2822,9 +2820,15 @@ Fil_shard::close_files_in_LRU(bool print_info)
 				<< file->n_pending_flushes;
 		}
 
+		/* Prior to sharding the counters were under a global
+		mutex. Now they are spread across the shards. Therefore
+		it is normal for the modification counter to be out of
+		sync with the flush counter for files that are in differnet
+		shards. */
+
 		if (file->modification_counter != file->flush_counter) {
 
-			ib::warn()
+			ib::info()
 				<< "Cannot close file " << file->name
 				<< ", because modification count "
 				<< file->modification_counter <<
