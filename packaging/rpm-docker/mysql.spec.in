@@ -228,7 +228,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
          test_security_context.so test_services_plugin_registry.so \
-	 udf_example.so \
+         udf_example.so  component_mysqlx_global_reset.so \
          test_udf_services.so component_test_backup_lock_service.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
@@ -398,8 +398,6 @@ rm -r $(readlink var) var
 %changelog
 * Tue Dec 12 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-0.1
 - Removed milestone marker
-
-* Mon Dec 11 2017 Grzegorz Szwarc <grzegorz.szwarc@oracle.com> - 8.0.5-0.1
 - Move mysqlx to default plugin
 
 * Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1

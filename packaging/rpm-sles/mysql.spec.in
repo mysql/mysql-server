@@ -1231,8 +1231,6 @@ fi
 %changelog
 * Tue Dec 12 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-0.1
 - Removed milestone marker
-
-* Mon Dec 11 2017 Grzegorz Szwarc <grzegorz.szwarc@oracle.com> - 8.0.5-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 
