@@ -5026,8 +5026,15 @@ innodb_init(
 	/* After this point, error handling has to use
 	innodb_init_abort(). */
 
-	if (!srv_tmp_space.parse_params(innobase_temp_data_file_path, false)
-	    || !srv_sys_space.parse_params(innobase_data_file_path, true)) {
+	if (!srv_sys_space.parse_params(innobase_data_file_path, true)) {
+		ib::error() << "Unable to parse innodb_data_file_path="
+			    << innobase_data_file_path;
+		DBUG_RETURN(innodb_init_abort());
+	}
+
+	if (!srv_tmp_space.parse_params(innobase_temp_data_file_path, false)) {
+		ib::error() << "Unable to parse innodb_temp_data_file_path="
+			    << innobase_temp_data_file_path;
 		DBUG_RETURN(innodb_init_abort());
 	}
 
