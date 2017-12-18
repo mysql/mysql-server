@@ -31,6 +31,7 @@ SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 --source include/rpl_connection_master.inc
 REVOKE r3 FROM u1@localhost;
+GRANT r1 TO u1@localhost;
 ALTER USER u1@localhost DEFAULT ROLE r1;
 --source include/sync_slave_sql_with_master.inc
 SELECT * FROM mysql.default_roles;
