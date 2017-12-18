@@ -146,7 +146,7 @@ st_persist_var::st_persist_var()
   if (current_thd)
   {
     timeval tv= current_thd->query_start_timeval_trunc(0);
-    timestamp= tv.tv_sec * 1000000;
+    timestamp= tv.tv_sec * 1000000ULL;
   }
   else
     timestamp= my_micro_time();
@@ -155,7 +155,7 @@ st_persist_var::st_persist_var()
 st_persist_var::st_persist_var(THD *thd)
 {
   timeval tv= thd->query_start_timeval_trunc(0);
-  timestamp= tv.tv_sec * 1000000;
+  timestamp= tv.tv_sec * 1000000ULL;
   user= thd->security_context()->user().str;
   host= thd->security_context()->host().str;
 }
