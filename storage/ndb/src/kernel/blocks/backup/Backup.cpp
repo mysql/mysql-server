@@ -101,7 +101,7 @@ static NDB_TICKS startTime;
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_STAT 1
+#define DEBUG_LCP_STAT 1
 #ifdef DEBUG_LCP_STAT
 #define DEB_LCP_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -7283,11 +7283,26 @@ Backup::fragmentCompleted(Signal* signal,
      * the LCP scan in an orderly manner with no rows read. So we
      * should not crash in this case.
      */
-    ndbrequire(errCode != 0 ||
-               ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-      ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
-       (ptr.p->m_row_count >=
-        (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
+    if (!(errCode != 0 ||
+          ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
+          ((ptr.p->m_num_parts_in_this_lcp !=
+            BackupFormat::NDB_MAX_LCP_PARTS) &&
+           (ptr.p->m_row_count >=
+            (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes)))))
+    {
+      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
+                          ", writes: %llu, parts: %u",
+                          errCode,
+                          ptr.p->m_row_count,
+                          filePtr.p->m_lcp_inserts,
+                          filePtr.p->m_lcp_writes,
+                          ptr.p->m_num_parts_in_this_lcp);
+      ndbrequire(errCode != 0 ||
+                 ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
+        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
+         (ptr.p->m_row_count >=
+          (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
+    }
 
     ptr.p->slaveState.setState(STOPPING);
 
