@@ -137,6 +137,21 @@ ERROR HY000: Lost connection to MySQL server during query
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
+*** Crash right after 'GRANT roleA TO user2'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+GRANT roleA TO user2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'GRANT roleA TO user2' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+GRANT roleA TO user2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
 *** Crash right after 'ALTER USER user2 DEFAULT ROLE roleA;'  has been prepared in the engine before being logged ***
 SET @@SESSION.debug="+d,crash_commit_before_log";
 ALTER USER user2 DEFAULT ROLE roleA;;

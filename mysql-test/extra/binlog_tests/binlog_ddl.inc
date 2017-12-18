@@ -84,6 +84,11 @@
 --let $post_binlog_crash_check=SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
+--let $ddl_query=GRANT roleA TO user2
+--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM mysql.role_edges WHERE from_user = 'roleA'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM mysql.role_edges WHERE from_user = 'roleA'
+   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
 --let $ddl_query=ALTER USER user2 DEFAULT ROLE roleA;
 --let $pre_binlog_crash_check=SELECT count(*) = 0 FROM mysql.default_roles WHERE user = 'user2'
 --let $post_binlog_crash_check=SELECT count(*) = 1 FROM mysql.default_roles WHERE user = 'user2'
