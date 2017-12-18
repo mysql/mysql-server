@@ -3646,6 +3646,8 @@ innobase_init(
 
 	/* Supports raw devices */
 	if (!srv_sys_space.parse_params(innobase_data_file_path, true)) {
+		ib::error() << "Unable to parse innodb_data_file_path="
+			    << innobase_data_file_path;
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3668,6 +3670,8 @@ innobase_init(
 	srv_tmp_space.set_flags(fsp_flags);
 
 	if (!srv_tmp_space.parse_params(innobase_temp_data_file_path, false)) {
+		ib::error() << "Unable to parse innodb_temp_data_file_path="
+			    << innobase_temp_data_file_path;
 		DBUG_RETURN(innobase_init_abort());
 	}
 
