@@ -49,9 +49,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Plain connection by sha256 plugin  -> fail (ssl is obligatory)
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
 Ssl connection by sha256 plugin  -> success
 user	plugin
 xuser_sha256	sha256_password
@@ -63,6 +60,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+Plain connection by sha256 plugin  -> fail (ssl is obligatory)
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
 Ssl connection by native plugin  -> fail (wrong password)
 Application terminated with expected error: Invalid user or password (code 1045)
 not ok

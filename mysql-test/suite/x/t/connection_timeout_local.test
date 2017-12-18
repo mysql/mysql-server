@@ -4,6 +4,8 @@
 --echo Preamble
 --source include/xplugin_preamble.inc
 
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
 SHOW VARIABLES LIKE 'mysqlx_connect_timeout';
 show status like 'Mysqlx_conn%';
 
@@ -59,6 +61,7 @@ EOF
 
 SET GLOBAL mysqlx_connect_timeout = 4;
 show status like 'Mysqlx_conn%';
+
 --echo Disconnect user on idle connection after timeout
 --exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp 2>&1
 
@@ -81,7 +84,6 @@ show status like 'Mysqlx_conn%';
 SET GLOBAL mysqlx_connect_timeout = 4;
 --echo Inactivity timer restarted with Session.Reset Message
 --exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --file=$MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp 2>&1
-
 
 --sleep 1
 

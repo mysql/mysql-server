@@ -1,3 +1,4 @@
+# restart
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER xuser_native@'localhost'
 IDENTIFIED WITH 'mysql_native_password' BY 'native';

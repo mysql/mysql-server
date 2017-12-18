@@ -7,7 +7,7 @@ call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unhandled message of typ
 # wait a little to give time for internal temporary session to die out
 select sleep(1);
 --replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
-SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
+SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up' ORDER BY user ASC;
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/session_reset.tmp

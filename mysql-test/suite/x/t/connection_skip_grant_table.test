@@ -10,4 +10,3 @@ call mtr.add_suppression("Maximum number of authentication attempts reached");
 
 --let $USER_AUTH_PLUGIN= 'mysql_native_password'
 --source ../include/connection_skip_grant_table.inc
-

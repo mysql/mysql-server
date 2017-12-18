@@ -14,11 +14,6 @@
 #
 ## Usage
 #
-# TODO(lkotula): The default value for dont_load_mysqlx_cleaner_plugin
-#                must be changed or removed after resolving the problem
-#                with mysqlx as static or dynamic and installing be default
-# --let $dont_load_mysqlx_cleaner_plugin = 1|0 (default 1)
-# --let $dont_load_mysqlx_plugin=1|0 (default 0)
 # --let $wait_for_tcpsocket_status = valid_value|undefined_value|no_wait
 # --let $wait_for_unixsocket_status = valid_value|undefined_value|no_wait
 # --source include/xplugin_preamble.inc

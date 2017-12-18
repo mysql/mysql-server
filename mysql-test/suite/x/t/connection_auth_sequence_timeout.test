@@ -1,9 +1,9 @@
 ## Test cases for authorization plugins
 
 --source include/have_ssl.inc
---let $dont_load_mysqlx_cleaner_plugin = 0
 --source include/xplugin_preamble.inc
-
+--source include/xplugin_create_user.inc
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 #
 ## Setup
@@ -52,7 +52,7 @@ peerdisc 30000 30000;
 
 EOF
 
---let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='AES256-SHA'
+--let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='AES256-SHA'
 
 --source ../include/create_mysql_accounts_for_xplugin_tests.inc
 
@@ -70,5 +70,6 @@ exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.tmp 2>&1;
 --remove_file $MYSQL_TMP_DIR/auth_seq.tmp
 
 --source ../include/remove_mysql_accounts_for_xplugin_tests.inc
+--source include/xplugin_drop_user.inc
 
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;

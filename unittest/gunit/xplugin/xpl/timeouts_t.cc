@@ -84,7 +84,6 @@ TEST_F(Timers_test_suite,
       set_timeout(Vio_interface::Direction::k_read,
                   Global_timeouts::Default::k_interactive_timeout));
 
-  sut.set_is_interactive(true);
   EXPECT_CALL(*mock_connection->m_mock_vio, read(_, _)).After(
       set_timeout_exp);
 
@@ -103,7 +102,6 @@ TEST_F(Timers_test_suite,
   xpl::test::Mock_ngs_client client(temp_connection, mock_server, /* id */ 1,
       mock_protocol_monitor, timeouts);
 
-  client.set_is_interactive(true);
   client.set_wait_timeout(timeouts.interactive_timeout);
 
   EXPECT_CALL(*temp_connection->m_mock_vio,
@@ -142,17 +140,22 @@ TEST_F(Timers_test_suite, read_one_message_default_read_timeout)
 
   const std::size_t buff_size = 4;
   union {
-    char buffer[4];
+    char buffer[5];
     longlong dummy;
   };
   for (int i = 1; i < 4; i++)
     buffer[i] = 0;
-  buffer[0] = 4;
+  buffer[0] = 1; // Payload size
+  buffer[4] = 1; // Message id (CapGet)
 
   //Expected to be called twice - once for header and once for payload
-  EXPECT_CALL(*mock_connection->m_mock_vio, read(_, _)).Times(2).WillRepeatedly(
-      DoAll(SetArrayArgument<0>(buffer, buffer + buff_size),
-            Return(buff_size)));
+  EXPECT_CALL(*mock_connection->m_mock_vio, read(_, _)).Times(2).
+      WillOnce(DoAll(SetArrayArgument<0>(buffer, buffer + buff_size),
+                     Return(buff_size))).
+      WillOnce(DoAll(SetArrayArgument<0>(
+                       buffer + buff_size,
+                       buffer + buff_size + 1),
+                     Return(1)));
   EXPECT_CALL(*mock_connection->m_mock_vio, set_state(_)).Times(2);
   EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(2);
 
@@ -184,17 +187,23 @@ TEST_F(Timers_test_suite, read_one_message_custom_read_timeout)
 
   const std::size_t buff_size = 4;
   union {
-    char buffer[4];
+    char buffer[5];
     longlong dummy;
   };
-  for (int i = 1; i < 4; i++)
+
+  for (int i = 1; i < 5; i++)
     buffer[i] = 0;
-  buffer[0] = 4;
+  buffer[0] = 1; // Payload size
+  buffer[4] = 1; // Message id (CapGet)
 
   //Expected to be called twice - once for header and once for payload
-  EXPECT_CALL(*temp_connection->m_mock_vio, read(_, _)).Times(2).WillRepeatedly(
-      DoAll(SetArrayArgument<0>(buffer, buffer + buff_size),
-            Return(buff_size)));
+  EXPECT_CALL(*temp_connection->m_mock_vio, read(_, _)).Times(2).
+      WillOnce(DoAll(SetArrayArgument<0>(buffer, buffer + buff_size),
+                     Return(buff_size))).
+      WillOnce(DoAll(SetArrayArgument<0>(
+                       buffer + buff_size,
+                       buffer + buff_size + 1),
+                     Return(1)));
   EXPECT_CALL(*temp_connection->m_mock_vio, set_state(_)).Times(2);
   EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(2);
 

@@ -1,7 +1,6 @@
 ## Test cases for authorization plugins
 
 --source include/have_ssl.inc
---let $dont_load_mysqlx_cleaner_plugin = 0
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
@@ -49,5 +48,5 @@ exec $MYSQLXTEST
 #
 --remove_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
 --source include/xplugin_drop_user.inc
-
 DROP USER xuser_ssl@localhost;
+
