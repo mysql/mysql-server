@@ -1200,6 +1200,114 @@ class Ndb_binlog_setup {
 
 
   bool
+  install_table_from_NDB(THD *thd,
+                         const char *schema_name,
+                         const char *table_name,
+                         bool force_overwrite = false)
+  {
+    DBUG_ENTER("install_table_from_NDB");
+    DBUG_PRINT("enter", ("schema_name: %s, table_name: %s",
+                         schema_name, table_name));
+
+    Thd_ndb* thd_ndb = get_thd_ndb(thd);
+    Ndb* ndb = thd_ndb->ndb;
+    NDBDICT* dict = ndb->getDictionary();
+
+    if (ndb->setDatabaseName(schema_name))
+    {
+      DBUG_PRINT("error", ("Failed to set database name of Ndb object"));
+      DBUG_RETURN(false);
+    }
+
+    Ndb_table_guard ndbtab_g(dict, table_name);
+    const NDBTAB *tab= ndbtab_g.get_table();
+    if (!tab)
+    {
+      // Could not open the table from NDB
+      const NdbError err= dict->getNdbError();
+      if (err.code == 709 || err.code == 723)
+      {
+        // Got the normal 'No such table existed'
+        DBUG_PRINT("info", ("No such table, error: %u", err.code));
+        DBUG_RETURN(false);
+      }
+
+      // Got an unexpected error
+      DBUG_PRINT("error", ("Got unexpected error when trying to open table "
+                           "from NDB, error %u", err.code));
+      DBUG_ASSERT(false); // Catch in debug
+      DBUG_RETURN(false);
+    }
+
+    DBUG_PRINT("info", ("Found NDB table '%s'", table_name));
+
+    dd::sdi_t sdi;
+    {
+      Uint32 version;
+      void* unpacked_data;
+      Uint32 unpacked_len;
+      const int get_result =
+          tab->getExtraMetadata(version,
+                                &unpacked_data, &unpacked_len);
+      if (get_result != 0)
+      {
+        DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
+                             get_result));
+        DBUG_RETURN(false);
+      }
+
+      if (version != 2)
+      {
+        free(unpacked_data);
+        DBUG_PRINT("error", ("Found extra metadata with unsupported "
+                             "version: %d", version));
+        DBUG_RETURN(false);
+      }
+
+      sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
+
+      free(unpacked_data);
+    }
+
+
+    // Found table, now install it in DD
+    Ndb_dd_client dd_client(thd);
+
+    // First acquire exclusive MDL lock on schema and table
+    if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
+    {
+      DBUG_RETURN(false);
+    }
+
+    if (!dd_client.install_table(schema_name, table_name,
+                                 sdi,
+                                 tab->getObjectId(), tab->getObjectVersion(),
+                                 force_overwrite))
+    {
+      DBUG_RETURN(false);
+    }
+
+    const dd::Table* table_def;
+    if (!dd_client.get_table(schema_name, table_name, &table_def))
+    {
+      DBUG_RETURN(false);
+    }
+
+    // Check if binlogging should be setup for this table
+    if (ndbcluster_binlog_setup_table(thd, ndb,
+                                      schema_name, table_name,
+                                      table_def))
+    {
+      DBUG_RETURN(false);
+    }
+
+    dd_client.commit();
+
+    DBUG_RETURN(true); // OK
+  }
+
+
+  bool
   synchronize_table(const char* schema_name,
                     const char* table_name)
   {
@@ -1288,8 +1396,8 @@ class Ndb_binlog_setup {
       ndb_log_info("Table '%s.%s' does not exist in DD, installing...",
                    schema_name, table_name);
 
-      if (ndb_create_table_from_engine(m_thd, schema_name, table_name,
-                                       false /* need overwrite */))
+      if (!install_table_from_NDB(m_thd, schema_name, table_name,
+                                 false /* need overwrite */))
       {
         // Failed to install into DD or setup binlogging
         ndb_log_error("Failed to install table '%s.%s'",
@@ -1328,8 +1436,8 @@ class Ndb_binlog_setup {
     {
       ndb_log_info("Table '%s.%s' have different version in DD, reinstalling...",
                      schema_name, table_name);
-      if (ndb_create_table_from_engine(m_thd, schema_name, table_name,
-                                       true /* need overwrite */))
+      if (!install_table_from_NDB(m_thd, schema_name, table_name,
+                                 true /* need overwrite */))
       {
         // Failed to create table from NDB
         ndb_log_error("Failed to install table '%s.%s' from NDB",
