@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -689,16 +689,9 @@ namespace connection_control
         Successful connection.
         delete entry for given account from the hash
       */
-      if (user_present && m_userhost_hash.remove_entry(userhost))
+      if (user_present)
       {
-        char error_buffer[512];
-        memset(error_buffer, 0, sizeof(error_buffer));
-        my_snprintf(error_buffer, sizeof(error_buffer) - 1,
-                    "Failed to delete connection delay hash entry for acount : %s."
-                    " It might have been deleted already.",
-                    userhost.c_str());
-        error_handler->handle_error(error_buffer);
-        error= true;
+        (void) m_userhost_hash.remove_entry(userhost);
       }
     }
 
