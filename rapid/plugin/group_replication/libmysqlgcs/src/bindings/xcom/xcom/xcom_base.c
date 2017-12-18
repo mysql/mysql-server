@@ -258,6 +258,10 @@
 #include <windows.h>
 #endif
 
+#ifndef _WIN32
+#include <poll.h>
+#endif
+
 #include "xdr_utils.h"
 #include "xcom_common.h"
 
@@ -4624,136 +4628,109 @@ static inline result xcom_shut_close_socket(int *sock)
 	return res;
 }
 
+#define CONNECT_FAIL ret_fd = -1; goto end
+
 static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
 {
-  struct timeval timeout;
-  fd_set rfds, wfds, efds;
-  int res;
+  int timeout = 10000;
+  int ret_fd = fd;
+  int syserr;
+  int sysret;
+  struct pollfd fds;
 #ifdef WITH_LOG_DEBUG
   char buf[SYS_STRERROR_SIZE];
 #endif
 
-  timeout.tv_sec=  10;
-  timeout.tv_usec= 0;
-
-  FD_ZERO(&rfds);
-  FD_ZERO(&wfds);
-  FD_ZERO(&efds);
-  FD_SET(fd, &rfds);
-  FD_SET(fd, &wfds);
-  FD_SET(fd, &efds);
+  fds.fd = fd;
+  fds.events = POLLOUT;
+  fds.revents = 0;
 
   /* Set non-blocking */
-  if(unblock_fd(fd) < 0)
+  if (unblock_fd(fd) < 0)
     return -1;
 
   /* Trying to connect with timeout */
-  res= connect(fd, sock_addr, sock_size);
+  SET_OS_ERR(0);
+  sysret = connect(fd, sock_addr, sock_size);
 
-#if defined (WIN32) || defined (WIN64)
-  if (res == SOCKET_ERROR)
-  {
-    res= WSAGetLastError();
-    /* If the error is WSAEWOULDBLOCK, wait. */
-    if (res == WSAEWOULDBLOCK)
-    {
-      MAY_DBG(FN; STRLIT("connect - error=WSAEWOULDBLOCK. Invoking select..."); );
-#else
-  if (res < 0)
-  {
-    if (errno == EINPROGRESS)
-    {
-      MAY_DBG(FN; STRLIT("connect - errno=EINPROGRESS. Invoking select..."); );
-#endif
-      res= select(fd + 1, &rfds, &wfds, &efds, &timeout);
-      MAY_DBG(FN; STRLIT("select - Finished. "); NEXP(res, d));
-      if (res == 0)
-      {
-        G_DEBUG("Timed out while waiting for connection to be established! "
-                "Cancelling connection attempt. (socket= %d, error=%d)",
-                fd, res);
-        G_DEBUG("select - Timeout! Cancelling connection...");
-        return -1;
-      }
-#if defined (WIN32) || defined (WIN64)
-      else if (res == SOCKET_ERROR)
-      {
-        G_DEBUG("select - Error while connecting! (socket= %d, error=%d)", fd,
-                WSAGetLastError());
-#else
-      else if (res < 0)
-      {
-        G_DEBUG("select - Error while connecting! (socket= %d, error=%d, error "
-                "msg='%s')",
-                fd, errno, strerror(errno));
-#endif
-        return -1;
-      }
-      else
-      {
-        if (FD_ISSET(fd, &wfds) || FD_ISSET(fd, &rfds))
-        {
-          MAY_DBG(FN; STRLIT("select - Socket ready!"); );
-        }
+  if (is_socket_error(sysret)) {
+    syserr = GET_OS_ERR;
+    /* If the error is SOCK_EWOULDBLOCK or SOCK_EINPROGRESS or SOCK_EALREADY,
+     * wait. */
+    switch (syserr) {
+      case SOCK_EWOULDBLOCK:
+      case SOCK_EINPROGRESS:
+      case SOCK_EALREADY:
+        break;
+      default:
+        G_DEBUG("connect - Error connecting (socket=%d, error=%d).",
+                fd, GET_OS_ERR);
+        CONNECT_FAIL;
+    }
 
-        if (FD_ISSET(fd, &efds))
-        {
-          /*
-            This is a non-blocking socket, so one needs to
-            find the issue that triggered the exception.
-           */
-          int socket_errno= 0;
-          socklen_t socket_errno_len= sizeof(errno);
-          if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_errno,
-                         &socket_errno_len))
-          {
-            G_DEBUG("Connection to socket %d failed. Unable to sort out the "
-                    "connection error!",
-                    fd);
-          }
-          else
-          {
-            G_DEBUG("Connection to socket %d failed with error %d - %s.", fd,
-                    socket_errno, strerr_msg(buf, sizeof(buf), socket_errno));
-          }
-          return -1;
+    SET_OS_ERR(0);
+    while ((sysret = poll(&fds, 1, timeout)) < 0) {
+      syserr = GET_OS_ERR;
+      if (syserr != SOCK_EINTR && syserr != SOCK_EINPROGRESS) break;
+      SET_OS_ERR(0);
+    }
+    MAY_DBG(FN; STRLIT("poll - Finished. "); NEXP(sysret, d));
+
+    if (sysret == 0) {
+      G_DEBUG(
+          "Timed out while waiting for connection to be established! "
+          "Cancelling connection attempt. (socket= %d, error=%d)",
+          fd, res);
+      /*G_WARNING("poll - Timeout! Cancelling connection...");*/
+      CONNECT_FAIL;
+    }
+
+    if (is_socket_error(sysret)) {
+      G_DEBUG("poll - Error while connecting! (socket= %d, error=%d)"
+              fd, GET_OS_ERR);
+      CONNECT_FAIL;
+    }
+
+    {
+      int socket_errno = 0;
+      socklen_t socket_errno_len = sizeof(socket_errno);
+
+      if ((fds.revents & POLLOUT) == 0) {
+        MAY_DBG(FN; STRLIT("POLLOUT not set - Socket failure!"););
+        ret_fd = -1;
+      }
+
+      if (fds.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        MAY_DBG(FN;
+                STRLIT("POLLERR | POLLHUP | POLLNVAL set - Socket failure!"););
+        ret_fd = -1;
+      }
+
+      if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_errno,
+                     &socket_errno_len) != 0) {
+        G_DEBUG("getsockopt socket %d failed.", fd);
+        ret_fd = -1;
+      } else {
+        if (socket_errno != 0) {
+          G_DEBUG("Connection to socket %d failed with error %d - %s.", fd,
+                  socket_errno, strerr_msg(buf, sizeof(buf), socket_errno));
+          ret_fd = -1;
         }
       }
     }
-    else
-    {
-#if defined (WIN32) || defined (WIN64)
-      G_DEBUG("connect - Error connecting (socket=%d, error=%d).", fd,
-              WSAGetLastError());
-#else
-      G_DEBUG("connect - Error connecting (socket=%d, error=%d, error "
-              "message='%s').",
-              fd, errno, strerror(errno));
-#endif
-      return -1;
-    }
-  }
-  else
-  {
-    MAY_DBG(FN; STRLIT("connect - Connected to socket without waiting!"); );
   }
 
+end:
   /* Set blocking */
-  if(block_fd(fd) < 0)
-  {
-#if defined (WIN32) || defined (WIN64)
+  SET_OS_ERR(0);
+  if(block_fd(fd) < 0) {
     G_DEBUG(
         "Unable to set socket back to blocking state. (socket=%d, error=%d).",
-        fd, WSAGetLastError());
-#else
-    G_DEBUG("Unable to set socket back to blocking state. (socket=%d, "
-            "error=%d, error message='%s').",
-            fd, errno, strerror(errno));
-#endif
+        fd, GET_OS_ERR);
     return -1;
   }
 
-  return fd;
+  return ret_fd;
 }
 
 

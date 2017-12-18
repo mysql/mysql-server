@@ -34,11 +34,12 @@ extern "C" {
 #define SOCK_EAGAIN WSAEINPROGRESS
 #define SOCK_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCK_EINPROGRESS WSAEINPROGRESS
+#define SOCK_EALREADY WSAEALREADY
+#define SOCK_ECONNREFUSED WSAECONNREFUSED
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_EXCLUSIVEADDRUSE
 #define GET_OS_ERR  WSAGetLastError()
 #define SET_OS_ERR(x) WSASetLastError(x)
-#define SOCK_ECONNREFUSED WSAECONNREFUSED
 #define CLOSESOCKET(x) closesocket(x)
 
   static inline int hard_connect_err(int err)
@@ -63,6 +64,11 @@ static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
   return WSAPoll(fds, nfds, timeout);
 }
 
+static inline int is_socket_error(int x)
+{
+ return x == SOCKET_ERROR || x < 0;
+}
+
 #else
 #include <unistd.h>
 #include <sys/socket.h>
@@ -81,11 +87,12 @@ static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
 #define SOCK_EAGAIN EAGAIN
 #define SOCK_EWOULDBLOCK EWOULDBLOCK
 #define SOCK_EINPROGRESS EINPROGRESS
+#define SOCK_EALREADY EALREADY
+#define SOCK_ECONNREFUSED ECONNREFUSED
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_REUSEADDR
 #define GET_OS_ERR errno
 #define SET_OS_ERR(x) errno = (x)
-#define SOCK_ECONNREFUSED ECONNREFUSED
 #define CLOSESOCKET(x) close(x)
 
   static inline int hard_connect_err(int err)
@@ -99,6 +106,11 @@ static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
   }
 
 typedef struct pollfd pollfd;
+
+static inline int is_socket_error(int x)
+{
+ return x < 0;
+}
 
 #endif
 
