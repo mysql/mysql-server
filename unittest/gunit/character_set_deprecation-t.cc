@@ -40,7 +40,6 @@ protected:
 
   void TearDown() override {
     ParserTest::TearDown();
-    thd()->lex->will_contextualize= true;
     national_charset_info = m_saved_cs;
   }
 
