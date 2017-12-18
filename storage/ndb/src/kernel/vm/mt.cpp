@@ -7231,5 +7231,4 @@ mt_get_trp_receive_handle(unsigned instance)
  */
 static struct trp_callback g_trp_callback;
 
-TransporterRegistry globalTransporterRegistry(&g_trp_callback, NULL,
-                                              false);
+TransporterRegistry globalTransporterRegistry(&g_trp_callback, NULL);

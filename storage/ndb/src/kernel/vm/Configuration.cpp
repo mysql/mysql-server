@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -318,13 +318,21 @@ Configuration::setupConfiguration(){
 	      "I'm wrong type of node");
   }
 
-  Uint32 total_send_buffer = 0;
-  iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
-  Uint64 extra_send_buffer = 0;
-  iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
-  globalTransporterRegistry.allocate_send_buffers(total_send_buffer,
-                                                  extra_send_buffer);
-  
+  /**
+   * Iff we use the 'default' (non-mt) send buffer implementation, the
+   * send buffers are allocated here.
+   */
+  if (getNonMTTransporterSendHandle() != NULL)
+  {
+    Uint32 total_send_buffer = 0;
+    iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
+    Uint64 extra_send_buffer = 0;
+    iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
+    getNonMTTransporterSendHandle()->
+      allocate_send_buffers(total_send_buffer,
+                            extra_send_buffer);
+  }
+
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "MaxNoOfSavedMessages missing");
