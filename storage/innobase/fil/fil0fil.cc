@@ -1159,7 +1159,6 @@ private:
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Check for pending IO.
-	@param[in]	operation	File operation
 	@param[in]	space		Tablespace to check
 	@param[in]	file		File in space list
 	@param[in]	count		number of attempts so far
@@ -3033,7 +3032,7 @@ Fil_shard::mutex_acquire_and_get_space(
 
 #ifdef UNIV_DEBUG
 	/* The magic value of 300 comes from innodb.open_file_lru.test */
-	if (s_n_open == 300) {
+	if (fil_system->m_max_n_open == 300) {
 		ib::warn()
 			<< "Too many (" << s_n_open
 			<< ") files are open the maximum allowed"
