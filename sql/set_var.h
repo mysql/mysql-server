@@ -176,8 +176,10 @@ public:
   {
     strcpy(option.arg_source->m_path_name, path);
   }
+  void set_user(const char* usr) { strcpy(user, usr); }
   const char* get_user() { return user; }
   const char* get_host() { return host; }
+  void set_host(const char* hst) { strcpy(host, hst); }
   ulonglong get_timestamp() const { return timestamp; }
   void set_user_host(THD* thd);
   my_option* get_option() { return &option; }
@@ -185,6 +187,7 @@ public:
   {
     timestamp= my_micro_time();
   }
+  void set_timestamp(ulonglong ts) { timestamp= ts; }
   void clear_user_host_timestamp()
   {
     user[0] = '\0';
