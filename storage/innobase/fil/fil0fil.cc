@@ -11171,7 +11171,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 
 		for (auto id : space_ids) {
 
-			if (space_id != id) {
+			if (space_id != id && id != 0) {
 
 				space_id = ULINT32_UNDEFINED;
 
