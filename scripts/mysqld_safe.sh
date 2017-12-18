@@ -905,8 +905,6 @@ have_sleep=1
 while true
 do
   start_time=`date +%M%S`
-  echo $cmd
-
   eval_log_error "$cmd"
   if [ $? -eq 16 ] ; then
     dont_restart_mysqld=false
