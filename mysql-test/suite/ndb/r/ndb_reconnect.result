@@ -56,5 +56,3 @@ CREATE TRIGGER trg2 BEFORE UPDATE ON t2 FOR EACH ROW BEGIN
 SET new.c = '1901-01-01 01:01:01';
 End //
 drop table t1, t2;
-create table information_schema.t1(a int, b varchar(10), c date) engine=ndb;
-ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'

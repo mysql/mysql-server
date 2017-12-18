@@ -12,3 +12,14 @@ SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'ndbinfo
 SELECT
   IF(count(table_name) > 10, 'Yes', 'No') as 'Have more than 10 ndbinfo tables'
   FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
+
+--echo #
+--echo # Check that it's not possible to create a NDB table
+--echo # in the information_schema database
+--echo #
+--error ER_DBACCESS_DENIED_ERROR
+create table information_schema.t1(
+  a int,
+  b varchar(10),
+  c date
+) engine=ndb;
