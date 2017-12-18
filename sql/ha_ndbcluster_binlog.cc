@@ -1323,7 +1323,6 @@ class Ndb_binlog_setup {
       const int get_result =
           ndbtab->getExtraMetadata(version,
                                    &unpacked_data, &unpacked_length);
-      free(unpacked_data);
 
       if (get_result != 0)
       {
@@ -1334,6 +1333,7 @@ class Ndb_binlog_setup {
         return false;
       }
 
+      free(unpacked_data);
 
       if (version != 2)
       {
