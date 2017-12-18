@@ -2198,9 +2198,8 @@ Dbtup::handle_lcp_keep(Signal* signal,
      * current page temporarily. This can be found in copytuple[0]
      * where handle_lcp_keep_commit puts it.
      */
-    remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
-
     c_backup->change_current_page_temp(copytuple[0]);
+    remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
     DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u,%u): Handle LCP keep insert entry",
                   instance(),
                   fragPtr.p->fragTableId,
