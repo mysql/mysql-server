@@ -318,7 +318,7 @@ static const size_t	UNDO_SHARDS_START = 0;
 #endif /* !UNIV_HOTBACKUP */
 
 /** Maximum pages to check for valid space ID during start up. */
-static const size_t	MAX_PAGES_TO_CHECK = 4;
+static const size_t	MAX_PAGES_TO_CHECK = 3;
 
 /** Sentinel for empty open slot. */
 static const size_t	EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
@@ -11169,7 +11169,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 
 		for (auto id : space_ids) {
 
-			if (space_id != id && id != 0) {
+			if (space_id != id) {
 
 				space_id = ULINT32_UNDEFINED;
 
