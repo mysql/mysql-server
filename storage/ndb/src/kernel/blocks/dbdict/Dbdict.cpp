@@ -6449,14 +6449,15 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       }
     }
 
-    list.seizeLast(attrPtr);
-    if(attrPtr.i == RNIL){
+    if (!c_attributeRecordPool.seize(attrPtr))
+    {
       jam();
       parseP->errorCode = CreateTableRef::NoMoreAttributeRecords;
       return;
     }
+    attrPtr.p = new (attrPtr.p) AttributeRecord();
+    list.addLast(attrPtr);
 
-    new (attrPtr.p) AttributeRecord();
     attrPtr.p->attributeDescriptor = 0x00012255; //Default value
     attrPtr.p->tupleKey = 0;
 
