@@ -3032,12 +3032,15 @@ Fil_shard::mutex_acquire_and_get_space(
 	}
 
 #ifdef UNIV_DEBUG
-	ib::warn()
-		<< "Too many (" << s_n_open
-		<< ") files are open the maximum allowed"
-		<< " value is " << fil_system->m_max_n_open
-		<< ". You should raise the value of"
-		<< " --innodb-open-files in my.cnf.";
+	/* The magic value of 300 comes from innodb.open_file_lru.test */
+	if (s_n_open == 300) {
+		ib::warn()
+			<< "Too many (" << s_n_open
+			<< ") files are open the maximum allowed"
+			<< " value is " << fil_system->m_max_n_open
+			<< ". You should raise the value of"
+			<< " --innodb-open-files in my.cnf.";
+	}
 #endif /* UNIV_DEBUG */
 
 	mutex_acquire();
