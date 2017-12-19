@@ -1241,13 +1241,14 @@ class Ndb_binlog_setup {
       free(unpacked_data);
     }
 
-
     // Found table, now install it in DD
     Ndb_dd_client dd_client(thd);
 
     // First acquire exclusive MDL lock on schema and table
     if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
     {
+      ndb_log_error("Couldn't acquire exclusive metadata locks on '%s.%s'",
+                    schema_name, table_name);
       DBUG_RETURN(false);
     }
 
@@ -1257,12 +1258,17 @@ class Ndb_binlog_setup {
                                  ndbtab->getObjectVersion(),
                                  force_overwrite))
     {
+      // Failed to install table
+      ndb_log_warning("Failed to install table '%s.%s'",
+                      schema_name, table_name);
       DBUG_RETURN(false);
     }
 
     const dd::Table* table_def;
     if (!dd_client.get_table(schema_name, table_name, &table_def))
     {
+      ndb_log_error("Couldn't open table '%s.%s' from DD after install",
+                    schema_name, table_name);
       DBUG_RETURN(false);
     }
 

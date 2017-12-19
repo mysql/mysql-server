@@ -62,7 +62,6 @@ ndb_dd_alter: Need WL#9185 MySQL Cluster support for new DD
 # time when running schema distribution synchronization during mysqld restart
 # Should find a different way to wait for "not readonly"
 ndb_share: Need WL#9185 MySQL Cluster support for new DD
-ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
 
 # Problem with distributed privilege tables in combination with shadow
 # table behaviour causing the DD come severly out of synch on participants

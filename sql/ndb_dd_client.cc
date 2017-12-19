@@ -308,6 +308,102 @@ Ndb_dd_client::drop_table(const char* schema_name,
 
 
 bool
+Ndb_dd_client::store_table(dd::Table* install_table, int ndb_table_id)
+{
+  DBUG_ENTER("Ndb_dd_client::store_table");
+
+  if (!m_client->store(install_table))
+  {
+    DBUG_RETURN(true); // OK
+  }
+
+  DBUG_PRINT("error", ("Failed to store table, error: '%d %s'",
+                       m_thd->get_stmt_da()->mysql_errno(),
+                       m_thd->get_stmt_da()->message_text()));
+
+  if (m_thd->get_stmt_da()->mysql_errno() == ER_DUP_ENTRY)
+  {
+    // Try to handle the failure which may occur when the DD already
+    // have a table definition from an old NDB table which used the
+    // same table id but with a different name.
+    // This may happen when the MySQL Server reconnects to the cluster
+    // and synchronizes its DD with NDB dictionary. Of course it indicates
+    // that the DD is out of synch with the dictionary in NDB but that's
+    // normal when the MySQL Server haven't taken part in DDL operations.
+    // And as usual NDB is the master for all NDB tables.
+
+    // Remove the current ER_DUP_ENTRY error, subsequent failures
+    // will set a new error
+    m_thd->clear_error();
+
+    // Find old table using the NDB tables id
+    dd::Table* old_table_def;
+    if (m_client->acquire_uncached_table_by_se_private_id("ndbcluster",
+                                                          ndb_table_id,
+                                                          &old_table_def))
+    {
+      // There was no old table
+      DBUG_RETURN(false);
+    }
+
+    // Double check that old table is in NDB
+    if (old_table_def->engine() != "ndbcluster")
+    {
+      DBUG_ASSERT(false);
+      DBUG_RETURN(false);
+    }
+
+    // Lookup schema name of old table
+    dd::Schema *old_schema;
+    if (m_client->acquire_uncached(old_table_def->schema_id(), &old_schema))
+    {
+      DBUG_RETURN(false);
+    }
+
+    if (old_schema == nullptr)
+    {
+      DBUG_ASSERT(false); // Database does not exist
+      DBUG_RETURN(false);
+    }
+
+    const char* old_schema_name = old_schema->name().c_str();
+    const char* old_table_name = old_table_def->name().c_str();
+    DBUG_PRINT("info", ("Found old table '%s.%s', will try to remove it",
+                        old_schema_name, old_table_name));
+
+    // Take exclusive locks on old table
+    if (!mdl_locks_acquire_exclusive(old_schema_name, old_table_name))
+    {
+      // Failed to MDL lock old table
+      DBUG_RETURN(false);
+    }
+
+    if (!drop_table(old_schema_name, old_table_name))
+    {
+      // Failed to drop old table
+      DBUG_RETURN(false);
+    }
+
+    // Try to store the new table again
+    if (m_client->store(install_table))
+    {
+      DBUG_PRINT("error", ("Failed to store table, error: '%d %s'",
+                           m_thd->get_stmt_da()->mysql_errno(),
+                           m_thd->get_stmt_da()->message_text()));
+      DBUG_RETURN(false);
+    }
+
+    // Removed old table and stored the new, return OK
+    DBUG_ASSERT(!m_thd->is_error());
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+
+bool
 Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
                              const dd::sdi_t& sdi,
                              int ndb_table_id, int ndb_table_version,
@@ -398,13 +494,13 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
     }
   }
 
-  if (m_client->store(install_table.get()))
+  if (!store_table(install_table.get(), ndb_table_id))
   {
     DBUG_ASSERT(false); // Failed to store
     return false;
   }
 
-  return true;
+  return true; // OK
 }
 
 bool

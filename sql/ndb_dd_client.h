@@ -55,6 +55,8 @@ class Ndb_dd_client {
 
   void disable_autocommit();
 
+  bool store_table(dd::Table* install_table, int ndb_table_id);
+
 public:
   Ndb_dd_client(class THD* thd);
 
