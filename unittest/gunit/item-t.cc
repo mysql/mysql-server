@@ -360,7 +360,7 @@ TEST_F(ItemTest, ItemEqual)
                    new Item_field(&mft));
   
   EXPECT_FALSE(item_equal->fix_fields(thd(), NULL));
-  EXPECT_EQ(0, item_equal->val_int());
+  EXPECT_EQ(1, item_equal->val_int());
 }
 
 

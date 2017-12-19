@@ -1474,7 +1474,7 @@ public:
     @return
       New cmp_item_xxx object.
   */
-  static cmp_item* get_comparator(Item_result type, const Item *item,
+  static cmp_item* get_comparator(Item_result result_type, const Item *item,
                                   const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item*, Item *item)
