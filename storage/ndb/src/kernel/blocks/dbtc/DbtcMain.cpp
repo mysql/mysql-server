@@ -18654,6 +18654,9 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
   indexOpPtr.p = indexOp;
   tcRollbackRep =  (TcRollbackRep *)signal->getDataPtrSend();
   tcRollbackRep->connectPtr = indexOp->tcIndxReq.senderData;
+  ApiConnectRecordPtr apiConnectptr;
+  apiConnectptr.i = indexOp->tcIndxReq.apiConnectPtr;
+  ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   sendSignal(apiConnectptr.p->ndbapiBlockref, 
 	     GSN_TCROLLBACKREP, signal, TcRollbackRep::SignalLength, JBB);
 }
