@@ -393,14 +393,19 @@ SET(CONFIG_LIBS_PRIVATE "${CLIENT_LIBS}")
 SET(CONFIG_REQUIRES_PRIVATE "")
 # ssl.cmake should have used pkg-config rather than cmake to locate ssl
 IF (WITH_SSL STREQUAL "system")
-  SET(CONFIG_REQUIRES_PRIVATE "openssl")
-  STRING(REPLACE "-lssl" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
-  STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
-  STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  # We have implemented "system" for other platforms as well, but those
+  # are non-native packages.
+  IF(LINUX OR SOLARIS OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+    SET(CONFIG_REQUIRES_PRIVATE "openssl")
+    STRING(REPLACE "-lssl" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+    STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+    STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  ENDIF()
 ENDIF()
 
 # libmysqlclient.dylib will depend on @loader_path/libssl.1.0.0.dylib
-IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+# However, libmysqlclient.a has no such dependency, so output SSL libs anyways.
+IF(FALSE AND APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
   STRING(REPLACE "-lssl" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
   STRING(REPLACE "-lcrypto" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
   STRING(REGEX REPLACE "[ ]+" " " CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
