@@ -1662,13 +1662,6 @@ row_geo_field_is_valid(
 		return(false);
 	}
 
-	uchar* dptr = static_cast<uchar*>(dfield_get_data(dfield));
-	uint32_t srid = uint4korr(dptr);
-
-	if (index->srid_is_valid && index->srid != srid) {
-		return false;
-	}
-
 	return(true);
 }
 
