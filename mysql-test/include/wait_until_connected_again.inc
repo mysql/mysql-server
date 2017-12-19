@@ -5,7 +5,7 @@
 --disable_query_log
 let $counter= 1000;
 if ($VALGRIND_TEST) {
-  let $counter= 3000;
+  let $counter= 9000;
 }
 if ($explicit_time_out_counter) {
  let $counter=$explicit_time_out_counter;
