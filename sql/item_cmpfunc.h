@@ -79,9 +79,9 @@ class Arg_comparator: public Sql_alloc
   bool set_null;                   // TRUE <=> set owner->null_value
                                    //   when one of arguments is NULL.
   longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               Item *warn_item, bool *is_null);
+                               const Item *warn_item, bool *is_null);
   longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               Item *warn_item, bool *is_null);
+                               const Item *warn_item, bool *is_null);
   bool try_year_cmp_func(Item_result type);
   static bool get_date_from_const(Item *date_arg, Item *str_arg,
                                   ulonglong *value);
@@ -1465,7 +1465,19 @@ public:
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(const cmp_item *item) const= 0;
-  static cmp_item* get_comparator(Item_result type, const CHARSET_INFO *cs);
+
+  /**
+    Find the appropriate comparator for the given type.
+
+    @param result_type  Used to find the appropriate comparator.
+    @param item         Item object used to distinguish temporal types.
+    @param cs           Charset
+
+    @return
+      New cmp_item_xxx object.
+  */
+  static cmp_item* get_comparator(Item_result type, const Item *item,
+                                  const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item*, Item *item)
   {
@@ -1553,8 +1565,9 @@ public:
 };
 
 /*
-  Compare items in the DATETIME context.
-  Values are obtained with help of the get_datetime_value() function.
+  Compare items of temporal type.
+  Values are obtained with: get_datetime_value() (DATE/DATETIME/TIMESTAMP) and
+                            get_time_value() (TIME).
   If the left item is a constant one then its value is cached in the
   lval_cache variable.
 */
@@ -1563,11 +1576,13 @@ class cmp_item_datetime : public cmp_item_scalar
   longlong value;
 public:
   /* Item used for issuing warnings. */
-  Item *warn_item;
+  const Item *warn_item;
   /* Cache for the left item. */
   Item *lval_cache;
+  /// Distinguish between DATE/DATETIME/TIMESTAMP and TIME
+  bool has_date;
 
-  cmp_item_datetime(Item *warn_item_arg);
+  cmp_item_datetime(const Item *warn_item_arg);
   void store_value(Item *item) override;
   int cmp(Item *arg) override;
   int compare(const cmp_item *ci) const override;
@@ -2292,7 +2307,7 @@ inline Item *and_conds(Item *a, Item *b)
 
 
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
-                            Item *warn_item, bool *is_null);
+                            const Item *warn_item, bool *is_null);
 
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
