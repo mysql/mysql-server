@@ -1371,11 +1371,9 @@ fi
 %endif
 
 %changelog
-* Mon Dec 11 2017 Grzegorz Szwarc <grzegorz.szwarc@oracle.com> - 9.0.0-0.1
+* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
-
-* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'
 - Add meb as sub package
 - Remove obsoleted mysqltest man pages
@@ -1385,13 +1383,6 @@ fi
 - Add License Book
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
-- Updated for 8.0.3 release
 - Add component_test_status_var_service plugin
 
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1
