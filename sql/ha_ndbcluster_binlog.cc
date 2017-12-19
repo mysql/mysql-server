@@ -1188,7 +1188,7 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    if (!dd_client.drop_table(schema_name, table_name))
+    if (!dd_client.remove_table(schema_name, table_name))
     {
       return false;
     }
@@ -1585,11 +1585,11 @@ class Ndb_binlog_setup {
     const dd::Table* existing;
     if (dd_client.get_table(db, table, &existing))
     {
-      ndb_log_verbose(1, "Dropping '%s.%s' from DD", db, table);
+      ndb_log_verbose(1, "Removing '%s.%s' from DD", db, table);
 
-      if (!dd_client.drop_table(db, table))
+      if (!dd_client.remove_table(db, table))
       {
-        ndb_log_info("Failed to drop '%s.%s' from DD", db, table);
+        ndb_log_info("Failed to remove '%s.%s' from DD", db, table);
       }
 
       dd_client.commit();
@@ -3887,11 +3887,11 @@ class Ndb_schema_event_handler {
         continue;
       }
 
-      if (!dd_client.drop_table(schema->db, ndb_table_name.c_str()))
+      if (!dd_client.remove_table(schema->db, ndb_table_name.c_str()))
       {
-        // Failed to drop the table from DD, not much else to do
+        // Failed to remove the table from DD, not much else to do
         // than try with the next
-        DBUG_PRINT("error", ("Failed to drop table '%s.%s' from DD",
+        DBUG_PRINT("error", ("Failed to remove table '%s.%s' from DD",
                              schema->db, ndb_table_name.c_str()));
         DBUG_ASSERT(false);
         continue;

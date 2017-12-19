@@ -280,7 +280,7 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
 
 
 bool
-Ndb_dd_client::drop_table(const char* schema_name,
+Ndb_dd_client::remove_table(const char* schema_name,
                           const char* table_name)
 
 {
@@ -296,10 +296,10 @@ Ndb_dd_client::drop_table(const char* schema_name,
     return false;
   }
 
-  DBUG_PRINT("info", ("dropping existing table"));
+  DBUG_PRINT("info", ("removing existing table"));
   if (m_client->drop(existing))
   {
-    // Failed to drop existing
+    // Failed to remove existing
     DBUG_ASSERT(false); // Catch in debug, unexpected error
     return false;
   }
@@ -378,9 +378,9 @@ Ndb_dd_client::store_table(dd::Table* install_table, int ndb_table_id)
       DBUG_RETURN(false);
     }
 
-    if (!drop_table(old_schema_name, old_table_name))
+    if (!remove_table(old_schema_name, old_table_name))
     {
-      // Failed to drop old table
+      // Failed to remove old table from DD
       DBUG_RETURN(false);
     }
 

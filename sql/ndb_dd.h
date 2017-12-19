@@ -34,9 +34,9 @@ bool ndb_sdi_serialize(class THD *thd,
 void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
                                         const char* proper_table_name);
 
-bool ndb_dd_drop_table(class THD* thd,
-                       const char* schema_name,
-                       const char* table_name);
+bool ndb_dd_remove_table(class THD* thd,
+                         const char* schema_name,
+                         const char* table_name);
 
 bool ndb_dd_rename_table(class THD* thd,
                          const char* old_schema_name,
