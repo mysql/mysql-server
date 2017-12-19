@@ -5194,8 +5194,7 @@ int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
       if (binlog_client.create_event(ndb, ndbtab,
                                      share))
       {
-        ndb_log_error("Failed to create event for table '%s'",
-                      share->key_string());
+        // Failed to create event
         DBUG_RETURN(-1);
       }
     }
@@ -5207,8 +5206,7 @@ int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
       if (!binlog_client.create_event_data(share, table_def, &event_data) ||
           binlog_client.create_event_op(share, ndbtab, event_data))
       {
-        ndb_log_error("Failed to create event operation for table '%s'",
-                      share->key_string());
+        // Failed to create event data or event operation
         DBUG_RETURN(-1);
       }
     }
