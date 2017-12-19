@@ -396,19 +396,21 @@ const char* Persisted_variables_cache::get_variable_name(sys_var *system_var)
 
   Format will be as below for variable named "X":
   "X" : {
-    "Value" : <value>,
+    "Value" : "value",
     "Metadata" : {
-      "Timestamp" : <timestamp value>,
-      "User" : <user name>,
-      "Host" : <host>
+      "Timestamp" : timestamp_value,
+      "User" : "user_name",
+      "Host" : "host_name"
       }
     }
 
-   @param [in] name                Variable name
-   @param [in] value               Variable value
-   @param [in] timestamp           Timestamp value when this variable was set
-   @param [in] user                User who set this variable
-   @param [in] host                Host on which this variable was set
+   @param [in]  name               Variable name
+   @param [in]  value              Variable value
+   @param [in]  timestamp          Timestamp value when this variable was set
+   @param [in]  user               User who set this variable
+   @param [in]  host               Host on which this variable was set
+   @param [out] dest               String object where json formatted string
+                                   is stored
 
    @return
      Pointer to String instance holding the json formatted string
@@ -785,21 +787,21 @@ err:
   New format for mysqld-auto.cnf is as below:
   { "Version" : 1,
     "mysql_server" :
-    { <variable_name> : {
-      "Value" : <value>,
+    { "variable_name" : {
+      "Value" : "variable_value",
       "Metadata" : {
-        "Timestamp" : <timestamp_value<,
-        "User" : <user>,
-        "Host" : <host>
+        "Timestamp" : timestamp_value,
+        "User" : "user_name",
+        "Host" : "host_name"
         }
       }
     }
-    { <variable_name> : {
+    { "variable_name" : {
       ...
 
     { "mysql_server_static_options" :
-      { <variable_name> : {
-        "Value" : <value>,
+      { "variable_name" : {
+        "Value" : "variable_value",
         ...
       }
       ...
@@ -842,11 +844,11 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
       Every Json object which represents Variable information must have only
       2 elements which is
       {
-      "Value" : <value>,   <-- 1st element
-      "Metadata" : {       <-- 2nd element
-        "Timestamp" : <timestamp_value<,
-        "User" : <user>,
-        "Host" : <host>
+      "Value" : "variable_value",   -- 1st element
+      "Metadata" : {                -- 2nd element
+        "Timestamp" : timestamp_value,
+        "User" : "user_name",
+        "Host" : "host_name"
         }
       }
     */
