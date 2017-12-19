@@ -53,6 +53,7 @@ SET GLOBAL group_replication_force_members= "SERVER1_ADDRESS";
 ############################################################
 # 7. Rejoin server2
 [connection server2]
+include/stop_group_replication.inc
 include/start_group_replication.inc
 
 ############################################################
