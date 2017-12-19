@@ -12603,27 +12603,13 @@ int ha_ndbcluster::open(const char *name, int, uint,
   }
 
   // Acquire NDB_SHARE reference for handler
+  m_share = NDB_SHARE::acquire_for_handler(name, this);
+  if (m_share == nullptr)
   {
-    NDB_SHARE *share = NDB_SHARE::acquire_for_handler(name, this);
-    if (share == nullptr) {
-      // No NDB_SHARE has been created for this table
-      // NOTE! This should never happen under normal circumstances, the
-      // NDB_SHARE should already have been created by schema distribution
-      // or auto discovery
-      DBUG_ASSERT(false);
-
-      // Create share and check if binlogging should be setup for this table
-      ndbcluster_binlog_setup_table(thd, get_thd_ndb(thd)->ndb,
-                                    m_dbname, m_tabname, table_def);
-
-      // Try to acquire NDB_SHARE again
-      share = NDB_SHARE::acquire_for_handler(name, this);
-      if (share == nullptr) {
-        local_close(thd, false);
-        DBUG_RETURN(1);
-      }
-    }
-    m_share = share;
+    // NOTE! This never happens, the NDB_SHARE should already have been
+    // created by schema distribution or auto discovery
+    local_close(thd, false);
+    DBUG_RETURN(1);
   }
 
   // Init table lock structure
