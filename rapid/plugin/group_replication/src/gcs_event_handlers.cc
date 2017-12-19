@@ -1053,7 +1053,12 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
         Group_member_info::MEMBER_ERROR,
         m_notification_ctx);
       this->leave_group_on_error();
+      plugin_is_setting_read_mode = false;
       return;
+    }
+    else
+    {
+      plugin_is_setting_read_mode = false;
     }
 
     /**

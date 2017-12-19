@@ -170,6 +170,8 @@ int Delayed_initialization_thread::initialization_thread_handler()
     //Protect this delayed start against other start/stop requests
     Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
 
+    plugin_is_setting_read_mode = true;
+
     error= initialize_plugin_and_join(PSESSION_INIT_THREAD, this);
   }
   else

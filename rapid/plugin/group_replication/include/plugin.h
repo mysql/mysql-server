@@ -54,6 +54,8 @@ extern bool server_shutdown_status;
 extern const char *available_bindings_names[];
 extern char *communication_debug_options_var;
 extern char *communication_debug_file_var;
+// Flag to register if read mode is being set
+extern bool plugin_is_setting_read_mode;
 //Flag to register server rest master command invocations
 extern bool known_server_reset;
 //Certification latch
