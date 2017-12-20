@@ -21,11 +21,6 @@ ndb_binlog_ddl_multi: Need WL#9185 MySQL Cluster support for new DD
 # Test disabled with "skip"  but that does not work with --no-skip
 binlog_multi_engine: BuG#14677850 BINLOG_MULTI_ENGINE DEPENDS ON NDB;
 
-# The mysql.ndb_binlog_index table does is not updated
-ndb_binlog_multi: Bug#25931184 NDB_BINLOG_INDEX IS NOT UPDATE
-ndb_binlog_last_commit_epoch: Bug#25931184 NDB_BINLOG_INDEX IS NOT UPDATE
-ndb_binlog_flush_log_waits: Bug#25931184 NDB_BINLOG_INDEX IS NOT UPDATE
-
 # Problem with alter table leaving table with old name behind
 ndb_binlog_discover: Need WL#9185 MySQL Cluster support for new DD
 ndb_binlog_basic: Need WL#9185 MySQL Cluster support for new DD
