@@ -102,6 +102,7 @@ public:
     @param thd                     - Current thread.
     @param tablespace_name_ptr     - Tablespace name of which we need stats.
     @param file_name_ptr           - File name.
+    @param engine_name_ptr         - Engine name.
     @param ts_se_private_data      - Tablespace se private data.
 
     @return true if statistics were not fetched from SE, otherwise false.
@@ -109,12 +110,8 @@ public:
   bool read_stat(THD *thd,
                  const String &tablespace_name_ptr,
                  const String &file_name_ptr,
+                 const String &engine_name_ptr,
                  const char* ts_se_private_data);
-
-  bool read_stat_from_SE(THD *thd,
-                         const String &tablespace_name_ptr,
-                         const String &file_name_ptr,
-                         const char* ts_se_private_data);
 
   // Invalidate the cache.
   void invalidate_cache(void)
@@ -191,6 +188,23 @@ private:
 
     return false;
   }
+
+  /**
+    Read dynamic tablespace statistics from SE API.
+
+    @param thd                     - Current thread.
+    @param tablespace_name_ptr     - Tablespace name of which we need stats.
+    @param file_name_ptr           - File name.
+    @param engine_name_ptr         - Engine name.
+    @param ts_se_private_data      - Tablespace se private data.
+
+    @return true if statistics were not fetched from SE, otherwise false.
+  */
+  bool read_stat_from_SE(THD *thd,
+                         const String &tablespace_name_ptr,
+                         const String &file_name_ptr,
+                         const String &engine_name_ptr,
+                         const char* ts_se_private_data);
 
 private:
 

@@ -11043,6 +11043,9 @@ ER_KEYRING_ACCESS_DENIED_ERROR 42000
 ER_KEYRING_MIGRATION_STATUS
   eng "Keyring migration %s."
 
+ER_NOT_IMPLEMENTED_GET_TABLESPACE_STATISTICS 22S00
+  eng "The storage engine '%-.192s' does not provide dynamic table statistics"
+
 #
 #  End of 8.0 error messages.
 #
