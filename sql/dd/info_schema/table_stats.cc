@@ -28,6 +28,7 @@
 #include "sql/sql_class.h"                    // THD
 #include "sql/sql_show.h"                     // make_table_list
 #include "sql/sql_time.h"                     // my_longlong_to_datetime_with_warn
+#include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // Time_zone
 
@@ -487,6 +488,10 @@ ulonglong Table_statistics::read_stat(
       is_stat_cached_in_mem(schema_name_ptr, table_name_ptr, partition_name))
     DBUG_RETURN(get_stat(stype));
 
+  // Stop we have see and error already for this table.
+  if (check_error_for_key(schema_name_ptr, table_name_ptr))
+    DBUG_RETURN(0);
+
   // NOTE: read_stat() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
   // warnings, which should be presented to the user. Diagnostics_area usually
@@ -502,12 +507,19 @@ ulonglong Table_statistics::read_stat(
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
 
-  /*
-    If we have InnoDB table, then we try to get statistics
-    without opening the table.
-  */
-  if (!partition_name &&
-      !my_strcasecmp(system_charset_info, engine_name_ptr.ptr(), "InnoDB"))
+  // Check if engine supports fetching table statistics.
+  plugin_ref tmp_plugin=
+    ha_resolve_by_name_raw(thd, lex_cstring_handle(
+                           dd::String_type(engine_name_ptr.ptr())));
+  handlerton *hton= nullptr;
+  const bool hton_implements_get_statistics=
+               (tmp_plugin &&
+                (hton= plugin_data<handlerton*>(tmp_plugin)) &&
+                hton->get_index_column_cardinality &&
+                hton->get_table_statistics);
+
+  // Try to get statistics without opening the table.
+  if (!partition_name && hton_implements_get_statistics)
     result= read_stat_from_SE(thd,
                               schema_name_ptr,
                               table_name_ptr,
@@ -518,7 +530,7 @@ ulonglong Table_statistics::read_stat(
                               se_private_id,
                               ts_se_private_data,
                               tbl_se_private_data,
-                              stype);
+                              stype, hton);
   else
     result= read_stat_by_open_table(thd,
                                     schema_name_ptr,
@@ -567,7 +579,8 @@ ulonglong Table_statistics::read_stat_from_SE(
             Object_id se_private_id,
             const char* ts_se_private_data,
             const char* tbl_se_private_data,
-            enum_table_stats_type stype)
+            enum_table_stats_type stype,
+            handlerton *hton)
 {
   DBUG_ENTER("Table_statistics::read_stat_from_SE");
 
@@ -576,24 +589,16 @@ ulonglong Table_statistics::read_stat_from_SE(
   DBUG_EXECUTE_IF("information_schema_fetch_table_stats",
                   DBUG_ASSERT(strncmp(table_name_ptr.ptr(), "fts", 3)););
 
-  // InnoDB return always zero for these statistics.
+  // No engines implement these statistics retrieval. We always return zero.
   if (stype == enum_table_stats_type::CHECK_TIME ||
       stype == enum_table_stats_type::CHECKSUM)
     DBUG_RETURN(0);
 
-  // Stop we have see and error already for this table.
-  if (check_error_for_key(schema_name_ptr, table_name_ptr))
-    DBUG_RETURN(0);
-
   //
-  // Get statistics from InnoDB SE
+  // Get statistics from SE
   //
   ha_statistics ha_stat;
-
-  // Build table name as required by InnoDB
   uint error= 0;
-  handlerton *hton= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  DBUG_ASSERT(hton); // InnoDB HA cannot be optional
 
   // Acquire MDL_EXPLICIT lock on table.
   MDL_request mdl_request;
@@ -620,19 +625,15 @@ ulonglong Table_statistics::read_stat_from_SE(
   {
     error= -1;
 
-    /*
-      It is possible that 'se_private_data' is not supplied to this
-      function. The function dd::Properties::parse_properties() would
-      at-least needs a single key-value pair to return a dd::Properties
-      object. So, when se_private_data is not supplied, we force creation
-      of dd::Properties object by passing a dummy=0 key-value pair.
-    */
+    // Prepare dd::Properties objects for se_private_data and send it to SE.
     std::unique_ptr<dd::Properties> ts_se_private_data_obj(
       dd::Properties::parse_properties(
-        ts_se_private_data?ts_se_private_data:"dummy=0;"));
+        ts_se_private_data ? ts_se_private_data : ""));
     std::unique_ptr<dd::Properties> tbl_se_private_data_obj(
       dd::Properties::parse_properties(
-        tbl_se_private_data?tbl_se_private_data:"dummy=0;"));
+        tbl_se_private_data ? tbl_se_private_data : ""));
+
+    DBUG_ASSERT(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
 
     //
     // Read statistics from SE
@@ -640,7 +641,6 @@ ulonglong Table_statistics::read_stat_from_SE(
     return_value= -1;
 
     if (stype == enum_table_stats_type::INDEX_COLUMN_CARDINALITY &&
-        hton->get_index_column_cardinality &&
         !hton->get_index_column_cardinality(
                  schema_name_ptr.ptr(),
                  table_name_ptr.ptr(),
@@ -652,15 +652,14 @@ ulonglong Table_statistics::read_stat_from_SE(
     {
       error= 0;
     }
-    else if (hton->get_table_statistics &&
-        !hton->get_table_statistics(schema_name_ptr.ptr(),
-                                    table_name_ptr.ptr(),
-                                    se_private_id,
-                                    *ts_se_private_data_obj.get(),
-                                    *tbl_se_private_data_obj.get(),
-                                    HA_STATUS_VARIABLE|HA_STATUS_TIME|
-                                    HA_STATUS_VARIABLE_EXTRA|HA_STATUS_AUTO,
-                                    &ha_stat))
+    else if (!hton->get_table_statistics(schema_name_ptr.ptr(),
+                      table_name_ptr.ptr(),
+                      se_private_id,
+                      *ts_se_private_data_obj.get(),
+                      *tbl_se_private_data_obj.get(),
+                      HA_STATUS_VARIABLE|HA_STATUS_TIME|
+                      HA_STATUS_VARIABLE_EXTRA|HA_STATUS_AUTO,
+                      &ha_stat))
     {
       error= 0;
     }
@@ -678,9 +677,10 @@ ulonglong Table_statistics::read_stat_from_SE(
 
       /*
         Update table statistics in the cache.
-        As InnoDB always return ZERO for checksum, we hardcode it here.
+        All engines return ZERO for checksum, we hardcode it here.
       */
-      if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(), nullptr) &&
+      if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(),
+                                             nullptr) &&
           persist_i_s_table_stats(thd, m_stats, schema_name_ptr,
                                   table_name_ptr, 0))
       {
@@ -694,7 +694,8 @@ ulonglong Table_statistics::read_stat_from_SE(
       Only cardinality is not stored in the cache.
       Update index statistics in the mysql.index_stats.
     */
-    else if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(), nullptr) &&
+    else if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(),
+                                                nullptr) &&
              persist_i_s_index_stats(thd, schema_name_ptr, table_name_ptr,
                                      index_name_ptr, column_name_ptr,
                                      return_value))

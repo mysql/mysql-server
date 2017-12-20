@@ -12216,6 +12216,9 @@ ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
 ER_PERSIST_OPTION_STATUS
   eng "Configuring persisted options failed: \"%s\"."
 
+ER_NOT_IMPLEMENTED_GET_TABLESPACE_STATISTICS 22S00
+  eng "The storage engine '%-.192s' does not provide dynamic table statistics"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

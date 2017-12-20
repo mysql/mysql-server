@@ -17,6 +17,7 @@
 
 #include "sql/error_handler.h"                    // Info_schema_error_handler
 #include "sql/sql_class.h"                        // THD
+#include "sql/strfunc.h"                          // lex_cstring_handle
 
 namespace dd {
 namespace info_schema {
@@ -131,10 +132,22 @@ bool Tablespace_statistics::read_stat(
        THD *thd,
        const String &tablespace_name_ptr,
        const String &file_name_ptr,
+       const String &engine_name_ptr,
        const char* ts_se_private_data)
 {
   DBUG_ENTER("Tablespace_statistics::read_stat");
   bool error= false;
+
+  // Stop we have see and error already for this table.
+  if (check_error_for_key(tablespace_name_ptr, file_name_ptr))
+    DBUG_RETURN(true);
+
+  //
+  // Get statistics from cache, if available
+  //
+
+  if (is_stat_cached(tablespace_name_ptr, file_name_ptr))
+    DBUG_RETURN(false);
 
   // NOTE: read_stat() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
@@ -151,6 +164,7 @@ bool Tablespace_statistics::read_stat(
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
   error= read_stat_from_SE(thd, tablespace_name_ptr, file_name_ptr,
+                           engine_name_ptr,
                            ts_se_private_data);
   thd->pop_diagnostics_area();
 
@@ -183,29 +197,15 @@ bool Tablespace_statistics::read_stat_from_SE(
        THD *thd,
        const String &tablespace_name_ptr,
        const String &file_name_ptr,
+       const String &engine_name_ptr,
        const char* ts_se_private_data)
 {
   DBUG_ENTER("Tablespace_statistics::read_stat_from_SE");
 
-  // Stop we have see and error already for this table.
-  if (check_error_for_key(tablespace_name_ptr, file_name_ptr))
-    DBUG_RETURN(true);
-
   //
-  // Get statistics from cache, if available
-  //
-
-  if (is_stat_cached(tablespace_name_ptr, file_name_ptr))
-    DBUG_RETURN(false);
-
-  //
-  // Get statistics from InnoDB SE
+  // Get statistics from the SE
   //
   ha_tablespace_statistics ha_tablespace_stat;
-
-  // Build table name as required by InnoDB
-  handlerton *hton= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  DBUG_ASSERT(hton); // InnoDB HA cannot be optional
 
   // Acquire MDL_EXPLICIT lock on table.
   MDL_request mdl_request;
@@ -220,28 +220,43 @@ bool Tablespace_statistics::read_stat_from_SE(
   Info_schema_error_handler info_schema_error_handler(thd,
                                                       &tablespace_name_ptr);
   thd->push_internal_handler(&info_schema_error_handler);
-  error= thd->mdl_context.acquire_lock(&mdl_request,
-                                       thd->variables.lock_wait_timeout);
+
+  // Check if engine supports fetching tablespace statistics.
+  plugin_ref tmp_plugin=
+      ha_resolve_by_name_raw(thd, lex_cstring_handle(
+                                    dd::String_type(engine_name_ptr.ptr())));
+  handlerton *hton= nullptr;
+  if (!tmp_plugin)
+  {
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name_ptr.ptr());
+    error= true;
+  }
+  else if (!(hton= plugin_data<handlerton*>(tmp_plugin)) ||
+           !hton->get_tablespace_statistics)
+  {
+    DBUG_ASSERT(!hton->get_tablespace_statistics);
+    my_error(ER_NOT_IMPLEMENTED_GET_TABLESPACE_STATISTICS, MYF(0),
+             engine_name_ptr.ptr());
+    error= true;
+  }
+
+  error= error || thd->mdl_context.acquire_lock(
+                         &mdl_request, thd->variables.lock_wait_timeout);
   thd->pop_internal_handler();
 
   if (!error)
   {
-    /*
-      It is possible that 'se_private_data' is not supplied to this
-      function. The function dd::Properties::parse_properties() would
-      at-least needs a single key-value pair to return a dd::Properties
-      object. So, when se_private_data is not supplied, we force creation
-      of dd::Properties object by passing a dummy=0 key-value pair.
-    */
+    // Prepare dd::Properties object for se_private_data and send it to SE.
     std::unique_ptr<dd::Properties> ts_se_private_data_obj(
       dd::Properties::parse_properties(
-        ts_se_private_data?ts_se_private_data:"dummy=0;"));
+        ts_se_private_data ? ts_se_private_data : ""));
+
+    DBUG_ASSERT(ts_se_private_data_obj.get());
 
     //
     // Read statistics from SE
     //
 
-    DBUG_ASSERT(hton->get_tablespace_statistics);
     error= hton->get_tablespace_statistics(tablespace_name_ptr.ptr(),
                                            file_name_ptr.ptr(),
                                            *ts_se_private_data_obj.get(),
