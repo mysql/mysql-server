@@ -264,6 +264,39 @@ public:
   { return m_error; }
 
 
+  /**
+    Set error string for the given key. The combination of (db, table and
+    partition name) forms the key.
+
+    @param db_name          - Schema name.
+    @param table_name       - Table name.
+    @param partition_name   - Partition name.
+    @param error_msg        - Error message.
+
+    @note We store the error message so that the error message is shown in
+    I_S.TABLES.COMMENT field. Apart from storing the error message, the
+    below function resets the statistics, this will make sure,
+
+     1. We do not invoke open_tables_for_query() again for other
+        dynamic columns that are fetch from the current row being
+        processed.
+
+     2. We will not see junk values for statistics in results.
+
+    @return void
+  */
+  void store_error_message(const String &db_name,
+                           const String &table_name,
+                           const char *partition_name,
+                           const String_type error_msg)
+  {
+    m_stats= {};
+    m_checksum= 0;
+    m_error= error_msg;
+    m_key= form_key(db_name, table_name, partition_name);
+  }
+
+
 private:
 
   /**

@@ -473,6 +473,10 @@ ulonglong Table_statistics::read_stat(
   DBUG_ENTER("Table_statistics::read_stat");
   ulonglong result;
 
+  // Stop we have see and error already for this table.
+  if (check_error_for_key(schema_name_ptr, table_name_ptr))
+    DBUG_RETURN(0);
+
   // Check if we can directly use the value passed from mysql.stats tables.
   if (!is_persistent_statistics_expired(thd, cached_timestamp))
   {
@@ -487,10 +491,6 @@ ulonglong Table_statistics::read_stat(
   if (stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY &&
       is_stat_cached_in_mem(schema_name_ptr, table_name_ptr, partition_name))
     DBUG_RETURN(get_stat(stype));
-
-  // Stop we have see and error already for this table.
-  if (check_error_for_key(schema_name_ptr, table_name_ptr))
-    DBUG_RETURN(0);
 
   // NOTE: read_stat() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
@@ -721,16 +721,8 @@ ulonglong Table_statistics::read_stat_from_SE(
                    thd->get_stmt_da()->mysql_errno(),
                    thd->get_stmt_da()->message_text());
 
-    /* Cache empty statistics when we see a error.
-       This will make sure,
-
-       1. You will not invoke open_tables_for_query() gain.
-
-       2. You will not see junk values for statistics in results.
-    */
-    cache_stats_in_mem(schema_name_ptr, table_name_ptr, ha_stat);
-
-    m_error= thd->get_stmt_da()->message_text();
+    store_error_message(schema_name_ptr, table_name_ptr, nullptr,
+                        thd->get_stmt_da()->message_text());
     thd->clear_error();
   }
 
@@ -856,17 +848,8 @@ ulonglong Table_statistics::read_stat_by_open_table(
                      thd->get_stmt_da()->mysql_errno(),
                      thd->get_stmt_da()->message_text());
 
-      /* Cache empty statistics when we see a error.
-         This will make sure,
-
-         1. You will not invoke open_tables_for_query() gain.
-
-         2. You will not see junk values for statistics in results.
-      */
-      cache_stats_in_mem(schema_name_ptr, table_name_ptr, partition_name,
-                         ha_stat);
-
-      m_error= thd->get_stmt_da()->message_text();
+      store_error_message(schema_name_ptr, table_name_ptr, partition_name,
+                          thd->get_stmt_da()->message_text());
       thd->clear_error();
     }
     else
@@ -927,16 +910,8 @@ ulonglong Table_statistics::read_stat_by_open_table(
                      thd->get_stmt_da()->mysql_errno(),
                      thd->get_stmt_da()->message_text());
 
-        /* Cache empty statistics when we see a error.
-          This will make sure,
-
-          1. You will not invoke open_tables_for_query() gain.
-
-          2. You will not see junk values for statistics in results.
-         */
-        cache_stats_in_mem(schema_name_ptr, table_name_ptr, ha_stat);
-
-        m_error= thd->get_stmt_da()->message_text();
+        store_error_message(schema_name_ptr, table_name_ptr, partition_name,
+                            thd->get_stmt_da()->message_text());
         thd->clear_error();
       }
       else

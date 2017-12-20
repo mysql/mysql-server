@@ -59,6 +59,7 @@ class Tablespace_statistics
 {
 public:
   Tablespace_statistics()
+    : m_found_error(false)
   {}
 
   /**
@@ -90,7 +91,7 @@ public:
                    ha_tablespace_statistics &stats)
   {
     m_stats= stats;
-    m_error.clear();
+    m_found_error= false;
     set_stat_cached(tablespace_name, file_name);
   }
 
@@ -117,13 +118,26 @@ public:
   void invalidate_cache(void)
   {
     m_key.clear();
-    m_error.clear();
+    m_found_error= false;
   }
 
 
-  // Get error string. Its empty if a error is not reported.
-  inline String_type error()
-  { return m_error; }
+  /**
+    Mark that error was found for the given key. The combination of
+    tablespace and file name forms the key.
+
+    @param tablespace_name  - Tablespace name.
+    @param file_name        - File name.
+
+    @return void
+  */
+  void mark_as_error_found(const String &tablespace_name,
+                           const String &file_name)
+  {
+    m_stats= {};
+    m_found_error= true;
+    m_key= form_key(tablespace_name, file_name);
+  }
 
 
   /**
@@ -183,7 +197,7 @@ private:
   inline bool check_error_for_key(const String &tablespace_name,
                                   const String &file_name)
   {
-    if (is_stat_cached(tablespace_name, file_name) && !m_error.empty())
+    if (is_stat_cached(tablespace_name, file_name) && m_found_error)
       return true;
 
     return false;
@@ -212,7 +226,7 @@ private:
   String_type m_key; // Format '<tablespace_name>'
 
   // Error found when reading statistics.
-  String_type m_error;
+  bool m_found_error;
 
 public:
 
