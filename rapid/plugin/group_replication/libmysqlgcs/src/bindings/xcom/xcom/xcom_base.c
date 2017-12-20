@@ -3203,7 +3203,7 @@ void add_to_cache(app_data_ptr a, synode_no synode) {
 
 static int clicnt = 0;
 
-static u_int is_reincarnation_adding(app_data_ptr a) {
+static u_int allow_add_node(app_data_ptr a) {
   /* Get information on the current site definition */
   const site_def *new_site_def = get_site_def();
   const site_def *valid_site_def = find_site_def(executed_msg);
@@ -3243,14 +3243,14 @@ static u_int is_reincarnation_adding(app_data_ptr a) {
                                   nodes_to_change[i].uuid.data.data_len,
                                   nodes_to_change[i].uuid.data.data_val
                                   );
-      return 1;
+      return 0;
     }
   }
 
-  return 0;
+  return 1;
 }
 
-static u_int is_reincarnation_removing(app_data_ptr a) {
+static u_int allow_remove_node(app_data_ptr a) {
   /* Get information on the current site definition */
   const site_def *new_site_def = get_site_def();
 
@@ -3262,22 +3262,36 @@ static u_int is_reincarnation_removing(app_data_ptr a) {
   for (; i < nodes_len; i++) {
     if (!node_exists_with_uid(&nodes_to_change[i], &new_site_def->nodes)) {
       /*
-      We cannot allow an upper-layer to remove a new incarnation
-      of a node, when it tries to remove an old one.
+      If the UID does not exist, then 1) the node has already been
+      removed or 2) it has reincarnated.
       */
 /* purecov: begin inspected */
-      G_MESSAGE("Old incarnation found while trying to "
+      if (node_exists(&nodes_to_change[i], &new_site_def->nodes)) {
+        /*
+        We also cannot allow an upper-layer to remove a new incarnation
+        of a node when it tries to remove an old one.
+        */
+        G_MESSAGE("New incarnation found while trying to "
                                   "remove node %s %.*s.",
                                   nodes_to_change[i].address,
                                   nodes_to_change[i].uuid.data.data_len,
                                   nodes_to_change[i].uuid.data.data_val
                                   );
-      return 1;
+      } else {
+        /* The node has already been removed, so we block the request */
+        G_MESSAGE("Node has already been removed: "
+                                  "%s %.*s.",
+                                  nodes_to_change[i].address,
+                                  nodes_to_change[i].uuid.data.data_len,
+                                  nodes_to_change[i].uuid.data.data_val);
+
+      }
+    return 0;
 /* purecov: end */
     }
   }
 
-  return 0;
+  return 1;
 }
 
 static client_reply_code can_execute_cfgchange(pax_msg *p) {
@@ -3288,10 +3302,10 @@ static client_reply_code can_execute_cfgchange(pax_msg *p) {
   if (a && a->group_id != 0 && a->group_id != executed_msg.group_id)
     return REQUEST_FAIL;
 
-  if (a && a->body.c_t == add_node_type && is_reincarnation_adding(a))
+  if (a && a->body.c_t == add_node_type && !allow_add_node(a))
     return REQUEST_FAIL;
 
-  if (a && a->body.c_t == remove_node_type && is_reincarnation_removing(a))
+  if (a && a->body.c_t == remove_node_type && !allow_remove_node(a))
     return REQUEST_FAIL;
 
   return REQUEST_OK;
