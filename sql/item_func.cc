@@ -9813,6 +9813,28 @@ longlong Item_func_internal_tablespace_id::val_int()
 }
 
 
+longlong Item_func_internal_tablespace_logfile_group_number::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_logfile_group_number::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+       dd::info_schema::enum_tablespace_stats_type::TS_LOGFILE_GROUP_NUMBER,
+       &result);
+     if (result == (ulonglong) -1)
+       null_value= true;
+
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
 longlong Item_func_internal_tablespace_free_extents::val_int()
 {
   DBUG_ENTER("Item_func_internal_tablespace_free_extents::val_int");
@@ -9923,6 +9945,28 @@ longlong Item_func_internal_tablespace_autoextend_size::val_int()
      thd->lex->m_IS_tablespace_stats.get_stat(
        dd::info_schema::enum_tablespace_stats_type::TS_AUTOEXTEND_SIZE,
        &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_version::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_version::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+       dd::info_schema::enum_tablespace_stats_type::TS_VERSION,
+       &result);
+     if (result == (ulonglong) -1)
+       null_value= true;
+
      DBUG_RETURN(result);
   }
 

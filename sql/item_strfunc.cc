@@ -5245,6 +5245,33 @@ String *Item_func_internal_tablespace_type::val_str(String *str)
 }
 
 
+String *Item_func_internal_tablespace_logfile_group_name::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_logfile_group_name::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+      dd::info_schema::enum_tablespace_stats_type::TS_LOGFILE_GROUP_NAME,
+      &result);
+   if (result.length())
+     str->copy(result.c_str(), result.length(), system_charset_info);
+   else
+   {
+     null_value= true;
+     DBUG_RETURN(nullptr);
+   }
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
 String *Item_func_internal_tablespace_status::val_str(String *str)
 {
   DBUG_ENTER("Item_func_internal_tablespace_status::val_str");
