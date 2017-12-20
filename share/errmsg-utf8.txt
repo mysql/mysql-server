@@ -12219,6 +12219,9 @@ ER_PERSIST_OPTION_STATUS
 ER_NOT_IMPLEMENTED_GET_TABLESPACE_STATISTICS 22S00
   eng "The storage engine '%-.192s' does not provide dynamic table statistics"
 
+ER_UNABLE_TO_SET_OPTION
+  eng "This option cannot be set %s."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

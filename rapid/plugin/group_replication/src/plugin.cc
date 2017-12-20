@@ -1855,6 +1855,30 @@ static int check_if_server_properly_configured()
   DBUG_RETURN(0);
 }
 
+/*
+  This function tries to lock the plugin_running_mutex mutex.
+  It must only be used by check and update options functions.
+
+  If it succeeds to lock it, 0 is returned and the function caller
+  must release the mutex when done.
+  If the mutex is already locked, 1 is returned and the error
+  ER_UNABLE_TO_SET_OPTION is thrown.
+*/
+static int plugin_running_mutex_trylock()
+{
+  int res= 0;
+
+  if ((res= mysql_mutex_trylock(&plugin_running_mutex)))
+  {
+    my_message(ER_UNABLE_TO_SET_OPTION,
+               "This option cannot be set while START or STOP GROUP_REPLICATION"
+               " is ongoing, or another GROUP REPLICATION option is being set.",
+               MYF(0));
+  }
+
+  return res;
+}
+
 static int check_group_name_string(const char *str, bool is_var_update)
 {
   DBUG_ENTER("check_group_name_string");
@@ -1904,10 +1928,12 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
   char buff[NAME_CHAR_LEN];
   const char *str;
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
 
   if (plugin_is_group_replication_running())
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
                "The group name cannot be changed when Group Replication is running",
                MYF(0));
@@ -1920,13 +1946,20 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
   if ((str= value->val_str(value, buff, &length)))
     str= thd->strmake(str, length);
   else
+  {
+    mysql_mutex_unlock(&plugin_running_mutex); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
+  }
 
   if (check_group_name_string(str, true))
+  {
+    mysql_mutex_unlock(&plugin_running_mutex);
     DBUG_RETURN(1);
+  }
 
   *(const char**)save= str;
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
 }
 
@@ -2061,12 +2094,37 @@ static int check_flow_control_max_quota(MYSQL_THD, SYS_VAR*, void* save,
  Recovery module's module variable update/validate methods
 */
 
+static int
+check_sysvar_ulong_timeout(MYSQL_THD, SYS_VAR *var, void *save,
+                          struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_sysvar_ulong_timeout");
+  longlong minimum= 0;
+
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
+
+  if (!strcmp("group_replication_components_stop_timeout", var->name))
+    minimum= 2;
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+
+  *(longlong*)save= (in_val < minimum) ? minimum :
+                    (static_cast<ulonglong>(in_val) < LONG_TIMEOUT) ? in_val :
+                    LONG_TIMEOUT;
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(0);
+}
+
 static void update_recovery_retry_count(MYSQL_THD, SYS_VAR*,
                                         void *var_ptr, const void *save)
 {
   DBUG_ENTER("update_recovery_retry_count");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   (*(ulong*) var_ptr)= (*(ulong*) save);
   ulong in_val= *static_cast<const ulong*>(save);
@@ -2076,6 +2134,7 @@ static void update_recovery_retry_count(MYSQL_THD, SYS_VAR*,
     recovery_module->set_recovery_donor_retry_count(in_val);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2084,7 +2143,8 @@ static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_recovery_reconnect_interval");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   (*(ulong*) var_ptr)= (*(ulong*) save);
   ulong in_val= *static_cast<const ulong*>(save);
@@ -2095,6 +2155,7 @@ static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR*,
         set_recovery_donor_reconnect_interval(in_val);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2105,7 +2166,8 @@ static void update_ssl_use(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_ssl_use");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   bool use_ssl_val= *((bool *) save);
   (*(bool *) var_ptr)= (*(bool *) save);
@@ -2115,6 +2177,7 @@ static void update_ssl_use(MYSQL_THD, SYS_VAR*,
       recovery_module->set_recovery_use_ssl(use_ssl_val);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2145,6 +2208,9 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void* save,
 {
   DBUG_ENTER("check_recovery_ssl_option");
 
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
+
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *str= NULL;
 
@@ -2154,15 +2220,20 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void* save,
   if ((str= value->val_str(value, buff, &length)))
     str= thd->strmake(str, length);
   else
+  {
+    mysql_mutex_unlock(&plugin_running_mutex); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
+  }
 
   if (str != NULL && check_recovery_ssl_string(str, var->name, true))
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     DBUG_RETURN(1);
   }
 
   *(const char**)save= str;
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
 }
 
@@ -2171,7 +2242,8 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var,
 {
   DBUG_ENTER("update_recovery_ssl_option");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   const char *new_option_val= *(const char**)save;
   (*(const char **) var_ptr)= (*(const char **) save);
@@ -2215,6 +2287,7 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var,
       DBUG_ASSERT(0); /* purecov: inspected */
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2224,7 +2297,8 @@ update_recovery_get_public_key(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_recovery_get_public_key");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   bool get_public_key= *((bool *) save);
   (*(bool *) var_ptr)= (*(bool *) save);
@@ -2235,6 +2309,7 @@ update_recovery_get_public_key(MYSQL_THD, SYS_VAR*,
         set_recovery_get_public_key(get_public_key);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2244,7 +2319,8 @@ update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_ssl_server_cert_verification");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   bool ssl_verify_server_cert= *((bool *) save);
   (*(bool *) var_ptr)= (*(bool *) save);
@@ -2255,10 +2331,65 @@ update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR*,
         set_recovery_ssl_verify_server_cert(ssl_verify_server_cert);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
 // Recovery threshold update method
+
+const char* recovery_policies[]= { "TRANSACTIONS_CERTIFIED",
+                                   "TRANSACTIONS_APPLIED",
+                                   (char *)0};
+
+TYPELIB recovery_policies_typelib_t= {
+  array_elements(recovery_policies) - 1,
+  "recovery_policies_typelib_t",
+  recovery_policies,
+  NULL
+};
+
+static int
+check_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
+                                void *save,
+                                struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_recovery_completion_policy");
+
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str;
+  TYPELIB *typelib= &recovery_policies_typelib_t;
+  long long tmp;
+  long result;
+  int length;
+
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
+
+  if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING)
+  {
+    length= sizeof(buff);
+    if (!(str= value->val_str(value, buff, &length)))
+      goto err;
+    if ((result= (long)find_type(str, typelib, 0) - 1) < 0)
+      goto err;
+  }
+  else
+  {
+    if (value->val_int(value, &tmp))
+      goto err;
+    if (tmp < 0 || tmp >= static_cast<long long>(typelib->count))
+      goto err;
+    result= (long) tmp;
+  }
+  *(long*)save= result;
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(0);
+
+err:
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(1);
+}
 
 static void
 update_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
@@ -2266,7 +2397,8 @@ update_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_recovery_completion_policy");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   ulong in_val= *static_cast<const ulong*>(save);
   (*(ulong*) var_ptr)= (*(ulong*) save);
@@ -2278,6 +2410,7 @@ update_recovery_completion_policy(MYSQL_THD, SYS_VAR*,
             (enum_recovery_completion_policies)in_val);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2288,7 +2421,8 @@ static void update_component_timeout(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_component_timeout");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   ulong in_val= *static_cast<const ulong*>(save);
   (*(ulong*) var_ptr)= (*(ulong*) save);
@@ -2306,6 +2440,7 @@ static void update_component_timeout(MYSQL_THD, SYS_VAR*,
     events_handler->set_stop_wait_timeout(in_val);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2318,10 +2453,12 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR*,
   longlong in_val;
   value->val_int(value, &in_val);
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
 
   if (plugin_is_group_replication_running())
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
                "The group auto_increment_increment cannot be changed"
                " when Group Replication is running",
@@ -2332,6 +2469,7 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR*,
   if (in_val > MAX_AUTO_INCREMENT_INCREMENT ||
       in_val < MIN_AUTO_INCREMENT_INCREMENT)
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     std::stringstream ss;
     ss << "The value " << in_val << " is not within the range of "
           "accepted values for the option "
@@ -2343,6 +2481,7 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR*,
   }
 
   *(longlong*)save= in_val;
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
 }
 
@@ -2358,10 +2497,12 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
   const char *str;
   int length= sizeof(buff);
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
 
   if (plugin_is_group_replication_running())
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
                "The IP whitelist cannot be set while Group Replication "
                "is running", MYF(0));
@@ -2373,7 +2514,10 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
   if ((str= value->val_str(value, buff, &length)))
     str= thd->strmake(str, length);
   else // NULL value is not allowed
+  {
+    mysql_mutex_unlock(&plugin_running_mutex); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
+  }
 
   // remove trailing whitespaces
   std::string v(str);
@@ -2381,6 +2525,7 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
   std::transform(v.begin(), v.end(), v.begin(), ::tolower);
   if (v.find("automatic") != std::string::npos && v.size() != 9)
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_CONFIGURATION,
                "The IP whitelist is invalid. Make sure that AUTOMATIC "
                "when specifying \"AUTOMATIC\" the list contains no "
@@ -2390,6 +2535,7 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR*,
 
   *(const char**)save= str;
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
 }
 
@@ -2399,13 +2545,15 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("check_compression_threshold");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
 
   longlong in_val;
   value->val_int(value, &in_val);
 
   if (plugin_is_group_replication_running())
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
                "The compression threshold cannot be set while "
                "Group Replication is running",
@@ -2415,6 +2563,7 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR*,
 
   if (in_val > MAX_COMPRESSION_THRESHOLD || in_val < 0)
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     std::stringstream ss;
     ss << "The value " << in_val << " is not within the range of "
       "accepted values for the option compression_threshold!";
@@ -2424,6 +2573,7 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR*,
 
   *(longlong*)save= in_val;
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
 }
 
@@ -2576,6 +2726,26 @@ get_bool_value_using_type_lib(struct st_mysql_value *value,
 }
 
 static int
+check_sysvar_bool(MYSQL_THD, SYS_VAR*,
+                  void *save,
+                  struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_sysvar_bool");
+  bool in_val;
+
+  if (!get_bool_value_using_type_lib(value, in_val))
+    DBUG_RETURN(1);
+
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
+
+  *(bool *)save= in_val;
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(0);
+}
+
+static int
 check_single_primary_mode(MYSQL_THD, SYS_VAR*,
                           void* save,
                           struct st_mysql_value *value)
@@ -2586,10 +2756,12 @@ check_single_primary_mode(MYSQL_THD, SYS_VAR*,
   if (!get_bool_value_using_type_lib(value, single_primary_mode_val))
     DBUG_RETURN(1);
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
 
   if (plugin_is_group_replication_running())
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
                "Cannot change into or from single primary mode while "
                "Group Replication is running.", MYF(0));
@@ -2598,6 +2770,7 @@ check_single_primary_mode(MYSQL_THD, SYS_VAR*,
 
   if (single_primary_mode_val && enforce_update_everywhere_checks_var)
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_WRONG_VALUE_FOR_VAR,
                "Cannot turn ON single_primary_mode while "
                "enforce_update_everywhere_checks is enabled.",
@@ -2607,6 +2780,7 @@ check_single_primary_mode(MYSQL_THD, SYS_VAR*,
 
   *(bool *)save = single_primary_mode_val;
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
 }
 
@@ -2621,10 +2795,12 @@ check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
   if (!get_bool_value_using_type_lib(value, enforce_update_everywhere_checks_val))
     DBUG_RETURN(1);
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
 
   if (plugin_is_group_replication_running())
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
                "Cannot turn ON/OFF update everywhere checks mode while "
                "Group Replication is running.", MYF(0));
@@ -2633,6 +2809,7 @@ check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
 
   if (single_primary_mode_var && enforce_update_everywhere_checks_val)
   {
+    mysql_mutex_unlock(&plugin_running_mutex);
     my_message(ER_WRONG_VALUE_FOR_VAR,
                "Cannot enable enforce_update_everywhere_checks while "
                "single_primary_mode is enabled.",
@@ -2642,6 +2819,7 @@ check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
 
   *(bool *)save = enforce_update_everywhere_checks_val;
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
 }
 
@@ -2672,7 +2850,8 @@ static void update_unreachable_timeout(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_unreachable_timeout");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   ulong in_val= *static_cast<const ulong*>(save);
   (*(ulong*) var_ptr)= (*(ulong*) save);
@@ -2682,7 +2861,28 @@ static void update_unreachable_timeout(MYSQL_THD, SYS_VAR*,
     group_partition_handler->update_timeout_on_unreachable(in_val);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
+}
+
+static int
+check_member_weight(MYSQL_THD, SYS_VAR*, void *save,
+                    struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_member_weight");
+
+  if (plugin_running_mutex_trylock())
+    DBUG_RETURN(1);
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+
+  *(longlong*)save= (in_val < MIN_MEMBER_WEIGHT) ? 0 :
+                    (in_val < MAX_MEMBER_WEIGHT) ? in_val :
+                    MAX_MEMBER_WEIGHT;
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(0);
 }
 
 static void
@@ -2691,7 +2891,8 @@ update_member_weight(MYSQL_THD, SYS_VAR*,
 {
   DBUG_ENTER("update_member_weight");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  if (plugin_running_mutex_trylock())
+    DBUG_VOID_RETURN;
 
   (*(uint*) var_ptr)= (*(uint*) save);
   uint in_val= *static_cast<const uint*>(save);
@@ -2701,6 +2902,7 @@ update_member_weight(MYSQL_THD, SYS_VAR*,
     local_member_info->set_member_weight(in_val);
   }
 
+  mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -2792,7 +2994,7 @@ static MYSQL_SYSVAR_ULONG(
   recovery_retry_count_var,          /* var */
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "The number of times that the joiner tries to connect to the available donors before giving up.",
-  NULL,                              /* check func. */
+  check_sysvar_ulong_timeout,        /* check func. */
   update_recovery_retry_count,       /* update func. */
   10,                                /* default */
   0,                                 /* min */
@@ -2805,7 +3007,7 @@ static MYSQL_SYSVAR_ULONG(
   recovery_reconnect_interval_var,    /* var */
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
   "The sleep time between reconnection attempts when no donor was found in the group",
-  NULL,                               /* check func. */
+  check_sysvar_ulong_timeout,         /* check func. */
   update_recovery_reconnect_interval, /* update func. */
   60,                                 /* default */
   0,                                  /* min */
@@ -2820,7 +3022,7 @@ static MYSQL_SYSVAR_BOOL(
     recovery_use_ssl_var,          /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Whether SSL use should be obligatory during Group Replication recovery process.",
-    NULL,                          /* check func*/
+    check_sysvar_bool,             /* check func*/
     update_ssl_use,                /* update func*/
     0);                            /* default*/
 
@@ -2899,7 +3101,7 @@ static MYSQL_SYSVAR_BOOL(
     recovery_ssl_verify_server_cert_var,    /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Make recovery check the server's Common Name value in the donor sent certificate.",
-    NULL,                                   /* check func*/
+    check_sysvar_bool,                      /* check func*/
     update_ssl_server_cert_verification,    /* update func*/
     0);                                     /* default*/
 
@@ -2920,7 +3122,7 @@ static MYSQL_SYSVAR_BOOL(
     recovery_get_public_key_var,     /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Make recovery fetch the donor's public key information during authentication.",
-    NULL,                            /* check func*/
+    check_sysvar_bool,               /* check func*/
     update_recovery_get_public_key,  /* update func*/
     0);                              /* default*/
 
@@ -2948,24 +3150,13 @@ static void initialize_ssl_option_map()
 
 // Recovery threshold options
 
-const char* recovery_policies[]= { "TRANSACTIONS_CERTIFIED",
-                                   "TRANSACTIONS_APPLIED",
-                                   (char *)0};
-
-TYPELIB recovery_policies_typelib_t= {
-  array_elements(recovery_policies) - 1,
-  "recovery_policies_typelib_t",
-  recovery_policies,
-  NULL
-};
-
 static MYSQL_SYSVAR_ENUM(
    recovery_complete_at,                                 /* name */
    recovery_completion_policy_var,                       /* var */
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,     /* optional var */
    "Recovery policies when handling cached transactions after state transfer."
    "possible values are TRANSACTIONS_CERTIFIED or TRANSACTION_APPLIED", /* values */
-   NULL,                                                 /* check func. */
+   check_recovery_completion_policy,                     /* check func. */
    update_recovery_completion_policy,                    /* update func. */
    RECOVERY_POLICY_WAIT_EXECUTED,                        /* default */
    &recovery_policies_typelib_t);                        /* type lib */
@@ -2977,7 +3168,7 @@ static MYSQL_SYSVAR_ULONG(
   components_stop_timeout_var,                     /* var */
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Timeout in seconds that the plugin waits for each of the components when shutting down.",
-  NULL,                                            /* check func. */
+  check_sysvar_ulong_timeout,                      /* check func. */
   update_component_timeout,                        /* update func. */
   LONG_TIMEOUT,                                    /* default */
   2,                                               /* min */
@@ -3189,7 +3380,7 @@ static MYSQL_SYSVAR_ULONG(
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "The number of seconds before going into error when a majority of members is unreachable."
   "If 0 there is no action taken.",
-  NULL,                                            /* check func. */
+  check_sysvar_ulong_timeout,                      /* check func. */
   update_unreachable_timeout,                      /* update func. */
   0,                                               /* default */
   0,                                               /* min */
@@ -3203,7 +3394,7 @@ static MYSQL_SYSVAR_UINT(
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY,/* optional var */
   "Member weight will determine the member role in the group on"
   " future primary elections",
-  NULL,                                /* check func. */
+  check_member_weight,                 /* check func. */
   update_member_weight,                /* update func. */
   DEFAULT_MEMBER_WEIGHT,               /* default */
   MIN_MEMBER_WEIGHT,                   /* min */
