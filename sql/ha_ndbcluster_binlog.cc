@@ -1192,7 +1192,7 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    if (!dd_client.drop_table(schema_name, table_name))
+    if (!dd_client.remove_table(schema_name, table_name))
     {
       return false;
     }
@@ -1200,6 +1200,93 @@ class Ndb_binlog_setup {
     dd_client.commit();
 
     return true; // OK
+  }
+
+
+  bool
+  install_table_from_NDB(THD *thd,
+                         const char *schema_name,
+                         const char *table_name,
+                         const NdbDictionary::Table* ndbtab,
+                         bool force_overwrite = false)
+  {
+    DBUG_ENTER("install_table_from_NDB");
+    DBUG_PRINT("enter", ("schema_name: %s, table_name: %s",
+                         schema_name, table_name));
+
+    Thd_ndb* thd_ndb = get_thd_ndb(thd);
+    Ndb* ndb = thd_ndb->ndb;
+
+    dd::sdi_t sdi;
+    {
+      Uint32 version;
+      void* unpacked_data;
+      Uint32 unpacked_len;
+      const int get_result =
+          ndbtab->getExtraMetadata(version,
+                                   &unpacked_data, &unpacked_len);
+      if (get_result != 0)
+      {
+        DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
+                             get_result));
+        DBUG_RETURN(false);
+      }
+
+      if (version != 2)
+      {
+        free(unpacked_data);
+        DBUG_PRINT("error", ("Found extra metadata with unsupported "
+                             "version: %d", version));
+        DBUG_RETURN(false);
+      }
+
+      sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
+
+      free(unpacked_data);
+    }
+
+    // Found table, now install it in DD
+    Ndb_dd_client dd_client(thd);
+
+    // First acquire exclusive MDL lock on schema and table
+    if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
+    {
+      ndb_log_error("Couldn't acquire exclusive metadata locks on '%s.%s'",
+                    schema_name, table_name);
+      DBUG_RETURN(false);
+    }
+
+    if (!dd_client.install_table(schema_name, table_name,
+                                 sdi,
+                                 ndbtab->getObjectId(),
+                                 ndbtab->getObjectVersion(),
+                                 force_overwrite))
+    {
+      // Failed to install table
+      ndb_log_warning("Failed to install table '%s.%s'",
+                      schema_name, table_name);
+      DBUG_RETURN(false);
+    }
+
+    const dd::Table* table_def;
+    if (!dd_client.get_table(schema_name, table_name, &table_def))
+    {
+      ndb_log_error("Couldn't open table '%s.%s' from DD after install",
+                    schema_name, table_name);
+      DBUG_RETURN(false);
+    }
+
+    // Check if binlogging should be setup for this table
+    if (ndbcluster_binlog_setup_table(thd, ndb,
+                                      schema_name, table_name,
+                                      table_def))
+    {
+      DBUG_RETURN(false);
+    }
+
+    dd_client.commit();
+
+    DBUG_RETURN(true); // OK
   }
 
 
@@ -1246,7 +1333,6 @@ class Ndb_binlog_setup {
       const int get_result =
           ndbtab->getExtraMetadata(version,
                                    &unpacked_data, &unpacked_length);
-      free(unpacked_data);
 
       if (get_result != 0)
       {
@@ -1257,6 +1343,7 @@ class Ndb_binlog_setup {
         return false;
       }
 
+      free(unpacked_data);
 
       if (version != 2)
       {
@@ -1292,8 +1379,8 @@ class Ndb_binlog_setup {
       ndb_log_info("Table '%s.%s' does not exist in DD, installing...",
                    schema_name, table_name);
 
-      if (ndb_create_table_from_engine(m_thd, schema_name, table_name,
-                                       false /* need overwrite */))
+      if (!install_table_from_NDB(m_thd, schema_name, table_name,
+                                  ndbtab, false /* need overwrite */))
       {
         // Failed to install into DD or setup binlogging
         ndb_log_error("Failed to install table '%s.%s'",
@@ -1332,8 +1419,8 @@ class Ndb_binlog_setup {
     {
       ndb_log_info("Table '%s.%s' have different version in DD, reinstalling...",
                      schema_name, table_name);
-      if (ndb_create_table_from_engine(m_thd, schema_name, table_name,
-                                       true /* need overwrite */))
+      if (!install_table_from_NDB(m_thd, schema_name, table_name,
+                                  ndbtab, true /* need overwrite */))
       {
         // Failed to create table from NDB
         ndb_log_error("Failed to install table '%s.%s' from NDB",
@@ -1502,11 +1589,11 @@ class Ndb_binlog_setup {
     const dd::Table* existing;
     if (dd_client.get_table(db, table, &existing))
     {
-      ndb_log_verbose(1, "Dropping '%s.%s' from DD", db, table);
+      ndb_log_verbose(1, "Removing '%s.%s' from DD", db, table);
 
-      if (!dd_client.drop_table(db, table))
+      if (!dd_client.remove_table(db, table))
       {
-        ndb_log_info("Failed to drop '%s.%s' from DD", db, table);
+        ndb_log_info("Failed to remove '%s.%s' from DD", db, table);
       }
 
       dd_client.commit();
@@ -3804,11 +3891,11 @@ class Ndb_schema_event_handler {
         continue;
       }
 
-      if (!dd_client.drop_table(schema->db, ndb_table_name.c_str()))
+      if (!dd_client.remove_table(schema->db, ndb_table_name.c_str()))
       {
-        // Failed to drop the table from DD, not much else to do
+        // Failed to remove the table from DD, not much else to do
         // than try with the next
-        DBUG_PRINT("error", ("Failed to drop table '%s.%s' from DD",
+        DBUG_PRINT("error", ("Failed to remove table '%s.%s' from DD",
                              schema->db, ndb_table_name.c_str()));
         DBUG_ASSERT(false);
         continue;
@@ -5111,8 +5198,7 @@ int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
       if (binlog_client.create_event(ndb, ndbtab,
                                      share))
       {
-        ndb_log_error("Failed to create event for table '%s'",
-                      share->key_string());
+        // Failed to create event
         DBUG_RETURN(-1);
       }
     }
@@ -5124,8 +5210,7 @@ int ndbcluster_setup_binlog_for_share(THD *thd, Ndb *ndb,
       if (!binlog_client.create_event_data(share, table_def, &event_data) ||
           binlog_client.create_event_op(share, ndbtab, event_data))
       {
-        ndb_log_error("Failed to create event operation for table '%s'",
-                      share->key_string());
+        // Failed to create event data or event operation
         DBUG_RETURN(-1);
       }
     }

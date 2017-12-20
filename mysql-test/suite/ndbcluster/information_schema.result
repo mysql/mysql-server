@@ -12,3 +12,13 @@ IF(count(table_name) > 10, 'Yes', 'No') as 'Have more than 10 ndbinfo tables'
   FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ndbinfo';
 Have more than 10 ndbinfo tables
 Yes
+#
+# Check that it's not possible to create a NDB table
+# in the information_schema database
+#
+create table information_schema.t1(
+a int,
+b varchar(10),
+c date
+) engine=ndb;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'

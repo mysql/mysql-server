@@ -93,16 +93,14 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
   DBUG_VOID_RETURN;
 }
 
-
-bool
-ndb_dd_drop_table(THD *thd,
-                  const char *schema_name, const char *table_name)
+bool ndb_dd_remove_table(THD *thd, const char *schema_name,
+                         const char *table_name)
 {
-  DBUG_ENTER("ndb_dd_drop_table");
+  DBUG_ENTER("ndb_dd_remove_table");
 
   Ndb_dd_client dd_client(thd);
 
-  if (!dd_client.drop_table(schema_name, table_name))
+  if (!dd_client.remove_table(schema_name, table_name))
   {
     DBUG_RETURN(false);
   }

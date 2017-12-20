@@ -55,6 +55,8 @@ class Ndb_dd_client {
 
   void disable_autocommit();
 
+  bool store_table(dd::Table* install_table, int ndb_table_id);
+
 public:
   Ndb_dd_client(class THD* thd);
 
@@ -77,7 +79,7 @@ public:
   bool rename_table(const char *old_schema_name, const char *old_table_name,
                     const char *new_schema_name, const char *new_table_name,
                     int new_table_id, int new_table_version);
-  bool drop_table(const char* schema_name, const char* table_name);
+  bool remove_table(const char* schema_name, const char* table_name);
   bool install_table(const char* schema_name, const char* table_name,
                      const dd::sdi_t &sdi,
                      int ndb_table_id, int ndb_table_version,
