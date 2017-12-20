@@ -2583,14 +2583,12 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
               !table->hash_field) ||
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
 
-  TABLE_LIST *tl;
-  if (!(tl= (TABLE_LIST *) alloc_root(thd->mem_root, sizeof(TABLE_LIST))))
+  TABLE_LIST *tl=
+    new (thd->mem_root) TABLE_LIST(table, "", 0, name, strlen(name), name, TL_IGNORE);
+  if (tl == nullptr)
     DBUG_RETURN(true);            /* purecov: inspected */
   // TODO: May have to setup outer-join info for this TABLE_LIST !!!
 
-  tl->init_one_table("", 0, name, strlen(name), name, TL_IGNORE);
-
-  tl->table= table;
   tl->set_tableno(tableno);
 
   table->pos_in_table_list= tl;

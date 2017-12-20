@@ -5748,7 +5748,6 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
 {
   LEX_CSTRING db;
   LEX_STRING tbl_name;
-  TABLE_LIST *table;
 
   dd::Schema_MDL_locker mdl_locker(thd);
 
@@ -5778,9 +5777,6 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
     return nullptr;
   }
 
-  /* We need to reset statement table list to be PS/SP friendly. */
-  if (!(table= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
-    return nullptr;
 
   db= trg_name->m_db;
   db.str= thd->strmake(db.str, db.length);
@@ -5791,10 +5787,10 @@ TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name)
   if (db.str == nullptr || tbl_name.str == nullptr)
     return nullptr;
 
-  table->init_one_table(db.str, db.length, tbl_name.str, tbl_name.length,
-                        tbl_name.str, TL_IGNORE);
-
-  return table;
+  /* We need to reset statement table list to be PS/SP friendly. */
+  return new (thd->mem_root) TABLE_LIST(db.str, db.length, tbl_name.str,
+                                        tbl_name.length, tbl_name.str,
+                                        TL_IGNORE);
 }
 
 

@@ -632,10 +632,13 @@ public:
     return memcmp(m_ptr, rhs->m_ptr, std::min(m_length, rhs->m_length));
   }
 
-  MDL_key(const MDL_key *rhs)
+  MDL_key(const MDL_key &rhs)
   {
-    mdl_key_init(rhs);
+    mdl_key_init(&rhs);
   }
+
+  MDL_key &operator=(const MDL_key &rhs) { mdl_key_init(&rhs); return *this; }
+
   MDL_key(enum_mdl_namespace namespace_arg,
           const char *db_arg, const char *name_arg)
   {
@@ -658,9 +661,6 @@ private:
   uint16 m_object_name_length{0};
   char m_ptr[MAX_MDLKEY_LENGTH]{0};
   static PSI_stage_info m_namespace_to_wait_state_name[NAMESPACE_END];
-private:
-  MDL_key(const MDL_key &);                     /* not implemented */
-  MDL_key &operator=(const MDL_key &);          /* not implemented */
 };
 
 
@@ -748,33 +748,34 @@ public:
     return type >= MDL_SHARED_UPGRADABLE;
   }
 
-  /*
-    This is to work around the ugliness of TABLE_LIST
-    compiler-generated assignment operator. It is currently used
-    in several places to quickly copy "most" of the members of the
-    table list. These places currently never assume that the mdl
-    request is carried over to the new TABLE_LIST, or shared
-    between lists.
+  /**
+    This constructor exists for two reasons:
 
-    This method does not initialize the instance being assigned!
-    Use of init() for initialization after this assignment operator
-    is mandatory. Can only be used before the request has been
-    granted.
+    - TABLE_LIST objects are sometimes default-constructed. We plan to remove
+      this as there is no practical reason, the call to the default
+      constructor is always followed by either a call to
+      TABLE_LIST::init_one_table() or memberwise assignments.
+
+    - In some legacy cases TABLE_LIST objects are copy-assigned without
+      intention to copy the TABLE_LIST::mdl_request member. In this cases they
+      are overwritten with an uninitialized MDL_request object. The cases are:
+
+      - Sql_cmd_handler_open::execute()
+      - mysql_execute_command()
+      - SELECT_LEX_UNIT::prepare()
+      - fill_defined_view_parts()
+
+      No new cases are expected.  In all other cases, so far only
+      Locked_tables_list::rename_locked_table(), a move assignment is actually
+      what is intended.
   */
-  MDL_request& operator=(const MDL_request&)
-  {
-    ticket= NULL;
-    /* Do nothing, in particular, don't try to copy the key. */
-    return *this;
-  }
-  /* Another piece of ugliness for TABLE_LIST constructor */
   MDL_request() {}
 
-  MDL_request(const MDL_request *rhs)
-    :type(rhs->type),
-    duration(rhs->duration),
+  MDL_request(const MDL_request &rhs)
+    :type(rhs.type),
+    duration(rhs.duration),
     ticket(NULL),
-    key(&rhs->key)
+    key(rhs.key)
   {}
 };
 

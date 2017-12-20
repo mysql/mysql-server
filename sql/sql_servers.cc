@@ -448,8 +448,7 @@ static bool close_cached_connection_tables(THD *thd,
     tmp.table_name= share->table_name.str;
     tmp.next_local= tables;
 
-    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp,
-                                       sizeof(TABLE_LIST));
+    tables= new (thd->mem_root) TABLE_LIST(tmp);
   }
   mysql_mutex_unlock(&LOCK_open);
 

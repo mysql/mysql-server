@@ -48,7 +48,6 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
                                      TABLE** table,
                                      Open_tables_backup* backup)
 {
-  TABLE_LIST tables;
   Query_tables_list query_tables_list_backup;
 
   DBUG_ENTER("System_table_access::open_table");
@@ -66,8 +65,8 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
   thd->reset_n_backup_open_tables_state(backup,
                                         Open_tables_state::SYSTEM_TABLES);
 
-  tables.init_one_table(dbstr.str, dbstr.length, tbstr.str, tbstr.length,
-                        tbstr.str, lock_type);
+  TABLE_LIST tables(dbstr.str, dbstr.length, tbstr.str, tbstr.length,
+                    tbstr.str, lock_type);
 
   tables.open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 

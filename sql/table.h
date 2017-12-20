@@ -2351,7 +2351,82 @@ class Table_function;
 
 struct TABLE_LIST
 {
+  TABLE_LIST() = default;
+
+  explicit TABLE_LIST(TABLE *table_arg) : table(table_arg) {}
+
+  TABLE_LIST(const char *db_name_arg,
+             size_t db_length_arg,
+             const char *table_name_arg,
+             size_t table_name_length_arg,
+             const char *alias_arg,
+             enum thr_lock_type lock_type_arg)
+    : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
+                 table_name_length_arg, alias_arg, lock_type_arg)
+  {}
+
+  TABLE_LIST(const char *db_name_arg,
+             size_t db_length_arg,
+             const char *table_name_arg,
+             size_t table_name_length_arg,
+             const char *alias_arg,
+             enum thr_lock_type lock_type_arg,
+             enum enum_mdl_type mdl_request_type)
+    : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
+                 table_name_length_arg, alias_arg, lock_type_arg)
+  {
+    mdl_request.set_type(mdl_request_type);
+  }
+
+  TABLE_LIST(TABLE *table_arg,
+             const char *db_name_arg,
+             size_t db_length_arg,
+             const char *table_name_arg,
+             size_t table_name_length_arg,
+             const char *alias_arg,
+             enum thr_lock_type lock_type_arg)
+    : db(db_name_arg),
+      table_name(table_name_arg),
+      alias(alias_arg),
+      m_map(1),
+      table(table_arg),
+      m_lock_descriptor(lock_type_arg),
+      db_length(db_length_arg),
+      table_name_length(table_name_length_arg)
+  {
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type),
+                     MDL_TRANSACTION);
+  }
+
   /**
+    Sets an explicit enum_mdl_type value, without initializing
+    m_lock_descriptor.
+  */
+  TABLE_LIST(TABLE *table_arg,
+             const char *db_name_arg,
+             size_t db_length_arg,
+             const char *table_name_arg,
+             size_t table_name_length_arg,
+             const char *alias_arg,
+             enum_mdl_type mdl_type)
+    : db(db_name_arg),
+      table_name(table_name_arg),
+      alias(alias_arg),
+      m_map(1),
+      table(table_arg),
+      db_length(db_length_arg),
+      table_name_length(table_name_length_arg)
+  {
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, db, table_name,
+                     mdl_type,
+                     MDL_TRANSACTION);
+  }
+
+  /**
+    Do not use this function in new code. It exists only for legacy code.
     Prepare TABLE_LIST that consists of one table instance to use in
     simple_open_and_lock_tables
   */
@@ -2364,11 +2439,11 @@ struct TABLE_LIST
   {
     *this= TABLE_LIST();
     m_map= 1;
-    db= (char*) db_name_arg;
+    db= db_name_arg;
     db_length= db_length_arg;
-    table_name= (char*) table_name_arg;
+    table_name= table_name_arg;
     table_name_length= table_name_length_arg;
-    alias= (char*) alias_arg;
+    alias= alias_arg;
     m_lock_descriptor.type= lock_type_arg;
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::TABLE, db, table_name,
@@ -2378,6 +2453,7 @@ struct TABLE_LIST
 
 
   /**
+    Do not use this function in new code. It exists only for legacy code.
     Auxiliary method which prepares TABLE_LIST consisting of one table instance
     to be used in simple open_and_lock_tables and takes type of MDL lock on the
     table as explicit parameter.
@@ -3195,7 +3271,7 @@ public:
   /// true <=> Filter condition is processed
   bool          replace_filter_processed{false};
 
-  dd::enum_table_type required_type;
+  dd::enum_table_type required_type{};
   char		timestamp_buffer[20]{0};	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be

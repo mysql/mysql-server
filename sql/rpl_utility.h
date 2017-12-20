@@ -260,6 +260,15 @@ private:
 class table_def
 {
 public:
+
+  /**
+    No-op constructor. Instances of RPL_TABLE_LIST are created by first
+    allocating memory, then placement-new-ing an RPL_TABLE_LIST object
+    containing an uninitialized table_def object which is only conditionally
+    initialized. See Table_map_log_event::do_apply_event().
+  */
+  table_def() {}
+
   /**
     Constructor.
 
@@ -470,6 +479,16 @@ private:
 struct RPL_TABLE_LIST
   : public TABLE_LIST
 {
+  RPL_TABLE_LIST(const char *db_name_arg,
+                 size_t db_length_arg,
+                 const char *table_name_arg,
+                 size_t table_name_length_arg,
+                 const char *alias_arg,
+                 enum thr_lock_type lock_type_arg)
+    : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
+                 table_name_length_arg, alias_arg, lock_type_arg)
+  {}
+
   bool m_tabledef_valid;
   table_def m_tabledef;
   TABLE *m_conv_table;

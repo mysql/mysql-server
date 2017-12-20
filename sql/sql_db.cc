@@ -926,10 +926,8 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema,
     if (table->hidden() == dd::Abstract_table::HT_HIDDEN_SE)
       continue;
 
-    TABLE_LIST *table_list=(TABLE_LIST*)
-      thd->mem_calloc(sizeof(*table_list));
-
-    if (!table_list)
+    TABLE_LIST *table_list= new (thd->mem_root) TABLE_LIST;
+    if (table_list == nullptr)
       DBUG_RETURN(true); /* purecov: inspected */
 
     table_list->db= thd->mem_strdup(db);

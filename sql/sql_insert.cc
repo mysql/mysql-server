@@ -2980,9 +2980,8 @@ int Query_result_create::binlog_show_create_table()
   char buf[2048];
   String query(buf, sizeof(buf), system_charset_info);
   int result;
-  TABLE_LIST tmp_table_list;
+  TABLE_LIST tmp_table_list(table);
 
-  tmp_table_list.table= table;
   query.length(0);      // Have to zero it since constructor doesn't
 
   result= store_create_info(thd, &tmp_table_list, &query, create_info,

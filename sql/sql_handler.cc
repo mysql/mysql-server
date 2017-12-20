@@ -175,7 +175,6 @@ bool Sql_cmd_handler_open::execute(THD *thd)
 {
   TABLE_LIST    *hash_tables = NULL;
   char          *db, *name, *alias;
-  size_t        dblen, namelen, aliaslen;
   TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   DBUG_ENTER("Sql_cmd_handler_open::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
@@ -210,43 +209,35 @@ bool Sql_cmd_handler_open::execute(THD *thd)
   }
 
   /* copy the TABLE_LIST struct */
-  dblen= strlen(tables->db) + 1;
-  namelen= strlen(tables->table_name) + 1;
-  aliaslen= strlen(tables->alias) + 1;
+  const size_t db_alloc_len= strlen(tables->db) + 1;
+  const size_t name_alloc_len= strlen(tables->table_name) + 1;
+  const size_t alias_alloc_len= strlen(tables->alias) + 1;
+
   if (!(my_multi_malloc(key_memory_THD_handler_tables_hash,
                         MYF(MY_WME),
                         &hash_tables, sizeof(*hash_tables),
-                        &db, dblen,
-                        &name, namelen,
-                        &alias, aliaslen,
+                        &db, db_alloc_len,
+                        &name, name_alloc_len,
+                        &alias, alias_alloc_len,
                         NullS)))
   {
     DBUG_PRINT("exit",("ERROR"));
     DBUG_RETURN(true);
   }
-  /* structure copy */
-  *hash_tables= *tables;
-  hash_tables->db= db;
-  hash_tables->table_name= name;
-  hash_tables->alias= alias;
-  hash_tables->set_tableno(0);
-  /*
-    The current SELECT_LEX won't exist when this TABLE_LIST is used by HANDLER
-    READ, so zero it:
-  */
-  hash_tables->select_lex= NULL;
-  memcpy(const_cast<char*>(hash_tables->db), tables->db, dblen);
-  memcpy(const_cast<char*>(hash_tables->table_name),
-         tables->table_name, namelen);
-  memcpy(const_cast<char*>(hash_tables->alias), tables->alias, aliaslen);
+  memcpy(db, tables->db, db_alloc_len);
+  memcpy(name, tables->table_name, name_alloc_len);
+  memcpy(alias, tables->alias, alias_alloc_len);
   /*
     We can't request lock with explicit duration for this table
     right from the start as open_tables() can't handle properly
     back-off for such locks.
   */
-  MDL_REQUEST_INIT(&hash_tables->mdl_request,
-                   MDL_key::TABLE, db, name, MDL_SHARED,
-                   MDL_TRANSACTION);
+  new (hash_tables) TABLE_LIST(tables->table,
+                               db, tables->db_length,
+                               name, tables->table_name_length,
+                               alias,
+                               MDL_SHARED);
+
   /* for now HANDLER can be used only for real TABLES */
   hash_tables->required_type= dd::enum_table_type::BASE_TABLE;
   /* add to hash */

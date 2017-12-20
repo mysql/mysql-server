@@ -1759,7 +1759,7 @@ bool Query_result_update::prepare(List<Item>&,
     /* TODO: add support of view of join support */
     if (tables_to_update & tr->map())
     {
-      TABLE_LIST *dup= (TABLE_LIST*) thd->memdup(tr, sizeof(*dup));
+      auto dup= new (thd->mem_root) TABLE_LIST(*tr);
       if (dup == NULL)
 	DBUG_RETURN(true);
 

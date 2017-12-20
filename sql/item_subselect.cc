@@ -4158,13 +4158,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     Table reference for tmp_table that is used to resolve column references
     (Item_fields) to columns in tmp_table.
   */
-  TABLE_LIST *tmp_table_ref;
-  if (!(tmp_table_ref= (TABLE_LIST*) thd->mem_calloc(sizeof(TABLE_LIST))))
+  TABLE_LIST *tmp_table_ref=
+    new (thd->mem_root) TABLE_LIST(tmp_table, "", 0, "materialized-subquery", 21,
+                                 "materialized-subquery", TL_READ);
+  if (tmp_table_ref == nullptr)
     DBUG_RETURN(true);
-
-  tmp_table_ref->init_one_table("", 0, "materialized-subquery", 21,
-                                "materialized-subquery", TL_READ);
-  tmp_table_ref->table= tmp_table;
 
   /* Name resolution context for all tmp_table columns created below. */
   Name_resolution_context *context= new (*THR_MALLOC) Name_resolution_context;

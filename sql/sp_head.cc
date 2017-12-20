@@ -3530,13 +3530,13 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
         mdl_lock_type= mdl_type_for_dml(stab->lock_type);
       }
 
-      TABLE_LIST *table= pointer_cast<TABLE_LIST*>(tab_buff);
-      table->init_one_table(key_buff, stab->db_length,
-                            key_buff + stab->db_length + 1,
-                            stab->table_name_length,
-                            key_buff + stab->db_length + 1 +
-                            stab->table_name_length + 1,
-                            stab->lock_type, mdl_lock_type);
+      TABLE_LIST *table=
+        new (tab_buff) TABLE_LIST(key_buff, stab->db_length,
+                                  key_buff + stab->db_length + 1,
+                                  stab->table_name_length,
+                                  key_buff + stab->db_length + 1 +
+                                  stab->table_name_length + 1,
+                                  stab->lock_type, mdl_lock_type);
 
       table->is_system_view=
         dd::get_dictionary()->is_system_view_name(table->db, table->table_name);

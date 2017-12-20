@@ -11524,9 +11524,9 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
     my_stpcpy(db_mem, ptr);
   }
 
-  table_list->init_one_table(db_mem, strlen(db_mem),
-                             tname_mem, strlen(tname_mem),
-                             tname_mem, TL_WRITE);
+  new (table_list) RPL_TABLE_LIST(db_mem, strlen(db_mem),
+                                  tname_mem, strlen(tname_mem),
+                                  tname_mem, TL_WRITE);
 
   table_list->table_id=
     DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id.id());

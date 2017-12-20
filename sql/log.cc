@@ -889,11 +889,10 @@ bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
   ulonglong save_thd_options= thd->variables.option_bits;
   thd->variables.option_bits&= ~OPTION_BIN_LOG;
 
-  TABLE_LIST table_list;
-  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                            GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
-                            GENERAL_LOG_NAME.str,
-                            TL_WRITE_CONCURRENT_INSERT);
+  TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                        GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
+                        GENERAL_LOG_NAME.str,
+                        TL_WRITE_CONCURRENT_INSERT);
 
   /*
     1) open_log_table generates an error if the
@@ -1027,11 +1026,10 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
   */
   bool save_time_zone_used= thd->time_zone_used;
 
-  TABLE_LIST table_list;
-  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                            SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
-                            SLOW_LOG_NAME.str,
-                            TL_WRITE_CONCURRENT_INSERT);
+  TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                        SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
+                        SLOW_LOG_NAME.str,
+                        TL_WRITE_CONCURRENT_INSERT);
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(& error_handler);

@@ -12975,7 +12975,7 @@ class Alter_table_hton_notification_guard
 {
 public:
   Alter_table_hton_notification_guard(THD *thd, const MDL_key *key)
-    : m_hton_notified(false), m_thd(thd), m_key(key)
+    : m_hton_notified(false), m_thd(thd), m_key(*key)
   {
   }
 

@@ -135,18 +135,19 @@ bool get_table_for_trigger(THD *thd,
     table_name_ptr= lc_table_name;
   }
 
-  *table= static_cast<TABLE_LIST*>(thd->alloc(sizeof(TABLE_LIST)));
-  if (!*table)
-    DBUG_RETURN(true);
-
   size_t table_name_length= strlen(table_name_ptr);
 
-  (*table)->init_one_table(thd->strmake(db_name.str, db_name.length),
-                           db_name.length,
-                           thd->strmake(table_name_ptr, table_name_length),
-                           table_name_length,
-                           thd->mem_strdup(table_name_ptr),
-                           TL_IGNORE, MDL_SHARED_NO_WRITE);
+  *table=
+    new (thd->mem_root) TABLE_LIST(thd->strmake(db_name.str, db_name.length),
+                                   db_name.length,
+                                   thd->strmake(table_name_ptr,
+                                                table_name_length),
+                                   table_name_length,
+                                   thd->mem_strdup(table_name_ptr),
+                                   TL_IGNORE, MDL_SHARED_NO_WRITE);
+
+  if (*table == nullptr)
+    DBUG_RETURN(true);
 
   (*table)->select_lex= lex->current_select();
   (*table)->cacheable_table= 1;

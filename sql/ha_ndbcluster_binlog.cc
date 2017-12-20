@@ -4490,11 +4490,10 @@ class Ndb_binlog_index_table_util
     const char *save_proc_info=
       thd_proc_info(thd, "Opening " NDB_REP_DB "." NDB_REP_TABLE);
 
-    TABLE_LIST tables;
-    tables.init_one_table(STRING_WITH_LEN(NDB_REP_DB),    // db
-                          STRING_WITH_LEN(NDB_REP_TABLE), // name
-                          NDB_REP_TABLE,                  // alias
-                          TL_WRITE);                      // for write
+    TABLE_LIST tables(STRING_WITH_LEN(NDB_REP_DB),    // db
+                      STRING_WITH_LEN(NDB_REP_TABLE), // name
+                      NDB_REP_TABLE,                  // alias
+                      TL_WRITE);                      // for write
 
     /* Only allow real table to be opened */
     tables.required_type= dd::enum_table_type::BASE_TABLE;

@@ -51,7 +51,8 @@ namespace tables {
 
 enum class enum_table_type
 {
-  BASE_TABLE= 1,
+  INVALID_TABLE,
+  BASE_TABLE,
   USER_VIEW,
   SYSTEM_VIEW
 };

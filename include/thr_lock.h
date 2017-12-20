@@ -102,6 +102,10 @@ struct Lock_descriptor
   */
   Lock_descriptor() {}
 
+  explicit Lock_descriptor(thr_lock_type type_arg)
+    : type(type_arg)
+  {}
+
   Lock_descriptor(thr_lock_type type_arg, thr_locked_row_action action_arg)
     : type(type_arg), action(action_arg)
   {

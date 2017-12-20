@@ -3896,10 +3896,10 @@ Locked_tables_list::init_locked_tables(THD *thd)
       TL_WRITE_DEFAULT, whereas reginfo.lock_type has been updated from
       thd->update_lock_default.
     */
-    dst_table_list->init_one_table(db, db_len, table_name, table_name_len,
-                                   alias,
-                                   src_table_list->table->reginfo.lock_type);
-    dst_table_list->table= table;
+    new (dst_table_list) TABLE_LIST(table, db, db_len, table_name,
+                                    table_name_len, alias,
+                                    src_table_list->table->reginfo.lock_type);
+
     dst_table_list->mdl_request.ticket= src_table_list->mdl_request.ticket;
 
     /* Link last into the list of tables */
@@ -4260,11 +4260,12 @@ Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
                                         table_list->table_name,
                                         table_list->alias) != 0;
 
-        table_list->init_one_table(new_db_root, new_db_len,
-                                   new_table_name_root, new_table_name_len,
-                                   real_alias ? table_list->alias :
-                                                new_table_name_root,
-                                   table_list->lock_descriptor().type);
+        *table_list= TABLE_LIST(new_db_root, new_db_len,
+                                new_table_name_root, new_table_name_len,
+                                real_alias ? table_list->alias :
+                                new_table_name_root,
+                                table_list->lock_descriptor().type);
+
         table_list->mdl_request.ticket= target_mdl_ticket;
         table_list->next_global= save_next_global;
         table_list->prev_global= save_prev_global;
@@ -4922,13 +4923,13 @@ request_backoff_action(enum_open_table_action action_arg,
   {
     DBUG_ASSERT(action_arg == OT_DISCOVER || action_arg == OT_REPAIR ||
                 action_arg == OT_FIX_ROW_TYPE);
-    m_failed_table= (TABLE_LIST*) m_thd->alloc(sizeof(TABLE_LIST));
-    if (m_failed_table == NULL)
+    m_failed_table=
+      new (m_thd->mem_root) TABLE_LIST(table->db, table->db_length,
+                                       table->table_name,
+                                       table->table_name_length,
+                                       table->alias, TL_WRITE);
+    if (m_failed_table == nullptr)
       return true;
-    m_failed_table->init_one_table(table->db, table->db_length,
-                                   table->table_name,
-                                   table->table_name_length,
-                                   table->alias, TL_WRITE);
     m_failed_table->mdl_request.set_type(MDL_EXCLUSIVE);
   }
   m_action= action_arg;

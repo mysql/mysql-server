@@ -3424,6 +3424,14 @@ mysql_execute_command(THD *thd, bool first_level)
       */
       old_list= table[0];
       new_list= table->next_local[0];
+      /*
+        It's not clear what the above assignments actually want to
+        accomplish. What we do know is that they do *not* want to copy the MDL
+        requests, so we overwrite them with uninitialized request.
+      */
+      old_list.mdl_request= MDL_request();
+      new_list.mdl_request= MDL_request();
+
       if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, false, 1, false) ||
          (!test_all_bits(table->next_local->grant.privilege,
                          INSERT_ACL | CREATE_ACL) &&
@@ -6092,7 +6100,6 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                                           LEX_STRING *option,
                                           Parse_context *pc)
 {
-  TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref= NULL; /* The table preceding the current one. */
   LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
@@ -6132,8 +6139,9 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
       DBUG_RETURN(0);
   }
 
-  if (!(ptr = (TABLE_LIST *) thd->mem_calloc(sizeof(TABLE_LIST))))
-    DBUG_RETURN(0);				/* purecov: inspected */
+  TABLE_LIST *ptr= new (thd->mem_root) TABLE_LIST;
+  if (ptr == nullptr)
+    DBUG_RETURN(nullptr); /* purecov: inspected */
 
   if (lower_case_table_names && table_name->table.length)
     table_name->table.length= my_casedn_str(files_charset_info,
