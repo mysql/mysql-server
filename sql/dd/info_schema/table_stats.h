@@ -282,6 +282,7 @@ private:
     @param tbl_se_private_data     - Table SE private data.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
+    @param hton                    - Handle to SE for the given table.
 
     @return ulonglong representing value for the status being read.
   */
@@ -295,7 +296,8 @@ private:
                               dd::Object_id se_private_id,
                               const char* ts_se_private_data,
                               const char* tbl_se_private_data,
-                              enum_table_stats_type stype);
+                              enum_table_stats_type stype,
+                              handlerton *hton);
 
 
   /**

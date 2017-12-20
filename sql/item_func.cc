@@ -9768,9 +9768,7 @@ void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
 
   if (tablespace_name_ptr == nullptr ||
       file_name_ptr == nullptr ||
-      my_strcasecmp(system_charset_info,
-                    engine_name_ptr->c_ptr_safe(),
-                    "InnoDB"))
+      engine_name_ptr == nullptr)
   {
     *null_value= true;
     DBUG_VOID_RETURN;
@@ -9779,11 +9777,13 @@ void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
   // Make sure we have safe string to access.
   tablespace_name_ptr->c_ptr_safe();
   file_name_ptr->c_ptr_safe();
+  engine_name_ptr->c_ptr_safe();
 
   // Read the statistic value from cache.
   if (thd->lex->m_IS_tablespace_stats.read_stat(thd,
                 *tablespace_name_ptr,
                 *file_name_ptr,
+                *engine_name_ptr,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr)))
     *null_value= true;
