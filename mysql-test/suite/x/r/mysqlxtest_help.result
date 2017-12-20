@@ -18,6 +18,8 @@ Options:
 --plain-auth          Use PLAIN text authentication mechanism
 --cached-auth         Use SHA256_MEMORY authentication mechanism
 --mysql41-auth        Use MYSQL41 authentication mechanism
+--using-cap-auth      Get capabilities to check which
+                      authentication mechanism are supported
 --mysql57-compatible  Use features that are 5.7 compatible:
                       * limit auth-mechanisms
 -u, --user=<user>     Connection user
