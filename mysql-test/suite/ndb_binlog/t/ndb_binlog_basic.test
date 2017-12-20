@@ -1,15 +1,6 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
---disable_warnings
-drop table if exists t1, t2;
-drop database if exists mysqltest;
-create database mysqltest;
-use mysqltest;
-drop database mysqltest;
-use test;
---enable_warnings
-
 #
 # basic insert, update, delete test, alter, rename, drop
 # check that ndb_binlog_index gets the right info
