@@ -91,8 +91,8 @@ def	information_schema	FILES	TABLESPACE_NAME	4	NULL	NO	varchar	259	777	NULL	NULL
 def	information_schema	FILES	TABLE_CATALOG	5		NO	char	0	0	NULL	NULL	NULL	utf8	utf8_general_ci	char(0)			select			NULL
 def	information_schema	FILES	TABLE_SCHEMA	6	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TABLE_NAME	7	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	FILES	LOGFILE_GROUP_NAME	8	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	FILES	LOGFILE_GROUP_NUMBER	9	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	FILES	LOGFILE_GROUP_NAME	8	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
+def	information_schema	FILES	LOGFILE_GROUP_NUMBER	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	FILES	ENGINE	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	FILES	FULLTEXT_KEYS	11	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	DELETED_ROWS	12	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
@@ -108,7 +108,7 @@ def	information_schema	FILES	LAST_UPDATE_TIME	21	NULL	YES	binary	0	0	NULL	NULL	N
 def	information_schema	FILES	LAST_ACCESS_TIME	22	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	RECOVER_TIME	23	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TRANSACTION_COUNTER	24	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	FILES	VERSION	25	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	FILES	VERSION	25	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	FILES	ROW_FORMAT	26	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TABLE_ROWS	27	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	AVG_ROW_LENGTH	28	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
@@ -523,8 +523,8 @@ NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint(21)
 NULL	information_schema	FILES	TABLE_CATALOG	char	0	0	utf8	utf8_general_ci	char(0)
 NULL	information_schema	FILES	TABLE_SCHEMA	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TABLE_NAME	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	FILES	LOGFILE_GROUP_NAME	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	FILES	LOGFILE_GROUP_NUMBER	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	FILES	LOGFILE_GROUP_NAME	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+NULL	information_schema	FILES	LOGFILE_GROUP_NUMBER	bigint	NULL	NULL	NULL	NULL	bigint(21)
 3.0000	information_schema	FILES	ENGINE	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	information_schema	FILES	FULLTEXT_KEYS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	DELETED_ROWS	binary	0	0	NULL	NULL	binary(0)
@@ -540,7 +540,7 @@ NULL	information_schema	FILES	LAST_UPDATE_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	LAST_ACCESS_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	RECOVER_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TRANSACTION_COUNTER	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	FILES	VERSION	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	VERSION	bigint	NULL	NULL	NULL	NULL	bigint(21)
 NULL	information_schema	FILES	ROW_FORMAT	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TABLE_ROWS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	AVG_ROW_LENGTH	binary	0	0	NULL	NULL	binary(0)
