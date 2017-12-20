@@ -53,20 +53,10 @@ key_compare_cost	NULL	#	NULL	0.05
 memory_temptable_create_cost	NULL	#	NULL	1
 memory_temptable_row_cost	NULL	#	NULL	0.1
 row_evaluate_cost	NULL	#	NULL	0.1
-Warnings:
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
 SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
 default	0	io_block_read_cost	NULL	#	NULL	1
 default	0	memory_block_read_cost	NULL	#	NULL	0.25
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @new_server_defaults =
 (SELECT GROUP_CONCAT(default_value) FROM mysql.server_cost);
 SET @new_engine_defaults =
@@ -122,20 +112,10 @@ key_compare_cost	NULL	#	NULL	0.05
 memory_temptable_create_cost	NULL	#	NULL	1
 memory_temptable_row_cost	NULL	#	NULL	0.1
 row_evaluate_cost	NULL	#	NULL	0.1
-Warnings:
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
-Warning	4759	#
 SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment	default_value
 default	0	io_block_read_cost	NULL	#	NULL	1
 default	0	memory_block_read_cost	NULL	#	NULL	0.25
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @new_server_defaults =
 (SELECT GROUP_CONCAT(default_value) FROM mysql.server_cost);
 SET @new_engine_defaults =
