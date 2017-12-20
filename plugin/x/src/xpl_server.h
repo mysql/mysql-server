@@ -110,8 +110,9 @@ public:
   void reset_globals();
 
 private:
-  static Client_ptr      get_client_by_thd(Server_ptr &server, THD *thd);
-  static void            verify_mysqlx_user_grants(Sql_data_context &context);
+  static Client_ptr get_client_by_thd(Server_ptr &server, THD *thd);
+  static void       verify_mysqlx_user_grants(Sql_data_context &context);
+  static void       initialize_xmessages();
 
   bool on_net_startup();
 

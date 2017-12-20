@@ -163,6 +163,26 @@ void xpl::Server::start_verify_server_state_timer()
 }
 
 
+void xpl::Server::initialize_xmessages()
+{
+  /* Workaround for initialization of protobuf data.
+     Call default_instance for first msg from every
+     protobuf file.
+
+     This should have be changed to a proper fix.
+   */
+  Mysqlx::ServerMessages::default_instance();
+  Mysqlx::Sql::StmtExecute::default_instance();
+  Mysqlx::Session::AuthenticateStart::default_instance();
+  Mysqlx::Resultset::ColumnMetaData::default_instance();
+  Mysqlx::Notice::Warning::default_instance();
+  Mysqlx::Expr::Expr::default_instance();
+  Mysqlx::Expect::Open::default_instance();
+  Mysqlx::Datatypes::Any::default_instance();
+  Mysqlx::Crud::Update::default_instance();
+  Mysqlx::Connection::Capabilities::default_instance();
+}
+
 /** Timer handler that polls whether X plugin event loop should stop.
 
 This can be triggered when:
@@ -309,6 +329,8 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 
   try
   {
+    initialize_xmessages();
+
     Global_status_variables::instance().reset();
 
     ngs::shared_ptr<ngs::Scheduler_dynamic> thd_scheduler(ngs::allocate_shared<Session_scheduler>("work", p));
