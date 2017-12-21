@@ -2901,7 +2901,7 @@ Restore::parse_record(Signal* signal,
     Uint32 attrLen = 1 + len - 3;
     file_ptr.p->m_rows_restored_insert++;
     memcpy(attr_start + 1, data+2, 4 * (len - 3));
-    DEB_HIGH_RES(("(%u)INSERT_TYPE tab(%u,%u), rowid(%u,%u),"
+    DEB_HIGH_RES(("(%u)INSERT_TYPE tab(%u,%u), row(%u,%u),"
                   " keyLen: %u, key[0]: %x",
                   instance(),
                   file_ptr.p->m_table_id,
@@ -2966,7 +2966,7 @@ Restore::parse_record(Signal* signal,
         }
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_TYPE;
         file_ptr.p->m_rows_restored_delete++;
-        DEB_HIGH_RES(("(%u)1:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u),"
+        DEB_HIGH_RES(("(%u)1:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
                       " gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
@@ -2979,7 +2979,7 @@ Restore::parse_record(Signal* signal,
       {
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_WRITE_TYPE;
         file_ptr.p->m_rows_restored_write++;
-        DEB_HIGH_RES(("(%u)2:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u),"
+        DEB_HIGH_RES(("(%u)2:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
                       " gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
@@ -3010,7 +3010,7 @@ Restore::parse_record(Signal* signal,
          * records, so the performance impact should not be
          * very high.
          */
-        DEB_HIGH_RES(("(%u)WRITE_TYPE tab(%u,%u), rowid(%u,%u), gci=%u",
+        DEB_HIGH_RES(("(%u)WRITE_TYPE tab(%u,%u), row(%u,%u), gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
                        file_ptr.p->m_fragment_id,
@@ -3053,7 +3053,7 @@ Restore::parse_record(Signal* signal,
          * The key is instead the rowid which is sent when the row id flag is
          * set.
          */
-        DEB_HIGH_RES(("(%u)3:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u), gci=%u",
+        DEB_HIGH_RES(("(%u)3:DELETE_BY_ROWID tab(%u,%u), row(%u,%u), gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
                        file_ptr.p->m_fragment_id,
@@ -3153,7 +3153,7 @@ Restore::handle_return_execute_operation(Signal *signal,
    * the first LCP file.
    */
 
-  DEB_RES(("(%u)tab(%u,%u) rowid(%u,%u) key already existed,"
+  DEB_RES(("(%u)tab(%u,%u) row(%u,%u) key already existed,"
            " num_files: %u, current_file: %u",
            instance(),
            file_ptr.p->m_table_id,
@@ -3207,7 +3207,7 @@ Restore::handle_return_execute_operation(Signal *signal,
   return;
 
 error:
-  g_eventLogger->info("(%u)tab(%u,%u),rowid(%u,%u) crash, error: %u",
+  g_eventLogger->info("(%u)tab(%u,%u),row(%u,%u) crash, error: %u",
                       instance(),
                       file_ptr.p->m_table_id,
                       file_ptr.p->m_fragment_id,

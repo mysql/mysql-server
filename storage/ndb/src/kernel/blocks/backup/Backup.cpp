@@ -88,6 +88,8 @@ static NDB_TICKS startTime;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_LCP_ROW 1
+
 //#define DEBUG_LCP_DEL_FILES 1
 #ifdef DEBUG_LCP_DEL_FILES
 #define DEB_LCP_DEL_FILES(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -6334,7 +6336,7 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   copy_array[0] = pageNo;
   copy_array[1] = pageIndex;
   copy_array[2] = gci;
-  DEB_LCP_DEL(("(%u) DELETE_BY_ROWID: rowid(%u,%u)",
+  DEB_LCP_DEL(("(%u) DELETE_BY_ROWID: row(%u,%u)",
                 instance(),
                 pageNo,
                 pageIndex));
@@ -6398,6 +6400,19 @@ Backup::execTRANSID_AI(Signal* signal)
     const Uint32 * src = &signal->theData[3];
     * dst = htonl(header);
     memcpy(dst + 1, src, 4*dataLen);
+#ifdef DEBUG_LCP_ROW
+    TablePtr debTabPtr;
+    FragmentPtr fragPtr;
+    ptr.p->tables.first(debTabPtr);
+    debTabPtr.p->fragments.getPtr(fragPtr, 0);
+    g_eventLogger->info("(%u) tab(%u,%u) Write row(%u,%u) into LCP, bits: %x",
+                 instance(),
+                 debTabPtr.p->tableId,
+                 fragPtr.p->fragmentId,
+                 src[0],
+                 src[1],
+                 src[3]));
+#endif
     if (unlikely(dataLen >= op.maxRecordSize))
     {
       g_eventLogger->info("dataLen: %u, op.maxRecordSize = %u, header: %u",
