@@ -6488,7 +6488,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
           jam();
           c_restore->delete_by_rowid_succ(regTcPtr.p->tcOprec);
         }
-        DEB_LCP_RESTORE(("(%u)tab(%u,%u) rowid(%u,%u), set GCI = %u",
+        DEB_LCP_RESTORE(("(%u)tab(%u,%u) row(%u,%u), set GCI = %u",
                  instance(),
                  regTcPtr.p->tableref,
                  regTcPtr.p->fragmentid,

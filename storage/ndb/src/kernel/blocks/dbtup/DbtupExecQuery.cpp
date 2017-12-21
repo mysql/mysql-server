@@ -2215,7 +2215,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     {
       insert_str = (char*)"INSERT";
     }
-    DEB_DELETE(("(%u)%s: tab(%u,%u) rowid(%u,%u)",
+    DEB_DELETE(("(%u)%s: tab(%u,%u) row(%u,%u)",
                 instance(),
                 insert_str,
                 regFragPtr->fragTableId,
@@ -4782,7 +4782,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
 
-  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) rowid(%u,%u), gci: %u",
+  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) row(%u,%u), gci: %u",
                instance(),
                fragPtr.p->fragTableId,
                fragPtr.p->fragmentId,
