@@ -115,13 +115,6 @@ ndb_log_detect_prefix(const char* fmt,
   DBUG_ENTER("ndb_log_detect_prefix");
   DBUG_PRINT("enter", ("fmt: '%s'", fmt));
 
-  // Check if string starts with prefix "NDB:", this prefix is redundant
-  // since all log messages will be prefixed by NDB: anyway (unless
-  // using a subsystem prefix it will be "NDB <subsystem>:").
-  // Crash in debug compile, caller should fix by removing "NDB: " from
-  // the printout
-  DBUG_ASSERT(strncmp(fmt, "NDB:", 4) != 0);
-
   // Check if string starts with "NDB <subsystem>:" by reading
   // at most 15 chars whithout colon, then a colon and space
   char subsystem[16], colon[2];
@@ -163,6 +156,13 @@ ndb_log_detect_prefix(const char* fmt,
     // over to use the Ndb_component log functions.
     DBUG_ASSERT(false);
   }
+
+  // Check if string starts with prefix "NDB", this prefix is redundant
+  // since all log messages will be prefixed with NDB anyway (unless
+  // using a subsystem prefix it will be "NDB <subsystem>:").
+  // Crash in debug compile, caller should fix by removing prefix "NDB"
+  // from the printout
+  DBUG_ASSERT(strncmp(fmt, "NDB", 3) != 0);
 
   // Format string specifier accepted as is and no prefix was used
   // this would be the default case

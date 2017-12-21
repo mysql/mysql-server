@@ -137,7 +137,7 @@ select count(1) - @init_skipped_err_count as skipped_err_count from test.server_
 --connection master
 --echo Now get unexpected epoch back-step using fault injection
 --echo on the Master.
-call mtr.add_suppression("NDB Binlog injector cycling gcis .*");
+call mtr.add_suppression("Binlog injector cycling gcis .*");
 
 set @old_debug = @@global.debug;
 set global debug="";
@@ -217,7 +217,7 @@ delete from test.t1;
 
 --connection master
 --echo Now get unexpected epoch repeat using fault-injection on the master
-call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
+call mtr.add_suppression("Binlog injector repeating gcis .*");
 
 set @old_debug = @@global.debug;
 set global debug="";
