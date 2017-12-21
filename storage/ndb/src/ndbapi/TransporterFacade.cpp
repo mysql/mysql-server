@@ -459,6 +459,8 @@ int
 TransporterFacade::start_instance(NodeId nodeId,
                                   const ndb_mgm_configuration* conf)
 {
+  DBUG_ENTER("TransporterFacade::start_instance");
+
   assert(theOwnId == 0);
   theOwnId = nodeId;
 
@@ -468,38 +470,61 @@ TransporterFacade::start_instance(NodeId nodeId,
 
   theTransporterRegistry = new TransporterRegistry(this, this);
   if (theTransporterRegistry == NULL)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!theTransporterRegistry->init(nodeId))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (theClusterMgr == NULL)
+  {
     theClusterMgr = new ClusterMgr(*this);
+  }
 
   if (theClusterMgr == NULL)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!configure(nodeId, conf))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!theTransporterRegistry->start_service(m_socket_server))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
                                       (void**)this,
                                       0, // Use default stack size
                                       "ndb_receive",
                                       NDB_THREAD_PRIO_LOW);
-
+  if (theReceiveThread == NULL)
+  {
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for receive.");
+    assert(theReceiveThread != NULL);
+    DBUG_RETURN(-1);
+  }
   theSendThread = NdbThread_Create(runSendRequest_C,
                                    (void**)this,
                                    0, // Use default stack size
                                    "ndb_send",
                                    NDB_THREAD_PRIO_LOW);
+  if (theSendThread == NULL)
+  {
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for send.");
+    assert(theSendThread != NULL);
+    DBUG_RETURN(-1);
+  }
 
   theClusterMgr->startThread();
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
