@@ -2,12 +2,6 @@
 -- source include/have_binlog_format_mixed_or_row.inc
 
 --disable_warnings
-connection server2;
-drop database if exists mysqltest;
-drop table if exists t1,t2,t3;
-connection server1;
-drop database if exists mysqltest;
-drop table if exists t1,t2,t3;
 --connection server1
 reset master;
 --connection server2
@@ -15,8 +9,8 @@ reset master;
 --enable_warnings
 
 #
-# basic test to see if ddl distribution works across
-# multiple binlogs
+# Basic test to see if DDL distribution works across
+# binlogs in different MySQL Server(s)
 #
 
 # create database
@@ -120,7 +114,7 @@ INITIAL_SIZE = 4M;
 ALTER TABLESPACE ts1 
 DROP DATAFILE 'datafile.dat';
 
-ALTER TABLESPACE ts1 
+ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile02.dat';
 
 DROP TABLESPACE ts1;

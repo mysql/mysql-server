@@ -11,6 +11,3 @@
 ##############################################################################
 
 ndb_binlog_restore: Need WL#10167 On the fly frm translation
-
-# Problem with altering table back and forth to another engine
-ndb_binlog_ddl_multi: Need WL#9185 MySQL Cluster support for new DD
