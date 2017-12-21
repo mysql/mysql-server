@@ -5714,7 +5714,7 @@ Backup::start_lcp_scan(Signal *signal,
 
     if (ptr.p->m_lcp_max_page_cnt > 20)
     {
-      delay = 3000;
+      delay = 9000;
     }
   }
   sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, delay);
