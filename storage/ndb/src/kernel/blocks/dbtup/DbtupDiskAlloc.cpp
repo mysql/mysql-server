@@ -1488,7 +1488,7 @@ Dbtup::disk_page_free(Signal *signal,
     {
       g_eventLogger->info(
         "(%u)disk_page_free crash:tab(%u,%u):%u,page(%u,%u).%u.%u"
-        ",gci:%u,rowid(%u,%u)",
+        ",gci:%u,row(%u,%u)",
                  instance(),
                  fragPtrP->fragTableId,
                  fragPtrP->fragmentId,
@@ -1513,7 +1513,7 @@ Dbtup::disk_page_free(Signal *signal,
                              alloc_size);
     
     DEB_PGMAN((
-      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u.%u,gci:%u,rowid(%u,%u)"
+      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u.%u,gci:%u,row(%u,%u)"
       ", lsn=%llu",
                instance(),
                fragPtrP->fragTableId,
