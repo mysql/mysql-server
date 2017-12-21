@@ -91,22 +91,6 @@ struct TFPage
   char m_data[8];
 };
 
-/**
- * TFSentinel is used to link pages wo/ having to care about
- *   first page being null
- */
-struct TFSentinel
-{
-  Uint64 data[sizeof(TFPage) / 8];
-
-  TFSentinel() {
-    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(data); i++)
-      data[i] = 0;
-  }
-
-  TFPage* getPtr() { return new (&data[0]) TFPage;}
-};
-
 struct TFBuffer
 {
   TFBuffer() : m_head(NULL), m_tail(NULL), m_bytes_in_buffer(0) {}
