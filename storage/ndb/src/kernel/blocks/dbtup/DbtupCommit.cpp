@@ -189,12 +189,33 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 
 bool
 Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
+		                     Fragrecord* regFragPtr, 
                                      const Local_key& key1,
                                      const Dbtup::ScanOp& op,
-                                     Uint32 debug_val) const
+                                     Uint32 check_lcp_scanned_state_reversed)
 {
-  if (page->is_page_to_skip_lcp())
+
+  if (page->is_page_to_skip_lcp() ||
+      (check_lcp_scanned_state_reversed == 0 &&
+        get_lcp_scanned_bit(regFragPtr, key1.m_page_no)))
   {
+    /**
+     * We have to check whether the page have already been scanned by
+     * the LCP. We have two different flags for this. The first one
+     * is checked by is_page_to_skip_lcp(). This is set when a page
+     * is allocated during an LCP scan and not previously released
+     * in the same LCP scan.
+     *
+     * If a page is released during the LCP scan we set the lcp
+     * scanned bit in the page map. We need to check both those to
+     * see if the page have been LCP scanned.
+     *
+     * When check_lcp_scanned_state_reversed is != 0 we are not interested
+     * in the lcp scanned state and will ignore checking this. We can
+     * call it with check_lcp_scanned_state_reversed set to 0 even if we
+     * know that the lcp scanned bit isn't set. The reason is that the
+     * check_lcp_state_reversed is also used for debug printouts as well.
+     */
     jam();
     return false; /* Page already scanned for skipped pages */
   }
@@ -208,13 +229,13 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   else if (ret_val == -1)
   {
     jam();
-    if (debug_val != 0)
+    if (check_lcp_scanned_state_reversed != 0)
     {
       DEB_LCP_SCANNED_BIT(("(%u)Line: %u, page: %u, debug_val: %u",
                            instance(),
                            __LINE__,
                            key1.m_page_no,
-                           debug_val));
+                           check_lcp_scanned_state_reversed));
     }
     return true;
   }
@@ -225,13 +246,13 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   {
     jam();
     ndbrequire(key2.isNull());
-    if (debug_val != 0)
+    if (check_lcp_scanned_state_reversed != 0)
     {
       DEB_LCP_SCANNED_BIT(("(%u)Line: %u, page: %u, debug_val: %u",
                            instance(),
                            __LINE__,
                            key1.m_page_no,
-                           debug_val));
+                           check_lcp_scanned_state_reversed));
     }
     return true; /* Already checked page id above, so will scan the page */
   }
@@ -264,13 +285,13 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
     {
       jam();
       /* Include rows not LCP:ed yet */
-      if (debug_val != 0)
+      if (check_lcp_scanned_state_reversed != 0)
       {
         DEB_LCP_SCANNED_BIT(("(%u)Line: %u, page: %u, debug_val: %u",
                              instance(),
                              __LINE__,
                              key1.m_page_no,
-                             debug_val));
+                             check_lcp_scanned_state_reversed));
       }
       return true;
     }
@@ -342,7 +363,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
-    if (is_rowid_in_remaining_lcp_set(page, rowid, *scanOp.p, 0))
+    if (is_rowid_in_remaining_lcp_set(page, regFragPtr, rowid, *scanOp.p, 0))
     {
       jam();
 
@@ -893,7 +914,11 @@ Dbtup::commit_operation(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
-    if (is_rowid_in_remaining_lcp_set(pagePtr.p, rowid, *scanOp.p, 0))
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      regFragPtr,
+                                      rowid,
+                                      *scanOp.p,
+                                      0))
     {
       bool all_part;
       ndbrequire(c_backup->is_page_lcp_scanned(rowid.m_page_no,

@@ -406,6 +406,14 @@ Dbtup::get_lcp_scanned_bit(Uint32 *next_ptr)
   return false;
 }
 
+bool
+Dbtup::get_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
+{
+  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  Uint32 *ptr = map.set(2 * logicalPageId);
+  return get_lcp_scanned_bit(ptr);
+}
+
 void
 Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
 {
@@ -683,6 +691,7 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
     key.m_page_no = page_no;
     key.m_page_idx = ZNIL;
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      fragPtrP,
                                       key,
                                       *scanOp.p,
                                       2 /* Debug for LCP skip bit */))
@@ -986,6 +995,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
     key.m_page_no = logicalPageId;
     key.m_page_idx = ZNIL;
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      fragPtrP,
                                       key,
                                       *scanOp.p,
                                       1 /* Debug for LCP scanned bit */) ||
@@ -1105,12 +1115,12 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                      fragPtrP->fragTableId,
                      fragPtrP->fragmentId,
                      logicalPageId));
-        /* ndbassert(false); COVERAGE TEST */
+        /* Coverage tested */
       }
     }
     else
     {
-      /* ndbassert(pagePtr.p->is_page_to_skip_lcp()); COVERAGE TEST */
+      /* Coverage tested */
     }
   }
   if (!lcp_to_scan)
