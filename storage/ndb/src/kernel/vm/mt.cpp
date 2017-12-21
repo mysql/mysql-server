@@ -5995,6 +5995,7 @@ init_thread(thr_data *selfptr)
   selfptr->m_wakeup_instance = 0;
   selfptr->m_last_wakeup_idle_thread = NdbTick_getCurrentTicks();
   selfptr->m_num_send_nodes_saved = 0;
+  selfptr->m_micros_send = 0;
   selfptr->m_micros_sleep = 0;
   selfptr->m_buffer_full_micros_sleep = 0;
   selfptr->m_measured_spintime = 0;
