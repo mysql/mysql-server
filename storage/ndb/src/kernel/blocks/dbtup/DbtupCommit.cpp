@@ -36,6 +36,9 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_ROW_COUNT 1
+//#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
+
 //#define DEBUG_DELETE_EXTRA 1
 #ifdef DEBUG_DELETE_EXTRA
 #define DEB_DELETE_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -115,7 +118,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     Local_key tmp;
     tmp.m_page_no= getRealpid(regFragPtr.p, frag_page_id); 
     tmp.m_page_idx= page_index;
-    DEB_DELETE(("(%u)dealloc tab(%u,%u), rowid(%u,%u)",
+    DEB_DELETE(("(%u)dealloc tab(%u,%u), row(%u,%u)",
                  instance(),
                  regTabPtr.i,
                  frag_id,
@@ -356,7 +359,7 @@ Dbtup::dealloc_tuple(Signal* signal,
        */
       /* Coverage tested */
       extra_bits |= Tuple_header::LCP_SKIP;
-      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u),"
+      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row(%u,%u),"
                            " handle_lcp_keep_commit"
                            ", set LCP_SKIP, bits: %x",
                            instance(),
@@ -373,8 +376,8 @@ Dbtup::dealloc_tuple(Signal* signal,
     }
     else
     {
-      /* ndbassert(false);  COVERAGE TEST */
-      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u) DELETE"
+      /* Coverage tested */
+      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row(%u,%u) DELETE"
                            " already LCP:ed",
                            instance(),
                            regFragPtr->fragTableId,
@@ -383,13 +386,31 @@ Dbtup::dealloc_tuple(Signal* signal,
                            rowid.m_page_idx));
     }
   }
+  else
+  {
+#ifdef DEBUG_LCP_SKIP_DELETE_EXTRA
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = page->frag_page_id;
+    g_eventLogger->info("(%u)tab(%u,%u)row(%u,%u),"
+                        ", skip LCP, bits: %x"
+                        ", lcpScan_ptr: %u",
+                        instance(),
+                        regFragPtr->fragTableId,
+                        regFragPtr->fragmentId,
+                        rowid.m_page_no,
+                        rowid.m_page_idx,
+                        bits,
+                        lcpScan_ptr_i);
+#endif
+  }
+
 
 #ifdef DEBUG_DELETE_EXTRA
   if (c_started)
   {
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
-    DEB_DELETE_EXTRA(("(%u)tab(%u,%u),DELETE row_id(%u,%u)",
+    DEB_DELETE_EXTRA(("(%u)tab(%u,%u),DELETE row(%u,%u)",
                       instance(),
                       regFragPtr->fragTableId,
                       regFragPtr->fragmentId,
@@ -423,6 +444,19 @@ Dbtup::dealloc_tuple(Signal* signal,
   {
     ndbrequire(regFragPtr->m_row_count > 0);
     regFragPtr->m_row_count--;
+#ifdef DEBUG_ROW_COUNT
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = page->frag_page_id;
+    g_eventLogger->info("(%u) tab(%u,%u) Deleted row(%u,%u)"
+                        ", bits: %x, row_count = %llu",
+                        instance(),
+                        regFragPtr->fragTableId,
+                        regFragPtr->fragmentId,
+                        rowid.m_page_no,
+                        rowid.m_page_idx,
+                        ptr->m_header_bits,
+                        regFragPtr->m_row_count);
+#endif
   }
 }
 
@@ -841,7 +875,7 @@ Dbtup::commit_operation(Signal* signal,
   {
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
-    g_eventLogger->info("(%u)tab(%u,%u) commit rowid(%u,%u)",
+    g_eventLogger->info("(%u)tab(%u,%u) commit row(%u,%u)",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
@@ -874,7 +908,7 @@ Dbtup::commit_operation(Signal* signal,
         jam();
         /* Coverage tested */
         lcp_bits |= Tuple_header::LCP_SKIP;
-        DEB_LCP_SKIP(("(%u)Set LCP_SKIP on tab(%u,%u), rowid(%u,%u)",
+        DEB_LCP_SKIP(("(%u)Set LCP_SKIP on tab(%u,%u), row(%u,%u)",
                       instance(),
                       regFragPtr->fragTableId,
                       regFragPtr->fragmentId,
@@ -890,7 +924,7 @@ Dbtup::commit_operation(Signal* signal,
          * operation.
          */
         /* Coverage tested */
-        DEB_LCP_DEL(("(%u)Set LCP_DELETE on tab(%u,%u), rowid(%u,%u)",
+        DEB_LCP_DEL(("(%u)Set LCP_DELETE on tab(%u,%u), row(%u,%u)",
                      instance(),
                      regFragPtr->fragTableId,
                      regFragPtr->fragmentId,
@@ -967,6 +1001,19 @@ Dbtup::commit_operation(Signal* signal,
   if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
     regFragPtr->m_row_count++;
+#ifdef DEBUG_ROW_COUNT
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = pagePtr.p->frag_page_id;
+    g_eventLogger->info("(%u) tab(%u,%u) Inserted row(%u,%u)"
+                        ", bits: %x, row_count = %llu",
+                        instance(),
+                        regFragPtr->fragTableId,
+                        regFragPtr->fragmentId,
+                        rowid.m_page_no,
+                        rowid.m_page_idx,
+                        tuple_ptr->m_header_bits,
+                        regFragPtr->m_row_count);
+#endif
   }
 }
 
