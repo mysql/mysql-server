@@ -19,6 +19,7 @@
 #include <atomic>
 #include <new>
 #include <ostream>
+#include <string>
 
 #include "gtest/gtest-message.h"
 #include "m_ctype.h"
@@ -26,16 +27,31 @@
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "my_inttypes.h"
 #include "mysql_com.h"
+#include "sql/binlog.h"
+#include "sql/client_settings.h"
+#include "sql/conn_handler/connection_handler_manager.h"
+#include "sql/dd/dd.h"
 #include "sql/dd/impl/dictionary_impl.h"        // dd::Dictionary_impl
+#include "sql/dd/impl/tables/column_type_elements.h"
+#include "sql/dd/impl/tables/schemata.h"
+#include "sql/dd/impl/tables/tables.h"
+#include "sql/derror.h"
+#include "sql/item_func.h"
+#include "sql/keycaches.h"
 #include "sql/log.h"                            // query_logger
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"                         // set_remaining_args
+#include "sql/mysqld_thd_manager.h"
 #include "sql/opt_costconstantcache.h"          // optimizer cost constant cache
+#include "sql/opt_range.h"
+#include "sql/rpl_filter.h"
 #include "sql/rpl_handler.h"                    // delegates_init()
 #include "sql/set_var.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_locale.h"
 #include "sql/xa.h"
+#include "unicode/uclean.h"
 
 
 namespace my_testing {
@@ -58,8 +74,8 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf)
 
 void setup_server_for_unit_tests()
 {
-  static char *my_name= strdup(my_progname);
-  char *argv[] = { my_name,
+  std::string my_name(my_progname);
+  char *argv[] = { const_cast<char*>(my_name.c_str()),
                    const_cast<char*>("--secure-file-priv=NULL"),
                    const_cast<char*>("--log_syslog=0"),
                    const_cast<char*>("--explicit_defaults_for_timestamp"),
@@ -83,14 +99,31 @@ void setup_server_for_unit_tests()
 
 void teardown_server_for_unit_tests()
 {
+  mysql_bin_log.cleanup();
+  range_optimizer_free();
   sys_var_end();
   delegates_destroy();
   transaction_cache_free();
   gtid_server_cleanup();
   query_logger.cleanup();
+  item_func_sleep_free();
+  item_create_cleanup();
   delete_optimizer_cost_module();
   DD_initializer::TearDown();
+  delete &dd::tables::Column_type_elements::instance();
+  delete &dd::tables::Schemata::instance();
+  delete &dd::tables::Tables::instance();
+  key_caches.delete_elements();
+  free_tmpdir(&mysql_tmpdir_list);
+  delete binlog_filter;
+  u_cleanup();
+  cleanup_errmsgs();
+  Connection_handler_manager::destroy_instance();
+  mysql_client_plugin_deinit();
+  deinit_errmessage(); // finish server errs
+  Global_THD_manager::destroy_instance();
   my_end(0);
+  clean_up_mysqld_mutexes();
 }
 
 void Server_initializer::set_expected_error(uint val)

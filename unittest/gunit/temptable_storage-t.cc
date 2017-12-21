@@ -25,28 +25,31 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace temptable_storage_unittest {
 
 TEST(temptable_storage, iterate) {
-  temptable::Allocator<uint8_t> allocator;
-  temptable::Storage storage(&allocator);
+  {
+    temptable::Allocator<uint8_t> allocator;
+    temptable::Storage storage(&allocator);
 
-  storage.element_size(sizeof(uint64_t));
+    storage.element_size(sizeof(uint64_t));
 
-  for (uint64_t i = 0; i < 10000; ++i) {
-    *static_cast<uint64_t*>(storage.allocate_back()) = i;
+    for (uint64_t i = 0; i < 10000; ++i) {
+      *static_cast<uint64_t*>(storage.allocate_back()) = i;
+    }
+
+    uint64_t i = 0;
+    for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
+      EXPECT_EQ(i, *static_cast<uint64_t*>(*it));
+    }
+
+    i = storage.size();
+    auto it = storage.end();
+    for (; it != storage.begin();) {
+      --it;
+      --i;
+      EXPECT_EQ(i, *static_cast<uint64_t*>(*it));
+    }
+    EXPECT_EQ(0u, i);
   }
-
-  uint64_t i = 0;
-  for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
-    EXPECT_EQ(i, *static_cast<uint64_t*>(*it));
-  }
-
-  i = storage.size();
-  auto it = storage.end();
-  for (; it != storage.begin();) {
-    --it;
-    --i;
-    EXPECT_EQ(i, *static_cast<uint64_t*>(*it));
-  }
-  EXPECT_EQ(0u, i);
+  temptable::Allocator<uint8_t>::end_thread();
 }
 
 } /* namespace temptable_storage_unittest */

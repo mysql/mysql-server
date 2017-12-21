@@ -1929,6 +1929,11 @@ static void unireg_abort(int exit_code)
 }
 
 
+void clean_up_mysqld_mutexes()
+{
+  clean_up_mutexes();
+}
+
 static void mysqld_exit(int exit_code)
 {
   DBUG_ASSERT((exit_code >= MYSQLD_SUCCESS_EXIT

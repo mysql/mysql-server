@@ -26,23 +26,26 @@ namespace temptable_allocator_unittest {
 
 TEST(temptable_allocator, basic)
 {
-  temptable::Allocator<uint64_t> allocator;
+  {
+    temptable::Allocator<uint64_t> allocator;
 
-  constexpr size_t n_allocate = 128;
-  std::array<uint64_t*, n_allocate> a;
-  constexpr size_t n_elements = 16;
+    constexpr size_t n_allocate = 128;
+    std::array<uint64_t*, n_allocate> a;
+    constexpr size_t n_elements = 16;
 
-  for (size_t i = 0; i < n_allocate; ++i) {
-    a[i] = allocator.allocate(n_elements);
+    for (size_t i = 0; i < n_allocate; ++i) {
+      a[i] = allocator.allocate(n_elements);
 
-    for (size_t j = 0; j < n_elements; ++j) {
-      a[i][j] = 0xF00BA4C0FFEE1234;
+      for (size_t j = 0; j < n_elements; ++j) {
+        a[i][j] = 0xF00BA4C0FFEE1234;
+      }
+    }
+
+    for (size_t i = 0; i < n_allocate; ++i) {
+      allocator.deallocate(a[i], n_elements);
     }
   }
-
-  for (size_t i = 0; i < n_allocate; ++i) {
-    allocator.deallocate(a[i], n_elements);
-  }
+  temptable::Allocator<uint64_t>::end_thread();
 }
 
 TEST(temptable_allocator, edge)
@@ -68,21 +71,24 @@ TEST(temptable_allocator, edge)
 
 TEST(temptable_allocator, block_size_cap)
 {
-  temptable::Allocator<uint8_t> allocator;
+  {
+    temptable::Allocator<uint8_t> allocator;
 
-  using namespace temptable;
+    using namespace temptable;
 
-  constexpr size_t alloc_size = 1_MiB;
-  constexpr size_t n_allocate = ALLOCATOR_MAX_BLOCK_BYTES / alloc_size + 10;
-  std::array<uint8_t*, n_allocate> a;
+    constexpr size_t alloc_size = 1_MiB;
+    constexpr size_t n_allocate = ALLOCATOR_MAX_BLOCK_BYTES / alloc_size + 10;
+    std::array<uint8_t*, n_allocate> a;
 
-  for (size_t i = 0; i < n_allocate; ++i) {
-    a[i] = allocator.allocate(alloc_size);
+    for (size_t i = 0; i < n_allocate; ++i) {
+      a[i] = allocator.allocate(alloc_size);
+    }
+
+    for (size_t i = 0; i < n_allocate; ++i) {
+      allocator.deallocate(a[i], alloc_size);
+    }
   }
-
-  for (size_t i = 0; i < n_allocate; ++i) {
-    allocator.deallocate(a[i], alloc_size);
-  }
+  temptable::Allocator<uint8_t>::end_thread();
 }
 
 } /* namespace temptable_allocator_unittest */
