@@ -126,7 +126,9 @@ void Regexp_engine::AppendHead(size_t size) {
   // This won't be written to in case of errors.
   int32_t text_length32 = 0;
   auto text = uregex_getText(m_re, &text_length32, &m_error_code);
+#ifndef DBUG_OFF
   size_t text_length = text_length32;
+#endif
 
   // We make sure we are not in an error state before we start copying.
   if (m_error_code != U_ZERO_ERROR) DBUG_VOID_RETURN;
