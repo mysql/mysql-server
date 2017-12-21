@@ -2602,21 +2602,21 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
   }
 
   Ptr<Pgman::Page_request> req_ptr;
+  if (likely(m_page_request_pool.seize(req_ptr)))
   {
     Local_page_request_list req_list(m_page_request_pool, ptr.p->m_requests);
     if (! (req_flags & Page_request::ALLOC_REQ))
     {
       thrjam(jamBuf);
-      req_list.seizeLast(req_ptr);
+      req_list.addLast(req_ptr);
     }
     else
     {
       thrjam(jamBuf);
-      req_list.seizeFirst(req_ptr);
+      req_list.addFirst(req_ptr);
     }
   }
-  
-  if (req_ptr.i == RNIL)
+  else
   {
     thrjam(jamBuf);
     if (is_new)
