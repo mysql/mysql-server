@@ -7369,6 +7369,8 @@ send_buffer_init(Uint32 node, thr_repository::send_buffer * sb)
   register_lock(&sb->m_send_lock, buf);
   BaseString::snprintf(buf, sizeof(buf), "send_buffer lock node %d", node);
   register_lock(&sb->m_buffer_lock, buf);
+  sb->m_buffered_size = 0;
+  sb->m_sending_size = 0;
   sb->m_force_send = 0;
   sb->m_bytes_sent = 0;
   sb->m_send_thread = NO_SEND_THREAD;

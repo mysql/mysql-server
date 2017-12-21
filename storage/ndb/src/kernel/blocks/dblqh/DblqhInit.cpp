@@ -87,11 +87,15 @@ void Dblqh::initData()
   cmaxLogFilesInPageZero_DUMP = 0;
 #endif
 
-   totalLogFiles = 0;
-   logFileInitDone = 0;
-   totallogMBytes = 0;
-   logMBytesInitDone = 0;
-   m_startup_report_frequency = 0;
+#if defined ERROR_INSERT
+  delayOpenFilePtrI = 0;
+#endif
+
+  totalLogFiles = 0;
+  logFileInitDone = 0;
+  totallogMBytes = 0;
+  logMBytesInitDone = 0;
+  m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
   for (Uint32 i = 0; i < 1024; i++) {
