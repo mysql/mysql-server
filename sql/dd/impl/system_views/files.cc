@@ -48,9 +48,13 @@ Files::Files()
   m_target_def.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA", "NULL");
   m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME", "NULL");
   m_target_def.add_field(FIELD_LOGFILE_GROUP_NAME,
-                         "LOGFILE_GROUP_NAME", "NULL");
+                         "LOGFILE_GROUP_NAME",
+                         "INTERNAL_TABLESPACE_LOGFILE_GROUP_NAME(ts.name,"
+                         "tsf.file_name, ts.engine, ts.se_private_data)");
   m_target_def.add_field(FIELD_LOGFILE_GROUP_NUMBER,
-                         "LOGFILE_GROUP_NUMBER", "NULL");
+                         "LOGFILE_GROUP_NUMBER",
+                         "INTERNAL_TABLESPACE_LOGFILE_GROUP_NUMBER(ts.name,"
+                         "tsf.file_name, ts.engine, ts.se_private_data)");
   m_target_def.add_field(FIELD_ENGINE, "ENGINE", "ts.engine");
   m_target_def.add_field(FIELD_FULLTEXT_KEYS, "FULLTEXT_KEYS", "NULL");
   m_target_def.add_field(FIELD_DELETED_ROWS, "DELETED_ROWS", "NULL");
@@ -81,7 +85,9 @@ Files::Files()
   m_target_def.add_field(FIELD_RECOVER_TIME, "RECOVER_TIME", "NULL");
   m_target_def.add_field(FIELD_TRANSACTION_COUNTER, "TRANSACTION_COUNTER",
                          "NULL");
-  m_target_def.add_field(FIELD_VERSION, "VERSION", "NULL");
+  m_target_def.add_field(FIELD_VERSION, "VERSION",
+                         "INTERNAL_TABLESPACE_VERSION(ts.name,"
+                         "tsf.file_name, ts.engine, ts.se_private_data)");
   m_target_def.add_field(FIELD_ROW_FORMAT, "ROW_FORMAT", "NULL");
   m_target_def.add_field(FIELD_TABLE_ROWS, "TABLE_ROWS", "NULL");
   m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH", "NULL");

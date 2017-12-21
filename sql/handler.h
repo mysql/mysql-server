@@ -6091,15 +6091,14 @@ class ha_tablespace_statistics
 public:
   ha_tablespace_statistics()
    :m_id(0),
-    m_logfile_group_number(0),
+    m_logfile_group_number(-1),
     m_free_extents(0),
     m_total_extents(0),
     m_extent_size(0),
     m_initial_size(0),
     m_maximum_size(0),
-    m_maximum_size_is_null(false),
     m_autoextend_size(0),
-    m_version(0),
+    m_version(-1),
     m_data_free(0)
   { }
 
@@ -6112,7 +6111,6 @@ public:
   ulonglong   m_extent_size;
   ulonglong   m_initial_size;
   ulonglong   m_maximum_size;
-  bool        m_maximum_size_is_null;
   ulonglong   m_autoextend_size;
   ulonglong   m_version;    // NDB only
   dd::String_type m_row_format; // NDB only
