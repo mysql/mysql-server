@@ -3177,10 +3177,11 @@ private:
                         Uint32 **prev_ptr);
   void set_last_lcp_state(Fragrecord*, Uint32, bool);
   void set_last_lcp_state(Uint32*, bool);
-  bool get_lcp_scanned_bit(Uint32 *next_ptr);
-  void reset_lcp_scanned_bit(Uint32 *next_ptr);
-  void reset_lcp_scanned_bit(Fragrecord*, Uint32);
   bool get_last_lcp_state(Uint32 *prev_ptr);
+  bool get_lcp_scanned_bit(Fragrecord*, Uint32);
+  bool get_lcp_scanned_bit(Uint32 *next_ptr);
+  void reset_lcp_scanned_bit(Fragrecord*, Uint32);
+  void reset_lcp_scanned_bit(Uint32 *next_ptr);
 
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
@@ -3711,9 +3712,10 @@ private:
   
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_in_remaining_lcp_set(const Page* page,
+		                     Fragrecord* regFragPtr, 
                                      const Local_key& key1,
                                      const Dbtup::ScanOp& op,
-                                     Uint32 debug_val) const;
+                           Uint32 check_lcp_scanned_state_reversed);
   void update_gci(Fragrecord*, Tablerec*, Tuple_header*, Uint32);
   void commit_operation(Signal*,
                         Uint32,

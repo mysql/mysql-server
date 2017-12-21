@@ -9729,16 +9729,22 @@ Backup::execFSREMOVECONF(Signal* signal)
  *
  * Observation 2:
  * --------------
- * The selected algorithm of performing an LCP means that we scan the
- * rows in an order that is not strictly from page id 0 and onwards,
- * we will however only pass by each page once for scanning it. Thus
- * we can safely clear the LCP_SKIP bit when we pass by a page as
- * part of the LCP, so even with multiple files and multiple LCP
- * scans we will only scan each page once per LCP.
+ * Given that we need two different mechanisms to deduce if a page should
+ * be skipped when LCP scanned (is_page_to_skip_lcp() through state on
+ * page and lcp_scanned_bit set in page map) this means that both of
+ * those need to be checked to see if a row is in remaining LCP set
+ * that is used to decide whether to set LCP_SKIP bit on the row.
  *
- * This means that the BACKUP blocks needs to be involved in checking
- * if a rowid has been scanned yet or not as part of the LCP_SKIP bit
- * setting for inserts and the LCP keep list for deletes.
+ * The is_page_to_skip_lcp() flag on page is set when a page as first
+ * alloc/release page event after start of LCP scan is allocated. After
+ * this the page can be released and if so the last LCP state of the
+ * page will be updated and the lcp scanned bit will be set.
+ *
+ * Similarly if the page is released as the first page event after
+ * start of LCP scan we will also update the last LCP state and
+ * next set the lcp scanned bit. So when we see a lcp scanned bit we
+ * need never do anything more during the LCP scan, we only need to
+ * reset the bit.
  *
  * Lemma 1:
  * --------
