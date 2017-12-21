@@ -1002,7 +1002,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * will make this code path using an ndbrequire instead.
                */
               jam();
-              ndbrequire(false); //COVERAGE_TEST
+              //ndbassert(false); //COVERAGE_TEST
               /* We will not scan this page, so reset flag immediately */
               reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
               scan.m_last_seen = __LINE__;
@@ -1756,7 +1756,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                               foundGCI,
                               scan.m_scanGCI,
                               thbits));
-                ndbassert(false); //COVERAGE_TEST
+                //ndbassert(false); //COVERAGE_TEST
               }
               jam();
               scan.m_last_seen = __LINE__;
@@ -2354,6 +2354,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
       key.m_page_idx = idx;
       bool is_in_remaining_lcp_set =
         is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      fragPtrP,
                                       key,
                                       *scanPtr.p,
                                       0);
@@ -2395,7 +2396,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   else
   {
     jam();
-    ndbassert(false); //COVERAGE TEST
+    //ndbassert(false); //COVERAGE TEST
     found_idx_count = 1;
     found_idx[0] = ZNIL; /* Indicates DELETE by PAGEID */
     DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) Keep_list DELETE_BY_PAGEID",
