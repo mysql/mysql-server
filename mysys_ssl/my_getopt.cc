@@ -1048,7 +1048,13 @@ bool getopt_compare_strings(const char *s, const char *t,
   function: eval_num_suffix
 
   Transforms a number with a suffix to real number. Suffix can
-  be k|K for kilo, m|M for mega or g|G for giga.
+  be:
+  * k|K for kilo
+  * m|M for mega
+  * g|G for giga
+  * t|T for tera
+  * p|P for peta
+  * e|E for exa
 */
 
 static longlong eval_num_suffix(char *argument, int *error, char *option_name)
@@ -1066,28 +1072,47 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
     *error= 1;
     return 0;
   }
-  if (*endchar == 'k' || *endchar == 'K')
-    num*= 1024L;
-  else if (*endchar == 'm' || *endchar == 'M')
-    num*= 1024L * 1024L;
-  else if (*endchar == 'g' || *endchar == 'G')
-    num*= 1024L * 1024L * 1024L;
-  else if (*endchar)
-  {
+  switch (*endchar) {
+  case '\0':
+    return num;
+  case 'k':
+  case 'K':
+    return num << 10;
+  case 'm':
+  case 'M':
+    return num << 20;
+  case 'g':
+  case 'G':
+    return num << 30;
+  case 't':
+  case 'T':
+    return num << 40;
+  case 'p':
+  case 'P':
+    return num << 50;
+  case 'e':
+  case 'E':
+    return num << 60;
+  default:
     my_message_local(ERROR_LEVEL,
                      "Unknown suffix '%c' used for variable '%s' (value '%s')",
                      *endchar, option_name, argument);
     *error= 1;
     return 0;
   }
-  return num;
 }
 
 /**
   function: eval_num_suffix_ull
   This is the same as eval_num_suffix, but is meant for unsigned long long
   values. Transforms an unsigned number with a suffix to real number. Suffix can
-  be k|K for kilo, m|M for mega or g|G for giga.
+  be:
+  * k|K for kilo
+  * m|M for mega
+  * g|G for giga
+  * t|T for tera
+  * p|P for peta
+  * e|E for exa
   @param [in]        argument      argument value for option_name
   @param [in, out]   error         error no.
   @param [in]        option_name   name of option
@@ -1108,21 +1133,34 @@ static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_na
     *error= 1;
     return 0;
   }
-  if (*endchar == 'k' || *endchar == 'K')
-    num*= 1024L;
-  else if (*endchar == 'm' || *endchar == 'M')
-    num*= 1024L * 1024L;
-  else if (*endchar == 'g' || *endchar == 'G')
-    num*= 1024L * 1024L * 1024L;
-  else if (*endchar)
-  {
+  switch (*endchar) {
+  case '\0':
+    return num;
+  case 'k':
+  case 'K':
+    return num << 10;
+  case 'm':
+  case 'M':
+    return num << 20;
+  case 'g':
+  case 'G':
+    return num << 30;
+  case 't':
+  case 'T':
+    return num << 40;
+  case 'p':
+  case 'P':
+    return num << 50;
+  case 'e':
+  case 'E':
+    return num << 60;
+  default:
     my_message_local(ERROR_LEVEL,
                      "Unknown suffix '%c' used for variable '%s' (value '%s')",
                      *endchar, option_name, argument);
     *error= 1;
     return 0;
   }
-  return num;
 }
 
 /* 
