@@ -2307,7 +2307,7 @@ private:
   
   void checkAbortAllTimeout(Signal* signal, Uint32 sleepTime);
   struct AbortAllRecord {
-    AbortAllRecord(){ clientRef = 0; }
+    AbortAllRecord() : clientRef(0), oldTimeOutValue(0) {}
     Uint32 clientData;
     BlockReference clientRef;
     
