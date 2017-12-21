@@ -1607,14 +1607,16 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
               "group_replication_bootstrap_group: %s; "
               "group_replication_poll_spin_loops: %lu; "
               "group_replication_compression_threshold: %lu; "
-              "group_replication_ip_whitelist: \"%s\" "
-              "group_replication_communication_debug_file: \"%s\" "
-              "group_replication_communication_debug_path: \"%s\"",
-              group_name_var, local_address_var, group_seeds_var,
+              "group_replication_ip_whitelist: \"%s\"; "
+              "group_replication_communication_debug_options: \"%s\"",
+              group_name_var,
+              local_address_var,
+              group_seeds_var,
               bootstrap_group_var ? "true" : "false",
-              poll_spin_loops_var, compression_threshold_var,
-              ip_whitelist_var, GCS_DEBUG_TRACE_FILE,
-              mysql_real_data_home);
+              poll_spin_loops_var,
+              compression_threshold_var,
+              ip_whitelist_var,
+              communication_debug_options_var);
 
   DBUG_RETURN(0);
 }
