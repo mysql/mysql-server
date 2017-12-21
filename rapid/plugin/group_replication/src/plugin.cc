@@ -2877,9 +2877,9 @@ check_member_weight(MYSQL_THD, SYS_VAR*, void *save,
   longlong in_val;
   value->val_int(value, &in_val);
 
-  *(longlong*)save= (in_val < MIN_MEMBER_WEIGHT) ? 0 :
-                    (in_val < MAX_MEMBER_WEIGHT) ? in_val :
-                    MAX_MEMBER_WEIGHT;
+  *(uint*)save= (in_val < MIN_MEMBER_WEIGHT) ? MIN_MEMBER_WEIGHT :
+                (in_val < MAX_MEMBER_WEIGHT) ? in_val :
+                MAX_MEMBER_WEIGHT;
 
   mysql_mutex_unlock(&plugin_running_mutex);
   DBUG_RETURN(0);
