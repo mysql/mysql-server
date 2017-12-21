@@ -11,17 +11,3 @@
 ##############################################################################
 
 ndb_binlog_restore: Need WL#10167 On the fly frm translation
-
-# Problem with altering table back and forth to another engine
-ndb_binlog_purge: Need WL#9185 MySQL Cluster support for new DD
-ndb_binlog_purge_upgrade: Need WL#9185 MySQL Cluster support for new DD
-ndb_binlog_purge_lock: Need WL#9185 MySQL Cluster support for new DD
-ndb_binlog_ddl_multi: Need WL#9185 MySQL Cluster support for new DD
-
-# Test disabled with "skip"  but that does not work with --no-skip
-binlog_multi_engine: BuG#14677850 BINLOG_MULTI_ENGINE DEPENDS ON NDB;
-
-# Problem with alter table leaving table with old name behind
-ndb_binlog_discover: Need WL#9185 MySQL Cluster support for new DD
-ndb_binlog_basic: Need WL#9185 MySQL Cluster support for new DD
-

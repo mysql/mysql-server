@@ -1,10 +1,20 @@
 -- source include/have_multi_ndb.inc
-select (engine = 'InnoDB') from information_schema.tables where table_name = 'ndb_binlog_index' into @use_innodb;
+
+# Determine if ndb_binlog_index is stored in InnoDB, in such case ALTER it
+# to other engine before running mysql_upgrade
+let $using_innodb = `select (engine = 'InnoDB') from information_schema.tables
+                        where table_name = 'ndb_binlog_index'` ;
+
+# Check that mysql.ndb_binlog_index is in InnoDB
+if (!$using_innodb)
+{
+  die The mysql.ndb_binlog_index is not in Innodb;
+}
 
 connection server2;
 disable_query_log;
 disable_result_log;
-if (`select @use_innodb = 1`)
+if ($using_innodb)
 {
   ALTER TABLE mysql.ndb_binlog_index engine = myisam;
 }
@@ -16,7 +26,7 @@ call mtr.add_suppression("Can't create database 'performance_schema'; database e
 connection server1;
 disable_query_log;
 disable_result_log;
-if (`select @use_innodb = 1`)
+if ($using_innodb)
 {
   ALTER TABLE mysql.ndb_binlog_index engine = myisam;
 }
@@ -30,13 +40,13 @@ call mtr.add_suppression("Can't create database 'performance_schema'; database e
 disable_query_log;
 disable_result_log;
 connection server2;
-if (`select @use_innodb != 1`)
+if (!$using_innodb)
 {
   ALTER TABLE mysql.ndb_binlog_index engine = myisam;
 }
 
 connection server1;
-if (`select @use_innodb != 1`)
+if (!$using_innodb)
 {
   ALTER TABLE mysql.ndb_binlog_index engine = myisam;
 }
