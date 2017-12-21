@@ -32,6 +32,8 @@
 extern CHARSET_INFO my_charset_utf16le_general_ci;
 extern CHARSET_INFO my_charset_utf16_general_ci;
 
+namespace regexp_engine_unittest { class Mock_regexp_engine; }
+
 namespace regexp {
 
 static constexpr CHARSET_INFO *regexp_lib_charset =
@@ -42,21 +44,6 @@ static constexpr CHARSET_INFO *regexp_lib_charset =
 #endif
 
 const char *icu_version_string();
-
-/**
-  We are using an std::vector to communicate with ICU's C API, which writes
-  through a UChar pointer, after which we call vector::resize(). The latter
-  normally overwrites with zeroes and we don't want that. That's why we wrap
-  it in this class which has a non-initializing constructor.
-*/
-struct Uninitialized_uchar {
-  /// We have to explicitly define an empty constructor.
-  Uninitialized_uchar() {}
-  operator UChar() { return the_char; }
-  UChar the_char;
-};
-
-using ReplacementBufferType = std::vector<Uninitialized_uchar>;
 
 /**
   Implements a match callback function for icu that aborts execution if the
@@ -179,34 +166,26 @@ class Regexp_engine {
 
   ~Regexp_engine() { uregex_close(m_re); }
 
- private:
   /**
     The hard limit for growing the replace buffer. The buffer cannot grow
     beyond this size, and an error will be thrown if the limit is reached.
   */
-  int HardLimit() {
+  size_t HardLimit() {
     return current_thd->variables.max_allowed_packet / sizeof(UChar);
   }
 
   /**
     Fills in the prefix in case we are doing a replace operation starting on a
-    non-first occurrence of the pattern or a non-first start
+    non-first occurrence of the pattern, or a non-first start
     position. AppendReplacement() will fill in the section starting after the
     previous match or start position, so a prefix must be appended first.
-  */
-  void AppendHead(int end_of_previous_match, int start_of_search);
 
-  /**
-    Preflight function: If the buffer capacity is adequate, the replacement is
-    appended to the buffer, otherwise nothing is written. Either way, the
-    replacement's full size is returned.
+    The part we have to worry about here, the part that ICU doesn't add for
+    us is, is if the search didn't start on the first character or first
+    match for the regular expression. It's the longest such prefix that we
+    have to copy ourselves.
   */
-  int TryToAppendReplacement(const UChar *repl, size_t length) {
-    int capacity = SpareCapacity();
-    auto replace_buffer_pos = &m_replace_buffer.end()->the_char;
-    return uregex_appendReplacement(m_re, repl, length, &replace_buffer_pos,
-                                    &capacity, &m_error_code);
-  }
+  void AppendHead(size_t size);
 
   /**
     Tries to write the replacement, growing the buffer if needed.
@@ -215,19 +194,6 @@ class Regexp_engine {
     @param length The length in code points.
   */
   void AppendReplacement(const UChar *replacement, size_t length);
-
-  /**
-    Tries to append the part of the subject string after the last match to the
-    buffer. This is a preflight function: If the buffer capacity is adequate,
-    the tail is appended to the buffer, otherwise nothing is written. Either
-    way, the tail's full size is returned.
-  */
-  int TryToAppendTail() {
-    int capacity = SpareCapacity();
-    auto replace_buffer_pos = &m_replace_buffer.end()->the_char;
-    return uregex_appendTail(m_re, &replace_buffer_pos, &capacity,
-                             &m_error_code);
-  }
 
   /// Appends the trailing segment after the last match to the subject string,
   void AppendTail();
@@ -243,6 +209,25 @@ class Regexp_engine {
     return m_replace_buffer.capacity() - m_replace_buffer.size();
   }
 
+  friend class regexp_engine_unittest::Mock_regexp_engine;
+
+private:
+
+  /**
+    Preflight function: If the buffer capacity is adequate, the replacement is
+    appended to the buffer, otherwise nothing is written. Either way, the
+    replacement's full size is returned.
+  */
+  int TryToAppendReplacement(const UChar *repl, size_t length);
+
+  /**
+    Tries to append the part of the subject string after the last match to the
+    buffer. This is a preflight function: If the buffer capacity is adequate,
+    the tail is appended to the buffer, otherwise nothing is written. Either
+    way, the tail's full size is returned.
+  */
+  int TryToAppendTail();
+
   /**
     Our handle to ICU's compiled regular expression, owned by instances of
     this class. URegularExpression is a C struct, but this class follows RAII
@@ -252,7 +237,8 @@ class Regexp_engine {
   URegularExpression *m_re;
   UErrorCode m_error_code = U_ZERO_ERROR;
   String *m_current_subject = nullptr;
-  ReplacementBufferType m_replace_buffer;
+  std::vector<UChar> m_replace_buffer;
+  int m_replace_buffer_pos = 0;
 };
 
 }  // namespace regexp

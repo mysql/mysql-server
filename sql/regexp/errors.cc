@@ -46,7 +46,6 @@ struct UErrorCodeHash {
 */
 std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     // ICU Error code                 MySQL error code
-    {U_STRING_NOT_TERMINATED_WARNING, ER_REGEXP_STRING_NOT_TERMINATED},
     {U_ILLEGAL_ARGUMENT_ERROR, ER_REGEXP_ILLEGAL_ARGUMENT},
     {U_INDEX_OUTOFBOUNDS_ERROR, ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR},
     {U_BUFFER_OVERFLOW_ERROR, ER_REGEXP_BUFFER_OVERFLOW},
@@ -67,7 +66,7 @@ std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     {U_REGEX_PATTERN_TOO_BIG, ER_REGEXP_PATTERN_TOO_BIG}};
 
 bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
-  if (status == U_ZERO_ERROR) return false;
+  if (status == U_ZERO_ERROR || U_SUCCESS(status)) return false;
 
   int error_code = error_map[status];
   if (error_code == 0) {
@@ -80,13 +79,6 @@ bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
     DBUG_ASSERT(false);
     my_error(ER_REGEXP_ERROR, MYF(0), u_errorName(status));
     return true;
-  }
-
-  if (U_SUCCESS(status)) {
-    THD *thd = current_thd;
-    push_warning(thd, Sql_condition::SL_WARNING, error_code,
-                 ER_THD(thd, error_code));
-    return false;
   }
 
   // The UParseError is only written to in case of U_REGEX_RULE_SYNTAX errors.

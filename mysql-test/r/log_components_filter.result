@@ -23,7 +23,7 @@ SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset so
 SET @@global.dragnet.log_error_filter_rules="";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
 SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line.";
 SET @@global.log_error_services="log_sink_internal; log_sink_internal";
 ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_sink_internal; log_sink_internal'
@@ -50,19 +50,19 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
 
 # correct AND
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
 
 # multi-chain
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
 
 # test presence/absence operator
 SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'.";
@@ -72,129 +72,129 @@ SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'.
 SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
 
 # correct actions:
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/60.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/60.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.000000.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.000000.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
 SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset a.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset a.';
 SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset a.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset a.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
 SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==1408 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==1408 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
 SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
 SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN set err_code:=1003.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN set err_code:=1003.';
 SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
 SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a=="\\a\"\'" THEN set err_symbol:="ER_YES".';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a=="\\a\"\'" THEN set err_symbol:="ER_YES".';
 # error, unrecognized token
 SET @@global.dragnet.log_error_filter_rules='DRAUGR.';
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'DRAUGR.'
@@ -294,7 +294,7 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS field THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS field THEN drop.';
 
 # error, wrong data-type
 SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.';
@@ -391,7 +391,7 @@ SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SET @@global.dragnet.log_error_filter_rules="";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
 SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
 
@@ -400,7 +400,7 @@ SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
 SET PERSIST dragnet.log_error_filter_rules= '';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
 SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
 
@@ -411,23 +411,23 @@ RESET PERSIST;
 SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>9999 THEN set prio:=WARNING.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>9999 THEN set prio:=WARNING.';
 SET @@global.dragnet.log_error_filter_rules="IF prio>=ERROR THEN drop.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=ERROR THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=ERROR THEN drop.';
 SET @@global.dragnet.log_error_filter_rules="IF prio>=WARNING THEN drop.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=WARNING THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=WARNING THEN drop.';
 SET @@global.dragnet.log_error_filter_rules="IF prio>=NOTE THEN drop.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
 SET @@global.dragnet.log_error_filter_rules="IF prio>=INFORMATION THEN drop.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
 SET @@global.dragnet.log_error_filter_rules="IF thread>=INFORMATION THEN drop.";
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF thread>=INFORMATION THEN drop.'
 SHOW WARNINGS;
@@ -450,11 +450,11 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. ";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. ";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
 # throw error for absurdly large values
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .";
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .'
@@ -473,11 +473,11 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/3600.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/3600.';
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800.";
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/604800.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/604800.';
 SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801.";
 ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/604801.'
 SHOW WARNINGS;
@@ -556,7 +556,7 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
 
 # incorrect ELSE
 SET @@global.dragnet.log_error_filter_rules='ELSE.';
@@ -628,25 +628,25 @@ Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value o
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
 
 # correct ELSE IF
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
 
 # correct ELSEIF-ELSE
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
 
 # correct ELSE IF-ELSE
 SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
 SHOW WARNINGS;
 Level	Code	Message
-Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+Note	3703	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
 
 # correct multi-rule rule-set.
 CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256));

@@ -420,6 +420,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  regexp_engine
   regexp_facade
   security_context
   segfault
