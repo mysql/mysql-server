@@ -2134,7 +2134,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       while ((role= role_it++) && result == 0)
       {
         ACL_USER *acl_user;
-        ACL_USER *acl_role;
+        ACL_USER *acl_role= nullptr;
         bool not_granted= !is_granted_role(tmp_user_name->user,
                                            tmp_user_name->host,
                                            role->user, role->host);
