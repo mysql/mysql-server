@@ -12,7 +12,6 @@
 ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
-ndb_cache_trans           : Bug#42197 Query cache and autocommit
 ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 
 ndb_dbug_lock : SEAGULL gsl locking order
