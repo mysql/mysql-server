@@ -27,10 +27,13 @@ reset master;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
---echo Test that binlog purging doesn't use table lock on the ndb_binlog_index table
+--echo Test that binlog purging doesn't use table lock on ndb_binlog_index
 
 --echo Put some real stuff in the Binlog.
-create table test.t1 (pk integer primary key auto_increment, a varchar(1000)) engine=ndb;
+create table test.t1 (
+  pk integer primary key auto_increment,
+  a varchar(1000)
+) engine=ndb;
 insert into test.t1 values (NULL, repeat('BJC', 300));
 insert into test.t1 select NULL, a from test.t1;
 insert into test.t1 select NULL, a from test.t1;
@@ -47,7 +50,11 @@ insert into test.t1 select NULL, a from test.t1;
 --source include/wait_for_ndb_committed_to_binlog.inc
 
 let $master_log_file = query_get_value("SHOW MASTER STATUS", "File", 1);
-eval select trim(trailing "$master_log_file" from File) from mysql.ndb_binlog_index where epoch in (select max(epoch) from mysql.ndb_binlog_index) into @file_prefix;
+eval
+  select trim(trailing "$master_log_file" from File)
+    from mysql.ndb_binlog_index
+    where epoch in (select max(epoch) from mysql.ndb_binlog_index)
+  into @file_prefix;
 eval select concat(@file_prefix, "$master_log_file") into @file1;
 
 --echo Have at least 100 epoch rows
@@ -81,16 +88,31 @@ select file2 from test.files into @file2;
 enable_query_log;
 
 connection con1;
+# Create a temporary tables and select the "keys" for one row
+# in mysql.ndb_binlog_index into that table. Then select
+# the "keys" into MySQL Server variables for further usage
+# in the "locking" query
 --echo Pick one row from ndb_binlog_index
-create temporary table my_ndb_binlog_index like mysql.ndb_binlog_index;
-insert into my_ndb_binlog_index select * from mysql.ndb_binlog_index where File=@file1 limit 1;
+CREATE TEMPORARY TABLE my_ndb_binlog_index (
+  epoch BIGINT UNSIGNED NOT NULL,
+  orig_server_id INT UNSIGNED NOT NULL,
+  orig_epoch BIGINT UNSIGNED NOT NULL
+);
+insert into my_ndb_binlog_index
+  select epoch, orig_server_id, orig_epoch
+    from mysql.ndb_binlog_index
+      where File=@file1 limit 1;
 select epoch from my_ndb_binlog_index into @epoch;
 select orig_server_id from my_ndb_binlog_index into @orig_server_id;
 select orig_epoch from my_ndb_binlog_index into @orig_epoch;
 
 --echo Lock one row to block purge
 start transaction;
-select count(1) from mysql.ndb_binlog_index where epoch = @epoch and orig_server_id = @orig_server_id and orig_epoch = @orig_epoch and File=@file1 for update;
+select count(1) from mysql.ndb_binlog_index
+  where epoch = @epoch and
+        orig_server_id = @orig_server_id and
+        orig_epoch = @orig_epoch and
+        File=@file1 for update;
 
 connection con2;
 --echo Check that there are no rows in the next file
