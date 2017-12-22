@@ -3551,23 +3551,29 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
     if (s_key->null_key)
     {
       /*
-        If we have materialized the subquery:
+        If we have materialized the subquery (HASH_SJ_ENGINE):
         - this NULL ref item cannot be local to the subquery (any such
-        conditions was handled during materialization)
-        - neither can it be outer, because this case is
-        separately managed in subselect_hash_sj_engine::exec().
+        equality condition is attached to the subquery's JOIN and is thus
+        handled during materialization (by join->exec() in
+        subselect_hash_sj_engine::exec())
+        - The case of an outer NULL ref item is caught in
+        subselect_hash_sj_engine::exec() so shouldn't come here; but this is
+        not guaranteed if the outer expression is not deterministic: this
+        expression is evaluated early in Item_in_subselect::exec() (for
+        left_expr_cache) and then in s_key->copy() just above; so it is
+        possible that it is non-NULL (so, not caught) then NULL (so, coming
+        here). In such case, there is no meaningful value for IN, any value
+        will do.
       */
-      DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
-
-      const bool *cond_guard= tab->ref().cond_guards[part_no];
 
       /*
         NULL value is from the outer_value_list if the key part has a
         cond guard that deactivates the condition. @see
         TABLE_REF::cond_guards
-
       */
-      if (cond_guard && !*cond_guard)
+      if (tab->ref().cond_guards &&
+          tab->ref().cond_guards[part_no] &&
+          !*tab->ref().cond_guards[part_no])
       {
         DBUG_ASSERT(!(static_cast <Item_in_subselect*>(item)
                       ->is_top_level_item()));
