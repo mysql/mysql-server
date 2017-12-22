@@ -23,4 +23,3 @@ usr/share/mysql/nodejs/*
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs/
-usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs/

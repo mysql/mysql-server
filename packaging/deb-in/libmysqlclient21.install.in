@@ -24,4 +24,3 @@ usr/lib/*/libmysqlclient.so.21*
 # legal
 usr/share/mysql/LICENSE usr/share/doc/libmysqlclient21/
 usr/share/mysql/README usr/share/doc/libmysqlclient21/
-usr/share/mysql/COPYING usr/share/doc/libmysqlclient21/

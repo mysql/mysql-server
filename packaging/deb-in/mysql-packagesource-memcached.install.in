@@ -26,4 +26,3 @@ usr/share/mysql/memcache-api/*
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached/
-usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached/

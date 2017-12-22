@@ -32,4 +32,3 @@ usr/share/aclocal/mysql.m4
 # legal
 usr/share/mysql/LICENSE usr/share/doc/libmysqlclient-dev/
 usr/share/mysql/README usr/share/doc/libmysqlclient-dev/
-usr/share/mysql/COPYING usr/share/doc/libmysqlclient-dev/

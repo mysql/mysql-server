@@ -101,4 +101,3 @@ usr/lib/mysql-test/*
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/
-usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-test/

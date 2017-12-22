@@ -38,5 +38,5 @@ License:
  of which version of the GPL is applied is otherwise unspecified.
  .
  The full text of the GNU General Public License version 2 can
- be found in the file
- `/usr/share/mysql/doc/COPYING'.
+ be found in the start of the file
+ `/usr/share/mysql/doc/LICENSE'.

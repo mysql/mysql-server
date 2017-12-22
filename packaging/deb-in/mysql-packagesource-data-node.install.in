@@ -26,4 +26,3 @@ usr/share/man/man8/ndbmtd.8*
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node/
-usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node/
