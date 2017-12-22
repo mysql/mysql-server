@@ -10,15 +10,6 @@
 set new=on;
 --enable_query_log
 
---disable_warnings
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-DROP TABLE IF EXISTS test.t3;
-DROP TABLE IF EXISTS test.t4;
-DROP TABLE IF EXISTS test.t5;
-DROP TABLE IF EXISTS test.t6;
---enable_warnings
-
 ############ Test 1 Simple DD backup and restore #############
 -- echo **** Test 1 Simple DD backup and restore ****
 

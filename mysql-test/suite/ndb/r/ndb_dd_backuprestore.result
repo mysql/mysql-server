@@ -1,9 +1,3 @@
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-DROP TABLE IF EXISTS test.t3;
-DROP TABLE IF EXISTS test.t4;
-DROP TABLE IF EXISTS test.t5;
-DROP TABLE IF EXISTS test.t6;
 **** Test 1 Simple DD backup and restore ****
 CREATE LOGFILE GROUP log_group1
 ADD UNDOFILE './log_group1/undofile.dat'
