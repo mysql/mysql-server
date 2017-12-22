@@ -428,9 +428,14 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
     return false;
   }
 
+  // Disable this check waiting for
+  // Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+  if (false)
+  {
   // Verify that table_name in the unpacked table definition
   // matches the table name to install
   DBUG_ASSERT(install_table->name() == table_name);
+  }
 
   // Verify that table defintion unpacked from NDB
   // does not have any se_private fields set, those will be set
