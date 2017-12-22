@@ -119,9 +119,6 @@ usr/lib/mysql/plugin/debug/keyring_aws.so
   ENDIF()
   SET (DEB_REMOVEPATTERN "gpl.in")
   SET (DEB_CONTROL_BDEPS_EXTRA ",libldap2-dev, libsasl2-dev")
-  SET (DEB_RULES_DUMMY_COPYING
-    "install -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/mysql/COPYING")
-  SET (DEB_RULES_EXCLUDE_INSTALL "-Xusr/share/mysql/COPYING")
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -132,8 +129,6 @@ ELSE()
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
   SET (DEB_CONTROL_BDEPS_EXTRA "")
-  SET (DEB_RULES_DUMMY_COPYING "")
-  SET (DEB_RULES_EXCLUDE_INSTALL "")
 ENDIF()
 
 # Generate debug symbol packages (this is done automatically in Debian9+)

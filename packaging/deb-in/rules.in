@@ -81,8 +81,6 @@ override_dh_auto_install:
 	@DEB_RULES_INSTALL_APPARMOR@
 	# add systemd script
 	@DEB_RULES_INSTALL_SYSTEMD@
-	# create dummy COPYING if needed
-	@DEB_RULES_DUMMY_COPYING@
 	touch $@
 
 override_dh_installinit:
@@ -99,9 +97,7 @@ override_dh_install:
 		-Xusr/bin/i_mysql_client_test \
 		-Xusr/share/mysql/mysql.server \
 		-Xusr/share/mysql/LICENSE-test \
-		-Xusr/share/mysql/COPYING-test \
 		-Xusr/share/mysql/README-test \
-		@DEB_RULES_EXCLUDE_INSTALL@ \
 		-Xusr/share/mysql/docs/mysql.info \
 		-Xusr/share/man/man1/mysql_client_test.1 \
 		-Xusr/share/man/man1/mysqlman.1 \

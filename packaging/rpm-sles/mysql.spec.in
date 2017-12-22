@@ -10,9 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING. If not, write to the
-# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
-# MA  02110-1301  USA.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
@@ -57,11 +56,11 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
-%if 0%{?commercial}
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
+
+%if 0%{?commercial}
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -1239,7 +1238,7 @@ fi
 - Remove obsoleted mysqltest man pages
 - Include udf_example.so in test package
 - Add component_validate_password component
-- Add License Book
+- Add License Book, remove COPYING
 
 * Fri Jul 28 2017 Horst Hunger <Horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin

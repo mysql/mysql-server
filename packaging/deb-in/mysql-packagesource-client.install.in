@@ -38,6 +38,5 @@ usr/share/man/man1/mysqlslap.1
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client/
-usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-client/
 
 @DEB_NDB_CLIENT_EXTRA@

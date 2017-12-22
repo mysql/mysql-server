@@ -10,9 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING. If not, write to the
-# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
-# MA  02110-1301  USA.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
@@ -73,11 +72,11 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
-%if 0%{?commercial}
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
+
+%if 0%{?commercial}
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/LICENSE %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -1380,7 +1379,7 @@ fi
 - Independently choose SSL for the 5.6 compat lib, depending on commercial
 - Include udf_example.so in test package
 - Add component_validate_password component
-- Add License Book
+- Add License Book, remove COPYING
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin

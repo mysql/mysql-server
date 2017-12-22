@@ -51,4 +51,3 @@ usr/include/mysql/storage/ndb/mgmapi/mgmapi_debug.h
 # legal
 usr/share/mysql/LICENSE usr/share/doc/ndbclient-dev/
 usr/share/mysql/README usr/share/doc/ndbclient-dev/
-usr/share/mysql/COPYING usr/share/doc/ndbclient-dev/
