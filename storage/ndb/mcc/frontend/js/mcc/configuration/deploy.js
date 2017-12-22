@@ -144,7 +144,7 @@ var processTypes = [];      // All process types    --- " ---
 var processTypeMap = {};    // All process types indexed by name
 var processFamilyMap = {};  // All process types indexed by family
 var fileExists = [];        // All mysqlds - Nodeid and a boolean telling if datadir files exists  
-
+var forceStop = false;
 
 /****************************** Implementation ********************************/
 
@@ -748,9 +748,17 @@ function getConnectstring() {
 
 // Show progress bar
 function updateProgressDialog(title, subtitle, props) {
-
+    //Reset variable.
+    forceStop = false;
+    //Determine who called update by examining title.
+    var firstWord = title.replace(/ .*/,'');
+    if (["Deploying", "Installing", "Starting", "Stopping"].indexOf(firstWord) < 0) {
+        firstWord = "Stopping";
+    }
+    //We know which procedure is running now.
+    //Pass the info to dialog setup.
     if (!dijit.byId("progressBarDialog")) {
-        progressBarDialogSetup();
+        progressBarDialogSetup(firstWord);
         dijit.byId("progressBarDialog").show();
     }
 
@@ -760,7 +768,7 @@ function updateProgressDialog(title, subtitle, props) {
 }
 
 // Setup a dialog for showing progress
-function progressBarDialogSetup() {
+function progressBarDialogSetup(procRunning) {
     var pBarDlg = null; 
     // Create the dialog if it does not already exist
     if (!dijit.byId("progressBarDialog")) {
@@ -772,8 +780,24 @@ function progressBarDialogSetup() {
                     dojoType='dijit.ProgressBar'\
                     progress: '0%',\
                     annotate='true'>\
-                </div>"
+                </div>",
+                _onKey: function() { }
         });
+    }
+    //Trap the CLOSE button only for START/INSTALL Cluster.
+    console.log("PROCRUNNING IS ::: " + procRunning);
+    if (procRunning != "Stopping") { //"Deploying" runs before "Starting" so can't exclude it.
+        dojo.style(dijit.byId("progressBarDialog").closeButtonNode,"display","true");
+        pBarDlg.onCancel=function(evt){
+            mcc.util.dbg("Operation " + procRunning + " cluster has been cancelled!");
+            var clRunning = clServStatus();
+            dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
+            dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
+            dijit.byId("configWizardDeployCluster").setDisabled(true);
+            forceStop = true;
+        }
+    } else {
+        dojo.style(dijit.byId("progressBarDialog").closeButtonNode,"display","none");
     }
 }
 
@@ -1588,6 +1612,19 @@ function startCluster() {
                 updateProgressAndStartNext();
               } else {
                 mcc.util.dbg("returned false for "+commands[currseq].progTitle)
+                //This is where stuck commands end up.
+                clRunning = clServStatus();
+                dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
+                dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
+                dijit.byId("configWizardDeployCluster").setDisabled(true);
+                if (forceStop) {
+                    mcc.util.dbg("Cluster start aborted!");
+                    alert("Cluster start aborted!");
+                    removeProgressDialog();
+                    waitCondition.resolve();
+                    return;
+                }
+
                 timeout = setTimeout(onTimeout, 2000);
               }
             }
@@ -1605,42 +1642,60 @@ function startCluster() {
             }
 
             function onReply(rep) {
-              mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
-              // Start status polling timer after mgmd has been started
-              // Ignore errors since it may not be available right away           
-              if (currseq == 0) { mcc.gui.startStatusPoll(false); } 
-              onTimeout();
+                mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
+                // Start status polling timer after mgmd has been started
+                // Ignore errors since it may not be available right away
+                if (currseq == 0) {
+                  mcc.gui.startStatusPoll(false);
+                }
+                onTimeout();
             }
                 
             function updateProgressAndStartNext() {
-              if (currseq >= commands.length) {
-                mcc.util.dbg("Cluster started");
-                updateProgressDialog("Starting cluster", 
-                         "Cluster started", 
-                         {progress: "100%"});
-                alert("Cluster started");
-                removeProgressDialog();
-  
+                if (currseq >= commands.length) {
+                    mcc.util.dbg("Cluster started");
+                    updateProgressDialog("Starting cluster",
+                             "Cluster started",
+                             {progress: "100%"});
+                    alert("Cluster started");
+                    removeProgressDialog();
+
+                    clRunning = clServStatus();
+                    dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
+                    dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
+                    dijit.byId("configWizardDeployCluster").setDisabled(true);
+                    waitCondition.resolve();
+                    return;
+                }
                 clRunning = clServStatus();
                 dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
                 dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
                 dijit.byId("configWizardDeployCluster").setDisabled(true);
-                waitCondition.resolve();
-                return;
-              }
-              clRunning = clServStatus();
-              dijit.byId("configWizardStopCluster").setDisabled(!determineClusterRunning(clRunning));
-              dijit.byId("configWizardStartCluster").setDisabled(determineClusterRunning(clRunning));
-              dijit.byId("configWizardDeployCluster").setDisabled(true);
-
-              mcc.util.dbg("commands["+currseq+"].progTitle: " + 
+                if (forceStop) {
+                    mcc.util.dbg("Cluster start aborted!");
+                    alert("Cluster start aborted!");
+                    removeProgressDialog();
+                    waitCondition.resolve();
+                    return;
+                }
+                mcc.util.dbg("commands["+currseq+"].progTitle: " +
                        commands[currseq].progTitle);
-              updateProgressDialog("Starting cluster",
+                updateProgressDialog("Starting cluster",
                            commands[currseq].progTitle,
                            {maximum: commands.length, 
                            progress: currseq});
+                /**
+                 * Temporarily commented out
+                if (forceStop) {
+                   mcc.util.dbg("Cluster start aborted!");
+                   alert("Cluster start aborted!");
+                   removeProgressDialog();
+                   waitCondition.resolve();
+                   return;
+                }
+                */
 
-              mcc.server.doReq("executeCommandReq", 
+                mcc.server.doReq("executeCommandReq",
                        {command: commands[currseq].msg}, cluster,
                        onReply, onError);
             } 
@@ -1648,7 +1703,6 @@ function startCluster() {
             updateProgressAndStartNext();
           });
     });
-  
     return waitCondition;
 }
 
@@ -1703,9 +1757,8 @@ function displayLogFilesLocation() {
 // Stop cluster
 function stopCluster() {
     // CHECK if Cluster is running at all first.
-    
-    
     // External wait condition
+    var old_forceStop = forceStop;
     var waitCondition = new dojo.Deferred();
     mcc.util.dbg("Stopping cluster...");
 
@@ -1774,6 +1827,10 @@ function stopCluster() {
         removeProgressDialog();
         mcc.gui.stopStatusPoll();
         waitCondition.resolve();
+        if (old_forceStop) {
+            //Notify user of the location of log files.
+            displayLogFilesLocation();
+        };
         return;
       }
 
