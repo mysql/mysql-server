@@ -3034,7 +3034,7 @@ Fil_shard::mutex_acquire_and_get_space(
 #endif /* !UNIV_HOTBACKUP */
 	}
 
-#ifdef UNIV_DEBUG
+#if 0
 	/* The magic value of 300 comes from innodb.open_file_lru.test */
 	if (fil_system->m_max_n_open == 300) {
 		ib::warn()
@@ -3044,7 +3044,7 @@ Fil_shard::mutex_acquire_and_get_space(
 			<< ". You should raise the value of"
 			<< " --innodb-open-files in my.cnf.";
 	}
-#endif /* UNIV_DEBUG */
+#endif
 
 	mutex_acquire();
 
