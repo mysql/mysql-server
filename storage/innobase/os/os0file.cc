@@ -10133,7 +10133,7 @@ Encryption::decrypt(
 	byte		remain_buf[MY_AES_BLOCK_SIZE * 2];
 	Block*		block;
 
-	if (!is_encrypted_page(src)) {
+	if (!is_encrypted_page(src) || m_type == Encryption::NONE) {
 		/* There is nothing we can do. */
 		return(DB_SUCCESS);
 	}
