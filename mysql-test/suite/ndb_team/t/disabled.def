@@ -9,5 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
