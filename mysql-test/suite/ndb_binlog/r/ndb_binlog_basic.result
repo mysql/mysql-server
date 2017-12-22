@@ -30,6 +30,9 @@ flush logs;
 purge master logs before now();
 Warnings:
 Warning	1868	file ./binlog.000002 was not purged because it is the active log file.
+select count(*) from mysql.ndb_binlog_index;
+count(*)
+0
 create table t1 (a int primary key, b int) engine=ndb;
 create database mysqltest;
 use mysqltest;
