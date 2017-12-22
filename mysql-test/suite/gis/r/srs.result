@@ -201,7 +201,7 @@ CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1000000000
 NAME 'foobar'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3714	There is already a spatial reference system with SRID 1000000000.
+Warning	3713	There is already a spatial reference system with SRID 1000000000.
 # CREATE OR REPLACE on existing SRID (should pass).
 CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1000000000
 NAME 'foo'
@@ -252,133 +252,133 @@ CREATE SPATIAL REFERENCE SYSTEM 1
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # (CREATE OR) REPLACE SRS in reserved region [0, 32767] (should raise warning).
 CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS IF NOT EXISTS on existing SRS in reserved region [0, 32767] (should pass without warning).
 CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3714	There is already a spatial reference system with SRID 1.
+Warning	3713	There is already a spatial reference system with SRID 1.
 # DROP SRS in reserved region [0, 32767] (should raise warning).
 DROP SPATIAL REFERENCE SYSTEM 1;
 Warnings:
-Warning	3716	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS in reserved region [0, 32767] (should raise warning).
 CREATE SPATIAL REFERENCE SYSTEM 32767
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # (CREATE OR) REPLACE SRS in reserved region [0, 32767] (should raise warning).
 CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 32767
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS IF NOT EXISTS on existing SRS in reserved region [0, 32767] (should pass without warning).
 CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 32767
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3714	There is already a spatial reference system with SRID 32767.
+Warning	3713	There is already a spatial reference system with SRID 32767.
 # DROP SRS in reserved region [0, 32767] (should raise warning).
 DROP SPATIAL REFERENCE SYSTEM 32767;
 Warnings:
-Warning	3716	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [0, 32767] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS in reserved region [60000000, 69999999] (should raise warning).
 CREATE SPATIAL REFERENCE SYSTEM 60000000
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # (CREATE OR) REPLACE SRS in reserved region [60000000, 69999999] (should raise warning).
 CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 60000000
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS IF NOT EXISTS on existing SRS in reserved region [60000000, 69999999] (should pass without warning).
 CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 60000000
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3714	There is already a spatial reference system with SRID 60000000.
+Warning	3713	There is already a spatial reference system with SRID 60000000.
 # DROP SRS in reserved region [60000000, 69999999] (should raise warning).
 DROP SPATIAL REFERENCE SYSTEM 60000000;
 Warnings:
-Warning	3716	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS in reserved region [60000000, 69999999] (should raise warning).
 CREATE SPATIAL REFERENCE SYSTEM 69999999
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # (CREATE OR) REPLACE SRS in reserved region [60000000, 69999999] (should raise warning).
 CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 69999999
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS IF NOT EXISTS on existing SRS in reserved region [60000000, 69999999] (should pass without warning).
 CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 69999999
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3714	There is already a spatial reference system with SRID 69999999.
+Warning	3713	There is already a spatial reference system with SRID 69999999.
 # DROP SRS in reserved region [60000000, 69999999] (should raise warning).
 DROP SPATIAL REFERENCE SYSTEM 69999999;
 Warnings:
-Warning	3716	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [60000000, 69999999] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS in reserved region [2000000000, 2147483647] (should raise warning).
 CREATE SPATIAL REFERENCE SYSTEM 2000000000
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # (CREATE OR) REPLACE SRS in reserved region [2000000000, 2147483647] (should raise warning).
 CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 2000000000
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS IF NOT EXISTS on existing SRS in reserved region [2000000000, 2147483647] (should pass without warning).
 CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 2000000000
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3714	There is already a spatial reference system with SRID 2000000000.
+Warning	3713	There is already a spatial reference system with SRID 2000000000.
 # DROP SRS in reserved region [2000000000, 2147483647] (should raise warning).
 DROP SPATIAL REFERENCE SYSTEM 2000000000;
 Warnings:
-Warning	3716	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS in reserved region [2000000000, 2147483647] (should raise warning).
 CREATE SPATIAL REFERENCE SYSTEM 2147483647
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # (CREATE OR) REPLACE SRS in reserved region [2000000000, 2147483647] (should raise warning).
 CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 2147483647
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3716	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # CREATE SRS IF NOT EXISTS on existing SRS in reserved region [2000000000, 2147483647] (should pass without warning).
 CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 2147483647
 NAME 'foo'
 DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
 Warnings:
-Warning	3714	There is already a spatial reference system with SRID 2147483647.
+Warning	3713	There is already a spatial reference system with SRID 2147483647.
 # DROP SRS in reserved region [2000000000, 2147483647] (should raise warning).
 DROP SPATIAL REFERENCE SYSTEM 2147483647;
 Warnings:
-Warning	3716	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
+Warning	3715	The SRID range [2000000000, 2147483647] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade.
 # DROP on SRID 0 (should raise error).
 DROP SPATIAL REFERENCE SYSTEM 0;
 ERROR SR000: SRID 0 is not modifiable.
