@@ -16,4 +16,3 @@ usr/lib/*/libndbclient.so.6.1.0
 # legal
 usr/share/mysql/LICENSE usr/share/doc/ndbclient/
 usr/share/mysql/README usr/share/doc/ndbclient/
-usr/share/mysql/COPYING usr/share/doc/ndbclient/

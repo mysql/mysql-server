@@ -25,4 +25,3 @@ usr/share/man/man1/mysqlpump.1
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
-usr/share/mysql/COPYING usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
