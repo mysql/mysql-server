@@ -9482,7 +9482,7 @@ fil_set_encryption(
 bool
 Fil_system::encryption_rotate_in_a_shard(Fil_shard* shard)
 {
-	byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+	byte	encrypt_info[ENCRYPTION_INFO_SIZE];
 
 	for (auto& elem : shard->m_spaces) {
 
@@ -9517,7 +9517,7 @@ Fil_system::encryption_rotate_in_a_shard(Fil_shard* shard)
 
 			mtr_x_lock_space(space, &mtr);
 
-			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
 			if (!fsp_header_rotate_encryption(
 				space, encrypt_info, &mtr)) {
@@ -10726,8 +10726,7 @@ fil_tablespace_redo_encryption(
 
 	if (offset >= UNIV_PAGE_SIZE
 	    || len + offset > UNIV_PAGE_SIZE
-	    || (len != ENCRYPTION_INFO_SIZE_V1
-		&& len != ENCRYPTION_INFO_SIZE_V2)) {
+	    || len != ENCRYPTION_INFO_SIZE) {
 
 		recv_sys->found_corrupt_log = true;
 		return(nullptr);
@@ -10759,8 +10758,7 @@ fil_tablespace_redo_encryption(
 	}
 #endif /* UNIV_HOTBACKUP */
 
-	ut_ad(len == ENCRYPTION_INFO_SIZE_V1
-	      || len == ENCRYPTION_INFO_SIZE_V2);
+	ut_ad(len == ENCRYPTION_INFO_SIZE);
 
 	ptr += len;
 

@@ -4195,10 +4195,9 @@ innobase_encryption_key_rotation()
 	can be fetched. */
 	if (Encryption::s_master_key_id != 0) {
 		ulint			master_key_id;
-		Encryption::Version	version;
 
 		Encryption::get_master_key(
-			&master_key_id, &master_key, &version);
+			&master_key_id, &master_key);
 
 		if (master_key == NULL) {
 			mutex_exit(&master_key_id_mutex);
@@ -11387,12 +11386,10 @@ err_col:
 				/* Set the encryption flag. */
 				byte*			master_key = NULL;
 				ulint			master_key_id;
-				Encryption::Version	version;
 
 				/* Check if keyring is ready. */
 				Encryption::get_master_key(&master_key_id,
-							   &master_key,
-							   &version);
+							   &master_key);
 
 				if (master_key == NULL) {
 					my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,

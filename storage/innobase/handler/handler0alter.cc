@@ -4649,12 +4649,10 @@ prepare_inplace_alter_table_dict(
 			/* Set the encryption flag. */
 			byte*			master_key = NULL;
 			ulint			master_key_id;
-			Encryption::Version	version;
 
 			/* Check if keyring is ready. */
 			Encryption::get_master_key(&master_key_id,
-						   &master_key,
-						   &version);
+						   &master_key);
 
 			if (master_key == NULL) {
 				dict_mem_table_free(ctx->new_table);

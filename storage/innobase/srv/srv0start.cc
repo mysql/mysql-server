@@ -711,7 +711,7 @@ srv_undo_tablespace_read_encryption(
 
 	/* Return if the encryption metadata is empty. */
 	if (memcmp(first_page + offset,
-		   ENCRYPTION_KEY_MAGIC_V2,
+		   ENCRYPTION_KEY_MAGIC_V3,
 		   ENCRYPTION_MAGIC_SIZE) != 0) {
 		ut_free(first_page_buf);
 		return(DB_SUCCESS);

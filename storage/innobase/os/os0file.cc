@@ -9138,13 +9138,11 @@ char	Encryption::s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1] = {0};
 
 /** Get current master key and master key id
 @param[in,out]	master_key_id	master key id
-@param[in,out]	master_key	master key
-@param[in,out]	version		encryption information version */
+@param[in,out]	master_key	master key */
 void
 Encryption::get_master_key(
 	ulint*		master_key_id,
-	byte**		master_key,
-	Version*	version)
+	byte**		master_key)
 {
 #ifndef UNIV_HOTBACKUP
 	int	ret;
@@ -9153,8 +9151,6 @@ Encryption::get_master_key(
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
 	memset(key_name, 0x0, sizeof(key_name));
-
-	*version = Encryption::ENCRYPTION_VERSION_2;
 
 	if (s_master_key_id == 0) {
 
@@ -9209,7 +9205,6 @@ Encryption::get_master_key(
 		key with server id when get master key with server uuid
 		failure. */
 		if (ret != 0 || *master_key == nullptr) {
-
 			if (key_type != nullptr) {
 				my_free(key_type);
 			}
@@ -9224,8 +9219,8 @@ Encryption::get_master_key(
 				key_name, &key_type, nullptr,
 				reinterpret_cast<void**>(master_key), &key_len);
 
-			*version = Encryption::ENCRYPTION_VERSION_1;
 		}
+
 #ifdef UNIV_ENCRYPT_DEBUG
 		if (ret == 0 && *master_key != nullptr) {
 			std::ostringstream	msg;
@@ -9265,7 +9260,6 @@ Encryption::fill_encryption_info(
 	byte*		encrypt_info,
 	bool		is_boot)
 {
-	Version		version;
 	byte*		master_key;
 	ulint		master_key_id;
 
@@ -9282,40 +9276,32 @@ Encryption::fill_encryption_info(
 
 		strcpy(reinterpret_cast<char*>(master_key),
 		       ENCRYPTION_DEFAULT_MASTER_KEY);
-
-		version = ENCRYPTION_VERSION_2;
 	} else {
 
-		get_master_key(&master_key_id, &master_key, &version);
+		get_master_key(&master_key_id, &master_key);
 
 		if (master_key == nullptr) {
 			return(false);
 		}
 	}
 
-	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
 	/* Use the new master key to encrypt the key. */
 	ut_ad(encrypt_info != nullptr);
 	auto	ptr = encrypt_info;
 
-	if (version == ENCRYPTION_VERSION_1) {
-		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE);
-	} else {
-		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE);
-	}
+	memcpy(ptr, ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE);
 
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
+	/* Write master key id. */
 	mach_write_to_4(ptr, master_key_id);
+	ptr += sizeof(uint32);
 
-	/** FIXME: This should be uint32_t on all platforms. */
-	ptr += sizeof(ulint);
-
-	if (version == ENCRYPTION_VERSION_2) {
-		strncpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
-		ptr += sizeof(s_uuid) - 1;
-	}
+	/* Write server uuid. */
+	strncpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
+	ptr += sizeof(s_uuid) - 1;
 
 	byte	key_info[ENCRYPTION_KEY_LEN * 2];
 
@@ -9349,7 +9335,106 @@ Encryption::fill_encryption_info(
 	}
 
 	return(true);
- }
+}
+
+/** Get master key from encryption information
+@param[in]	encrypt_info	encryption information
+@param[in]	version		version of encryption information
+@param[in,out]	m_key_id	master key id
+@param[in,out]	srv_uuid	server uuid
+@param[in,out]	master_key	master key
+@return position after master key id or uuid, or the old position
+if can't get the master key. */
+byte*
+Encryption::get_master_key_from_info(byte*	encrypt_info,
+				     Version	version,
+				     uint32_t*	m_key_id,
+				     char*	srv_uuid,
+				     byte**	master_key)
+{
+	byte*		ptr;
+	uint32		key_id;
+
+	ptr = encrypt_info;
+	*m_key_id = 0;
+
+	/* Get master key id. */
+	key_id = mach_read_from_4(ptr);
+	ptr += sizeof(uint32);
+
+	/* Handle different version encryption information. */
+	switch(version) {
+	case ENCRYPTION_VERSION_1:
+		/* For version 1, it's possible master key id
+		occupied 8 bytes. */
+		if (mach_read_from_4(ptr) == 0) {
+			ptr += sizeof(uint32);
+		}
+
+		get_master_key(key_id, nullptr, master_key);
+		if (*master_key == nullptr) {
+			return(encrypt_info);
+		}
+
+		*m_key_id = key_id;
+		return(ptr);
+
+	case ENCRYPTION_VERSION_2:
+		/* For version 2, it's also possible master key id
+		occupied 8 bytes. */
+		if (mach_read_from_4(ptr) == 0) {
+			ptr += sizeof(uint32);
+		}
+
+		/* Get server uuid. */
+		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
+		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
+
+		ut_ad(strlen(srv_uuid) != 0);
+		ptr += ENCRYPTION_SERVER_UUID_LEN;
+
+		/* Get master key. */
+		get_master_key(key_id, srv_uuid, master_key);
+		if (*master_key == nullptr) {
+			return(encrypt_info);
+		}
+
+		*m_key_id = key_id;
+		break;
+
+	case ENCRYPTION_VERSION_3:
+		/* Get server uuid. */
+		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
+		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
+
+		ptr += ENCRYPTION_SERVER_UUID_LEN;
+
+		if (key_id == 0) {
+			/* When key_id is 0, which means it's the
+			default master key for bootstrap. */
+			*master_key = static_cast<byte*>(ut_zalloc_nokey(
+				ENCRYPTION_KEY_LEN));
+			memcpy(*master_key, ENCRYPTION_DEFAULT_MASTER_KEY,
+			       strlen(ENCRYPTION_DEFAULT_MASTER_KEY));
+			*m_key_id = 0;
+		} else {
+			ut_ad(strlen(srv_uuid) != 0);
+
+			/* Get master key. */
+			get_master_key(key_id, srv_uuid, master_key);
+			if (*master_key == nullptr) {
+				return(encrypt_info);
+			}
+
+			*m_key_id = key_id;
+		}
+		break;
+	}
+
+	ut_ad(*master_key != nullptr);
+
+	return(ptr);
+}
 
 /** Decoding the encryption info from the first page of a tablespace.
 @param[in,out]	key		key
@@ -9362,10 +9447,18 @@ Encryption::decode_encryption_info(
 	byte*		iv,
 	byte*		encryption_info)
 {
-	byte*		ptr;
-	Version		version;
-	byte*		master_key = nullptr;
-	char		srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+	byte*			ptr;
+	byte*			master_key = nullptr;
+	uint32			m_key_id;
+	byte			key_info[ENCRYPTION_KEY_LEN * 2];
+	ulint			crc1;
+	ulint			crc2;
+	char			srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+	Version			version;
+#ifdef	UNIV_ENCRYPT_DEBUG
+	const byte*		data;
+	ulint			i;
+#endif
 
 	ptr = encryption_info;
 
@@ -9373,68 +9466,36 @@ Encryption::decode_encryption_info(
 	encryption information which created in this old version. */
 	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE) == 0) {
 		version = ENCRYPTION_VERSION_1;
-	} else {
+	} else if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2,
+			  ENCRYPTION_MAGIC_SIZE) == 0) {
 		version = ENCRYPTION_VERSION_2;
-	}
-
-	/* Check magic. */
-	if (version == ENCRYPTION_VERSION_2
-	    && memcmp(ptr,
-		      ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
-
+	} else if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V3,
+			  ENCRYPTION_MAGIC_SIZE) == 0) {
+		version = ENCRYPTION_VERSION_3;
+	} else {
 		/* We don't report an error during recovery, since the
 		encryption info maybe hasn't writen into datafile when
 		the table is newly created. */
+		if (recv_recovery_is_on()) {
+			return(true);
+		}
 
-		return(recv_recovery_is_on());
+		ib::error()
+			<< "Failed to decrypt encryption information,"
+			<< " found unexpected version of it!";
+		return(false);
 	}
 
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
-	/* Get master key id. */
-	auto	key_id = mach_read_from_4(ptr);
-
-	/* FIXME: This is a bug should be uint32_t for all platforms. */
-	ptr += sizeof(ulint);
-
-	/* Get server uuid. */
-	if (version == ENCRYPTION_VERSION_2) {
-
-		constexpr size_t	len = sizeof(srv_uuid) - 1;
-
-		srv_uuid[len] = 0;
-		memcpy(srv_uuid, ptr, len);
-
-		ptr += len;
-	}
-
 	/* Get master key by key id. */
+	ptr = get_master_key_from_info(ptr, version, &m_key_id, srv_uuid,
+				       &master_key);
 
-	if (version == ENCRYPTION_VERSION_1) {
-
-		get_master_key(key_id, nullptr, &master_key);
-
-	} else if (key_id == 0) {
-
-		/* When key_id is 0, which means it's the
-		default master key for bootstrap. */
-		master_key = static_cast<byte*>(ut_zalloc_nokey(
-			ENCRYPTION_KEY_LEN));
-
-		ut_ad(ENCRYPTION_KEY_LEN
-		      >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
-
-		memcpy(reinterpret_cast<char*>(master_key),
-			ENCRYPTION_DEFAULT_MASTER_KEY,
-			sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
-
-	} else {
-		get_master_key(key_id, srv_uuid, &master_key);
+	/* If can't find the master key, return failure. */
+	if (master_key == nullptr) {
+		return(false);
 	}
-
-        if (master_key == nullptr) {
-                return(false);
-        }
 
 #ifdef	UNIV_ENCRYPT_DEBUG
 	{
@@ -9448,43 +9509,34 @@ Encryption::decode_encryption_info(
 	}
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-	byte	key_info[ENCRYPTION_KEY_LEN * 2];
+	/* Decrypt tablespace key and iv. */
+	auto	len = my_aes_decrypt(
+		ptr, sizeof(key_info), key_info,
+		master_key, ENCRYPTION_KEY_LEN, my_aes_256_ecb,
+		nullptr, false);
 
-	{
-		/* Decrypt tablespace key and iv. */
+	if (m_key_id == 0) {
+		ut_free(master_key);
+	} else {
+		my_free(master_key);
+	}
 
-		auto	len = my_aes_decrypt(
-			ptr, sizeof(key_info), key_info,
-			master_key, ENCRYPTION_KEY_LEN, my_aes_256_ecb,
-			nullptr, false);
-
-		if (len == MY_AES_BAD_DATA) {
-			if (key_id == 0) {
-				ut_free(master_key);
-			} else {
-				my_free(master_key);
-			}
-			return(false);
-		}
+	/* If decryption failed, return error. */
+	if (len == MY_AES_BAD_DATA) {
+		return(false);
 	}
 
 	/* Check checksum bytes. */
 	ptr += sizeof(key_info);
 
-	auto	crc1 = mach_read_from_4(ptr);
-	auto	crc2 = ut_crc32(key_info, sizeof(key_info));
+	crc1 = mach_read_from_4(ptr);
+	crc2 = ut_crc32(key_info, sizeof(key_info));
 
 	if (crc1 != crc2) {
-
 		ib::error()
 			<< "Failed to decrypt encryption information,"
 			<< " please check whether key file has been changed!";
 
-		if (key_id == 0) {
-			ut_free(master_key);
-		} else {
-			my_free(master_key);
-		}
 		return(false);
 	}
 
@@ -9510,14 +9562,8 @@ Encryption::decode_encryption_info(
 	}
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-	if (key_id == 0) {
-		ut_free(master_key);
-	} else {
-		my_free(master_key);
-	}
-
-	if (s_master_key_id < key_id) {
-		s_master_key_id = key_id;
+	if (s_master_key_id < m_key_id) {
+		s_master_key_id = m_key_id;
 		memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
 	}
 

@@ -3,7 +3,7 @@
 # Run the bootstrap command with no keyring
 # Run the bootstrap command with keyring
 # Search for particular string of encryption metadata, should success since it's encrypted.
-Pattern "lCB" found
+Pattern "lCC" found
 # Start the DB server with undo log encryption disabled and keyring plugin loaded. It should success.
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
@@ -28,5 +28,5 @@ c1	c2
 400	bbbbb
 UNINSTALL PLUGIN keyring_file;
 DROP TABLE tab1;
-Pattern "lCB" found
-Pattern "lCB" found
+Pattern "lCC" found
+Pattern "lCC" found

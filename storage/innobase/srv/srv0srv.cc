@@ -2321,7 +2321,7 @@ srv_enable_undo_encryption_if_set()
 
 			dberr_t err;
 			mtr_t	mtr;
-			byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+			byte	encrypt_info[ENCRYPTION_INFO_SIZE];
 			byte	key[ENCRYPTION_KEY_LEN];
 			byte	iv[ENCRYPTION_KEY_LEN];
 
@@ -2332,8 +2332,7 @@ srv_enable_undo_encryption_if_set()
 
 			mtr_x_lock_space(space, &mtr);
 
-			memset(encrypt_info, 0,
-			       ENCRYPTION_INFO_SIZE_V2);
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
 			if (!Encryption::fill_encryption_info(
 					key, iv,
@@ -2416,7 +2415,7 @@ srv_enable_undo_encryption_if_set()
 			continue;
 		}
 
-		byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+		byte	encrypt_info[ENCRYPTION_INFO_SIZE];
 		mtr_t	mtr;
 
 		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -2425,8 +2424,7 @@ srv_enable_undo_encryption_if_set()
 
 		mtr_x_lock_space(space, &mtr);
 
-		memset(encrypt_info, 0,
-		       ENCRYPTION_INFO_SIZE_V2);
+		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
 		if (!fsp_header_rotate_encryption(
 				space,

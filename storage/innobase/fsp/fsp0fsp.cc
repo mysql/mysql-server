@@ -908,7 +908,7 @@ fsp_header_get_encryption_offset(
 	left_size = page_size.physical() - FSP_HEADER_OFFSET - offset
 		- FIL_PAGE_DATA_END;
 
-	ut_ad(left_size >= ENCRYPTION_INFO_SIZE_V2);
+	ut_ad(left_size >= ENCRYPTION_INFO_SIZE);
 #endif
 
 	return offset;
@@ -933,7 +933,7 @@ fsp_header_write_encryption(
 	buf_block_t*	block;
 	ulint		offset;
 	page_t*		page;
-	ulint		master_key_id;
+	uint32_t	master_key_id;
 
 	const page_size_t	page_size(space_flags);
 
@@ -959,13 +959,16 @@ fsp_header_write_encryption(
 			     ENCRYPTION_MAGIC_SIZE) == 0
 		      || memcmp(page + offset,
 				ENCRYPTION_KEY_MAGIC_V2,
+				ENCRYPTION_MAGIC_SIZE) == 0
+		      || memcmp(page + offset,
+				ENCRYPTION_KEY_MAGIC_V3,
 				ENCRYPTION_MAGIC_SIZE) == 0);
 		return(true);
 	}
 
 	mlog_write_string(page + offset,
 			  encrypt_info,
-			  ENCRYPTION_INFO_SIZE_V2,
+			  ENCRYPTION_INFO_SIZE,
 			  mtr);
 
 	/* Write the new fsp flags into be update to the header if needed */
@@ -1086,7 +1089,7 @@ fsp_header_init(
 	info to the page 0. */
 	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		ulint	offset = fsp_header_get_encryption_offset(page_size);
-		byte	encryption_info[ENCRYPTION_INFO_SIZE_V2];
+		byte	encryption_info[ENCRYPTION_INFO_SIZE];
 
 		if (offset == 0)
 			return(false);
@@ -1103,7 +1106,7 @@ fsp_header_init(
 
 		mlog_write_string(page + offset,
 				  encryption_info,
-				  ENCRYPTION_INFO_SIZE_V2,
+				  ENCRYPTION_INFO_SIZE,
 				  mtr);
 	}
 

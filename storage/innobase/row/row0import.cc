@@ -4018,7 +4018,7 @@ row_import_for_mysql(
 
 	if (dict_table_is_encrypted(table)) {
 		mtr_t		mtr;
-		byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+		byte		encrypt_info[ENCRYPTION_INFO_SIZE];
 
 		fil_space_t*	space = fil_space_get(table->space);
 
@@ -4026,7 +4026,7 @@ row_import_for_mysql(
 
 		mtr_x_lock_space(space, &mtr);
 
-		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
 		if (!fsp_header_rotate_encryption(space,
 						  encrypt_info,
