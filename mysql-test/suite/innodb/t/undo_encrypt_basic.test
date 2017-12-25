@@ -114,7 +114,7 @@ DROP TABLE t1,t2;
 
 --echo # Search for particular string of encryption metadata, should success since it's encrypted.
 let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo_001;
-let SEARCH_PATTERN= lCB;
+let SEARCH_PATTERN= lCC;
 --source include/search_pattern.inc
 
 # Crash/recovery test.

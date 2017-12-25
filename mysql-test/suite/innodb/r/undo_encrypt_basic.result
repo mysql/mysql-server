@@ -83,7 +83,7 @@ c1	c2
 0	aaaaa
 DROP TABLE t1,t2;
 # Search for particular string of encryption metadata, should success since it's encrypted.
-Pattern "lCB" found
+Pattern "lCC" found
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 START TRANSACTION;
 INSERT INTO t1 VALUES(0, "aaaaa");

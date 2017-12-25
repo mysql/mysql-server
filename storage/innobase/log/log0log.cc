@@ -1052,7 +1052,7 @@ log_read_encryption()
         ut_a(err == DB_SUCCESS);
 
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
-		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
+		   ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) == 0) {
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
@@ -1114,7 +1114,7 @@ log_file_header_fill_encryption(
 	byte*		iv,
 	bool		is_boot)
 {
-	byte		encryption_info[ENCRYPTION_INFO_SIZE_V2];
+	byte		encryption_info[ENCRYPTION_INFO_SIZE];
 
 	if (!Encryption::fill_encryption_info(key,
 					      iv,
@@ -1123,12 +1123,12 @@ log_file_header_fill_encryption(
 		return(false);
 	}
 
-	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2
+	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE
 	      < OS_FILE_LOG_BLOCK_SIZE);
 
 	memcpy(buf + LOG_HEADER_CREATOR_END,
 	       encryption_info,
-	       ENCRYPTION_INFO_SIZE_V2);
+	       ENCRYPTION_INFO_SIZE);
 
 	return(true);
 }

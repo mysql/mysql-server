@@ -221,6 +221,10 @@ static const char ENCRYPTION_KEY_MAGIC_V1[] = "lCA";
 version. */
 static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
 
+/** Encryption magic bytes for 8.0.5+, it's for checking the encryption information
+version. */
+static const char ENCRYPTION_KEY_MAGIC_V3[] = "lCC";
+
 /** Encryption master key prifix */
 static const char ENCRYPTION_MASTER_KEY_PRIFIX[] = "INNODBKey";
 
@@ -233,16 +237,17 @@ static const ulint ENCRYPTION_MASTER_KEY_NAME_MAX_LEN = 100;
 /** UUID of server instance, it's needed for composing master key name */
 static const ulint ENCRYPTION_SERVER_UUID_LEN = 36;
 
-/** Encryption information total size for 5.7.11: magic number + master_key_id +
-key + iv + checksum */
-static const ulint ENCRYPTION_INFO_SIZE_V1 = 
-	ENCRYPTION_MAGIC_SIZE + (ENCRYPTION_KEY_LEN * 2) + 2 * sizeof(ulint);
-
 /** Encryption information total size: magic number + master_key_id +
 key + iv + server_uuid + checksum */
-static const ulint ENCRYPTION_INFO_SIZE_V2 =
-	ENCRYPTION_MAGIC_SIZE + (ENCRYPTION_KEY_LEN * 2)
-	+ ENCRYPTION_SERVER_UUID_LEN + 2 * sizeof(ulint);
+static const ulint ENCRYPTION_INFO_SIZE = (ENCRYPTION_MAGIC_SIZE \
+					 + sizeof(uint32) \
+					 + (ENCRYPTION_KEY_LEN * 2) \
+					 + ENCRYPTION_SERVER_UUID_LEN \
+					 + sizeof(uint32));
+
+/** Maximum size of Encryption information considering all formats v1, v2 & v3. */
+static const ulint ENCRYPTION_INFO_MAX_SIZE = (ENCRYPTION_INFO_SIZE \
+					 + sizeof(uint32));
 
 /** Default master key for bootstrap */
 static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
@@ -273,6 +278,9 @@ struct Encryption {
 
 		/** Version in > 5.7.11 */
 		ENCRYPTION_VERSION_2 = 1,
+
+		/** Version in > 8.0.4 */
+		ENCRYPTION_VERSION_3 = 2,
 	};
 
 	/** Default constructor */
@@ -359,11 +367,9 @@ struct Encryption {
 
         /** Get current master key and key id.
         @param[in,out]	master_key_id	master key id
-        @param[in,out]	master_key	master key
-        @param[in,out]	version		encryption information version */
+        @param[in,out]	master_key	master key */
 	static void get_master_key(ulint* master_key_id,
-				   byte** master_key,
-				   Encryption::Version*  version);
+				   byte** master_key);
 
         /** Fill the encryption information.
         @param[in]	key		encryption key
@@ -375,6 +381,20 @@ struct Encryption {
 					 byte*	iv,
 					 byte*	encrypt_info,
 					 bool	is_boot);
+
+	/** Get master key from encryption information
+	@param[in]	encrypt_info	encryption information
+	@param[in]	version		version of encryption information
+	@param[in,out]	m_key_id	master key id
+	@param[in,out]	srv_uuid	server uuid
+	@param[in,out]	master_key	master key
+	@return position after master key id or uuid, or the old position
+	if can't get the master key. */
+	static byte* get_master_key_from_info(byte*	encrypt_info,
+					      Version	version,
+					      uint32_t*	m_key_id,
+					      char*	srv_uuid,
+					      byte**	master_key);
 
 	/** Decoding the encryption info from the first page of a tablespace.
 	@param[in,out]	key		key

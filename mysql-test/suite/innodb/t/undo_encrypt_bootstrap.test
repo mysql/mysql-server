@@ -64,7 +64,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 
 --echo # Search for particular string of encryption metadata, should success since it's encrypted.
 let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo_001;
-let SEARCH_PATTERN= lCB;
+let SEARCH_PATTERN= lCC;
 --source include/search_pattern.inc
 
 #--echo # Start the DB server with undo log encryption disabled, and no keyring plugin. It should fail.
@@ -109,11 +109,11 @@ DROP TABLE tab1;
 # stored.
 --sleep 2
 let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo_001;
-let SEARCH_PATTERN= lCB;
+let SEARCH_PATTERN= lCC;
 --source include/search_pattern.inc
 
 let SEARCH_FILE= $MYSQLD_UNDO_DATADIR/undo_002;
-let SEARCH_PATTERN= lCB;
+let SEARCH_PATTERN= lCC;
 --source include/search_pattern.inc
 
 # restart the server with MTR default
