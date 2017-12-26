@@ -1800,7 +1800,23 @@ dict_table_get_index_on_first_col(
 {
 	ut_ad(col_index < table->n_cols);
 
-	dict_col_t* column = dict_table_get_nth_col(table, col_index);
+	ulint	non_v_col_index = col_index;
+	dict_col_t* column = NULL;
+
+	/** Decrement the col_index if the virtual column encountered
+	before the col_index of the table. */
+	for (ulint i = 0; i < table->n_v_cols; i++) {
+		column = reinterpret_cast<dict_col_t*>(
+				dict_table_get_nth_v_col(table, i));
+
+		if (column->ind >= col_index) {
+			break;
+		}
+
+		non_v_col_index--;
+	}
+
+	column = dict_table_get_nth_col(table, non_v_col_index);
 
 	for (dict_index_t* index = dict_table_get_first_index(table);
 		index != NULL; index = dict_table_get_next_index(index)) {
