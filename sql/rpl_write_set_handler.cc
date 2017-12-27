@@ -27,13 +27,10 @@
 
 #include <map>
 #include <string>
-#include <utility>
 #include <vector>
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"
-
-#define COLLATION_CONVERSION_ALGORITHM 1
 
 const char *transaction_write_set_hashing_algorithms[]=
 {
@@ -59,12 +56,12 @@ get_write_set_algorithm_string(unsigned int algorithm)
   }
 }
 
-template <class type> uint64 calc_hash(ulong algorithm, type T, size_t len)
+template <class type> uint64 calc_hash(ulong algorithm, type T)
 {
   if(algorithm == HASH_ALGORITHM_MURMUR32)
-    return (murmur3_32((const uchar*)T, len, 0));
+    return (murmur3_32((const uchar*)T, strlen(T), 0));
   else
-    return (MY_XXH64((const uchar*)T, len, 0));
+    return (MY_XXH64((const uchar*)T, strlen(T), 0));
 }
 
 /**
@@ -161,266 +158,108 @@ void check_foreign_key(TABLE *table, THD *thd,
 
 }
 
-void debug_check_for_write_sets(std::vector< std::pair <std::string, uint> > &key_list_to_hash)
+void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
-
-  DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == key_list_to_hash[0].first););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" ||
-                              key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
 
-  DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_update_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == key_list_to_hash[0].first) ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == key_list_to_hash[0].first)););
-
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1"););
-
-  DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_insert_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
-                                                     HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == key_list_to_hash[0].first););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1" ||
-                              key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1"););
 
-  DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_update_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 2);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "12"
-                                                     HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == key_list_to_hash[0].first) ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
-                                                     HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == key_list_to_hash[0].first)););
-
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2].first == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[2] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1"););
 
-
-  DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_insert_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2].first == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[3].first == key_list_to_hash[0].first &&
-                              key_list_to_hash[4].first == key_list_to_hash[1].first &&
-                              key_list_to_hash[5].first == key_list_to_hash[2].first););
-
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT((key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1") ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1")););
 
-  DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_update_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == key_list_to_hash[0].first &&
-                               key_list_to_hash[4].first == key_list_to_hash[1].first &&
-                               key_list_to_hash[5].first == key_list_to_hash[2].first) ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == key_list_to_hash[0].first &&
-                               key_list_to_hash[4].first == key_list_to_hash[1].first &&
-                               key_list_to_hash[5].first == key_list_to_hash[2].first)););
-
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[1] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2].first == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[2] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1"););
 
-  DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_insert_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
-                                                     HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2].first == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[3].first == key_list_to_hash[0].first &&
-                              key_list_to_hash[4].first == key_list_to_hash[1].first &&
-                              key_list_to_hash[5].first == key_list_to_hash[2].first););
-
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                  DBUG_ASSERT((key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1") ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "12"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[1] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1")););
 
-  DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_update_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 6);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
-                                                       HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == key_list_to_hash[0].first &&
-                               key_list_to_hash[4].first == key_list_to_hash[1].first &&
-                               key_list_to_hash[5].first == key_list_to_hash[2].first) ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "12"
-                                                       HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == key_list_to_hash[0].first &&
-                               key_list_to_hash[4].first == key_list_to_hash[1].first &&
-                               key_list_to_hash[5].first == key_list_to_hash[2].first)););
-
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_insert",
-                  DBUG_ASSERT(key_list_to_hash.size() == 8);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
+                  DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
                                                       HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
+                              key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                              key_list_to_hash[2] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[3].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
+                              key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1"););
 
-  DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_insert_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 8);
-                  DBUG_ASSERT(key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
-                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
-                                                      HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
-                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[2].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[3].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
-                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[4].first == key_list_to_hash[0].first &&
-                              key_list_to_hash[5].first == key_list_to_hash[1].first &&
-                              key_list_to_hash[6].first == key_list_to_hash[2].first &&
-                              key_list_to_hash[7].first == key_list_to_hash[3].first););
-
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_update",
-                  DBUG_ASSERT(key_list_to_hash.size() == 8);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
+                  DBUG_ASSERT((key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
+                               key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1") ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
+                              (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "15"
                                                        HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
+                               key_list_to_hash[1] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
+                               key_list_to_hash[2] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
+                               key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1")););
-
-  DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_update_collation",
-                  DBUG_ASSERT(key_list_to_hash.size() == 8);
-                  DBUG_ASSERT((key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
-                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "15"
-                                                       HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
-                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
-                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[4].first == key_list_to_hash[0].first &&
-                               key_list_to_hash[5].first == key_list_to_hash[1].first &&
-                               key_list_to_hash[6].first == key_list_to_hash[2].first &&
-                               key_list_to_hash[7].first == key_list_to_hash[3].first) ||
-                              (key_list_to_hash[0].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
-                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "15"
-                                                       HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1].first == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t3"
-                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[2].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[3].first == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
-                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[4].first == key_list_to_hash[0].first &&
-                               key_list_to_hash[5].first == key_list_to_hash[1].first &&
-                               key_list_to_hash[6].first == key_list_to_hash[2].first &&
-                               key_list_to_hash[7].first == key_list_to_hash[3].first)););
 }
 
 
@@ -428,28 +267,23 @@ void debug_check_for_write_sets(std::vector< std::pair <std::string, uint> > &ke
   Function to generate the hash of the string passed to this function.
 
   @param[in] pke - the string to be hashed.
-  @param[in] collation_conversion_algorithm - algorithm used for the conversion
-                                              0 - converted using without
-                                                  collation support algorithm
-                                              1 - converted using with collation
-                                                  support conversion algorithm
-
   @param[in] thd - THD object pointing to current thread.
 */
 
-static void generate_hash_pke(const std::string &pke, uint collation_conversion_algorithm, THD* thd)
+void generate_hash_pke(std::string pke, THD* thd)
 {
   DBUG_ENTER("generate_hash_pke");
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
               HASH_ALGORITHM_OFF);
-
-  size_t length= (COLLATION_CONVERSION_ALGORITHM == collation_conversion_algorithm) ?
-                   pke.size() : strlen(pke.c_str());
+  const char* string_pke=NULL;
+  string_pke= (char *)pke.c_str();
+  DBUG_PRINT("info", ("The hashed value is %s for %u", string_pke,
+                      thd->thread_id()));
   uint64 hash= calc_hash<const char *>(thd->variables.transaction_write_set_extraction,
-                                       pke.c_str(), length);
-  thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash);
-
-  DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
+                                       string_pke);
+  Rpl_transaction_write_set_ctx *transaction_write_set_ctc=
+    thd->get_transaction()->get_transaction_write_set_ctx();
+  transaction_write_set_ctc->add_write_set(hash);
   DBUG_VOID_RETURN;
 }
 
@@ -534,181 +368,100 @@ void add_pke(TABLE *table, THD *thd)
     Finally these value are hashed using the murmur hash function to prevent sending more
     for certification algorithm.
   */
-  std::vector< std::pair <std::string, uint> > key_list_to_hash;
+  std::vector<std::string> key_list_to_hash;
   bitmap_set_all(table->read_set);
-
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
-    /*
-      To handle both members having hash values with and without collation
-      in the same group, we generate and send both versions (with and without
-      collation) of the hash in the newer versions. This would mean that a row
-      change will generate 2 instead of 1 writeset, and 4 instead of 2, when PK
-      are involved. This will mean that a transaction will be certified against
-      two writesets instead of just one.
-
-      To generate both versions (with and without collation) of the hash, it
-      first converts using without collation support algorithm (old algorithm),
-      and then using with collation support conversion algorithm, and adds
-      generated value to key_list_to_hash vector, for hash generation later.
-    */
-    for (uint collation_conversion_algorithm= 0;
-         collation_conversion_algorithm <= COLLATION_CONVERSION_ALGORITHM;
-         collation_conversion_algorithm++)
+    for (uint key_number=0; key_number < table->s->keys; key_number++)
     {
-      for (uint key_number=0; key_number < table->s->keys; key_number++)
+      // Skip non unique.
+      if (!((table->key_info[key_number].flags & (HA_NOSAME )) == HA_NOSAME))
+        continue;
+
+      std::string unhashed_string;
+      unhashed_string.append(table->key_info[key_number].name);
+      unhashed_string.append(HASH_STRING_SEPARATOR);
+      unhashed_string.append(pke);
+      uint i= 0;
+      for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts; i++)
       {
-        // Skip non unique.
-        if (!((table->key_info[key_number].flags & (HA_NOSAME )) == HA_NOSAME))
+        // read the primary key field values in str.
+        int index= table->key_info[key_number].key_part[i].fieldnr;
+        table->field[index-1]->val_str(&row_data);
+
+        /* Ignore if the value is NULL. */
+        if (table->field[index-1]->is_null())
+          break;
+
+        char* pk_value= (char*) my_malloc(
+                                key_memory_write_set_extraction,
+                                row_data.length()+1, MYF(0));
+        // buffer to be used for my_safe_itoa.
+        char *buf= (char*) my_malloc(
+                                key_memory_write_set_extraction,
+                                row_data.length(), MYF(0));
+
+        strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
+        const char *lenStr = my_safe_itoa(10, (row_data.length()),
+                                          &buf[row_data.length()-1]);
+        unhashed_string.append(pk_value);
+        unhashed_string.append(HASH_STRING_SEPARATOR);
+        unhashed_string.append(lenStr);
+        my_free(buf);
+        my_free(pk_value);
+      }
+      /*
+        If any part of the key is NULL, ignore adding it to hash keys.
+        NULL cannot conflict with any value.
+        Eg: create table t1(i int primary key not null, j int, k int,
+                                                unique key (j, k));
+            insert into t1 values (1, 2, NULL);
+            insert into t1 values (2, 2, NULL); => this is allowed.
+      */
+      if (i == table->key_info[key_number].user_defined_key_parts)
+      {
+        key_list_to_hash.push_back(unhashed_string);
+      }
+      else
+      {
+        /* This is impossible to happen in case of primary keys */
+        DBUG_ASSERT(key_number !=0);
+      }
+      unhashed_string.clear();
+    }
+
+    // This part takes care of the previously fetched foreign key values of
+    // the referenced table adds it to the write set.
+    for(uint i=0; i < table->s->fields; i++)
+    {
+      std::string referenced_FQTN=
+        foreign_key_map[table->s->field[i]->field_name];
+      if (referenced_FQTN.size() > 0)
+      {
+        table->field[i]->val_str(&row_data);
+
+        /* Ignore if the value is NULL. */
+        if (table->field[i]->is_null())
           continue;
 
-        std::string unhashed_string;
-        unhashed_string.append(table->key_info[key_number].name);
-        unhashed_string.append(HASH_STRING_SEPARATOR);
-        unhashed_string.append(pke);
-        uint i= 0;
-        for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts; i++)
-        {
-          // read the primary key field values in str.
-          int index= table->key_info[key_number].key_part[i].fieldnr;
-          size_t length= 0;
+        char* pk_value= (char*) my_malloc(
+                                key_memory_write_set_extraction,
+                                row_data.length()+1, MYF(0));
+        // buffer to be used for my_safe_itoa.
+        char *buf= (char*) my_malloc(
+                                key_memory_write_set_extraction,
+                                row_data.length(), MYF(0));
 
-          /* Ignore if the value is NULL. */
-          if (table->field[index-1]->is_null())
-            break;
+        strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
+        const char *lenStr = my_safe_itoa(10, (row_data.length()),
+                                          &buf[row_data.length()-1]);
+        referenced_FQTN.append(pk_value);
+        referenced_FQTN.append(HASH_STRING_SEPARATOR);
+        referenced_FQTN.append(lenStr);
 
-          // convert using collation support conversion algorithm
-          if (COLLATION_CONVERSION_ALGORITHM == collation_conversion_algorithm)
-          {
-            const CHARSET_INFO* cs= table->field[index-1]->charset();
-            length= cs->coll->strnxfrmlen(cs,
-                                       table->field[index-1]->pack_length());
-          }
-          // convert using without collation support algorithm
-          else
-          {
-            table->field[index-1]->val_str(&row_data);
-            length= row_data.length();
-          }
-
-          char* pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                            length+1, MYF(MY_ZEROFILL));
-
-          // buffer to be used for my_safe_itoa.
-          char *buf= (char*) my_malloc(key_memory_write_set_extraction,
-                                       length, MYF(MY_ZEROFILL));
-
-          const char *lenStr = my_safe_itoa(10, length, &buf[length-1]);
-
-          // convert using collation support conversion algorithm
-          if (COLLATION_CONVERSION_ALGORITHM == collation_conversion_algorithm)
-          {
-            /*
-              convert to normalized string and store so that it can be
-              sorted using binary comparison functions like memcmp.
-            */
-            uint32 pack_length= table->field[index-1]->pack_length();
-            set_if_smaller(length, pack_length);
-            table->field[index-1]->make_sort_key((uchar*)pk_value, length);
-            pk_value[length]= 0;
-            unhashed_string.append(pk_value, length);
-          }
-          // convert using without collation support algorithm
-          else
-          {
-            strmake(pk_value, row_data.c_ptr_safe(), length);
-            unhashed_string.append(pk_value);
-          }
-
-          unhashed_string.append(HASH_STRING_SEPARATOR);
-          unhashed_string.append(lenStr);
-          my_free(buf);
-          my_free(pk_value);
-        }
-        /*
-          If any part of the key is NULL, ignore adding it to hash keys.
-          NULL cannot conflict with any value.
-          Eg: create table t1(i int primary key not null, j int, k int,
-                                                  unique key (j, k));
-              insert into t1 values (1, 2, NULL);
-              insert into t1 values (2, 2, NULL); => this is allowed.
-        */
-        if (i == table->key_info[key_number].user_defined_key_parts)
-        {
-          key_list_to_hash.push_back(make_pair(unhashed_string,
-                                     collation_conversion_algorithm));
-        }
-        else
-        {
-          /* This is impossible to happen in case of primary keys */
-          DBUG_ASSERT(key_number !=0);
-        }
-        unhashed_string.clear();
-      }
-
-      // This part takes care of the previously fetched foreign key values of
-      // the referenced table adds it to the write set.
-      for(uint i=0; i < table->s->fields; i++)
-      {
-        std::string referenced_FQTN=
-          foreign_key_map[table->s->field[i]->field_name];
-        if (referenced_FQTN.size() > 0)
-        {
-          size_t length= 0;
-
-          /* Ignore if the value is NULL. */
-          if (table->field[i]->is_null())
-            break;
-
-          // convert using collation support conversion algorithm
-          if (COLLATION_CONVERSION_ALGORITHM == collation_conversion_algorithm)
-          {
-            const CHARSET_INFO* cs= table->field[i]->charset();
-            length= cs->coll->strnxfrmlen(cs,
-                                       table->field[i]->pack_length());
-          }
-          // convert using without collation support algorithm
-          else
-          {
-            table->field[i]->val_str(&row_data);
-            length= row_data.length();
-          }
-
-          char* pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                            length+1, MYF(MY_ZEROFILL));
-
-          // buffer to be used for my_safe_itoa.
-          char *buf= (char*) my_malloc(key_memory_write_set_extraction,
-                                       length, MYF(MY_ZEROFILL));
-
-          const char *lenStr = my_safe_itoa(10, length, &buf[length-1]);
-
-          // convert using collation support conversion algorithm
-          if (COLLATION_CONVERSION_ALGORITHM == collation_conversion_algorithm)
-          {
-            /*
-              convert to normalized string and store so that it can be
-              sorted using binary comparison functions like memcmp.
-            */
-            table->field[i]->make_sort_key((uchar*)pk_value, length);
-            pk_value[length]= 0;
-            referenced_FQTN.append(pk_value, length);
-          }
-          // convert using without collation support algorithm
-          else
-          {
-            strmake(pk_value, row_data.c_ptr_safe(), length);
-            referenced_FQTN.append(pk_value);
-          }
-
-          referenced_FQTN.append(HASH_STRING_SEPARATOR);
-          referenced_FQTN.append(lenStr);
-
-          my_free(buf);
-          my_free(pk_value);
-          key_list_to_hash.push_back(make_pair(referenced_FQTN,
-                                     collation_conversion_algorithm));
-        }
+        my_free(buf);
+        my_free(pk_value);
+        key_list_to_hash.push_back(referenced_FQTN);
       }
     }
 
@@ -716,11 +469,10 @@ void add_pke(TABLE *table, THD *thd)
 
     while(key_list_to_hash.size())
     {
-      std::pair <std::string, int> prepared_string_pair= key_list_to_hash.back();
+      std::string prepared_string= key_list_to_hash.back();
       key_list_to_hash.pop_back();
-      generate_hash_pke(prepared_string_pair.first, prepared_string_pair.second, thd);
+      generate_hash_pke(prepared_string, thd);
     }
-
   }
   DBUG_VOID_RETURN;
 }
