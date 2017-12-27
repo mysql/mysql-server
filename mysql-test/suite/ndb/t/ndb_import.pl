@@ -11,6 +11,7 @@ my $vardir = $ENV{MYSQLTEST_VARDIR}
 my $par_nullpct = 10;   # pct nulls if nullable
 my $par_sppct = 5;      # a few pct special values like min,max
 my $par_quotepct  = 20; # pct quoted if fields_enclosed_by
+my $par_valerrpct = 2 ; # pct value errors
 my $par_randbias = 3;   # prefer smaller random values
 
 # type info
@@ -511,14 +512,26 @@ sub gen_int {
   if ($attr->{pk}) {
     $val = $opts->{rowid} % ($hi + 1);
   } else {
-    my $r = int(rand(100));
+    my $r = myrand(100);
     if ($r < $par_sppct) {
       $val = 0 if $r % 3 == 0;
       $val = $lo if $r % 3 == 1;
       $val = $hi if $r % 3 == 2;
     } else {
-      $val = $lo + int(rand($hi - $lo + 1));
+      $val = $lo + myrand($hi - $lo + 1);
     }
+  }
+  if ($attr->{type} eq 'smallint' &&
+      $opts->{rejectsflag} &&
+      myrand(100) < $par_valerrpct) {
+    if ($attr->{unsigned}) {
+      $val = $typeinfo->{max_unsigned} + 1;
+    } elsif (myrand(2) == 0) {
+      $val = $typeinfo->{max_signed} + 1;
+    } else {
+      $val = $typeinfo->{min_signed} - 1;
+    }
+    $opts->{rejectserrs} .= ":value";
   }
   return "$val";
 }
@@ -537,6 +550,7 @@ sub gen_float {
   if (myrand(2) == 0) {
     $p = (-1) * $p;
   }
+  # floating rand
   my $v = rand() * (10 ** $p);
   if (myrand(2) == 0) {
     $v = (-1) * $v;
@@ -546,6 +560,12 @@ sub gen_float {
     $val = sprintf("%f", $v);
   } else {
     $val = sprintf("%g", $v);
+  }
+  if ($attr->{type} eq 'float' &&
+      $opts->{rejectsflag} &&
+      myrand(100) < $par_valerrpct) {
+    $val = sprintf("1e%d", $hiexp + 10);
+    $opts->{rejectserrs} .= ":value";
   }
   return $val;
 }
@@ -843,9 +863,9 @@ sub gen_csvfield {
   my $val;
   # if value will be enclosed by
   $opts->{quote} = defined($fenc) &&
-                   rand(100) < $par_quotepct;
+                   myrand(100) < $par_quotepct;
   if (!$attr->{notnull} &&
-      int(rand(100) < $par_nullpct)) {
+      myrand(100) < $par_nullpct) {
     $val = $fesc.'N';
   } else {
     $val = $typeinfo->{gen}($test, $attr, $opts);

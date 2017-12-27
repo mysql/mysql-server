@@ -518,7 +518,8 @@ drop table t7b;
 create table t8c ( 
 a int unsigned not null ,
 b smallint not null ,
-c char (10) not null ,
+c float not null ,
+d char (10) not null ,
 primary key (a) 
 ) engine ndb;
 select count(*) from t8c;
@@ -527,7 +528,8 @@ count(*)
 create table t8cver ( 
 a int unsigned not null ,
 b smallint not null ,
-c char (10) not null ,
+c float not null ,
+d char (10) not null ,
 primary key (a) 
 ) engine ndb;
 select count(*) from t8cver;
@@ -543,7 +545,8 @@ drop table t8c;
 create table t8d ( 
 a int unsigned not null ,
 b smallint not null ,
-c char (10) not null ,
+c float not null ,
+d char (10) not null ,
 primary key (a) 
 ) engine ndb;
 select count(*) from t8d;
@@ -552,7 +555,8 @@ count(*)
 create table t8dver ( 
 a int unsigned not null ,
 b smallint not null ,
-c char (10) not null ,
+c float not null ,
+d char (10) not null ,
 primary key (a) 
 ) engine ndb;
 select count(*) from t8dver;
