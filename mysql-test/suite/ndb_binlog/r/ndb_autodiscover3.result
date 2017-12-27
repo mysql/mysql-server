@@ -1,4 +1,3 @@
-drop table if exists t1, t2;
 create table t1 (a int key) engine=ndbcluster;
 begin;
 insert into t1 values (1);
@@ -7,7 +6,8 @@ ERROR HY000: Got temporary error 4025 'Node failure caused abort of transaction'
 rollback;
 drop table t1;
 create table t2 (a int, b int, primary key(a,b)) engine=ndbcluster;
-insert into t2 values (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1);
+insert into t2
+values (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1);
 select * from t2 order by a limit 3;
 a	b
 1	1

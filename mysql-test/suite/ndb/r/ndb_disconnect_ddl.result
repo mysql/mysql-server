@@ -1,8 +1,0 @@
-DROP TABLE IF EXISTS t1;
-"testing the bug#31853"
-create table t1(i int primary key) engine=ndb;
-ERROR HY000: Can't create table 'test.t1' (errno: 157)
-# restart
-create table t2(i int primary key) engine=ndb;
-ERROR HY000: Can't create table 'test.t2' (errno: 157)
-"end of test the bug#31853"
