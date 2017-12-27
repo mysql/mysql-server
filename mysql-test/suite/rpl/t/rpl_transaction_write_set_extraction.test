@@ -17,7 +17,7 @@
 
 --connection master
 CREATE TABLE t1 (a INT PRIMARY KEY);
-SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_insert';
 INSERT INTO t1 VALUES(1);
 SET @@GLOBAL.DEBUG= @debug_saved;
@@ -28,43 +28,14 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t1;
 --source include/rpl_sync.inc
 
-# tests both writeset algorithm (with and without collation)
---connection master
-CREATE TABLE t1 (a BINARY(1) PRIMARY KEY);
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_insert_collation';
-INSERT INTO t1 VALUES(1);
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_update_collation';
-UPDATE t1 SET a=3 WHERE a=1;
-SET @@GLOBAL.DEBUG= @debug_saved;
---source include/rpl_sync.inc
-DROP TABLE t1;
---source include/rpl_sync.inc
-
 # Table with multi values pimary key field with insert and update
 
---connection master
 CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a, b));
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_key_generated_insert';
 INSERT INTO t1 VALUE(1, 2);
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_key_generated_update';
-UPDATE t1 SET a=3 WHERE a=1;
-SET @@GLOBAL.DEBUG= @debug_saved;
---source include/rpl_sync.inc
-DROP TABLE t1;
---source include/rpl_sync.inc
-
-# tests both writeset algorithm (with and without collation)
---connection master
-CREATE TABLE t1(a BINARY(1), b BINARY(1), PRIMARY KEY(a, b));
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_key_generated_insert_collation';
-INSERT INTO t1 VALUE(1, 2);
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_key_generated_update_collation';
 UPDATE t1 SET a=3 WHERE a=1;
 SET @@GLOBAL.DEBUG= @debug_saved;
 --source include/rpl_sync.inc
@@ -86,43 +57,15 @@ UPDATE t1 SET c1=5 WHERE c1=1;
 DROP TABLE t1;
 --source include/rpl_sync.inc
 
-# tests both writeset algorithm (with and without collation)
---connection master
-CREATE TABLE t1 (c1 BINARY(1) PRIMARY KEY, c2 BINARY(1) NOT NULL UNIQUE, c3 BINARY(1) NOT NULL UNIQUE);
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_unique_key_generated_insert_collation';
-INSERT INTO t1 VALUES (1, 2, 3);
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_unique_key_generated_update_collation';
-UPDATE t1 SET c1=5 WHERE c1=1;
---source include/rpl_sync.inc
-DROP TABLE t1;
---source include/rpl_sync.inc
-
 # Table with multi valued primary key and multiple unique key with insert and
 # updates.
 
---connection master
 CREATE TABLE t1 (a INT, d INT, b INT NOT NULL UNIQUE, c INT NOT NULL UNIQUE, PRIMARY KEY(a, d));
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_unique_key_generated_insert';
 INSERT INTO t1 VALUES(1, 2, 3, 4);
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_unique_key_generated_update';
-UPDATE t1 SET a=5 WHERE a=1;
-SET @@GLOBAL.DEBUG= @debug_saved;
---source include/rpl_sync.inc
-DROP TABLE t1;
---source include/rpl_sync.inc
-
-# tests both writeset algorithm (with and without collation)
---connection master
-CREATE TABLE t1 (a BINARY(1), d BINARY(1), b BINARY(1) NOT NULL UNIQUE, c BINARY(1) NOT NULL UNIQUE, PRIMARY KEY(a, d));
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_unique_key_generated_insert_collation';
-INSERT INTO t1 VALUES(1, 2, 3, 4);
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_primary_unique_key_generated_update_collation';
 UPDATE t1 SET a=5 WHERE a=1;
 SET @@GLOBAL.DEBUG= @debug_saved;
 --source include/rpl_sync.inc
@@ -146,29 +89,6 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 INSERT INTO t1 VALUES (3);
 --source include/rpl_sync.inc
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_foreign_key_generated_update';
-UPDATE t3 SET c1=3 WHERE c1=1;
---source include/rpl_sync.inc
-SET @@GLOBAL.DEBUG= @debug_saved;
-DROP TABLE t3;
-DROP TABLE t2;
-DROP TABLE t1;
---source include/rpl_sync.inc
-
-# tests both writeset algorithm (with and without collation)
---connection master
-CREATE TABLE t1 (a BINARY(1) PRIMARY KEY);
-CREATE TABLE t2 (b BINARY(1) PRIMARY KEY);
-CREATE TABLE t3 (c1 BINARY(1), c2 BINARY(1) NOT NULL UNIQUE, PRIMARY KEY(c1, c2), FOREIGN KEY(c1) REFERENCES t1(a), FOREIGN KEY(c2) REFERENCES t2(b));
-
-INSERT INTO t1 VALUES (1);
-INSERT INTO t2 VALUES (5);
-SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_foreign_key_generated_insert_collation';
-INSERT INTO t3 values(1,5);
-SET @@GLOBAL.DEBUG= @debug_saved;
-INSERT INTO t1 VALUES (3);
---source include/rpl_sync.inc
-SET @@GLOBAL.DEBUG= '+d,PKE_assert_multi_foreign_key_generated_update_collation';
 UPDATE t3 SET c1=3 WHERE c1=1;
 --source include/rpl_sync.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
