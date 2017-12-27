@@ -80,3 +80,21 @@ select count(*),b from t1 group by b;
 count(*)	b
 1024	0123456789
 drop table t1;
+CREATE TABLE t1(a int primary key,b int) ROW_FORMAT=DEFAULT engine = NDB;
+CREATE TABLE t2(a int primary key,b int) ROW_FORMAT=DYNAMIC engine = NDB;
+CREATE TABLE t3(a int primary key,b int) ROW_FORMAT=FIXED engine = NDB;
+CREATE TABLE t4(a int primary key,b int) ROW_FORMAT=COMPRESSED engine = NDB;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=COMPRESSED'
+CREATE TABLE t5(a int primary key,b int) ROW_FORMAT=REDUNDANT engine = NDB;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=REDUNDANT'
+CREATE TABLE t6(a int primary key,b int) ROW_FORMAT=COMPACT engine = NDB;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=COMPACT'
+SELECT table_name, row_format FROM information_schema.tables
+WHERE TABLE_SCHEMA = 'test' order by TABLE_NAME;
+TABLE_NAME	ROW_FORMAT
+t1	Dynamic
+t2	Dynamic
+t3	Fixed
+ALTER TABLE t2 ALGORITHM=COPY,ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'ROW_FORMAT=COMPRESSED'
+DROP TABLE t1,t2,t3 ;

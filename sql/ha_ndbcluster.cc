@@ -10530,6 +10530,44 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
+
+  /*
+    ROW_FORMAT=[DEFAULT|FIXED|DYNAMIC|COMPRESSED|REDUNDANT|COMPACT]
+
+    Only DEFAULT,FIXED or DYNAMIC supported
+  */
+  if (!(create_info->row_type == ROW_TYPE_DEFAULT ||
+        create_info->row_type == ROW_TYPE_FIXED ||
+        create_info->row_type == ROW_TYPE_DYNAMIC))
+  {
+    /*Unsupported row format requested */
+    String err_message;
+    err_message.append("ROW_FORMAT=");
+    switch (create_info->row_type)
+    {
+    case ROW_TYPE_COMPRESSED:
+      err_message.append("COMPRESSED");
+      break;
+    case ROW_TYPE_REDUNDANT:
+      err_message.append("REDUNDANT");
+      break;
+    case ROW_TYPE_COMPACT:
+      err_message.append("COMPACT");
+      break;
+    case ROW_TYPE_PAGED:
+      err_message.append("PAGED");
+      break;
+    default:
+      err_message.append("<unknown>");
+      DBUG_ASSERT(false);
+      break;
+    }
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ndbcluster_hton_name,
+             err_message.c_ptr());
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
+
   /* Verify we can support fully replicated table property if set */
   if ((mod_fully_replicated->m_found ||
        opt_ndb_fully_replicated) &&
