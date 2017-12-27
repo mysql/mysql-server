@@ -3020,7 +3020,7 @@ public:
 
     Requires that the caller holds global_sid_lock.wrlock.
 
-    @param gtid_set[in,out] The gtid_set to add. If the gtid_set
+    @param[in,out] gtid_set The gtid_set to add. If the gtid_set
     does not start with a plus sign (starts_with_plus is false),
     @@GLOBAL.GTID_PURGED will be removed from the gtid_set.
     @param starts_with_plus If true, the gtid_set passed is required to
