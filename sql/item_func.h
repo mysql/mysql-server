@@ -2681,6 +2681,29 @@ public:
 };
 
 
+class Item_func_internal_tablespace_logfile_group_number : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_logfile_group_number(const POS &pos, Item *a,
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_logfile_group_number"; }
+
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    null_on_null= false;
+    return false;
+  }
+};
+
+
 class Item_func_internal_tablespace_free_extents : public Item_int_func
 {
 public:
@@ -2819,11 +2842,34 @@ public:
 };
 
 
+class Item_func_internal_tablespace_version : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_version(const POS &pos, Item *a,
+                                        Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_version"; }
+
+  bool resolve_type(THD *) override
+  {
+    maybe_null= true;
+    null_on_null= false;
+    return false;
+  }
+};
+
+
 class Item_func_internal_tablespace_data_free : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_data_free(const POS &pos, Item *a,
-                                                Item *b, Item *c, Item *d)
+                                          Item *b, Item *c, Item *d)
     :Item_int_func(pos, a, b, c, d)
   {}
 
