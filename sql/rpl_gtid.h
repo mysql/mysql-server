@@ -1430,9 +1430,15 @@ public:
     @param [in,out] anonymous If this is NULL, ANONYMOUS is not
     allowed.  If this is not NULL, it will be set to true if the
     anonymous GTID was found; false otherwise.
+    @param[in,out] starts_with_plus If this is not NULL, the string may
+    optionally begin with a '+' character, and *starts_with_plus will
+    be set to true if the plus character is present. If this is NULL,
+    no plus is allowed at the begin of the string.
+
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_gtid_text(const char *text, bool *anonymous= NULL);
+  enum_return_status add_gtid_text(const char *text, bool *anonymous= NULL,
+                                   bool *starts_with_plus= NULL);
   /**
     Decodes a Gtid_set from the given string.
 
@@ -1893,10 +1899,6 @@ public:
     encode() function.
   */
   size_t get_encoded_length() const;
-  /**
-    Returns true when the set is marked as appendable, false otherwise.
-  */
-  bool is_appendable() const { return m_appendable; }
 
 private:
   /**
@@ -2152,12 +2154,6 @@ private:
   */
   int n_chunks;
 #endif
-  /**
-    The set is marked with true bool value when its textual
-    presentation contains the '+' as the first non-whitespace character.
-    The property is checked by methods like Gtid_state::add_lost_gtids().
-  */
-  bool m_appendable;
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_SET
   friend FRIEND_OF_GTID_SET;
@@ -3024,10 +3020,15 @@ public:
 
     Requires that the caller holds global_sid_lock.wrlock.
 
-    @param gtid_set The Gtid_set to add.
+    @param gtid_set[in,out] The gtid_set to add. If the gtid_set
+    does not start with a plus sign (starts_with_plus is false),
+    @@GLOBAL.GTID_PURGED will be removed from the gtid_set.
+    @param starts_with_plus If true, the gtid_set passed is required to
+    be disjoint from @@GLOBAL.GTID_PURGED; if false, the gtid_set passed
+    is required to be a superset of @@GLOBAL.GTID_PURGED.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
-  enum_return_status add_lost_gtids(const Gtid_set *gtid_set);
+  enum_return_status add_lost_gtids(Gtid_set *gtid_set, bool starts_with_plus);
   /// Return a pointer to the Gtid_set that contains the lost gtids.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /*

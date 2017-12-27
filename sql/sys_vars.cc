@@ -6133,32 +6133,18 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&previous_gtid_purged);
-  enum_return_status ret;
-  Gtid_set gtid_set(global_sid_map, var->save_result.string_value.str,
-                    &ret, global_sid_lock);
+  Gtid_set gtid_set(global_sid_map, global_sid_lock);
+  bool starts_with_plus= false;
+  enum_return_status ret=
+    gtid_set.add_gtid_text(var->save_result.string_value.str, NULL,
+                           &starts_with_plus);
+
   if (ret != RETURN_STATUS_OK)
   {
     error= true;
     goto end;
   }
-  if (!gtid_set.is_appendable())
-  {
-    if (!gtid_state->get_lost_gtids()->is_subset(&gtid_set))
-    {
-      my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
-               "the being assigned value must include the former value of the variable "
-               "in plain assignment");
-      error= true;
-      goto end;
-    }
-    DBUG_ASSERT(gtid_state->get_lost_gtids()->is_subset(&gtid_set));
-    /*
-      Reduce the being assigned set to the intersect part which will
-      be used further.
-    */
-    gtid_set.remove_gtid_set(gtid_state->get_lost_gtids());
-  }
-  ret= gtid_state->add_lost_gtids(&gtid_set);
+  ret= gtid_state->add_lost_gtids(&gtid_set, starts_with_plus);
   if (ret != RETURN_STATUS_OK)
   {
     error= true;
