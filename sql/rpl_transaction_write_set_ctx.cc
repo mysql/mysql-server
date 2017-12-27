@@ -187,10 +187,10 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char* name)
     }
 
     DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint",
-                    DBUG_ASSERT(write_set.size() == 2););
+                    DBUG_ASSERT(write_set.size() == 1););
 
     DBUG_EXECUTE_IF("transaction_write_set_size_2",
-                    DBUG_ASSERT(write_set.size() == 4););
+                    DBUG_ASSERT(write_set.size() == 2););
   }
 
   DBUG_VOID_RETURN;
