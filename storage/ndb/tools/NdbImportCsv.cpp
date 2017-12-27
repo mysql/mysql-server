@@ -2177,25 +2177,64 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       attr.set_value(row, val, attr.m_size);
     }
     break;
+  /*
+   * Float and Double.  We use same methods as LOAD DATA but for
+   * some reason there are occasional infinitesimal diffs on "el6".
+   * Fix by using ::strtod if charset allows (it does).
+   */
   case NdbDictionary::Column::Float:
     {
-      int err = 0;
       char* endptr = 0;
-      double val = cs->cset->strntod(
-                   cs, datac, length, &endptr, &err);
-      if (err != 0)
+      double val = 0.0;
+      if (opt.m_charset == &my_charset_bin)
       {
-        m_util.set_error_data(
-          error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
-          linenr, fieldnr, attr.m_sqltype);
-        break;
+        errno = 0;
+        val = ::strtod(datac, &endptr);
+        if (errno != 0)
+        {
+          m_util.set_error_data(
+            error, __LINE__, errno,
+            "line %llu field %u: eval %s failed",
+            linenr, fieldnr, attr.m_sqltype);
+          break;
+        }
+      }
+      else
+      {
+        int err = 0;
+        val = cs->cset->strntod(
+              cs, datac, length, &endptr, &err);
+        if (err != 0)
+        {
+          m_util.set_error_data(
+            error, __LINE__, err,
+            "line %llu field %u: eval %s failed",
+            linenr, fieldnr, attr.m_sqltype);
+          break;
+        }
       }
       if (uint(endptr - datac) != length)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
           "line %llu field %u: eval %s failed: bad format",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
+      if (my_isnan(val))
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: invalid value",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
+      const double max_val = FLT_MAX;
+      if (val < -max_val || val > max_val)
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: value out of range",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
@@ -2207,21 +2246,55 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     {
       int err = 0;
       char* endptr = 0;
-      double val = cs->cset->strntod(
-                   cs, datac, length, &endptr, &err);
-      if (err != 0)
+      double val = 0.0;
+      if (opt.m_charset == &my_charset_bin)
       {
-        m_util.set_error_data(
-          error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
-          linenr, fieldnr, attr.m_sqltype);
-        break;
+        errno = 0;
+        val = ::strtod(datac, &endptr);
+        if (errno != 0)
+        {
+          m_util.set_error_data(
+            error, __LINE__, errno,
+            "line %llu field %u: eval %s failed",
+            linenr, fieldnr, attr.m_sqltype);
+          break;
+        }
+      }
+      else
+      {
+        val = cs->cset->strntod(
+              cs, datac, length, &endptr, &err);
+        if (err != 0)
+        {
+          m_util.set_error_data(
+            error, __LINE__, err,
+            "line %llu field %u: eval %s failed",
+            linenr, fieldnr, attr.m_sqltype);
+          break;
+        }
       }
       if (uint(endptr - datac) != length)
       {
         m_util.set_error_data(
           error, __LINE__, 0,
           "line %llu field %u: eval %s failed: bad format",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
+      if (my_isnan(val))
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: invalid value",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
+      const double max_val = DBL_MAX;
+      if (val < -max_val || val > max_val)
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: value out of range",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }

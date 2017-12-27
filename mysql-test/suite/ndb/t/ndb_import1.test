@@ -119,7 +119,8 @@ my $t7 = {
 my $t8attrs = [
   { name=>"a", type=>"int", unsigned=>1, pk=>1 },
   { name=>"b", type=>"smallint", notnull=>1 },
-  { name=>"c", type=>"char", len=>10, minlen=>1, notnull=>1 },
+  { name=>"c", type=>"float", notnull=>1 },
+  { name=>"d", type=>"char", len=>10, minlen=>1, notnull=>1 },
 ];
 my $t8 = {
   name => 't8',
