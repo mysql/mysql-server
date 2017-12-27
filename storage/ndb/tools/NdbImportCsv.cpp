@@ -2247,6 +2247,23 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
+      if (my_isnan(val))
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: invalid value",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
+      const double max_val = FLT_MAX;
+      if (val < -max_val || val > max_val)
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: value out of range",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
       float valf = (float)val;
       attr.set_value(row, &valf, 4);
     }
@@ -2270,6 +2287,23 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
         m_util.set_error_data(
           error, __LINE__, 0,
           "line %llu field %u: eval %s failed: bad format",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
+      if (my_isnan(val))
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: invalid value",
+          linenr, fieldnr, attr.m_sqltype);
+        break;
+      }
+      const double max_val = DBL_MAX;
+      if (val < -max_val || val > max_val)
+      {
+        m_util.set_error_data(
+          error, __LINE__, 0,
+          "line %llu field %u: eval %s failed: value out of range",
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
