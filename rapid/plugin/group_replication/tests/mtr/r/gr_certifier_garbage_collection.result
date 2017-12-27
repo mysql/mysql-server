@@ -38,9 +38,9 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 #     After garbage collection certification info will contain:
 #     WS: t1.c1=1 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
 #     WS: t1.c1=2 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
-include/assert.inc ['Count_transactions_rows_validating must be 4']
+include/assert.inc ['Count_transactions_rows_validating must be 2']
 include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-4']
-include/assert.inc ['Count_transactions_rows_validating must be 4']
+include/assert.inc ['Count_transactions_rows_validating must be 2']
 include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-4']
 
 ############################################################
