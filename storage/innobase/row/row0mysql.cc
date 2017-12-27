@@ -1804,8 +1804,7 @@ error_exit:
 			doc_ids difference should not exceed
 			FTS_DOC_ID_MAX_STEP value. */
 
-			if (next_doc_id > 1
-			    && doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
+			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
 				 ib::error() << "Doc ID " << doc_id
 					<< " is too big. Its difference with"
 					" largest used Doc ID "
