@@ -1426,8 +1426,7 @@ error_exit:
 			doc_ids difference should not exceed
 			FTS_DOC_ID_MAX_STEP value. */
 
-			if (next_doc_id > 1
-			    && doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
+			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
 				fprintf(stderr,
 					"InnoDB: Doc ID " UINT64PF " is too"
 					" big. Its difference with largest"
