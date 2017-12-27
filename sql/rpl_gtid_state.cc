@@ -671,21 +671,33 @@ enum_return_status Gtid_state::ensure_sidno()
 }
 
 
-enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
+enum_return_status Gtid_state::add_lost_gtids(Gtid_set *gtid_set,
+                                              bool starts_with_plus)
 {
   DBUG_ENTER("Gtid_state::add_lost_gtids()");
   sid_lock->assert_some_wrlock();
 
   gtid_set->dbug_print("add_lost_gtids");
 
+  if (!starts_with_plus)
+  {
+    if (!gtid_state->get_lost_gtids()->is_subset(gtid_set))
+    {
+      my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
+               "the new value must be a superset of the old value");
+      RETURN_REPORTED_ERROR;
+    }
+    /*
+      Remove @@GLOBAL.GTID_PURGED from gtid_set. This ensures that
+      the next check generates an error only if gtid_set intersects
+      (@@GLOBAL.GTID_EXECUTED - @@GLOBAL.GTID_PURGED).
+    */
+    gtid_set->remove_gtid_set(gtid_state->get_lost_gtids());
+  }
   if (executed_gtids.is_intersection_nonempty(gtid_set))
   {
     my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
-             gtid_set->is_appendable() ?
-             "the being assigned value must not overlap with the current "
-             "executed gtids in incremental assignment" :
-             "the being assigned value must not overlap with the current "
-             "executed not purged gtids in plain assignment");
+             "the added gtid set must not overlap with @@GLOBAL.GTID_EXECUTED");
     RETURN_REPORTED_ERROR;
   }
   DBUG_ASSERT(!lost_gtids.is_intersection_nonempty(gtid_set));
@@ -693,8 +705,7 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
   if (owned_gtids.is_intersection_nonempty(gtid_set))
   {
     my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
-             "the being assigned value must not overlap with GTIDS of "
-             "transactions in progress");
+             "the added gtid set must not overlap with @@GLOBAL.GTID_OWNED");
     RETURN_REPORTED_ERROR;
   }
 

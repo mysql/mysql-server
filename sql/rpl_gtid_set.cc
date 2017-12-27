@@ -98,7 +98,7 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, Checkable_rwlock *_sid_lock)
 Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
                    enum_return_status *status, Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sid_map(_sid_map),
-    m_intervals(key_memory_Gtid_set_Interval_chunk), m_appendable(false)
+    m_intervals(key_memory_Gtid_set_Interval_chunk)
 {
   DBUG_ASSERT(_sid_map != NULL);
   init();
@@ -502,7 +502,8 @@ int format_gno(char *s, rpl_gno gno)
 }
 
 
-enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
+enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous,
+                                           bool *starts_with_plus)
 {
   DBUG_ENTER("Gtid_set::add_gtid_text(const char *, bool *)");
   DBUG_ASSERT(sid_map != NULL);
@@ -515,11 +516,16 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
   if (anonymous != NULL)
     *anonymous= false;
 
-  SKIP_WHITESPACE();
-  if (*s == '+')
+  if (starts_with_plus != NULL)
   {
-    m_appendable= true;
-    s++;
+    SKIP_WHITESPACE();
+    if (*s == '+')
+    {
+      *starts_with_plus= true;
+      s++;
+    }
+    else
+      *starts_with_plus= false;
   }
   SKIP_WHITESPACE();
   if (*s == 0)
