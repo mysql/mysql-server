@@ -389,6 +389,11 @@ NdbImportImpl::Job::Job(NdbImportImpl& impl, uint jobno) :
     Stat* stat = stats.create(name, 0, 0);
     m_stat_rowmap = stat;
   }
+  {
+    const Name name("job", "rowmap-utime");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_rowmap_utime = stat;
+  }
   log1("ctor");
 }
 
@@ -723,6 +728,7 @@ NdbImportImpl::Job::collect_stats()
   m_stat_reject->add(reject);
   m_stat_runtime->add(msec);
   m_stat_rowssec->add(rowssec);
+  m_stat_rowmap_utime->add(m_timer.m_utime_msec);
 }
 
 void
