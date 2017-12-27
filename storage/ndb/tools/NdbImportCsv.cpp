@@ -20,6 +20,8 @@
 #include <decimal_utils.hpp>
 #include "NdbImportCsv.hpp"
 #include "NdbImportCsvGram.hpp"
+// STL
+#include <cmath>
 // legacy
 #include <BaseString.hpp>
 
@@ -2221,7 +2223,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
-      if (my_isnan(val))
+      if (std::isnan(val))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
@@ -2281,7 +2283,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
           linenr, fieldnr, attr.m_sqltype);
         break;
       }
-      if (my_isnan(val))
+      if (std::isnan(val))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
