@@ -22,3 +22,13 @@ b varchar(10),
 c date
 ) engine=ndb;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CREATE TABLE t1(a int primary key,b int) engine = NDB;
+SELECT CHECKSUM FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME="t1";
+CHECKSUM
+NULL
+checking the same query in innodb and comparing the result.
+CREATE TABLE t2(a int primary key,b int) engine = INNODB;
+SELECT CHECKSUM FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME="t2";
+CHECKSUM
+NULL
+DROP TABLE t1,t2;
