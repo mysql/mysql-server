@@ -22,7 +22,6 @@
 
 class THD;
 
-using std::string;
 
 #define MAX_KEY_LEN 16384
 
@@ -48,8 +47,8 @@ public:
     this->m_user_id= ki.m_user_id;
   }
 public:
-  string     m_key_id;
-  string     m_user_id;
+  std::string     m_key_id;
+  std::string     m_user_id;
 };
 
 class Migrate_keyring
@@ -98,10 +97,10 @@ private:
 private:
   int m_argc;
   char **m_argv;
-  string m_source_plugin_option;
-  string m_destination_plugin_option;
-  string m_source_plugin_name;
-  string m_destination_plugin_name;
+  std::string m_source_plugin_option;
+  std::string m_destination_plugin_option;
+  std::string m_source_plugin_name;
+  std::string m_destination_plugin_name;
   st_mysql_keyring *m_source_plugin_handle;
   st_mysql_keyring *m_destination_plugin_handle;
   std::vector<Key_info> m_source_keys;

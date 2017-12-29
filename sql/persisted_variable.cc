@@ -67,8 +67,13 @@
 #include "sql/sys_vars_shared.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
 #include "typelib.h"
+
+using std::string;
+using std::map;
+using std::vector;
 
 const string version("\"Version\"");
 const string name("\"Name\"");
@@ -815,7 +820,7 @@ err:
 bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
                                                             bool is_read_only)
 {
-  Json_wrapper_object_iterator var_iter(reinterpret_cast<Json_object *>(dom));
+  Json_wrapper_object_iterator var_iter(down_cast<Json_object *>(dom));
   while (!var_iter.empty())
   {
     string var_name, var_value, var_user, var_host;
@@ -854,7 +859,7 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
       goto err;
 
     Json_wrapper_object_iterator
-      var_properties_iter(reinterpret_cast<Json_object *>(dom_obj));
+      var_properties_iter(down_cast<Json_object *>(dom_obj));
     /* extract variable value */
     if (var_properties_iter.elt().second.is_dom())
     {
@@ -866,12 +871,10 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
         ((Json_object*)dom_obj)->cardinality() != 1)
         goto err;
 
-      Json_object *value_obj_value= reinterpret_cast<Json_object *>
-        (dom_obj);
       /* if value is not in string form throw error. */
-      if (value_obj_value->json_type() != enum_json_type::J_STRING)
+      if (dom_obj->json_type() != enum_json_type::J_STRING)
         goto err;
-      Json_string *value= reinterpret_cast<Json_string *>(value_obj_value);
+      Json_string *value= down_cast<Json_string *>(dom_obj);
       var_value= value->value();
     }
     var_properties_iter.next();
@@ -887,29 +890,27 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
         goto err;
 
       Json_wrapper_object_iterator
-        metadata_iter(reinterpret_cast<Json_object *>(dom_obj));
+        metadata_iter(down_cast<Json_object *>(dom_obj));
       while(!metadata_iter.empty())
       {
         string metadata_type= metadata_iter.elt().first;
         if (metadata_iter.elt().second.is_dom())
         {
           dom_obj= metadata_iter.elt().second.to_dom(NULL);
-          Json_object *metadata_value= reinterpret_cast<Json_object *>
-            (dom_obj);
           if (metadata_type == "Timestamp")
           {
-            if (metadata_value->json_type() != enum_json_type::J_UINT)
+            if (dom_obj->json_type() != enum_json_type::J_UINT)
               goto err;
 
-            Json_uint *i= reinterpret_cast<Json_uint *>(metadata_value);
+            Json_uint *i= down_cast<Json_uint *>(dom_obj);
             timestamp= i->value();
           }
           else if (metadata_type == "User" || metadata_type == "Host")
           {
-            if (metadata_value->json_type() != enum_json_type::J_STRING)
+            if (dom_obj->json_type() != enum_json_type::J_STRING)
               goto err;
 
-            Json_string *i= reinterpret_cast<Json_string *>(metadata_value);
+            Json_string *i= down_cast<Json_string *>(dom_obj);
             if (metadata_type == "User")
               var_user= i->value();
             else
@@ -981,8 +982,8 @@ int Persisted_variables_cache::read_persist_file()
     LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
     return 1;
   }
-  Json_object *json_obj= reinterpret_cast<Json_object *>(json.get());
-  Json_wrapper_object_iterator iter(reinterpret_cast<Json_object *>(json_obj));
+  Json_object *json_obj= down_cast<Json_object *>(json.get());
+  Json_wrapper_object_iterator iter(down_cast<Json_object *>(json_obj));
   if (iter.elt().first != "Version")
   {
     LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
@@ -991,14 +992,13 @@ int Persisted_variables_cache::read_persist_file()
   }
   /* Check file version */
   Json_dom *dom_obj= iter.elt().second.to_dom(NULL);
-  Json_object *version_value= reinterpret_cast<Json_object *>(dom_obj);
-  if (version_value->json_type() != enum_json_type::J_INT)
+  if (dom_obj->json_type() != enum_json_type::J_INT)
   {
     LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
       "Persisted config file version invalid.");
     return 1;
   }
-  Json_int *i= reinterpret_cast<Json_int *>(version_value);
+  Json_int *i= down_cast<Json_int *>(dom_obj);
   if (file_version != i->value())
   {
     LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
