@@ -267,16 +267,19 @@ bool Tablespace_statistics::read_stat_from_SE(
     thd->mdl_context.release_lock(mdl_request.ticket);
   }
 
-  // Cache statistics.
-  cache_stats(tablespace_name_ptr, file_name_ptr, ha_tablespace_stat);
+  if (!error)
+  {
+    // Cache statistics.
+    cache_stats(tablespace_name_ptr, file_name_ptr, ha_tablespace_stat);
+  }
 
   if (thd->is_error())
   {
     push_warning(thd, Sql_condition::SL_WARNING,
                  thd->get_stmt_da()->mysql_errno(),
                  thd->get_stmt_da()->message_text());
-    m_error= thd->get_stmt_da()->message_text();
     thd->clear_error();
+    mark_as_error_found(tablespace_name_ptr, file_name_ptr);
   }
 
   DBUG_RETURN(error);

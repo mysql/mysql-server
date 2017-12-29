@@ -1702,6 +1702,10 @@ typedef bool (*rotate_encryption_master_key_t)(void);
   @param flags                    Type of statistics to retrieve.
   @param[out] stats               Contains statistics read from SE.
 
+  @note Handlers that implement this callback/API should adhere
+        to servers expectation that, the implementation would invoke
+        my_error() before returning 'true'/failure from this function.
+
   @returns false on success,
            true on failure
 */
@@ -1726,6 +1730,10 @@ typedef bool (*get_table_statistics_t)(
   @param se_private_id            SE private id of the table.
   @param[out] cardinality         cardinality being returned by SE.
 
+  @note Handlers that implement this callback/API should adhere
+        to servers expectation that, the implementation would invoke
+        my_error() before returning 'true'/failure from this function.
+
   @returns false on success,
            true on failure
 */
@@ -1745,6 +1753,11 @@ typedef bool (*get_index_column_cardinality_t)(const char *db_name,
   @param tbl_se_private_data      Table SE private data.
   @param[out] stats               Contains tablespace
                                   statistics read from SE.
+
+  @note Handlers that implement this callback/API should adhere
+        to servers expectation that, the implementation would invoke
+        my_error() before returning 'true'/failure from this function.
+
   @returns false on success, true on failure
 */
 typedef bool (*get_tablespace_statistics_t)(
