@@ -445,10 +445,16 @@ create unique index ix2 on t1(b) using hash;
 set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
 
 
-# Test the dict_obj_info table. Replace table id of t1 in 'fq_name' values that
-# contain it (index and blob table names do), since the table id may vary 
-# between runs.
-select type, state, parent_obj_type, replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name, if(parent_obj_id=@t1_id, "child_of_t1", if(parent_obj_id=0, "root", "error!")) as  nesting from ndbinfo.ndb$dict_obj_info where id >= @t1_id and type <= 6 order by type, id;
+# Test the dict_obj_info table by showing t1 and it's four releated objects.
+# Replace table id of t1 in 'fq_name' values that contain it (index and blob
+# table names do), since the table id may vary between runs.
+select type, state, parent_obj_type,
+  replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name,
+  if(parent_obj_id=@t1_id, "child_of_t1",
+    if(parent_obj_id=0, "root", "error!")) as  nesting
+  from ndbinfo.ndb$dict_obj_info
+  where id >= @t1_id and id < @t1_id + 5 and type <= 6
+  order by type, id;
 
 # Disable query log while defining the view below, since view definition
 # conatins the table id of t1, which may vary between runs.
