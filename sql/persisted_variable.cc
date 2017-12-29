@@ -174,9 +174,11 @@ st_persist_var::st_persist_var(const st_persist_var& var)
   this->host= var.host;
 }
 
-st_persist_var::st_persist_var(const string key, const string value,
-                               const ulonglong timestamp, const string user,
-                               const string host)
+st_persist_var::st_persist_var(const std::string key,
+                               const std::string value,
+                               const ulonglong timestamp,
+                               const std::string user,
+                               const std::string host)
 {
   this->key= key;
   this->value= value;
