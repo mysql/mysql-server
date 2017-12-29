@@ -18,7 +18,17 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_util.cmake)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi)
 
 IF(WIN32)
-  SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
+
+# Bug#27303447 - WL#9809 declared function "signal_event()" in
+# "nt_servc.cc" and defined the same in server library. But "nt_servc.cc"
+# is a general file also used in cluster libraries. So, when building cluster,
+# compiler gives linking error for cluster libraries as the definition for the
+# symbol "signal_event()" is not found in cluster libraries. Untill the issue
+# with "nt_servc.cc" gets fixed as a temporary solution have forked the old code
+# of "nt_servc.cc" into "ndb_nt_servc.cc"
+
+# SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
+  SET(EXTRA_SRC ndb_nt_servc.cc)
 ENDIF(WIN32)
 ADD_CONVENIENCE_LIBRARY(ndbportlib
             NdbCondition.c NdbMutex.c ndb_socket.cpp
