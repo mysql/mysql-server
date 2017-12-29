@@ -21,8 +21,4 @@ main.user_var				 # Bug#21907546 2015-12-11 erlend experimental to reduce noise
 
 main.partition_pruning			 # Bug#20597049 2015-12-11 erlend experimental to reduce noise
 
-# Bug #20402364 	NDB : NDB_ADDNODE_WITHBINLOG FAILS DUE TO EVENT API STALL
-# FC : SUMA bug related to CREATE NODEGROUP/DROP NODEGROUP/CREATE NODEGROUP
-ndb.ndb_addnode_withbinlog
-
 innodb.index_merge_threshold             # WL6378 2015-04-14 mattiasj innodb DD tables causes unstable index_merge_attempts counts for explicit temporary tables
