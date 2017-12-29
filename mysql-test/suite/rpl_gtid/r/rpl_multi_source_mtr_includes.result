@@ -68,7 +68,6 @@ include/show_relaylog_events.inc [FOR CHANNEL 'ch1']
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-relay-bin-ch1.000003	#	Rotate	#	#	master-bin.000001;pos=POS
 slave-relay-bin-ch1.000003	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-slave-relay-bin-ch1.000003	#	Rotate	#	#	slave-relay-bin-ch1.000004;pos=4
 #
 # Wait for error and skip
 #
