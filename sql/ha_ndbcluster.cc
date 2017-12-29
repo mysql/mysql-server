@@ -7812,13 +7812,16 @@ int ha_ndbcluster::info(uint flag)
 
 
 void ha_ndbcluster::get_dynamic_partition_info(ha_statistics *stat_info,
-                                               ha_checksum* /* [out]checksum */,
+                                               ha_checksum *checksum,
                                                uint part_id)
 {
   DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
 
   int error = 0;
   THD *thd = table->in_use;
+
+  /* Checksum not supported, set it to NULL.*/
+  *checksum = 0;
 
   if (!thd)
     thd = current_thd;
