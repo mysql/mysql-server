@@ -17,8 +17,3 @@ rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sp
 main.ssl-big @windows                    # Bug#18200216 2014-03-14 horst Fails too often in daily in PB2.
 
 main.partition_pruning			 # Bug#20597049 2015-12-11 erlend experimental to reduce noise
-
-# Bug #20402364 	NDB : NDB_ADDNODE_WITHBINLOG FAILS DUE TO EVENT API STALL
-# FC : SUMA bug related to CREATE NODEGROUP/DROP NODEGROUP/CREATE NODEGROUP
-ndb.ndb_addnode_withbinlog
-

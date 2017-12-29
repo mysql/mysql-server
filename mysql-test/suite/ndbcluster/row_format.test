@@ -15,14 +15,6 @@ CREATE TABLE t2_fixed(
   b int
 ) ROW_FORMAT=FIXED engine = NDB;
 
---echo # Create table with ROW_FORMAT=COMPRESSED, will also use DYNAMIC
---echo # since only ROW_FORMAT=FIXED will turn off DYNAMIC
---echo # NOTE! Could refuse to create this table
-CREATE TABLE t3_compressed_dynamic(
-  a int primary key,
-  b int
-) ROW_FORMAT=COMPRESSED engine = NDB;
-
 --echo # Create table with ROW_FORMAT=DEFAULT, will also use DYNAMIC
 CREATE TABLE t4_default_dynamic(
   a int primary key,
@@ -90,5 +82,5 @@ if ($t2_row_format != "Dynamic")
   die Failed to change ROW_FORMAT of t2 to DYNAMIC;
 }
 
-DROP TABLE t1_dynamic,t2_fixed,t3_compressed_dynamic,t4_default_dynamic;
+DROP TABLE t1_dynamic,t2_fixed,t4_default_dynamic;
 

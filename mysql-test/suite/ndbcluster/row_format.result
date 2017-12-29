@@ -9,13 +9,6 @@ CREATE TABLE t2_fixed(
 a int primary key,
 b int
 ) ROW_FORMAT=FIXED engine = NDB;
-# Create table with ROW_FORMAT=COMPRESSED, will also use DYNAMIC
-# since only ROW_FORMAT=FIXED will turn off DYNAMIC
-# NOTE! Could refuse to create this table
-CREATE TABLE t3_compressed_dynamic(
-a int primary key,
-b int
-) ROW_FORMAT=COMPRESSED engine = NDB;
 # Create table with ROW_FORMAT=DEFAULT, will also use DYNAMIC
 CREATE TABLE t4_default_dynamic(
 a int primary key,
@@ -27,7 +20,6 @@ WHERE TABLE_SCHEMA = 'test' order by TABLE_NAME;
 TABLE_NAME	ROW_FORMAT
 t1_dynamic	Dynamic
 t2_fixed	Fixed
-t3_compressed_dynamic	Dynamic
 t4_default_dynamic	Dynamic
 #
 # Check that columns can _not_ be added inplace on a table
@@ -66,4 +58,4 @@ ROW_FORMAT=FIXED;
 ALTER TABLE t2_fixed
 algorithm=copy,
 ROW_FORMAT=DYNAMIC;
-DROP TABLE t1_dynamic,t2_fixed,t3_compressed_dynamic,t4_default_dynamic;
+DROP TABLE t1_dynamic,t2_fixed,t4_default_dynamic;
