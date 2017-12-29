@@ -72,6 +72,10 @@
 #include "thr_mutex.h"
 #include "typelib.h"
 
+using std::string;
+using std::map;
+using std::vector;
+
 const string version("\"Version\"");
 const string name("\"Name\"");
 const string value("\"Value\"");

@@ -20,6 +20,8 @@
 #include "sql_plugin.h"                 // plugin_early_load_one
 #include "violite.h"
 
+using std::string;
+
 /**
   Standard constructor
 */

@@ -32,10 +32,6 @@ class THD;
 class set_var;
 class sys_var;
 
-using std::string;
-using std::map;
-using std::vector;
-
 /**
   STRUCT st_persist_var
 
@@ -44,17 +40,17 @@ using std::vector;
 */
 struct st_persist_var
 {
-  string key;
-  string value;
+  std::string key;
+  std::string value;
   ulonglong timestamp;
-  string user;
-  string host;
+  std::string user;
+  std::string host;
   st_persist_var();
   st_persist_var(THD *thd);
   st_persist_var(const st_persist_var& var);
-  st_persist_var(const string key, const string value,
-                 const ulonglong timestamp, const string user,
-                 const string host);
+  st_persist_var(const std::string key, const std::string value,
+                 const ulonglong timestamp, const std::string user,
+                 const std::string host);
 };
 
 /**
@@ -110,11 +106,11 @@ public:
   /**
     Get persisted variables
   */
-  vector<st_persist_var>* get_persisted_variables();
+  std::vector<st_persist_var>* get_persisted_variables();
   /**
     Get persisted static variables
   */
-  map<string, st_persist_var>* get_persist_ro_variables();
+  std::map<std::string, st_persist_var>* get_persist_ro_variables();
   /**
     Append read only persisted variables to command line options with a
     separator.
@@ -130,8 +126,8 @@ private:
   /* Helper function to get variable name */
   static const char* get_variable_name(sys_var *system_var);
   /* Helper function to construct json formatted string */
-  static String* construct_json_string(string name, string value,
-    ulonglong timestamp, string user, string host, String *dest);
+  static String* construct_json_string(std::string name, std::string value,
+    ulonglong timestamp, std::string user, std::string host, String *dest);
   /* Helper function to extract variables from json formatted string */
   bool extract_variables_from_json(Json_dom *dom, bool is_read_only= false);
 
@@ -143,18 +139,18 @@ private:
 
 private:
   /* In memory copy of persistent config file */
-  vector<st_persist_var> m_persist_variables;
+  std::vector<st_persist_var> m_persist_variables;
   /* Copy of plugin variables whose plugin is not yet installed */
-  vector<st_persist_var> m_persist_plugin_variables;
+  std::vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
-  map<string, st_persist_var> m_persist_ro_variables;
+  std::map<std::string, st_persist_var> m_persist_ro_variables;
 
   mysql_mutex_t m_LOCK_persist_variables;
   static Persisted_variables_cache* m_instance;
 
   /* File handler members */
   MYSQL_FILE *m_fd;
-  string m_persist_filename;
+  std::string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
   /* Read only persisted options */
   char** ro_persisted_argv;

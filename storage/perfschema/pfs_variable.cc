@@ -16,6 +16,9 @@
 
 #include "storage/perfschema/pfs_variable.h"
 
+#include <map>
+#include <vector>
+
 #include "my_compiler.h"
 /**
   @file storage/perfschema/pfs_variable.cc
@@ -33,6 +36,9 @@
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_visitor.h"
+
+using std::map;
+using std::vector;
 
 bool
 Find_THD_variable::operator()(THD *thd)
