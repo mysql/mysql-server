@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "prealloced_array.h"
 #include "binlog.h"
 #include "item_cmpfunc.h" // Item_func_eq
+#include "debug_sync.h"   // DEBUG_SYNC
 
 #include <algorithm>
 #include <functional>
@@ -440,6 +441,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     }
     else
     {
+      DEBUG_SYNC(thd, "sp_lex_instr_before_exec_core");
       error= exec_core(thd, nextp);
       DBUG_PRINT("info",("exec_core returned: %d", error));
     }
