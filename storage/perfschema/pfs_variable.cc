@@ -555,8 +555,8 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
 
         system_var.m_name = iter->key.c_str();
         system_var.m_name_length = iter->key.length();
-        system_var.m_value_length = std::min(SHOW_VAR_FUNC_BUFF_SIZE,
-                                             (int)iter->value.length());
+        system_var.m_value_length =
+          std::min(SHOW_VAR_FUNC_BUFF_SIZE, (int)iter->value.length());
         memcpy(system_var.m_value_str,
                iter->value.c_str(),
                system_var.m_value_length);
@@ -575,8 +575,8 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
 
         system_var.m_name = ro_iter->first.c_str();
         system_var.m_name_length = ro_iter->first.length();
-        system_var.m_value_length = std::min(SHOW_VAR_FUNC_BUFF_SIZE,
-                                             (int)ro_iter->second.value.length());
+        system_var.m_value_length = std::min(
+          SHOW_VAR_FUNC_BUFF_SIZE, (int)ro_iter->second.value.length());
         memcpy(system_var.m_value_str,
                ro_iter->second.value.c_str(),
                system_var.m_value_length);
@@ -797,14 +797,14 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
     m_source = system_var->get_source();
   }
   snprintf(m_min_value_str,
-              sizeof(m_min_value_str),
-              "%lld",
-              system_var->get_min_value());
+           sizeof(m_min_value_str),
+           "%lld",
+           system_var->get_min_value());
   m_min_value_length = strlen(m_min_value_str);
   snprintf(m_max_value_str,
-              sizeof(m_max_value_str),
-              "%llu",
-              system_var->get_max_value());
+           sizeof(m_max_value_str),
+           "%llu",
+           system_var->get_max_value());
   m_max_value_length = strlen(m_max_value_str);
 
   m_set_time = system_var->get_timestamp();
@@ -816,23 +816,26 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
   /*
    Read only persisted variables are handled as part of command line options,
    this will not update variable properties like user/host/timestamp in the
-   corresponding sys_var instance, thus we do a look up in m_persist_ro_variables
+   corresponding sys_var instance, thus we do a look up in
+   m_persist_ro_variables
    which got populated while reading mysqld-auto.cnf. If variable is present in
    m_persist_ro_variables we copy the properties into system_var.
   */
   Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
   if (pv)
   {
-    map<string, st_persist_var>*
-    persist_ro_variables = pv->get_persist_ro_variables();
+    map<string, st_persist_var> *persist_ro_variables =
+      pv->get_persist_ro_variables();
     auto ro_iter = persist_ro_variables->find(m_name);
     if (ro_iter != persist_ro_variables->end())
     {
       m_set_time = ro_iter->second.timestamp;
       m_set_user_str_length = ro_iter->second.user.length();
-      memcpy(m_set_user_str, ro_iter->second.user.c_str(), m_set_user_str_length);
+      memcpy(
+        m_set_user_str, ro_iter->second.user.c_str(), m_set_user_str_length);
       m_set_host_str_length = ro_iter->second.host.length();
-      memcpy(m_set_host_str, ro_iter->second.host.c_str(), m_set_host_str_length);
+      memcpy(
+        m_set_host_str, ro_iter->second.host.c_str(), m_set_host_str_length);
     }
   }
   mysql_mutex_unlock(&LOCK_global_system_variables);

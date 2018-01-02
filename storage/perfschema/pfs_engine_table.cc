@@ -37,7 +37,7 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/mysqld.h"    /* lower_case_table_names */
+#include "sql/mysqld.h" /* lower_case_table_names */
 #include "sql/plugin_table.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"

@@ -39,7 +39,8 @@ Plugin_table table_performance_timers::m_table_def(
   /* Name */
   "performance_timers",
   /* Definition */
-  "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') NOT NULL,\n"
+  "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') NOT "
+  "NULL,\n"
   "  TIMER_FREQUENCY BIGINT,\n"
   "  TIMER_RESOLUTION BIGINT,\n"
   "  TIMER_OVERHEAD BIGINT\n",

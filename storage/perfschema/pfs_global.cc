@@ -155,14 +155,19 @@ pfs_malloc_array(PFS_builtin_memory_class *klass,
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size))
   {
-    log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OVERFLOW, n, size,
+    log_errlog(WARNING_LEVEL,
+               ER_PFS_MALLOC_ARRAY_OVERFLOW,
+               n,
+               size,
                klass->m_class.m_name);
     return NULL;
   }
 
-  if(NULL == (ptr = pfs_malloc(klass, array_size, flags)))
+  if (NULL == (ptr = pfs_malloc(klass, array_size, flags)))
   {
-    log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
+    log_errlog(WARNING_LEVEL,
+               ER_PFS_MALLOC_ARRAY_OOM,
+               array_size,
                klass->m_class.m_name);
   }
   return ptr;

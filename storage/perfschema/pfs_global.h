@@ -26,7 +26,7 @@
 #endif
 #include <sys/types.h>
 #ifdef WIN32
-#include <ws2tcpip.h>   // socklen_t
+#include <ws2tcpip.h>  // socklen_t
 #endif
 
 #include "my_compiler.h"

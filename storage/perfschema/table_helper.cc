@@ -2548,7 +2548,8 @@ PFS_key_object_type_enum::match(const PFS_program *pfs)
 }
 
 bool
-PFS_key_object_type_enum::do_match(bool record_null, enum_object_type record_value)
+PFS_key_object_type_enum::do_match(bool record_null,
+                                   enum_object_type record_value)
 {
   int cmp = 0;
 

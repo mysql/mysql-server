@@ -66,5 +66,4 @@
 /// SHA-256 = 32 bytes of binary = 64 printable characters.
 #define DIGEST_HASH_TO_STRING_LENGTH 64
 
-
-#endif // DIGEST_INCLUDED
+#endif  // DIGEST_INCLUDED

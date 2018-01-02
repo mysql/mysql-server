@@ -29,7 +29,7 @@
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH */
+#include "sql/rpl_info.h"      /*CHANNEL_NAME_LENGTH */
 #include "sql/rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
 #include "sql/sql_const.h"
 #include "storage/perfschema/pfs_engine_table.h"

@@ -77,29 +77,39 @@
 #endif
 
 #ifdef HAVE_NANOSEC_TIMER
-  /* Use NANOSECOND for statements and the like. */
-  #define USED_TIMER_NAME TIMER_NAME_NANOSEC
-  #define USED_TIMER my_timer_nanoseconds
+/* Use NANOSECOND for statements and the like. */
+#define USED_TIMER_NAME TIMER_NAME_NANOSEC
+#define USED_TIMER my_timer_nanoseconds
 #else
-  /* Otherwise use MICROSECOND for statements and the like. */
-  #define USED_TIMER_NAME TIMER_NAME_MICROSEC
-  #define USED_TIMER my_timer_microseconds
+/* Otherwise use MICROSECOND for statements and the like. */
+#define USED_TIMER_NAME TIMER_NAME_MICROSEC
+#define USED_TIMER my_timer_microseconds
 #endif
 
 ulonglong inline get_idle_timer()
-{ return USED_TIMER(); }
+{
+  return USED_TIMER();
+}
 
 ulonglong inline get_wait_timer()
-{ return my_timer_cycles(); }
+{
+  return my_timer_cycles();
+}
 
 ulonglong inline get_stage_timer()
-{ return USED_TIMER(); }
+{
+  return USED_TIMER();
+}
 
 ulonglong inline get_statement_timer()
-{ return USED_TIMER(); }
+{
+  return USED_TIMER();
+}
 
 ulonglong inline get_transaction_timer()
-{ return USED_TIMER(); }
+{
+  return USED_TIMER();
+}
 
 /**
   A time normalizer.
@@ -173,6 +183,5 @@ extern MY_TIMER_INFO pfs_timer_info;
 
 /** Initialize the timer component. */
 void init_timers();
-
 
 #endif

@@ -36,7 +36,8 @@ class PFS_engine_index_abstract;
 class Plugin_table;
 struct TABLE;
 struct THR_LOCK;
-template <class T> class List;
+template <class T>
+class List;
 
 /**
   @file storage/perfschema/pfs_engine_table.h
@@ -241,10 +242,7 @@ protected:
     @param pos              address of the m_pos position member
   */
   PFS_engine_table(const PFS_engine_table_share *share, void *pos)
-    : m_share_ptr(share),
-      m_pos_ptr(pos),
-      m_normalizer(NULL),
-      m_index(NULL)
+    : m_share_ptr(share), m_pos_ptr(pos), m_normalizer(NULL), m_index(NULL)
   {
   }
 

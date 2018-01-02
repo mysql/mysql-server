@@ -26,7 +26,8 @@
 
 class PFS_engine_table;
 class THD;
-namespace dd {
+namespace dd
+{
 class Table;
 }  // namespace dd
 /**

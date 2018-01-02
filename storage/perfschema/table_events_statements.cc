@@ -355,10 +355,10 @@ table_events_statements_common::make_row_part_1(
 
   base = base_name(safe_source_file);
   m_row.m_source_length = snprintf(m_row.m_source,
-                                      sizeof(m_row.m_source),
-                                      "%s:%d",
-                                      base,
-                                      statement->m_source_line);
+                                   sizeof(m_row.m_source),
+                                   "%s:%d",
+                                   base,
+                                   statement->m_source_line);
   if (m_row.m_source_length > sizeof(m_row.m_source))
   {
     m_row.m_source_length = sizeof(m_row.m_source);

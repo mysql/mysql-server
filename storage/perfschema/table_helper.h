@@ -615,7 +615,8 @@ struct PFS_object_row
   void set_nullable_field(uint index, Field *f);
 };
 
-/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, COLUMN_NAME. */
+/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, COLUMN_NAME.
+ */
 struct PFS_column_row
 {
   /** Column OBJECT_TYPE. */
@@ -1143,8 +1144,16 @@ public:
   /** Set a table field from the row. */
   void set_field(Field *f);
 
-  const char* get_str() const { return m_str; }
-  uint get_length() const { return m_length; }
+  const char *
+  get_str() const
+  {
+    return m_str;
+  }
+  uint
+  get_length() const
+  {
+    return m_length;
+  }
 
 private:
   int make_row(const CHARSET_INFO *cs, const char *str, size_t length);

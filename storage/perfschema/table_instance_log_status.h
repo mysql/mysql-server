@@ -47,7 +47,6 @@ struct st_row_instance_log_status
   }
 };
 
-
 /** Table PERFORMANCE_SCHEMA.INSTANCE_LOG_STATUS. */
 class table_instance_log_status : public PFS_engine_table
 {

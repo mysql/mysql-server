@@ -75,8 +75,8 @@ init_timers(void)
 
   if (pfs_timer_info.nanoseconds.frequency > 0)
   {
-    nanosec_to_pico = lrint(
-      pico_frequency / (double)pfs_timer_info.nanoseconds.frequency);
+    nanosec_to_pico =
+      lrint(pico_frequency / (double)pfs_timer_info.nanoseconds.frequency);
   }
   else
   {
@@ -85,8 +85,8 @@ init_timers(void)
 
   if (pfs_timer_info.microseconds.frequency > 0)
   {
-    microsec_to_pico = lrint(
-      pico_frequency / (double)pfs_timer_info.microseconds.frequency);
+    microsec_to_pico =
+      lrint(pico_frequency / (double)pfs_timer_info.microseconds.frequency);
   }
   else
   {
@@ -95,8 +95,8 @@ init_timers(void)
 
   if (pfs_timer_info.milliseconds.frequency > 0)
   {
-    millisec_to_pico = lrint(
-      pico_frequency / (double)pfs_timer_info.milliseconds.frequency);
+    millisec_to_pico =
+      lrint(pico_frequency / (double)pfs_timer_info.milliseconds.frequency);
   }
   else
   {

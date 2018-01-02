@@ -61,10 +61,12 @@
 class KEY;
 class Plugin_table;
 class Plugin_tablespace;
-namespace dd {
+namespace dd
+{
 class Table;
 }  // namespace dd
-template <class T> class List;
+template <class T>
+class List;
 
 handlerton *pfs_hton = NULL;
 

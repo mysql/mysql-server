@@ -6002,19 +6002,23 @@ pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc)
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_rename_wait.
 */
-void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
-                                 const char *new_name, int rc)
+void
+pfs_end_file_rename_wait_v1(PSI_file_locker *locker,
+                            const char *old_name,
+                            const char *new_name,
+                            int rc)
 {
-  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  PSI_file_locker_state *state =
+    reinterpret_cast<PSI_file_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
   DBUG_ASSERT(state->m_operation == PSI_FILE_RENAME);
 
   if (rc == 0)
   {
-    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
 
-    uint old_len= (uint)strlen(old_name);
-    uint new_len= (uint)strlen(new_name);
+    uint old_len = (uint)strlen(old_name);
+    uint new_len = (uint)strlen(new_name);
 
     find_and_rename_file(thread, old_name, old_len, new_name, new_len);
   }
@@ -8109,8 +8113,13 @@ pfs_set_thread_connect_attrs_v1(const char *buffer,
       /* we want UTF-8, so my_convert() is not necessary here. */
       val_len = snprintf(val, sizeof(val) - 1, "%d", lost);
 
-      warning_size = snprintf(
-        warn_buf, sizeof(warn_buf), "%c%s%c%s", int(key_len), key, int(val_len), val);
+      warning_size = snprintf(warn_buf,
+                              sizeof(warn_buf),
+                              "%c%s%c%s",
+                              int(key_len),
+                              key,
+                              int(val_len),
+                              val);
 
       if (warning_size <= copy_size)
       {

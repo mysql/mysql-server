@@ -40,7 +40,7 @@ struct pk_pos_data_lock
   reset()
   {
     memset(m_engine_lock_id, 0, sizeof(m_engine_lock_id));
-    m_engine_lock_id_length= 0;
+    m_engine_lock_id_length = 0;
   }
 
   void
@@ -103,9 +103,9 @@ struct pk_pos_data_lock_wait
   {
     // POT type, must initialize every byte for memcmp()
     memset(m_requesting_engine_lock_id, 0, sizeof(m_requesting_engine_lock_id));
-    m_requesting_engine_lock_id_length= 0;
+    m_requesting_engine_lock_id_length = 0;
     memset(m_blocking_engine_lock_id, 0, sizeof(m_blocking_engine_lock_id));
-    m_blocking_engine_lock_id_length= 0;
+    m_blocking_engine_lock_id_length = 0;
   }
 
   void

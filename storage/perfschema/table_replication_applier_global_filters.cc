@@ -144,8 +144,7 @@ table_replication_applier_global_filters::rnd_pos(const void *pos)
 
   rpl_global_filter.rdlock();
   /* Get ith rpl_pfs_filter from global replication filters. */
-  rpl_pfs_filter =
-    rpl_global_filter.get_filter_at_pos(m_pos.m_index - 1);
+  rpl_pfs_filter = rpl_global_filter.get_filter_at_pos(m_pos.m_index - 1);
   if (rpl_pfs_filter)
   {
     make_row(rpl_pfs_filter);

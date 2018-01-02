@@ -61,6 +61,6 @@
   - replication_connection_configuration (modified)
   - instance_log_resource (created)
 */
-static const uint PFS_DD_VERSION= 80004;
+static const uint PFS_DD_VERSION = 80004;
 
 #endif /* PFS_DD_VERSION_H */

@@ -37,7 +37,6 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "sql/sql_audit.h"  // audit_global_variable_get
 
-
 bool
 PFS_index_global_variables::match(const System_variable *pfs)
 {

@@ -24,7 +24,7 @@
 #include "sql/debug_sync.h"
 #include "sql/instance_log_resource.h"
 #include "sql/plugin_table.h"
-#include "sql/rpl_msr.h"                       // channel_map
+#include "sql/rpl_msr.h"  // channel_map
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_helper.h"
@@ -49,10 +49,10 @@ Plugin_table table_instance_log_status::m_table_def(
 PFS_engine_table_share table_instance_log_status::m_share = {
   &pfs_readonly_acl,
   table_instance_log_status::create,
-  NULL,                                               /* write_row */
-  NULL,                                               /* delete_all_rows */
-  table_instance_log_status::get_row_count,           /* records */
-  sizeof(PFS_simple_index),                           /* ref length */
+  NULL,                                     /* write_row */
+  NULL,                                     /* delete_all_rows */
+  table_instance_log_status::get_row_count, /* records */
+  sizeof(PFS_simple_index),                 /* ref length */
   &m_table_lock,
   &m_table_def,
   true, /* perpetual */
@@ -61,24 +61,20 @@ PFS_engine_table_share table_instance_log_status::m_share = {
   false /* m_in_purgatory */
 };
 
-
 PFS_engine_table *
 table_instance_log_status::create(PFS_engine_table_share *)
 {
   return new table_instance_log_status();
 }
 
-
 table_instance_log_status::table_instance_log_status()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
 }
 
-
 table_instance_log_status::~table_instance_log_status()
 {
 }
-
 
 void
 table_instance_log_status::reset_position(void)
@@ -87,22 +83,18 @@ table_instance_log_status::reset_position(void)
   m_next_pos.m_index = 0;
 }
 
-
 ha_rows
 table_instance_log_status::get_row_count()
 {
   return 1;
 }
 
-
 int
 table_instance_log_status::rnd_next(void)
 {
   int res = HA_ERR_END_OF_FILE;
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < 1 && res != 0;
-       m_pos.next())
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < 1 && res != 0; m_pos.next())
   {
     res = make_row();
     m_next_pos.set_after(&m_pos);
@@ -111,8 +103,8 @@ table_instance_log_status::rnd_next(void)
   return res;
 }
 
-
-int table_instance_log_status::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
+int
+table_instance_log_status::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
 {
   int res = HA_ERR_RECORD_DELETED;
 
@@ -126,45 +118,41 @@ int table_instance_log_status::rnd_pos(const void *pos MY_ATTRIBUTE((unused)))
   return res;
 }
 
-
-
 struct st_register_hton_arg
 {
   std::list<Instance_log_resource *> *resources;
   Json_dom *json;
 };
 
-
-static bool iter_storage_engines_register(THD*, plugin_ref plugin, void *arg)
+static bool
+iter_storage_engines_register(THD *, plugin_ref plugin, void *arg)
 {
-  st_register_hton_arg *vargs= (st_register_hton_arg *)arg;
-  handlerton *hton= plugin_data<handlerton*>(plugin);
-  bool result= false;
+  st_register_hton_arg *vargs = (st_register_hton_arg *)arg;
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  bool result = false;
 
   DBUG_ASSERT(plugin_state(plugin) == PLUGIN_IS_READY);
 
   /* The storage engine must implement all three functions to be supported */
-  if (hton->lock_hton_log &&
-      hton->unlock_hton_log &&
+  if (hton->lock_hton_log && hton->unlock_hton_log &&
       hton->collect_hton_log_info)
   {
     Instance_log_resource *resource;
-    resource= Instance_log_resource_factory::get_wrapper(hton, vargs->json);
-    if (!(result= !resource))
+    resource = Instance_log_resource_factory::get_wrapper(hton, vargs->json);
+    if (!(result = !resource))
       vargs->resources->push_back(resource);
   }
   return result;
 }
 
-
 int
 table_instance_log_status::make_row()
 {
   DBUG_ENTER("table_instance_log_status::make_row");
-  THD *thd= current_thd;
+  THD *thd = current_thd;
 
   /* Report an error if THD has no BACKUP_ADMIN privilege */
-  Security_context *sctx= thd->security_context();
+  Security_context *sctx = thd->security_context();
   if (!sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
@@ -173,12 +161,12 @@ table_instance_log_status::make_row()
 
   /* Lock instance to collect log information */
   mysql_mutex_lock(&LOCK_collect_instance_log);
-  bool error= false;
+  bool error = false;
 
-  Json_object json_master;                     // MASTER field
-  Json_object json_channels;                   // CHANNELS field
-  Json_array json_channels_array;              // JSON array for CHANNELS field
-  Json_object json_storage_engines;            // STORAGE_ENGINES field
+  Json_object json_master;           // MASTER field
+  Json_object json_channels;         // CHANNELS field
+  Json_array json_channels_array;    // JSON array for CHANNELS field
+  Json_object json_storage_engines;  // STORAGE_ENGINES field
 
   /* To block replication channels creation/removal */
   channel_map.wrlock();
@@ -202,24 +190,23 @@ table_instance_log_status::make_row()
     Add existing channels Master_info to the resources list, so that they can
     be blocked and their data collected in later steps.
   */
-  for (uint mi_index= 0;
-       mi_index < channel_map.get_max_channels();
-       mi_index++)
+  for (uint mi_index = 0; mi_index < channel_map.get_max_channels(); mi_index++)
   {
-    Master_info *mi= channel_map.get_mi_at_pos(mi_index);
-    if (Master_info::is_configured(mi)) // channel is configured
+    Master_info *mi = channel_map.get_mi_at_pos(mi_index);
+    if (Master_info::is_configured(mi))  // channel is configured
     {
       Instance_log_resource *res;
-      res= Instance_log_resource_factory::get_wrapper(mi, &json_channels_array);
-      if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_mi", 1, !res)))
+      res =
+        Instance_log_resource_factory::get_wrapper(mi, &json_channels_array);
+      if ((error = DBUG_EVALUATE_IF("instance_log_status_oom_mi", 1, !res)))
       {
-        char errfmt[]=
+        char errfmt[] =
           "failed to allocate memory to collect "
           "information from replication channel '%s'";
         char errbuf[sizeof(errfmt) + CHANNEL_NAME_LENGTH];
         sprintf(errbuf, errfmt, mi->get_channel());
-        my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "CHANNELS",
-                 errbuf);
+        my_error(
+          ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "CHANNELS", errbuf);
         /* To please valgrind */
         DBUG_EXECUTE_IF("instance_log_status_oom_mi",
                         resources.push_back(res););
@@ -235,11 +222,13 @@ table_instance_log_status::make_row()
   */
   {
     Instance_log_resource *res;
-    res= Instance_log_resource_factory::get_wrapper(&mysql_bin_log,
-                                                    &json_master);
-    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_binlog", 1, !res)))
+    res =
+      Instance_log_resource_factory::get_wrapper(&mysql_bin_log, &json_master);
+    if ((error = DBUG_EVALUATE_IF("instance_log_status_oom_binlog", 1, !res)))
     {
-      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "MASTER",
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS,
+               MYF(0),
+               "MASTER",
                "failed to allocate memory to collect "
                "binary log information");
       /* To please valgrind */
@@ -256,10 +245,12 @@ table_instance_log_status::make_row()
   */
   {
     Instance_log_resource *res;
-    res= Instance_log_resource_factory::get_wrapper(gtid_state, &json_master);
-    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_gtid", 1, !res)))
+    res = Instance_log_resource_factory::get_wrapper(gtid_state, &json_master);
+    if ((error = DBUG_EVALUATE_IF("instance_log_status_oom_gtid", 1, !res)))
     {
-      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "MASTER",
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS,
+               MYF(0),
+               "MASTER",
                "failed to allocate memory to collect "
                "gtid_executed information");
       /* To please valgrind */
@@ -276,12 +267,13 @@ table_instance_log_status::make_row()
     blocked and their data collected in later steps.
   */
   {
-    st_register_hton_arg args= {&resources, &json_storage_engines};
-    error= plugin_foreach(thd, iter_storage_engines_register,
-                          MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+    st_register_hton_arg args = {&resources, &json_storage_engines};
+    error = plugin_foreach(
+      thd, iter_storage_engines_register, MYSQL_STORAGE_ENGINE_PLUGIN, &args);
     if (error || DBUG_EVALUATE_IF("instance_log_status_oom_se", 1, 0))
     {
-      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0),
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS,
+               MYF(0),
                "STORAGE_ENGINE",
                "failed to allocate memory to collect "
                "storage engines information");
@@ -290,7 +282,7 @@ table_instance_log_status::make_row()
   }
 
   /* Lock all resources */
-  for (it=resources.begin(); it != resources.end(); ++it)
+  for (it = resources.begin(); it != resources.end(); ++it)
     (*it)->lock();
 
   DBUG_SIGNAL_WAIT_FOR(thd,
@@ -299,29 +291,29 @@ table_instance_log_status::make_row()
                        "continue_collecting_instance_logs_info");
 
   /* Collect all resources information (up to hitting some error) */
-  for (it=resources.begin(); it != resources.end(); ++it)
-    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_collecting", 1,
-                                 (*it)->collect_info())))
+  for (it = resources.begin(); it != resources.end(); ++it)
+    if ((error = DBUG_EVALUATE_IF(
+           "instance_log_status_oom_collecting", 1, (*it)->collect_info())))
     {
-      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0),
-               (*it)->get_json() == &json_storage_engines ?
-                 "STORAGE_ENGINES" :
-                 (*it)->get_json() == &json_master ?
-                 "MASTER" : "CHANNELS",
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS,
+               MYF(0),
+               (*it)->get_json() == &json_storage_engines
+                 ? "STORAGE_ENGINES"
+                 : (*it)->get_json() == &json_master ? "MASTER" : "CHANNELS",
                "failed to allocate memory to collect information");
       goto err_unlock;
     }
 
 err_unlock:
   /* Unlock all resources */
-  for (rit=resources.rbegin(); rit != resources.rend(); ++rit)
+  for (rit = resources.rbegin(); rit != resources.rend(); ++rit)
     (*rit)->unlock();
 
 end:
   /* Delete all wrappers */
   while (!resources.empty())
   {
-    Instance_log_resource *wrapper= resources.back();
+    Instance_log_resource *wrapper = resources.back();
     resources.pop_back();
     delete wrapper;
   }
@@ -335,25 +327,27 @@ end:
   if (!error)
   {
     /* Populate m_row */
-    if ((error= DBUG_EVALUATE_IF("instance_log_status_oom_channels", 1,
-                                 json_channels.add_clone("channels",
-                                                         &json_channels_array))))
+    if ((error = DBUG_EVALUATE_IF(
+           "instance_log_status_oom_channels",
+           1,
+           json_channels.add_clone("channels", &json_channels_array))))
     {
-      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS, MYF(0), "CHANNELS",
+      my_error(ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS,
+               MYF(0),
+               "CHANNELS",
                "failed to allocate memory to collect information");
     }
     else
     {
       memcpy(m_row.server_uuid, server_uuid, UUID_LENGTH);
-      m_row.w_master= Json_wrapper(json_master.clone());
-      m_row.w_channels= Json_wrapper(json_channels.clone());
-      m_row.w_storage_engines= Json_wrapper(json_storage_engines.clone());
+      m_row.w_master = Json_wrapper(json_master.clone());
+      m_row.w_channels = Json_wrapper(json_channels.clone());
+      m_row.w_storage_engines = Json_wrapper(json_storage_engines.clone());
     }
   }
 
   DBUG_RETURN(error ? HA_ERR_RECORD_DELETED : 0);
 }
-
 
 int
 table_instance_log_status::read_row_values(

@@ -324,8 +324,7 @@ table_replication_connection_configuration::make_row(Master_info *mi)
 
   temp_store = (char *)mi->public_key_path;
   m_row.public_key_path_length = strlen(temp_store);
-  memcpy(m_row.public_key_path, temp_store,
-         m_row.public_key_path_length);
+  memcpy(m_row.public_key_path, temp_store, m_row.public_key_path_length);
 
   m_row.get_public_key = mi->get_public_key ? PS_RPL_YES : PS_RPL_NO;
 
@@ -414,8 +413,8 @@ table_replication_connection_configuration::read_row_values(
         set_field_varchar_utf8(f, m_row.tls_version, m_row.tls_version_length);
         break;
       case 19: /** master_public_key_path */
-        set_field_varchar_utf8(f, m_row.public_key_path,
-          m_row.public_key_path_length);
+        set_field_varchar_utf8(
+          f, m_row.public_key_path, m_row.public_key_path_length);
         break;
       case 20: /** get_master_public_key */
         set_field_enum(f, m_row.get_public_key);
