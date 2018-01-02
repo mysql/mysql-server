@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1970,8 +1970,7 @@ bool sp_head::show_routine_code(THD *thd)
     if (ip != i->get_ip())
     {
       const char *format= "Instruction at position %u has m_ip=%u";
-      char tmp[sizeof(format) + 2 * sizeof(uint) + 1];
-
+      char tmp[64 + 2 * MY_INT32_NUM_DECIMAL_DIGITS];
       sprintf(tmp, format, ip, i->get_ip());
       /*
         Since this is for debugging purposes only, we don't bother to
