@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -384,7 +384,8 @@ public:
     CORE,
     SECOND,
     DDSE,
-    PFS
+    PFS,
+    SYSTEM
   };
 
   // Map from system table type to string description, e.g. for debugging.
@@ -397,6 +398,7 @@ public:
       case Types::SECOND:  return "SECOND";
       case Types::DDSE:    return "DDSE";
       case Types::PFS:     return "PFS";
+      case Types::SYSTEM:  return "SYSTEM";
       default:             return "";
     }
   }
@@ -407,7 +409,7 @@ public:
     if (type == Types::INERT || type == Types::CORE || type == Types::SECOND)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
 
-    if (type == Types::DDSE || type ==Types::PFS)
+    if (type == Types::DDSE || type ==Types::PFS || type==Types::SYSTEM)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
 
     DBUG_ASSERT(false);

@@ -18,7 +18,9 @@
 USE test;
 
 # Preserve the original state of the table so that it can be restored at the end of the test.
+ALTER TABLE mysql.slave_master_info TABLESPACE innodb_file_per_table;
 CREATE TABLE test.slave_master_info_backup LIKE mysql.slave_master_info;
+ALTER TABLE mysql.slave_master_info TABLESPACE mysql;
 INSERT INTO test.slave_master_info_backup SELECT * FROM mysql.slave_master_info;
 
 CREATE TABLE test.original

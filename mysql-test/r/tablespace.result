@@ -480,6 +480,67 @@ ALTER TABLESPACE ts RENAME TO innodb_file_per_table_whatever;
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 ALTER TABLESPACE ts RENAME TO innodb_file_per_table;
 ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
+#
+# Test cases for Bug #26073851
+# NO ERROR OR WARNING WHEN CREATING TABLES IN A RESERVED TABLESPACE
+#
+CREATE TABLESPACE altering ADD DATAFILE 'altering.ibd' ENGINE InnoDB;
+CREATE TABLE altering_table (id int) TABLESPACE altering;
+# Negative tests
+# Altering tables in the mysql tablespace must be allowed
+# because of the mysql upgrade client.
+ALTER TABLE mysql.user ENGINE InnoDB TABLESPACE mysql;
+# An arbitrary table cannot be altered to be in the mysql tablespace.
+ALTER TABLE altering_table TABLESPACE mysql;
+ERROR HY000: The table 'altering_table' may not be created in the reserved tablespace 'mysql'.
+# An arbitrary table cannot be created in the mysql tablespace.
+CREATE TABLE foos (id int) TABLESPACE mysql;
+ERROR HY000: The table 'foos' may not be created in the reserved tablespace 'mysql'.
+# An arbitrary partitioned table cannot have partitions in the mysql tablespace.
+CREATE TABLE partition_test (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE mysql,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE mysql,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE mysql,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE mysql);
+ERROR HY000: The table 'partition_test' may not be created in the reserved tablespace 'mysql'.
+# An arbitrary partitioned table cannot have partitions in the mysql tablespace.
+CREATE TABLE partition_test2 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE mysql,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE mysql);
+ERROR HY000: The table 'partition_test2' may not be created in the reserved tablespace 'mysql'.
+# Create a partitioned table to be altered later.
+CREATE TABLE partition_test3 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE altering,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE altering);
+# An arbitrary partitioned table cannot have new partitions in the mysql tablespace.
+ALTER TABLE partition_test3 ADD PARTITION
+(PARTITION p5 VALUES LESS THAN (500) TABLESPACE mysql);
+ERROR HY000: The table 'partition_test3' may not be created in the reserved tablespace 'mysql'.
+# An arbitrary partitioned table cannot have partitions altered to be in the mysql tablespace.
+ALTER TABLE partition_test3 REORGANIZE PARTITION p1 INTO
+(PARTITION p1 VALUES LESS THAN (100) TABLESPACE `mysql`);
+ERROR HY000: The table 'partition_test3' may not be created in the reserved tablespace 'mysql'.
+# An arbitrary partitioned table cannot have subpartitions in the mysql tablespace.
+CREATE TABLE partition_test4 (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY HASH(i) (
+PARTITION p0 VALUES LESS THAN(100) (
+SUBPARTITION sp00,
+SUBPARTITION sp01),
+PARTITION p1 VALUES LESS THAN(200) (
+SUBPARTITION sp10,
+SUBPARTITION sp11 TABLESPACE mysql));
+ERROR HY000: The table 'partition_test4' may not be created in the reserved tablespace 'mysql'.
+Clean up
+DROP TABLE altering_table;
+DROP TABLE partition_test3;
+DROP TABLESPACE altering;
 SELECT (COUNT(*)=1) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts';
 (COUNT(*)=1)
 1

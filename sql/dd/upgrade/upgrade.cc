@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -343,6 +343,10 @@ bool check_for_dd_tables()
        it != System_tables::instance()->end();
        ++it)
   {
+    if ((*it)->property() == System_tables::Types::SYSTEM)
+    {
+      continue;
+    }
     String_type table_name= (*it)->entity()->name();
     String_type schema_name(MYSQL_SCHEMA_NAME.str);
 

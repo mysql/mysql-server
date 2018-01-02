@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,6 +86,12 @@ void register_table(dd::System_tables::Types type)
                                      X::instance().name(),
                                      type, &X::instance());
 }
+void register_table(const dd::String_type table, dd::System_tables::Types type)
+{
+  dd::System_tables::instance()->add(MYSQL_SCHEMA_NAME.str,
+                                     table,
+                                     type, nullptr);
+}
 
 template <typename X>
 void register_view(dd::System_views::Types type)
@@ -148,6 +154,7 @@ void System_tables::add_remaining_dd_tables()
   // Se header file for explanation of table categories.
   dd::System_tables::Types core=   dd::System_tables::Types::CORE;
   dd::System_tables::Types second= dd::System_tables::Types::SECOND;
+  dd::System_tables::Types system= dd::System_tables::Types::SYSTEM;
 
   register_table<Catalogs>(core);
   register_table<Character_sets>(core);
@@ -186,6 +193,43 @@ void System_tables::add_remaining_dd_tables()
 
     Collations::instance().set_abandoned(bootstrap::DD_VERSION_80004);
   */
+  register_table("backup_history", system);
+  register_table("backup_progress", system);
+  register_table("columns_priv", system);
+  register_table("component", system);
+  register_table("db", system);
+  register_table("default_roles", system);
+  register_table("engine_cost", system);
+  register_table("func", system);
+  register_table("global_grants", system);
+  register_table("gtid_executed", system);
+  register_table("help_category", system);
+  register_table("help_keyword", system);
+  register_table("help_relation", system);
+  register_table("help_topic", system);
+  register_table("host", system);
+  register_table("ndb_binlog_index", system);
+  register_table("plugin", system);
+  register_table("password_history", system);
+  register_table("procs_priv", system);
+  register_table("proxies_priv", system);
+  register_table("role_edges", system);
+  register_table("servers", system);
+  register_table("server_cost", system);
+  register_table("slave_master_info", system);
+  register_table("slave_master_info_backup", system);
+  register_table("slave_worker_info", system);
+  register_table("slave_relay_log_info", system);
+  register_table("tables_priv", system);
+  register_table("temp_user", system);
+  register_table("tmp_user", system);
+  register_table("time_zone", system);
+  register_table("time_zone_name", system);
+  register_table("time_zone_leap_second", system);
+  register_table("time_zone_transition", system);
+  register_table("time_zone_transition_type", system);
+  register_table("user", system);
+  register_table("user_backup", system);
 }
 
 void System_views::init()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,6 +192,23 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   const char *schema_name,
                   const char *name,
                   bool *exists);
+
+/**
+  Checking if the table is being created in a restricted
+  tablespace.
+
+  @param thd            Thread context.
+  @param schema_name    Name of the schema where tha table is located.
+  @param table_name     Name of the table.
+  @param create_info    Table options, e.g. the tablespace name.
+
+  @retval  true         Invalid usage (error has been reported).
+  @retval  false        Success, no invalid usage.
+*/
+bool invalid_tablespace_usage(THD *thd,
+                              const dd::String_type &schema_name,
+                              const dd::String_type &table_name,
+                              const HA_CREATE_INFO *create_info);
 
 /**
   Rename foreign keys which have generated names to
