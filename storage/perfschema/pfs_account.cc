@@ -717,10 +717,21 @@ PFS_account::release()
 }
 
 void
+PFS_account::rebase_memory_stats()
+{
+  PFS_memory_shared_stat *stat = m_instr_class_memory_stats;
+  PFS_memory_shared_stat *stat_last = stat + memory_class_max;
+  for (; stat < stat_last; stat++)
+  {
+    stat->reset();
+  }
+}
+
+void
 PFS_account::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 {
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *remaining_delta;
 

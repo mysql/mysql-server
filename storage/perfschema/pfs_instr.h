@@ -667,6 +667,9 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   */
   uint m_session_connect_attrs_cs_number;
 
+  /** Reset all memory statistics. */
+  void rebase_memory_stats();
+
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
   void
@@ -683,6 +686,42 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   }
 
   void set_history_derived_flags();
+
+  /**
+    Per thread memory aggregated statistics.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME.
+    Immutable, safe to use without internal lock.
+  */
+  PFS_memory_safe_stat *m_instr_class_memory_stats;
+
+  void
+  set_instr_class_memory_stats(PFS_memory_safe_stat *array)
+  {
+    m_has_memory_stats = false;
+    m_instr_class_memory_stats = array;
+  }
+
+  const PFS_memory_safe_stat *
+  read_instr_class_memory_stats() const
+  {
+    if (!m_has_memory_stats)
+    {
+      return NULL;
+    }
+    return m_instr_class_memory_stats;
+  }
+
+  PFS_memory_safe_stat *
+  write_instr_class_memory_stats()
+  {
+    if (!m_has_memory_stats)
+    {
+      rebase_memory_stats();
+      m_has_memory_stats = true;
+    }
+    return m_instr_class_memory_stats;
+  }
 };
 
 void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
@@ -690,7 +729,7 @@ void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 extern PFS_stage_stat *global_instr_class_stages_array;
 extern PFS_statement_stat *global_instr_class_statements_array;
 extern PFS_histogram global_statements_histogram;
-extern std::atomic<PFS_memory_stat *> global_instr_class_memory_array;
+extern std::atomic<PFS_memory_shared_stat *> global_instr_class_memory_array;
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
@@ -805,12 +844,19 @@ void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array_2);
 
 void aggregate_all_memory(bool alive,
-                          PFS_memory_stat *from_array,
-                          PFS_memory_stat *to_array);
+                          PFS_memory_safe_stat *from_array,
+                          PFS_memory_shared_stat *to_array);
 void aggregate_all_memory(bool alive,
-                          PFS_memory_stat *from_array,
-                          PFS_memory_stat *to_array_1,
-                          PFS_memory_stat *to_array_2);
+                          PFS_memory_shared_stat *from_array,
+                          PFS_memory_shared_stat *to_array);
+void aggregate_all_memory(bool alive,
+                          PFS_memory_safe_stat *from_array,
+                          PFS_memory_shared_stat *to_array_1,
+                          PFS_memory_shared_stat *to_array_2);
+void aggregate_all_memory(bool alive,
+                          PFS_memory_shared_stat *from_array,
+                          PFS_memory_shared_stat *to_array_1,
+                          PFS_memory_shared_stat *to_array_2);
 
 void aggregate_thread(PFS_thread *thread,
                       PFS_account *safe_account,

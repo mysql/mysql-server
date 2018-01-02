@@ -1110,13 +1110,28 @@ struct PFS_file_io_stat_row
 /** Row fragment for memory statistics columns. */
 struct PFS_memory_stat_row
 {
-  PFS_memory_stat m_stat;
+  PFS_memory_safe_stat m_stat;
 
   /** Build a row from a memory buffer. */
   inline void
-  set(const PFS_memory_stat *stat)
+  set(const PFS_memory_safe_stat *stat)
   {
     m_stat = *stat;
+  }
+
+  /** Build a row from a memory buffer. */
+  inline void
+  set(const PFS_memory_shared_stat *stat)
+  {
+    m_stat.m_used = stat->m_used;
+    m_stat.m_alloc_count = stat->m_alloc_count;
+    m_stat.m_free_count = stat->m_free_count;
+    m_stat.m_alloc_size = stat->m_alloc_size;
+    m_stat.m_free_size = stat->m_free_size;
+    m_stat.m_alloc_count_capacity = stat->m_alloc_count_capacity;
+    m_stat.m_free_count_capacity = stat->m_free_count_capacity;
+    m_stat.m_alloc_size_capacity = stat->m_alloc_size_capacity;
+    m_stat.m_free_size_capacity = stat->m_free_size_capacity;
   }
 
   /** Set a table field from the row. */

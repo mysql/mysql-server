@@ -1429,60 +1429,60 @@ PFS_connection_memory_visitor::~PFS_connection_memory_visitor()
 void
 PFS_connection_memory_visitor::visit_global()
 {
-  PFS_memory_stat *stat;
+  PFS_memory_shared_stat *stat;
   stat = &global_instr_class_memory_array[m_index];
-  stat->full_aggregate_to(&m_stat);
+  memory_full_aggregate(stat, &m_stat);
 }
 
 void
 PFS_connection_memory_visitor::visit_host(PFS_host *pfs)
 {
-  const PFS_memory_stat *event_name_array;
+  const PFS_memory_shared_stat *event_name_array;
   event_name_array = pfs->read_instr_class_memory_stats();
   if (event_name_array != NULL)
   {
-    const PFS_memory_stat *stat;
+    const PFS_memory_shared_stat *stat;
     stat = &event_name_array[m_index];
-    stat->full_aggregate_to(&m_stat);
+    memory_full_aggregate(stat, &m_stat);
   }
 }
 
 void
 PFS_connection_memory_visitor::visit_user(PFS_user *pfs)
 {
-  const PFS_memory_stat *event_name_array;
+  const PFS_memory_shared_stat *event_name_array;
   event_name_array = pfs->read_instr_class_memory_stats();
   if (event_name_array != NULL)
   {
-    const PFS_memory_stat *stat;
+    const PFS_memory_shared_stat *stat;
     stat = &event_name_array[m_index];
-    stat->full_aggregate_to(&m_stat);
+    memory_full_aggregate(stat, &m_stat);
   }
 }
 
 void
 PFS_connection_memory_visitor::visit_account(PFS_account *pfs)
 {
-  const PFS_memory_stat *event_name_array;
+  const PFS_memory_shared_stat *event_name_array;
   event_name_array = pfs->read_instr_class_memory_stats();
   if (event_name_array != NULL)
   {
-    const PFS_memory_stat *stat;
+    const PFS_memory_shared_stat *stat;
     stat = &event_name_array[m_index];
-    stat->full_aggregate_to(&m_stat);
+    memory_full_aggregate(stat, &m_stat);
   }
 }
 
 void
 PFS_connection_memory_visitor::visit_thread(PFS_thread *pfs)
 {
-  const PFS_memory_stat *event_name_array;
+  const PFS_memory_safe_stat *event_name_array;
   event_name_array = pfs->read_instr_class_memory_stats();
   if (event_name_array != NULL)
   {
-    const PFS_memory_stat *stat;
+    const PFS_memory_safe_stat *stat;
     stat = &event_name_array[m_index];
-    stat->full_aggregate_to(&m_stat);
+    memory_full_aggregate(stat, &m_stat);
   }
 }
 

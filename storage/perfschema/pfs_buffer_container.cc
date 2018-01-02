@@ -232,8 +232,8 @@ PFS_account_allocator::alloc_array(PFS_account_array *array)
     array->m_instr_class_memory_array =
       PFS_MALLOC_ARRAY(&builtin_memory_account_memory,
                        memory_sizing,
-                       sizeof(PFS_memory_stat),
-                       PFS_memory_stat,
+                       sizeof(PFS_memory_shared_stat),
+                       PFS_memory_shared_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
     {
@@ -322,7 +322,7 @@ PFS_account_allocator::free_array(PFS_account_array *array)
 
   PFS_FREE_ARRAY(&builtin_memory_account_memory,
                  memory_sizing,
-                 sizeof(PFS_memory_stat),
+                 sizeof(PFS_memory_shared_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array = NULL;
 }
@@ -461,8 +461,8 @@ PFS_host_allocator::alloc_array(PFS_host_array *array)
     array->m_instr_class_memory_array =
       PFS_MALLOC_ARRAY(&builtin_memory_host_memory,
                        memory_sizing,
-                       sizeof(PFS_memory_stat),
-                       PFS_memory_stat,
+                       sizeof(PFS_memory_shared_stat),
+                       PFS_memory_shared_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
     {
@@ -550,7 +550,7 @@ PFS_host_allocator::free_array(PFS_host_array *array)
 
   PFS_FREE_ARRAY(&builtin_memory_host_memory,
                  memory_sizing,
-                 sizeof(PFS_memory_stat),
+                 sizeof(PFS_memory_shared_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array = NULL;
 }
@@ -725,8 +725,8 @@ PFS_thread_allocator::alloc_array(PFS_thread_array *array)
     array->m_instr_class_memory_array =
       PFS_MALLOC_ARRAY(&builtin_memory_thread_memory,
                        memory_sizing,
-                       sizeof(PFS_memory_stat),
-                       PFS_memory_stat,
+                       sizeof(PFS_memory_safe_stat),
+                       PFS_memory_safe_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
     {
@@ -1005,7 +1005,7 @@ PFS_thread_allocator::free_array(PFS_thread_array *array)
 
   PFS_FREE_ARRAY(&builtin_memory_thread_memory,
                  memory_sizing,
-                 sizeof(PFS_memory_stat),
+                 sizeof(PFS_memory_safe_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array = NULL;
 
@@ -1199,8 +1199,8 @@ PFS_user_allocator::alloc_array(PFS_user_array *array)
     array->m_instr_class_memory_array =
       PFS_MALLOC_ARRAY(&builtin_memory_user_memory,
                        memory_sizing,
-                       sizeof(PFS_memory_stat),
-                       PFS_memory_stat,
+                       sizeof(PFS_memory_shared_stat),
+                       PFS_memory_shared_stat,
                        MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
     {
@@ -1288,7 +1288,7 @@ PFS_user_allocator::free_array(PFS_user_array *array)
 
   PFS_FREE_ARRAY(&builtin_memory_user_memory,
                  memory_sizing,
-                 sizeof(PFS_memory_stat),
+                 sizeof(PFS_memory_shared_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array = NULL;
 }

@@ -1630,7 +1630,7 @@ public:
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
   PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_stat *m_instr_class_memory_array;
+  PFS_memory_shared_stat *m_instr_class_memory_array;
 };
 
 class PFS_account_allocator
@@ -1664,7 +1664,7 @@ public:
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
   PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_stat *m_instr_class_memory_array;
+  PFS_memory_shared_stat *m_instr_class_memory_array;
 };
 
 class PFS_host_allocator
@@ -1696,7 +1696,7 @@ public:
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
   PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_stat *m_instr_class_memory_array;
+  PFS_memory_safe_stat *m_instr_class_memory_array;
 
   PFS_events_waits *m_waits_history_array;
   PFS_events_stages *m_stages_history_array;
@@ -1740,7 +1740,7 @@ public:
   PFS_statement_stat *m_instr_class_statements_array;
   PFS_transaction_stat *m_instr_class_transactions_array;
   PFS_error_stat *m_instr_class_errors_array;
-  PFS_memory_stat *m_instr_class_memory_array;
+  PFS_memory_shared_stat *m_instr_class_memory_array;
 };
 
 class PFS_user_allocator
