@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -57,7 +57,6 @@
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
 const char * const MYSQLXTEST_VERSION = "1.0";
 const char CMD_ARG_SEPARATOR = '\t';
-const unsigned short MYSQLX_PORT = 33060;
 
 #include <mysql/service_my_snprintf.h>
 #include <mysql.h>
