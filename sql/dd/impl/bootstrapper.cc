@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -591,7 +591,6 @@ bool acquire_exclusive_mdl(THD *thd)
     MDL_request *table_request= new (thd->mem_root) MDL_request;
     if (table_request == NULL)
       return true;
-
     MDL_REQUEST_INIT(table_request, MDL_key::TABLE,
                      MYSQL_SCHEMA_NAME.str,
                      (*it)->entity()->name().c_str(),
@@ -652,8 +651,15 @@ bool flush_meta_data(THD *thd)
     for (System_tables::Const_iterator it= System_tables::instance()->begin();
          it != System_tables::instance()->end(); ++it)
     {
+      /*
+        We add nullptr to the dd_tables vector for abandoned
+        tables and system tables to have the same number of objects
+        in the System_tables list, the dd_tables vector and the
+        dd_table_clones vector.
+      */
       const dd::Table *dd_table= nullptr;
-      if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
+      if ((*it)->property() != System_tables::Types::SYSTEM &&
+          thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                     (*it)->entity()->name(), &dd_table))
         return dd::end_transaction(thd, true);
 
@@ -728,8 +734,8 @@ bool flush_meta_data(THD *thd)
          it != System_tables::instance()->end() &&
          clone_it != dd_table_clones.end(); ++it, ++clone_it)
     {
-      // Skip abandoned tables.
-      if ((*clone_it) == nullptr)
+      // Skip abandoned tables and system tables.
+      if ((*clone_it) == nullptr || (*it)->property() == System_tables::Types::SYSTEM)
         continue;
 
       DBUG_ASSERT((*it)->entity()->name() == (*clone_it)->name());
@@ -811,8 +817,8 @@ bool flush_meta_data(THD *thd)
          it != System_tables::instance()->end() &&
          table_it != dd_tables.end(); ++it, ++table_it)
     {
-      // Skip abandoned tables.
-      if ((*table_it) == nullptr)
+      // Skip abandoned tables and system tables.
+      if ((*table_it) == nullptr || (*it)->property() == System_tables::Types::SYSTEM)
         continue;
 
       DBUG_ASSERT((*it)->entity()->name() == (*table_it)->name());
@@ -825,12 +831,12 @@ bool flush_meta_data(THD *thd)
          it != System_tables::instance()->end() &&
          clone_it != dd_table_clones.end(); ++it, ++clone_it)
     {
+      // Skip abandoned tables and system tables.
+      if ((*clone_it) == nullptr || (*it)->property() == System_tables::Types::SYSTEM)
+        continue;
+
       if ((*it)->property() == System_tables::Types::CORE)
       {
-        // Skip abandoned tables.
-        if ((*clone_it) == nullptr)
-          continue;
-
         DBUG_ASSERT((*it)->entity()->name() == (*clone_it)->name());
         dd::cache::Storage_adapter::instance()->core_store(thd,
                 static_cast<Table*>((*clone_it).get()));
@@ -881,6 +887,10 @@ bool flush_meta_data(THD *thd)
   for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
+    // Skip system tables.
+    if ((*it)->property() == System_tables::Types::SYSTEM)
+      continue;
+
     const dd::Table *dd_table= nullptr;
     if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                   (*it)->entity()->name(), &dd_table))
@@ -1774,6 +1784,7 @@ bool update_object_ids(THD *thd,
             << "     WHERE name LIKE '" << (*it) << "' AND "
             << "     schema_id= " << actual_table_schema_id << "))";
     if (execute_query(thd, ss.str().c_str()))
+
       return dd::end_transaction(thd, true);
 
     ss.str("");
@@ -2058,6 +2069,10 @@ bool populate_tables(THD *thd)
   for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
+    // Skip system tables.
+    if ((*it)->property() == System_tables::Types::SYSTEM)
+      continue;
+
     // Retrieve list of SQL statements to execute.
     const Object_table_definition *table_def=
             (*it)->entity()->target_table_definition();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12640,6 +12640,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   THD_STAGE_INFO(thd, stage_init);
+
+  // Reject invalid usage of the 'mysql' tablespace.
+  if (dd::invalid_tablespace_usage(thd, table_list->db,
+                                   table_list->table_name, create_info))
+    DBUG_RETURN(true);
 
   /*
     Assign target tablespace name to enable locking in lock_table_names().

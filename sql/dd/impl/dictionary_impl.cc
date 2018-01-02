@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,6 +307,7 @@ bool Dictionary_impl::is_dd_table_access_allowed(
     Core     |  X          X       |
     Second   |  X          X       |
     Support  |  X          X    X  |
+    SYSTEM   |  X    X     X    X  |
     ---------+---------------------+
 
     For performance reasons, we first check the schema
@@ -328,9 +329,13 @@ bool Dictionary_impl::is_dd_table_access_allowed(
   const System_tables::Types *table_type= System_tables::instance()->
                                find_type(schema_str, table_str);
 
-  // Access allowed for external DD tables and for DML on DDSE tables.
+  /*
+    Access allowed for external DD tables, for DML on DDSE tables,
+    and for any operation on SYSTEM tables.
+  */
   return (table_type == nullptr ||
-          (*table_type == System_tables::Types::DDSE && !is_ddl_statement));
+          (*table_type == System_tables::Types::DDSE && !is_ddl_statement) ||
+          *table_type == System_tables::Types::SYSTEM);
 }
 
 ///////////////////////////////////////////////////////////////////////////

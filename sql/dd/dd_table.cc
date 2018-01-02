@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
+#include "sql/sql_lex.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/my_decimal.h"
@@ -2061,11 +2062,94 @@ static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
   return false;
 }
 
+bool invalid_tablespace_usage(THD *thd,
+                              const dd::String_type &schema_name,
+                              const dd::String_type &table_name,
+                              const HA_CREATE_INFO *create_info)
+{
+  DBUG_ASSERT(create_info);
+
+  // Checking if partitions contain a reserved tablespace.
+  bool rsrvd_tablespace= false;
+
+  const System_tables::Types *type= System_tables::instance()->
+    find_type(schema_name, table_name);
+
+  /*
+    DD tables (type INERT, CORE, SECOND or DDSE) and system
+    tables are allowed to be in the DD tablespace. And
+    additionally, a system thread can do what it likes.
+    Tables in the 'mysql' schema, with temporary names, are
+    also allowed to be in the DD tablespace, since mysql_upgrade
+    will ned to do ALTER TABLE.
+  */
+  if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name) ||
+      (type != nullptr && *type == System_tables::Types::SYSTEM) ||
+      thd->is_dd_system_thread() ||
+      (schema_name == dd::String_type(MYSQL_SCHEMA_NAME.str) &&
+       strstr(table_name.c_str(), tmp_file_prefix)))
+  {
+    /*
+      So for these tables, there is no point checking whether they
+      actually are in the 'mysql' tablespace, since the important
+      fact is that they are allowed to be there, not whether they
+      actually are there.
+    */
+    return false;
+  }
+
+  /*
+    Other tables are not allowed in the DD tablespace, neither at
+    the table level nor at the partition or subpartition level.
+  */
+  if (create_info->tablespace &&
+      strcmp(create_info->tablespace, MYSQL_TABLESPACE_NAME.str) == 0)
+  {
+    rsrvd_tablespace= true;
+  }
+  else if (thd->lex->part_info)
+  {
+    // Traverse through all partitions.
+    List_iterator<partition_element> part_it(thd->lex->part_info->partitions);
+    partition_element *part_elem;
+    while ((part_elem= part_it++) && !rsrvd_tablespace)
+    {
+      if (part_elem->tablespace_name &&
+          strcmp(part_elem->tablespace_name, MYSQL_TABLESPACE_NAME.str) == 0)
+      {
+        rsrvd_tablespace= true;
+      }
+      // Traverse through all subpartitions.
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      while ((sub_elem= sub_it++) && !rsrvd_tablespace)
+      {
+        // Check tablespace name from sub-partition elements, if used.
+        if (sub_elem->tablespace_name &&
+            strcmp(sub_elem->tablespace_name, MYSQL_TABLESPACE_NAME.str) == 0)
+        {
+          rsrvd_tablespace= true;
+        }
+      }
+    }
+  }
+
+  if (rsrvd_tablespace)
+  {
+    my_error(ER_RESERVED_TABLESPACE_NAME, MYF(0), table_name.c_str(),
+             MYSQL_TABLESPACE_NAME.str);
+    return true;
+  }
+
+  return false;
+}
+
 
 /** Fill dd::Table object from mysql_prepare_create_table() output. */
 static bool fill_dd_table_from_create_info(THD *thd,
                                            dd::Table *tab_obj,
                                            const dd::String_type &table_name,
+                                           const dd::String_type &schema_name,
                                            const HA_CREATE_INFO *create_info,
                                            const List<Create_field> &create_fields,
                                            const KEY *keyinfo,
@@ -2292,6 +2376,9 @@ static bool fill_dd_table_from_create_info(THD *thd,
                               create_info->options & HA_LEX_CREATE_TMP_TABLE))
     return true;
 
+  if (invalid_tablespace_usage(thd, schema_name, table_name, create_info))
+    return true;
+
   /*
     Add hidden columns and indexes which are implicitly created by storage
     engine for the table. This needs to be done before handling partitions
@@ -2418,9 +2505,10 @@ static bool create_dd_system_table(THD *thd,
                       dd::Abstract_table::HT_VISIBLE);
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
-                                     create_info, create_fields,
-                                     keyinfo, keys, Alter_info::ENABLE,
-                                     fk_keyinfo, fk_keys, file))
+                                     system_schema.name(), create_info,
+                                     create_fields, keyinfo, keys,
+                                     Alter_info::ENABLE, fk_keyinfo,
+                                     fk_keys, file))
     return true;
 
   /*
@@ -2492,9 +2580,10 @@ bool create_dd_user_table(THD *thd,
     performance_schema::set_PS_version_for_table(&tab_obj->options());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
-                                     create_info, create_fields,
-                                     keyinfo, keys, keys_onoff,
-                                     fk_keyinfo, fk_keys, file))
+                                     sch_obj.name(), create_info,
+                                     create_fields, keyinfo, keys,
+                                     keys_onoff, fk_keyinfo, fk_keys,
+                                     file))
     return true;
 
   // Store info in DD tables.
@@ -2542,7 +2631,7 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
   std::unique_ptr<dd::Table> tab_obj(sch_obj.create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
-                                     create_info, create_fields,
+                                     sch_obj.name(), create_info, create_fields,
                                      keyinfo, keys, keys_onoff, NULL, 0, file))
     return nullptr;
 
