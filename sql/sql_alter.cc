@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,6 +193,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 {
   /* Verify that none one of the DISCARD and IMPORT flags are set. */
   DBUG_ASSERT(!thd_tablespace_op(thd));
+  DBUG_EXECUTE_IF("delay_alter_table_by_one_second", { my_sleep(1000000); });
 
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */

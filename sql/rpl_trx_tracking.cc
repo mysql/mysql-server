@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,6 +118,9 @@ static bool is_trx_unsafe_for_parallel_slave(const THD *thd)
   case SQLCOM_ANALYZE:
   case SQLCOM_REPAIR:
   case SQLCOM_OPTIMIZE:
+  case SQLCOM_CREATE_DB:
+  case SQLCOM_ALTER_DB:
+  case SQLCOM_DROP_DB:
     return true;
   case SQLCOM_ALTER_TABLE:
     return thd->lex->alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION;
