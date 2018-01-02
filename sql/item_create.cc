@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2483,6 +2483,17 @@ protected:
   virtual ~Create_func_json_depth() {}
 };
 
+class Create_func_json_pretty : public Create_func_arg1
+{
+public:
+  static Create_func_json_pretty s_singleton;
+  virtual Item *create(THD *thd, Item *arg1)
+  {
+    return new (thd->mem_root) Item_func_json_pretty(POS(), arg1);
+  }
+};
+Create_func_json_pretty Create_func_json_pretty::s_singleton;
+
 class Create_func_json_type : public Create_func_arg1
 {
 public:
@@ -2682,19 +2693,52 @@ public:
 };
 Create_func_issimple_deprecated Create_func_issimple_deprecated::s_singleton;
 
-
-class Create_func_json_merge : public Create_native_func
+class Create_func_json_merge_patch : public Create_native_func
 {
 public:
   virtual Item *create_native(THD *thd, LEX_STRING name,
                               PT_item_list *item_list);
 
-  static Create_func_json_merge s_singleton;
+  static Create_func_json_merge_patch s_singleton;
+};
+Create_func_json_merge_patch Create_func_json_merge_patch::s_singleton;
+
+class Create_func_json_merge_preserve : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_merge_preserve s_singleton;
 
 protected:
-  Create_func_json_merge() {}
-  virtual ~Create_func_json_merge() {}
+  Create_func_json_merge_preserve() {}
+  virtual ~Create_func_json_merge_preserve() {}
 };
+Create_func_json_merge_preserve Create_func_json_merge_preserve::s_singleton;
+
+class Create_func_json_merge : public Create_func_json_merge_preserve
+{
+public:
+  static Create_func_json_merge s_singleton;
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list)
+  {
+    Item *func= Create_func_json_merge_preserve::create_native(thd, name,
+                                                               item_list);
+    /*
+      JSON_MERGE is a deprecated alias for JSON_MERGE_PRESERVE. Warn
+      the users and recommend that they specify explicitly what kind
+      of merge operation they want.
+    */
+    if (func != NULL)
+      push_deprecated_warn(thd, "JSON_MERGE",
+                           "JSON_MERGE_PRESERVE/JSON_MERGE_PATCH");
+
+    return func;
+  }
+};
+Create_func_json_merge Create_func_json_merge::s_singleton;
 
 class Create_func_json_quote : public Create_native_func
 {
@@ -2708,6 +2752,17 @@ protected:
   Create_func_json_quote() {}
   virtual ~Create_func_json_quote() {}
 };
+
+class Create_func_json_storage_size : public Create_func_arg1
+{
+public:
+  static Create_func_json_storage_size s_singleton;
+  virtual Item *create(THD *thd, Item *arg1)
+  {
+    return new (thd->mem_root) Item_func_json_storage_size(POS(), arg1);
+  }
+};
+Create_func_json_storage_size Create_func_json_storage_size::s_singleton;
 
 class Create_func_json_unquote : public Create_native_func
 {
@@ -6128,12 +6183,19 @@ Create_func_validate::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_validate(POS(), arg1);
 }
 
-
-Create_func_json_merge Create_func_json_merge::s_singleton;
+Item*
+Create_func_json_merge_patch::create_native(THD *thd, LEX_STRING name,
+                                            PT_item_list *item_list)
+{
+  int arg_count= item_list ? item_list->elements() : 0;
+  if (arg_count < 2)
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  return new (thd->mem_root) Item_func_json_merge_patch(thd, POS(), item_list);
+}
 
 Item*
-Create_func_json_merge::create_native(THD *thd, LEX_STRING name,
-                                     PT_item_list *item_list)
+Create_func_json_merge_preserve::create_native(THD *thd, LEX_STRING name,
+                                               PT_item_list *item_list)
 {
   Item* func= NULL;
   int arg_count= 0;
@@ -6149,7 +6211,8 @@ Create_func_json_merge::create_native(THD *thd, LEX_STRING name,
   }
   else
   {
-    func= new (thd->mem_root) Item_func_json_merge(thd, POS(), item_list);
+    func= new (thd->mem_root) Item_func_json_merge_preserve(thd, POS(),
+                                                            item_list);
   }
 
   return func;
@@ -7526,6 +7589,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("JSON_CONTAINS_PATH") }, BUILDER(Create_func_json_contains_path)},
   { { C_STRING_WITH_LEN("JSON_LENGTH") }, BUILDER(Create_func_json_length)},
   { { C_STRING_WITH_LEN("JSON_DEPTH") }, BUILDER(Create_func_json_depth)},
+  { { C_STRING_WITH_LEN("JSON_PRETTY") }, BUILDER(Create_func_json_pretty)},
   { { C_STRING_WITH_LEN("JSON_TYPE") }, BUILDER(Create_func_json_type)},
   { { C_STRING_WITH_LEN("JSON_KEYS") }, BUILDER(Create_func_json_keys)},
   { { C_STRING_WITH_LEN("JSON_EXTRACT") }, BUILDER(Create_func_json_extract)},
@@ -7539,7 +7603,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("JSON_ARRAY") }, BUILDER(Create_func_json_array)},
   { { C_STRING_WITH_LEN("JSON_REMOVE") }, BUILDER(Create_func_json_remove)},
   { { C_STRING_WITH_LEN("JSON_MERGE") }, BUILDER(Create_func_json_merge)},
+  { { C_STRING_WITH_LEN("JSON_MERGE_PATCH") }, BUILDER(Create_func_json_merge_patch)},
+  { { C_STRING_WITH_LEN("JSON_MERGE_PRESERVE") }, BUILDER(Create_func_json_merge_preserve)},
   { { C_STRING_WITH_LEN("JSON_QUOTE") }, BUILDER(Create_func_json_quote)},
+  { { C_STRING_WITH_LEN("JSON_STORAGE_SIZE") }, BUILDER(Create_func_json_storage_size)},
   { { C_STRING_WITH_LEN("JSON_UNQUOTE") }, BUILDER(Create_func_json_unquote)},
   { { C_STRING_WITH_LEN("IS_FREE_LOCK") }, BUILDER(Create_func_is_free_lock)},
   { { C_STRING_WITH_LEN("IS_USED_LOCK") }, BUILDER(Create_func_is_used_lock)},

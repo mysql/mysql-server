@@ -9371,7 +9371,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     {
       Json_wrapper wr;
       if (item->val_json(&wr))
-        break;
+        return true;
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else
@@ -9965,18 +9965,15 @@ bool Item_cache_json::cache_value()
   if (!example || !m_value)
     return false;
 
-  if (json_value(&example, 0, m_value))
-    return false;
-
+  value_cached= !json_value(&example, 0, m_value);
   null_value= example->null_value;
-  value_cached= true;
 
-  if (!null_value)
+  if (value_cached && !null_value)
   {
     m_value->to_dom(); // the row buffer might change, so need own copy
   }
 
-  return true;
+  return value_cached;
 }
 
 

@@ -1163,7 +1163,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) GENERATED ALWAYS AS (quote(`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-insert into t1 values ('Don\'t',default);
+insert into t1 values ('Don''t',default);
 select * from t1;
 a	b
 Don't	'Don\'t'
@@ -2729,6 +2729,39 @@ a	b
 drop table t1;
 set sql_warnings = 0;
 # None.
+#
+# JSON functions
+#
+# JSON_PRETTY()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varchar(1024) generated always as (JSON_PRETTY(a)) virtual);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` varchar(1024) GENERATED ALWAYS AS (json_pretty(`a`)) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('{}', default);
+select * from t1;
+a	b
+{}	{}
+drop table t1;
+set sql_warnings = 0;
+# JSON_STORAGE_SIZE()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_SIZE(a)) virtual);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` varchar(1024) GENERATED ALWAYS AS (json_storage_size(`a`)) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('{}', default);
+select * from t1;
+a	b
+{}	5
+drop table t1;
+set sql_warnings = 0;
 #
 # OTHER FUNCTIONS
 #

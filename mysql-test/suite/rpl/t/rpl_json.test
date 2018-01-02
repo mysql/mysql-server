@@ -180,7 +180,10 @@ SELECT * FROM t1 ORDER BY i;
 UPDATE t1 SET j2 = JSON_REPLACE(j, '$[1]', 'abc');
 SELECT * FROM t1 ORDER BY i;
 
-UPDATE t1 SET j2 = JSON_MERGE(j, j);
+UPDATE t1 SET j2 = JSON_MERGE_PATCH(j, '{"a": "patched", "c": null}');
+SELECT * FROM t1 ORDER BY i;
+
+UPDATE t1 SET j2 = JSON_MERGE_PRESERVE(j, j);
 SELECT * FROM t1 ORDER BY i;
 
 UPDATE t1 SET j2 = JSON_SEARCH(j, 'one', 'abc');
@@ -227,5 +230,267 @@ SELECT * FROM t1 ORDER BY i;
 DROP TABLE t1, t2, t3, t4, t5;
 
 --source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # WL#7987: JSON AGGREGATION FUNCTIONS
+--echo #
+
+--connection master
+
+--echo # Create tables of various data types
+CREATE TABLE data_table (pkey INT PRIMARY KEY AUTO_INCREMENT,
+                         txt TEXT, vcol VARCHAR(20), num INT,
+                         gcol INT AS (num * 2) VIRTUAL);
+
+CREATE TABLE json_data (nkey INT PRIMARY KEY AUTO_INCREMENT, jcol JSON);
+
+--echo # Insert values into the tables using the aggregation functions
+INSERT INTO data_table(txt, vcol, num) VALUES ('ailemac', 'namor', 15),
+                                              ('nielk', 'uciov', 12),
+                                              ('nuicarc', 'ierdna', 13),
+                                              ('ihcseruj', 'elisav', 14),
+                                              ('qweasdas', 'jugcvb', 16);
+
+--disable_warnings
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey, gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(num , vcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey , txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(pkey) FROM data_table;
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether tables were created on the slave
+
+SELECT * FROM json_data;
+SELECT JSON_OBJECTAGG(t1.pkey, t2.jcol) FROM data_table AS t1, json_data AS t2;
+SELECT JSON_ARRAYAGG(jcol) FROM json_data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Update values in the table
+--disable_warnings
+UPDATE json_data SET jcol= (SELECT JSON_ARRAYAGG(vcol) FROM data_table) WHERE nkey = 1;
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM json_data WHERE nkey = 1;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Delete values from the table
+--disable_warnings
+DELETE FROM json_data WHERE jcol  = (SELECT JSON_ARRAYAGG(pkey) FROM data_table);
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM json_data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+DROP TABLE data_table;
+DROP TABLE json_data;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # WL#9191: ADD JSON_PRETTY FUNCTION
+--echo #
+
+--echo [Connection Master]
+--connection master
+
+--echo # Create tables of various data types
+CREATE TABLE data (pkey INT PRIMARY KEY AUTO_INCREMENT,
+                         txt TEXT, vcol VARCHAR(20), num INT,
+                         gcol INT AS (num * 2) VIRTUAL,
+                         gcol2 JSON AS (JSON_PRETTY(JSON_OBJECT(num,gcol))));
+
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT, jcol TEXT, jgcol TEXT AS (JSON_PRETTY(jcol)));
+
+--echo # Insert values into the tables using the pretty function
+INSERT INTO data (txt, vcol, num) VALUES ('abc', 'namotgr', 150),
+                                         ('fwjh4', 'ucierov', 142),
+                                         ('8942rhkjh', 'roiu3r', 913),
+                                         ('imfmf', 'r3jr2', 15),
+                                         ('32rj2jr', 'r2ihrhr', 32);
+
+--disable_warnings
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey, gcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAYAGG(txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_PRETTY(gcol2)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECT(num , vcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey , txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAY(gcol)) FROM data;
+--enable_warnings
+
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether tables were created on the slave
+SELECT * FROM json_data;
+SELECT gcol2  FROM data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--let $diff_tables = master:data, slave:data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Update values in the table
+--disable_warnings
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_ARRAYAGG(gcol2)) FROM data) WHERE pk= 2;
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_OBJECTAGG(pk,gcol)) FROM data) WHERE pk = 1;
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM json_data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+
+--echo # Delete values from the table
+--disable_warnings
+DELETE FROM json_data WHERE JSON_PRETTY(jgcol)  = (SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey,txt)) FROM data);
+--enable_warnings
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM json_data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+DROP TABLE data;
+DROP TABLE json_data;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # WL#9692: ADD JSON_MERGE_PATCH, RENAME JSON_MERGE TO JSON_MERGE_PRESERVE
+--echo #
+
+--echo [Connection Master]
+--connection master
+
+--echo # Create table with JSON data
+
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT,
+                       id INT,
+                       jd JSON,
+                       td TEXT,
+                       gcol VARCHAR(30) AS (JSON_EXTRACT(JSON_MERGE_PATCH(jd,JSON_OBJECT(id,td)), '$.a')) VIRTUAL,
+                       KEY(gcol));
+
+--echo # Insert data into the table
+
+INSERT INTO json_data(id,jd,td) VALUES(10,'["a","b","c","d","e"]', "pink"),
+                                      (20,'{"a":[1,2,6,7,9]}', "floyd"),
+                                      (30,'{"a":["ears","nose","eyes"]}', "megadeth"),
+                                      (40,'[null,null,"null",0,1]', "def"),
+                                      (50,'{"a":null}', "leppard");
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether table was created on the slave
+
+SELECT * FROM json_data;
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Create tables using the JSON_MERGE_PATCH function
+
+CREATE TABLE json_data2(field1 JSON);
+INSERT INTO json_data2
+SELECT JSON_MERGE_PATCH(JSON_ARRAYAGG(jd), JSON_OBJECTAGG(pk, jd))
+FROM json_data;
+
+CREATE TABLE json_data3(field1 JSON);
+INSERT INTO json_data3
+SELECT JSON_MERGE_PATCH(JSON_OBJECTAGG(id, gcol), JSON_ARRAYAGG(td))
+FROM json_data;
+
+CREATE TABLE json_data4(field1 JSON);
+INSERT INTO json_data4
+SELECT JSON_MERGE_PATCH(JSON_OBJECT(id, jd), JSON_ARRAY(gcol))
+FROM json_data;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether the tables were created on the slave
+
+SELECT * FROM json_data2;
+SELECT * FROM json_data3;
+SELECT * FROM json_data4;
+
+SELECT JSON_MERGE_PATCH(t1.field1, t2.field1) FROM json_data2 as t1, json_data3 as t2;
+
+SELECT JSON_MERGE_PRESERVE(t1.field1, t2.field1) FROM json_data3 as t1, json_data4 as t2;
+
+--echo [Connection Master]
+--connection master
+
+--echo # Update values in the table
+
+UPDATE json_data SET jd = JSON_SET(jd, '$[1]', JSON_MERGE_PATCH(JSON_ARRAY(pk),JSON_ARRAY(td))) WHERE id IN (10,40);
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--let $diff_tables = master:json_data, slave:json_data
+--source include/diff_tables.inc
+
+--echo # Check whether values were updated
+
+SELECT * FROM json_data;
+
+--echo [Connection Master]
+--connection master
+
+--echo # Clean up
+
+DROP TABLE json_data, json_data2, json_data3, json_data4;
+
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
+
 # End:

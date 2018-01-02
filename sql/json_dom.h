@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -442,6 +442,15 @@ public:
   bool remove(const Json_dom *child);
 
   /**
+    Remove the child element addressed by key. The removed child is deleted.
+
+    @param key the key of the element to remove
+    @retval true if an element was removed
+    @retval false if there was no element with that key
+  */
+  bool remove(const std::string &key);
+
+  /**
     @return The number of elements in the JSON object.
   */
   size_t cardinality() const;
@@ -473,6 +482,30 @@ public:
 
   /// Returns a const_iterator that refers past the last element.
   const_iterator end() const { return m_map.end(); }
+
+  /**
+    Implementation of the MergePatch function specified in RFC 7396:
+
+        define MergePatch(Target, Patch):
+          if Patch is an Object:
+            if Target is not an Object:
+              Target = {} # Ignore the contents and set it to an empty Object
+            for each Key/Value pair in Patch:
+              if Value is null:
+                if Key exists in Target:
+                  remove the Key/Value pair from Target
+              else:
+                Target[Key] = MergePatch(Target[Key], Value)
+            return Target
+          else:
+            return Patch
+
+    @param patch  The object that describes the patch. The ownership of the
+                  patch object is transferred to the target object.
+    @retval false on success
+    @retval true on memory allocation error
+  */
+  bool merge_patch(Json_object *patch);
 };
 
 
@@ -592,6 +625,7 @@ public:
   */
   Json_dom *operator[](size_t index) const
   {
+    DBUG_ASSERT(m_v[index]->parent() == this);
     return m_v[index];
   }
 
@@ -1106,9 +1140,7 @@ private:
   bool m_is_dom;      //!< Wraps a DOM iff true
   bool m_dom_alias;   //!< If true, don't deallocate in destructor
   json_binary::Value m_value;
-  const char *m_id;   //!< Unused for now
   Json_dom *m_dom_value;
-  String m_tmp;       //!< Area for building binary value from DOM
 
   /**
     Get the wrapped datetime value in the packed format.
@@ -1124,8 +1156,8 @@ public:
   /**
     Create an empty wrapper. Cf ::empty().
   */
-  Json_wrapper() : m_is_dom(true), m_dom_alias(true), m_value(),
-                   m_id(NULL), m_dom_value(NULL)
+  Json_wrapper()
+    : m_is_dom(true), m_dom_alias(true), m_value(), m_dom_value(NULL)
   {}
 
   using Sql_alloc::operator new;
@@ -1185,13 +1217,6 @@ public:
   */
   Json_wrapper &operator=(const Json_wrapper &old);
 
-  /**
-    @param[in] value  the binary JSON value to wrap
-    @param[in] id     the pointer into the original field containing the
-                      binary JSON value.  This allows caching any DOMs
-                      built for the query, to avoid rebuilding it.
-  */
-  Json_wrapper(const json_binary::Value &value, const char *id);
   ~Json_wrapper();
 
   /**
@@ -1221,13 +1246,12 @@ public:
 
   /**
     Get the wrapped contents in binary value form.
-    The lifetime is same as that of the wrapped value iff the wrapper
-    wraps a binary value. If it is a DOM, the lifetime is the
-    same as that of the wrapper.
 
-    @return the binary value.
+    @param[in,out] str  a string that will be filled with the binary value
+    @retval false on success
+    @retval true  on error
   */
-  json_binary::Value to_value();
+  bool to_binary(String *str) const;
 
   /**
     Format the JSON value to an external JSON string in buffer in
@@ -1243,6 +1267,20 @@ public:
     @return false formatting went well, else true
   */
   bool to_string(String *buffer, bool json_quoted, const char *func_name) const;
+
+  /**
+    Format the JSON value to an external JSON string in buffer in the format of
+    ISO/IEC 10646. Add newlines and indentation for readability.
+
+    @param[in,out] buffer     the buffer that receives the formatted string
+                              (the string is appended, so make sure the length
+                              is set correctly before calling)
+    @param[in]     func_name  the name of the calling function
+
+    @retval false on success
+    @retval true on error
+  */
+  bool to_pretty_string(String *buffer, const char *func_name) const;
 
   // Accessors
 

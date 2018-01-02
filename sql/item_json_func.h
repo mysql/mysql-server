@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "item_strfunc.h"       // Item_str_func
 #include "mem_root_array.h"     // Mem_root_array
 #include "prealloced_array.h"   // Prealloced_array
+#include "sql_exception_handler.h"  // handle_std_exception
 
 class Item_func_like;
 struct Json_scalar_holder;
@@ -722,19 +723,31 @@ public:
 };
 
 /**
-  Represents the JSON function JSON_MERGE()
+  Represents the JSON function JSON_MERGE_PRESERVE.
 */
-class Item_func_json_merge :public Item_json_func
+class Item_func_json_merge_preserve :public Item_json_func
 {
 public:
-  Item_func_json_merge(THD *thd, const POS &pos, PT_item_list *a)
+  Item_func_json_merge_preserve(THD *thd, const POS &pos, PT_item_list *a)
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const
-  {
-    return "json_merge";
-  }
+  const char *func_name() const { return "json_merge_preserve"; }
+
+  bool val_json(Json_wrapper *wr);
+};
+
+/**
+  Represents the JSON function JSON_MERGE_PATCH.
+*/
+class Item_func_json_merge_patch :public Item_json_func
+{
+public:
+  Item_func_json_merge_patch(THD *thd, const POS &pos, PT_item_list *a)
+    : Item_json_func(thd, pos, a)
+  {}
+
+  const char *func_name() const { return "json_merge_patch"; }
 
   bool val_json(Json_wrapper *wr);
 };
@@ -800,6 +813,38 @@ public:
 };
 
 /**
+  Represents the JSON_PRETTY function.
+*/
+class Item_func_json_pretty :public Item_str_func
+{
+public:
+  Item_func_json_pretty(const POS &pos, Item *a) : Item_str_func(pos, a)
+  {}
+
+  const char *func_name() const { return "json_pretty"; }
+
+  void fix_length_and_dec()
+  {
+    fix_length_and_charset(MAX_BLOB_WIDTH, &my_charset_utf8mb4_bin);
+  }
+
+  String *val_str(String *str);
+};
+
+/**
+  Class that represents the function JSON_STORAGE_SIZE.
+*/
+class Item_func_json_storage_size : public Item_int_func
+{
+public:
+  Item_func_json_storage_size(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  const char *func_name() const { return "json_storage_size"; }
+  longlong val_int();
+};
+
+/**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification revison 1.0.
   This method is implemented in item_geofunc.cc.
 
@@ -821,5 +866,49 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg,
                       bool add_short_crs_urn,
                       bool add_long_crs_urn,
                       uint32 *geometry_srid);
+
+
+/**
+  Convert JSON values or MySQL values to JSON. Converts SQL NULL
+  to the JSON null literal.
+
+  @param[in]     args       arguments to function
+  @param[in]     arg_idx    the index of the argument to process
+  @param[in]     calling_function    name of the calling function
+  @param[in,out] value      working area (if the returned Json_wrapper points
+                            to a binary value rather than a DOM, this string
+                            will end up holding the binary representation, and
+                            it must stay alive until the wrapper is destroyed
+                            or converted from binary to DOM)
+  @param[in,out] tmp        temporary scratch space for converting strings to
+                            the correct charset; only used if accept_string is
+                            true and conversion is needed
+  @param[in,out] wr         the result wrapper
+  @returns false if we found a value or NULL, true otherwise
+*/
+bool get_atom_null_as_null(Item **args, uint arg_idx,
+                           const char *calling_function, String *value,
+                           String *tmp, Json_wrapper *wr);
+
+/**
+  Helper method for Item_func_json_* methods. Check whether an argument
+  can be converted to a utf8mb4 string.
+
+  @param[in]  arg_item    An argument Item
+  @param[out] value       Where to materialize the arg_item's string value
+  @param[out] utf8_res    Buffer for use by ensure_utf8mb4.
+  @param[in]  func_name   Name of the user-invoked JSON_ function
+  @param[out] safep       String pointer after any relevant conversion
+  @param[out] safe_length Corresponding string length
+
+  @returns true if the Item is not a utf8mb4 string
+*/
+bool get_json_string(Item *arg_item,
+                     String *value,
+                     String *utf8_res,
+                     const char *func_name,
+                     const char **safep,
+                     size_t *safe_length);
+
 
 #endif /* ITEM_JSON_FUNC_INCLUDED */
