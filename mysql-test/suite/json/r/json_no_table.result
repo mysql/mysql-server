@@ -3880,3 +3880,18 @@ j	JSON_TYPE(j)
 -1e15	DOUBLE
 1e200	DOUBLE
 -1e200	DOUBLE
+#
+# Bug#27312444: ASAN: MEMCPY-PARAM-OVERLAP WITH JSON_QUOTE FUNCTION
+#
+SELECT JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'b', 64), 50));
+JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'b', 64), 50))
+"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+SELECT JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'\n', 64), 50));
+JSON_QUOTE(RIGHT(REPEAT(_utf8mb4'\n', 64), 50))
+"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+SELECT JSON_QUOTE(RIGHT(REPEAT(_latin1'b', 64), 50));
+JSON_QUOTE(RIGHT(REPEAT(_latin1'b', 64), 50))
+"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+SELECT JSON_QUOTE(RIGHT(REPEAT(_latin1'\n', 64), 50));
+JSON_QUOTE(RIGHT(REPEAT(_latin1'\n', 64), 50))
+"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
