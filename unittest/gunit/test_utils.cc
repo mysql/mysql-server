@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,28 @@
 #include <gtest/gtest.h>
 
 #include "test_utils.h"
-#include "rpl_handler.h"                        // delegates_init()
+
+#include "binlog.h"
+#include "conn_handler/connection_handler_manager.h"
+#include "debug_sync.h"
+#include "derror.h"
+#include "item_create.h"
+#include "item_func.h"
+#include "keycache.h"
+#include "keycaches.h"
+#include "log.h"                                // query_logger
+#include "my_sys.h"
+#include "mysqld.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "opt_costconstantcache.h"              // optimizer cost constant cache
-#include "log.h"                                // query_logger
+#include "my_regex.h"
+#include "rpl_handler.h"                        // delegates_init()
+#include "rpl_filter.h"
+#include "sql_db.h"
+#include "sql_common.h"
+#include "sql_locale.h"
+#include "sql_plugin.h"
+#include "sql_show.h"
 
 namespace my_testing {
 
@@ -43,8 +61,8 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
 
 void setup_server_for_unit_tests()
 {
-  static char *my_name= strdup(my_progname);
-  char *argv[] = { my_name,
+  std::string my_name(my_progname);
+  char *argv[] = { const_cast<char*>(my_name.c_str()),
                    const_cast<char*>("--secure-file-priv=NULL"),
                    const_cast<char*>("--early_plugin_load=\"\""),
                    const_cast<char*>("--log_syslog=0"),
@@ -68,12 +86,37 @@ void setup_server_for_unit_tests()
 
 void teardown_server_for_unit_tests()
 {
+  flush_error_log_messages();
+  mysql_bin_log.cleanup();
+  my_dboptions_cache_free();
+  ignore_db_dirs_free();
   sys_var_end();
   delegates_destroy();
   transaction_cache_free();
   gtid_server_cleanup();
   query_logger.cleanup();
+  item_func_sleep_free();
+  item_create_cleanup();
   delete_optimizer_cost_module();
+  key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
+  multi_keycache_free();
+  free_tmpdir(&mysql_tmpdir_list);
+  bitmap_free(&temp_pool);
+  delete binlog_filter;
+  delete rpl_filter;
+  my_regex_end();
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the debug sync facility. See debug_sync.cc. */
+  debug_sync_end();
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+  cleanup_errmsgs();
+  Connection_handler_manager::destroy_instance();
+  mysql_client_plugin_deinit();
+  free_list(opt_early_plugin_load_list_ptr);
+  free_list(opt_plugin_load_list_ptr);
+  deinit_errmessage(); // finish server errs
+  Global_THD_manager::destroy_instance();
+  my_end(0);
 }
 
 void Server_initializer::set_expected_error(uint val)
