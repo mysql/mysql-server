@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ static char *opt_ssl_crlpath = 0;
 static char *opt_tls_version = 0;
 static bool ssl_mode_set_explicitly= false;
 
-static void set_client_ssl_options(MYSQL *mysql)
+static inline void set_client_ssl_options(MYSQL *mysql)
 {
   /*
     Print a warning if explicitly defined combination of --ssl-mode other than
