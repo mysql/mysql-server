@@ -1,0 +1,494 @@
+###############################################################################
+#                                                                             #
+# Tests JSON aggregation functions added in WL#7987                           #
+#                                                                             #
+###############################################################################
+
+
+--echo #
+--echo # Setup test.
+--echo #
+
+CREATE TABLE t1 (a int, k int, b VARCHAR(10));
+INSERT INTO t1 VALUES
+(1, 1, "alfa"),
+(1, 2, null),
+(2, 3, "doi"),
+(1, 4, "unu"),
+(3, 5, "trei"),
+(4, 6, null),
+(4, 7, null),
+(1, 8, "one");
+
+--echo #
+--echo # Test JSON_ARRAYAGG.
+--echo #
+
+FLUSH STATUS;
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SELECT SQL_BIG_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+SELECT SQL_SMALL_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SELECT SQL_BUFFER_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+
+SELECT JSON_ARRAYAGG(b) FROM t1;
+SELECT SQL_BIG_RESULT JSON_ARRAYAGG(b) FROM t1;
+SELECT SQL_SMALL_RESULT JSON_ARRAYAGG(b) FROM t1;
+SELECT SQL_BUFFER_RESULT JSON_ARRAYAGG(b) FROM t1;
+
+PREPARE p1 FROM "SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a";
+EXECUTE p1;
+EXECUTE p1;
+deallocate prepare p1;
+
+PREPARE p3 FROM
+"SELECT SQL_BUFFER_RESULT  a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a";
+EXECUTE p3;
+EXECUTE p3;
+deallocate prepare p3;
+
+PREPARE p4 FROM "SELECT JSON_ARRAYAGG(b) FROM t1";
+EXECUTE p4;
+EXECUTE p4;
+deallocate prepare p4;
+
+
+SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1;
+
+PREPARE p1 FROM
+"SELECT a, JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1 GROUP BY a";
+EXECUTE p1;
+EXECUTE p1;
+deallocate prepare p1;
+
+
+PREPARE p4 FROM
+"SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1";
+EXECUTE p4;
+EXECUTE p4;
+deallocate prepare p4;
+
+
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+EXPLAIN SELECT JSON_ARRAYAGG(b) FROM t1;
+
+EXPLAIN FORMAT=json SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+EXPLAIN FORMAT=json SELECT SQL_BIG_RESULT  a, JSON_ARRAYAGG(b)
+FROM t1
+GROUP BY a;
+EXPLAIN FORMAT=json SELECT SQL_SMALL_RESULT  a, JSON_ARRAYAGG(b)
+FROM t1
+GROUP BY a;
+EXPLAIN FORMAT=json SELECT SQL_BUFFER_RESULT  a, JSON_ARRAYAGG(b)
+FROM t1
+GROUP BY a;
+
+EXPLAIN FORMAT=json SELECT JSON_ARRAYAGG(b) FROM t1;
+EXPLAIN FORMAT=json SELECT SQL_BIG_RESULT JSON_ARRAYAGG(b) FROM t1;
+EXPLAIN FORMAT=json SELECT SQL_SMALL_RESULT JSON_ARRAYAGG(b) FROM t1;
+EXPLAIN FORMAT=json SELECT SQL_BUFFER_RESULT JSON_ARRAYAGG(b) FROM t1;
+
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT a, JSON_ARRAYAGG(b) as jarray
+FROM t1
+GROUP BY a
+HAVING jarray= JSON_ARRAY("trei");
+
+--echo #
+--echo # Test JSON_OBJECTAGG.
+--echo #
+
+FLUSH STATUS;
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+SELECT JSON_OBJECTAGG(k, b) FROM t1;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+
+PREPARE p1 FROM "SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a";
+EXECUTE p1;
+EXECUTE p1;
+deallocate prepare p1;
+
+PREPARE p4 FROM "SELECT JSON_OBJECTAGG(k, b) FROM t1";
+EXECUTE p4;
+EXECUTE p4;
+deallocate prepare p4;
+
+SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1 GROUP BY a;
+SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1;
+
+PREPARE p1 FROM
+"SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
+FROM t1
+GROUP BY a";
+EXECUTE p1;
+EXECUTE p1;
+deallocate prepare p1;
+
+
+PREPARE p4 FROM
+"SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1";
+EXECUTE p4;
+EXECUTE p4;
+deallocate prepare p4;
+
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+EXPLAIN SELECT JSON_OBJECTAGG(k, b) FROM t1;
+
+EXPLAIN FORMAT=json SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+EXPLAIN FORMAT=json SELECT JSON_OBJECTAGG(k, b) FROM t1;
+
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a WITH ROLLUP;
+SELECT a, JSON_OBJECTAGG(k, b) as jobject
+FROM t1
+GROUP BY a
+HAVING jobject = JSON_OBJECT(3, "doi");
+
+--echo #
+--echo # NULL values.
+--echo #
+
+SELECT a, JSON_ARRAYAGG(null) FROM t1 GROUP BY a;
+SELECT JSON_ARRAYAGG(null) FROM t1;
+
+SELECT a, JSON_OBJECTAGG(k, null) FROM t1 GROUP BY a;
+SELECT JSON_OBJECTAGG(k, null) FROM t1;
+
+
+--error ER_JSON_DOCUMENT_NULL_KEY
+SELECT a, JSON_OBJECTAGG(null, b) FROM t1 GROUP BY a;
+
+--error ER_JSON_DOCUMENT_NULL_KEY
+SELECT JSON_OBJECTAGG(null, b) FROM t1;
+
+--echo #
+--echo # Coverage test for fix_fields: Disable_semijoin_flattening.
+--echo #
+
+CREATE TABLE t(a INT);
+ANALYZE TABLE t1;
+EXPLAIN format=json SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
+SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
+DROP TABLE t;
+
+--echo #
+--echo # Coverage test for fix_fields: check_cols.
+--echo #
+
+--error ER_OPERAND_COLUMNS
+SELECT JSON_ARRAYAGG((SELECT 1, 1));
+
+--echo #
+--echo # Coverage test for fix_fields: resolve_type.
+--echo #
+
+CREATE TABLE t2(gid int, a int);
+--error ER_WRONG_ARGUMENTS
+SELECT JSON_ARRAYAGG(ST_PointFromText('POINT(10 10)')) FROM t2;
+
+--echo #
+--echo # Coverage test for fix_fields: check_sum_func.
+--echo #
+
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT (SELECT JSON_ARRAYAGG(COUNT(a)) FROM t2)  FROM t1;
+
+DROP TABLE t2;
+
+--echo #
+--echo # Empty table.
+--echo #
+
+TRUNCATE TABLE t1;
+
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+SELECT JSON_ARRAYAGG(b) FROM t1;
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+SELECT JSON_OBJECTAGG(k, b) FROM t1;
+
+--echo #
+--echo # Tests for max_allowed_packet.
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, x INT);
+INSERT INTO t(x) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t(x) SELECT t1.x from t t1, t t2, t t3;
+
+SET GLOBAL net_buffer_length = 1024;
+SET GLOBAL max_allowed_packet = 1024;
+CONNECT (con1,localhost,root,,);
+SELECT JSON_ARRAYAGG(x) FROM t;
+SELECT JSON_OBJECTAGG(id, x) FROM t;
+SELECT id % 2 AS i, JSON_ARRAYAGG(x) FROM t GROUP BY i;
+SELECT id % 2 AS i, JSON_OBJECTAGG(id, x) FROM t GROUP BY i;
+CONNECTION default;
+DISCONNECT con1;
+SET GLOBAL max_allowed_packet = default;
+SET GLOBAL net_buffer_length = default;
+
+DROP TABLE t;
+
+--echo #
+--echo # Cleanup test.
+--echo #
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #24368053
+--echo # WL#7987: ASSERTION `!TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TABLE-> ...
+--echo #
+
+CREATE TABLE C(col_int int);
+CREATE TABLE CC(col_int int);
+INSERT INTO CC VALUES (1),(2),(3);
+
+SELECT JSON_OBJECTAGG(table1.`col_int` ,table1.`col_int`) AS field2,
+(SELECT JSON_ARRAYAGG(SUBQUERY2_t1.`col_int`)
+ FROM CC AS SUBQUERY2_t1
+ WHERE SUBQUERY2_t1.`col_int` <> table1.`col_int`) AS field5
+FROM (CC AS table1)
+WHERE (table1.`col_int` <> ALL (SELECT SUBQUERY4_t1.`col_int`
+       FROM (CC AS SUBQUERY4_t1 STRAIGHT_JOIN C)))
+GROUP BY
+field5;
+
+DROP TABLE C;
+DROP TABLE CC;
+
+--echo #
+--echo # Bug #24367384
+--echo # WL#7987: INNODB: ASSERTION FAILURE: ROW0SEL.CC:2558:FIELD->PREFIX_LEN > 0 ...
+--echo #
+CREATE TABLE BB (pk INT AUTO_INCREMENT PRIMARY KEY, col_varchar_key VARCHAR(1));
+INSERT INTO BB VALUES(1,'a');
+
+SELECT (SELECT JSON_ARRAYAGG(`pk`) FROM BB as t1
+        WHERE t1.`col_varchar_key` <> t2.`col_varchar_key`) AS field2
+FROM BB as t2
+GROUP BY field2;
+
+SELECT (SELECT JSON_ARRAYAGG(`pk`) FROM BB as t1
+        WHERE t1.`col_varchar_key` = t2.`col_varchar_key`) AS field2
+FROM BB as t2
+GROUP BY field2;
+
+DROP TABLE BB;
+
+--echo #
+--echo # Bug #24365264
+--echo # WL#7987: SIG 11 IN ITEM::MARK_FIELD_IN_MAP|SQL/ITEM.H
+--echo #
+
+CREATE TABLE C (col_int int);
+INSERT INTO C VALUES  (1);
+
+SELECT *
+FROM C WHERE col_int < (SELECT JSON_ARRAYAGG(col_int) FROM C )
+ORDER BY col_int ;
+
+DROP TABLE C;
+
+
+--echo #
+--echo # Bug #24366341
+--echo # WL#7987: SIG 6 IN JSON_WRAPPER::TYPE|SQL/JSON_DOM.CC
+--echo #
+
+CREATE TABLE CC(col_varchar_key varchar(1));
+INSERT INTO CC VALUES ('a');
+
+SELECT JSON_ARRAYAGG(col_varchar_key) AS field1 FROM CC HAVING field1 > 9;
+
+SELECT JSON_OBJECTAGG(col_varchar_key, col_varchar_key) AS field1 FROM  CC
+HAVING (field1 <> 'a' AND field1 != 'e');
+
+DROP TABLE CC;
+
+--echo #
+--echo # with ROLLUP + two/three groups
+--echo #
+
+CREATE TABLE tg (g1 int, g2 int, k int, b VARCHAR(10));
+INSERT INTO tg VALUES
+(1, 1, 1, "alfa"),
+(1, 2, 2, null),
+(2, 3, 3, "doi"),
+(1, 1, 4, "unu"),
+(3, 2, 5, "trei"),
+(4, 3, 6, null),
+(4, 1, 7, null),
+(1, 2, 8, "one");
+
+
+SELECT g1, g2, JSON_ARRAYAGG(g2) FROM tg GROUP BY g1, g2 with rollup;
+SELECT g1, g2, JSON_OBJECTAGG(k, g1) FROM tg GROUP BY g1, g2 with rollup;
+
+
+CREATE TABLE tg3 (g1 int, g2 int, g3 int, k int, b VARCHAR(10));
+INSERT INTO tg3 VALUES
+(1, 1, 1, 1, "1.1.1"),
+(1, 1, 2, 2, "1.1.2"),
+(1, 1, 3, 3, "1.1.3"),
+(1, 2, 1, 4, "1.2.1"),
+(1, 2, 2, 5, "1.2.2"),
+(1, 2, 3, 6, "1.2.3"),
+(1, 3, 1, 7, "1.3.1"),
+(1, 3, 2, 8, "1.3.2"),
+(1, 3, 3, 9, "1.3.3"),
+(2, 1, 1, 10, "2.1.1"),
+(2, 1, 2, 11, "2.1.2"),
+(2, 1, 3, 12, "2.1.3"),
+(2, 2, 1, 13, "2.2.1"),
+(2, 2, 2, 14, "2.2.2"),
+(2, 2, 3, 15, "2.2.3"),
+(2, 3, 1, 16, "2.3.1"),
+(2, 3, 2, 17, "2.3.2"),
+(2, 3, 3, 18, "2.3.3"),
+(3, 1, 1, 19, "3.1.1"),
+(3, 1, 2, 20, "3.1.2"),
+(3, 1, 3, 21, "3.1.3"),
+(3, 2, 1, 22, "3.2.1"),
+(3, 2, 2, 23, "3.2.2"),
+(3, 2, 3, 24, "3.2.3"),
+(3, 3, 1, 25, "3.3.1"),
+(3, 3, 2, 26, "3.3.2"),
+(3, 3, 3, 27, "3.3.3");
+
+
+SELECT g1, g2, g3, JSON_ARRAYAGG(b) FROM tg3 GROUP BY g1, g2, g3 with rollup;
+SELECT g1, g2, g3, JSON_OBJECTAGG(k, b) FROM tg3 GROUP BY g1, g2, g3 with rollup;
+
+
+DROP TABLE tg;
+DROP TABLE tg3;
+
+--echo #
+--echo # Tests duplicates for JSON_OBJECTAGG
+--echo #
+
+CREATE TABLE t1 (a int, k int, b VARCHAR(10));
+INSERT INTO t1 VALUES
+(1, 1, "1.1"),
+(1, 1, "1.2"),
+(1, 1, "1.3"),
+(2, 2, "2.1"),
+(2, 2, "2.2"),
+(2, 2, "2.3");
+
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Tests with ORDER BY, DISTINCT
+--echo #
+
+CREATE TABLE t1 (a int, k int, b VARCHAR(10));
+INSERT INTO t1 VALUES
+(2, 8, "2.3"),
+(1, 7, "1.1"),
+(3, 6, "3.2"),
+(2, 5, "2.2"),
+(3, 9, "3.1"),
+(1, 4, "1.2"),
+(3, 3, "3.3"),
+(2, 2, "2.1"),
+(1, 1, "1.3");
+
+SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+SELECT DISTINCT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
+SELECT DISTINCT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a ORDER BY a ASC;
+SELECT DISTINCT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a ORDER BY a DESC;
+
+SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+SELECT DISTINCT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
+SELECT DISTINCT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a ORDER BY a ASC;
+SELECT DISTINCT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a ORDER BY a DESC;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Tests with joins
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, t1 INT, t2 INT);
+CREATE TABLE p(id INT PRIMARY KEY AUTO_INCREMENT, p1 INT, p2 INT);
+
+INSERT INTO t(t1, t2) VALUES (1, 1), (2, 1), (3,3), (1, 4);
+INSERT INTO p(p1, p2) VALUES (2, 1), (1, 1), (3,3), (2, 4);
+
+FLUSH STATUS;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+#Since the JSON_*AGG does not have the ORDER BY clause order is not predictable
+disable_result_log;
+SELECT JSON_ARRAYAGG(t2) FROM t join p on t.t1=p.p1;
+enable_result_log;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+disable_result_log;
+SELECT t1, JSON_ARRAYAGG(t2) FROM t join p on t.t1=p.p1 group by t1;
+enable_result_log;
+SHOW SESSION STATUS LIKE 'Handler_update%';
+
+# Subquery in ORDER BY with outer reference
+SELECT (SELECT 1 AS foo ORDER BY JSON_ARRAYAGG(t2)) AS x FROM t;
+SELECT t1 FROM t ORDER BY (SELECT JSON_ARRAYAGG(t1) FROM t AS t2);
+SELECT JSON_ARRAYAGG(t1) FROM t
+ORDER BY (SELECT JSON_ARRAYAGG(t1) FROM t AS t2);
+
+SELECT (SELECT JSON_ARRAYAGG(t1_outer.t1) FROM t AS t1_inner LIMIT 1) as f
+FROM t AS t1_outer GROUP BY t1_outer.t2;
+
+DROP TABLE t;
+DROP TABLE p;
+
+--echo #
+--echo # Tests with JSON
+--echo #
+
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, k INT, j JSON);
+INSERT INTO t(k, j) VALUES
+(1, '[1,2,3,4]'),
+(2, '{"prop1": 1}'),
+(1, '[3]'),
+(2, '{"prop2": 2, "prop10": 10}'),
+(1, '[99]');
+
+
+SELECT k, JSON_ARRAYAGG(j) FROM t GROUP BY k;
+SELECT k, JSON_OBJECTAGG(id, j) FROM t GROUP BY k;
+
+DROP TABLE t;
+
+--echo #
+--echo # Coverage tests for val_* functions
+--echo #
+
+CREATE TABLE t2(gid int, a int);
+INSERT INTO t2(gid, a) VALUES (1, 1), (1, 2), (2, 4), (2, 8);
+
+SELECT gid, 1.0 * JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
+SELECT gid, 0x30 << JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
+SELECT gid, DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
+FROM t2 GROUP BY gid;
+SELECT gid, ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
+FROM t2 GROUP BY gid;
+SELECT gid, SEC_TO_TIME(JSON_ARRAYAGG(a)) FROM t2 GROUP BY gid;
+
+TRUNCATE TABLE t2;
+
+SELECT 1.0 * JSON_ARRAYAGG(a) FROM t2;
+SELECT 0x30 << JSON_ARRAYAGG(a) FROM t2;
+SELECT DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY) FROM t2;
+SELECT ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998') FROM t2;
+SELECT SEC_TO_TIME(JSON_ARRAYAGG(a)) FROM t2;
+
+DROP TABLE t2;

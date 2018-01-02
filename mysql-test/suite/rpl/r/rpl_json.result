@@ -762,7 +762,41 @@ i	j	j2
 28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
 29	[]	[]
 30	"base64:type16:yv66vg=="	"base64:type16:yv66vg=="
-UPDATE t1 SET j2 = JSON_MERGE(j, j);
+UPDATE t1 SET j2 = JSON_MERGE_PATCH(j, '{"a": "patched", "c": null}');
+SELECT * FROM t1 ORDER BY i;
+i	j	j2
+0	NULL	NULL
+1	{"a": 2}	{"a": "patched"}
+2	[1, 2]	{"a": "patched"}
+3	{"a": "b", "c": "d", "ab": "abc", "bc": ["x", "y"]}	{"a": "patched", "ab": "abc", "bc": ["x", "y"]}
+4	["here", ["I", "am"], "!!!"]	{"a": "patched"}
+5	"scalar string"	{"a": "patched"}
+6	true	{"a": "patched"}
+7	false	{"a": "patched"}
+8	null	{"a": "patched"}
+9	-1	{"a": "patched"}
+10	1	{"a": "patched"}
+11	32767	{"a": "patched"}
+12	32768	{"a": "patched"}
+13	-32768	{"a": "patched"}
+14	-32769	{"a": "patched"}
+15	2147483647	{"a": "patched"}
+16	2147483648	{"a": "patched"}
+17	-2147483648	{"a": "patched"}
+18	-2147483649	{"a": "patched"}
+19	18446744073709551615	{"a": "patched"}
+20	1.8446744073709552e19	{"a": "patched"}
+21	3.14	{"a": "patched"}
+22	{}	{"a": "patched"}
+23	[]	{"a": "patched"}
+24	"2015-01-15 23:24:25.000000"	{"a": "patched"}
+25	"23:24:25.000000"	{"a": "patched"}
+26	"2015-01-15"	{"a": "patched"}
+27	"2015-01-15 23:24:25.000000"	{"a": "patched"}
+28	{"type": "Point", "coordinates": [1, 1]}	{"a": "patched", "type": "Point", "coordinates": [1, 1]}
+29	[]	{"a": "patched"}
+30	"base64:type16:yv66vg=="	{"a": "patched"}
+UPDATE t1 SET j2 = JSON_MERGE_PRESERVE(j, j);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
 0	NULL	NULL
@@ -1145,5 +1179,589 @@ Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 DROP TABLE t1, t2, t3, t4, t5;
+include/sync_slave_sql_with_master.inc
+#
+# WL#7987: JSON AGGREGATION FUNCTIONS
+#
+# Create tables of various data types
+CREATE TABLE data_table (pkey INT PRIMARY KEY AUTO_INCREMENT,
+txt TEXT, vcol VARCHAR(20), num INT,
+gcol INT AS (num * 2) VIRTUAL);
+CREATE TABLE json_data (nkey INT PRIMARY KEY AUTO_INCREMENT, jcol JSON);
+# Insert values into the tables using the aggregation functions
+INSERT INTO data_table(txt, vcol, num) VALUES ('ailemac', 'namor', 15),
+('nielk', 'uciov', 12),
+('nuicarc', 'ierdna', 13),
+('ihcseruj', 'elisav', 14),
+('qweasdas', 'jugcvb', 16);
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey, gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(gcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(num , vcol) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_OBJECTAGG(pkey , txt) FROM data_table;
+INSERT INTO json_data(jcol) SELECT JSON_ARRAYAGG(pkey) FROM data_table;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether tables were created on the slave
+SELECT * FROM json_data;
+nkey	jcol
+1	{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}
+2	["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"]
+3	[30, 24, 26, 28, 32]
+4	{"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}
+5	{"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}
+6	[1, 2, 3, 4, 5]
+SELECT JSON_OBJECTAGG(t1.pkey, t2.jcol) FROM data_table AS t1, json_data AS t2;
+JSON_OBJECTAGG(t1.pkey, t2.jcol)
+{"1": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "2": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "3": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "4": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "5": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}}
+SELECT JSON_ARRAYAGG(jcol) FROM json_data;
+JSON_ARRAYAGG(jcol)
+[{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, ["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"], [30, 24, 26, 28, 32], {"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}, {"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}, [1, 2, 3, 4, 5]]
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jcol= (SELECT JSON_ARRAYAGG(vcol) FROM data_table) WHERE nkey = 1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data WHERE nkey = 1;
+nkey	jcol
+1	["namor", "uciov", "ierdna", "elisav", "jugcvb"]
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Delete values from the table
+DELETE FROM json_data WHERE jcol  = (SELECT JSON_ARRAYAGG(pkey) FROM data_table);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+nkey	jcol
+1	["namor", "uciov", "ierdna", "elisav", "jugcvb"]
+2	["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"]
+3	[30, 24, 26, 28, 32]
+4	{"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}
+5	{"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+DROP TABLE data_table;
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
+#
+# WL#9191: ADD JSON_PRETTY FUNCTION
+#
+[Connection Master]
+# Create tables of various data types
+CREATE TABLE data (pkey INT PRIMARY KEY AUTO_INCREMENT,
+txt TEXT, vcol VARCHAR(20), num INT,
+gcol INT AS (num * 2) VIRTUAL,
+gcol2 JSON AS (JSON_PRETTY(JSON_OBJECT(num,gcol))));
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT, jcol TEXT, jgcol TEXT AS (JSON_PRETTY(jcol)));
+# Insert values into the tables using the pretty function
+INSERT INTO data (txt, vcol, num) VALUES ('abc', 'namotgr', 150),
+('fwjh4', 'ucierov', 142),
+('8942rhkjh', 'roiu3r', 913),
+('imfmf', 'r3jr2', 15),
+('32rj2jr', 'r2ihrhr', 32);
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey, gcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAYAGG(txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_PRETTY(gcol2)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECT(num , vcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey , txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAY(gcol)) FROM data;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether tables were created on the slave
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 300,
+  "2": 284,
+  "3": 1826,
+  "4": 30,
+  "5": 64
+}	{
+  "1": 300,
+  "2": 284,
+  "3": 1826,
+  "4": 30,
+  "5": 64
+}
+2	[
+  "abc",
+  "fwjh4",
+  "8942rhkjh",
+  "imfmf",
+  "32rj2jr"
+]	[
+  "abc",
+  "fwjh4",
+  "8942rhkjh",
+  "imfmf",
+  "32rj2jr"
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+17	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+SELECT gcol2  FROM data;
+gcol2
+{"150": 300}
+{"142": 284}
+{"913": 1826}
+{"15": 30}
+{"32": 64}
+include/diff_tables.inc [master:json_data, slave:json_data]
+include/diff_tables.inc [master:data, slave:data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_ARRAYAGG(gcol2)) FROM data) WHERE pk= 2;
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_OBJECTAGG(pk,gcol)) FROM data) WHERE pk = 1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 300
+}	{
+  "1": 300
+}
+2	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+17	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Delete values from the table
+DELETE FROM json_data WHERE JSON_PRETTY(jgcol)  = (SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey,txt)) FROM data);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 300
+}	{
+  "1": 300
+}
+2	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+DROP TABLE data;
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
+#
+# WL#9692: ADD JSON_MERGE_PATCH, RENAME JSON_MERGE TO JSON_MERGE_PRESERVE
+#
+[Connection Master]
+# Create table with JSON data
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT,
+id INT,
+jd JSON,
+td TEXT,
+gcol VARCHAR(30) AS (JSON_EXTRACT(JSON_MERGE_PATCH(jd,JSON_OBJECT(id,td)), '$.a')) VIRTUAL,
+KEY(gcol));
+# Insert data into the table
+INSERT INTO json_data(id,jd,td) VALUES(10,'["a","b","c","d","e"]', "pink"),
+(20,'{"a":[1,2,6,7,9]}', "floyd"),
+(30,'{"a":["ears","nose","eyes"]}', "megadeth"),
+(40,'[null,null,"null",0,1]', "def"),
+(50,'{"a":null}', "leppard");
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether table was created on the slave
+SELECT * FROM json_data;
+pk	id	jd	td	gcol
+1	10	["a", "b", "c", "d", "e"]	pink	NULL
+2	20	{"a": [1, 2, 6, 7, 9]}	floyd	[1, 2, 6, 7, 9]
+3	30	{"a": ["ears", "nose", "eyes"]}	megadeth	["ears", "nose", "eyes"]
+4	40	[null, null, "null", 0, 1]	def	NULL
+5	50	{"a": null}	leppard	null
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Create tables using the JSON_MERGE_PATCH function
+CREATE TABLE json_data2(field1 JSON);
+INSERT INTO json_data2
+SELECT JSON_MERGE_PATCH(JSON_ARRAYAGG(jd), JSON_OBJECTAGG(pk, jd))
+FROM json_data;
+CREATE TABLE json_data3(field1 JSON);
+INSERT INTO json_data3
+SELECT JSON_MERGE_PATCH(JSON_OBJECTAGG(id, gcol), JSON_ARRAYAGG(td))
+FROM json_data;
+CREATE TABLE json_data4(field1 JSON);
+INSERT INTO json_data4
+SELECT JSON_MERGE_PATCH(JSON_OBJECT(id, jd), JSON_ARRAY(gcol))
+FROM json_data;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the tables were created on the slave
+SELECT * FROM json_data2;
+field1
+{"1": ["a", "b", "c", "d", "e"], "2": {"a": [1, 2, 6, 7, 9]}, "3": {"a": ["ears", "nose", "eyes"]}, "4": [null, null, "null", 0, 1], "5": {}}
+SELECT * FROM json_data3;
+field1
+["pink", "floyd", "megadeth", "def", "leppard"]
+SELECT * FROM json_data4;
+field1
+[null]
+["[1, 2, 6, 7, 9]"]
+["[\"ears\", \"nose\", \"eyes\"]"]
+[null]
+["null"]
+SELECT JSON_MERGE_PATCH(t1.field1, t2.field1) FROM json_data2 as t1, json_data3 as t2;
+JSON_MERGE_PATCH(t1.field1, t2.field1)
+["pink", "floyd", "megadeth", "def", "leppard"]
+SELECT JSON_MERGE_PRESERVE(t1.field1, t2.field1) FROM json_data3 as t1, json_data4 as t2;
+JSON_MERGE_PRESERVE(t1.field1, t2.field1)
+["pink", "floyd", "megadeth", "def", "leppard", null]
+["pink", "floyd", "megadeth", "def", "leppard", "[1, 2, 6, 7, 9]"]
+["pink", "floyd", "megadeth", "def", "leppard", "[\"ears\", \"nose\", \"eyes\"]"]
+["pink", "floyd", "megadeth", "def", "leppard", null]
+["pink", "floyd", "megadeth", "def", "leppard", "null"]
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jd = JSON_SET(jd, '$[1]', JSON_MERGE_PATCH(JSON_ARRAY(pk),JSON_ARRAY(td))) WHERE id IN (10,40);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:json_data, slave:json_data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol
+1	10	["a", ["pink"], "c", "d", "e"]	pink	NULL
+2	20	{"a": [1, 2, 6, 7, 9]}	floyd	[1, 2, 6, 7, 9]
+3	30	{"a": ["ears", "nose", "eyes"]}	megadeth	["ears", "nose", "eyes"]
+4	40	[null, ["def"], "null", 0, 1]	def	NULL
+5	50	{"a": null}	leppard	null
+[Connection Master]
+# Clean up
+DROP TABLE json_data, json_data2, json_data3, json_data4;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

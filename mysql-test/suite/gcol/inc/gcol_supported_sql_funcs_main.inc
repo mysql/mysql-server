@@ -486,7 +486,7 @@ let $rows = 1;
 
 --echo # QUOTE()
 let $cols = a varchar(10), b varchar(10) generated always as (quote(a)) virtual;
-let $values1 = 'Don\'t',default;
+let $values1 = 'Don''t',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
@@ -1136,6 +1136,21 @@ let $rows = 1;
 
 --echo # None.
 
+--echo #
+--echo # JSON functions
+--echo #
+
+--echo # JSON_PRETTY()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_PRETTY(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
+--echo # JSON_STORAGE_SIZE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_SIZE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
 --echo #
 --echo # OTHER FUNCTIONS

@@ -493,55 +493,63 @@ SELECT JSON_REMOVE
 );
 
 --echo # ----------------------------------------------------------------------
---echo # Test of JSON_MERGE function.
+--echo # Test of JSON_MERGE_PRESERVE function.
 --echo # ----------------------------------------------------------------------
 
 --echo
 --echo # not enough args
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select json_merge();
+SELECT JSON_MERGE_PRESERVE();
 --echo
 --echo # not enough args
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-select json_merge( '[ 1, 2, 3 ]' );
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]');
 
 # null args result in NULL value
-select json_merge( null, null );
-select json_merge( null, '[ 1, 2, 3 ]' );
-select json_merge( '[ 1, 2, 3 ]', null );
-select json_merge( null, '[ 1, 2, 3 ]', '[ 4, 5, 6 ]' );
-select json_merge( '[ 1, 2, 3 ]', null, '[ 4, 5, 6 ]' );
-select json_merge( '[ 1, 2, 3 ]', '[ 4, 5, 6 ]', null );
+SELECT JSON_MERGE_PRESERVE(NULL, NULL);
+SELECT JSON_MERGE_PRESERVE(NULL, '[ 1, 2, 3 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', NULL);
+SELECT JSON_MERGE_PRESERVE(NULL, '[ 1, 2, 3 ]', '[ 4, 5, 6 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', NULL, '[ 4, 5, 6 ]');
+SELECT JSON_MERGE_PRESERVE('[ 1, 2, 3 ]', '[ 4, 5, 6 ]', NULL);
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
-select json_merge( '[1, 2]', '[3, 4' );
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '[3, 4');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
-select json_merge( '[1, 2', '[3, 4]' );
+SELECT JSON_MERGE_PRESERVE('[1, 2', '[3, 4]');
 
-# good json_merge() expressions
-select json_merge( '1', '2' );
-select json_merge( '1', '[2, 3]' );
-select json_merge( '[1, 2]', '3' );
-select json_merge( '1', '{ "a": 2 }' );
-select json_merge( '{ "a": 2 }', '1' );
-select json_merge( '[1, 2]', '[3, 4]' );
-select json_merge( '{ "a": 2 }', '{ "b": 3}' );
-select json_merge( '[1, 2]', '{ "a": 2 }' );
-select json_merge( '{ "a": 2 }', '[1, 2]' );
+# good json_merge_preserve() expressions
+SELECT JSON_MERGE_PRESERVE('1', '2');
+SELECT JSON_MERGE_PRESERVE('1', '[2, 3]');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '3');
+SELECT JSON_MERGE_PRESERVE('1', '{ "a": 2 }');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '1');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '[3, 4]');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '{ "b": 3}');
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '{ "a": 2 }');
+SELECT JSON_MERGE_PRESERVE('{ "a": 2 }', '[1, 2]');
 
-select json_merge( '{"a": 1, "b": 2 }', '{"b": 3, "d": 4 }' );
-select json_merge( '{"a": 1, "b": 2 }', '{"b": [3, 4], "d": 4 }' );
-select json_merge( '{"a": 1, "b": [2, 3] }', '{"b": 4, "d": 4 }' );
-select json_merge( '{"a": 1, "b": 2 }', '{"b": {"e": 7, "f": 8}, "d": 4 }' );
-select json_merge( '{"b": {"e": 7, "f": 8}, "d": 4 }', '{"a": 1, "b": 2 }' );
-select json_merge( '{"a": 1, "b": [2, 9] }', '{"b": [10, 11], "d": 4 }' );
-select json_merge( '{"a": 1, "b": [2, 9] }', '{"b": {"e": 7, "f": 8}, "d": 4 }' );
-select json_merge( '{"b": {"e": 7, "f": 8}, "d": 4 }', '{"a": 1, "b": [2, 9] }' );
-select json_merge( '{"b": {"e": 7, "f": 8}, "d": 4 }', '{ "a": 1, "b": {"e": 20, "g": 21 } }' );
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": 3, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": [3, 4], "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 3] }', '{"b": 4, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": 2 }',
+                           '{"b": {"e": 7, "f": 8}, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{"a": 1, "b": 2 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 9] }',
+                           '{"b": [10, 11], "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"a": 1, "b": [2, 9] }',
+                           '{"b": {"e": 7, "f": 8}, "d": 4 }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{"a": 1, "b": [2, 9] }');
+SELECT JSON_MERGE_PRESERVE('{"b": {"e": 7, "f": 8}, "d": 4 }',
+                           '{ "a": 1, "b": {"e": 20, "g": 21 } }');
 
-select json_merge( '1', '2', '3' );
-select json_merge( '[1, 2 ]', '3', '[4, 5]' );
-select json_merge
+SELECT JSON_MERGE_PRESERVE('1', '2', '3');
+SELECT JSON_MERGE_PRESERVE('[1, 2 ]', '3', '[4, 5]');
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a": true, "b": { "c": 3, "d": 4 }, "e": [ 1, 2 ] }',
   '{ "d": false, "b": { "g": 3, "d": 5 }, "f": [ 1, 2 ] }',
@@ -550,28 +558,28 @@ select json_merge
 
 # examples from the wl7909 spec
 # returns [{"a": "foo", "b": [true, {"c": 123}]}, 5, 6]
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
   '[ 5, 6]'
 );
 
 # returns {"a": "foo", "b": [true, {"c": 123}, false, 34]}
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
   '{ "b": [ false, 34 ] }'
 );
 
 # returns {"a": "foo", "b": [true, {"c": 123}, "bar"]}
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
   '{ "b": "bar" }'
 );
 
 # returns {"a": {"b": 1, "c": 1}}
-SELECT JSON_MERGE
+SELECT JSON_MERGE_PRESERVE
 (
   '{ "a" : { "b" : 1 } }',
   '{ "a" : { "c" : 1 } }'
@@ -2287,3 +2295,20 @@ SELECT JSON_ARRAY(LEAST(NULL, NULL), GREATEST(NULL, NULL), LEAST(j1, NULL),
                   GREATEST(NULL, j2), LEAST(j1, j2), GREATEST(j1, j2)) AS j
 FROM (SELECT CAST('1' AS JSON) AS j1, CAST('2' AS JSON) AS j2) t;
 
+--echo #
+--echo # Bug#22961128: WRONG RESULT WHEN MANIPULATING RESULT OF JSON_MERGE
+--echo #
+SELECT JSON_SET(JSON_ARRAY(JSON_MERGE_PRESERVE('{"a":1}', '{"a":2}')),
+                '$[0].a', 123);
+
+--echo #
+--echo # WL#9692: Deprecate the JSON_MERGE function
+--echo #
+--echo # Expect a deprecation warning.
+SELECT JSON_MERGE('{}', '{}');
+--echo # Expect a deprecation warning when creating the view.
+CREATE VIEW v AS SELECT JSON_MERGE('{}', '{}') AS col;
+--echo # The view uses the non-deprecated variant of the function.
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;

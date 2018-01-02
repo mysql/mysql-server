@@ -664,6 +664,12 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint  temp_pool_slot=MY_BIT_NONE;
   uint fieldnr= 0;
   ulong reclength, string_total_length, distinct_key_length= 0;
+  /**
+    When true, enforces unique constraint (by adding a hidden hash_field and
+    creating a key over this field) when:
+    (1) unique key is too long or
+    (2) number of key parts in distinct key is too big.
+  */
   bool  using_unique_constraint= false;
   bool  use_packed_rows= false;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
@@ -1005,7 +1011,7 @@ update_hidden:
     /*
       Calculate length of distinct key. The goal is to decide what to use -
       key or unique constraint. As blobs force unique constraint on their
-      own, they aren't taken into account.
+      own due to their length, they aren't taken into account.
     */
     if (distinct && !using_unique_constraint && hidden_field_count <= 0 &&
         new_field)
