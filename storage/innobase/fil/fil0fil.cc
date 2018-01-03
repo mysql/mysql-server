@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11111,7 +11111,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 
 			/* Figure out the page size of the tablespace. If it's
 			a compressed tablespace. */
-			ifs.seekg(FSP_SPACE_FLAGS, ifs.beg);
+			ifs.seekg(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS, ifs.beg);
 
 			if ((ifs.rdstate() & std::ifstream::eofbit) != 0
 			    || (ifs.rdstate() & std::ifstream::failbit) != 0
