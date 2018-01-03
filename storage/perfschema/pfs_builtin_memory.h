@@ -38,7 +38,7 @@ typedef uint PFS_builtin_memory_key;
 struct PFS_builtin_memory_class
 {
   PFS_memory_class m_class;
-  PFS_memory_stat m_stat;
+  PFS_memory_shared_stat m_stat;
 
   inline void
   count_alloc(size_t size)

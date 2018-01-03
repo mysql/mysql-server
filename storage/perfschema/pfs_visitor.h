@@ -589,7 +589,7 @@ public:
   /** EVENT_NAME instrument index. */
   uint m_index;
   /** Statement statistic collected. */
-  PFS_memory_stat m_stat;
+  PFS_memory_safe_stat m_stat;
 };
 
 /**

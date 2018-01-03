@@ -91,15 +91,4 @@ PFS_connection_slice::reset_errors_stats()
   }
 }
 
-void
-PFS_connection_slice::rebase_memory_stats()
-{
-  PFS_memory_stat *stat = m_instr_class_memory_stats;
-  PFS_memory_stat *stat_last = stat + memory_class_max;
-  for (; stat < stat_last; stat++)
-  {
-    stat->reset();
-  }
-}
-
 /** @} */

@@ -887,7 +887,7 @@ pfs_show_status(handlerton *,
 
     case 165:
       name = "memory_summary_by_thread_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_safe_stat);
       break;
     case 166:
       name = "memory_summary_by_thread_by_event_name.row_count";
@@ -896,12 +896,12 @@ pfs_show_status(handlerton *,
     case 167:
       name = "memory_summary_by_thread_by_event_name.memory";
       size = global_thread_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_safe_stat);
       total_memory += size;
       break;
     case 168:
       name = "memory_summary_global_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 169:
       name = "memory_summary_global_by_event_name.row_count";
@@ -909,12 +909,12 @@ pfs_show_status(handlerton *,
       break;
     case 170:
       name = "memory_summary_global_by_event_name.memory";
-      size = memory_class_max * sizeof(PFS_memory_stat);
+      size = memory_class_max * sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 171:
       name = "memory_summary_by_account_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 172:
       name = "memory_summary_by_account_by_event_name.row_count";
@@ -923,12 +923,12 @@ pfs_show_status(handlerton *,
     case 173:
       name = "memory_summary_by_account_by_event_name.memory";
       size = global_account_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 174:
       name = "memory_summary_by_user_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 175:
       name = "memory_summary_by_user_by_event_name.row_count";
@@ -937,12 +937,12 @@ pfs_show_status(handlerton *,
     case 176:
       name = "memory_summary_by_user_by_event_name.memory";
       size = global_user_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 177:
       name = "memory_summary_by_host_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 178:
       name = "memory_summary_by_host_by_event_name.row_count";
@@ -951,7 +951,7 @@ pfs_show_status(handlerton *,
     case 179:
       name = "memory_summary_by_host_by_event_name.memory";
       size = global_host_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 180:

@@ -1176,39 +1176,220 @@ struct PFS_memory_stat_delta
   }
 };
 
-/**
-  Memory statistics.
-  Conceptually, the following statistics are maintained:
-  - CURRENT_COUNT_USED,
-  - LOW_COUNT_USED,
-  - HIGH_COUNT_USED
-  - CURRENT_SIZE_USED,
-  - LOW_SIZE_USED,
-  - HIGH_SIZE_USED
-  Now, the implementation keeps different counters,
-  which are easier (less overhead) to maintain while
-  collecting statistics.
-  Invariants are as follows:
-  CURRENT_COUNT_USED = @c m_alloc_count - @c m_free_count
-  LOW_COUNT_USED + @c m_free_count_capacity = CURRENT_COUNT_USED
-  CURRENT_COUNT_USED + @c m_alloc_count_capacity = HIGH_COUNT_USED
-  CURRENT_SIZE_USED = @c m_alloc_size - @c m_free_size
-  LOW_SIZE_USED + @c m_free_size_capacity = CURRENT_SIZE_USED
-  CURRENT_SIZE_USED + @c m_alloc_size_capacity = HIGH_SIZE_USED
-
-*/
-struct PFS_memory_stat
+template <typename F, typename T>
+void
+memory_partial_aggregate(F *from, T *stat)
 {
-  bool m_used;
-  size_t m_alloc_count;
-  size_t m_free_count;
-  size_t m_alloc_size;
-  size_t m_free_size;
+  if (!from->m_used)
+  {
+    return;
+  }
 
-  size_t m_alloc_count_capacity;
-  size_t m_free_count_capacity;
-  size_t m_alloc_size_capacity;
-  size_t m_free_size_capacity;
+  size_t base;
+
+  stat->m_used = true;
+
+  base = std::min<size_t>(from->m_alloc_count, from->m_free_count);
+  if (base != 0)
+  {
+    stat->m_alloc_count += base;
+    stat->m_free_count += base;
+    from->m_alloc_count -= base;
+    from->m_free_count -= base;
+  }
+
+  base = std::min<size_t>(from->m_alloc_size, from->m_free_size);
+  if (base != 0)
+  {
+    stat->m_alloc_size += base;
+    stat->m_free_size += base;
+    from->m_alloc_size -= base;
+    from->m_free_size -= base;
+  }
+
+  size_t tmp;
+
+  tmp = from->m_alloc_count_capacity;
+  if (tmp != 0)
+  {
+    stat->m_alloc_count_capacity += tmp;
+    from->m_alloc_count_capacity = 0;
+  }
+
+  tmp = from->m_free_count_capacity;
+  if (tmp != 0)
+  {
+    stat->m_free_count_capacity += tmp;
+    from->m_free_count_capacity = 0;
+  }
+
+  tmp = from->m_alloc_size_capacity;
+  if (tmp != 0)
+  {
+    stat->m_alloc_size_capacity += tmp;
+    from->m_alloc_size_capacity = 0;
+  }
+
+  tmp = from->m_free_size_capacity;
+  if (tmp != 0)
+  {
+    stat->m_free_size_capacity += tmp;
+    from->m_free_size_capacity = 0;
+  }
+}
+
+template <typename F, typename T>
+void
+memory_partial_aggregate(F *from, T *stat1, T *stat2)
+{
+  if (!from->m_used)
+  {
+    return;
+  }
+
+  size_t base;
+
+  stat1->m_used = true;
+  stat2->m_used = true;
+
+  base = std::min<size_t>(from->m_alloc_count, from->m_free_count);
+  if (base != 0)
+  {
+    stat1->m_alloc_count += base;
+    stat2->m_alloc_count += base;
+    stat1->m_free_count += base;
+    stat2->m_free_count += base;
+    from->m_alloc_count -= base;
+    from->m_free_count -= base;
+  }
+
+  base = std::min<size_t>(from->m_alloc_size, from->m_free_size);
+  if (base != 0)
+  {
+    stat1->m_alloc_size += base;
+    stat2->m_alloc_size += base;
+    stat1->m_free_size += base;
+    stat2->m_free_size += base;
+    from->m_alloc_size -= base;
+    from->m_free_size -= base;
+  }
+
+  size_t tmp;
+
+  tmp = from->m_alloc_count_capacity;
+  if (tmp != 0)
+  {
+    stat1->m_alloc_count_capacity += tmp;
+    stat2->m_alloc_count_capacity += tmp;
+    from->m_alloc_count_capacity = 0;
+  }
+
+  tmp = from->m_free_count_capacity;
+  if (tmp != 0)
+  {
+    stat1->m_free_count_capacity += tmp;
+    stat2->m_free_count_capacity += tmp;
+    from->m_free_count_capacity = 0;
+  }
+
+  tmp = from->m_alloc_size_capacity;
+  if (tmp != 0)
+  {
+    stat1->m_alloc_size_capacity += tmp;
+    stat2->m_alloc_size_capacity += tmp;
+    from->m_alloc_size_capacity = 0;
+  }
+
+  tmp = from->m_free_size_capacity;
+  if (tmp != 0)
+  {
+    stat1->m_free_size_capacity += tmp;
+    stat2->m_free_size_capacity += tmp;
+    from->m_free_size_capacity = 0;
+  }
+}
+
+template <typename F, typename T>
+void
+memory_full_aggregate(const F *from, T *stat)
+{
+  if (!from->m_used)
+  {
+    return;
+  }
+
+  stat->m_used = true;
+
+  stat->m_alloc_count += from->m_alloc_count;
+  stat->m_free_count += from->m_free_count;
+  stat->m_alloc_size += from->m_alloc_size;
+  stat->m_free_size += from->m_free_size;
+
+  stat->m_alloc_count_capacity += from->m_alloc_count_capacity;
+  stat->m_free_count_capacity += from->m_free_count_capacity;
+  stat->m_alloc_size_capacity += from->m_alloc_size_capacity;
+  stat->m_free_size_capacity += from->m_free_size_capacity;
+}
+
+template <typename F, typename T>
+void
+memory_full_aggregate(const F *from, T *stat1, T *stat2)
+{
+  if (!from->m_used)
+  {
+    return;
+  }
+
+  stat1->m_used = true;
+  stat2->m_used = true;
+
+  size_t tmp;
+
+  tmp = from->m_alloc_count;
+  stat1->m_alloc_count += tmp;
+  stat2->m_alloc_count += tmp;
+
+  tmp = from->m_free_count;
+  stat1->m_free_count += tmp;
+  stat2->m_free_count += tmp;
+
+  tmp = from->m_alloc_size;
+  stat1->m_alloc_size += tmp;
+  stat2->m_alloc_size += tmp;
+
+  tmp = from->m_free_size;
+  stat1->m_free_size += tmp;
+  stat2->m_free_size += tmp;
+
+  tmp = from->m_alloc_count_capacity;
+  stat1->m_alloc_count_capacity += tmp;
+  stat2->m_alloc_count_capacity += tmp;
+
+  tmp = from->m_free_count_capacity;
+  stat1->m_free_count_capacity += tmp;
+  stat2->m_free_count_capacity += tmp;
+
+  tmp = from->m_alloc_size_capacity;
+  stat1->m_alloc_size_capacity += tmp;
+  stat2->m_alloc_size_capacity += tmp;
+
+  tmp = from->m_free_size_capacity;
+  stat1->m_free_size_capacity += tmp;
+  stat2->m_free_size_capacity += tmp;
+}
+
+struct PFS_memory_shared_stat
+{
+  std::atomic<bool> m_used;
+  std::atomic<size_t> m_alloc_count;
+  std::atomic<size_t> m_free_count;
+  std::atomic<size_t> m_alloc_size;
+  std::atomic<size_t> m_free_size;
+
+  std::atomic<size_t> m_alloc_count_capacity;
+  std::atomic<size_t> m_free_count_capacity;
+  std::atomic<size_t> m_alloc_size_capacity;
+  std::atomic<size_t> m_free_size_capacity;
 
   inline void
   reset(void)
@@ -1249,148 +1430,6 @@ struct PFS_memory_stat
     m_free_size_capacity = 0;
   }
 
-  inline void
-  partial_aggregate_to(PFS_memory_stat *stat)
-  {
-    if (!m_used)
-    {
-      return;
-    }
-
-    size_t base;
-
-    stat->m_used = true;
-
-    base = std::min<size_t>(m_alloc_count, m_free_count);
-    if (base != 0)
-    {
-      stat->m_alloc_count += base;
-      stat->m_free_count += base;
-      m_alloc_count -= base;
-      m_free_count -= base;
-    }
-
-    base = std::min<size_t>(m_alloc_size, m_free_size);
-    if (base != 0)
-    {
-      stat->m_alloc_size += base;
-      stat->m_free_size += base;
-      m_alloc_size -= base;
-      m_free_size -= base;
-    }
-
-    stat->m_alloc_count_capacity += m_alloc_count_capacity;
-    stat->m_free_count_capacity += m_free_count_capacity;
-    stat->m_alloc_size_capacity += m_alloc_size_capacity;
-    stat->m_free_size_capacity += m_free_size_capacity;
-
-    m_alloc_count_capacity = 0;
-    m_free_count_capacity = 0;
-    m_alloc_size_capacity = 0;
-    m_free_size_capacity = 0;
-  }
-
-  inline void
-  full_aggregate_to(PFS_memory_stat *stat) const
-  {
-    if (!m_used)
-    {
-      return;
-    }
-
-    stat->m_used = true;
-
-    stat->m_alloc_count += m_alloc_count;
-    stat->m_free_count += m_free_count;
-    stat->m_alloc_size += m_alloc_size;
-    stat->m_free_size += m_free_size;
-
-    stat->m_alloc_count_capacity += m_alloc_count_capacity;
-    stat->m_free_count_capacity += m_free_count_capacity;
-    stat->m_alloc_size_capacity += m_alloc_size_capacity;
-    stat->m_free_size_capacity += m_free_size_capacity;
-  }
-
-  inline void
-  partial_aggregate_to(PFS_memory_stat *stat1, PFS_memory_stat *stat2)
-  {
-    if (!m_used)
-    {
-      return;
-    }
-
-    size_t base;
-
-    stat1->m_used = true;
-    stat2->m_used = true;
-
-    base = std::min<size_t>(m_alloc_count, m_free_count);
-    if (base != 0)
-    {
-      stat1->m_alloc_count += base;
-      stat2->m_alloc_count += base;
-      stat1->m_free_count += base;
-      stat2->m_free_count += base;
-      m_alloc_count -= base;
-      m_free_count -= base;
-    }
-
-    base = std::min<size_t>(m_alloc_size, m_free_size);
-    if (base != 0)
-    {
-      stat1->m_alloc_size += base;
-      stat2->m_alloc_size += base;
-      stat1->m_free_size += base;
-      stat2->m_free_size += base;
-      m_alloc_size -= base;
-      m_free_size -= base;
-    }
-
-    stat1->m_alloc_count_capacity += m_alloc_count_capacity;
-    stat2->m_alloc_count_capacity += m_alloc_count_capacity;
-    stat1->m_free_count_capacity += m_free_count_capacity;
-    stat2->m_free_count_capacity += m_free_count_capacity;
-    stat1->m_alloc_size_capacity += m_alloc_size_capacity;
-    stat2->m_alloc_size_capacity += m_alloc_size_capacity;
-    stat1->m_free_size_capacity += m_free_size_capacity;
-    stat2->m_free_size_capacity += m_free_size_capacity;
-
-    m_alloc_count_capacity = 0;
-    m_free_count_capacity = 0;
-    m_alloc_size_capacity = 0;
-    m_free_size_capacity = 0;
-  }
-
-  inline void
-  full_aggregate_to(PFS_memory_stat *stat1, PFS_memory_stat *stat2) const
-  {
-    if (!m_used)
-    {
-      return;
-    }
-
-    stat1->m_used = true;
-    stat2->m_used = true;
-
-    stat1->m_alloc_count += m_alloc_count;
-    stat2->m_alloc_count += m_alloc_count;
-    stat1->m_free_count += m_free_count;
-    stat2->m_free_count += m_free_count;
-    stat1->m_alloc_size += m_alloc_size;
-    stat2->m_alloc_size += m_alloc_size;
-    stat1->m_free_size += m_free_size;
-    stat2->m_free_size += m_free_size;
-
-    stat1->m_alloc_count_capacity += m_alloc_count_capacity;
-    stat2->m_alloc_count_capacity += m_alloc_count_capacity;
-    stat1->m_free_count_capacity += m_free_count_capacity;
-    stat2->m_free_count_capacity += m_free_count_capacity;
-    stat1->m_alloc_size_capacity += m_alloc_size_capacity;
-    stat2->m_alloc_size_capacity += m_alloc_size_capacity;
-    stat1->m_free_size_capacity += m_free_size_capacity;
-    stat2->m_free_size_capacity += m_free_size_capacity;
-  }
-
   void
   count_builtin_alloc(size_t size)
   {
@@ -1401,16 +1440,22 @@ struct PFS_memory_stat
     m_alloc_size += size;
     m_free_size_capacity += size;
 
-    if (m_alloc_count_capacity >= 1)
+    size_t old_value;
+
+    /* Optimistic */
+    old_value = m_alloc_count_capacity.fetch_sub(1);
+
+    /* Adjustment */
+    if (old_value <= 0)
     {
-      m_alloc_count_capacity--;
+      m_alloc_count_capacity++;
     }
 
-    if (m_alloc_size_capacity >= size)
-    {
-      m_alloc_size_capacity -= size;
-    }
-    else
+    /* Optimistic */
+    old_value = m_alloc_size_capacity.fetch_sub(size);
+
+    /* Adjustment */
+    if (old_value < size)
     {
       m_alloc_size_capacity = 0;
     }
@@ -1428,21 +1473,82 @@ struct PFS_memory_stat
     m_free_size += size;
     m_alloc_size_capacity += size;
 
-    if (m_free_count_capacity >= 1)
+    size_t old_value;
+
+    /* Optimistic */
+    old_value = m_free_count_capacity.fetch_sub(1);
+
+    /* Adjustment */
+    if (old_value <= 0)
     {
-      m_free_count_capacity--;
+      m_free_count_capacity++;
     }
 
-    if (m_free_size_capacity >= size)
-    {
-      m_free_size_capacity -= size;
-    }
-    else
+    /* Optimistic */
+    old_value = m_free_size_capacity.fetch_sub(size);
+
+    /* Adjustment */
+    if (old_value < size)
     {
       m_free_size_capacity = 0;
     }
 
     return;
+  }
+
+  inline void
+  count_global_alloc(size_t size)
+  {
+    count_builtin_alloc(size);
+  }
+
+  inline void
+  count_global_realloc(size_t old_size, size_t new_size)
+  {
+    if (old_size == new_size)
+    {
+      return;
+    }
+
+    size_t size_delta;
+    size_t old_value;
+
+    if (new_size > old_size)
+    {
+      /* Growing */
+      size_delta = new_size - old_size;
+      m_free_size_capacity += size_delta;
+
+      /* Optimistic */
+      old_value = m_alloc_size_capacity.fetch_sub(size_delta);
+
+      /* Adjustment */
+      if (old_value < size_delta)
+      {
+        m_alloc_size_capacity = 0;
+      }
+    }
+    else
+    {
+      /* Shrinking */
+      size_delta = old_size - new_size;
+      m_alloc_size_capacity += size_delta;
+
+      /* Optimistic */
+      old_value = m_free_size_capacity.fetch_sub(size_delta);
+
+      /* Adjustment */
+      if (old_value < size_delta)
+      {
+        m_free_size_capacity = 0;
+      }
+    }
+  }
+
+  inline void
+  count_global_free(size_t size)
+  {
+    count_builtin_free(size);
   }
 
   inline PFS_memory_stat_delta *
@@ -1654,6 +1760,213 @@ struct PFS_memory_stat
     delta_buffer->m_free_count_delta = remaining_free_count;
     delta_buffer->m_free_size_delta = remaining_free_size;
     return delta_buffer;
+  }
+};
+
+/**
+  Memory statistics.
+  Conceptually, the following statistics are maintained:
+  - CURRENT_COUNT_USED,
+  - LOW_COUNT_USED,
+  - HIGH_COUNT_USED
+  - CURRENT_SIZE_USED,
+  - LOW_SIZE_USED,
+  - HIGH_SIZE_USED
+  Now, the implementation keeps different counters,
+  which are easier (less overhead) to maintain while
+  collecting statistics.
+  Invariants are as follows:
+  CURRENT_COUNT_USED = @c m_alloc_count - @c m_free_count
+  LOW_COUNT_USED + @c m_free_count_capacity = CURRENT_COUNT_USED
+  CURRENT_COUNT_USED + @c m_alloc_count_capacity = HIGH_COUNT_USED
+  CURRENT_SIZE_USED = @c m_alloc_size - @c m_free_size
+  LOW_SIZE_USED + @c m_free_size_capacity = CURRENT_SIZE_USED
+  CURRENT_SIZE_USED + @c m_alloc_size_capacity = HIGH_SIZE_USED
+*/
+struct PFS_memory_safe_stat
+{
+  bool m_used;
+  size_t m_alloc_count;
+  size_t m_free_count;
+  size_t m_alloc_size;
+  size_t m_free_size;
+
+  size_t m_alloc_count_capacity;
+  size_t m_free_count_capacity;
+  size_t m_alloc_size_capacity;
+  size_t m_free_size_capacity;
+
+  inline void
+  reset(void)
+  {
+    m_used = false;
+    m_alloc_count = 0;
+    m_free_count = 0;
+    m_alloc_size = 0;
+    m_free_size = 0;
+
+    m_alloc_count_capacity = 0;
+    m_free_count_capacity = 0;
+    m_alloc_size_capacity = 0;
+    m_free_size_capacity = 0;
+  }
+
+  inline void
+  rebase(void)
+  {
+    if (!m_used)
+    {
+      return;
+    }
+
+    size_t base;
+
+    base = std::min<size_t>(m_alloc_count, m_free_count);
+    m_alloc_count -= base;
+    m_free_count -= base;
+
+    base = std::min<size_t>(m_alloc_size, m_free_size);
+    m_alloc_size -= base;
+    m_free_size -= base;
+
+    m_alloc_count_capacity = 0;
+    m_free_count_capacity = 0;
+    m_alloc_size_capacity = 0;
+    m_free_size_capacity = 0;
+  }
+
+  inline PFS_memory_stat_delta *
+  count_alloc(size_t size, PFS_memory_stat_delta *delta)
+  {
+    m_used = true;
+
+    m_alloc_count++;
+    m_free_count_capacity++;
+    m_alloc_size += size;
+    m_free_size_capacity += size;
+
+    if ((m_alloc_count_capacity >= 1) && (m_alloc_size_capacity >= size))
+    {
+      m_alloc_count_capacity--;
+      m_alloc_size_capacity -= size;
+      return NULL;
+    }
+
+    delta->reset();
+
+    if (m_alloc_count_capacity >= 1)
+    {
+      m_alloc_count_capacity--;
+    }
+    else
+    {
+      delta->m_alloc_count_delta = 1;
+    }
+
+    if (m_alloc_size_capacity >= size)
+    {
+      m_alloc_size_capacity -= size;
+    }
+    else
+    {
+      delta->m_alloc_size_delta = size - m_alloc_size_capacity;
+      m_alloc_size_capacity = 0;
+    }
+
+    return delta;
+  }
+
+  inline PFS_memory_stat_delta *
+  count_realloc(size_t old_size, size_t new_size, PFS_memory_stat_delta *delta)
+  {
+    m_used = true;
+
+    size_t size_delta = new_size - old_size;
+    m_alloc_count++;
+    m_alloc_size += new_size;
+    m_free_count++;
+    m_free_size += old_size;
+
+    if (new_size == old_size)
+    {
+      return NULL;
+    }
+
+    if (new_size > old_size)
+    {
+      /* Growing */
+      size_delta = new_size - old_size;
+      m_free_size_capacity += size_delta;
+
+      if (m_alloc_size_capacity >= size_delta)
+      {
+        m_alloc_size_capacity -= size_delta;
+        return NULL;
+      }
+
+      delta->reset();
+      delta->m_alloc_size_delta = size_delta - m_alloc_size_capacity;
+      m_alloc_size_capacity = 0;
+    }
+    else
+    {
+      /* Shrinking */
+      size_delta = old_size - new_size;
+      m_alloc_size_capacity += size_delta;
+
+      if (m_free_size_capacity >= size_delta)
+      {
+        m_free_size_capacity -= size_delta;
+        return NULL;
+      }
+
+      delta->reset();
+      delta->m_free_size_delta = size_delta - m_free_size_capacity;
+      m_free_size_capacity = 0;
+    }
+
+    return delta;
+  }
+
+  inline PFS_memory_stat_delta *
+  count_free(size_t size, PFS_memory_stat_delta *delta)
+  {
+    m_used = true;
+
+    m_free_count++;
+    m_alloc_count_capacity++;
+    m_free_size += size;
+    m_alloc_size_capacity += size;
+
+    if ((m_free_count_capacity >= 1) && (m_free_size_capacity >= size))
+    {
+      m_free_count_capacity--;
+      m_free_size_capacity -= size;
+      return NULL;
+    }
+
+    delta->reset();
+
+    if (m_free_count_capacity >= 1)
+    {
+      m_free_count_capacity--;
+    }
+    else
+    {
+      delta->m_free_count_delta = 1;
+    }
+
+    if (m_free_size_capacity >= size)
+    {
+      m_free_size_capacity -= size;
+    }
+    else
+    {
+      delta->m_free_size_delta = size - m_free_size_capacity;
+      m_free_size_capacity = 0;
+    }
+
+    return delta;
   }
 };
 

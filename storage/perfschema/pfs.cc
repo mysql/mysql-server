@@ -8209,11 +8209,7 @@ pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
     return PSI_NOT_INSTRUMENTED;
   }
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
 
   if (flag_thread_instrumentation && !klass->is_global())
   {
@@ -8228,6 +8224,11 @@ pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
       *owner_thread = NULL;
       return PSI_NOT_INSTRUMENTED;
     }
+
+    PFS_memory_safe_stat *event_name_array;
+    PFS_memory_safe_stat *stat;
+    PFS_memory_stat_delta delta_buffer;
+    PFS_memory_stat_delta *delta;
 
     /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     event_name_array = pfs_thread->write_instr_class_memory_stats();
@@ -8244,10 +8245,13 @@ pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
   }
   else
   {
+    PFS_memory_shared_stat *event_name_array;
+    PFS_memory_shared_stat *stat;
+
     /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
     event_name_array = global_instr_class_memory_array;
     stat = &event_name_array[index];
-    (void)stat->count_alloc(size, &delta_buffer);
+    stat->count_global_alloc(size);
 
     *owner_thread = NULL;
   }
@@ -8271,8 +8275,6 @@ pfs_memory_realloc_v1(PSI_memory_key key,
     return PSI_NOT_INSTRUMENTED;
   }
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
@@ -8294,6 +8296,9 @@ pfs_memory_realloc_v1(PSI_memory_key key,
         }
       }
 #endif /* PFS_PARANOID */
+
+      PFS_memory_safe_stat *event_name_array;
+      PFS_memory_safe_stat *stat;
 
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
       event_name_array = pfs_thread->write_instr_class_memory_stats();
@@ -8319,17 +8324,20 @@ pfs_memory_realloc_v1(PSI_memory_key key,
     }
   }
 
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
+
   /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
   event_name_array = global_instr_class_memory_array;
   stat = &event_name_array[index];
 
   if (flag_global_instrumentation && klass->m_enabled)
   {
-    (void)stat->count_realloc(old_size, new_size, &delta_buffer);
+    stat->count_global_realloc(old_size, new_size);
   }
   else
   {
-    (void)stat->count_free(old_size, &delta_buffer);
+    stat->count_global_free(old_size);
     key = PSI_NOT_INSTRUMENTED;
   }
 
@@ -8357,8 +8365,6 @@ pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
     the corresponding free must be instrumented.
   */
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
@@ -8367,6 +8373,9 @@ pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
   {
     PFS_thread *old_thread = sanitize_thread(*owner_thread);
     PFS_thread *new_thread = my_thread_get_THR_PFS();
+    PFS_memory_safe_stat *event_name_array;
+    PFS_memory_safe_stat *stat;
+
     if (old_thread != new_thread)
     {
       if (old_thread != NULL)
@@ -8421,8 +8430,6 @@ pfs_memory_free_v1(PSI_memory_key key,
     the corresponding free must be instrumented.
   */
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
@@ -8452,6 +8459,8 @@ pfs_memory_free_v1(PSI_memory_key key,
         the corresponding free must be instrumented.
       */
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      PFS_memory_safe_stat *event_name_array;
+      PFS_memory_safe_stat *stat;
       event_name_array = pfs_thread->write_instr_class_memory_stats();
       stat = &event_name_array[index];
       delta = stat->count_free(size, &delta_buffer);
@@ -8464,6 +8473,8 @@ pfs_memory_free_v1(PSI_memory_key key,
     }
   }
 
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
   /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
   event_name_array = global_instr_class_memory_array;
   if (event_name_array)

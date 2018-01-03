@@ -41,6 +41,7 @@
 
 struct PFS_global_param;
 struct PFS_memory_stat_delta;
+struct PFS_memory_shared_stat;
 struct PFS_thread;
 
 /**
@@ -99,7 +100,38 @@ public:
   void aggregate_stats(void);
   void release(void);
 
+  /** Reset all memory statistics. */
+  void rebase_memory_stats();
+
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
+
+  void
+  set_instr_class_memory_stats(PFS_memory_shared_stat *array)
+  {
+    m_has_memory_stats = false;
+    m_instr_class_memory_stats = array;
+  }
+
+  const PFS_memory_shared_stat *
+  read_instr_class_memory_stats() const
+  {
+    if (!m_has_memory_stats)
+    {
+      return NULL;
+    }
+    return m_instr_class_memory_stats;
+  }
+
+  PFS_memory_shared_stat *
+  write_instr_class_memory_stats()
+  {
+    if (!m_has_memory_stats)
+    {
+      rebase_memory_stats();
+      m_has_memory_stats = true;
+    }
+    return m_instr_class_memory_stats;
+  }
 
   /* Internal lock. */
   pfs_lock m_lock;
@@ -111,6 +143,14 @@ public:
 
 private:
   std::atomic<int> m_refcount;
+
+  /**
+    Per host memory aggregated statistics.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME.
+    Immutable, safe to use without internal lock.
+  */
+  PFS_memory_shared_stat *m_instr_class_memory_stats;
 };
 
 int init_host(const PFS_global_param *param);
