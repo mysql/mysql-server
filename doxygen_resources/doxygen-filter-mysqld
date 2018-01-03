@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/perl
+# -*- cperl -*-
 
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +33,34 @@
 # - the PB2 branch name ${BRANCH_NAME} if any, or the current git branch
 # - the PB2 revision ${PUSH_REVISION} if any, or the current git revision
 
-CMD1="s/\\\${DOXYGEN_GENERATION_DATE}/"`date -I`"/g"
-CMD2="s/\\\${DOXYGEN_GENERATION_BRANCH}/"${BRANCH_NAME:="$(git rev-parse --abbrev-ref HEAD)"}"/g"
-CMD3="s/\\\${DOXYGEN_GENERATION_REVISION}/"${PUSH_REVISION:="$(git log -1 --format=%H)"}"/g"
+use strict;
+use warnings;
 
-sed -e ${CMD1} -e ${CMD2} -e ${CMD3} $1
+my $line;
+my $gen_date;
+my $gen_branch;
+my $gen_revision;
+
+$gen_date = `date -I`;
+chomp ($gen_date);
+
+$gen_branch = $ENV{BRANCH_NAME};
+if (! defined $gen_branch) {
+  $gen_branch = `git rev-parse --abbrev-ref HEAD`;
+}
+chomp ($gen_branch);
+
+$gen_revision = $ENV{BRANCH_REVISION};
+if (! defined $gen_revision) {
+  $gen_revision = `git log -1 --format=%H`;
+}
+chomp ($gen_revision);
+
+while (<>) {
+  $line = $_;
+  $line =~ s/\${DOXYGEN_GENERATION_DATE}/$gen_date/g;
+  $line =~ s/\${DOXYGEN_GENERATION_BRANCH}/$gen_branch/g;
+  $line =~ s/\${DOXYGEN_GENERATION_REVISION}/$gen_revision/g;
+  print $line;
+}
 
