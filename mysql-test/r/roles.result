@@ -1083,6 +1083,33 @@ NONE
 SET ROLE DEFAULT;
 DROP ROLE r1,r2;
 DROP USER u1@localhost;
++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ Rename the AuthId after it has been released from
+++ the Role Graph after revoking it  from the user
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+RENAME USER role_usr_test to role_usr;
+ERROR HY000: Renaming of a role identifier is forbidden
+REVOKE role_usr_test from usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER usr, role_usr;
++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ Rename the AuthId after it has been released from
+++ the Role Graph after the user has been dropped.
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+RENAME USER role_usr_test to role_usr;
+ERROR HY000: Renaming of a role identifier is forbidden
+DROP USER usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER role_usr;
+++++++++++++++++++++++++++++++++++
+++ Additional RENAME user tests
+++++++++++++++++++++++++++++++++++
 DROP USER IF EXISTS u5, u2, u1, r1,r2, r3;
 Warnings:
 Note	3162	Authorization ID 'u5'@'%' does not exist.

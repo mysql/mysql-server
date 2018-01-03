@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -262,6 +262,7 @@ void get_granted_roles(Role_vertex_descriptor &v,
   @param authid_role The role which should be revoked
   @param authid_user The user who will get its role revoked
   @param [out] user_vert The vertex descriptor of the user
+  @param [out] role_vert The vertex descriptor of the role
 
   @return Success state
     @retval true No such user
@@ -270,12 +271,12 @@ void get_granted_roles(Role_vertex_descriptor &v,
 
 bool revoke_role_helper(THD *thd, std::string &authid_role,
                         std::string &authid_user,
-                        Role_vertex_descriptor *user_vert)
+                        Role_vertex_descriptor *user_vert,
+                        Role_vertex_descriptor *role_vert)
 {
   DBUG_ENTER("revoke_role_helper");
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
 
-  Role_vertex_descriptor role_vert;
   Role_index_map::iterator it= g_authid_to_vertex->find(authid_user);
   if (it == g_authid_to_vertex->end())
   {
@@ -292,9 +293,31 @@ bool revoke_role_helper(THD *thd, std::string &authid_role,
     DBUG_RETURN(true);
   }
   else
-    role_vert= it->second;
-  boost::remove_edge(*user_vert, role_vert, *g_granted_roles);
+    *role_vert= it->second;
+
+  boost::remove_edge(*user_vert, *role_vert, *g_granted_roles);
+
   DBUG_RETURN(false);
+}
+
+/**
+  This utility function checks for the connecting vertices of the role
+  descriptor(authid node) and updates the role flag of the corresponding
+  ACL user. If there are no edges connected to this authid node then this
+  is not a role id anymore. It assumes that acl user and role descriptor
+  are, valid and passed correctly.
+
+  @param [in] role_vert The role vertex descriptor
+  @param [in,out] acl_user The acl role
+
+*/
+void update_role_flag_of_acl_user(const Role_vertex_descriptor& role_vert,
+                                  ACL_USER* acl_user)
+{
+  Role_adjacency_iterator vert_it, vert_end;
+  boost::tie(vert_it, vert_end)=
+    boost::adjacent_vertices(role_vert, *g_granted_roles);
+  acl_user->is_role= (vert_it != vert_end);
 }
 
 /**
@@ -311,19 +334,12 @@ void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user)
   std::string authid_role= create_authid_str_from(role);
   std::string authid_user= create_authid_str_from(user);
   Role_vertex_descriptor user_vert;
-  if (revoke_role_helper(thd, authid_role, authid_user, &user_vert))
+  Role_vertex_descriptor role_vert;
+  if (!revoke_role_helper(thd, authid_role, authid_user,
+                          &user_vert, &role_vert))
   {
-    // No such role yet.
-    return;
+    update_role_flag_of_acl_user(role_vert, role);
   }
-  /*
-   If there are no edges connected to this authid node then this is not
-   a role id anymore.
-  */
-  Role_adjacency_iterator vert_it, vert_end;
-  boost::tie(vert_it, vert_end)
-    = boost::adjacent_vertices(user_vert, *g_granted_roles);
-  role->is_role= (vert_it == vert_end);
 }
 
 
@@ -398,6 +414,19 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
                                           false, true);
         error|= modify_role_edges_in_table(thd, edge_table, to_user, from_user,
                                           false, true);
+      }
+      /*
+        if the role authid does not has any connecting edges then update
+        the role flag of corresponding ACL role.
+      */
+      Role_index_map::iterator role_it=
+        g_authid_to_vertex->find(from_user_str);
+      if (role_it != g_authid_to_vertex->end())
+      {
+          ACL_USER *acl_role= find_acl_user(from_acl_user.host.get_host(),
+                                            from_acl_user.user, true);
+          DBUG_ASSERT(acl_role != nullptr);
+          update_role_flag_of_acl_user(role_it->second, acl_role);
       }
     }
 
@@ -486,6 +515,7 @@ bool revoke_all_granted_roles(THD *thd, TABLE *table, LEX_USER *user_from,
 
   get_granted_roles(it->second, granted_roles);
   Role_vertex_descriptor user_vert;
+  Role_vertex_descriptor role_vert;
   bool errors= false;
   for( auto&& ref : *granted_roles)
   {
@@ -498,7 +528,19 @@ bool revoke_all_granted_roles(THD *thd, TABLE *table, LEX_USER *user_from,
                                        ref.second, true);
     if(errors)
       break;
-    revoke_role_helper(thd, role_id_str, user_from_str, &user_vert);
+    /*
+      If the role is revoked then update the flag in the
+      corresponding ACL authid.
+    */
+    if (!revoke_role_helper(thd, role_id_str, user_from_str,
+                            &user_vert, &role_vert))
+    {
+      ACL_USER *acl_role= find_acl_user(ref.first.host().c_str(),
+                                        ref.first.user().c_str(),
+                                        ref.second);
+      DBUG_ASSERT(acl_role != nullptr);
+      update_role_flag_of_acl_user(role_vert, acl_role);
+    }
   }
   DBUG_RETURN(errors);
 }
