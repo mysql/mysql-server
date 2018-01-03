@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -30,7 +30,6 @@
 
 #include "ngs_common/xdatetime.h"
 #include "mysqlx_protocol.h"
-#include "mysqlx_common.h"
 
 
 namespace Mysqlx
@@ -61,7 +60,7 @@ namespace mysqlx
     DECIMAL
   };
 
-  struct MYSQLXTEST_PUBLIC ColumnMetadata
+  struct ColumnMetadata
   {
     FieldType type;
     std::string name;
@@ -83,7 +82,7 @@ namespace mysqlx
     uint32_t content_type;
   };
 
-  class MYSQLXTEST_PUBLIC Row
+  class Row
   {
   public:
     ~Row();
@@ -117,7 +116,7 @@ namespace mysqlx
     Mysqlx::Resultset::Row *m_data;
   };
 
-  class MYSQLXTEST_PUBLIC ResultData
+  class ResultData
   {
   public:
     ResultData(ngs::shared_ptr<std::vector<ColumnMetadata> > columns);
@@ -133,7 +132,7 @@ namespace mysqlx
     size_t m_row_index;
   };
 
-  class MYSQLXTEST_PUBLIC Result
+  class Result
   {
   public:
     ~Result();

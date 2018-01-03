@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -45,7 +45,6 @@
 
 #include "ngs_common/protocol_protobuf.h"
 #include "mysqlx_connection.h"
-#include "mysqlx_common.h"
 
 
 namespace mysqlx
@@ -223,7 +222,7 @@ namespace mysqlx
     IPv6,
   };
 
-  class MYSQLXTEST_PUBLIC XProtocol : public ngs::enable_shared_from_this<XProtocol>
+  class XProtocol : public ngs::enable_shared_from_this<XProtocol>
   {
   public:
     XProtocol(const Ssl_config &ssl_config, const std::size_t timeout, const bool dont_wait_for_disconnect = true, const Internet_protocol ip_mode = IPv4);
