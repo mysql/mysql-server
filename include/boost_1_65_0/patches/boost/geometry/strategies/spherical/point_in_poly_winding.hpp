@@ -4,7 +4,7 @@
 // Copyright (c) 2013 Adam Wulkiewicz, Lodz, Poland.
 
 // This file was modified by Oracle on 2013, 2014, 2016, 2017.
-// Modifications copyright (c) 2013-2017 Oracle and/or its affiliates.
+// Modifications copyright (c) 2013, 2017, Oracle and/or its affiliates.
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
 // Parts of Boost.Geometry are redesigned from Geodan's Geographic Library
