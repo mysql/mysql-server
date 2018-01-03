@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -2033,15 +2033,22 @@ sub set_build_thread_ports($) {
 
   if ( lc($opt_build_thread) eq 'auto' )
   {
-    my $found_free = 0;
-    # Start attempts from here
-    $build_thread = 300;
-
+    # Start searching for build thread ids from here
+    $build_thread= 300;
     my $max_parallel= $opt_parallel * $build_threads_per_thread;
-    my $build_thread_upper = $build_thread + ($max_parallel > 39
-                             ? $max_parallel + int($max_parallel / 2)
-                             : 49);
 
+    # Calucalte the upper limit value for build thread id
+    my $build_thread_upper= $max_parallel > 39 ?
+                            $max_parallel + int($max_parallel / 2) : 49;
+
+    # Check the number of available processors and accordingly set
+    # the upper limit value for the build thread id.
+    $build_thread_upper= $build_thread +
+                         ($ENV{NUMBER_OF_CPUS} > $build_thread_upper ?
+                          $ENV{NUMBER_OF_CPUS} + int($ENV{NUMBER_OF_CPUS} / 2) :
+                          $build_thread_upper);
+
+    my $found_free= 0;
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
