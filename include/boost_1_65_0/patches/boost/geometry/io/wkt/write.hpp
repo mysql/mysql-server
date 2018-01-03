@@ -6,7 +6,7 @@
 // Copyright (c) 2014-2017 Adam Wulkiewicz, Lodz, Poland.
 
 // This file was modified by Oracle on 2015.
-// Modifications copyright (c) 2015-2017, Oracle and/or its affiliates.
+// Modifications copyright (c) 2015, 2017, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Menelaos Karavelas, on behalf of Oracle
 
