@@ -844,9 +844,43 @@ connection default;
 DROP ROLE r1,r2;
 DROP USER u1@localhost;
 
-#
-# Additional RENAME user tests
-#
+--echo +++++++++++++++++++++++++++++++++++++++++++++++++++++
+--echo ++ Rename the AuthId after it has been released from
+--echo ++ the Role Graph after revoking it  from the user
+--echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+
+# Throw error as role_usr_test is in role graph
+--error ER_RENAME_ROLE
+RENAME USER role_usr_test to role_usr;
+
+REVOKE role_usr_test from usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER usr, role_usr;
+
+--echo +++++++++++++++++++++++++++++++++++++++++++++++++++++
+--echo ++ Rename the AuthId after it has been released from
+--echo ++ the Role Graph after the user has been dropped.
+--echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+
+# Throw error as role_usr_test is in role graph
+--error ER_RENAME_ROLE
+RENAME USER role_usr_test to role_usr;
+
+DROP USER usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER role_usr;
+
+--echo ++++++++++++++++++++++++++++++++++
+--echo ++ Additional RENAME user tests
+--echo ++++++++++++++++++++++++++++++++++
 DROP USER IF EXISTS u5, u2, u1, r1,r2, r3;
 CREATE USER u5;
 CREATE ROLE r1,r2,r3;
