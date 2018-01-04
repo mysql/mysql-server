@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7755,7 +7755,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
     if (!vfield->stored_in_db &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
-      if (vfield->type() == MYSQL_TYPE_BLOB)
+      if ((vfield->flags & BLOB_FLAG) != 0)
       {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
         (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
@@ -7829,11 +7829,11 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
     if (bitmap_is_set(bitmap, vfield->field_index))
     {
       /*
-        For a virtual generated column of blob type, we have to keep
+        For a virtual generated column based on the blob type, we have to keep
         the current blob value since this might be needed by the
         storage engine during updates.
       */
-      if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+      if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol())
       {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
         (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
