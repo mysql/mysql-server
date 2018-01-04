@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,9 @@ Files::Files()
   m_target_def.add_field(FIELD_VERSION, "VERSION",
                          "INTERNAL_TABLESPACE_VERSION(ts.name,"
                          "tsf.file_name, ts.engine, ts.se_private_data)");
-  m_target_def.add_field(FIELD_ROW_FORMAT, "ROW_FORMAT", "NULL");
+  m_target_def.add_field(FIELD_ROW_FORMAT, "ROW_FORMAT",
+                         "INTERNAL_TABLESPACE_ROW_FORMAT(ts.name,"
+                         "tsf.file_name, ts.engine, ts.se_private_data)");
   m_target_def.add_field(FIELD_TABLE_ROWS, "TABLE_ROWS", "NULL");
   m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH", "NULL");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH", "NULL");

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5292,6 +5292,33 @@ String *Item_func_internal_tablespace_status::val_str(String *str)
                 dd::info_schema::enum_tablespace_stats_type::TS_STATUS,
                 &result);
     str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
+String *Item_func_internal_tablespace_row_format::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_row_format::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+      dd::info_schema::enum_tablespace_stats_type::TS_ROW_FORMAT,
+      &result);
+   if (result.length())
+     str->copy(result.c_str(), result.length(), system_charset_info);
+   else
+   {
+     null_value= true;
+     DBUG_RETURN(nullptr);
+   }
 
     DBUG_RETURN(str);
   }

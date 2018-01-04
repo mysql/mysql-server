@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1572,8 +1572,8 @@ public:
 class Item_func_internal_tablespace_logfile_group_name : public Item_str_func
 {
 public:
-  Item_func_internal_tablespace_logfile_group_name(const POS &pos, Item *a, Item *b,
-                                          Item *c, Item *d)
+  Item_func_internal_tablespace_logfile_group_name(const POS &pos, Item *a,
+                                                   Item *b, Item *c, Item *d)
     :Item_str_func(pos, a, b, c, d)
   {}
 
@@ -1618,6 +1618,33 @@ public:
 
   const char *func_name() const override
   { return "internal_tablespace_status"; }
+  String *val_str(String *) override;
+};
+
+
+class Item_func_internal_tablespace_row_format : public Item_str_func
+{
+public:
+  Item_func_internal_tablespace_row_format(const POS &pos, Item *a, Item *b,
+                                           Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, system_charset_info);
+    maybe_null= 1;
+    null_on_null= false;
+
+    return false;
+  }
+
+  const char *func_name() const override
+  { return "internal_tablespace_row_format"; }
+
   String *val_str(String *) override;
 };
 
