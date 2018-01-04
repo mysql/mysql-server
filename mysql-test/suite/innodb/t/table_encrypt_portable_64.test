@@ -5,7 +5,7 @@
 # For update the table_encrypted_32.zip, you have to run the test case table_encrypt_portable_32 in
 # record mode.
 
---source include/have_innodb_max_16k.inc
+--source include/have_innodb_16k.inc
 --source include/have_debug.inc
 --source include/have_64bit.inc
 --source include/not_windows.inc
