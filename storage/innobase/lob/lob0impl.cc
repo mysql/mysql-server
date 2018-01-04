@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -647,15 +647,32 @@ z_frag_page_t::alloc_fragment(
 
 		ut_d(visited_big_frag = true;);
 
-		if (payload == size) {
+		bool exact_fit = false;
 
-			/* this is the requested fragment. */
-			free_lst.remove(cur);
-			insert_into_frag_list(frag);
+		if (is_last_frag(frag)) {
+			/* This fragment gives space for the directory
+			entry. */
+			ulint extra = frag_node_t::SIZE_OF_PAGE_DIR_ENTRY;
+			if (payload == (size + extra)) {
+				exact_fit = true;
+			}
+		} else {
+			/* This fragment does not give space for the
+			directory entry. */
+			if (payload == size) {
+				exact_fit = true;
+			}
+		}
+
+		if (exact_fit) {
 
 			/* Allocate the fragment id. */
 			ulint frag_id = alloc_frag_id();
 			ut_ad(frag_id != FRAG_ID_NULL);
+
+			/* this is the requested fragment. */
+			free_lst.remove(cur);
+			insert_into_frag_list(frag);
 
 			frag.set_frag_id(frag_id);
 			set_nth_dir_entry(frag_id, frag.addr());

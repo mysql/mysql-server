@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -292,6 +292,14 @@ public:
 	byte* get_frame() const
 	{
 		return(m_frame);
+	}
+
+	bool is_equal(const plist_node_t& that) const
+	{
+		if (m_node == nullptr || that.m_node == nullptr) {
+			return(false);
+		}
+		return(m_node == that.m_node);
 	}
 
 private:
@@ -1409,8 +1417,8 @@ z_print_info(
 	std::ostream&		out);
 
 /** The fragment node represents one fragment. */
-struct frag_node_t {
-
+struct frag_node_t
+{
 	/** The offset where the length of fragment is stored.  The length
 	includes both the payload and the meta data overhead. */
 	static const ulint OFFSET_LEN = plist_node_t::SIZE;
@@ -1450,11 +1458,17 @@ struct frag_node_t {
 
 	/** Amount of space that will be used up by meta data. When a free
 	space is taken from the fragment page to be used as a fragment
-	node, header and footer will be the overhead. Footer is the page
-	dir entry.*/
+	node, header and footer will be the overhead. Footer is the page dir
+	entry. The page dir entry may not be contiguous with the fragment.*/
 	static ulint overhead()
 	{
 		return(SIZE_OF_PAGE_DIR_ENTRY + OFFSET_DATA);
+	}
+
+	/** Only the header size. Don't include the page dir entry size here.*/
+	static ulint header_size()
+	{
+		return(OFFSET_DATA);
 	}
 
 	/** Constructor.
@@ -1544,7 +1558,7 @@ struct frag_node_t {
 	/** Get the space available in this fragment for storing data. */
 	ulint payload() const
 	{
-		return(get_total_len() - overhead());
+		return(get_total_len() - header_size());
 	}
 
 	/** Get the total length of this fragment, including its metadata. */
@@ -1654,6 +1668,16 @@ struct frag_node_t {
 	bool is_null() const
 	{
 		return(m_node.is_null());
+	}
+
+	bool is_equal(const frag_node_t& that) const
+	{
+		return(m_node.is_equal(that.m_node));
+	}
+
+	bool is_equal(const plist_node_t& node) const
+	{
+		return(m_node.is_equal(node));
 	}
 
 	/** The page list node. */
@@ -2074,12 +2098,15 @@ struct z_frag_page_t
 		const ulint old_total_len = free_frag.get_total_len();
 		plist_base_node_t free_lst = free_list();
 
-		byte* p1 = free_frag.ptr();
-		byte* p2 = p1 + size + frag_node_t::overhead();
+		/* Locate the next fragment */
+		byte* p2 = free_frag.data_begin() + size;
+
 		ulint remain = free_frag.get_total_len()
-			- frag_node_t::overhead() - size;
+			- frag_node_t::header_size() - size;
+
 		ut_a(remain >= frag_node_t::OFFSET_DATA);
-		free_frag.set_total_len(frag_node_t::overhead() + size);
+
+		free_frag.set_total_len(frag_node_t::header_size() + size);
 
 		frag_node_t frag2(frame(), p2, remain, m_mtr);
 		frag2.set_total_len(remain);
@@ -2282,6 +2309,14 @@ struct z_frag_page_t
 	void set_block_null()
 	{
 		m_block = nullptr;
+	}
+
+	/** Determine if the given fragment node is the last fragment
+	node adjacent to the directory.
+	@return true if it is last fragment node, false otherwise. */
+	bool is_last_frag(frag_node_t& node) const
+	{
+		return(node.end_ptr() == slots_end_ptr());
 	}
 
 private:
