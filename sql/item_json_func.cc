@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3536,7 +3536,25 @@ String *Item_func_json_quote::val_str(String *str)
       depends on whether or not ensure_utf8mb4() needed to do charset
       conversion. Make res point to the available buffer.
     */
-    res= (str->ptr() == safep) ? &m_value : str;
+    if (safep == m_value.ptr())
+    {
+      /*
+        ensure_utf8mb4() converted the input string to utf8mb4 by
+        copying it into m_value. str is now available for reuse as
+        result buffer.
+      */
+      res= str;
+    }
+    else
+    {
+      /*
+        Conversion to utf8mb4 was not needed, so ensure_utf8mb4() did
+        not touch the m_value buffer, and the input string still lives
+        in res. Use m_value as result buffer.
+      */
+      DBUG_ASSERT(safep == res->ptr());
+      res= &m_value;
+    }
 
     res->length(0);
     res->set_charset(&my_charset_utf8mb4_bin);
