@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -577,6 +577,13 @@ dict_foreign_base_for_stored(
 		dict_s_col_t	s_col = *it;
 
 		for (ulint j = 0; j < s_col.num_base; j++) {
+			/** If the stored column can refer to virtual column
+			or stored column then it can points to NULL. */
+
+			if (s_col.base_col[j] == NULL) {
+				continue;
+			}
+
 			if (strcmp(col_name,
 				   table->get_col_name(s_col.base_col[j]->ind))
 			    == 0) {
