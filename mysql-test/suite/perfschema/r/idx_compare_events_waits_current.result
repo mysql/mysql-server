@@ -48,6 +48,8 @@ CALL SampleProc1();
 ## Use Connection 2 for default target thread id
 
 ## Create index_test() procedure
+update performance_schema.setup_consumers
+set enabled = 'NO' where name = 'global_instumentation';
 
 ===== BEGIN TEST =====
 ========
@@ -162,6 +164,8 @@ OK: Handler_read_key
 OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
+update performance_schema.setup_consumers
+set enabled = 'YES' where name = 'global_instumentation';
 
 ===== CLEAN UP =====
 ## Default connection
