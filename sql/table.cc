@@ -1669,7 +1669,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     }
     share->table_charset= default_charset_info;
   }
-  share->db_record_offset= 1;
   /* Set temporarily a good value for db_low_byte_first */
   share->db_low_byte_first= (legacy_db_type != DB_TYPE_ISAM);
   error=4;

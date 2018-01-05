@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1285,9 +1285,8 @@ end:
 
 
 /*
-  Thanks to the table flag HA_REC_NOT_IN_SEQ this will be called after
-  each call to ha_archive::rnd_next() if an ordering of the rows is
-  needed.
+  This will be called after each call to ha_archive::rnd_next() if an ordering
+  of the rows is needed.
 */
 
 void ha_archive::position(const uchar*)

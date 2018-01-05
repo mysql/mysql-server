@@ -99,7 +99,7 @@ public:
       calls ::rnd_pos(), so it is guaranteed to return only thread <n>
       records.
     */
-    return HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
+    return HA_NO_TRANSACTIONS | HA_NO_AUTO_INCREMENT |
            HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | HA_NULL_IN_KEY |
            HA_NULL_PART_KEY;
   }

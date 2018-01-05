@@ -3090,8 +3090,7 @@ ha_innobase::ha_innobase(
 	m_ds_mrr(this),
 	m_prebuilt(),
 	m_user_thd(),
-	m_int_table_flags(HA_REC_NOT_IN_SEQ
-			  | HA_NULL_IN_KEY
+	m_int_table_flags(HA_NULL_IN_KEY
 			  | HA_CAN_INDEX_BLOBS
 			  | HA_CAN_SQL_HANDLER
 			  | HA_PRIMARY_KEY_REQUIRED_FOR_POSITION

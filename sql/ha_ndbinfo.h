@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,7 @@ public:
 
   const char *table_type() const override { return "NDBINFO"; }
   ulonglong table_flags() const override {
-    return HA_REC_NOT_IN_SEQ | HA_NO_TRANSACTIONS |
-           HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
+    return HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
   }
   ulong index_flags(uint, uint, bool) const override {
     return 0;

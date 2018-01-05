@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1758,7 +1758,6 @@ update_hidden:
 
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
-  share->db_record_offset= 1;
 
   set_real_row_type(table);
 
@@ -2022,7 +2021,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   if (thd->is_fatal_error)				// If end of memory
     goto err;
-  share->db_record_offset= 1;
 
   set_real_row_type(table);
 
@@ -2496,7 +2494,6 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     goto err;
   }
   table->in_use->inc_status_created_tmp_disk_tables();
-  share->db_record_offset= 1;
   DBUG_RETURN(0);
  err:
   DBUG_RETURN(1);
@@ -2576,7 +2573,6 @@ static bool create_tmp_table_with_fallback(TABLE *table)
     if (table->s->db_type() != temptable_hton) {
       table->in_use->inc_status_created_tmp_disk_tables();
     }
-    share->db_record_offset= 1;
     DBUG_RETURN(false);
   }
 }
