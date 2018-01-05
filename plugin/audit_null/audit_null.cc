@@ -108,6 +108,11 @@ LEX_CSTRING event_names[][6] = {
 static volatile int number_of_calls;
 
 /*
+  Plugin has been installed.
+*/
+static bool g_plugin_installed= false;
+
+/*
   Record buffer mutex.
 */
 static mysql_mutex_t g_record_buffer_mutex;
@@ -210,6 +215,7 @@ static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused)))
                    MY_MUTEX_INIT_FAST);
 
   g_record_buffer= NULL;
+  g_plugin_installed= true;
 
   return(0);
 }
@@ -230,11 +236,16 @@ static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 
 static int audit_null_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
-  my_free((void *)(g_record_buffer));
+  if (g_plugin_installed == true)
+  {
+    my_free((void *)(g_record_buffer));
 
-  g_record_buffer= NULL;
+    g_record_buffer= NULL;
 
-  mysql_mutex_destroy(&g_record_buffer_mutex);
+    mysql_mutex_destroy(&g_record_buffer_mutex);
+
+    g_plugin_installed= false;
+  }
 
   return(0);
 }
