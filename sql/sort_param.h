@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,9 @@
 #include "my_inttypes.h"
 #include "my_io.h"            // mysql_com.h needs my_socket
 #include "mysql_com.h"        // Item_result
+#include "sql_string.h"
 #include "sql/sql_array.h"    // Bounds_checked_array
+#include "sql/sql_const.h"
 #include "sql/sql_sort.h"     // Filesort_info
 #include "sql/thr_malloc.h"
 
@@ -298,7 +300,7 @@ public:
   Addon_fields *addon_fields; ///< Descriptors for addon fields.
   bool not_killable;
   bool using_pq;
-  char* tmp_buffer;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp_buffer;
 
   Sort_param()
   {

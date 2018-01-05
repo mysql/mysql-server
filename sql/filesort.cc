@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -451,11 +451,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows_estimate= table->file->estimate_rows_upper_bound();
 
-  if (!(param.tmp_buffer= (char*)
-        my_malloc(key_memory_Sort_param_tmp_buffer,
-                  param.max_compare_length(), MYF(MY_WME))))
-    goto err;
-
   if (check_if_pq_applicable(trace, &param, &table->sort,
                              table, num_rows_estimate, memory_available,
                              subselect != NULL))
@@ -666,7 +661,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   error= 0;
 
  err:
-  my_free(param.tmp_buffer);
   if (!subselect || !subselect->is_uncacheable())
   {
     if (!table->sort_result.sorted_result_in_fsbuf)
@@ -1463,7 +1457,7 @@ size_t make_sortkey_from_field(
 */
 size_t make_sortkey_from_item(
   Item *item, Item_result result_type, bool is_varlen,
-  size_t max_length, char *tmp_buffer, uchar *to, bool *maybe_null,
+  size_t max_length, String *tmp_buffer, uchar *to, bool *maybe_null,
   ulonglong *hash)
 {
   uchar *null_indicator= nullptr;
@@ -1493,9 +1487,7 @@ size_t make_sortkey_from_item(
 
     const CHARSET_INFO *cs=item->collation.collation;
 
-    // Allow item->str() to use some extra space for trailing zero byte.
-    String tmp((char*) to, max_length + 4, cs);
-    String *res= item->val_str(&tmp);
+    String *res= item->val_str(tmp_buffer);
     if (res == nullptr)  // Value is NULL.
     {
       DBUG_ASSERT(item->maybe_null);
@@ -1511,17 +1503,6 @@ size_t make_sortkey_from_item(
 
     uint length= static_cast<uint>(res->length());
     char *from=(char*) res->ptr();
-    if ((uchar*) from == to)
-    {
-      /*
-        We can't do strnxfrm in-place, so copy the source string to a
-        temporary buffer.
-      */
-      DBUG_ASSERT(max_length >= length);
-      set_if_smaller(length, max_length);
-      memcpy(tmp_buffer, from, length);
-      from= tmp_buffer;
-    }
 
     size_t actual_length;
     if (is_varlen)
@@ -1671,7 +1652,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
       actual_length= make_sortkey_from_item(
         item, sort_field->result_type, sort_field->is_varlen,
-        sort_field->length, tmp_buffer, to, &maybe_null, &hash);
+        sort_field->length, &tmp_buffer, to, &maybe_null, &hash);
     }
 
     /*
