@@ -134,6 +134,3 @@ SET @@GLOBAL.relay_log_purge = @saved_relay_log_purge;
 --let $_for_channel_clause=
 --source include/start_slave.inc
 --source include/rpl_end.inc
-
-# Remove this line after Bug#24700334 is fixed.
---source include/force_restart.inc
