@@ -6401,7 +6401,9 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
   @param db                  Database
   @param table_name          Table name
   @param error_table_name    The real table name in case table_name is a temporary
-                             table (ALTER). Only used for error messages.
+                             table (ALTER). Used for error messages and for
+                             checking whether the table is a white listed
+                             system table.
   @param path                Path to table (i.e. to its .FRM file without
                              the extension).
   @param create_info         Create information (like MAX_ROWS)
@@ -6638,13 +6640,27 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, db, error_table_name,
+  /* Suppress key length errors if this is a white listed table. */
+  Key_length_error_handler error_handler;
+  bool is_whitelisted_table= dd::get_dictionary()->is_dd_table_name(db,
+                                                error_table_name) ||
+                             dd::get_dictionary()->is_system_table_name(db,
+                                                error_table_name);
+  if (is_whitelisted_table)
+    thd->push_internal_handler(&error_handler);
+
+  bool prepare_error= mysql_prepare_create_table(thd, db, error_table_name,
                                  create_info, alter_info,
                                  file.get(),
                                  key_info, key_count,
                                  fk_key_info, fk_key_count,
                                  existing_fk_info, existing_fk_count,
-                                 select_field_count, find_parent_keys))
+                                 select_field_count, find_parent_keys);
+
+  if (is_whitelisted_table)
+    thd->pop_internal_handler();
+
+  if (prepare_error)
     DBUG_RETURN(true);
 
   /* Check if table already exists */
