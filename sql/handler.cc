@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1733,7 +1733,6 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if (is_real_trans && is_atomic_ddl_commit_on_slave(thd))
   {
-    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
     /*
       Failed atomic DDL statements should've been marked as
       executed/committed during statement rollback.
@@ -1780,12 +1779,17 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   bool release_mdl= false;
   if (ha_info && !error)
   {
-    uint rw_ha_count;
+    uint rw_ha_count= 0;
     bool rw_trans;
 
     DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
-    rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
+    /*
+     skip 2PC if the transaction is empty and it is not marked as started (which
+     can happen when the slave's binlog is disabled)
+    */
+    if (ha_info->is_started())
+      rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
     trn_ctx->set_rw_ha_count(trx_scope, rw_ha_count);
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
