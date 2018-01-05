@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ public:
     Converts to HEX specified input string specified as characters buffer and
     its size, and appends it escaped to destination string.
    */
-  void append_hex_string(std::string* destination_string,
+  static void append_hex_string(std::string* destination_string,
     const char* original, size_t original_length);
 
   /**

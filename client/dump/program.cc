@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -170,6 +170,12 @@ int Program::execute(std::vector<std::string> positional_options)
 
   Mysql::Tools::Base::Mysql_query_runner* runner= connection_provider
          ->get_runner(message_handler);
+  if (!runner)
+  {
+    delete message_handler;
+    delete connection_provider;
+    return 0;
+  }
   if (mysql_get_server_version(runner->get_low_level_connection()) < 50708)
   {
     std::cerr << "Server version is not compatible. Server version should "

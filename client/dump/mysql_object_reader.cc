@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,10 @@ void Mysql_object_reader::read_table_rows_task(
 {
   bool has_generated_columns= 0;
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  if (!runner)
+    return;
+
   Table* table= table_rows_dump_task->get_related_table();
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> columns;

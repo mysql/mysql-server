@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,9 @@ Mysql::Tools::Base::Mysql_query_runner*
   if (runner == nullptr)
   {
     runner= this->create_new_runner(message_handler);
+    if (!runner)
+      return nullptr;
+
     runner->run_query("SET SQL_QUOTE_SHOW_CREATE= 1");
     /*
       Do not allow server to make any timezone conversion even if it
