@@ -664,3 +664,17 @@ Note	3599	Window function 'rank' ignores the frame clause of window 'w1' and agg
 Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
 DROP TABLE t;
 # End of test for Bug#27062031
+#
+# Bug #27348276: Wrong result for FIRST_VALUE, LAST_VALUE
+#
+CREATE TABLE t(c LONGTEXT NOT NULL);
+INSERT INTO t VALUES ('1'), ('1'), ('1'), ('1');
+SELECT FIRST_VALUE(c) OVER w fv, LAST_VALUE(c) OVER w lv
+FROM t WINDOW w AS (ORDER BY c
+ROWS BETWEEN 3 FOLLOWING AND 5 FOLLOWING);
+fv	lv
+1	1
+NULL	NULL
+NULL	NULL
+NULL	NULL
+DROP TABLE t;
