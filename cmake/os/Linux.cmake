@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,6 @@ SET(LINUX 1)
 
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
-ENDIF()
-
-IF(LINUX_ALPINE)
-  OPTION(IGNORE_AIO_CHECK "Disable asynch IO in InnoDB" ON)
 ENDIF()
 
 # We require at least GCC 4.8 or Clang 3.4.

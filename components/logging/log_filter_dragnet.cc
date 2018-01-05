@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1831,7 +1831,10 @@ mysql_service_status_t log_filter_exit()
     log_service_release(log_bf);
     log_service_release(log_bt);
 
+    bls= nullptr;
     inited= false;
+    opened= 0;
+    log_error_filter_rules= nullptr;
 
     return false;
   }
