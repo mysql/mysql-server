@@ -1,3 +1,5 @@
+--source include/not_have_innodb_4k.inc
+--source include/have_innodb_max_16k.inc
 
 create table t1(`d` int(11) NOT NULL, `b` longblob NOT NULL, `c` longtext)
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
