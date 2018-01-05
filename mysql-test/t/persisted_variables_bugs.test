@@ -1,0 +1,21 @@
+--echo #
+--echo # Bug #27016247: SET PERSIST_ONLY DOES NOT CONSIDER RUNTIME VALIDATION
+--echo #
+
+--echo # Should fail: event_scheduler does not allow setting to DISABLED at runtime
+--error ER_WRONG_VALUE_FOR_VAR
+SET PERSIST event_scheduler=DISABLED;
+
+--echo # Should fail: data type still checked even with persist_only
+--error ER_WRONG_TYPE_FOR_VAR
+SET PERSIST_ONLY event_scheduler=123.456;
+
+--echo # Should work: check not called for PERSIST_ONLY
+SET PERSIST_ONLY event_scheduler=DISABLED;
+
+--echo # cleanup
+RESET PERSIST event_scheduler;
+
+
+--echo # End of the 8.0 tests
+
