@@ -1,8 +1,9 @@
 
-# Clean all configuration changes after running the test to 
+# Clean all configuration changes after running the test to
 # make sure the test is repeatable.
 --source include/force_restart.inc
 
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
 call mtr.add_suppression("slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");
 

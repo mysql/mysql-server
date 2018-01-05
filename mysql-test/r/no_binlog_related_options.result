@@ -1,3 +1,4 @@
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
 call mtr.add_suppression("slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");
 SELECT @@GLOBAL.log_bin;
