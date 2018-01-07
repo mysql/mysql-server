@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,7 +59,9 @@ my_long_options[] =
 {
   NDB_STD_OPTS("ndb_import"),
   { "connections", NDB_OPT_NOSHORT,
-    "Number of cluster connections to create",
+    "Number of cluster connections to create."
+    " If option --ndb-nodeid=N is given then this number of consecutive"
+    " API nodes starting at N must exist",
     &g_opt.m_connections, &g_opt.m_connections, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_connections, 0, 0, 0, 0, 0 },
   { "state-dir", NDB_OPT_NOSHORT,
