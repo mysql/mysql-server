@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <NdbError.hpp>
 #include <NdbSleep.h>
 #include <ndb_rand.h>
-#include <NdbImport.hpp>
+#include "NdbImport.hpp"
 #include "NdbImportUtil.hpp"
 #include "NdbImportCsv.hpp"
 // STL
