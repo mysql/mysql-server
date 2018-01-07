@@ -20,7 +20,7 @@
 #include <OutputStream.hpp>
 #include <NdbOut.hpp>
 #include <ndb_rand.h>
-#include <NdbImport.hpp>
+#include "NdbImport.hpp"
 #include "NdbImportUtil.hpp"
 // STL
 #include <string>
