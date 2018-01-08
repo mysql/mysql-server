@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -59,6 +59,8 @@ namespace ngs
     virtual bool handle_ready_message(ngs::Request &command);
 
     void stop_auth();
+
+    static bool can_forward_error_code_to_client(const int error_code);
 
   public:
     State state() const { return m_state; }

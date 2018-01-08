@@ -1,0 +1,110 @@
+--echo #
+--echo ## Preamble
+--echo #
+--source ../include/xplugin_preamble.inc
+
+--echo #
+--echo ## Testcase prepare
+--echo #
+
+--write_file $MYSQL_TMP_DIR/connection_default_schema_manual.tmp
+
+-->newsession non_roo_user	-
+-->login user_with_access_to_ydb		ydb
+-->closesession
+
+-->newsession non_roo_user	-
+-->expecterror ER_DBACCESS_DENIED_ERROR
+-->login user_with_access_to_ydb		xdb
+-->closesession abort
+
+EOF
+
+call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt");
+
+CREATE DATABASE xdb;
+CREATE DATABASE ydb;
+
+CREATE USER 'user_with_access_to_xdb'@'%';
+CREATE USER 'user_with_access_to_ydb'@'%';
+
+GRANT SELECT ON xdb.* TO 'user_with_access_to_xdb'@'%';
+GRANT SELECT ON ydb.* TO 'user_with_access_to_ydb'@'%';
+
+
+--echo #
+--echo ## Testcase execute
+--echo #
+
+--echo #
+--echo ## Test group 1.
+--echo ##
+--echo ## Authenticate using an account which has permissions
+--echo ## to selected schema.
+--echo #
+--echo
+--echo # Using MySQL client
+let $execute_command=$MYSQL;
+let $user=user_with_access_to_xdb;
+let $schema=xdb;
+--source ../include/connection_default_schema.inc
+
+--echo
+--echo # Using mysqlxtest
+let $execute_command=$MYSQLXTEST;
+let $user=user_with_access_to_xdb;
+let $schema=xdb;
+--source ../include/connection_default_schema.inc
+
+
+--echo #
+--echo ## Test group 2.
+--echo ##
+--echo ## Authenticate using an account which has not permissions
+--echo ## to selected schema.
+--echo #
+
+--echo
+--echo # Using MySQL client
+let $execute_command=$MYSQL;
+let $user=user_with_access_to_xdb;
+let $schema=ydb;
+let $expect_error=ERROR 1044 ;
+--source ../include/connection_default_schema.inc
+
+--echo
+--echo # Using mysqlxtest
+let $execute_command=$MYSQLXTEST;
+let $user=user_with_access_to_xdb;
+let $schema=ydb;
+let $expect_error=code 1044;
+--source ../include/connection_default_schema.inc
+
+
+--echo #
+--echo ## Test group 3.
+--echo ##
+--echo ## Authenticate using plain X Protocol flows to schame that:
+--echo ##
+--echo ## * account has permissions
+--echo ## * account has not permissions
+--echo #
+
+exec $MYSQLXTEST
+  -uroot
+  -f $MYSQL_TMP_DIR/connection_default_schema_manual.tmp;
+
+
+--echo #
+--echo ## Cleanup
+--echo #
+
+--remove_file $MYSQL_TMP_DIR/connection_default_schema_manual.tmp
+
+DROP USER 'user_with_access_to_xdb'@'%';
+DROP USER 'user_with_access_to_ydb'@'%';
+
+DROP DATABASE xdb;
+DROP DATABASE ydb;
+
+UNINSTALL PLUGIN mysqlx;
