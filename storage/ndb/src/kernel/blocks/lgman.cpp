@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -42,14 +42,17 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 441
 
+#ifdef VM_TRACE
 //#define DEBUG_LGMAN 1
+//#define DEBUG_DROP_LG 1
+#endif
+
 #ifdef DEBUG_LGMAN
 #define DEB_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LGMAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_DROP_LG 1
 #ifdef DEBUG_DROP_LG
 #define DEB_DROP_LG(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

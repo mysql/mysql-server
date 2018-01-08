@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,49 +41,52 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
 
+#ifdef VM_TRACE
 //#define DEBUG_RES 1
+//#define DEBUG_RES_OPEN 1
+//#define DEBUG_RES_PARTS 1
+//#define DEBUG_RES_STAT 1
+//#define DEBUG_RES_STAT_EXTRA 1
+//#define DEBUG_RES_DEL 1
+//#define DEBUG_HIGH_RES 1
+#endif
+
 #ifdef DEBUG_RES
 #define DEB_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_OPEN 1
 #ifdef DEBUG_RES_OPEN
 #define DEB_RES_OPEN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_OPEN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_PARTS 1
 #ifdef DEBUG_RES_PARTS
 #define DEB_RES_PARTS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_PARTS(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_STAT 1
 #ifdef DEBUG_RES_STAT
 #define DEB_RES_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_STAT(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_STAT_EXTRA 1
 #ifdef DEBUG_RES_STAT_EXTRA
 #define DEB_RES_STAT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_STAT_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_DEL 1
 #ifdef DEBUG_RES_DEL
 #define DEB_RES_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_DEL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_HIGH_RES 1
 #ifdef DEBUG_HIGH_RES
 #define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

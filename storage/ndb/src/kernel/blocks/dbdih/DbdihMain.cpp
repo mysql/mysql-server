@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,14 +95,17 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 
 extern EventLogger * g_eventLogger;
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_LCP_COMP 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_COMP 1
 #ifdef DEBUG_LCP_COMP
 #define DEB_LCP_COMP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
