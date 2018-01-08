@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include "sql/gstream.h"                        // Gis_read_stream
 #include "sql/psi_memory_key.h"
 #include "sql_string.h"                         // String
+#include "template_utils.h"                     // pointer_cast
 
 
 void *gis_wkb_alloc(size_t sz)
@@ -333,7 +334,7 @@ static Geometry::Class_info multipolygon_class("MULTIPOLYGON",
 						   Geometry::wkb_multipolygon,
 						   create_multipolygon);
 static Geometry::Class_info
-geometrycollection_class("GEOMETRYCOLLECTION",Geometry::wkb_geometrycollection,
+geometrycollection_class("GEOMCOLLECTION",Geometry::wkb_geometrycollection,
 			 create_geometrycollection);
 
 /***************************** Geometry *******************************/
@@ -343,11 +344,19 @@ Geometry::Class_info *Geometry::find_class(const char *name, size_t len)
   for (Class_info **cur_rt= ci_collection;
        cur_rt < ci_collection_end; cur_rt++)
   {
-    if (*cur_rt &&
+    if (*cur_rt && (*cur_rt)->m_type_id == Geometry::wkb_geometrycollection)
+    {
+      if (len == 18 &&
+          my_strnncoll(&my_charset_latin1,
+                       pointer_cast<const uchar*>("GEOMETRYCOLLECTION"), len,
+                       pointer_cast<const uchar*>(name), len) == 0)
+        return *cur_rt;
+    }
+    else if (*cur_rt &&
 	((*cur_rt)->m_name.length == len) &&
 	(my_strnncoll(&my_charset_latin1,
-		      (const uchar*) (*cur_rt)->m_name.str, len,
-		      (const uchar*) name, len) == 0))
+		      pointer_cast<const uchar*>((*cur_rt)->m_name.str), len,
+		      pointer_cast<const uchar*>(name), len) == 0))
       return *cur_rt;
   }
   return 0;

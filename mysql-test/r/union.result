@@ -2715,7 +2715,7 @@ CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` geometrycollection DEFAULT NULL
+  `a` geomcollection DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 DROP TABLE geometries;

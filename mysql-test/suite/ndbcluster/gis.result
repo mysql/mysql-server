@@ -45,7 +45,7 @@ g	multipolygon	YES		NULL
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	auto_increment
-g	geometrycollection	YES		NULL	
+g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	auto_increment
@@ -187,8 +187,8 @@ fid	ST_GeometryType(g)
 117	MULTIPOLYGON
 118	MULTIPOLYGON
 119	MULTIPOLYGON
-120	GEOMETRYCOLLECTION
-121	GEOMETRYCOLLECTION
+120	GEOMCOLLECTION
+121	GEOMCOLLECTION
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry ORDER by fid;
 fid	ST_IsEmpty(g)
 101	0
@@ -432,7 +432,7 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
 Warnings:
@@ -446,7 +446,7 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 fid	int(11)	YES		NULL	
 DROP TABLE t1;
@@ -605,7 +605,7 @@ g	multipolygon	YES		NULL
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	auto_increment
-g	geometrycollection	YES		NULL	
+g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	auto_increment
@@ -747,8 +747,8 @@ fid	ST_GeometryType(g)
 117	MULTIPOLYGON
 118	MULTIPOLYGON
 119	MULTIPOLYGON
-120	GEOMETRYCOLLECTION
-121	GEOMETRYCOLLECTION
+120	GEOMCOLLECTION
+121	GEOMCOLLECTION
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry ORDER by fid;
 fid	ST_IsEmpty(g)
 101	0
@@ -992,7 +992,7 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
 Warnings:
@@ -1006,7 +1006,7 @@ pg	polygon	YES		NULL
 mp	multipoint	YES		NULL	
 mln	multilinestring	YES		NULL	
 mpg	multipolygon	YES		NULL	
-gc	geometrycollection	YES		NULL	
+gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
 fid	int(11)	YES		NULL	
 DROP TABLE t1;

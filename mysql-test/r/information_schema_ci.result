@@ -2303,7 +2303,7 @@ WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'
   ORDER BY COLUMN_NAME;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
 def	test	t1	g	NULL	NULL	geometry
-def	test	t1	gc	NULL	NULL	geometrycollection
+def	test	t1	gc	NULL	NULL	geomcollection
 def	test	t1	ls	NULL	NULL	linestring
 def	test	t1	mls	NULL	NULL	multilinestring
 def	test	t1	mpt	NULL	NULL	multipoint

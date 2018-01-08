@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ St_geometry_columns::St_geometry_columns()
 
   m_target_def.add_where(
     "DATA_TYPE IN ('geometry','point','linestring','polygon', 'multipoint',"
-    "              'multilinestring', 'multipolygon','geometrycollection')");
+    "              'multilinestring', 'multipolygon','geomcollection')");
 
 }
 

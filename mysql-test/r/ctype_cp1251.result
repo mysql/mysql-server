@@ -1635,7 +1635,7 @@ create table t1 as select concat(ST_GeometryType(ST_GeomFromText('Point(1 2)')))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(20) CHARACTER SET cp1251 DEFAULT NULL
+  `c1` varchar(15) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_AsText(ST_GeomFromText('Point(1 2)'))));

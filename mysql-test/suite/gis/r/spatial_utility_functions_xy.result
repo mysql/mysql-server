@@ -185,7 +185,7 @@ SELECT ST_X(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION("
                                  "((15 5, 40 10, 10 20, 5 10, 15 5)))"
                                ")"
                              ), 1024);
-ERROR 22S01: POINT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_x.
+ERROR 22S01: POINT value is a geometry of unexpected type GEOMCOLLECTION in st_x.
 SELECT ST_Y(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION("
                                "POINT(4 6),"
                                "LINESTRING(4 6,7 10),"
@@ -197,6 +197,6 @@ SELECT ST_Y(ST_GEOMFROMTEXT("GEOMETRYCOLLECTION("
                                  "((15 5, 40 10, 10 20, 5 10, 15 5)))"
                                ")"
                              ), 1024);
-ERROR 22S01: POINT value is a geometry of unexpected type GEOMETRYCOLLECTION in st_y.
+ERROR 22S01: POINT value is a geometry of unexpected type GEOMCOLLECTION in st_y.
 # Final cleanup
 DROP TABLE gis_point;

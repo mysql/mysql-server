@@ -2437,7 +2437,7 @@ dist	buffer	buf_area
 -----
 GeometryCollection(Point(9 9),LineString(1 5,0 0),Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
-0	GEOMETRYCOLLECTION	36.00
+0	GEOMCOLLECTION	36.00
 #
 # Testing ST_BUFFER with negative distance
 #

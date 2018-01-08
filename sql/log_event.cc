@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -12199,7 +12199,7 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
     {
       const char* names[8] = {
         "GEOMETRY", "POINT", "LINESTRING", "POLYGON", "MULTIPOINT",
-        "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION"
+        "MULTILINESTRING", "MULTIPOLYGON", "GEOMCOLLECTION"
       };
       if (geometry_type < 8)
         snprintf(typestr, typestr_length, "%s", names[geometry_type]);

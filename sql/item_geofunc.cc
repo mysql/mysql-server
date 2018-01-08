@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5192,7 +5192,7 @@ const char *Item_func_spatial_collection::func_name() const
     str= "polygon";
     break;
   case Geometry::wkb_geometrycollection:
-    str= "geometrycollection";
+    str= "geomcollection";
     break;
   default:
     DBUG_ASSERT(false);
