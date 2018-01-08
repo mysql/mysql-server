@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,77 +28,79 @@
 
 #define JAM_FILE_ID 408
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_DEL2 1
+//#define DEBUG_LCP_DEL_EXTRA 1
+//#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_SKIP_EXTRA 1
+//#define DEBUG_LCP_KEEP 1
+//#define DEBUG_LCP_REL 1
+//#define DEBUG_NR_SCAN 1
+//#define DEBUG_NR_SCAN_EXTRA 1
+//#define DEBUG_LCP_SCANNED_BIT 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL2 1
 #ifdef DEBUG_LCP_DEL2
 #define DEB_LCP_DEL2(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL2(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL_EXTRA 1
 #ifdef DEBUG_LCP_DEL_EXTRA
 #define DEB_LCP_DEL_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP_EXTRA 1
 #ifdef DEBUG_LCP_SKIP_EXTRA
 #define DEB_LCP_SKIP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_KEEP 1
 #ifdef DEBUG_LCP_KEEP
 #define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_KEEP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_REL 1
 #ifdef DEBUG_LCP_REL
 #define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_REL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_NR_SCAN 1
 #ifdef DEBUG_NR_SCAN
 #define DEB_NR_SCAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_NR_SCAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_NR_SCAN_EXTRA 1
 #ifdef DEBUG_NR_SCAN_EXTRA
 #define DEB_NR_SCAN_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_NR_SCAN_EXTRA(arglist) do { } while (0)
 #endif
-
-//#define DEBUG_LCP_SCANNED_BIT 1
 
 #ifdef VM_TRACE
 #define dbg(x) globalSignalLoggers.log x

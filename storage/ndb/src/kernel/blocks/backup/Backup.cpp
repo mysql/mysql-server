@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,37 +81,39 @@ static const Uint32 WaitScanTempErrorRetryMillis = 10;
 
 static NDB_TICKS startTime;
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_LCP_ROW 1
+//#define DEBUG_LCP_DEL_FILES 1
+//#define DEBUG_LCP_DEL 1
+//#define DEBUG_EXTRA_LCP 1
+#define DEBUG_LCP_STAT 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_ROW 1
-
-//#define DEBUG_LCP_DEL_FILES 1
 #ifdef DEBUG_LCP_DEL_FILES
 #define DEB_LCP_DEL_FILES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL_FILES(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_STAT 1
 #ifdef DEBUG_LCP_STAT
 #define DEB_LCP_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_STAT(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_EXTRA_LCP 1
 #ifdef DEBUG_EXTRA_LCP
 #define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
