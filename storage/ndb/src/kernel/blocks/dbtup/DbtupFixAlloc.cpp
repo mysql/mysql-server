@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,10 @@
 
 #define JAM_FILE_ID 421
 
+#ifdef VM_TRACE
 //#define DEBUG_899_ERROR 1
+#endif
+
 #ifdef DEBUG_899_ERROR
 #define DEB_899_ERROR(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

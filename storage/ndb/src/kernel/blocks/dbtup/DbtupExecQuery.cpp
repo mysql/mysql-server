@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,21 +37,23 @@
 
 #define JAM_FILE_ID 422
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_DELETE 1
+//#define DEBUG_LCP_LGMAN 1
+#endif
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_DELETE 1
 #ifdef DEBUG_DELETE
 #define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DELETE(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_LGMAN 1
 #ifdef DEBUG_LCP_LGMAN
 #define DEB_LCP_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
