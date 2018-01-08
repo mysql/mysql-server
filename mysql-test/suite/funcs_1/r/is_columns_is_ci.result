@@ -109,7 +109,7 @@ def	information_schema	FILES	LAST_ACCESS_TIME	22	NULL	YES	binary	0	0	NULL	NULL	N
 def	information_schema	FILES	RECOVER_TIME	23	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TRANSACTION_COUNTER	24	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	VERSION	25	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	ROW_FORMAT	26	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	FILES	ROW_FORMAT	26	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	TABLE_ROWS	27	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	AVG_ROW_LENGTH	28	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	DATA_LENGTH	29	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
@@ -544,7 +544,7 @@ NULL	information_schema	FILES	LAST_ACCESS_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	RECOVER_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TRANSACTION_COUNTER	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	VERSION	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	FILES	ROW_FORMAT	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	FILES	ROW_FORMAT	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 NULL	information_schema	FILES	TABLE_ROWS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	AVG_ROW_LENGTH	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	DATA_LENGTH	binary	0	0	NULL	NULL	binary(0)
