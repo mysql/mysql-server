@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -226,13 +226,21 @@ void Session::on_auth_success(const Authentication_interface::Response &response
 
 void Session::on_auth_failure(
     const Authentication_interface::Response &response) {
-  log_debug("%s.%u: Unsuccessful authentication attempt: %s",
-            m_client.client_id(),
-            m_id,
-            response.data.c_str());
+  int error_code = ER_ACCESS_DENIED_ERROR;
 
-  m_encoder->send_init_error(
-      ngs::Fatal(ER_ACCESS_DENIED_ERROR, "%s", response.data.c_str()));
+  log_debug("%s.%u: Unsuccessful authentication attempt",
+            m_client.client_id(),
+            m_id);
+
+  if (can_forward_error_code_to_client(response.error_code))
+  {
+    error_code = response.error_code;
+  }
+
+  m_encoder->send_init_error(ngs::Fatal(
+      error_code,
+      "%s",
+      response.data.c_str()));
 
   m_failed_auth_count++;
 
@@ -248,6 +256,10 @@ void Session::on_auth_failure(
   m_auth_handler.reset();
 }
 
+bool Session::can_forward_error_code_to_client(const int error_code)
+{
+  return ER_DBACCESS_DENIED_ERROR == error_code;
+}
 
 bool Session::can_authenticate_again() const {
   return m_failed_auth_count < k_max_auth_attempts;

@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -244,7 +244,7 @@ ngs::Error_code Sql_data_context::authenticate(
         host_or_ip.c_str(), static_cast<int>(host_or_ip.length()));
 #endif  // HAVE_PSI_THREAD_INTERFACE
 
-    return ngs::Error_code();
+    return error;
   }
 
   log_error("Unable to switch context to user %s", user);
