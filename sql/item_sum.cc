@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5683,7 +5683,7 @@ bool Item_first_last_value::resolve_type(THD *thd MY_ATTRIBUTE((unused)))
 {
   aggregate_type(make_array(args, 1));
   m_hybrid_type= Field::result_merge_type(data_type());
-  maybe_null= args[0]->maybe_null;
+  maybe_null= true; // if empty frame, notwithstanding nullability of arg
 
   if (m_hybrid_type == STRING_RESULT)
   {

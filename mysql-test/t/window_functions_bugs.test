@@ -277,3 +277,13 @@ DROP TABLE t;
 
 --echo # End of test for Bug#27062031
 
+--echo #
+--echo # Bug #27348276: Wrong result for FIRST_VALUE, LAST_VALUE
+--echo #
+CREATE TABLE t(c LONGTEXT NOT NULL);
+INSERT INTO t VALUES ('1'), ('1'), ('1'), ('1');
+SELECT FIRST_VALUE(c) OVER w fv, LAST_VALUE(c) OVER w lv
+       FROM t WINDOW w AS (ORDER BY c
+                           ROWS BETWEEN 3 FOLLOWING AND 5 FOLLOWING);
+
+DROP TABLE t;
