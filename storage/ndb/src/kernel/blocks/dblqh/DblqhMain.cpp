@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,63 +97,66 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+#ifdef VM_TRACE
 //#define DEBUG_EXTRA_LCP 1
+//#define DEBUG_LCP 1
+//#define DEBUG_LCP_RESTORE
+//#define DEBUG_COPY 1
+//#define DEBUG_GCP 1
+//#define DEBUG_CUT_REDO 1
+//#define DEBUG_LOCAL_LCP 1
+//#define DEBUG_LOCAL_LCP_EXTRA
+//#define DEBUG_REDO_FLAG
+#endif
+
 #ifdef DEBUG_EXTRA_LCP
 #define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTRA_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_RESTORE
 #ifdef DEBUG_LCP_RESTORE
 #define DEB_LCP_RESTORE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_RESTORE(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_COPY 1
 #ifdef DEBUG_COPY
 #define DEB_COPY(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_COPY(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_GCP 1
 #ifdef DEBUG_GCP
 #define DEB_GCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_GCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_CUT_REDO 1
 #ifdef DEBUG_CUT_REDO
 #define DEB_CUT_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_CUT_REDO(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LOCAL_LCP 1
 #ifdef DEBUG_LOCAL_LCP
 #define DEB_LOCAL_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LOCAL_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LOCAL_LCP_EXTRA
 #ifdef DEBUG_LOCAL_LCP_EXTRA
 #define DEB_LOCAL_LCP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LOCAL_LCP_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_REDO_FLAG
 #ifdef DEBUG_REDO_FLAG
 #define DEB_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

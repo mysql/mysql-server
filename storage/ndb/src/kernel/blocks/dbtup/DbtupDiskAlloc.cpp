@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,35 +23,38 @@
 
 #define JAM_FILE_ID 426
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_PGMAN 1
+//#define DEBUG_EXTENT_BITS 1
+//#define DEBUG_EXTENT_BITS_HASH 1
+//#define DEBUG_UNDO 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_PGMAN 1
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_EXTENT_BITS 1
 #ifdef DEBUG_EXTENT_BITS
 #define DEB_EXTENT_BITS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTENT_BITS(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_EXTENT_BITS_HASH 1
 #ifdef DEBUG_EXTENT_BITS_HASH
 #define DEB_EXTENT_BITS_HASH(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTENT_BITS_HASH(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_UNDO 1
 #ifdef DEBUG_UNDO
 #define DEB_UNDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
