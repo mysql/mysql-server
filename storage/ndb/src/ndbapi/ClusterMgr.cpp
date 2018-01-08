@@ -574,11 +574,6 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
     theFacade.for_each(this, sig, ptr);
     return;
   }
-  case GSN_CONNECT_REP:
-  {
-    execCONNECT_REP(sig, ptr);
-    return;
-  }
   case GSN_CLOSE_COMREQ:
   {
     theFacade.perform_close_clnt(this);
@@ -948,14 +943,16 @@ ClusterMgr::execNF_COMPLETEREP(const NdbApiSignal* signal,
 /**
  * ::reportConnected() and ::reportDisconnected()
  *
- * This is called as a callback when executing update_connections which
- * is always called with ownership of the trp_client::m_mutex.
+ * Should be called from the client thread being the poll owner.
+ * The ClusterMgr::m_mutex should also be held: Thus, if ClusterMgr
+ * is not the poll owner itself, the lock should be taken by callee.
  */
 void
 ClusterMgr::reportConnected(NodeId nodeId)
 {
   DBUG_ENTER("ClusterMgr::reportConnected");
   DBUG_PRINT("info", ("nodeId: %u", nodeId));
+  assert(theFacade.is_poll_owner_thread());
   assert(NdbMutex_Trylock(m_mutex) != 0);  //Lock is held
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
@@ -1003,11 +1000,8 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.minDbVersion = 0;
   
   /**
-   * We know that we have trp_client::mutex
-   *   but we don't know if we are polling...and for_each can
-   *   only be used by a poller...
-   *
-   * Send signal to self, so that we can do this when receiving a signal
+   * We are called by the poll owner (asserted above), so we can
+   * tell each API client about the CONNECT_REP ourself.
    */
   NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
   signal.theVerId_signalNumber = GSN_CONNECT_REP;
@@ -1015,31 +1009,14 @@ ClusterMgr::reportConnected(NodeId nodeId)
   signal.theTrace  = 0;
   signal.theLength = 1;
   signal.getDataPtrSend()[0] = nodeId;
-  safe_sendSignal(&signal, getOwnNodeId());
+  theFacade.for_each(this, &signal, NULL);
   DBUG_VOID_RETURN;
-}
-
-void
-ClusterMgr::execCONNECT_REP(const NdbApiSignal* sig,
-                            const LinearSectionPtr ptr[])
-{
-  theFacade.for_each(this, sig, 0);
-}
-
-void
-ClusterMgr::set_node_dead(trp_node& theNode)
-{
-  set_node_alive(theNode, false);
-  theNode.set_confirmed(false);
-  theNode.m_state.m_connected_nodes.clear();
-  theNode.m_state.startLevel = NodeState::SL_NOTHING;
-  theNode.m_info.m_connectCount ++;
-  theNode.nfCompleteRep = false;
 }
 
 void
 ClusterMgr::reportDisconnected(NodeId nodeId)
 {
+  assert(theFacade.is_poll_owner_thread());
   assert(NdbMutex_Trylock(m_mutex) != 0);  //Lock is held
   assert(nodeId > 0 && nodeId < MAX_NODES);
 
@@ -1098,11 +1075,8 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
     /**
      * Inform API
      *
-     * We know that we have trp_client::mutex
-     *   but we don't know if we are polling...and for_each can
-     *   only be used by a poller...
-     *
-     * Send signal to self, so that we can do this when receiving a signal
+     * We are called by the poll owner (asserted above), so we can
+     * tell each API client about the NODE_FAILREP ourself.
      */
     NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
     signal.theVerId_signalNumber = GSN_NODE_FAILREP;
@@ -1200,6 +1174,17 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
       }
     }
   }
+}
+
+void
+ClusterMgr::set_node_dead(trp_node& theNode)
+{
+  set_node_alive(theNode, false);
+  theNode.set_confirmed(false);
+  theNode.m_state.m_connected_nodes.clear();
+  theNode.m_state.startLevel = NodeState::SL_NOTHING;
+  theNode.m_info.m_connectCount ++;
+  theNode.nfCompleteRep = false;
 }
 
 bool
