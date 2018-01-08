@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,28 +40,31 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
 #define UNCOMMITTED_SHIFT 2
 
+#ifdef VM_TRACE
 //#define DEBUG_TSMAN 1
+//#define DEBUG_TSMAN_NUM_EXTENTS 1
+//#define DEBUG_TSMAN_RESTART 1
+//#define DEBUG_TSMAN_IO 1
+#endif
+
 #ifdef DEBUG_TSMAN
 #define DEB_TSMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TSMAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TSMAN_NUM_EXTENTS 1
 #ifdef DEBUG_TSMAN_NUM_EXTENTS
 #define DEB_TSMAN_NUM_EXTENTS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TSMAN_NUM_EXTENTS(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TSMAN_RESTART 1
 #ifdef DEBUG_TSMAN_RESTART
 #define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TSMAN_RESTART(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TSMAN_IO 1
 #ifdef DEBUG_TSMAN_IO
 #define DEB_TSMAN_IO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
