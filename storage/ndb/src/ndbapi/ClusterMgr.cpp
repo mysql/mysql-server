@@ -943,9 +943,13 @@ ClusterMgr::execNF_COMPLETEREP(const NdbApiSignal* signal,
 /**
  * ::reportConnected() and ::reportDisconnected()
  *
- * Should be called from the client thread being the poll owner.
- * The ClusterMgr::m_mutex should also be held: Thus, if ClusterMgr
- * is not the poll owner itself, the lock should be taken by callee.
+ * Should be called from the client thread being the poll owner,
+ * which could either be ClusterMgr itself, or another API client.
+ *
+ * As ClusterMgr maintains shared global data, updating
+ * its connection state needs m_mutex being locked.
+ * If ClusterMgr is the poll owner, it already owns that
+ * lock, else it has to be locked now.
  */
 void
 ClusterMgr::reportConnected(NodeId nodeId)
@@ -953,7 +957,9 @@ ClusterMgr::reportConnected(NodeId nodeId)
   DBUG_ENTER("ClusterMgr::reportConnected");
   DBUG_PRINT("info", ("nodeId: %u", nodeId));
   assert(theFacade.is_poll_owner_thread());
-  assert(NdbMutex_Trylock(m_mutex) != 0);  //Lock is held
+
+  if (theFacade.m_poll_owner != this)
+    lock();
 
   assert(nodeId > 0 && nodeId < MAX_NODES);
   if (nodeId != getOwnNodeId())
@@ -998,6 +1004,13 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.m_node_fail_rep = false;
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.minDbVersion = 0;
+
+  /**
+   * End of protected ClusterMgr updates of shared global data.
+   * Informing other API client does not need a global protection
+   */ 
+  if (theFacade.m_poll_owner != this)
+    unlock();
   
   /**
    * We are called by the poll owner (asserted above), so we can
@@ -1017,8 +1030,10 @@ void
 ClusterMgr::reportDisconnected(NodeId nodeId)
 {
   assert(theFacade.is_poll_owner_thread());
-  assert(NdbMutex_Trylock(m_mutex) != 0);  //Lock is held
   assert(nodeId > 0 && nodeId < MAX_NODES);
+
+  if (theFacade.m_poll_owner != this)
+    lock();
 
   Node & cm_node = theNodes[nodeId];
   trp_node & theNode = cm_node;
@@ -1035,6 +1050,8 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
   if (unlikely(!node_connected))
   {
     assert(node_connected);
+    if (theFacade.m_poll_owner != this)
+      unlock();
     return;
   }
 
@@ -1069,6 +1086,13 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
       theFacade.get_registry()->set_connect_backoff_max_time_in_ms(start_connect_backoff_max_time);
     }
   }
+
+  /**
+   * End of protected ClusterMgr updates of shared global data.
+   * Informing other API client does not need a global protection
+   */
+  if (theFacade.m_poll_owner != this)
+    unlock();
 
   if (node_failrep == false)
   {
