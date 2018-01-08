@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -1133,11 +1141,15 @@ buf_flush_write_block_low(
 
 		ulint	type = IORequest::WRITE | IORequest::DO_NOT_WAKE;
 
+                dberr_t         err;
 		IORequest	request(type);
 
-		fil_io(request,
-		       sync, bpage->id, bpage->size, 0, bpage->size.physical(),
-		       frame, bpage);
+		err = fil_io(
+                        request,
+                        sync, bpage->id, bpage->size, 0, bpage->size.physical(),
+                        frame, bpage);
+
+                ut_a(err == DB_SUCCESS);
 
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
 		buf_dblwr_write_single_page(bpage, sync);
@@ -3301,16 +3313,17 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 
 			if (curr_time > next_loop_time + 3000) {
 				if (warn_count == 0) {
-					ib::info() << "page_cleaner: 1000ms"
-						" intended loop took "
-						<< 1000 + curr_time
-						   - next_loop_time
-						<< "ms. The settings might not"
-						" be optimal. (flushed="
+					ulint	us;
+
+					us = 1000 + curr_time - next_loop_time;
+
+					ib::info()
+						<< "Page cleaner took "
+						<< us << "ms to flush"
 						<< n_flushed_last
-						<< " and evicted="
-						<< n_evicted
-						<< ", during the time.)";
+						<< " and evict "
+						<< n_evicted << " pages";
+
 					if (warn_interval > 300) {
 						warn_interval = 600;
 					} else {

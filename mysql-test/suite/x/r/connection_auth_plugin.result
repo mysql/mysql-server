@@ -1,0 +1,72 @@
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
+CREATE USER xuser_native@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'native';
+CREATE USER xuser_sha256@localhost
+IDENTIFIED WITH 'sha256_password' BY 'sha256';
+GRANT ALL ON *.* TO xuser_native@localhost;
+GRANT ALL ON *.* TO xuser_sha256@localhost;
+Plain connection as x_root (just check) -> success
+user	plugin
+x_root	mysql_native_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Ssl connection as x_root (just check) -> success
+user	plugin
+x_root	mysql_native_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Ssl connection by native plugin  -> success
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Plain connection by native plugin -> success
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Ssl connection by sha256 plugin  -> success
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Plain connection by sha256 plugin  -> fail (ssl is obligatory)
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
+Ssl connection by native plugin  -> fail (wrong password)
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
+Ssl connection by sha256 plugin  -> fail (wrong password)
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
+DROP USER xuser_native@localhost, xuser_sha256@localhost;

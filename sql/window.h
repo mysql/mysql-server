@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -307,6 +314,20 @@ public:
     m_frame_buffer_positions[reason].m_rowno= m_tmp_pos.m_rowno;
     std::memcpy(m_frame_buffer_positions[reason].m_position,
                 m_tmp_pos.m_position,
+                frame_buffer()->file->ref_length);
+  }
+
+  /**
+    Copy frame buffer position hint from one to another.
+  */
+  void copy_pos(retrieve_cached_row_reason from_reason,
+                retrieve_cached_row_reason to_reason)
+  {
+    m_frame_buffer_positions[to_reason].m_rowno=
+      m_frame_buffer_positions[from_reason].m_rowno;
+
+    std::memcpy(m_frame_buffer_positions[to_reason].m_position,
+                m_frame_buffer_positions[from_reason].m_position,
                 frame_buffer()->file->ref_length);
   }
 
@@ -879,6 +900,16 @@ public:
                             List<Item> &fields,
                             List<Item> &all_fields,
                             List<Window> &windows);
+
+  /**
+    Remove unused window definitions. Do this only after syntactic and
+    semantic checking for errors has been performed.
+
+    @param thd             The session's execution thread
+    @param windows         The list of windows defined for this select
+  */
+  static void remove_unused_windows(THD *thd,
+                                    List<Window> &windows);
 
   /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.

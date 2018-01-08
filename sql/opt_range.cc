@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -110,11 +117,8 @@
 
 #include "sql/opt_range.h"
 
-#include "my_config.h"
-
 #include <fcntl.h>
 #include <float.h>
-#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
@@ -127,6 +131,7 @@
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "map_helpers.h"
 #include "memory_debugging.h"
 #include "mf_wcomp.h"            // wild_compare
 #include "my_alloc.h"
@@ -148,14 +153,12 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"          // ER_THD
 #include "sql/error_handler.h"   // Internal_error_handler
-#include "sql/filesort.h"        // filesort_free_buffers
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_row.h"
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/key.h"             // is_key_used
-#include "sql/log.h"
 #include "sql/malloc_allocator.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
@@ -166,7 +169,6 @@
 #include "sql/opt_trace_context.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/psi_memory_key.h"
-#include "sql/set_var.h"
 #include "sql/sql_base.h"        // free_io_cache
 #include "sql/sql_class.h"       // THD
 #include "sql/sql_error.h"
@@ -176,6 +178,7 @@
 #include "sql/sql_optimizer.h"   // JOIN
 #include "sql/sql_partition.h"   // HA_USE_AUTO_PARTITION
 #include "sql/sql_select.h"
+#include "sql/sql_sort.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 #include "sql/uniques.h"         // Unique
@@ -11519,7 +11522,9 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   else
   {
     unique->reset();
-    filesort_free_buffers(head, false);
+    head->unique_result.sorted_result.reset();
+    DBUG_ASSERT(!head->unique_result.sorted_result_in_fsbuf);
+    head->unique_result.sorted_result_in_fsbuf= false;
   }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
@@ -11601,7 +11606,17 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
   {
     result= HA_ERR_END_OF_FILE;
     end_read_record(&read_record);
-    free_io_cache(head);
+    /*
+      free_io_cache(head) would free head->sort_result.io_cache, which we
+      don't use (and thus should not be clearing), but unique may have opened
+      head->unique_result.io_cache, so we need to clear that.
+    */
+    if (head->unique_result.io_cache)
+    {
+      close_cached_file(head->unique_result.io_cache);
+      my_free(head->unique_result.io_cache);
+      head->unique_result.io_cache= nullptr;
+    }
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select)
     {
@@ -13699,7 +13714,7 @@ min_max_inspect_cond_for_fields(Item *cond, Item_field *min_max_arg_item,
           DBUG_RETURN(true);
       }
 
-      if (((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+      if (pred->functype() == Item_func::MULT_EQUAL_FUNC)
       {
         /*
           Analyze participating fields in a multiequal condition.

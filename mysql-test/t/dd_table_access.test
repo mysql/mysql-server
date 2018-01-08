@@ -63,9 +63,10 @@ if (!$TABLE)
   CREATE TABLE t1 SELECT * FROM mysql.innodb_index_stats;
   DROP TABLE t1;
 
-  --echo # Check that we may CREATE LIKE mysql.innodb_index_stats.
+  --echo # Check that we may not CREATE LIKE mysql.innodb_index_stats
+  --echo # due to restricted tablespace.
+  --error ER_RESERVED_TABLESPACE_NAME
   CREATE TABLE t1 LIKE mysql.innodb_index_stats;
-  DROP TABLE t1;
 
   --echo # Check access from stored programs.
   --error ER_NO_SYSTEM_TABLE_ACCESS

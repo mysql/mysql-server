@@ -1,17 +1,24 @@
 # Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
 INCLUDE_DIRECTORIES(
@@ -34,9 +41,13 @@ SET(GEN_SOURCES
 SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
 )
+SET(GEN_KEYWORD_LIST_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
+)
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
                             ${GEN_DIGEST_SOURCES}
+                            ${GEN_KEYWORD_LIST_SOURCES}
                             ${CONF_SOURCES}
                             PROPERTIES GENERATED 1)
 
@@ -49,6 +60,18 @@ ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
   COMMAND gen_lex_token > lex_token.h
   DEPENDS gen_lex_token
+)
+
+# gen_keyword_list
+# Make sure sql_yacc.h is generated before compiling gen_keyword_list
+MYSQL_ADD_EXECUTABLE(gen_keyword_list gen_keyword_list.cc SKIP_INSTALL)
+ADD_DEPENDENCIES(gen_keyword_list GenServerSource)
+TARGET_LINK_LIBRARIES(gen_keyword_list regex strings dbug)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
+  COMMAND gen_keyword_list ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy > ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
+  DEPENDS gen_keyword_list
 )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
@@ -67,6 +90,7 @@ SET(DD_SOURCES
   dd/dd_trigger.cc
   dd/dd_view.cc
 
+  dd/impl/bootstrap_ctx.cc
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
@@ -105,6 +129,7 @@ SET(DD_SOURCES
   dd/impl/system_views/innodb_fields.cc
   dd/impl/system_views/innodb_tablespaces_brief.cc
   dd/impl/system_views/key_column_usage.cc
+  dd/impl/system_views/keywords.cc
   dd/impl/system_views/parameters.cc
   dd/impl/system_views/partitions.cc
   dd/impl/system_views/referential_constraints.cc
@@ -164,6 +189,7 @@ SET(DD_SOURCES
   dd/impl/types/function_impl.cc
   dd/impl/types/index_element_impl.cc
   dd/impl/types/index_impl.cc
+  dd/impl/types/object_table_impl.cc
   dd/impl/types/parameter_impl.cc
   dd/impl/types/parameter_type_element_impl.cc
   dd/impl/types/partition_impl.cc
@@ -206,10 +232,13 @@ SET(SQL_GIS_SOURCES
   gis/difference.cc
   gis/disjoint.cc
   gis/distance.cc
+  gis/distance_sphere.cc
   gis/equals.cc
   gis/gc_utils.cc
   gis/geometries.cc
   gis/intersects.cc
+  gis/is_simple.cc
+  gis/is_valid.cc
   gis/length.cc
   gis/mbr_utils.cc
   gis/overlaps.cc
@@ -236,6 +265,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/component_sys_var_service.cc
   server_component/component_status_var_service.cc
   server_component/system_variable_source_imp.cc
+  server_component/security_context_imp.cc
   )
 
 SET(SQL_SHARED_SOURCES
@@ -284,6 +314,7 @@ SET(SQL_SHARED_SOURCES
   histograms/value_map.cc
   hostname.cc
   init.cc
+  instance_log_resource.cc
   item.cc
   item_buff.cc
   item_cmpfunc.cc 
@@ -384,6 +415,7 @@ SET(SQL_SHARED_SOURCES
   sql_class.cc
   sql_component.cc
   sql_cmd_ddl_table.cc
+  sql_cmd_srs.cc
   sql_connect.cc
   sql_cursor.cc
   sql_data_change.cc
@@ -421,6 +453,7 @@ SET(SQL_SHARED_SOURCES
   sql_reload.cc
   sql_rename.cc
   sql_resolver.cc
+  sql_restart_server.cc
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
@@ -502,6 +535,7 @@ ENDIF()
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
+  ${GEN_KEYWORD_LIST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
@@ -511,6 +545,7 @@ SET(SQL_SOURCE
   ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
   ../sql-common/get_password.cc
+  ../sql-common/my_path_permissions.cc
   ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 
   command_service.cc
@@ -541,9 +576,10 @@ ENDIF()
 
 IF(WIN32)
   LIST(APPEND SQL_SOURCE
-              named_pipe.cc
               conn_handler/named_pipe_connection.cc
               conn_handler/shared_memory_connection.cc
+              named_pipe.cc
+              restart_monitor_win.cc
       )
 ENDIF()
 
@@ -621,6 +657,7 @@ ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
 ADD_DEPENDENCIES(sql_dd GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_dd GenSysSchema)
 ADD_DEPENDENCIES(sql_dd GenError)
+ADD_DEPENDENCIES(sql_dd GenKeywordList)
 
 #
 # On Windows platform we compile in the clinet-side Windows Native Authentication
@@ -663,7 +700,6 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_slave_until_options.cc)
 ADD_CONVENIENCE_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
@@ -810,9 +846,13 @@ ADD_CUSTOM_TARGET(
         DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
+ADD_CUSTOM_TARGET(
+  GenKeywordList
+  DEPENDS ${GEN_KEYWORD_LIST_SOURCES}
+)
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-                 MODULE_ONLY SKIP_INSTALL MODULE_OUTPUT_NAME "udf_example")
+                 MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
 IF(NOT DISABLE_SHARED)
   IF(WIN32)
     SET_TARGET_PROPERTIES(udf_example

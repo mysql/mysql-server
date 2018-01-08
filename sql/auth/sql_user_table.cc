@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1253,13 +1260,6 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   if (table_intact.check(table, ACL_TABLES::TABLE_USER))
     goto end;
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    goto end;
-  }
-
   table->use_all_columns();
   DBUG_ASSERT(combo->host.str != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
@@ -2102,13 +2102,6 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
   if (table_intact.check(table, ACL_TABLES::TABLE_COLUMNS_PRIV))
     DBUG_RETURN(-1);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(-1);
-  }
-  
   KEY_PART_INFO *key_part= table->key_info->key_part;
 
   table->use_all_columns();
@@ -3021,13 +3014,6 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no, bool d
                       user_from->user.length,
                       system_charset_info);
 
-    if (!table->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-               table->s->table_name.str);
-      DBUG_RETURN(-1);
-    }
-
     key_prefix_length= (table->key_info->key_part[0].store_length +
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
@@ -3176,7 +3162,7 @@ bool check_acl_tables(TABLE_LIST *tables, bool report_error)
       }
       else
       {
-        LogErr(WARNING_LEVEL, ER_UNSUPPORTED_ENGINE,
+        LogErr(WARNING_LEVEL, ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE,
                ha_resolve_storage_engine_name(t->table->file->ht),
                t->db, t->table_name);
       }

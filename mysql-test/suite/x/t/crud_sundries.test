@@ -1,0 +1,870 @@
+## Varius tests related to manipulation on json members 
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+USE xtest;
+CREATE TABLE xtable (doc JSON);
+INSERT INTO xtable (doc) VALUES ('{"a":10, "b":20, "c":"30", "d":"40", "e":"foo", "f":"bar", "g":"2015.10.05"}');
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_sundries.tmp
+-->quiet
+##-- function concat
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "concat" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "concat" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function concat-in-concat
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "concat" }
+        param {
+          type: FUNC_CALL function_call {
+            name { name: "concat" }
+            param {
+              type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+            }
+            param {
+              type: LITERAL literal { type: V_OCTETS v_octets {value:"-in-"} }
+            }
+          }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "concat" }
+        param {
+          type: FUNC_CALL function_call {
+            name { name: "concat" }
+            param {
+              type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+            }
+            param {
+              type: LITERAL literal { type: V_OCTETS v_octets {value:"-in-"} }
+            }
+          }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function sqrt
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "sqrt" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "c" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "sqrt" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function adddate, operator date_add
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "fun"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "adddate" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "g" } }
+        }
+        param {
+          type: LITERAL literal {type: V_SINT v_signed_int: 3}
+        }
+      }
+    }
+  }
+  projection {
+    alias: "oper"
+    source {
+      type: OPERATOR operator {
+        name: "date_add"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "g" } }
+        }
+        param {
+          type: LITERAL literal {type: V_SINT v_signed_int: 3}
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"DAY"} }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function subdate, operator date_sub
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "fun"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "subdate" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "g" } }
+        }
+        param {
+          type: LITERAL literal {type: V_SINT v_signed_int: 3}
+        }
+      }
+    }
+  }
+  projection {
+    alias: "oper"
+    source {
+      type: OPERATOR operator {
+        name: "date_sub"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "g" } }
+        }
+        param {
+          type: LITERAL literal {type: V_SINT v_signed_int: 3}
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"DAY"} }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator cast to number
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "d" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"DECIMAL"} }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"DECIMAL"} }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator cast to string
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "d" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"CHAR"} }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"CHAR"} }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator in (check member)
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" } }
+        }
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 10}
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator in (check literal)
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 10}
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator between (check member)
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: OPERATOR operator {
+        name: "between"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"zoo"} }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: OPERATOR operator {
+        name: "between"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 100}
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator between (check literal)
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: OPERATOR operator {
+        name: "between"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"cent"} }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: OPERATOR operator {
+        name: "between"
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 15}
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator like, regex (check literal)
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "like"
+    source {
+      type: OPERATOR operator {
+        name: "like"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"bar"} }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "regex"
+    source {
+      type: OPERATOR operator {
+        name: "regexp"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"2015A10B05"} }
+        }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "g" } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- operator like, regex (check member)
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "like"
+    source {
+      type: OPERATOR operator {
+        name: "like"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"BAR"} }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "regex"
+    source {
+      type: OPERATOR operator {
+        name: "regexp"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"^f.*"} }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- updating with function result
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source { name: 'doc' document_path {type: MEMBER value: 'extra'}
+    }
+    operation: ITEM_SET
+    value: {
+      type: FUNC_CALL function_call {
+        name { name: "upper" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+      }
+    }
+  }
+  operation {
+    source { name: 'doc' document_path {type: MEMBER value: 'sqrt'}
+    }
+    operation: ITEM_SET
+    value: {
+      type: FUNC_CALL function_call {
+        name { name: "sqrt" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+##-- find number in array of literals
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "result-in"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 2 }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 1 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 2 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 3 } }
+          }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "result-not_in"
+    source {
+      type: OPERATOR operator {
+        name: "not_in"
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 0 }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 1 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 2 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 3 } }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+##-- find string in array of literals
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "result-in"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }}
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"bar"} }}
+          }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "result-not_in"
+    source {
+      type: OPERATOR operator {
+        name: "not_in"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"far"} }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }}
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"bar"} }}
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+##-- find member (number) in array of literals
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "result-in"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" } }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 10 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 20 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 30 } }
+          }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "result-not_in"
+    source {
+      type: OPERATOR operator {
+        name: "not_in"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "d" } }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 10 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 20 } }
+            value {type: LITERAL literal { type: V_SINT v_signed_int: 30 } }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+##-- find member (string) in array of literals
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "result-in"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }}
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"bar"} }}
+          }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "result-not_in"
+    source {
+      type: OPERATOR operator {
+        name: "not_in"
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "d" } }
+        }
+        param {
+          type: ARRAY array {
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }}
+            value {type: LITERAL literal { type: V_OCTETS v_octets {value:"bar"} }}
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+##-- find number in array of members
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "result-in"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 20 }        
+        }
+        param {
+          type: ARRAY array {
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" }}}
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" }}}
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "c" }}}
+          }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "result-not_in"
+    source {
+      type: OPERATOR operator {
+        name: "not_in"
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 40 }        
+        }
+        param {
+          type: ARRAY array {
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" }}}
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "b" }}}
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "c" }}}
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+##-- find string in array of members
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "result-in"
+    source {
+      type: OPERATOR operator {
+        name: "in"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"foo"} }
+        }
+        param {
+          type: ARRAY array {
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" }}}
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" }}}
+          }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "result-not_in"
+    source {
+      type: OPERATOR operator {
+        name: "not_in"
+        param {
+          type: LITERAL literal { type: V_OCTETS v_octets {value:"boo"} }
+        }
+        param {
+          type: ARRAY array {
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" }}}
+            value {type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "f" }}}
+          }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function json_type
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "string"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_type" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "e" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "number"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_type" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER value: "a" } }
+        }
+      }
+    }
+  }
+  projection {
+    alias: "root"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_type" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+##-- function json_keys
+Mysqlx.Crud.Find {
+  collection { name: "xtable" schema: "xtest" }
+  data_model: TABLE
+  projection {
+    alias: "keys"
+    source {
+      type: FUNC_CALL function_call {
+        name { name: "json_keys" }
+        param {
+          type: IDENT identifier { name: "doc" document_path { type: MEMBER } }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_sundries.tmp 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/crud_sundries.tmp
+--source include/xplugin_drop_user.inc

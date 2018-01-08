@@ -1,6 +1,6 @@
 // Boost.Geometry
 
-// Copyright (c) 2017 Oracle and/or its affiliates.
+// Copyright (c) 2017, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 

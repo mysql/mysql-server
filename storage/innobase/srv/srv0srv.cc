@@ -18,16 +18,24 @@ their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -2321,7 +2329,7 @@ srv_enable_undo_encryption_if_set()
 
 			dberr_t err;
 			mtr_t	mtr;
-			byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+			byte	encrypt_info[ENCRYPTION_INFO_SIZE];
 			byte	key[ENCRYPTION_KEY_LEN];
 			byte	iv[ENCRYPTION_KEY_LEN];
 
@@ -2332,8 +2340,7 @@ srv_enable_undo_encryption_if_set()
 
 			mtr_x_lock_space(space, &mtr);
 
-			memset(encrypt_info, 0,
-			       ENCRYPTION_INFO_SIZE_V2);
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
 			if (!Encryption::fill_encryption_info(
 					key, iv,
@@ -2398,7 +2405,7 @@ srv_enable_undo_encryption_if_set()
 	/* If the undo log space is using default key, rotate
 	it. We need the server_uuid initialized, otherwise,
 	the keyname will not contains server uuid. */
-	if (Encryption::master_key_id != 0
+	if (Encryption::s_master_key_id != 0
 	    || srv_read_only_mode
 	    || strlen(server_uuid) == 0) {
 		return;
@@ -2416,7 +2423,7 @@ srv_enable_undo_encryption_if_set()
 			continue;
 		}
 
-		byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+		byte	encrypt_info[ENCRYPTION_INFO_SIZE];
 		mtr_t	mtr;
 
 		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -2425,8 +2432,7 @@ srv_enable_undo_encryption_if_set()
 
 		mtr_x_lock_space(space, &mtr);
 
-		memset(encrypt_info, 0,
-		       ENCRYPTION_INFO_SIZE_V2);
+		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
 		if (!fsp_header_rotate_encryption(
 				space,

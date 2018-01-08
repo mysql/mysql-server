@@ -1,17 +1,24 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/upgrade/upgrade.h"
 
@@ -72,7 +79,7 @@ class Table;
 }  // namespace dd
 
 namespace dd {
-namespace upgrade{
+namespace upgrade_57{
 
 /*
   The variable is used to differentiate between a normal server restart
@@ -157,7 +164,7 @@ static void rename_stats_tables()
 
   if (mysql_file_rename(key_file_misc, from_path, to_path, MYF(0)))
   {
-    sql_print_warning("Error in renaming mysql_index_stats.ibd");
+    LogErr(WARNING_LEVEL, ER_DD_UPGRADE_RENAME_IDX_STATS_FILE_FAILED);
   }
 
   build_table_filename(to_path, sizeof(to_path) - 1, MYSQL_SCHEMA_NAME.str,
@@ -169,7 +176,7 @@ static void rename_stats_tables()
 
   if (mysql_file_rename(key_file_misc, from_path, to_path, MYF(0)))
   {
-    sql_print_warning("Error in renaming mysql_index_stats.ibd");
+    LogErr(WARNING_LEVEL, ER_DD_UPGRADE_RENAME_IDX_STATS_FILE_FAILED);
   }
 }
 
@@ -245,8 +252,7 @@ bool finalize_upgrade(THD *thd)
   path.assign(mysql_real_data_home);
   if (!(a = my_dir(path.c_str(), MYF(MY_WANT_STAT))))
   {
-    sql_print_error("Error in opening data directory %s",
-                     path.c_str());
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_DD_OPEN_FAILED, path.c_str());
     return true;
   }
 
@@ -344,6 +350,10 @@ bool check_for_dd_tables()
        it != System_tables::instance()->end();
        ++it)
   {
+    if ((*it)->property() == System_tables::Types::SYSTEM)
+    {
+      continue;
+    }
     String_type table_name= (*it)->entity()->name();
     String_type schema_name(MYSQL_SCHEMA_NAME.str);
 
@@ -351,7 +361,7 @@ bool check_for_dd_tables()
       find_type(schema_name, table_name);
 
     bool is_innodb_stats_table= (table_type != nullptr) &&
-                                (*table_type == System_tables::Types::SUPPORT);
+                                (*table_type == System_tables::Types::DDSE);
     is_innodb_stats_table &= ((table_name == "innodb_table_stats") ||
                               (table_name == "innodb_index_stats"));
 
@@ -531,7 +541,7 @@ bool add_sdi_info(THD *thd)
 
   if (thd->dd_client()->fetch_global_components(&tablespaces))
   {
-    sql_print_error("Error in fetching list of tablespaces");
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_FETCH_TABLESPACES);
     return(true);
   }
 
@@ -546,8 +556,8 @@ bool add_sdi_info(THD *thd)
                               tsc->name(), &ts))
     {
       // In case of error, we will continue with upgrade.
-      sql_print_error("Error in acquiring Tablespace for SDI insertion %s.",
-                      ts->name().c_str());
+      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_ACQUIRE_TABLESPACE,
+             ts->name().c_str());
       continue;
     }
 
@@ -558,28 +568,27 @@ bool add_sdi_info(THD *thd)
     if (pr)
       hton= plugin_data<handlerton*>(pr);
     else
-      sql_print_error("Error in resolving Engine name for tablespace %s "
-                      "with engine %s", ts->name().c_str(),
-                      ts->engine().c_str());
+      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_RESOLVE_TABLESPACE_ENGINE,
+             ts->name().c_str(), ts->engine().c_str());
 
     // In case of error, we will continue with upgrade.
     if (hton && hton->upgrade_space_version(ts))
-      sql_print_error("Error in updating version number in %s tablespace",
-                      ts->name().c_str());
+      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_UPDATE_VER_NO_IN_TABLESPACE,
+             ts->name().c_str());
 
     if (hton && hton->sdi_create)
     {
       // Error handling not possible at this stage, upgrade should complete.
       if (hton->sdi_create(ts))
-        sql_print_error("Error in creating SDI for %s tablespace",
-                        ts->name().c_str());
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_STORE_SDI_FOR_TABLESPACE,
+               ts->name().c_str());
 
       // Write changes to dictionary.
       if (thd->dd_client()->update(ts))
       {
         trans_rollback_stmt(thd);
-        sql_print_error("Error in storing SDI for %s tablespace",
-                        ts->name().c_str());
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_STORE_SDI_FOR_TABLESPACE,
+               ts->name().c_str());
       }
       trans_commit_stmt(thd);
       trans_commit(thd);
@@ -592,7 +601,7 @@ bool add_sdi_info(THD *thd)
   std::vector<const dd::Table*> tables;
   if (thd->dd_client()->fetch_global_components(&tables))
   {
-    sql_print_error("Error in fetching list of tablespaces");
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_FETCH_TABLES);
     return(true);
   }
 
@@ -608,8 +617,7 @@ bool add_sdi_info(THD *thd)
   if (Upgrade_status().update(Upgrade_status::enum_stage::SDI_INFO_UPDATED))
     return true;
 
-  sql_print_information("Finished populating Data "
-                        "Dictionary tables with data.");
+  LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_DD_POPULATED);
 
   return false;
 } // add_sdi_info
@@ -679,9 +687,8 @@ bool Upgrade_status::open(int flags)
 
   if (!(m_file= my_fopen(m_filename.c_str(), flags, MYF(0))))
   {
-    sql_print_error("Could not open the upgrade info file '%s' in "
-                    "the MySQL servers datadir, errno: %d\n",
-                    m_filename.c_str(), errno);
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_OPEN_FAILED, m_filename.c_str(),
+           errno);
     return true;
   }
 
@@ -729,9 +736,8 @@ bool Upgrade_status::close()
 
   if (my_fclose(m_file, MYF(0)))
   {
-    sql_print_error("Could not close the upgrade info file '%s' in "
-                    "the MySQL servers datadir, errno: %d\n",
-                    m_filename.c_str(), errno);
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_INFO_FILE_CLOSE_FAILED,
+           m_filename.c_str(), errno);
     return true;
   }
 
@@ -806,8 +812,7 @@ static bool ha_migrate_tablespaces(THD *thd,
 
     if (error)
     {
-      sql_print_error("Got error %d from SE while migrating tablespaces",
-                      error);
+      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_TABLESPACE_MIGRATION_FAILED, error);
       return true;
     }
   }
@@ -841,21 +846,15 @@ static bool migrate_stats(THD *thd)
   error_handler.set_log_error(false);
   if (execute_query(thd, "INSERT IGNORE INTO mysql.innodb_table_stats "
                          "SELECT * FROM mysql.innodb_table_stats_backup57"))
-  {
-    sql_print_warning("Error in creating TABLE statistics entry."
-                      "Fix statistics data by using ANALYZE commmand.");
-  }
+    LogErr(WARNING_LEVEL, ER_DD_UPGRADE_FAILED_TO_CREATE_TABLE_STATS);
   else
-    sql_print_information("Finished migrating TABLE statistics data.");
+    LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED);
 
   if (execute_query(thd, "INSERT IGNORE INTO mysql.innodb_index_stats "
                          "SELECT * FROM mysql.innodb_index_stats_backup57"))
-  {
-    sql_print_warning("Error in creating Index statistics entry."
-                      "Fix statistics data by using ANALYZE commmand.");
-  }
+    LogErr(WARNING_LEVEL, ER_DD_UPGRADE_FAILED_TO_CREATE_INDEX_STATS);
   else
-    sql_print_information("Finished migrating INDEX statistics data.");
+    LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED);
 
   // Reset error logging
   error_handler.set_log_error(true);
@@ -963,7 +962,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
   */
   if(!exists_mysql_tablespace && !exists_plugin_frm)
   {
-    sql_print_error("Failed to find valid data directory.");
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR);
     return true;
   }
 
@@ -991,7 +990,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
       If mysql.idb does not exist and updgrade stage tracking file
       does not exist, we are in upgrade mode.
     */
-    sql_print_information("Starting upgrade on data directory.");
+    LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_START);
   }
 
   /*
@@ -1017,10 +1016,10 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
   }
   else
   {
-    if (bootstrap::DDSE_dict_init(thd, DICT_INIT_UPGRADE_FILES,
+    if (bootstrap::DDSE_dict_init(thd, DICT_INIT_UPGRADE_57_FILES,
                                   d->get_target_dd_version()))
     {
-      sql_print_error("Failed to initialize DD Storage Engine");
+      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_INIT_DD_SE);
       Upgrade_status().remove();
       return true;
     }
@@ -1104,9 +1103,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
       */
 
 
-      sql_print_error("Found partially upgraded DD. Aborting upgrade and "
-                      "deleting all DD tables. Start the upgrade process "
-                      "again.");
+      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FOUND_PARTIALLY_UPGRADED_DD_ABORT);
 
       // Try to Initialize dictionary to empty undo log.
       bootstrap::recover_innodb_upon_upgrade(thd);
@@ -1122,8 +1119,8 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
 
         Restart dictionary, then update SDI information.
       */
-      sql_print_information("Found partially upgraded DD. Upgrade will "
-                            "continue and start the server.");
+      LogErr(INFORMATION_LEVEL,
+             ER_DD_UPGRADE_FOUND_PARTIALLY_UPGRADED_DD_CONTINUE);
       if (restart_dictionary(thd))
         return true;
 
@@ -1144,8 +1141,8 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
         was not complete. Ignore and continue with server restart.
       */
 
-      sql_print_information("Found partially upgraded DD. Upgrade will "
-                            "continue and start the server.");
+      LogErr(INFORMATION_LEVEL,
+             ER_DD_UPGRADE_FOUND_PARTIALLY_UPGRADED_DD_CONTINUE);
 
       if (restart_dictionary(thd))
         return true;
@@ -1329,7 +1326,7 @@ bool fill_dd_and_finalize(THD *thd)
   // Upgrade logs in storage engine
   if (ha_upgrade_engine_logs(thd))
   {
-    sql_print_error("Error in upgrading engine logs.");
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_SE_LOGS_FAILED);
     terminate(thd);
     return true;
   }
@@ -1344,9 +1341,7 @@ bool fill_dd_and_finalize(THD *thd)
 
   // Add SDI information to all tablespaces
   if (add_sdi_info(thd))
-  {
-    sql_print_error("Error in updating SDI information.");
-  }
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_SDI_INFO_UPDATE_FAILED);
 
   // Migrate Statistics tables
   (void) migrate_stats(thd);

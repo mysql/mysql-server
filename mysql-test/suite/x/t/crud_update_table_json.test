@@ -1,0 +1,403 @@
+## Upadting json values in non-document table
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_update_table_json.tmp
+## Test data
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (xfield JSON);
+-->endsql
+
+### SET
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+    }
+    operation: SET
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:'{"first":1.1, "second": "two.1"}'}}
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+### ITEM_SET
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'first'}
+    }
+    operation: ITEM_SET
+    value: {
+      type: LITERAL literal {type: V_DOUBLE v_double: 1.1}
+    }
+  }
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'second'}
+    }
+    operation: ITEM_SET
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:"two.1"}}
+    }
+  }
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'third'}
+    }
+    operation: ITEM_SET
+    value: {
+      type: LITERAL literal {type: V_DOUBLE v_double: 3.1}
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+### ITEM_REMOVE
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'first'}
+    }
+    operation: ITEM_REMOVE
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+### ITEM_REPLACE
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'first'}
+    }
+    operation: ITEM_REPLACE
+    value: {
+      type: LITERAL literal {type: V_DOUBLE v_double: 1.1}
+    }
+  }
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'third'}
+    }
+    operation: ITEM_REPLACE
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:"three.1"}}
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+### ITEM_MERGE
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+    }
+    operation: ITEM_MERGE
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:'{"third":3.0, "fourth": "four"}'}}
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+### ARRAY_INSERT
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": ["two"]}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'second'}
+      document_path {type: ARRAY_INDEX index: 0}
+    }
+    operation: ARRAY_INSERT
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:'two.1'}}
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+### ARRAY_APPEND
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'second'}
+    }
+    operation: ARRAY_APPEND
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:'two.1'}}
+    }
+  }
+}
+
+#-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+
+
+### ERRORS
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES('{"first":1.0, "second": "two"}');
+SELECT * FROM xtest.xtable;
+-->endsql
+
+### SET errors
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+      document_path {type: MEMBER value: 'second'}
+    }
+    operation: SET
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:'{"first":1.1}'}}
+    }
+  }
+}
+
+-->expecterror 5052
+-->recvresult
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: ''
+    }
+    operation: SET
+    value: {
+      type: LITERAL literal {type: V_OCTETS v_octets {value:'{"first":1.1}'}}
+    }
+  }
+}
+
+-->expecterror 5052
+-->recvresult
+
+
+### ITEM_SET error
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+    }
+    operation: ITEM_SET
+    value: {
+      type: LITERAL literal {type: V_DOUBLE v_double: 1.1}
+    }
+  }
+}
+
+-->expecterror 5053
+-->recvresult
+
+
+### ITEM_REMOVE error
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+    }
+    operation: ITEM_REMOVE
+  }
+}
+
+-->expecterror 5053
+-->recvresult
+
+
+### ITEM_REPLACE error
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+    }
+    operation: ITEM_REPLACE
+    value: {
+      type: LITERAL literal {type: V_DOUBLE v_double: 1.1}
+    }
+  }
+}
+
+-->expecterror 5053
+-->recvresult
+
+
+### ARRAY_INSERT error
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+    }
+    operation: ARRAY_INSERT
+    value: {
+      type: LITERAL literal {type: V_DOUBLE v_double: 1.1}
+    }
+  }
+}
+
+-->expecterror 5053
+-->recvresult
+
+
+### ARRAY_APPEND error
+
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source {
+      name: 'xfield'
+    }
+    operation: ARRAY_APPEND
+    value: {
+      type: LITERAL literal {type: V_DOUBLE v_double: 1.1}
+    }
+  }
+}
+
+-->expecterror 5053
+-->recvresult
+
+## Cleanup
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_update_table_json.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/crud_update_table_json.tmp
+--source include/xplugin_drop_user.inc

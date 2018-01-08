@@ -201,23 +201,22 @@ SELECT @@global.max_connections;
 SELECT @@global.server_id;
 SELECT @@global.session_track_system_variables;
 
---echo # check contents of persistent config file
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 --echo
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 RESET PERSIST server_id;
 RESET PERSIST general_log;
 SET PERSIST max_connections=77;
 SET PERSIST session_track_system_variables='max_connections';
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo
 SET PERSIST max_connections=99;
 RESET PERSIST session_track_system_variables;
 SET PERSIST concurrent_insert=ALWAYS;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo
 RESET PERSIST max_connections;
 SET PERSIST concurrent_insert=AUTO;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo
 
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
@@ -265,7 +264,6 @@ SELECT @@global.foreign_key_checks;
 SET PERSIST foreign_key_checks=0;
 SET PERSIST flush_time=2;
 
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 --echo # Restart server with persisted-globals-load=0
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
@@ -369,8 +367,7 @@ SELECT @@global.innodb_buffer_pool_size;
 --source include/restart_mysqld.inc
 
 SELECT @@global.innodb_buffer_pool_size;
---echo # Check mysqld-auto.cnf file.
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo
 
 --echo #

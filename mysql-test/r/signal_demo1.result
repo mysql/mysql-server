@@ -70,7 +70,7 @@ begin
 set msg= concat('No such person type:', person_type);
 SIGNAL SQLSTATE '45000' SET
 MESSAGE_TEXT = msg,
-MYSQL_ERRNO = 20000;
+MYSQL_ERRNO = 50000;
 end;
 end case;
 end

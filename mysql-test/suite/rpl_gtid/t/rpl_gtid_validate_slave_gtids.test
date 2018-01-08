@@ -22,7 +22,11 @@
 # Step-1) Master wants to set 1 and 2 GTIDs in GTID_PURGED
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --replace_result $master_uuid master_uuid
---eval SET GLOBAL GTID_PURGED= "$master_uuid:1-2"
+--eval SET GLOBAL GTID_PURGED= "$master_uuid:1"
+
+# Verify that the value can begin with a plus sign for setting GTID_PURGED
+--replace_result $master_uuid master_uuid
+--eval SET GLOBAL GTID_PURGED= "+$master_uuid:2"
 
 # Step-2) Do some dummy transactions
 CREATE TABLE t1(i INT);  # GTID-3

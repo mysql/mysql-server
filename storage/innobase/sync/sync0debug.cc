@@ -9,16 +9,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -472,6 +480,7 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_LOCK_FREE_HASH);
 	LEVEL_MAP_INSERT(SYNC_MONITOR_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_ANY_LATCH);
+	LEVEL_MAP_INSERT(SYNC_FIL_SHARD);
 	LEVEL_MAP_INSERT(SYNC_DOUBLEWRITE);
 	LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_LIST);
 	LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_STATE);
@@ -807,6 +816,7 @@ LatchDebug::check_order(
 	case SYNC_POOL_MANAGER:
 	case SYNC_RECV_WRITER:
 	case SYNC_PARSER:
+	case SYNC_DICT:
 
 		basic_check(latches, level, level);
 		break;
@@ -846,12 +856,14 @@ LatchDebug::check_order(
 		}
 		break;
 
+	case SYNC_FIL_SHARD:
 	case SYNC_BUF_FLUSH_LIST:
 	case SYNC_BUF_LRU_LIST:
 	case SYNC_BUF_FREE_LIST:
 	case SYNC_BUF_ZIP_FREE:
 	case SYNC_BUF_ZIP_HASH:
 	case SYNC_BUF_FLUSH_STATE:
+	case SYNC_RSEG_ARRAY_HEADER:
 
 		/* We can have multiple mutexes of this type therefore we
 		can only check whether the greater than condition holds. */
@@ -898,10 +910,6 @@ LatchDebug::check_order(
 
 		ut_a(find(latches, SYNC_FSP) != 0
 		     || basic_check(latches, level, SYNC_FSP));
-		break;
-
-	case SYNC_RSEG_ARRAY_HEADER:
-		ut_a(basic_check(latches, level, level - 1));
 		break;
 
 	case SYNC_TRX_UNDO_PAGE:
@@ -1011,10 +1019,6 @@ LatchDebug::check_order(
 		basic_check(latches, level, SYNC_LOG);
 		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
 		ut_a(find(latches, SYNC_PERSIST_AUTOINC) == NULL);
-		break;
-
-	case SYNC_DICT:
-		basic_check(latches, level, SYNC_DICT);
 		break;
 
 	case SYNC_MUTEX:
@@ -1413,7 +1417,7 @@ sync_latch_meta_init()
 
 	LATCH_ADD_MUTEX(PARSER, SYNC_PARSER, parser_mutex_key);
 
-	LATCH_ADD_MUTEX(FIL_SYSTEM, SYNC_ANY_LATCH, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD, SYNC_FIL_SHARD, fil_system_mutex_key);
 
 	LATCH_ADD_MUTEX(FLUSH_LIST, SYNC_BUF_FLUSH_LIST, flush_list_mutex_key);
 

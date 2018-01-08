@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -476,6 +483,10 @@ ulonglong Table_statistics::read_stat(
   DBUG_ENTER("Table_statistics::read_stat");
   ulonglong result;
 
+  // Stop we have see and error already for this table.
+  if (check_error_for_key(schema_name_ptr, table_name_ptr))
+    DBUG_RETURN(0);
+
   // Check if we can directly use the value passed from mysql.stats tables.
   if (!is_persistent_statistics_expired(thd, cached_timestamp))
   {
@@ -490,10 +501,6 @@ ulonglong Table_statistics::read_stat(
   if (stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY &&
       is_stat_cached_in_mem(schema_name_ptr, table_name_ptr, partition_name))
     DBUG_RETURN(get_stat(stype));
-
-  // Stop we have see and error already for this table.
-  if (check_error_for_key(schema_name_ptr, table_name_ptr))
-    DBUG_RETURN(0);
 
   // NOTE: read_stat() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
@@ -724,16 +731,8 @@ ulonglong Table_statistics::read_stat_from_SE(
                    thd->get_stmt_da()->mysql_errno(),
                    thd->get_stmt_da()->message_text());
 
-    /* Cache empty statistics when we see a error.
-       This will make sure,
-
-       1. You will not invoke open_tables_for_query() gain.
-
-       2. You will not see junk values for statistics in results.
-    */
-    cache_stats_in_mem(schema_name_ptr, table_name_ptr, ha_stat);
-
-    m_error= thd->get_stmt_da()->message_text();
+    store_error_message(schema_name_ptr, table_name_ptr, nullptr,
+                        thd->get_stmt_da()->message_text());
     thd->clear_error();
   }
 
@@ -859,17 +858,8 @@ ulonglong Table_statistics::read_stat_by_open_table(
                      thd->get_stmt_da()->mysql_errno(),
                      thd->get_stmt_da()->message_text());
 
-      /* Cache empty statistics when we see a error.
-         This will make sure,
-
-         1. You will not invoke open_tables_for_query() gain.
-
-         2. You will not see junk values for statistics in results.
-      */
-      cache_stats_in_mem(schema_name_ptr, table_name_ptr, partition_name,
-                         ha_stat);
-
-      m_error= thd->get_stmt_da()->message_text();
+      store_error_message(schema_name_ptr, table_name_ptr, partition_name,
+                          thd->get_stmt_da()->message_text());
       thd->clear_error();
     }
     else
@@ -930,16 +920,8 @@ ulonglong Table_statistics::read_stat_by_open_table(
                      thd->get_stmt_da()->mysql_errno(),
                      thd->get_stmt_da()->message_text());
 
-        /* Cache empty statistics when we see a error.
-          This will make sure,
-
-          1. You will not invoke open_tables_for_query() gain.
-
-          2. You will not see junk values for statistics in results.
-         */
-        cache_stats_in_mem(schema_name_ptr, table_name_ptr, ha_stat);
-
-        m_error= thd->get_stmt_da()->message_text();
+        store_error_message(schema_name_ptr, table_name_ptr, partition_name,
+                            thd->get_stmt_da()->message_text());
         thd->clear_error();
       }
       else

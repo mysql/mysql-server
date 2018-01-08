@@ -5,9 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 [connection master]
-install plugin mysqlx soname "mysqlx.so";
 [connection slave]
-install plugin mysqlx soname "mysqlx.so";
 Starting the slave server
 RUN CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_USER= 'root'
 
@@ -99,8 +97,6 @@ Mysqlx.Ok {
 }
 ok
 [connection master]
-UNINSTALL PLUGIN mysqlx;
 [connection slave]
-UNINSTALL PLUGIN mysqlx;
 include/start_slave.inc
 include/rpl_end.inc

@@ -1,7 +1,7 @@
 #
 # Tests with the utf8 character set
 #
-
+--source include/no_ps_protocol.inc
 
 --disable_warnings
 drop table if exists t1,t2;

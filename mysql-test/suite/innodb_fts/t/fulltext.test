@@ -304,7 +304,7 @@ drop table t1;
 # INNODB_FTS: Charset Support (FIX)
 SET NAMES latin1;
 --character_set latin1
-CREATE TABLE t1 (t text character set utf8 not null, fulltext(t)) ENGINE = InnoDB;
+CREATE TABLE t1 (t text character set utf8mb4 not null, fulltext(t)) ENGINE = InnoDB;
 INSERT t1 VALUES ('Mit freundlichem Grüß'), ('aus Osnabrück');
 SET NAMES koi8r;
 --character_set koi8r

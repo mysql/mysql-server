@@ -60,6 +60,7 @@ global_status
 global_variables
 host_cache
 hosts
+instance_log_status
 memory_summary_by_account_by_event_name
 memory_summary_by_host_by_event_name
 memory_summary_by_thread_by_event_name
@@ -998,6 +999,7 @@ metadata_locks	CREATE TABLE `metadata_locks` (
   `OBJECT_TYPE` varchar(64) NOT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `COLUMN_NAME` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `LOCK_TYPE` varchar(32) NOT NULL,
   `LOCK_DURATION` varchar(32) NOT NULL,
@@ -1006,7 +1008,7 @@ metadata_locks	CREATE TABLE `metadata_locks` (
   `OWNER_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
   `OWNER_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   PRIMARY KEY (`OBJECT_INSTANCE_BEGIN`),
-  KEY `OBJECT_TYPE` (`OBJECT_TYPE`,`OBJECT_SCHEMA`,`OBJECT_NAME`),
+  KEY `OBJECT_TYPE` (`OBJECT_TYPE`,`OBJECT_SCHEMA`,`OBJECT_NAME`,`COLUMN_NAME`),
   KEY `OWNER_THREAD_ID` (`OWNER_THREAD_ID`,`OWNER_EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table file_instances;

@@ -1,0 +1,102 @@
+# restart
+call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unhandled message of type 12'");
+call mtr.add_suppression("Plugin mysqlx reported: '4.1: Unhandled message of type 12'");
+call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unhandled message of type 12'");
+RUN create user killsession@localhost identified by 'killsession'
+
+0 rows affected
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+x_root	Query	executing
+root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+killsession	Query	executing
+0 rows affected
+RUN kill $CONNECTION_ID
+While executing kill $CONNECTION_ID:
+Got expected error: You are not owner of thread $CONNECTION_ID (code 1095)
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+killsession	Query	executing
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+x_root	Query	executing
+root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
+0 rows affected
+RUN kill 5126
+While executing kill 5126:
+Got expected error: Unknown thread id: 5126 (code 1094)
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+x_root	Query	executing
+root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN set @current := connection_id()
+
+0 rows affected
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+x_root	Query	executing
+x_root	Sleep	
+root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
+0 rows affected
+RUN kill CONNECTION_ID
+
+0 rows affected
+RUN select sleep(1)
+sleep(1)
+0
+0 rows affected
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+x_root	Query	executing
+root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
+0 rows affected
+RUN kill @current
+While executing kill @current:
+Got expected error: Query execution was interrupted (code 1317)
+Application terminated with expected error: MySQL server has gone away (code 2006)
+not ok
+RUN set @current := connection_id()
+
+0 rows affected
+RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
+USER	COMMAND	STATE
+x_root	Query	executing
+root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
+0 rows affected
+RUN kill @current
+While executing kill @current:
+Got expected error: Query execution was interrupted (code 1317)
+Application terminated with expected error: MySQL server has gone away (code 2006)
+not ok
+show status like 'Mysqlx_sessions%';
+Variable_name	Value
+Mysqlx_sessions	0
+Mysqlx_sessions_accepted	5
+Mysqlx_sessions_closed	3
+Mysqlx_sessions_fatal_error	2
+Mysqlx_sessions_killed	0
+Mysqlx_sessions_rejected	0
+drop user killsession@localhost;

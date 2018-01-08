@@ -203,14 +203,14 @@ SELECT /*+ RESOURCE_GROUP(rg) */ 1;
 1
 1
 Warnings:
-Warning	4552	Resource Group 'rg' does not exist.
+Warning	3651	Resource Group 'rg' does not exist.
 # 2. Using system resource group in hint for a non-privilege user should give warning
 CREATE USER u1;
 SELECT /*+ RESOURCE_GROUP(system_resource) */ 1;
 1
 1
 Warnings:
-Warning	4562	Unable to bind resource group system_resource with thread id ID.(System resource group can't be bound with a session thread).
+Warning	3661	Unable to bind resource group system_resource with thread id ID.(System resource group can't be bound with a session thread).
 DROP USER u1;
 # 3. Length of resource group name is greater than maximum allowed limit of identifier names.
 #    length shall be truncated in this case and warning output to user.

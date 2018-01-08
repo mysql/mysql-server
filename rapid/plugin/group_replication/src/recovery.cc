@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
 #include <errno.h>
@@ -51,7 +58,7 @@ Recovery_module(Applier_module_interface *applier,
                 ulong components_stop_timeout)
   : applier_module(applier), recovery_state_transfer(recovery_channel_name,
     local_member_info->get_uuid(), channel_obsr_mngr),
-    recovery_running(false), recovery_starting(false),
+    recovery_thd_state(),
     recovery_completion_policy(RECOVERY_POLICY_WAIT_CERTIFIED),
     stop_wait_timeout(components_stop_timeout)
 {
@@ -90,8 +97,6 @@ Recovery_module::start_recovery(const string& group_name,
   //reset the recovery aborted status here to avoid concurrency
   recovery_aborted= false;
 
-  recovery_starting= true;
-
   if (mysql_thread_create(key_GR_THD_recovery,
                           &recovery_pthd,
                           get_connection_attrib(),
@@ -103,8 +108,9 @@ Recovery_module::start_recovery(const string& group_name,
     DBUG_RETURN(1);
     /* purecov: end */
   }
+  recovery_thd_state.set_created();
 
-  while (!recovery_running && !recovery_aborted)
+  while (recovery_thd_state.is_alive_not_running() && !recovery_aborted)
   {
     DBUG_PRINT("sleep",("Waiting for recovery thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
@@ -121,18 +127,15 @@ Recovery_module::stop_recovery()
 
   mysql_mutex_lock(&run_lock);
 
-  if (!recovery_running)
+  if (recovery_thd_state.is_thread_dead())
   {
-    if (!recovery_starting)
-    {
-      mysql_mutex_unlock(&run_lock);
-      DBUG_RETURN(0);
-    }
+    mysql_mutex_unlock(&run_lock);
+    DBUG_RETURN(0);
   }
 
   recovery_aborted= true;
 
-  while (recovery_running || recovery_starting)
+  while (recovery_thd_state.is_thread_alive())
   {
     DBUG_PRINT("loop", ("killing group replication recovery thread"));
 
@@ -161,7 +164,7 @@ Recovery_module::stop_recovery()
       stop_wait_timeout= stop_wait_timeout - 2;
     }
     /* purecov: begin inspected */
-    else if (recovery_running) // quit waiting
+    else if (recovery_thd_state.is_thread_alive()) // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
       DBUG_RETURN(1);
@@ -170,7 +173,7 @@ Recovery_module::stop_recovery()
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!recovery_running);
+  DBUG_ASSERT(!recovery_thd_state.is_running());
 
   mysql_mutex_unlock(&run_lock);
 
@@ -302,8 +305,7 @@ Recovery_module::recovery_thread_handle()
   recovery_state_transfer.initialize_group_info();
 
   mysql_mutex_lock(&run_lock);
-  recovery_running= true;
-  recovery_starting= false;
+  recovery_thd_state.set_running();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -432,7 +434,7 @@ cleanup:
   delete recovery_thd;
 
   recovery_aborted= true;  // to avoid the start missing signals
-  recovery_running= false;
+  recovery_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -451,7 +453,7 @@ Recovery_module::update_recovery_process(bool did_members_left, bool is_leaving)
 
   int error= 0;
 
-  if (recovery_running)
+  if (recovery_thd_state.is_running())
   {
     /*
       If I left the Group... the group manager will only have me so recovery

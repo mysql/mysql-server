@@ -200,3 +200,80 @@ SELECT MAKETIME('1',(!(999*1.421474e+308)),LAST_VALUE(-25038)RESPECT NULLS
 OVER());
 
 --echo # End of test for Bug#27135084, Bug#27136492
+
+--echo #
+--echo # Bug#27149369: ASSERTION FAILURE IN BOOL
+--echo #               READ_FRAME_BUFFER_ROW(INT64, WINDOW*, BOOL)
+--echo #
+
+CREATE TABLE t1 ( i INTEGER);
+INSERT INTO t1 VALUES (392),(392),(1027),(1027),(1027),(1034),(1039);
+
+SELECT i, LAST_VALUE(i) OVER w FROM t1
+WINDOW w AS (ORDER BY i RANGE BETWEEN 7 PRECEDING AND 1 PRECEDING);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #27062031: WINDOW FUNC: CRASH IN COUNT_FIELD_TYPES() /
+--echo #                ASSERTION FAILED: N < M_SIZE
+--echo #
+
+
+CREATE TABLE t(a INT);
+INSERT INTO t values (1),(2),(3),(6),(0);
+
+--echo Discard w
+let $query=
+   SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo Discard w
+let $query=
+   SELECT 1 FROM t WINDOW w AS(PARTITION BY 1+2,3+4,5+6 ORDER BY 1+2,3+4);
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo Discard w2
+let $query=
+   SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo Don't discard either w1 or w2. Non-optimal: could replace with
+--echo one window since w1 isn't used and even if it were used, the
+--echo semantics are the same.
+let $query=
+   SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo Discard w3. Non-optimal: see previous case.
+let $query=
+   SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1), w3 AS (w1);
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo Discard w1. Non-optimal: see previous case.
+let $query=
+   SELECT RANK() OVER w3 FROM t WINDOW w1 AS (w2), w3 AS (w2), w2 AS ();
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo Discard w2.
+let $query=
+   SELECT RANK() OVER w1 FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a);
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+--echo Discard none.
+let $query=
+   SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ROWS UNBOUNDED PRECEDING);
+eval $query;
+eval EXPLAIN FORMAT=JSON $query;
+
+DROP TABLE t;
+
+--echo # End of test for Bug#27062031
+

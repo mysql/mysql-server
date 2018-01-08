@@ -17,3 +17,6 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=gcol_ndb --vard
 
 # Run the NDB memcache plugin tests.
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndb_memcache --vardir=var-memc-ndb --experimental=collections/default.experimental --suite=ndb_memcache
+
+# Run the meb and meb_ptr suites
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=MEB --vardir=var-meb --experimental=collections/default.experimental --suite=meb,meb_ptr

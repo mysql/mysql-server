@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,6 +23,7 @@
 #ifndef GCS_XCOM_UTILS_INCLUDED
 #define GCS_XCOM_UTILS_INCLUDED
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -636,6 +644,20 @@ public:
 
   virtual int xcom_force_nodes(Gcs_xcom_nodes &nodes,
                                unsigned int group_id_hash)= 0;
+
+  /**
+    Function that retrieves the value that signals that XCom
+    must be forcefully stopped.
+
+    @return 1 if XCom needs to forcefully exit. 0 otherwise.
+   */
+  virtual bool get_should_exit()= 0;
+
+  /**
+    Function that sets the value that signals that XCom
+    must be forcefully stopped.
+   */
+  virtual void set_should_exit(bool should_exit)= 0;
 };
 
 
@@ -759,6 +781,8 @@ public:
   int xcom_client_force_config(node_list *nl, uint32_t group_id);
   int xcom_client_force_config(connection_descriptor *fd, node_list *nl,
                                uint32_t group_id);
+  bool get_should_exit();
+  void set_should_exit(bool should_exit);
 private:
   /* A pointer to the next local XCom connection to use. */
   int m_xcom_handlers_cursor;
@@ -805,6 +829,7 @@ private:
   const char *m_cipher;
   const char *m_tls_version;
 
+  std::atomic_bool m_should_exit;
 
   /*
     Disabling the copy constructor and assignment operator.

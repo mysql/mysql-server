@@ -1277,6 +1277,11 @@ KEY col_date_key (col_date_key),
 KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key),
 KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO k VALUES (1,
 'wrhhsy',
 'rhgpwcrafs',
@@ -1317,6 +1322,11 @@ KEY col_int_key (col_int_key),
 KEY col_date_key (col_date_key),
 KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO a VALUES (NULL,
 '2008-10-25 07:07:49',
 'BXLIC',
@@ -1357,6 +1367,11 @@ KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
 KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key),
 KEY col_datetime_key (col_datetime_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO g VALUES ('o',
 '2009-05-15 00:00:00',
 'PFJGE',
@@ -3068,4 +3083,34 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2`,`test`.`t1`.`col3` AS `col3` from `test`.`t1` where (`test`.`t1`.`col3` < 100)
+DROP TABLE t1;
+#
+# Bug#27197709 TABLE ROWS ESTIMATE DURING HISTOGRAM CREATION MAY BE WAY
+#              OFF
+#
+CREATE TABLE t1 (col1 VARCHAR(255));
+# Insert 10000 rows into the table t1 with random string data
+SET cte_max_recursion_depth = 10000;
+INSERT INTO t1 (col1)
+WITH RECURSIVE cte (n, val) AS
+(
+SELECT 1, CONCAT(MD5(RAND()), MD5(RAND()))
+UNION ALL
+SELECT n + 1, CONCAT(MD5(RAND()), MD5(RAND())) FROM cte WHERE n < 10000
+)
+SELECT val FROM cte;
+# Set the amount of available memory as low as possible, so we are sure
+# that sampling will be used.
+SET histogram_generation_max_mem_size = 1000000;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT
+histogram->>'$."sampling-rate"' < 1.0 AS should_be_true
+FROM
+INFORMATION_SCHEMA.COLUMN_STATISTICS;
+should_be_true
+1
+SET cte_max_recursion_depth = DEFAULT;
+SET histogram_generation_max_mem_size = DEFAULT;
 DROP TABLE t1;

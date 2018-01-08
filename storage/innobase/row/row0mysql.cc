@@ -3,16 +3,24 @@
 Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -1660,7 +1668,7 @@ row_insert_for_mysql_using_ins_graph(
 
 	} else if (srv_force_recovery
 		   && !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN
-			&& dict_sys_t::is_hardcoded(prebuilt->table->id))) {
+			&& dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
 		/* Allow to modify hardcoded DD tables in some scenario to
 		make DDL work */
 
@@ -1779,8 +1787,7 @@ error_exit:
 			doc_ids difference should not exceed
 			FTS_DOC_ID_MAX_STEP value. */
 
-			if (next_doc_id > 1
-			    && doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
+			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
 				 ib::error() << "Doc ID " << doc_id
 					<< " is too big. Its difference with"
 					" largest used Doc ID "
@@ -2429,7 +2436,7 @@ row_update_for_mysql_using_upd_graph(
 	make DDL work */
 	if (srv_force_recovery > 0
 	    && !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN
-		 && dict_sys_t::is_hardcoded(prebuilt->table->id))) {
+		 && dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
 		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
 		DBUG_RETURN(DB_READ_ONLY);
 	}
@@ -4102,21 +4109,32 @@ row_drop_single_table_tablespace(
 	dberr_t	err = DB_SUCCESS;
 
 	/* If the tablespace is not in the cache, just delete the file. */
-	if (!fil_space_for_table_exists_in_mem(
-		    space_id, tablename, true, false, NULL, 0)) {
+	if (!fil_space_exists_in_mem(
+		space_id, tablename, true, false, NULL, 0)) {
 
 		/* Force a delete of any discarded or temporary files. */
-		fil_delete_file(filepath);
+		if (fil_delete_file(filepath)) {
 
-		ib::info() << "Removed datafile " << filepath;
+			ib::info() << "Removed datafile " << filepath;
 
-	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
-		   != DB_SUCCESS) {
+		} else {
+			ib::info()
+				<< "Failed to delete the datafile '"
+				<< filepath << "'!";
+		}
 
-		ib::error() << "We are not able to delete the tablespace "
-			<< space_id << " file " << filepath << "!";
+	} else {
 
-		err = DB_ERROR;
+		err = fil_delete_tablespace(
+			space_id, BUF_REMOVE_FLUSH_NO_WRITE);
+
+		if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
+
+			ib::error()
+				<< "Failed to delete the datafile of"
+				<< " tablespace " << space_id
+				<< ", file '" << filepath << "'!";
+		}
 	}
 
 	return(err);
@@ -4521,14 +4539,13 @@ row_drop_table_for_mysql(
 	/* Determine the tablespace filename before we drop
 	dict_table_t.  Free this memory before returning. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
 
-		filepath = fil_make_filepath(
-			table->data_dir_path,
-			table_name, IBD, true);
+		auto	dir = dict_table_get_datadir(table);
+
+		filepath = Fil_path::make(dir, table_name, IBD, true);
+
 	} else if (!shared_tablespace) {
-		filepath = fil_make_filepath(
-			NULL, table_name, IBD, false);
+		filepath = Fil_path::make_ibd_from_table_name(table_name);
 	}
 
 	/* Free the dict_table_t object. */
@@ -4544,11 +4561,16 @@ row_drop_table_for_mysql(
 
 	/* Do not attempt to drop known-to-be-missing tablespaces,
 	nor system or shared general tablespaces. */
-	if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
+	if (is_discarded
+	    || ibd_file_missing
+	    || is_temp
+	    || shared_tablespace
 	    || fsp_is_system_or_temp_tablespace(space_id)) {
+
 		/* For encrypted table, if ibd file can not be decrypt,
 		we also set ibd_file_missing. We still need to try to
 		remove the ibd file for this. */
+
 		if (is_discarded || !is_encrypted || !ibd_file_missing) {
 			goto funct_exit;
 		}

@@ -1,33 +1,45 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/regexp/regexp_engine.h"
 
 #include <stdint.h>
 
 #include <algorithm>  // copy
-#include <string>  // strlen
+#include <string>     // strlen
 
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"  // is_aligned, is_aligned_to
 #include "nullable.h"
 #include "sql/regexp/errors.h"
 #include "sql/regexp/regexp_facade.h"
+#include "sql/sql_class.h"
 #include "sql_string.h"
 
 namespace regexp {
+
+UBool QueryNotKilled(const void *thd, int32_t) {
+  return !static_cast<const THD *>(thd)->is_killed();
+}
 
 const char *icu_version_string() { return U_ICU_VERSION; }
 
@@ -52,12 +64,12 @@ bool Regexp_engine::Matches(int start, int occurrence) {
   return found;
 }
 
-String *Regexp_engine::Replace(const char *replacement, int length,
-                               int start, int occurrence, String *result) {
+String *Regexp_engine::Replace(const char *replacement, int length, int start,
+                               int occurrence, String *result) {
   // Find the first match, starting at the chosen position, ...
   bool found = uregex_find(m_re, start, &m_error_code);
 
-  int end_of_previous_match = -1;
+  int end_of_previous_match = 0;
   // ... fast-forward to the chosen occurrence, ...
   for (int i = 1; i < occurrence && found; ++i) {
     end_of_previous_match = uregex_end(m_re, 0, &m_error_code);
@@ -79,12 +91,11 @@ String *Regexp_engine::Replace(const char *replacement, int length,
   auto ureplacement = pointer_cast<const UChar *>(replacement);
 
   // ... replacing all occurrences if 'occurrence' is 0, and finally ...
-  AppendHead(end_of_previous_match, start);
+  AppendHead(std::max(end_of_previous_match, start));
   if (found) {
     do {
       AppendReplacement(ureplacement, length / sizeof(UChar));
-    }
-    while (occurrence == 0 && uregex_findNext(m_re, &m_error_code));
+    } while (occurrence == 0 && uregex_findNext(m_re, &m_error_code));
   }
 
   // ... put the part after the matches back.
@@ -92,7 +103,7 @@ String *Regexp_engine::Replace(const char *replacement, int length,
 
   check_icu_status(m_error_code);
 
-  result->set(pointer_cast<const char *>(&m_replace_buffer[0].the_char),
+  result->set(pointer_cast<const char *>(m_replace_buffer.data()),
               m_replace_buffer.size() * sizeof(UChar), regexp_lib_charset);
   result->copy();
   return result;
@@ -116,37 +127,32 @@ String *Regexp_engine::MatchedSubstring(String *result) {
   return result;
 }
 
-void Regexp_engine::AppendHead(int end_of_previous_match, int start_of_search) {
+void Regexp_engine::AppendHead(size_t size) {
   DBUG_ENTER("Regexp_engine::AppendHead");
-  /*
-    We're not supposed to find matches before the place where we started the
-    search. If we do, something went awry.
-  */
-  DBUG_ASSERT(end_of_previous_match == -1 ||
-              start_of_search <= end_of_previous_match);
 
   // This won't be written to in case of errors.
-  int text_length = 0;
-  auto text = uregex_getText(m_re, &text_length, &m_error_code);
+  int32_t text_length32 = 0;
+  auto text = uregex_getText(m_re, &text_length32, &m_error_code);
+#ifndef DBUG_OFF
+  size_t text_length = text_length32;
+#endif
 
   // We make sure we are not in an error state before we start copying.
   if (m_error_code != U_ZERO_ERROR) DBUG_VOID_RETURN;
 
-  m_replace_buffer.reserve(std::min(text_length + 1, HardLimit()));
-
-  /*
-    The part we have to worry about here, the part that ICU doesn't add for
-    us is, is if the search didn't start on the first character or first
-    match for the regular expression. It's the longest such prefix that we
-    have to copy ourselves.
-  */
-  int head_size = std::max(start_of_search, end_of_previous_match);
-
-  DBUG_ASSERT(head_size <= text_length);
-  std::copy(text, text + head_size, &m_replace_buffer[0].the_char);
-  if (head_size > 0) m_replace_buffer.resize(head_size);
+  DBUG_ASSERT(size <= text_length);
+  if (m_replace_buffer.size() < size) m_replace_buffer.resize(size);
+  std::copy(text, text + size, m_replace_buffer.data());
+  m_replace_buffer_pos = size;
 
   DBUG_VOID_RETURN;
+}
+
+int Regexp_engine::TryToAppendReplacement(const UChar *repl, size_t length) {
+  UChar *ptr = m_replace_buffer.data() + m_replace_buffer_pos;
+  int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
+  return uregex_appendReplacement(m_re, repl, length, &ptr, &capacity,
+                                  &m_error_code);
 }
 
 void Regexp_engine::AppendReplacement(const UChar *replacement, size_t length) {
@@ -155,7 +161,7 @@ void Regexp_engine::AppendReplacement(const UChar *replacement, size_t length) {
   int replacement_size = TryToAppendReplacement(replacement, length);
 
   if (m_error_code == U_BUFFER_OVERFLOW_ERROR) {
-    int required_buffer_size = m_replace_buffer.size() + replacement_size;
+    size_t required_buffer_size = m_replace_buffer_pos + replacement_size;
     if (required_buffer_size >= HardLimit()) DBUG_VOID_RETURN;
     /*
       The buffer size was inadequate to write the replacement, but there is
@@ -165,33 +171,27 @@ void Regexp_engine::AppendReplacement(const UChar *replacement, size_t length) {
       once again, by resetting these values after reserving the extra space in
       the buffer.
     */
-    m_replace_buffer.reserve(required_buffer_size);
+    m_replace_buffer.resize(required_buffer_size);
     m_error_code = U_ZERO_ERROR;
     TryToAppendReplacement(replacement, length);
-    /*
-      The string gets terminated in AppendTail(), which should always be
-      called. No need to worry about that here.
-    */
-    DBUG_ASSERT(m_error_code == U_ZERO_ERROR ||
-                m_error_code == U_STRING_NOT_TERMINATED_WARNING);
   }
-
-  m_replace_buffer.resize(m_replace_buffer.size() + replacement_size);
-
+  m_replace_buffer_pos += replacement_size;
   DBUG_VOID_RETURN;
+}
+
+int Regexp_engine::TryToAppendTail() {
+  UChar *ptr = m_replace_buffer.data() + m_replace_buffer_pos;
+  int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
+  return uregex_appendTail(m_re, &ptr, &capacity, &m_error_code);
 }
 
 void Regexp_engine::AppendTail() {
   DBUG_ENTER("Regexp_engine::AppendTail");
-  int tail_size = TryToAppendTail() + 1;
 
-  if (m_error_code == U_BUFFER_OVERFLOW_ERROR ||
-      m_error_code == U_STRING_NOT_TERMINATED_WARNING) {
-    /*
-      We add a zero terminator for the string, even though strictly speaking,
-      we shouldn't have to.
-    */
-    int required_buffer_size = m_replace_buffer.size() + tail_size;
+  int tail_size = TryToAppendTail();
+
+  if (m_error_code == U_BUFFER_OVERFLOW_ERROR) {
+    size_t required_buffer_size = m_replace_buffer_pos + tail_size;
     if (required_buffer_size >= HardLimit()) DBUG_VOID_RETURN;
 
     /*
@@ -202,13 +202,11 @@ void Regexp_engine::AppendTail() {
       U_STRING_NOT_TERMINATED_WARNING. So we try once again, by resetting
       these values after reserving the extra space in the buffer.
     */
-    m_replace_buffer.reserve(required_buffer_size);
+    m_replace_buffer.resize(required_buffer_size);
     m_error_code = U_ZERO_ERROR;
     TryToAppendTail();
-    DBUG_ASSERT(m_error_code == U_ZERO_ERROR);
   }
-  m_replace_buffer.resize(m_replace_buffer.size() + tail_size - 1);
-
+  m_replace_buffer_pos += tail_size;
   DBUG_VOID_RETURN;
 }
 

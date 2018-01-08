@@ -1,0 +1,328 @@
+CREATE TABLE tab(c1 int);
+INSERT INTO tab VALUES(10);
+# copy the win datadir zip into destination location
+# Unzip the zip file.
+## Stop DB server
+## Start winDB with --innodb-directories
+## Check new datadir
+SELECT @@datadir;
+@@datadir
+NEW_DATADIR/win-DB/
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+UNDO_FILES/undo_files
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+DATA_HOME/data_home
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home
+SELECT @@innodb_data_file_path;
+@@innodb_data_file_path
+data01:20M;data02:20M:autoextend
+SELECT @@innodb_undo_tablespaces;
+@@innodb_undo_tablespaces
+5
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'db_directory1/datadir1' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory1/datadir1' ENGINE = InnoDB) */
+SHOW CREATE TABLE purchase;
+Table	Create Table
+purchase	CREATE TABLE `purchase` (
+  `id` int(11) DEFAULT NULL,
+  `purchased` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 DATA DIRECTORY = 'db_directory1/part0' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'db_directory1/part1' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (2000)
+ (SUBPARTITION s2 DATA DIRECTORY = 'db_directory1/part2' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'db_directory1/part3' ENGINE = InnoDB)) */
+SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+TABLESPACE_NAME	FILE_TYPE	TABLE_NAME	ENGINE
+#	TABLESPACE	NULL	InnoDB
+#	NULL	NULL	InnoDB
+#	NULL	NULL	InnoDB
+#	TEMPORARY	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	UNDO LOG	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+## Stop DB server
+## restart the server with --datadir and without scan DIR option
+## Check new datadir
+SELECT @@datadir;
+@@datadir
+NEW_DATADIR/win-DB/
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+UNDO_FILES/undo_files
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+DATA_HOME/data_home
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home
+SELECT @@innodb_data_file_path;
+@@innodb_data_file_path
+data01:20M;data02:20M:autoextend
+SELECT @@innodb_undo_tablespaces;
+@@innodb_undo_tablespaces
+5
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'db_directory1/datadir1' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory1/datadir1' ENGINE = InnoDB) */
+SHOW CREATE TABLE tab4;
+Table	Create Table
+tab4	CREATE TABLE `tab4` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE purchase;
+Table	Create Table
+purchase	CREATE TABLE `purchase` (
+  `id` int(11) DEFAULT NULL,
+  `purchased` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 DATA DIRECTORY = 'db_directory1/part0' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'db_directory1/part1' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (2000)
+ (SUBPARTITION s2 DATA DIRECTORY = 'db_directory1/part2' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'db_directory1/part3' ENGINE = InnoDB)) */
+## Check with DML & DDL operations
+SELECT * FROM tab1;
+c1	c2
+1	VISH
+SELECT * FROM tab2;
+c1	c2
+2	VISH
+SELECT * FROM tab3;
+empno	ename	sal
+100	VISWANATH	100
+300	VISWANATH	100
+DELETE FROM tab1;
+DELETE FROM tab2;
+DELETE FROM tab3;
+DELETE FROM tab4;
+DELETE FROM purchase;
+ALTER TABLE tab4 ADD COLUMN c3 VARCHAR(15);
+INSERT INTO tab1 VALUES(1, 'VISH');
+INSERT INTO tab2 VALUES(2, 'VISH');
+INSERT INTO tab3 VALUES (100,'VISWANATH',100);
+INSERT INTO tab3 VALUES (300,'VISWANATH',100);
+INSERT INTO tab4 VALUES(2, 'VISH', 'NATH');
+INSERT INTO purchase VALUES(1,'1980-05-31');
+INSERT INTO purchase VALUES(2,'1999-05-31');
+INSERT INTO purchase VALUES(3,'1998-05-31');
+INSERT INTO purchase VALUES(4,'1979-05-31');
+INSERT INTO purchase VALUES(5,'1978-05-31');
+INSERT INTO purchase VALUES(6,'1997-05-31');
+SELECT * FROM tab1;
+c1	c2
+1	VISH
+SELECT * FROM tab2;
+c1	c2
+2	VISH
+SELECT * FROM tab3;
+empno	ename	sal
+100	VISWANATH	100
+300	VISWANATH	100
+SELECT * FROM tab4;
+c1	c2	c3
+2	VISH	NATH
+SELECT * FROM purchase;
+id	purchased
+5	1978-05-31
+1	1980-05-31
+4	1979-05-31
+2	1999-05-31
+6	1997-05-31
+3	1998-05-31
+## Stop DB server for moving tablespaces around
+## Moving tablespace files in criss-cross form 
+## Start winDB with --innodb-directories
+## Check new datadir
+SELECT @@datadir;
+@@datadir
+NEW_DATADIR/win-DB/
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+UNDO_FILES/undo_files
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+DATA_HOME/data_home
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home
+SELECT @@innodb_data_file_path;
+@@innodb_data_file_path
+data01:20M;data02:20M:autoextend
+SELECT @@innodb_undo_tablespaces;
+@@innodb_undo_tablespaces
+5
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'db_directory1/win-DB/../part0' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory1/win-DB/../part1' ENGINE = InnoDB) */
+SHOW CREATE TABLE purchase;
+Table	Create Table
+purchase	CREATE TABLE `purchase` (
+  `id` int(11) DEFAULT NULL,
+  `purchased` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 DATA DIRECTORY = 'db_directory1/win-DB/../datadir1' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'db_directory1/win-DB/../datadir1' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (2000)
+ (SUBPARTITION s2 DATA DIRECTORY = 'db_directory1/part2' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'db_directory1/part3' ENGINE = InnoDB)) */
+SHOW CREATE TABLE tab4;
+Table	Create Table
+tab4	CREATE TABLE `tab4` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  `c3` varchar(15) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+## Stop DB server after scan DIR
+## restart the server with --datadir and without scan DIR option
+## Check new datadir
+SELECT @@datadir;
+@@datadir
+NEW_DATADIR/win-DB/
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+UNDO_FILES/undo_files
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+DATA_HOME/data_home
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home
+SELECT @@innodb_data_file_path;
+@@innodb_data_file_path
+data01:20M;data02:20M:autoextend
+SELECT @@innodb_undo_tablespaces;
+@@innodb_undo_tablespaces
+5
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'db_directory1/win-DB/../part0' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory1/win-DB/../part1' ENGINE = InnoDB) */
+SHOW CREATE TABLE purchase;
+Table	Create Table
+purchase	CREATE TABLE `purchase` (
+  `id` int(11) DEFAULT NULL,
+  `purchased` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (to_days(`purchased`))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 DATA DIRECTORY = 'db_directory1/win-DB/../datadir1' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'db_directory1/win-DB/../datadir1' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (2000)
+ (SUBPARTITION s2 DATA DIRECTORY = 'db_directory1/part2' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'db_directory1/part3' ENGINE = InnoDB)) */
+SHOW CREATE TABLE tab4;
+Table	Create Table
+tab4	CREATE TABLE `tab4` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  `c3` varchar(15) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+## Check with DML operations
+DELETE FROM tab1;
+DELETE FROM tab2;
+DELETE FROM tab3;
+DELETE FROM tab4;
+DELETE FROM purchase;
+ALTER TABLE tab4 DROP COLUMN c3;
+INSERT INTO tab1 VALUES(1, 'VISH');
+INSERT INTO tab2 VALUES(2, 'VISH');
+INSERT INTO tab3 VALUES (100,'VISWANATH',100);
+INSERT INTO tab3 VALUES (300,'VISWANATH',100);
+INSERT INTO tab4 VALUES(2, 'VISH');
+INSERT INTO purchase VALUES(1,'1980-05-31');
+INSERT INTO purchase VALUES(2,'1999-05-31');
+INSERT INTO purchase VALUES(3,'1998-05-31');
+INSERT INTO purchase VALUES(4,'1979-05-31');
+INSERT INTO purchase VALUES(5,'1978-05-31');
+INSERT INTO purchase VALUES(6,'1997-05-31');
+SELECT * FROM tab1;
+c1	c2
+1	VISH
+SELECT * FROM tab2;
+c1	c2
+2	VISH
+SELECT * FROM tab3;
+empno	ename	sal
+100	VISWANATH	100
+300	VISWANATH	100
+SELECT * FROM tab4;
+c1	c2
+2	VISH
+DROP TABLE tab1;
+DROP TABLE tab2;
+DROP TABLE tab3;
+DROP TABLE tab4;
+DROP TABLE purchase;
+DROP TABLESPACE ts2;
+## Stop DB server for clean up
+## Cleanup the Windows --datadir location and its *.ibd file location
+## Restart the server with MTR default location
+# restart: --datadir=OLD_DATADIR
+SELECT @@datadir;
+@@datadir
+OLD_DATADIR
+SELECT * FROM tab;
+c1
+10
+DROP TABLE tab;
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace 'innodb_system' filename is unknown. Use \\--innodb-directories to locate of the file.");

@@ -63,7 +63,7 @@
 #
 # With the above set we could make up to 32 possibilities (including none of
 # above). But we will test the behavior only for the following combinations:
-# - 18 error cases (ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP):
+# - 18 error cases (ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID):
 #   (1 | 2 | 1+2) + (3 | 4 | 3+4) + (nothing | 5)
 #   (3+4) | (3+4+5)
 #   (3 | 4) + 5  /* as this it not DROP TEMPORARY, nonexistent tables will be
@@ -72,7 +72,7 @@
 #   (1 | 2 | 1+2) + 5
 # - 1 non-error case:
 #   1+2
-# Note: for ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP cases, the
+# Note: for ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID cases, the
 # statement will not be executed and no DROP will be performed. For
 # ER_BAD_TABLE_ERROR cases, the existent tables will be dropped regardless the
 # error.
@@ -87,9 +87,9 @@ CREATE TEMPORARY TABLE temp_non_trans_t1 (c1 INT) ENGINE=MyISAM;
 --let $binlog_format= `SELECT @@GLOBAL.binlog_format`
 if ($binlog_format == "STATEMENT")
 {
-  --echo # Error cases ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
+  --echo # Error cases ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
   --let $next_gtid= '11111111-1111-1111-1111-111111111111:1'
-  --let $expected_error= ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
+  --let $expected_error= ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
   # reg trans + reg non trans + temp trans
   --let $statement= DROP TABLE trans_t1, non_trans_t1, temp_trans_t1
   --source extra/rpl_tests/rpl_gtid_drop_table.inc

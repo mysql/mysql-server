@@ -1,18 +1,28 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
- */
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
  * @file mysys/my_alloc.cc
@@ -46,9 +56,8 @@
 MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
   DBUG_ENTER("MEM_ROOT::AllocBlock");
 
-  if (m_max_capacity != 0 &&
-      (m_allocated_size > m_max_capacity ||
-       length > m_max_capacity - m_allocated_size)) {
+  if (m_max_capacity != 0 && (m_allocated_size > m_max_capacity ||
+                              length > m_max_capacity - m_allocated_size)) {
     if (m_error_for_capacity_exceeded) {
       my_error(EE_CAPACITY_EXCEEDED, MYF(0),
                static_cast<ulonglong>(m_max_capacity));
@@ -58,8 +67,9 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
     }
   }
 
-  Block *new_block = static_cast<Block *>(my_malloc(
-      m_psi_key, length + sizeof(Block), MYF(MY_WME | ME_FATALERROR)));
+  Block *new_block = static_cast<Block *>(
+      my_malloc(m_psi_key, length + ALIGN_SIZE(sizeof(Block)),
+                MYF(MY_WME | ME_FATALERROR)));
   if (new_block == nullptr) {
     if (m_error_handler) (m_error_handler)();
     DBUG_RETURN(nullptr);
@@ -97,7 +107,7 @@ void *MEM_ROOT::AllocSlow(size_t length) {
       new_block->prev = nullptr;
       m_current_block = new_block;
       m_current_free_end = pointer_cast<char *>(new_block) +
-          sizeof(*new_block) + length;
+                           ALIGN_SIZE(sizeof(*new_block)) + length;
       m_current_free_start = m_current_free_end;
     } else {
       // Insert the new block in the second-to-last position.
@@ -105,7 +115,8 @@ void *MEM_ROOT::AllocSlow(size_t length) {
       m_current_block->prev = new_block;
     }
 
-    DBUG_RETURN(pointer_cast<char *>(new_block) + sizeof(*new_block));
+    DBUG_RETURN(pointer_cast<char *>(new_block) +
+                ALIGN_SIZE(sizeof(*new_block)));
   } else {
     // The normal case: Throw away the current block, allocate a new block,
     // and use that to satisfy the new allocation.
@@ -116,7 +127,8 @@ void *MEM_ROOT::AllocSlow(size_t length) {
     new_block->prev = m_current_block;
     m_current_block = new_block;
 
-    char *new_mem = pointer_cast<char *>(new_block) + sizeof(*new_block);
+    char *new_mem =
+        pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
     m_current_free_start = new_mem + length;
     m_current_free_end = new_mem + new_block_size;
     DBUG_RETURN(new_mem);
@@ -154,8 +166,8 @@ void MEM_ROOT::ClearForReuse() {
   if (m_current_block == nullptr) DBUG_VOID_RETURN;
 
   // Keep the last block, which is usually the biggest one.
-  m_current_free_start =
-      pointer_cast<char *>(m_current_block) + sizeof(*m_current_block);
+  m_current_free_start = pointer_cast<char *>(m_current_block) +
+                         ALIGN_SIZE(sizeof(*m_current_block));
   Block *start = m_current_block->prev;
   m_current_block->prev = nullptr;
   m_allocated_size = m_current_free_end - m_current_free_start;

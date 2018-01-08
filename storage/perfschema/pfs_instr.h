@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_INSTR_H
 #define PFS_INSTR_H
@@ -660,6 +667,9 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   */
   uint m_session_connect_attrs_cs_number;
 
+  /** Reset all memory statistics. */
+  void rebase_memory_stats();
+
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
   void
@@ -676,6 +686,42 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   }
 
   void set_history_derived_flags();
+
+  /**
+    Per thread memory aggregated statistics.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME.
+    Immutable, safe to use without internal lock.
+  */
+  PFS_memory_safe_stat *m_instr_class_memory_stats;
+
+  void
+  set_instr_class_memory_stats(PFS_memory_safe_stat *array)
+  {
+    m_has_memory_stats = false;
+    m_instr_class_memory_stats = array;
+  }
+
+  const PFS_memory_safe_stat *
+  read_instr_class_memory_stats() const
+  {
+    if (!m_has_memory_stats)
+    {
+      return NULL;
+    }
+    return m_instr_class_memory_stats;
+  }
+
+  PFS_memory_safe_stat *
+  write_instr_class_memory_stats()
+  {
+    if (!m_has_memory_stats)
+    {
+      rebase_memory_stats();
+      m_has_memory_stats = true;
+    }
+    return m_instr_class_memory_stats;
+  }
 };
 
 void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
@@ -683,7 +729,7 @@ void carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 extern PFS_stage_stat *global_instr_class_stages_array;
 extern PFS_statement_stat *global_instr_class_statements_array;
 extern PFS_histogram global_statements_histogram;
-extern std::atomic<PFS_memory_stat *> global_instr_class_memory_array;
+extern std::atomic<PFS_memory_shared_stat *> global_instr_class_memory_array;
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
@@ -798,12 +844,19 @@ void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array_2);
 
 void aggregate_all_memory(bool alive,
-                          PFS_memory_stat *from_array,
-                          PFS_memory_stat *to_array);
+                          PFS_memory_safe_stat *from_array,
+                          PFS_memory_shared_stat *to_array);
 void aggregate_all_memory(bool alive,
-                          PFS_memory_stat *from_array,
-                          PFS_memory_stat *to_array_1,
-                          PFS_memory_stat *to_array_2);
+                          PFS_memory_shared_stat *from_array,
+                          PFS_memory_shared_stat *to_array);
+void aggregate_all_memory(bool alive,
+                          PFS_memory_safe_stat *from_array,
+                          PFS_memory_shared_stat *to_array_1,
+                          PFS_memory_shared_stat *to_array_2);
+void aggregate_all_memory(bool alive,
+                          PFS_memory_shared_stat *from_array,
+                          PFS_memory_shared_stat *to_array_1,
+                          PFS_memory_shared_stat *to_array_2);
 
 void aggregate_thread(PFS_thread *thread,
                       PFS_account *safe_account,

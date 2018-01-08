@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -45,6 +52,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -299,7 +307,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   bool schema_dir_exists= (mysql_file_stat(key_file_misc,
                                        path, &stat_info, MYF(0)) != NULL);
   if (thd->is_dd_system_thread() &&
-      (!opt_initialize || dd::upgrade::in_progress()) &&
+      (!opt_initialize || dd::upgrade_57::in_progress()) &&
       dd::get_dictionary()->is_dd_schema_name(db))
   {
     /*
@@ -498,7 +506,7 @@ public:
       push_warning_printf(thd, Sql_condition::SL_WARNING,
 			  ER_DB_DROP_RMDIR2,
                           ER_THD(thd, ER_DB_DROP_RMDIR2), msg);
-      sql_print_warning(ER_DEFAULT(ER_DB_DROP_RMDIR2), msg);
+      LogErr(WARNING_LEVEL, ER_DROP_DATABASE_FAILED_RMDIR_MANUALLY, msg);
       m_is_active= false;
       return true;
     }
@@ -765,7 +773,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
           (some tables were removed).  So we generate an error and let
           user fix the situation.
         */
-        if (thd->variables.gtid_next.type == GTID_GROUP &&
+        if (thd->variables.gtid_next.type == ASSIGNED_GTID &&
             dropped_non_atomic)
         {
           char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];

@@ -1,0 +1,37 @@
+#
+## Preamble
+#
+#
+## Testcase
+#
+call mtr.add_suppression("IP address .* could not be resolved: .*");
+
+# Using MySQL client
+# Account user1 was created with interface name.
+# The authentication must be succesful
+mysql: [Warning] Using a password on the command line interface can be insecure.
+USER()
+user1@localhost
+# Account user2 was created without interface name.
+# The authentication must fail because account IP
+# and client IP doesn't match
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'user2'@'localhost' (using password: YES)
+
+# Using mysqlxtest
+# Account user1 was created with interface name.
+# The authentication must be succesful
+RUN SELECT USER()
+
+USER()
+user1@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Account user2 was created without interface name.
+# The authentication must fail because account IP
+# and client IP doesn't match
+in main, line 0:ERROR: Invalid user or password (code 1045)
+not ok

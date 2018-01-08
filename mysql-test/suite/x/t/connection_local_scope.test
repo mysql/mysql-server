@@ -1,0 +1,25 @@
+--echo #
+--echo ## Preamble
+--echo #
+--source include/have_ipv6.inc
+--source include/have_lo0_local_scope.inc
+--source include/xplugin_preamble.inc
+
+--echo #
+--echo ## Testcase
+--echo #
+call mtr.add_suppression("IP address .* could not be resolved: .*");
+
+--echo
+--echo # Using MySQL client
+--let $execute_command=$MYSQL
+--let $ip=fe80::1
+--let $interface=lo0
+--source ../include/connection_local_scope.inc
+
+--echo
+--echo # Using mysqlxtest
+--let $execute_command=$MYSQLXTEST --ipv=6
+--let $ip=fe80::1
+--let $interface=lo0
+--source ../include/connection_local_scope.inc

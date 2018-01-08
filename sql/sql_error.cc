@@ -1,13 +1,20 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -54,6 +61,7 @@ This file contains the implementation of error and warnings related
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_time.h"
@@ -761,6 +769,10 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_VOID_RETURN;
 }
 
+void push_warning(THD *thd, uint code)
+{
+  push_warning(thd, Sql_condition::SL_WARNING, code, nullptr);
+}
 
 /**
   Push the warning to error list if there is still room in the list
@@ -799,9 +811,8 @@ void push_deprecated_warn(THD *thd, const char *old_syntax,
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                         old_syntax, new_syntax);
   else
-    sql_print_warning("The syntax '%s' is deprecated and will be removed "
-                      "in a future release. Please use %s instead.",
-                      old_syntax, new_syntax);
+    LogErr(WARNING_LEVEL, ER_DEPRECATED_SYNTAX_WITH_REPLACEMENT, old_syntax,
+           new_syntax);
 }
 
 
@@ -813,8 +824,7 @@ void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax)
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
                         old_syntax);
   else
-    sql_print_warning("The syntax '%s' is deprecated and will be removed "
-                      "in a future release", old_syntax);
+    LogErr(WARNING_LEVEL, ER_DEPRECATED_SYNTAX_NO_REPLACEMENT, old_syntax);
 }
 
 

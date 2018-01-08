@@ -24,9 +24,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global group replication variables to default.
-# Curently there are 42 group replication variables.
+# Curently there are 44 group replication variables.
 #
-include/assert.inc [There are 42 GR variables at present.]
+include/assert.inc [There are 44 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -66,6 +66,8 @@ SET @@GLOBAL.group_replication_communication_debug_options= default;
 SET @@GLOBAL.group_replication_transaction_size_limit= default;
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= default;
 SET @@GLOBAL.group_replication_member_weight= default;
+SET @@GLOBAL.group_replication_recovery_public_key_path= default;
+SET @@GLOBAL.group_replication_recovery_get_public_key= default;
 #
 # Test Unit#2
 # Verify default values of the group replication variables.
@@ -98,6 +100,8 @@ include/assert.inc [Default group_replication_transaction_size_limit is 15000000
 include/assert.inc [Default group_replication_communication_debug_options is "GCS_DEBUG_NONE"]
 include/assert.inc [Default group_replication_unreachable_majority_timeout is 0]
 include/assert.inc [Default group_replication_member_weight is 50]
+include/assert.inc [Default group_replication_recovery_public_key_path is ""(EMPTY)]
+include/assert.inc [Default group_replication_recovery_get_public_key is OFF/0]
 #
 # Clean up
 #

@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,7 +29,6 @@
 
 class THD;
 
-using std::string;
 
 #define MAX_KEY_LEN 16384
 
@@ -48,8 +54,8 @@ public:
     this->m_user_id= ki.m_user_id;
   }
 public:
-  string     m_key_id;
-  string     m_user_id;
+  std::string     m_key_id;
+  std::string     m_user_id;
 };
 
 class Migrate_keyring
@@ -98,10 +104,10 @@ private:
 private:
   int m_argc;
   char **m_argv;
-  string m_source_plugin_option;
-  string m_destination_plugin_option;
-  string m_source_plugin_name;
-  string m_destination_plugin_name;
+  std::string m_source_plugin_option;
+  std::string m_destination_plugin_option;
+  std::string m_source_plugin_name;
+  std::string m_destination_plugin_name;
   st_mysql_keyring *m_source_plugin_handle;
   st_mysql_keyring *m_destination_plugin_handle;
   std::vector<Key_info> m_source_keys;

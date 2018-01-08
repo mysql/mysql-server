@@ -1,20 +1,27 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #
 ##############################################################################
@@ -141,10 +148,11 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x";
 my $opt_suites;
 
-our $opt_verbose= 0;  # Verbose output, enable with --verbose
+# Verbose output, enable with --verbose
+our $opt_verbose= 0;
 our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
@@ -735,22 +743,24 @@ sub run_test_server ($$$) {
 	      mtr_report(" - skipping '$worker_savedir/'");
 	      rmtree($worker_savedir);
 	    }
-	    else {
-	      rename($worker_savedir, $savedir);
-              #look for the test.log file and put in savedir
-	      my $logf= "$result->{shortname}" . ".log";
-              my $logfilepath= dirname($worker_savedir); 
-              move($logfilepath . "/" . $logf, $savedir);
+            else
+            {
+              rename($worker_savedir, $savedir) if $worker_savedir ne $savedir;
+
+              # Look for the test log file and put that in savedir location
+              my $logfile= "$result->{shortname}" . ".log";
+              my $logfilepath= dirname($worker_savedir) . "/" . $logfile;
+              move($logfilepath, $savedir);
 
               if ($opt_check_testcases && !defined $result->{'result_file'})
               {
                 mtr_report("Mysqltest client output from logfile");
                 mtr_report("----------- MYSQLTEST OUTPUT START -----------\n");
-                mtr_printfile($savedir . "/" . $logf);
+                mtr_printfile($savedir . "/" . $logfile);
                 mtr_report("\n------------ MYSQLTEST OUTPUT END ------------\n");
               }
 
-              mtr_report(" - the logfile can be found in '$savedir/$logf'");
+              mtr_report(" - the logfile can be found in '$savedir/$logfile'");
 
 	      # Move any core files from e.g. mysqltest
 	      foreach my $coref (glob("core*"), glob("*.dmp"))
@@ -820,21 +830,17 @@ sub run_test_server ($$$) {
 	    # too many times already
 	    my $tname= $result->{name};
 	    my $failures= $result->{failures};
-	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
+	    if ($opt_retry > 1 and $failures >= $opt_retry_failure)
+            {
 	      mtr_report("\nTest $tname has failed $failures times,",
 			 "no more retries!\n");
 	    }
-	    else {
+	    else
+            {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
-              #saving the log file as filename.failed in case of retry
-              if ( $result->is_failed() ) {
-                my $worker_logdir= $result->{savedir};
-                my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
-                rename $log_file_name,$log_file_name.".failed";
-              }
 	      delete($result->{result});
-	      $result->{retries}= $retries+1;
+	      $result->{retries}= $retries + 1;
 	      $result->write_test($sock, 'TESTCASE');
 	      next;
 	    }
@@ -1340,7 +1346,7 @@ sub command_line_setup {
 	     'force-restart'            => \$opt_force_restart,
              'reorder!'                 => \$opt_reorder,
              'enable-disabled'          => \&collect_option,
-             'verbose+'                 => \$opt_verbose,
+             'verbose'                  => \$opt_verbose,
              'verbose-restart'          => \&report_option,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
@@ -1385,10 +1391,9 @@ sub command_line_setup {
   usage("") if $opt_usage;
   list_options(\%options) if $opt_list_options;
 
-  # --------------------------------------------------------------------------
-  # Setup verbosity
-  # --------------------------------------------------------------------------
-  if ($opt_verbose != 0){
+  # Setup verbosity if verbose option is enabled.
+  if ($opt_verbose)
+  {
     report_option('verbose', $opt_verbose);
   }
 
@@ -2032,15 +2037,22 @@ sub set_build_thread_ports($) {
 
   if ( lc($opt_build_thread) eq 'auto' )
   {
-    my $found_free = 0;
-    # Start attempts from here
-    $build_thread = 300;
-
+    # Start searching for build thread ids from here
+    $build_thread= 300;
     my $max_parallel= $opt_parallel * $build_threads_per_thread;
-    my $build_thread_upper = $build_thread + ($max_parallel > 39
-                             ? $max_parallel + int($max_parallel / 2)
-                             : 49);
 
+    # Calucalte the upper limit value for build thread id
+    my $build_thread_upper= $max_parallel > 39 ?
+                            $max_parallel + int($max_parallel / 2) : 49;
+
+    # Check the number of available processors and accordingly set
+    # the upper limit value for the build thread id.
+    $build_thread_upper= $build_thread +
+                         ($ENV{NUMBER_OF_CPUS} > $build_thread_upper ?
+                          $ENV{NUMBER_OF_CPUS} + int($ENV{NUMBER_OF_CPUS} / 2) :
+                          $build_thread_upper);
+
+    my $found_free= 0;
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
@@ -2486,7 +2498,13 @@ sub mysqlxtest_arguments(){
   {
     valgrind_client_arguments($args, \$exe);
   }
-  
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
+                $path_vardir_trace, "mysqlxtest");
+  }
+
   # Let user provide username and password to command.
   #mtr_add_arg($args, "-u root");
   #mtr_add_arg($args, "--password=");
@@ -2653,7 +2671,7 @@ sub environment_setup {
     $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
 				    $ENV{'DYLD_LIBRARY_PATH'} ?
 				    split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
-    mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
+    mtr_verbose("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
   }
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
@@ -2744,7 +2762,7 @@ sub environment_setup {
     {    
       $ENV{'NDB_EXAMPLES_BINARY'} = $ndbapi_examples_binary;
       $ENV{'NDB_EXAMPLES_DIR'} = dirname($ndbapi_examples_binary);
-      mtr_debug("NDB_EXAMPLES_DIR: $ENV{'NDB_EXAMPLES_DIR'}");
+      mtr_verbose("NDB_EXAMPLES_DIR: $ENV{'NDB_EXAMPLES_DIR'}");
     }
     else
     {
@@ -3870,42 +3888,39 @@ sub initialize_servers {
 }
 
 
-#
-# Remove all newline characters expect after semicolon
-#
-sub sql_to_bootstrap {
+## Remove all newline characters expect after semicolon
+sub sql_to_bootstrap
+{
   my ($sql) = @_;
-  my @lines= split(/\n/, $sql);
-  my $result= "\n";
+
+  my @lines    = split(/\n/, $sql);
+  my $result   = "\n";
   my $delimiter= ';';
 
-  foreach my $line (@lines) {
-
+  foreach my $line (@lines)
+  {
     # Change current delimiter if line starts with "delimiter"
-    if ( $line =~ /^delimiter (.*)/ ) {
+    if ($line =~ /^delimiter (.*)/)
+    {
       my $new= $1;
       # Remove old delimiter from end of new
       $new=~ s/\Q$delimiter\E$//;
       $delimiter = $new;
-      mtr_debug("changed delimiter to $delimiter");
       # No need to add the delimiter to result
       next;
     }
 
     # Add newline if line ends with $delimiter
     # and convert the current delimiter to semicolon
-    if ( $line =~ /\Q$delimiter\E$/ ){
+    if ($line =~ /\Q$delimiter\E$/)
+    {
       $line =~ s/\Q$delimiter\E$/;/;
       $result.= "$line\n";
-      mtr_debug("Added default delimiter");
       next;
     }
 
-    # Remove comments starting with --
-    if ( $line =~ /^\s*--/ ) {
-      mtr_debug("Discarded $line");
-      next;
-    }
+    # Remove comments starting with '--'
+    next if ($line =~ /^\s*--/);
 
     # Replace @HOSTNAME with localhost
     $line=~ s/\'\@HOSTNAME\@\'/localhost/;
@@ -3913,8 +3928,8 @@ sub sql_to_bootstrap {
     # Default, just add the line without newline
     # but with a space as separator
     $result.= "$line ";
-
   }
+
   return $result;
 }
 
@@ -3976,6 +3991,7 @@ sub mysql_install_db {
   # Do not generate SSL/RSA certificates automatically.
   mtr_add_arg($args, "--loose-auto_generate_certs=OFF");
   mtr_add_arg($args, "--loose-sha256_password_auto_generate_rsa_keys=OFF");
+  mtr_add_arg($args, "--loose-caching_sha2_password_auto_generate_rsa_keys=OFF");
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the
@@ -6190,10 +6206,10 @@ sub mysqld_start ($$) {
     mtr_verbose("Started $mysqld->{proc}");
   }
 
-  if ( $wait_for_pid_file &&
-       !sleep_until_file_created($mysqld->value('pid-file'),
-				 $opt_start_timeout,
-				 $mysqld->{'proc'}))
+  if ($wait_for_pid_file &&
+      !sleep_until_pid_file_created($mysqld->value('pid-file'),
+                                    $opt_start_timeout,
+                                    $mysqld->{'proc'}))
   {
     my $mname= $mysqld->name();
     mtr_error("Failed to start mysqld $mname with command $exe");
@@ -6602,7 +6618,6 @@ sub start_servers($) {
     }
     else
     {
-
       my @options= ('log-bin', 'relay-log');
       foreach my $option_name ( @options )  {
 	next unless $mysqld->option($option_name);
@@ -6612,7 +6627,7 @@ sub start_servers($) {
 	  defined $file_name and
 	    -e $file_name;
 
-	mtr_debug(" -removing '$file_name'");
+	mtr_verbose(" -removing '$file_name'");
 	unlink($file_name) or die ("unable to remove file '$file_name'");
       }
 
@@ -6727,9 +6742,10 @@ sub start_servers($) {
   {
     next if !started($mysqld);
 
-    if (sleep_until_file_created($mysqld->value('pid-file'),
-				 $opt_start_timeout,
-				 $mysqld->{'proc'}) == 0) {
+    if (sleep_until_pid_file_created($mysqld->value('pid-file'),
+                                     $opt_start_timeout,
+                                     $mysqld->{'proc'}) == 0)
+    {
       $tinfo->{comment}=
 	"Failed to start ".$mysqld->name();
 
@@ -7705,7 +7721,7 @@ Misc options
   comment=STR           Write STR to the output
   timer                 Show test case execution time.
   disk-usage            Show disk usage of vardir after each test.
-  verbose               More verbose output(use multiple times for even more)
+  verbose               More verbose output.
   verbose-restart       Write when and why servers are restarted
   start                 Only initialize and start the servers. If a testcase is
                         mentioned server is started with startup settings of the testcase.

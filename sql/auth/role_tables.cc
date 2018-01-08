@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -123,13 +130,6 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
   if (table_intact.check(table, ACL_TABLES::TABLE_ROLE_EDGES))
     DBUG_RETURN(true);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
-
   table->use_all_columns();
 
   table->field[MYSQL_ROLE_EDGES_FIELD_FROM_HOST]
@@ -194,13 +194,6 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 
   if (table_intact.check(table, ACL_TABLES::TABLE_DEFAULT_ROLES))
     DBUG_RETURN(true);
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
 
   table->use_all_columns();
   table->field[MYSQL_DEFAULT_ROLE_FIELD_HOST]
@@ -269,7 +262,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   {
     TABLE *table= ((!tablelst[0].table->key_info) ? tablelst[0].table :
                    tablelst[1].table);
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
              table->s->table_name.str);
     DBUG_RETURN(true);
   }

@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -26,26 +33,33 @@
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/psi_base.h"
+#include "sql_string.h"
+#include "sql/json_dom.h"
 
 class THD;
 class set_var;
 class sys_var;
 struct MYSQL_FILE;
 
-using std::string;
-using std::map;
-using std::vector;
+/**
+  STRUCT st_persist_var
 
+  This structure represents information of a variable which is to
+  be persisted in mysql-auto.cnf file.
+*/
 struct st_persist_var
 {
-  string key;
-  string value;
-  st_persist_var() {}
-  st_persist_var(const string key, const string value)
-  {
-    this->key= key;
-    this->value= value;
-  }
+  std::string key;
+  std::string value;
+  ulonglong timestamp;
+  std::string user;
+  std::string host;
+  st_persist_var();
+  st_persist_var(THD *thd);
+  st_persist_var(const st_persist_var& var);
+  st_persist_var(const std::string key, const std::string value,
+                 const ulonglong timestamp, const std::string user,
+                 const std::string host);
 };
 
 /**
@@ -101,11 +115,11 @@ public:
   /**
     Get persisted variables
   */
-  vector<st_persist_var>* get_persisted_variables();
+  std::vector<st_persist_var>* get_persisted_variables();
   /**
     Get persisted static variables
   */
-  map<string, string>* get_persist_ro_variables();
+  std::map<std::string, st_persist_var>* get_persist_ro_variables();
   /**
     append read only persisted variables to command line options with a
     separator.
@@ -116,10 +130,16 @@ public:
 
 private:
   /* Helper function to get variable value */
-  static const char* get_variable_value(THD *thd,
-    sys_var *system_var, char* val_buf, size_t* val_length);
+  static String* get_variable_value(THD *thd,
+    sys_var *system_var, String *str);
   /* Helper function to get variable name */
   static const char* get_variable_name(sys_var *system_var);
+  /* Helper function to construct json formatted string */
+  static String* construct_json_string(std::string name, std::string value,
+    ulonglong timestamp, std::string user, std::string host, String *dest);
+  /* Helper function to extract variables from json formatted string */
+  bool extract_variables_from_json(Json_dom *dom, bool is_read_only= false);
+
 
 private:
   /* Helper functions for file IO */
@@ -128,22 +148,22 @@ private:
 
 private:
   /* In memory copy of persistent config file */
-  vector<st_persist_var> m_persist_variables;
+  std::vector<st_persist_var> m_persist_variables;
   /* copy of plugin variables whose plugin is not yet installed */
-  vector<st_persist_var> m_persist_plugin_variables;
+  std::vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
-  map<string, string> m_persist_ro_variables;
+  std::map<std::string, st_persist_var> m_persist_ro_variables;
 
   mysql_mutex_t m_LOCK_persist_variables;
   static Persisted_variables_cache* m_instance;
 
-  /* file handler members */
-  MYSQL_FILE *fd;
-  string m_persist_filename;
+  /* File handler members */
+  MYSQL_FILE *m_fd;
+  std::string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
-  /* memory for read only persisted options */
+  /* Memory for read only persisted options */
   MEM_ROOT ro_persisted_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
-  /* memory for read only persisted plugin options */
+  /* Memory for read only persisted plugin options */
   MEM_ROOT ro_persisted_plugin_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 };
 

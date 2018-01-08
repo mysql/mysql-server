@@ -5,26 +5,23 @@
 #    In default the script wait for both socket and tcp
 #    on *NIX OS-es and only for TCP on windows
 #
-#  $dont_load_plugin -
-#    define is the script should install the plugin
+#  $dont_load_mysqlx_cleaner_plugin -
+#    define is the script should install the mysqlx_cleaner plugin
+#    or do only pre-checks
+#  $dont_load_mysqlx_plugin -
+#    define is the script should install mysqlx plugin
 #    or do only pre-checks
 #
 ## Usage
 #
-# --let $dont_load_plugin=1|0
 # --let $wait_for_tcpsocket_status = valid_value|undefined_value|no_wait
 # --let $wait_for_unixsocket_status = valid_value|undefined_value|no_wait
 # --source include/xplugin_preamble.inc
 #
 
-source include/have_mysqlx_plugin.inc;
-
---source include/xplugin_install_and_wait.inc
---source mysqlxtest_macro_dir.inc
-
-
-call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
-call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+source have_mysqlx_plugin.inc;
+source xplugin_reset_and_wait.inc;
+source mysqlxtest_macro_dir.inc;
 
 --disable_query_log
 --disable_result_log

@@ -1,13 +1,20 @@
 /* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,6 +30,7 @@
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/udf_registration_types.h"
+#include "scope_guard.h"
 #include "sql/dd/info_schema/show.h"         // build_show_...
 #include "sql/dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
 #include "sql/derror.h"     // ER_THD
@@ -1035,8 +1043,28 @@ bool PT_query_specification::contextualize(Parse_context *pc)
   pc->select->set_where_cond(opt_where_clause);
   pc->select->set_having_cond(opt_having_clause);
 
+  /*
+    Window clause is resolved under CTX_SELECT_LIST and not
+    under CTX_WINDOW. Reasons being:
+    1. Window functions are part of select list and the
+    resolution of window definition happens along with
+    window functions.
+    2. It is tricky to resolve window definition under CTX_WINDOW
+    and window functions under CTX_SELECT_LIST.
+    3. Unnamed window definitions are anyways naturally placed in
+    select list.
+    4. Named window definition are not placed in select list of
+    the query. But if this window definition is
+    used by any window functions, then we resolve under CTX_SELECT_LIST.
+    5. Because of all of the above, unused window definitions are
+    resolved under CTX_SELECT_LIST. (These unused window definitions
+    are removed after syntactic and semantic checks are done).
+  */
+
+  pc->select->parsing_place= CTX_SELECT_LIST;
   if (contextualize_safe(pc, opt_window_clause))
     return true;
+  pc->select->parsing_place= CTX_NONE;
 
   if (opt_hints != NULL)
   {
@@ -1712,6 +1740,16 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc)
 
 Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd)
 {
+  auto release_locks_guard= create_scope_guard([thd]()
+  {
+    // While contextualizing column definitions, we may end up taking MDL locks
+    // on spatial reference system objects in order to check that the provided
+    // SRID exists if a column with the SRID attribute was given. If an error
+    // occures, we need to release these locks explicitly since there are no
+    // other mechanisms at any higher level that does this for us.
+    thd->mdl_context.release_transactional_locks();
+  });
+
   LEX * const lex= thd->lex;
 
   lex->sql_command= SQLCOM_CREATE_TABLE;
@@ -1849,6 +1887,7 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd)
   }
   create_table_set_open_action_and_adjust_tables(lex);
 
+  release_locks_guard.commit();
   thd->lex->alter_info= &m_alter_info;
   return new (thd->mem_root) Sql_cmd_create_table(&m_alter_info, qe_tables);
 }
@@ -2197,6 +2236,16 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd)
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation))
     return NULL;
 
+  auto release_locks_guard= create_scope_guard([thd]()
+  {
+    // While contextualizing column definitions, we may end up taking MDL locks
+    // on spatial reference system objects in order to check that the provided
+    // SRID exists if a column with the SRID attribute was given. If an error
+    // occures, we need to release these locks explicitly since there are no
+    // other mechanisms at any higher level that does this for us.
+    thd->mdl_context.release_transactional_locks();
+  });
+
   if (m_opt_actions)
   {
     /*
@@ -2226,6 +2275,7 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd)
     pc.create_info->used_fields&= ~HA_CREATE_USED_ENGINE;
   }
 
+  release_locks_guard.commit();
   thd->lex->alter_info= &m_alter_info;
   return new (thd->mem_root) Sql_cmd_alter_table(&m_alter_info);
 }

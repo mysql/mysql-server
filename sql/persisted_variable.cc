@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -56,7 +63,6 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"       // ER_THD
 #include "sql/item.h"
-#include "sql/json_dom.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/set_var.h"
@@ -68,8 +74,29 @@
 #include "sql/sys_vars_shared.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
 #include "typelib.h"
+
+using std::string;
+using std::map;
+using std::vector;
+
+const string version("\"Version\"");
+const string name("\"Name\"");
+const string value("\"Value\"");
+const string metadata("\"Metadata\"");
+const string timestamp("\"Timestamp\"");
+const string user("\"User\"");
+const string host("\"Host\"");
+const string mysqld_section("\"mysql_server\"");
+const string static_section("\"mysql_server_static_options\"");
+const string colon(" : ");
+const string comma(" , ");
+const string open_brace("{ ");
+const string close_brace(" }");
+
+const int file_version= 1;
 
 PSI_file_key key_persist_file_cnf;
 
@@ -123,6 +150,49 @@ void my_init_persist_psi_keys(void)
 #endif
 
 Persisted_variables_cache* Persisted_variables_cache::m_instance= NULL;
+
+/* Standard Constructors for st_persist_var */
+
+st_persist_var::st_persist_var()
+{
+  if (current_thd)
+  {
+    timeval tv= current_thd->query_start_timeval_trunc(0);
+    timestamp= tv.tv_sec * 1000000ULL;
+  }
+  else
+    timestamp= my_micro_time();
+}
+
+st_persist_var::st_persist_var(THD *thd)
+{
+  timeval tv= thd->query_start_timeval_trunc(0);
+  timestamp= tv.tv_sec * 1000000ULL;
+  user= thd->security_context()->user().str;
+  host= thd->security_context()->host().str;
+}
+
+st_persist_var::st_persist_var(const st_persist_var& var)
+{
+  this->key= var.key;
+  this->value= var.value;
+  this->timestamp= var.timestamp;
+  this->user= var.user;
+  this->host= var.host;
+}
+
+st_persist_var::st_persist_var(const std::string key,
+                               const std::string value,
+                               const ulonglong timestamp,
+                               const std::string user,
+                               const std::string host)
+{
+  this->key= key;
+  this->value= value;
+  this->timestamp= timestamp;
+  this->user= user;
+  this->host= host;
+}
 
 /**
   Initialize class members. This function reads datadir if present in
@@ -224,9 +294,9 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 {
   char val_buf[1024]= { 0 };
   String str(val_buf, sizeof(val_buf), system_charset_info), *res;
-  size_t val_length= 0;
+  String utf8_str;
 
-  struct st_persist_var tmp_var;
+  struct st_persist_var tmp_var(thd);
   sys_var *system_var= setvar->var;
 
   const char* var_name=
@@ -236,25 +306,36 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
   {
     res= setvar->value->val_str(&str);
     if (res && res->length())
-      var_value= res->ptr();
+    {
+      /*
+        value held by Item class can be of different charset,
+        so convert to utf8mb4
+      */
+      const CHARSET_INFO *tocs= &my_charset_utf8mb4_bin;
+      uint dummy_err;
+      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
+        &dummy_err);
+      var_value= utf8_str.c_ptr_quick();
+    }
   }
   else
-    var_value= Persisted_variables_cache::get_variable_value(thd,
-                             system_var, val_buf, &val_length);
+  {
+    Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str);
+    var_value= utf8_str.c_ptr_quick();
+  }
 
   /* structured variables may have basename if specified */
-  string struct_var_name= (setvar->base.str ? setvar->base.str : string());
-  tmp_var.key= var_name;
+  tmp_var.key= (setvar->base.str ?
+                string(setvar->base.str).append(".").append(var_name) :
+                string(var_name));
   tmp_var.value= var_value;
-
-  if (struct_var_name.length())
-    tmp_var.key= struct_var_name.append(".").append(tmp_var.key);
 
   /* modification to in-memory must be thread safe */
   mysql_mutex_lock(&m_LOCK_persist_variables);
   /* if present update variable with new value else insert into hash */
-  if (setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly())
-    m_persist_ro_variables[tmp_var.key]= tmp_var.value;
+  if ((setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly()) ||
+    setvar->var->is_plugin_var_read_only())
+    m_persist_ro_variables[tmp_var.key]= tmp_var;
   else
   {
     /*
@@ -276,16 +357,18 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 
    @param [in] thd           Pointer to connection handler
    @param [in] system_var    Pointer to sys_var which is being SET
-   @param [out] val_buf      Buffer pointing to variable value
-   @param [out] val_length   Length of the value buffer
+   @param [in] str           Pointer to String instance into which value
+                             is copied
 
    @return
-     Pointer to buffer holding the value
+     Pointer to String instance holding the value
 */
-const char* Persisted_variables_cache::get_variable_value(THD *thd,
-   sys_var *system_var, char* val_buf, size_t* val_length)
+String* Persisted_variables_cache::get_variable_value(THD *thd,
+  sys_var *system_var, String *str)
 {
-  const char* value= val_buf;
+  const char* value;
+  char val_buf[1024];
+  size_t val_length;
   char show_var_buffer[sizeof(SHOW_VAR)];
   SHOW_VAR *show= (SHOW_VAR *)show_var_buffer;
   const CHARSET_INFO *fromcs;
@@ -298,19 +381,12 @@ const char* Persisted_variables_cache::get_variable_value(THD *thd,
 
   mysql_mutex_lock(&LOCK_global_system_variables);
   value= get_one_variable(thd, show, OPT_GLOBAL, show->type, NULL,
-                   &fromcs, val_buf, val_length);
+                          &fromcs, val_buf, &val_length);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  val_buf[*val_length]= '\0';
 
   /* convert the retrieved value to utf8mb4 */
-  size_t new_len= (tocs->mbmaxlen * (*val_length)) / fromcs->mbminlen + 1;
-  char *result= new char[new_len];
-  memset(result, 0, new_len);
-  *val_length= copy_and_convert(result, new_len, tocs, value, *val_length,
-                               fromcs, &dummy_err);
-  memcpy(val_buf, result, strlen(result)+1);
-  delete []result;
-  return val_buf;
+  str->copy(value, val_length, fromcs, tocs, &dummy_err);
+  return str;
 }
 
 /**
@@ -326,6 +402,90 @@ const char* Persisted_variables_cache::get_variable_name(sys_var *system_var)
 }
 
 /**
+  Given information of variable which needs to be persisted, this function
+  will construct a json foematted string out of it.
+
+  Format will be as below for variable named "X":
+  "X" : {
+    "Value" : "value",
+    "Metadata" : {
+      "Timestamp" : timestamp_value,
+      "User" : "user_name",
+      "Host" : "host_name"
+      }
+    }
+
+   @param [in]  name               Variable name
+   @param [in]  value              Variable value
+   @param [in]  timestamp          Timestamp value when this variable was set
+   @param [in]  user               User who set this variable
+   @param [in]  host               Host on which this variable was set
+   @param [out] dest               String object where json formatted string
+                                   is stored
+
+   @return
+     Pointer to String instance holding the json formatted string
+
+*/
+String* Persisted_variables_cache::construct_json_string(std::string name,
+                                                         std::string value,
+                                                         ulonglong timestamp,
+                                                         std::string user,
+                                                         std::string host,
+                                                         String *dest)
+{
+  String str;
+  std::unique_ptr<Json_string> var_name(new (std::nothrow)
+    Json_string(name));
+  Json_wrapper vn(var_name.release());
+  vn.to_string(&str, true, String().ptr());
+  dest->append(str);
+  dest->append(string(colon + open_brace + ::value + colon).c_str());
+
+  /* reset str */
+  str= String();
+  std::unique_ptr<Json_string> var_val(new (std::nothrow)
+    Json_string(value));
+  Json_wrapper vv(var_val.release());
+  vv.to_string(&str, true, String().ptr());
+  dest->append(str);
+  dest->append(comma.c_str());
+
+  /* reset str */
+  str= String();
+  dest->append(string(metadata + colon + open_brace + ::timestamp +
+    colon).c_str());
+  std::unique_ptr<Json_uint> var_ts(new (std::nothrow)
+    Json_uint(timestamp));
+  Json_wrapper vt(var_ts.release());
+  vt.to_string(&str, true, String().ptr());
+  dest->append(str);
+  dest->append(comma.c_str());
+
+  /* reset str */
+  str= String();
+  dest->append(string(::user + colon).c_str());
+  std::unique_ptr<Json_string> var_user(new (std::nothrow)
+    Json_string(user));
+  Json_wrapper vu(var_user.release());
+  vu.to_string(&str, true, String().ptr());
+  dest->append(str);
+  dest->append(comma.c_str());
+
+  /* reset str */
+  str= String();
+  dest->append(string(::host + colon).c_str());
+  std::unique_ptr<Json_string> var_host(new (std::nothrow)
+    Json_string(host));
+  Json_wrapper vh(var_host.release());
+  vh.to_string(&str, true, String().ptr());
+  dest->append(str);
+  dest->append(string(close_brace + close_brace + comma).c_str());
+
+  return dest;
+}
+
+/**
   Convert in-memory copy into a stream of characters and write this
   stream to persisted config file
 
@@ -335,95 +495,72 @@ const char* Persisted_variables_cache::get_variable_name(sys_var *system_var)
 */
 bool Persisted_variables_cache::flush_to_file()
 {
+  mysql_mutex_lock(&m_LOCK_persist_variables);
   mysql_mutex_lock(&m_LOCK_persist_file);
-  /* construct json formatted string buffer */
-  String dest("{ \"mysql_server\": {", &my_charset_utf8mb4_bin);
+
+  string tmp_str(open_brace + version + colon + std::to_string(file_version) +
+                 comma + mysqld_section + colon + open_brace);
+  String dest(tmp_str.c_str(), &my_charset_utf8mb4_bin);
 
   for (auto iter= m_persist_variables.begin();
        iter != m_persist_variables.end(); iter++)
   {
-    String str;
-    string s(iter->key);
-    std::unique_ptr<Json_string> var_name(new (std::nothrow)
-                    Json_string(s));
-    Json_wrapper vn(var_name.release());
-    /*
-      Convert variable name to a json quoted string. This function will
-      take care of all quotes and charsets.
-    */
-    vn.to_string(&str, true, String().ptr());
-    dest.append(str);
-    dest.append(": ");
-    /* reset str */
-    str= String();
-    std::unique_ptr<Json_string> var_val(new (std::nothrow)
-                    Json_string(iter->value));
-    Json_wrapper vv(var_val.release());
-    vv.to_string(&str, true, String().ptr());
-    dest.append(str);
-    dest.append(" , ");
+    String json_formatted_string;
+    Persisted_variables_cache::construct_json_string(iter->key, iter->value,
+      iter->timestamp, iter->user, iter->host, &json_formatted_string);
+    dest.append(json_formatted_string.c_ptr_quick());
   }
 
   if (m_persist_ro_variables.size())
   {
-    dest.append("\"mysql_server_static_options\": {");
+    dest.append(string(static_section + colon + open_brace).c_str());
   }
 
   for (auto iter = m_persist_ro_variables.begin();
        iter != m_persist_ro_variables.end(); iter++)
   {
-    String str;
-    std::unique_ptr<Json_string> var_name(new (std::nothrow)
-                    Json_string(iter->first));
-    Json_wrapper vn(var_name.release());
-    vn.to_string(&str, true, String().ptr());
-    dest.append(str);
-    dest.append(": ");
-    str= String();
-    std::unique_ptr<Json_string> var_val(new (std::nothrow)
-                    Json_string(iter->second));
-    Json_wrapper vv(var_val.release());
-    vv.to_string(&str, true, String().ptr());
-    dest.append(str);
-    dest.append(" , ");
+    String json_formatted_string;
+    Persisted_variables_cache::construct_json_string(iter->second.key,
+      iter->second.value, iter->second.timestamp, iter->second.user,
+      iter->second.host, &json_formatted_string);
+    dest.append(json_formatted_string.c_ptr_quick());
   }
 
   if (m_persist_ro_variables.size())
   {
     /* remove last " , " characters */
     dest.chop(); dest.chop(); dest.chop();
-    dest.append(" }");
+    dest.append(close_brace.c_str());
   }
   if (m_persist_variables.size() && !m_persist_ro_variables.size())
   {
     dest.chop(); dest.chop(); dest.chop();
   }
-  dest.append(" } }");
+  dest.append(string(close_brace + close_brace).c_str());
   /*
     If file does not exists create one. When persisted_globals_load is 0
     we dont read contents of mysqld-auto.cnf file, thus append any new
     variables which are persisted to this file.
   */
-  bool ret= 0;
-  ret= open_persist_file(O_CREAT | O_WRONLY);
+  bool ret= false;
 
-  if(ret)
+  if(open_persist_file(O_CREAT | O_WRONLY))
   {
-    mysql_mutex_unlock(&m_LOCK_persist_file);
-    close_persist_file();
-    return 1;
+    ret= true;
   }
-  /* write to file */
-  if ((mysql_file_fputs(dest.c_ptr(), fd)) < 0)
+  else
   {
-    mysql_mutex_unlock(&m_LOCK_persist_file);
-    close_persist_file();
-    return 1;
+    /* write to file */
+    if (mysql_file_fputs(dest.c_ptr(), m_fd) < 0)
+    {
+      ret= true;
+    }
   }
 
   close_persist_file();
   mysql_mutex_unlock(&m_LOCK_persist_file);
-  return 0;
+  mysql_mutex_unlock(&m_LOCK_persist_variables);
+  return ret;
 }
 
 /**
@@ -436,9 +573,9 @@ bool Persisted_variables_cache::flush_to_file()
 */
 bool Persisted_variables_cache::open_persist_file(int flag)
 {
-  fd= mysql_file_fopen(key_persist_file_cnf,
+  m_fd= mysql_file_fopen(key_persist_file_cnf,
                        m_persist_filename.c_str(), flag, MYF(0));
-  return (fd ? 0 : 1);
+  return (m_fd ? 0 : 1);
 }
 
 /**
@@ -447,8 +584,8 @@ bool Persisted_variables_cache::open_persist_file(int flag)
 */
 void Persisted_variables_cache::close_persist_file()
 {
-  mysql_file_fclose(fd, MYF(0));
-  fd= NULL;
+  mysql_file_fclose(m_fd, MYF(0));
+  m_fd= NULL;
 }
 
 /**
@@ -485,8 +622,6 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   LEX lex_tmp, *sav_lex= NULL;
   List<set_var_base> tmp_var_list;
   vector<st_persist_var> *persist_variables= NULL;
-  List_iterator_fast<set_var_base> it(tmp_var_list);
-  set_var_base *var;
   ulong access= 0;
   bool result= 0, new_thd= 0;
 
@@ -516,7 +651,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   {
     if (!(thd= new THD))
     {
-      LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
       return 1;
     }
     thd->thread_stack= (char*) &thd;
@@ -559,7 +694,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
         is loaded and continue with remaining persisted variables
       */
       m_persist_plugin_variables.push_back(*iter);
-      my_message_local(WARNING_LEVEL, "Currently unknown variable '%s'"
+      my_message_local(WARNING_LEVEL, "Currently unknown variable '%s' "
                        "was read from the persisted config file",
                        var_name.c_str());
       continue;
@@ -572,7 +707,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
       res= new (thd->mem_root) Item_uint(iter->value.c_str(),
-                                          iter->value.length());
+                                         (uint)iter->value.length());
     break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
@@ -585,7 +720,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     break;
     case SHOW_DOUBLE:
       res= new (thd->mem_root) Item_float(iter->value.c_str(),
-                                          iter->value.length());
+                                          (uint)iter->value.length());
     break;
     default:
       my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
@@ -606,7 +741,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
       if (current_thd && plugin_options)
       {
         if (thd->is_error())
-          my_error(ER_CANT_SET_PERSISTED, MYF(0),
+          LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
             thd->get_stmt_da()->message_text());
         else
           my_error(ER_CANT_SET_PERSISTED, MYF(0));
@@ -614,21 +749,30 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
       else
       {
         if (thd->is_error())
-          sql_print_error("%s", thd->get_stmt_da()->message_text());
+          LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+            thd->get_stmt_da()->message_text());
         else
-          LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+          LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
       }
     result= 1;
     goto err;
     }
-  }
-  /* Once all persisted options are set update variable source. */
-  while ((var= it++))
-  {
-    set_var* setvar= dynamic_cast<set_var*>(var);
-    setvar->var->set_source(enum_variable_source::PERSISTED);
-    setvar->var->set_source_name(m_persist_filename.c_str());
-    setvar->var->clear_user_host_timestamp();
+    tmp_var_list.empty();
+    /*
+      Once persisted variables are SET in the server,
+      update variables source/user/timestamp/host from m_persist_variables.
+    */
+    auto it= std::find_if(m_persist_variables.begin(), m_persist_variables.end(),
+      [var_name](st_persist_var const& s) { return s.key == var_name; });
+    if (it != m_persist_variables.end())
+    {
+      /* persisted variable is found */
+      sysvar->set_source(enum_variable_source::PERSISTED);
+      sysvar->set_source_name(m_persist_filename.c_str());
+      sysvar->set_timestamp(it->timestamp);
+      sysvar->set_user(it->user.c_str());
+      sysvar->set_host(it->host.c_str());
+    }
   }
 
 err:
@@ -648,6 +792,161 @@ err:
 }
 
 /**
+  extract_variables_from_json() is used to extract all the variable information
+  which is in the form of Json_object.
+
+  New format for mysqld-auto.cnf is as below:
+  { "Version" : 1,
+    "mysql_server" :
+    { "variable_name" : {
+      "Value" : "variable_value",
+      "Metadata" : {
+        "Timestamp" : timestamp_value,
+        "User" : "user_name",
+        "Host" : "host_name"
+        }
+      }
+    }
+    { "variable_name" : {
+      ...
+
+    { "mysql_server_static_options" :
+      { "variable_name" : {
+        "Value" : "variable_value",
+        ...
+      }
+      ...
+  }
+
+  @param [in] dom             Pointer to the Json_dom object which is an internal
+                              representation of parsed json string
+  @param [in] is_read_only    Bool value when set to TRUE extracts read only
+                              variables and dynamic variables when set to FALSE.
+
+  @return 0 Success
+  @return 1 Failure
+*/
+bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
+                                                            bool is_read_only)
+{
+  Json_wrapper_object_iterator var_iter(down_cast<Json_object *>(dom));
+  while (!var_iter.empty())
+  {
+    string var_name, var_value, var_user, var_host;
+    ulonglong timestamp= 0;
+    Json_dom *dom_obj;
+
+    var_name= var_iter.elt().first;
+
+    /**
+      Static variables by themselves is represented as a json object with key
+      "mysql_server_static_options" as parent element.
+    */
+    if (var_name == "mysql_server_static_options")
+    {
+      if (extract_variables_from_json(var_iter.elt().second.to_dom(NULL),
+        true))
+        return 1;
+      var_iter.next();
+      continue;
+    }
+    dom_obj= var_iter.elt().second.to_dom(NULL);
+    /**
+      Every Json object which represents Variable information must have only
+      2 elements which is
+      {
+      "Value" : "variable_value",   -- 1st element
+      "Metadata" : {                -- 2nd element
+        "Timestamp" : timestamp_value,
+        "User" : "user_name",
+        "Host" : "host_name"
+        }
+      }
+    */
+    if (dom_obj->depth() !=  3 &&
+      ((Json_object*)dom_obj)->cardinality() != 2)
+      goto err;
+
+    Json_wrapper_object_iterator
+      var_properties_iter(down_cast<Json_object *>(dom_obj));
+    /* extract variable value */
+    if (var_properties_iter.elt().second.is_dom())
+    {
+      if (var_properties_iter.elt().first != "Value")
+        goto err;
+
+      dom_obj= var_properties_iter.elt().second.to_dom(NULL);
+      if (dom_obj->depth() != 1 &&
+        ((Json_object*)dom_obj)->cardinality() != 1)
+        goto err;
+
+      /* if value is not in string form throw error. */
+      if (dom_obj->json_type() != enum_json_type::J_STRING)
+        goto err;
+      Json_string *value= down_cast<Json_string *>(dom_obj);
+      var_value= value->value();
+    }
+    var_properties_iter.next();
+    /* extract metadata */
+    if (var_properties_iter.elt().second.is_dom())
+    {
+      if (var_properties_iter.elt().first != "Metadata")
+        goto err;
+
+      dom_obj= var_properties_iter.elt().second.to_dom(NULL);
+      if (dom_obj->depth() != 1 &&
+        ((Json_object*)dom_obj)->cardinality() != 3)
+        goto err;
+
+      Json_wrapper_object_iterator
+        metadata_iter(down_cast<Json_object *>(dom_obj));
+      while(!metadata_iter.empty())
+      {
+        string metadata_type= metadata_iter.elt().first;
+        if (metadata_iter.elt().second.is_dom())
+        {
+          dom_obj= metadata_iter.elt().second.to_dom(NULL);
+          if (metadata_type == "Timestamp")
+          {
+            if (dom_obj->json_type() != enum_json_type::J_UINT)
+              goto err;
+
+            Json_uint *i= down_cast<Json_uint *>(dom_obj);
+            timestamp= i->value();
+          }
+          else if (metadata_type == "User" || metadata_type == "Host")
+          {
+            if (dom_obj->json_type() != enum_json_type::J_STRING)
+              goto err;
+
+            Json_string *i= down_cast<Json_string *>(dom_obj);
+            if (metadata_type == "User")
+              var_user= i->value();
+            else
+              var_host= i->value();
+          }
+          else
+            goto err;
+        }
+        metadata_iter.next();
+      }
+      st_persist_var persist_var(var_name, var_value, timestamp, var_user,
+        var_host);
+      if (is_read_only)
+        m_persist_ro_variables[var_name]= persist_var;
+      else
+        m_persist_variables.push_back(persist_var);
+    }
+    var_iter.next();
+  }
+  return 0;
+
+  err:
+    LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
+    return 1;
+}
+
+/**
   read_persist_file() reads the persisted config file
 
   This function does following:
@@ -655,7 +954,10 @@ err:
     2. This string buffer is parsed with JSON parser to check
        if the format is correct or not.
     3. Check for correct group name.
-    4. Extract key/value pair and populate in a global hash map
+    4. Extract key/value pair and populate in m_persist_variables,
+       m_persist_ro_variables.
+  mysqld-auto.cnf file will have variable properties like when a
+  variable is set, by wholm and on what host this variable was set.
 
   @return Error state
     @retval -1 or 1 Failure
@@ -678,7 +980,7 @@ int Persisted_variables_cache::read_persist_file()
     /* Read the persisted config file into a string buffer */
     parsed_value.append(buff);
     buff[0]='\0';
-  } while (mysql_file_fgets(buff, sizeof(buff) - 1, fd));
+  } while (mysql_file_fgets(buff, sizeof(buff) - 1, m_fd));
   close_persist_file();
 
   /* parse the file contents to check if it is in json format or not */
@@ -689,67 +991,38 @@ int Persisted_variables_cache::read_persist_file()
     LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
     return 1;
   }
-  Json_object *obj= reinterpret_cast<Json_object *>(json.get());
-  Json_dom *group= obj->get("mysql_server");
-  Json_string *group_name= reinterpret_cast<Json_string *>(group);
-  if (!group_name)
+  Json_object *json_obj= down_cast<Json_object *>(json.get());
+  Json_wrapper_object_iterator iter(down_cast<Json_object *>(json_obj));
+  if (iter.elt().first != "Version")
+  {
+    LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+      "Persisted config file corrupted.");
+    return 1;
+  }
+  /* Check file version */
+  Json_dom *dom_obj= iter.elt().second.to_dom(NULL);
+  if (dom_obj->json_type() != enum_json_type::J_INT)
+  {
+    LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+      "Persisted config file version invalid.");
+    return 1;
+  }
+  Json_int *i= down_cast<Json_int *>(dom_obj);
+  if (file_version != i->value())
+  {
+    LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+      "Persisted config file version invalid.");
+    return 1;
+  }
+  iter.next();
+  if (iter.elt().first != "mysql_server")
   {
     LogErr(ERROR_LEVEL, ER_CONFIG_OPTION_WITHOUT_GROUP);
     return 1;
   }
   /* Extract key/value pair and populate in a global hash map */
-  Json_wrapper_object_iterator iter(reinterpret_cast<Json_object *>(group));
-  while(!iter.empty())
-  {
-    const std::string key= iter.elt().first;
-    if (key == "mysql_server_static_options")
-    {
-      if (iter.elt().second.is_dom())
-      {
-        Json_dom *ro_group= iter.elt().second.to_dom(NULL);
-        /* Extract key/value pair for all static variables */
-        Json_wrapper_object_iterator
-          ro_iter(reinterpret_cast<Json_object *>(ro_group));
-        while (!ro_iter.empty())
-        {
-          const std::string key= ro_iter.elt().first;
-          if (ro_iter.elt().second.is_dom())
-          {
-            Json_dom *key_value_type= reinterpret_cast<Json_string* >
-              (ro_iter.elt().second.to_dom(NULL));
-            if (key_value_type &&
-              key_value_type->json_type() != enum_json_type::J_STRING)
-            {
-              LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
-              return 1;
-            }
-          }
-          const std::string key_value= ro_iter.elt().second.get_data();
-          m_persist_ro_variables[key]= key_value;
-          ro_iter.next();
-        }
-      }
-    }
-    else
-    {
-      if (iter.elt().second.is_dom())
-      {
-        /* ensure that key value is string type */
-        Json_dom *key_value_type= reinterpret_cast<Json_string* >
-          (iter.elt().second.to_dom(NULL));
-        if (key_value_type &&
-          key_value_type->json_type() != enum_json_type::J_STRING)
-        {
-          LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
-          return 1;
-        }
-      }
-      const std::string key_value= iter.elt().second.get_data();
-      st_persist_var persist_var(key, key_value);
-      m_persist_variables.push_back(persist_var);
-    }
-    iter.next();
-  }
+  if (extract_variables_from_json(iter.elt().second.to_dom(NULL)))
+    return 1;
   return 0;
 }
 
@@ -778,7 +1051,6 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   TYPELIB group;
   MEM_ROOT alloc;
   const char *type_name= "mysqld";
-  map<string, string>::const_iterator iter;
 
   if (*argc < 2 || no_defaults || !persisted_globals_load)
     return 0;
@@ -788,10 +1060,10 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   group.name= "defaults";
   group.type_names= &type_name;
 
-  for (iter= m_persist_ro_variables.begin();
+  for (auto iter= m_persist_ro_variables.begin();
        iter != m_persist_ro_variables.end(); iter++)
   {
-    string persist_option= "--loose_" + iter->first + "=" + iter->second;
+    string persist_option= "--loose_" + iter->first + "=" + iter->second.value;
     if (find_type((char *) type_name, &group, FIND_TYPE_NO_PREFIX))
     {
       char *tmp;
@@ -826,7 +1098,7 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
       memcpy((res + *argc + 1), &my_args[0], my_args.size() * sizeof(char *));
     }
     res[my_args.size() + *argc + 1] = 0;  /* last null */
-    (*argc)+= my_args.size() + 1;
+    (*argc)+= (int)my_args.size() + 1;
     *argv= res;
     if (plugin_options)
       ro_persisted_plugin_argv_alloc= std::move(alloc);  // Possibly overwrite previous.
@@ -934,7 +1206,7 @@ Persisted_variables_cache::get_persisted_variables()
 /**
   Return in-memory copy for static persisted variables
 */
-map<string, string>*
+map<string, st_persist_var>*
 Persisted_variables_cache::get_persist_ro_variables()
 {
   return &m_persist_ro_variables;

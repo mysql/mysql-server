@@ -1044,3 +1044,42 @@ SELECT * FROM t1 RIGHT JOIN
 (SELECT o FROM t2, JSON_TABLE(j, '$[*]' COLUMNS (o FOR ORDINALITY)) AS jt) AS t3
 ON (t3.o = t1.x);
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#27152428 JSON_TABLE + PREPARED STATEMENT + VIEW HAS PROBLEM IN DURING RESOLUTION
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+
+CREATE VIEW v2 AS SELECT * FROM t1 LIMIT 2;
+
+SELECT b
+ FROM (SELECT * FROM v2) vq1,
+ JSON_TABLE(CONCAT(vq1.b,'[{\"a\":\"3\"}]'),
+            '$[*]' COLUMNS (id FOR ORDINALITY,
+                            jpath VARCHAR(100) PATH '$.a',
+                            JEXST INT EXISTS PATH '$.b')
+            ) AS dt;
+
+DROP TABLE t1;
+DROP VIEW v2;
+
+
+--echo #
+--echo # Bug#27189940: CREATE VIEW FAILS ON JSON_TABLE() IN SCHEMA-LESS CONNECTIONS
+--echo #
+
+
+# Connect without a schema name:
+connect (conn1,localhost,root,,*NO-ONE*);
+connection conn1;
+
+CREATE VIEW test.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+
+connection default;
+disconnect conn1;
+use test;
+
+SHOW CREATE VIEW test.v;
+SELECT * FROM test.v;
+DROP VIEW test.v;

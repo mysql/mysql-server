@@ -22,8 +22,8 @@ call mtr.add_suppression("Slave: Could not apply JSON diff");
 call mtr.add_suppression("Slave: Corrupted JSON diff");
 call mtr.add_suppression("Slave: Corrupted replication event was detected");
 call mtr.add_suppression("Slave: Got error 1610 - ");
-call mtr.add_suppression("Slave: Got error 4549 - ");
-call mtr.add_suppression("Slave: Got error 4550 - ");
+call mtr.add_suppression("Slave: Got error 3648 - ");
+call mtr.add_suppression("Slave: Got error 3649 - ");
 call mtr.add_suppression("Slave: Got error 5 - ");
 ######## Test ########
 [connection slave]
@@ -40,7 +40,7 @@ SET @@GLOBAL.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/start_slave.inc
 ==== 1. E1. Path exists on master but not on slave, JSON_REMOVE ====
-include/rpl_row_jsondiff_error_scenario [4549/FAIL]
+include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -56,7 +56,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 2. E1. Path exists on master but not on slave, JSON_SET ====
-include/rpl_row_jsondiff_error_scenario [4549/FAIL]
+include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -72,7 +72,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 3. E2. Path exists on slave but not on master ====
-include/rpl_row_jsondiff_error_scenario [4549/FAIL]
+include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -130,7 +130,7 @@ SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
 include/start_slave_sql.inc
 ==== 6. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -156,7 +156,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 7. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -182,7 +182,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 8. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -208,7 +208,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 9. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -234,7 +234,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 10. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -260,7 +260,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 11. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -286,7 +286,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 12. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -312,7 +312,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 13. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -338,7 +338,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 14. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/FAIL]
+include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -405,7 +405,7 @@ RESET MASTER;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 [connection slave]
-include/rpl_restart_server.inc [server_number=2 parameters: --slave_skip_errors=1062,1032,4549,4550,1610,5]
+include/rpl_restart_server.inc [server_number=2 parameters: --slave_skip_errors=1062,1032,3648,3649,1610,5]
 [connection slave]
 ******** ERROR MODE: SKIP ********
 ---- Configure slave ----
@@ -419,7 +419,7 @@ SET @@GLOBAL.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/start_slave.inc
 ==== 16. E1. Path exists on master but not on slave, JSON_REMOVE ====
-include/rpl_row_jsondiff_error_scenario [4549/SKIP]
+include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -433,7 +433,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 17. E1. Path exists on master but not on slave, JSON_SET ====
-include/rpl_row_jsondiff_error_scenario [4549/SKIP]
+include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -447,7 +447,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 18. E2. Path exists on slave but not on master ====
-include/rpl_row_jsondiff_error_scenario [4549/SKIP]
+include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -499,7 +499,7 @@ SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
 include/start_slave_sql.inc
 ==== 21. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -518,7 +518,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 22. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -537,7 +537,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 23. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -556,7 +556,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 24. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -575,7 +575,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 25. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -594,7 +594,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 26. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -613,7 +613,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 27. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -632,7 +632,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 28. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -651,7 +651,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 29. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/SKIP]
+include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -708,7 +708,7 @@ SET @@GLOBAL.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/start_slave.inc
 ==== 31. E1. Path exists on master but not on slave, JSON_REMOVE ====
-include/rpl_row_jsondiff_error_scenario [4549/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -724,7 +724,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 32. E1. Path exists on master but not on slave, JSON_SET ====
-include/rpl_row_jsondiff_error_scenario [4549/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -740,7 +740,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 33. E2. Path exists on slave but not on master ====
-include/rpl_row_jsondiff_error_scenario [4549/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '[1, {"m" : 1}]');
@@ -796,7 +796,7 @@ SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
 include/start_slave_sql.inc
 ==== 36. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -822,7 +822,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 37. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -848,7 +848,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 38. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -874,7 +874,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 39. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -900,7 +900,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 40. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -926,7 +926,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 41. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -952,7 +952,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 42. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -978,7 +978,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 43. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');
@@ -1004,7 +1004,7 @@ DROP TABLE test.t;
 RESET SLAVE;
 RESET MASTER;
 ==== 44. E6. Corruption in event ====
-include/rpl_row_jsondiff_error_scenario [4550/IDEMPOTENT]
+include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
 CREATE TABLE test.t (i INT PRIMARY KEY, j JSON);
 INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}');

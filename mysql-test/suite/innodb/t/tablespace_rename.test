@@ -5,19 +5,11 @@
 # Crash between each of the points listed below :
 # - RENAME TABLE t to t1; -- gets translated into the following steps
 # 
-# 1. LSN = WRITE LOG "MLOG_FILE_OPEN t1.ibd;"
+# 1. WRITE_LOG "MLOG_FILE_RENAME t, t1";
 # 
-# 2. ADD_ENTRY_TO_TABLESPACE_ID_MAPPING (SPACE_ID, t1.ibd, LSN);
+# 2. RENAME FILE t.ibd TO t1.ibd;
 # 
-# 3. WRITE MAPPING DATA TO FILE 'tablespaces.open.X' IN COMPRESSED FORMAT;
-# 
-# 4. FSYNC 'tablespaces.open.X';
-# 
-# 5. WRITE_LOG "MLOG_FILE_RENAME2 t, t1";
-# 
-# 6. RENAME FILE t.ibd TO t1.ibd;
-# 
-# 7. COMPLETED
+# 3. COMPLETED
 #
 --source include/not_valgrind.inc
 
@@ -46,7 +38,7 @@ SELECT * FROM t1;
 SHOW TABLES;
 
 --echo #
---echo # Test crash before writing MLOG_FILE_OPEN t2.
+--echo # Test crash before writing MLOG_FILE_RENAME t2.
 --echo # On recovery the rename never happened.
 --echo #
 
@@ -60,6 +52,7 @@ RENAME TABLE t1 TO t2;
 --source include/start_mysqld.inc
 
 SET SESSION debug="-d,ib_crash_rename_log_1";
+
 SHOW TABLES;
 INSERT INTO t1 VALUES (2);
 SELECT * FROM t1;

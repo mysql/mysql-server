@@ -1,17 +1,24 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -3551,23 +3558,29 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
     if (s_key->null_key)
     {
       /*
-        If we have materialized the subquery:
+        If we have materialized the subquery (HASH_SJ_ENGINE):
         - this NULL ref item cannot be local to the subquery (any such
-        conditions was handled during materialization)
-        - neither can it be outer, because this case is
-        separately managed in subselect_hash_sj_engine::exec().
+        equality condition is attached to the subquery's JOIN and is thus
+        handled during materialization (by join->exec() in
+        subselect_hash_sj_engine::exec())
+        - The case of an outer NULL ref item is caught in
+        subselect_hash_sj_engine::exec() so shouldn't come here; but this is
+        not guaranteed if the outer expression is not deterministic: this
+        expression is evaluated early in Item_in_subselect::exec() (for
+        left_expr_cache) and then in s_key->copy() just above; so it is
+        possible that it is non-NULL (so, not caught) then NULL (so, coming
+        here). In such case, there is no meaningful value for IN, any value
+        will do.
       */
-      DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
-
-      const bool *cond_guard= tab->ref().cond_guards[part_no];
 
       /*
         NULL value is from the outer_value_list if the key part has a
         cond guard that deactivates the condition. @see
         TABLE_REF::cond_guards
-
       */
-      if (cond_guard && !*cond_guard)
+      if (tab->ref().cond_guards &&
+          tab->ref().cond_guards[part_no] &&
+          !*tab->ref().cond_guards[part_no])
       {
         DBUG_ASSERT(!(static_cast <Item_in_subselect*>(item)
                       ->is_top_level_item()));

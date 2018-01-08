@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -141,7 +148,8 @@ static int merge_index(THD *thd,
                        IO_CACHE *tempfile,
                        IO_CACHE *outfile);
 static bool save_index(Sort_param *param, uint count,
-                       Filesort_info *table_sort);
+                       Filesort_info *table_sort,
+                       Sort_result *sort_result);
 
 static bool check_if_pq_applicable(Opt_trace_context *trace,
                                    Sort_param *param, Filesort_info *info,
@@ -418,17 +426,10 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   DEBUG_SYNC(thd, "filesort_start");
 
-  /* 
-    Don't use table->sort in filesort as it is also used by 
-    QUICK_INDEX_MERGE_SELECT. Work with a copy and put it back at the end 
-    when index_merge select has finished with it.
-  */
-  Filesort_info table_sort= table->sort;
-  table->sort.io_cache= NULL;
-  DBUG_ASSERT(table_sort.sorted_result == NULL);
-  table_sort.sorted_result_in_fsbuf= false;
+  DBUG_ASSERT(table->sort_result.sorted_result == NULL);
+  table->sort_result.sorted_result_in_fsbuf= false;
 
-  outfile= table_sort.io_cache;
+  outfile= table->sort_result.io_cache;
   my_b_clear(&tempfile);
   my_b_clear(&chunk_file);
   error= 1;
@@ -440,7 +441,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
                           thd->variables.max_length_for_sort_data,
                           max_rows, sort_positions);
 
-  table_sort.addon_fields= param.addon_fields;
+  table->sort.addon_fields= param.addon_fields;
 
   if (tab->quick())
     thd->inc_status_sort_range();
@@ -455,7 +456,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
                   param.max_compare_length(), MYF(MY_WME))))
     goto err;
 
-  if (check_if_pq_applicable(trace, &param, &table_sort,
+  if (check_if_pq_applicable(trace, &param, &table->sort,
                              table, num_rows_estimate, memory_available,
                              subselect != NULL))
   {
@@ -466,17 +467,17 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       all pointers here. (We cannot pack fields anyways, so there is no
       point in doing lazy initialization).
      */
-    table_sort.init_record_pointers();
+    table->sort.init_record_pointers();
 
     if (pq.init(param.max_rows,
-                &param, table_sort.get_sort_keys()))
+                &param, table->sort.get_sort_keys()))
     {
       /*
        If we fail to init pq, we have to give up:
        out of memory means my_malloc() will call my_error().
       */
       DBUG_PRINT("info", ("failed to allocate PQ"));
-      table_sort.free_sort_buffer();
+      table->sort.free_sort_buffer();
       DBUG_ASSERT(thd->is_error());
       goto err;
     }
@@ -524,9 +525,9 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       param.max_rows_per_buffer=
         min(num_rows_estimate > 0 ? num_rows_estimate : 1, keys);
 
-      table_sort.alloc_sort_buffer(param.max_rows_per_buffer,
+      table->sort.alloc_sort_buffer(param.max_rows_per_buffer,
                                    param.max_record_length());
-      if (table_sort.sort_buffer_size() > 0)
+      if (table->sort.sort_buffer_size() > 0)
         break;
       ulong old_memory_available= memory_available;
       memory_available= memory_available/4*3;
@@ -551,7 +552,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   {
     Opt_trace_array ota(trace, "filesort_execution");
     num_rows_found= find_all_keys(thd, &param, tab,
-                                  &table_sort,
+                                  &table->sort,
                                   &chunk_file,
                                   &tempfile,
                                   param.using_pq ? &pq : NULL,
@@ -566,18 +567,18 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (num_chunks == 0)                   // The whole set is in memory
   {
-    if (save_index(&param, num_rows_found, &table_sort))
+    if (save_index(&param, num_rows_found, &table->sort, &table->sort_result))
       goto err;
   }
   else
   {
     // We will need an extra buffer in rr_unpack_from_tempfile()
-    if (table_sort.addon_fields != nullptr &&
-        !(table_sort.addon_fields->allocate_addon_buf(param.m_addon_length)))
+    if (table->sort.addon_fields != nullptr &&
+        !(table->sort.addon_fields->allocate_addon_buf(param.m_addon_length)))
       goto err;                                 /* purecov: inspected */
 
-    table_sort.read_chunk_descriptors(&chunk_file, num_chunks);
-    if (table_sort.merge_chunks.is_null())
+    table->sort.read_chunk_descriptors(&chunk_file, num_chunks);
+    if (table->sort.merge_chunks.is_null())
       goto err;                                 /* purecov: inspected */
 
     close_cached_file(&chunk_file);
@@ -595,12 +596,12 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       for temporary key storage.
     */
     param.max_rows_per_buffer=
-      static_cast<uint>(table_sort.sort_buffer_size() /
+      static_cast<uint>(table->sort.sort_buffer_size() /
                         param.max_record_length());
 
     if (merge_many_buff(thd, &param,
-                        table_sort.get_raw_buf(),
-                        table_sort.merge_chunks,
+                        table->sort.get_raw_buf(),
+                        table->sort.merge_chunks,
                         &num_chunks,
                         &tempfile))
       goto err;
@@ -608,8 +609,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
       goto err;
     if (merge_index(thd, &param,
-                    table_sort.get_raw_buf(),
-                    Merge_chunk_array(table_sort.merge_chunks.begin(),
+                    table->sort.get_raw_buf(),
+                    Merge_chunk_array(table->sort.merge_chunks.begin(),
                                       num_chunks),
                     &tempfile,
                     outfile))
@@ -647,7 +648,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       .add("num_rows_found", num_rows_found)
       .add("num_examined_rows", param.num_examined_rows)
       .add("num_initial_chunks_spilled_to_disk", num_initial_chunks)
-      .add("sort_buffer_size", table_sort.sort_buffer_size())
+      .add("sort_buffer_size", table->sort.sort_buffer_size())
       .add_alnum("sort_algorithm", algo_text[param.m_sort_algorithm]);
     if (!param.using_packed_addons())
       filesort_summary.add_alnum("unpacked_addon_fields",
@@ -668,10 +669,10 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   my_free(param.tmp_buffer);
   if (!subselect || !subselect->is_uncacheable())
   {
-    if (!table_sort.sorted_result_in_fsbuf)
-      table_sort.free_sort_buffer();
-    my_free(table_sort.merge_chunks.array());
-    table_sort.merge_chunks= Merge_chunk_array(NULL, 0);
+    if (!table->sort_result.sorted_result_in_fsbuf)
+      table->sort.free_sort_buffer();
+    my_free(table->sort.merge_chunks.array());
+    table->sort.merge_chunks= Merge_chunk_array(NULL, 0);
   }
   close_cached_file(&tempfile);
   close_cached_file(&chunk_file);
@@ -692,13 +693,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     DBUG_ASSERT(thd->is_error() || thd->killed);
 
     /*
-      We replace the table->sort at the end.
-      Hence calling free_io_cache to make sure table->sort.io_cache
-      used for QUICK_INDEX_MERGE_SELECT is free.
-    */
-    free_io_cache(table);
-
-    /*
       Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
       to client!
     */
@@ -708,7 +702,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
                           ? ER_THD(thd, THD::KILL_QUERY)
                           : ER_THD(thd, thd->killed))
                        : thd->get_stmt_da()->message_text();
-    const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
+    const char *msg=   ER_THD(thd, ER_FILESORT_TERMINATED);
 
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
@@ -720,7 +714,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     {
       LogEvent().type(LOG_TYPE_ERROR)
                 .prio(INFORMATION_LEVEL)
-                .errcode(ER_FILSORT_ABORT)
+                .errcode(ER_FILESORT_TERMINATED)
                 .user(thd->security_context()->priv_user())
                 .host(thd->security_context()->host_or_ip())
                 .thread_id(thd->thread_id())
@@ -739,12 +733,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   *examined_rows= param.num_examined_rows;
   *returned_rows= num_rows_found;
 
-  /* table->sort.io_cache should be free by this time */
-  DBUG_ASSERT(NULL == table->sort.io_cache);
-
-  // Assign the copy back!
-  table->sort= table_sort;
-
   DBUG_PRINT("exit",
              ("num_rows: %ld examined_rows: %ld found_rows: %ld",
               static_cast<long>(num_rows_found),
@@ -757,9 +745,13 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 void filesort_free_buffers(TABLE *table, bool full)
 {
   DBUG_ENTER("filesort_free_buffers");
-  my_free(table->sort.sorted_result);
-  table->sort.sorted_result= NULL;
-  table->sort.sorted_result_in_fsbuf= false;
+
+  table->sort_result.sorted_result.reset();
+  table->sort_result.sorted_result_in_fsbuf= false;
+
+  table->unique_result.sorted_result.reset();
+  DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
+  table->unique_result.sorted_result_in_fsbuf= false;
 
   if (full)
   {
@@ -1855,8 +1847,10 @@ static void register_used_fields(Sort_param *param)
   @param          count      Number of records
   @param [in,out] table_sort Information used by rr_unpack_from_buffer() /
                              rr_from_pointers()
+  @param [out]    sort_result Where to store the actual result
  */
-static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
+static bool save_index(Sort_param *param, uint count,
+                       Filesort_info *table_sort, Sort_result *sort_result)
 {
   uchar *to;
   DBUG_ENTER("save_index");
@@ -1868,20 +1862,21 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
 
   if (param->using_addon_fields())
   {
-    table_sort->sorted_result_in_fsbuf= true;
+    sort_result->sorted_result_in_fsbuf= true;
     DBUG_RETURN(0);
   }
 
-  table_sort->sorted_result_in_fsbuf= false;
+  sort_result->sorted_result_in_fsbuf= false;
   const size_t buf_size= param->fixed_res_length * count;
 
-  DBUG_ASSERT(table_sort->sorted_result == NULL);
-  if (!(to= table_sort->sorted_result=
-        static_cast<uchar*>(my_malloc(key_memory_Filesort_info_record_pointers,
-                                      buf_size, MYF(MY_WME)))))
+  DBUG_ASSERT(sort_result->sorted_result == NULL);
+  sort_result->sorted_result.reset(
+    static_cast<uchar*>(my_malloc(key_memory_Filesort_info_record_pointers,
+                                  buf_size, MYF(MY_WME))));
+  if (!(to= sort_result->sorted_result.get()))
     DBUG_RETURN(1);                 /* purecov: inspected */
-  table_sort->sorted_result_end=
-    table_sort->sorted_result + buf_size;
+  sort_result->sorted_result_end=
+    sort_result->sorted_result.get() + buf_size;
 
   uint res_length= param->fixed_res_length;
   for (uint ix= 0; ix < count; ++ix)

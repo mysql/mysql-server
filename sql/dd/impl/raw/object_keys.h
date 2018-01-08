@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__OBJECT_KEYS_INCLUDED
 #define DD__OBJECT_KEYS_INCLUDED
@@ -470,13 +477,15 @@ public:
   Routine_name_key()
   { }
 
-  Routine_name_key(int container_id_column_no,
+  Routine_name_key(int index_no,
+                   int container_id_column_no,
                    Object_id container_id,
                    int type_column_no,
                    uint type,
                    int name_column_no,
                    const String_type &object_name)
-   :m_container_id_column_no(container_id_column_no),
+   :m_index_no(index_no),
+    m_container_id_column_no(container_id_column_no),
     m_type_column_no(type_column_no),
     m_name_column_no(name_column_no),
     m_container_id(container_id),
@@ -485,13 +494,15 @@ public:
   { }
 
   // Update a preallocated instance.
-  void update(int container_id_column_no,
+  void update(int index_no,
+              int container_id_column_no,
               Object_id container_id,
               int type_column_no,
               uint type,
               int name_column_no,
               const String_type &object_name)
   {
+    m_index_no= index_no;
     m_container_id_column_no= container_id_column_no;
     m_type_column_no= type_column_no;
     m_name_column_no= name_column_no;
@@ -508,6 +519,7 @@ public:
   bool operator <(const Routine_name_key &rhs) const;
 
 private:
+  int m_index_no;
   int m_container_id_column_no;
   int m_type_column_no;
   int m_name_column_no;

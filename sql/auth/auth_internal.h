@@ -1,17 +1,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /* Internals */
 
 #ifndef AUTH_INTERNAL_INCLUDED
@@ -89,6 +96,9 @@ extern Rsa_authentication_keys * g_sha256_rsa_keys;
 extern Rsa_authentication_keys * g_caching_sha2_rsa_keys;
 extern char * caching_sha2_rsa_private_key_path;
 extern char * caching_sha2_rsa_public_key_path;
+#if !defined(HAVE_YASSL)
+extern bool caching_sha2_auto_generate_rsa_keys;
+#endif
 
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
 bool auth_plugin_is_built_in(const char *plugin_name);
@@ -328,6 +338,9 @@ bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
                          std::vector<Role_id > *default_roles);
 void get_granted_roles(LEX_USER *user, List_of_granted_roles *granted_roles);
+bool drop_default_role_policy(THD *thd, TABLE *table,
+                              const Auth_id_ref &default_role_policy,
+                              const Auth_id_ref &user);
 int iterate_granted_roles(Auth_id_ref &authid,
          std::function<bool (const std::pair<const Auth_id_ref &, bool> &p)> f);
 void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user);
@@ -367,7 +380,11 @@ extern std::vector<Role_id > *g_mandatory_roles;
 void create_role_vertex(ACL_USER *role_acl_user);
 void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
                                               Security_context *sctx);
-extern std::vector<std::string> builtin_auth_plugins; 
+extern std::vector<std::string> builtin_auth_plugins;
+
 bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
                                   const List_of_auth_id_refs &new_auth_ids);
+
+bool alter_user_set_default_roles_all(THD *thd, TABLE *def_role_table,
+                                      LEX_USER *user);
 #endif /* AUTH_INTERNAL_INCLUDED */

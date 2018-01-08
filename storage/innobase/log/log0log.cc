@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -160,7 +168,7 @@ log_buf_pool_get_oldest_modification(void)
 }
 
 /* Note this will work between the two formats 5_7_9 & current because
-the only change is the version number */
+the only change is the version number. Assumes an "empty" redo log. */
 static
 void
 log_downgrade()
@@ -177,11 +185,17 @@ log_downgrade()
 
 	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
 
-	fil_io(IORequestLogWrite, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) (dest_offset % univ_page_size.physical()),
-		OS_FILE_LOG_BLOCK_SIZE, buf, group);
+        dberr_t err;
+
+	err = fil_redo_io(
+                IORequestLogWrite,
+                page_id_t(group->space_id, page_no),
+                univ_page_size,
+                (ulint) (dest_offset % univ_page_size.physical()),
+                OS_FILE_LOG_BLOCK_SIZE, buf);
+
+        ut_a(err == DB_SUCCESS);
+
 }
 
 /** Extends the log buffer.
@@ -915,34 +929,30 @@ log_group_init(
 void
 log_io_complete(log_group_t* group)
 {
-	if ((ulint) group & 0x1UL) {
-		/* It was a checkpoint write */
-		group = (log_group_t*)((ulint) group - 1);
+	ut_a((ulint) group & 0x1UL);
+
+	/* It was a checkpoint write */
+	group = (log_group_t*)((ulint) group - 1);
 
 #ifdef _WIN32
-		fil_flush(group->space_id);
+	fil_flush_file_redo();
 #else
-		switch (srv_unix_file_flush_method) {
-		case SRV_UNIX_O_DSYNC:
-		case SRV_UNIX_NOSYNC:
-			break;
-		case SRV_UNIX_FSYNC:
-		case SRV_UNIX_LITTLESYNC:
-		case SRV_UNIX_O_DIRECT:
-		case SRV_UNIX_O_DIRECT_NO_FSYNC:
-			fil_flush(group->space_id);
-		}
+	switch (srv_unix_file_flush_method) {
+	case SRV_UNIX_O_DSYNC:
+	case SRV_UNIX_NOSYNC:
+		break;
+	case SRV_UNIX_FSYNC:
+	case SRV_UNIX_LITTLESYNC:
+	case SRV_UNIX_O_DIRECT:
+	case SRV_UNIX_O_DIRECT_NO_FSYNC:
+		fil_flush_file_redo();
+	}
 #endif /* _WIN32 */
 
-		DBUG_PRINT("ib_log", ("checkpoint info written to group %u",
-				      unsigned(group->id)));
-		log_io_complete_checkpoint();
+	log_io_complete_checkpoint();
 
-		return;
-	}
-
-	ut_error;	/*!< We currently use synchronous writing of the
-			logs and cannot end up here! */
+	DBUG_PRINT("ib_log", ("checkpoint info written to group %u",
+				unsigned(group->id)));
 }
 
 /** Fill redo log header
@@ -1007,11 +1017,16 @@ log_group_file_header_flush(
 
 	ut_ad(!log_sys->disable_redo_writes);
 
-	fil_io(IORequestLogWrite, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) (dest_offset % univ_page_size.physical()),
-	       OS_FILE_LOG_BLOCK_SIZE, buf, group);
+        dberr_t err;
+
+	err = fil_redo_io(
+                IORequestLogWrite,
+                page_id_t(group->space_id, page_no),
+                univ_page_size,
+                (ulint) (dest_offset % univ_page_size.physical()),
+                OS_FILE_LOG_BLOCK_SIZE, buf);
+
+        ut_a(err == DB_SUCCESS);
 
 	srv_stats.os_log_pending_writes.dec();
 }
@@ -1037,12 +1052,15 @@ log_read_encryption()
 	log_block_buf = static_cast<byte*>(
 		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
-	fil_io(IORequestLogRead, true, page_id, univ_page_size,
-	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+	err = fil_redo_io(
+                IORequestLogRead, page_id, univ_page_size,
+                LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+                OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
+
+        ut_a(err == DB_SUCCESS);
 
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
-		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
+		   ENCRYPTION_KEY_MAGIC_V3, ENCRYPTION_MAGIC_SIZE) == 0) {
 
 		/* Make sure the keyring is loaded. */
 		if (!Encryption::check_keyring()) {
@@ -1104,7 +1122,7 @@ log_file_header_fill_encryption(
 	byte*		iv,
 	bool		is_boot)
 {
-	byte		encryption_info[ENCRYPTION_INFO_SIZE_V2];
+	byte		encryption_info[ENCRYPTION_INFO_SIZE];
 
 	if (!Encryption::fill_encryption_info(key,
 					      iv,
@@ -1113,12 +1131,12 @@ log_file_header_fill_encryption(
 		return(false);
 	}
 
-	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE_V2
+	ut_ad(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE
 	      < OS_FILE_LOG_BLOCK_SIZE);
 
 	memcpy(buf + LOG_HEADER_CREATOR_END,
 	       encryption_info,
-	       ENCRYPTION_INFO_SIZE_V2);
+	       ENCRYPTION_INFO_SIZE);
 
 	return(true);
 }
@@ -1169,11 +1187,15 @@ log_write_encryption(
 
 	srv_stats.os_log_pending_writes.inc();
 
-	fil_io(IORequestLogWrite, true,
-	       page_id,
-	       univ_page_size,
-	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+        dberr_t err;
+
+	err = fil_redo_io(
+                IORequestLogWrite,
+                page_id, univ_page_size,
+                LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+                OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
+
+        ut_a(err == DB_SUCCESS);
 
 	srv_stats.os_log_pending_writes.dec();
 	log_write_mutex_exit();
@@ -1256,7 +1278,7 @@ log_enable_encryption_if_set()
 	/* If the redo log space is using default key, rotate it.
 	We also need the server_uuid initialized. */
 	if (space->encryption_type != Encryption::NONE
-	    && Encryption::master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID
+	    && Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID
 	    && !srv_read_only_mode
 	    && strlen(server_uuid) > 0) {
 		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -1380,11 +1402,15 @@ loop:
 
 	ut_ad(!log_sys->disable_redo_writes);
 
-	fil_io(IORequestLogWrite, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
-	       group);
+        dberr_t err;
+
+	err = fil_redo_io(
+                IORequestLogWrite,
+                page_id_t(group->space_id, page_no),
+                univ_page_size,
+                (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf);
+
+        ut_a(err == DB_SUCCESS);
 
 	srv_stats.os_log_pending_writes.dec();
 
@@ -1415,8 +1441,7 @@ log_write_flush_to_disk_low()
 	bool	do_flush = true;
 #endif
 	if (do_flush) {
-		log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-		fil_flush(group->space_id);
+		fil_flush_file_redo();
 		log_sys->flushed_to_disk_lsn = log_sys->current_flush_lsn;
 	}
 
@@ -1515,7 +1540,8 @@ loop:
 	}
 
 #ifdef _WIN32
-	/* write requests during fil_flush() might not be good for Windows */
+	/* write requests during fil_flush_file_redo() might not be good
+	for Windows */
 	if (log_sys->n_pending_flushes > 0
 	    || !os_event_is_set(log_sys->flush_event)) {
 		log_write_mutex_exit();
@@ -1931,13 +1957,17 @@ log_group_checkpoint(
 	added with 1, as we want to distinguish between a normal log
 	file write and a checkpoint field write */
 
-	fil_io(IORequestLogWrite, false,
-	       page_id_t(group->space_id, 0),
-	       univ_page_size,
-	       (log_sys->next_checkpoint_no & 1)
-	       ? LOG_CHECKPOINT_2 : LOG_CHECKPOINT_1,
-	       OS_FILE_LOG_BLOCK_SIZE,
-	       buf, (byte*) group + 1);
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogWrite, false,
+                page_id_t(group->space_id, 0),
+                univ_page_size,
+                (log_sys->next_checkpoint_no & 1)
+                ? LOG_CHECKPOINT_2 : LOG_CHECKPOINT_1,
+                OS_FILE_LOG_BLOCK_SIZE, buf, (byte*) group + 1);
+
+        ut_a(err == DB_SUCCESS);
 
 	ut_ad(((ulint) group & 0x1UL) == 0);
 }
@@ -1958,12 +1988,17 @@ log_group_header_read(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(IORequestLogRead, true,
-		page_id_t(group->space_id, static_cast<page_no_t>(
-				header / univ_page_size.physical())),
-		univ_page_size,
-		static_cast<page_no_t>(header % univ_page_size.physical()),
-		OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
+	dberr_t err;
+
+	err = fil_redo_io(
+                IORequestLogRead,
+                page_id_t(group->space_id, static_cast<page_no_t>(
+                                header / univ_page_size.physical())),
+                univ_page_size,
+                static_cast<page_no_t>(header % univ_page_size.physical()),
+		OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf);
+
+        ut_a(err == DB_SUCCESS);
 }
 
 /** Write checkpoint info to the log header and invoke log_mutex_exit().
@@ -2021,8 +2056,6 @@ log_checkpoint(
 
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(true);
-	} else {
-		fil_tablespace_open_sync_to_disk();
 	}
 
 #ifdef UNIV_DEBUG
@@ -2044,7 +2077,9 @@ log_checkpoint(
 		log_mutex_exit();
 	}
 
-#ifndef _WIN32
+#ifdef _WIN32
+	fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+#else
 	switch (srv_unix_file_flush_method) {
 	case SRV_UNIX_NOSYNC:
 		break;
@@ -2510,17 +2545,17 @@ loop:
 	if (srv_downgrade_logs) {
 		ut_ad(!srv_read_only_mode);
 		log_downgrade();
-		fil_flush_file_spaces(FIL_TYPE_LOG);
+		fil_flush_file_redo();
 	}
 
 	if (!srv_read_only_mode) {
-		fil_write_flushed_lsn(lsn);
+		dberr_t err;
+
+		err = fil_write_flushed_lsn(lsn);
+		ut_a(err == DB_SUCCESS);
 	}
 
 	fil_close_all_files();
-
-	/* Safe to truncate the tablespace.open.* files now. */
-	fil_tablespace_open_clear();
 
 	/* Stop Archiver background thread. */
 	count = 0;
@@ -2563,6 +2598,34 @@ log_peek_lsn(
 	}
 
 	return(FALSE);
+}
+
+/******************************************************//**
+Lock log. */
+void
+log_lock(void)
+{
+	log_mutex_enter();
+}
+
+/******************************************************//**
+Unlock log. */
+void
+log_unlock(void)
+{
+	log_mutex_exit();
+}
+
+/******************************************************//**
+Collect log info. */
+void
+log_collect_lsn_info(
+/*=========*/
+	lsn_t*	lsn,	/*!< out: current lsn */
+	lsn_t*	lsn_checkpoint)	/*!< out: current last_checkpoint_lsn */
+{
+	*lsn = log_sys->lsn;
+	*lsn_checkpoint = log_sys->last_checkpoint_lsn;
 }
 
 /******************************************************//**

@@ -4,17 +4,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include <stddef.h>
@@ -1609,20 +1616,12 @@ public:
   }
 };
 
-class Item_func_issimple: public Item_bool_func
+class Item_func_st_issimple: public Item_bool_func
 {
-  String tmp;
 public:
-  Item_func_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
+  Item_func_st_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
   longlong val_int() override;
-  bool issimple(Geometry *g);
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_issimple"; }
-  bool resolve_type(THD *) override
-  {
-    maybe_null= true;
-    return false;
-  }
 };
 
 class Item_func_isclosed: public Item_bool_func
@@ -1900,41 +1899,13 @@ public:
 };
 
 
-class Item_func_distance_sphere: public Item_real_func
+class Item_func_st_distance_sphere: public Item_real_func
 {
-  double distance_point_geometry_spherical(const Geometry *g1,
-                                           const Geometry *g2,
-                                           double earth_radius);
-  double distance_multipoint_geometry_spherical(const Geometry *g1,
-                                                const Geometry *g2,
-                                                double earth_radius);
 public:
-  double bg_distance_spherical(const Geometry *g1, const Geometry *g2,
-                               double earth_radius);
-
-  Item_func_distance_sphere(const POS &pos, PT_item_list *ilist)
-    : Item_real_func(pos, ilist)
-  {
-    /*
-      Either operand can be an empty geometry collection, and it's meaningless
-      for a distance between them.
-    */
-    maybe_null= true;
-  }
-
-  bool resolve_type(THD *thd) override
-  {
-    if (Item_real_func::resolve_type(thd))
-      return true;
-    maybe_null= true;
-    return false;
-  }
-
+  Item_func_st_distance_sphere(const POS &pos, PT_item_list *ilist)
+    : Item_real_func(pos, ilist) {}
   double val_real() override;
-  const char *func_name() const override
-  {
-    return "st_distance_sphere";
-  }
+  const char *func_name() const override { return "st_distance_sphere"; }
 };
 
 #endif /*ITEM_GEOFUNC_INCLUDED*/

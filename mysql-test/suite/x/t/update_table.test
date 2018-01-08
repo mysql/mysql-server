@@ -1,0 +1,594 @@
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+CREATE DATABASE `ytest`;
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/update_table.tmp
+--write_file $xtest_file
+-->quiet
+-->sql
+drop schema if exists xtest;
+create schema xtest;
+create table xtest.xtable_ (id int primary key, name varchar(40), price decimal(5,2));
+insert into xtest.xtable_ values (1, 'banana', 1.20);
+insert into xtest.xtable_ values (2, 'apple', 0.25);
+insert into xtest.xtable_ values (3, 'tomato', 1.80);
+insert into xtest.xtable_ values (4, 'mango', 3.14);
+insert into xtest.xtable_ values (5, 'orange', 0.90);
+
+
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update a valid row
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"banana"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update non-existing row
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"lemon"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update multiple rows
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "price"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_DOUBLE
+          v_double: 1.0
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update all rows (no criteria)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update two first rows in desc order
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "price"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_DOUBLE
+          v_double: 1.0
+        }
+      }
+    }
+  }
+  limit {
+    row_count: 2
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "price"
+      }
+    }
+    direction: DESC
+  }
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update non-existing column
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "noname"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->expecterror 1054
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update on a table with expression on invalid columns
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "noprice"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_DOUBLE
+          v_double: 1.0
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->expecterror 1054
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update with empty operations type
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+}
+-->expecterror 5050
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update source column with table
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: ""
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->expecterror 5052
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update source column with table
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "name"
+      table_name: "xtable"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->expecterror 5052
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update source column with table and schema
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "name"
+      table_name: "xtable"
+      schema_name: "xschema"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->expecterror 5052
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update on an invalid schema
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "ytest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->expecterror 1146
+-->recvresult
+
+
+-->sql
+select * from xtest.xtable;
+drop table if exists xtest.xtable;
+create table xtest.xtable as select * from xtest.xtable_;
+-->endsql
+
+-->echo Rel: Update on an invalid collection
+Mysqlx.Crud.Update {
+  collection {
+    name: "ytable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-->expecterror 1146
+-->recvresult
+
+-->sql
+select * from xtest.xtable;
+-->endsql
+
+
+-->echo Rel: Update one field twice
+Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "carrot"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "name"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select * from xtest.xtable;
+-->endsql
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+drop schema ytest;
+drop schema xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

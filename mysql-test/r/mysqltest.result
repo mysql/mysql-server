@@ -609,22 +609,38 @@ a'b	a"b
 select 'aaa\\','aa''a',"aa""a";
 aaa\	aa'a	aa"a
 aaa\	aa'a	aa"a
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Here comes a message
 --------------------
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 root@localhost
 --------------
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 "Here comes a very very long message that
     - is longer then 80 characters    and
     - consists of several lines"
 --------------------------------------------------------------------------------
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 . Here comes a very very long message that
 .      - is longer then 80 characters    and
 .      - consists of several lines
 --------------------------------------------------------------------------------
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 this will be executed
 this will be executed
 mysqltest: The test didn't produce any output
@@ -1228,6 +1244,7 @@ ERROR HY000: MySQL server has gone away
 #
 # Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
 #
+README_tablespace_portable_linux.txt
 bug20683959loaddata.txt
 bug30435_10k_items.txt
 bug30435_5k.txt
@@ -1252,6 +1269,7 @@ numbers.txt
 wl5766_data.txt
 words.dat
 words2.dat
+README_tablespace_portable_linux.txt
 bug20683959loaddata.txt
 bug30435_10k_items.txt
 bug30435_5k.txt

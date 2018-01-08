@@ -12,7 +12,7 @@ CREATE TABLE innodb (a INT) ENGINE = InnoDB;
 # non-transactional updates are mixed that it violates
 # GTID-consistency).
 
-# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GTID.
 if ($gtid_next != 'GTID')
 {
   --echo ---- MyISAM followed by MyISAM, in one 'trx' ----
@@ -28,7 +28,7 @@ CREATE TRIGGER trig BEFORE INSERT ON myisam1 FOR EACH ROW INSERT INTO myisam2 VA
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
 DROP TRIGGER trig;
 
-# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GROUP.
+# if gtid_next=GTID, it generates ER_GTID_NEXT_TYPE_UNDEFINED_GTID.
 if ($gtid_next != 'GTID')
 {
   # As a special case, when MyISAM precedes InnoDB in a transaction, the

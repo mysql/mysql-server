@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -710,8 +718,9 @@ xdes_lst_get_descriptor(
 	xdes_t*	descr;
 
 	ut_ad(mtr);
-	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
-				MTR_MEMO_X_LOCK));
+	ut_ad(mtr_memo_contains(
+			mtr, fil_space_get_latch(space), MTR_MEMO_X_LOCK));
+
 	descr = fut_get_ptr(space, page_size, lst_node, RW_SX_LATCH, mtr)
 		- XDES_FLST_NODE;
 
@@ -851,22 +860,21 @@ fsp_parse_init_file_page(
 	return(ptr);
 }
 
-/**********************************************************************//**
-Initializes the fsp system. */
+/** Initializes the fsp system. */
 void
-fsp_init(void)
-/*==========*/
+fsp_init()
 {
 	/* FSP_EXTENT_SIZE must be a multiple of page & zip size */
+	ut_a(UNIV_PAGE_SIZE > 0);
 	ut_a(0 == (UNIV_PAGE_SIZE % FSP_EXTENT_SIZE));
-	ut_a(UNIV_PAGE_SIZE);
 
-#if UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX
-# error "UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX != 0"
-#endif
-#if UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN
-# error "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN != 0"
-#endif
+        static_assert(
+                !(UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX),
+                "UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX != 0");
+
+        static_assert(
+                !(UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN),
+                "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN != 0");
 
 	/* Does nothing at the moment */
 }
@@ -908,7 +916,7 @@ fsp_header_get_encryption_offset(
 	left_size = page_size.physical() - FSP_HEADER_OFFSET - offset
 		- FIL_PAGE_DATA_END;
 
-	ut_ad(left_size >= ENCRYPTION_INFO_SIZE_V2);
+	ut_ad(left_size >= ENCRYPTION_INFO_SIZE);
 #endif
 
 	return offset;
@@ -933,7 +941,7 @@ fsp_header_write_encryption(
 	buf_block_t*	block;
 	ulint		offset;
 	page_t*		page;
-	ulint		master_key_id;
+	uint32_t	master_key_id;
 
 	const page_size_t	page_size(space_flags);
 
@@ -953,19 +961,22 @@ fsp_header_write_encryption(
 	tablespaces. */
 	master_key_id = mach_read_from_4(
 		page + offset + ENCRYPTION_MAGIC_SIZE);
-	if (master_key_id == Encryption::master_key_id) {
+	if (master_key_id == Encryption::s_master_key_id) {
 		ut_ad(memcmp(page + offset,
 			     ENCRYPTION_KEY_MAGIC_V1,
 			     ENCRYPTION_MAGIC_SIZE) == 0
 		      || memcmp(page + offset,
 				ENCRYPTION_KEY_MAGIC_V2,
+				ENCRYPTION_MAGIC_SIZE) == 0
+		      || memcmp(page + offset,
+				ENCRYPTION_KEY_MAGIC_V3,
 				ENCRYPTION_MAGIC_SIZE) == 0);
 		return(true);
 	}
 
 	mlog_write_string(page + offset,
 			  encrypt_info,
-			  ENCRYPTION_INFO_SIZE_V2,
+			  ENCRYPTION_INFO_SIZE,
 			  mtr);
 
 	/* Write the new fsp flags into be update to the header if needed */
@@ -1086,7 +1097,7 @@ fsp_header_init(
 	info to the page 0. */
 	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		ulint	offset = fsp_header_get_encryption_offset(page_size);
-		byte	encryption_info[ENCRYPTION_INFO_SIZE_V2];
+		byte	encryption_info[ENCRYPTION_INFO_SIZE];
 
 		if (offset == 0)
 			return(false);
@@ -1103,7 +1114,7 @@ fsp_header_init(
 
 		mlog_write_string(page + offset,
 				  encryption_info,
-				  ENCRYPTION_INFO_SIZE_V2,
+				  ENCRYPTION_INFO_SIZE,
 				  mtr);
 	}
 
@@ -1259,19 +1270,18 @@ fsp_try_extend_data_file_with_pages(
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	bool		success;
-	ulint	size;
 	DBUG_ENTER("fsp_try_extend_data_file_with_pages");
 
 	ut_a(!fsp_is_system_or_temp_tablespace(space->id));
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
-	size = mach_read_from_4(header + FSP_SIZE);
+	page_no_t	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
 	ut_a(page_no >= size);
 
-	success = fil_space_extend(space, page_no + 1);
+	bool	success = fil_space_extend(space, page_no + 1);
+
 	/* The size may be less than we wanted if we ran out of disk space. */
 	fsp_header_size_update(header, space->size, mtr);
 	space->size_in_header = space->size;
@@ -1593,8 +1603,8 @@ fsp_fill_free_list(
 
 		i += FSP_EXTENT_SIZE;
 	}
-
-	space->free_len += count;
+	ut_a(count < std::numeric_limits<uint32_t>::max());
+	space->free_len += (uint32_t) count;
 }
 
 /** Allocates a new free extent.
@@ -2830,7 +2840,7 @@ fsp_alloc_xdes_free_frag(
 	ulint		n_used;
 
 	ut_ad(mtr);
-	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
+	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space),
 				MTR_MEMO_X_LOCK));
 
 	fsp_header_t*   header = fsp_get_space_header(space, page_size, mtr);
@@ -3476,12 +3486,18 @@ tablespace without running out of space.
 uintmax_t
 fsp_get_available_space_in_free_extents(space_id_t space_id)
 {
-	FilSpace	space(space_id);
-	if (space() == NULL) {
+	fil_space_t*	space = fil_space_acquire(space_id);
+
+	if (space == nullptr) {
+
 		return(UINTMAX_MAX);
 	}
 
-	return(fsp_get_available_space_in_free_extents(space));
+	auto	n_free_extents = fsp_get_available_space_in_free_extents(space);
+
+	fil_space_release(space);
+
+	return(n_free_extents);
 }
 
 /** Calculate how many KiB of new data we will be able to insert to the
@@ -4402,13 +4418,12 @@ fsp_check_tablespace_size(space_id_t space_id)
 	return(true);
 }
 #endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
-/** Determine if the tablespace contians an SDI.
+/** Determine if the tablespace has SDI.
 @param[in]	space_id	Tablespace id
-@retval		false		if there is no SDI
-@retval		true		if SDI is present */
-bool
+@return DB_SUCCESS if SDI is present else DB_ERROR
+or DB_TABLESPACE_NOT_FOUND */
+dberr_t
 fsp_has_sdi(space_id_t space_id)
 {
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
@@ -4418,10 +4433,9 @@ fsp_has_sdi(space_id_t space_id)
 				<< space_id;
 			ib::warn() << "Is the tablespace dropped or discarded";
 		);
-		return(false);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 	mtr_t	mtr;
 	mtr.start();
@@ -4430,7 +4444,6 @@ fsp_has_sdi(space_id_t space_id)
 		&mtr) != 0);
 	mtr.commit();
 #endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
 	fil_space_release(space);
 	DBUG_EXECUTE_IF("ib_sdi",
@@ -4439,5 +4452,6 @@ fsp_has_sdi(space_id_t space_id)
 				<< space->name;
 		}
 	);
-	return(FSP_FLAGS_HAS_SDI(space->flags));
+	return(FSP_FLAGS_HAS_SDI(space->flags) ? DB_SUCCESS : DB_ERROR);
 }
+#endif /* !UNIV_HOTBACKUP */

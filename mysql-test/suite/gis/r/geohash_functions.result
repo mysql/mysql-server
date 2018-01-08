@@ -1431,6 +1431,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_persian_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1439,6 +1441,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_czech_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1447,6 +1451,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1455,6 +1461,8 @@ ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_hungarian_ci)
 -179.55743439816956
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LONGFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1471,6 +1479,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_persian_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1479,6 +1489,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_czech_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1487,6 +1499,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_unicode_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1495,6 +1509,8 @@ ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
          AS CHAR CHARACTER SET utf8) COLLATE utf8_hungarian_ci)
 -82.77450549262497
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_LATFROMGEOHASH(
 CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
@@ -1519,6 +1535,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1535,6 +1553,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1551,6 +1571,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1567,6 +1589,8 @@ CAST("0123456789bcdefghjkmnpqrstuvwxyz0123456789BCDEFGHJKMNPQRSTUVWXYZ"
 )
 )
 POINT(-82.77450549262497 -179.55743439816956)
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT
 ST_ASTEXT(
 ST_POINTFROMGEOHASH(
@@ -1777,13 +1801,6 @@ ERROR 22S00: Function st_geohash is only defined for SRID 0 and SRID 4326.
 SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 10);
 ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 10)
 s000000000
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (11111111, 1, 'TEST11111111', 'Foo', 11111111, 'FOOBAR', '');
-SELECT ST_GEOHASH(ST_GEOMFROMTEXT('POINT(0 0)', 11111111), 10);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 11111111.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 11111111;
 #
 # Bug#25912557 ST_LATFROMGEOHASH/ST_LONGFROMGEOHASH ODD INPUT TYPE
 #              REQUIREMENT

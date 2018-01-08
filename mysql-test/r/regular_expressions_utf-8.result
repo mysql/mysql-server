@@ -374,6 +374,8 @@ SELECT regexp_instr( _utf8mb4'aöb', _utf8mb4'ö' );
 regexp_instr( _utf8mb4'aöb', _utf8mb4'ö' )
 2
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT regexp_instr( 'aöb', 'ö' );
 regexp_instr( 'aöb', 'ö' )
 2
@@ -382,6 +384,8 @@ SET NAMES DEFAULT;
 # Bug#30241: Regular expression problems
 #
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT regexp_instr( 'אב רק', /*k*/'^[^ב]' );
 regexp_instr( 'אב רק', /*k*/'^[^ב]' )
 1
@@ -660,9 +664,7 @@ SELECT @buf_sz_utf16;
 512.000000000
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ));
 length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ))
-1024
-Warnings:
-Warning	4587	An output string could not be zero-terminated because the length exceeds the buffer capacity.
+1022
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16 + 1), 'a', 'b' ));
 ERROR HY000: The result string is larger than the result buffer.
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'bb' ));
@@ -740,3 +742,16 @@ DO ( (@b) regexp (exp ( 0x1fc5574c )) );
 ERROR 22003: DOUBLE value is out of range in 'exp(0x1fc5574c)'
 DO ( (25091) rlike (exp ( 14373 )) );
 ERROR 22003: DOUBLE value is out of range in 'exp(14373)'
+#
+# Bug#27183583: REGEXP OPERATIONS CANT BE KILLED
+#
+SET GLOBAL regexp_time_limit = 1000000;
+connect conn1, localhost, root;
+SELECT regexp_instr('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', '(A+)+B');
+connection default;
+KILL QUERY <conn1_id>;
+connection conn1;
+ERROR 70100: Query execution was interrupted
+disconnect conn1;
+connection default;
+SET GLOBAL regexp_time_limit = DEFAULT;

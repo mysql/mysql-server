@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "storage/perfschema/ha_perfschema.h"
 
@@ -61,10 +68,12 @@
 class KEY;
 class Plugin_table;
 class Plugin_tablespace;
-namespace dd {
+namespace dd
+{
 class Table;
 }  // namespace dd
-template <class T> class List;
+template <class T>
+class List;
 
 handlerton *pfs_hton = NULL;
 
@@ -878,7 +887,7 @@ pfs_show_status(handlerton *,
 
     case 165:
       name = "memory_summary_by_thread_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_safe_stat);
       break;
     case 166:
       name = "memory_summary_by_thread_by_event_name.row_count";
@@ -887,12 +896,12 @@ pfs_show_status(handlerton *,
     case 167:
       name = "memory_summary_by_thread_by_event_name.memory";
       size = global_thread_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_safe_stat);
       total_memory += size;
       break;
     case 168:
       name = "memory_summary_global_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 169:
       name = "memory_summary_global_by_event_name.row_count";
@@ -900,12 +909,12 @@ pfs_show_status(handlerton *,
       break;
     case 170:
       name = "memory_summary_global_by_event_name.memory";
-      size = memory_class_max * sizeof(PFS_memory_stat);
+      size = memory_class_max * sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 171:
       name = "memory_summary_by_account_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 172:
       name = "memory_summary_by_account_by_event_name.row_count";
@@ -914,12 +923,12 @@ pfs_show_status(handlerton *,
     case 173:
       name = "memory_summary_by_account_by_event_name.memory";
       size = global_account_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 174:
       name = "memory_summary_by_user_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 175:
       name = "memory_summary_by_user_by_event_name.row_count";
@@ -928,12 +937,12 @@ pfs_show_status(handlerton *,
     case 176:
       name = "memory_summary_by_user_by_event_name.memory";
       size = global_user_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 177:
       name = "memory_summary_by_host_by_event_name.row_size";
-      size = sizeof(PFS_memory_stat);
+      size = sizeof(PFS_memory_shared_stat);
       break;
     case 178:
       name = "memory_summary_by_host_by_event_name.row_count";
@@ -942,7 +951,7 @@ pfs_show_status(handlerton *,
     case 179:
       name = "memory_summary_by_host_by_event_name.memory";
       size = global_host_container.get_row_count() * memory_class_max *
-             sizeof(PFS_memory_stat);
+             sizeof(PFS_memory_shared_stat);
       total_memory += size;
       break;
     case 180:

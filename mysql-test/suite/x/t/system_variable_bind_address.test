@@ -1,0 +1,64 @@
+## Test configuration
+##
+--let $wait_for_unixsocket_status = no_wait
+--let $wait_for_tcpsocket_status = no_wait
+--source include/xplugin_preamble.inc
+
+## Test body
+##
+
+--echo #
+--echo #
+--echo # X Plugin started with *
+--echo #
+--echo #
+
+--let $assert_text= Mysqlx_bind_address global variablem must exist
+--let $assert_cond= [SELECT COUNT(@@GLOBAL.Mysqlx_bind_address) as Result;, Result, 1] =1
+--source include/assert.inc
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.Mysqlx_bind_address=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.Mysqlx_bind_address="1.0.1.0";
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.Mysqlx_bind_address);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.Mysqlx_bind_address);
+
+--let $assert_text= Mysqlx_bind_address global variable must is read-only, should hold to *
+--let $assert_cond= [SELECT @@GLOBAL.Mysqlx_bind_address = "*" as Result;, Result, 1] =1
+--source include/assert.inc
+
+
+--echo #
+--echo #
+--echo # X Plugin started with ::
+--echo #
+--echo #
+--let $restart_parameters = restart: --loose-mysqlx-bind-address=::
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--let $assert_text= Mysqlx_bind_address global variablem must exist
+--let $assert_cond= [SELECT COUNT(@@GLOBAL.Mysqlx_bind_address) as Result;, Result, 1] =1
+--source include/assert.inc
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.Mysqlx_bind_address=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.Mysqlx_bind_address="1.0.1.0";
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.Mysqlx_bind_address);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.Mysqlx_bind_address);
+
+--let $assert_text= Mysqlx_bind_address global variable must is read-only, should hold to ::
+--let $assert_cond= [SELECT @@GLOBAL.Mysqlx_bind_address = "::" as Result;, Result, 1] =1
+--source include/assert.inc
+

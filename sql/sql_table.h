@@ -1,13 +1,20 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,7 +30,6 @@
 #include <utility>
 #include <vector>
 
-#ifndef UNIV_HOTBACKUP
 #include "dd/string_type.h"
 #include "m_ctype.h"
 #include "mdl.h"
@@ -56,9 +62,6 @@ typedef mysql_mutex_t mysql_mutex_t;
 template<typename T> class List;
 
 
-#else /* !UNIV_HOTBACKUP */
-class THD {};
-#endif /* !UNIV_HOTBACKUP */
 enum enum_explain_filename_mode
 {
   EXPLAIN_ALL_VERBOSE= 0,
@@ -66,7 +69,6 @@ enum enum_explain_filename_mode
   EXPLAIN_PARTITIONS_AS_COMMENT
 };
 
-#ifndef UNIV_HOTBACKUP
 /* Maximum length of GEOM_POINT Field */
 #define MAX_LEN_GEOM_POINT_FIELD   25
 
@@ -81,12 +83,10 @@ static const uint NO_FK_CHECKS=    1 << 2;
   the table.
 */
 static const uint NO_DD_COMMIT=    1 << 3;
-#endif /* !UNIV_HOTBACKUP */
 
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                              bool stay_quiet = false);
-#ifndef UNIV_HOTBACKUP
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
 size_t build_table_filename(char *buff, size_t bufflen, const char *db,
                             const char *table, const char *ext,
@@ -487,13 +487,11 @@ bool mysql_prepare_create_table(THD *thd,
                                 uint existing_fks_count,
                                 int select_field_count,
                                 bool find_parent_keys);
-#endif /* !UNIV_HOTBACKUP */
 
 
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 
-#ifndef UNIV_HOTBACKUP
 void parse_filename(const char *filename, size_t filename_length,
                     const char ** schema_name, size_t *schema_name_length,
                     const char ** table_name, size_t *table_name_length,
@@ -516,5 +514,4 @@ extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 
 bool lock_trigger_names(THD *thd, TABLE_LIST *tables);
 
-#endif /* !UNIV_HOTBACKUP */
 #endif /* SQL_TABLE_INCLUDED */

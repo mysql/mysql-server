@@ -3,16 +3,24 @@
 Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -35,17 +43,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0sdi-decompress.h"
 #include "fsp0fsp.h"
 
-/** Check for existence of SDI copies in a tablespace
+/** Check if SDI Index exists in a tablespace
 @param[in]	tablespace	tablespace object
 @param[in,out]	space_id	space_id from tablespace object
-@return DB_SUCESS if SDI exists, else return DB_ERROR */
+@return DB_SUCCESS if SDI exists, else return DB_ERROR,
+DB_TABLESPACE_NOT_FOUND */
 static
 dberr_t
-dict_sdi_check_existence(
+dict_sdi_exists(
 	const dd::Tablespace&	tablespace,
 	uint32*			space_id)
 {
-	if (tablespace.se_private_data().get_uint32("id", space_id)) {
+	if (tablespace.se_private_data().get_uint32(
+		dd_space_key_strings[DD_SPACE_ID], space_id)) {
 		/* error, attribute not found */
 		ut_ad(0);
 		return(DB_ERROR);
@@ -59,7 +69,7 @@ dict_sdi_check_existence(
 		return(DB_SUCCESS);
 	}
 
-	return(fsp_has_sdi(*space_id) ? DB_SUCCESS : DB_ERROR);
+	return(fsp_has_sdi(*space_id));
 }
 
 /** Report error on failure
@@ -159,7 +169,7 @@ dict_sdi_drop(dd::Tablespace*	tablespace)
 {
 #if 0 /* TODO: Enable in WL#9761 */
 	uint32	space_id;
-	if (dict_sdi_check_existence(tablespace, &space_id)
+	if (dict_sdi_exists(tablespace, &space_id)
 	    != DB_SUCCESS) {
 		return(true);
 	}
@@ -189,7 +199,7 @@ dict_sdi_get_keys(
 		ut_ad(0);
 	}
 
-	if (dict_sdi_check_existence(tablespace, &space_id)
+	if (dict_sdi_exists(tablespace, &space_id)
 	    != DB_SUCCESS) {
 		return(true);
 	}
@@ -248,7 +258,7 @@ dict_sdi_get(
 	}
 
 	uint32	space_id;
-	if (dict_sdi_check_existence(tablespace, &space_id)
+	if (dict_sdi_exists(tablespace, &space_id)
 	    != DB_SUCCESS) {
 		return(true);
 	}
@@ -361,18 +371,25 @@ dict_sdi_set(
 		return(false);
 	}
 
-	if (!tablespace.se_private_data().exists("id")) {
+	if (!tablespace.se_private_data().exists(
+		dd_space_key_strings[DD_SPACE_ID])) {
 		/* Claim success, there will be one more sdi_set()
 		after the tablespace is created. */
 		return(false);
 	}
 
 	uint32	space_id;
-	if (dict_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		ut_ad(0);
-		dict_sdi_report_error(operation, table, tablespace);
-		return(true);
+	dberr_t	err = dict_sdi_exists(tablespace, &space_id);
+	if (err != DB_SUCCESS) {
+
+		if (err == DB_TABLESPACE_NOT_FOUND) {
+			/* Claim Success */
+			return(false);
+		} else {
+			ut_ad(0);
+			dict_sdi_report_error(operation, table, tablespace);
+			return(true);
+		}
 	}
 
 	if (fsp_is_undo_tablespace(space_id)
@@ -390,10 +407,9 @@ dict_sdi_set(
 	Sdi_Compressor	compressor(static_cast<uint32_t>(sdi_len), sdi);
 	compressor.compress();
 
-        dberr_t	err = ib_sdi_set(space_id, &ib_sdi_key,
-				 static_cast<uint32_t>(sdi_len),
-				 compressor.get_comp_len(),
-				 compressor.get_data(), trx);
+	err = ib_sdi_set(space_id, &ib_sdi_key, sdi_len,
+			 compressor.get_comp_len(),
+			 compressor.get_data(), trx);
 
 	DBUG_EXECUTE_IF("sdi_set_failure",
 		dict_sdi_report_error(operation, table, tablespace);
@@ -419,15 +435,6 @@ dict_sdi_set(
 	} else {
 		return(false);
 	}
-}
-
-/** @return true if query is DROP TABLE, else false */
-static
-bool
-thd_is_drop_table(THD*	thd)
-{
-	return(thd != nullptr
-	       && (thd_sql_command(thd) == SQLCOM_DROP_TABLE));
 }
 
 /** Delete SDI from tablespace
@@ -486,10 +493,10 @@ dict_sdi_delete(
 	}
 
 	uint32	space_id;
-	if (dict_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
+	dberr_t	err = dict_sdi_exists(tablespace, &space_id);
+	if (err != DB_SUCCESS) {
 
-		if (thd_is_drop_table(current_thd)) {
+		if (err == DB_TABLESPACE_NOT_FOUND) {
 			/* Claim Success */
 			return(false);
 		} else {
@@ -505,13 +512,14 @@ dict_sdi_delete(
 		return(false);
 	}
 
+
 	trx_t*	trx = check_trx_exists(current_thd);
 	trx_start_if_not_started(trx, true);
 
 	ib_sdi_key_t	ib_sdi_key;
 	ib_sdi_key.sdi_key = sdi_key;
 
-	dberr_t	err = ib_sdi_delete(space_id, &ib_sdi_key, trx);
+	err = ib_sdi_delete(space_id, &ib_sdi_key, trx);
 
 	DBUG_EXECUTE_IF("sdi_delete_failure",
 		dict_sdi_report_error(operation, table, tablespace);

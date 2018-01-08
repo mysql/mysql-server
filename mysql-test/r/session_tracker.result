@@ -34,6 +34,8 @@ SET NAMES 'utf8';
 -- character_set_results
 -- utf8
 
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT @@session.character_set_client, @@session.character_set_results, @@session.character_set_connection;
 @@session.character_set_client	@@session.character_set_results	@@session.character_set_connection
 utf8	utf8	utf8
@@ -437,6 +439,8 @@ Warnings:
 Warning	1231	validate_password_policy is not a valid system variable and will be ignored.
 # Now lets install the validate password plugin.
 INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # plugin installed!
 
 SELECT @@session.session_track_system_variables;
@@ -447,6 +451,8 @@ SET @@session.session_track_system_variables='validate_password_policy,autocommi
 
 # Cleanup.
 UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 #
 # WL#6885  Track session state change
 #
@@ -521,6 +527,8 @@ SET NAMES 'utf8';
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@session.session_track_state_change=OFF;
 # Change system variable
 SET NAMES 'utf8';
@@ -532,6 +540,8 @@ SET NAMES 'utf8';
 -- character_set_results
 -- utf8
 
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # reset the session.
 SET @@session.session_track_state_change=ON;
 # Change database

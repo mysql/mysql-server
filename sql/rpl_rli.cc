@@ -1,17 +1,24 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_rli.h"
 
@@ -40,7 +47,6 @@
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
-#include "sql/log.h"
 #include "sql/log_event.h"         // Log_event
 #include "sql/mdl.h"
 #include "sql/mysqld.h"            // sync_relaylog_period ...
@@ -1373,8 +1379,9 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
 
       if (relay_log.open_index_file(log_index_name, ln, true))
       {
-        sql_print_error("Unable to purge relay log files. Failed to open relay "
-                        "log index file:%s.", relay_log.get_index_fname());
+        LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
+               "Failed to open relay log index file:",
+               relay_log.get_index_fname());
         DBUG_RETURN(1);
       }
       mysql_mutex_lock(&mi->data_lock);
@@ -1388,8 +1395,8 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
       {
         mysql_mutex_unlock(log_lock);
         mysql_mutex_unlock(&mi->data_lock);
-        sql_print_error("Unable to purge relay log files. Failed to open relay "
-                        "log file:%s.", relay_log.get_log_fname());
+        LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
+               "Failed to open relay log file:", relay_log.get_log_fname());
         DBUG_RETURN(1);
       }
       mysql_mutex_unlock(log_lock);
@@ -2172,7 +2179,7 @@ err:
   inited= 0;
   error_on_rli_init_info= true;
   if (msg)
-    sql_print_error("%s.", msg);
+    LogErr(ERROR_LEVEL, ER_RPL_RLI_INIT_INFO_MSG, msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true/*need_lock_log=true*/,
                   true/*need_lock_index=true*/);
@@ -2504,10 +2511,10 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
     {
       // See rpl_rli_pdb.h:Slave_worker::set_rli_description_event.
       if (!is_in_group() &&
-          (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
-           info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
+          (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
+           info_thd->variables.gtid_next.type == UNDEFINED_GTID))
       {
-        DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GROUP"));
+        DBUG_PRINT("info", ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
         info_thd->variables.gtid_next.set_not_yet_determined();
       }
 

@@ -1,17 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD_TABLES__TRIGGERS_INCLUDED
 #define DD_TABLES__TRIGGERS_INCLUDED
@@ -46,13 +53,6 @@ public:
     return *s_instance;
   }
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("triggers");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -70,16 +70,30 @@ public:
     FIELD_DEFINER,
     FIELD_CLIENT_COLLATION_ID,
     FIELD_CONNECTION_COLLATION_ID,
-    FIELD_SCHEMA_COLLATION_ID
+    FIELD_SCHEMA_COLLATION_ID,
+    FIELD_OPTIONS
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER,
+    INDEX_K_CLIENT_COLLATION_ID,
+    INDEX_K_CONNECTION_COLLATION_ID,
+    INDEX_K_SCHEMA_COLLATION_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_SCHEMA_ID,
+    FK_TABLE_ID,
+    FK_CLIENT_COLLATION_ID,
+    FK_CONNECTION_COLLATION_ID,
+    FK_SCHEMA_COLLATION_ID
+  };
+
   Triggers();
-
-  virtual const String_type &name() const
-  { return Triggers::table_name(); }
-
-public:
 
   /**
     Create a key to find all triggers for a given schema.

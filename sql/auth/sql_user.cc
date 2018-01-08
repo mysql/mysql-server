@@ -1,12 +1,19 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2130,8 +2137,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
     }
 
     /*
-      Update default roles if any were specified. The roles don't have to
-      exist and won't be granted to the user.
+      Update default roles if any were specified. If roles doesn't exist we
+      fail the statement. If the role exists but isn't granted, this statement
+      performs an implicit GRANT.
     */
     if (thd->lex->default_roles != 0 &&
         thd->lex->sql_command == SQLCOM_CREATE_USER)
@@ -2139,14 +2147,57 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       List_of_auth_id_refs default_roles;
       List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
       LEX_USER *role;
-      while ((role= role_it++))
+      while ((role= role_it++) && result == 0)
       {
+        ACL_USER *acl_user;
+        ACL_USER *acl_role= nullptr;
+        bool not_granted= !is_granted_role(tmp_user_name->user,
+                                           tmp_user_name->host,
+                                           role->user, role->host);
+        if (not_granted)
+        {
+          acl_role= find_acl_user(role->host.str, role->user.str, true);
+          acl_user= find_acl_user(tmp_user_name->host.str,
+                                  tmp_user_name->user.str, true);
+          if (acl_role == nullptr)
+          {
+            std::string authid= create_authid_str_from(role);
+            my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
+            result= 1;
+          }
+          else if (acl_user == nullptr)
+          {
+            std::string authid= create_authid_str_from(tmp_user_name);
+            my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
+            result= 1;
+          }
+          else if (!has_grant_role_privilege(thd, role->user,role->host))
+          {
+            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                     "WITH ADMIN, ROLE_ADMIN, SUPER");
+            result= 1;
+          }
+        } // end if not_granted
+
+        if (result == 0 && not_granted)
+        {
+          grant_role(acl_role, acl_user, false);
+          Auth_id_ref from_user= create_authid_from(role);
+          Auth_id_ref to_user= create_authid_from(tmp_user_name);
+          result=
+            modify_role_edges_in_table(thd,
+                                  tables[ACL_TABLES::TABLE_ROLE_EDGES].table,
+                                  from_user, to_user, false, false);
+        }
+
         default_roles.push_back(create_authid_from(role));
       }
-      alter_user_set_default_roles(thd,
-                                   tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
-                                   tmp_user_name,
-                                   default_roles);
+
+      if (result == 0)
+        result= alter_user_set_default_roles(thd,
+                                  tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
+                                  tmp_user_name,
+                                  default_roles);
     }
 
   } // END while tmp_user_name= user_lists++

@@ -1,0 +1,31 @@
+#
+#
+# X Plugin started with *
+#
+#
+include/assert.inc [Mysqlx_bind_address global variablem must exist]
+SET @@GLOBAL.Mysqlx_bind_address=1;
+ERROR HY000: Variable 'mysqlx_bind_address' is a read only variable
+SET @@GLOBAL.Mysqlx_bind_address="1.0.1.0";
+ERROR HY000: Variable 'mysqlx_bind_address' is a read only variable
+SELECT COUNT(@@local.Mysqlx_bind_address);
+ERROR HY000: Variable 'mysqlx_bind_address' is a GLOBAL variable
+SELECT COUNT(@@SESSION.Mysqlx_bind_address);
+ERROR HY000: Variable 'mysqlx_bind_address' is a GLOBAL variable
+include/assert.inc [Mysqlx_bind_address global variable must is read-only, should hold to *]
+#
+#
+# X Plugin started with ::
+#
+#
+# restart: --loose-mysqlx-bind-address=::
+include/assert.inc [Mysqlx_bind_address global variablem must exist]
+SET @@GLOBAL.Mysqlx_bind_address=1;
+ERROR HY000: Variable 'mysqlx_bind_address' is a read only variable
+SET @@GLOBAL.Mysqlx_bind_address="1.0.1.0";
+ERROR HY000: Variable 'mysqlx_bind_address' is a read only variable
+SELECT COUNT(@@local.Mysqlx_bind_address);
+ERROR HY000: Variable 'mysqlx_bind_address' is a GLOBAL variable
+SELECT COUNT(@@SESSION.Mysqlx_bind_address);
+ERROR HY000: Variable 'mysqlx_bind_address' is a GLOBAL variable
+include/assert.inc [Mysqlx_bind_address global variable must is read-only, should hold to ::]

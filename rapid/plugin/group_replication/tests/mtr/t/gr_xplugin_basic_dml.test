@@ -22,11 +22,9 @@
 ##############################################################################
 
 --source include/big_test.inc
+--source include/have_ssl.inc
 --source include/have_mysqlx_plugin.inc
 --source ../inc/have_group_replication_plugin_base.inc
-
---let plugins= MYSQLXPLUGIN,GROUP_REPLICATION
---source include/check_plugin_dir.inc
 
 # This initial setup starts three servers with all the prerequisites required
 # for GR to start
@@ -40,18 +38,15 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 # File for starting GR through X-protocol
 # Bootstrap-server
@@ -75,11 +70,11 @@ EOF
 
 # Starting GR on all the servers through mysqlx
 --echo Starting GR on server 1
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
 --echo Starting GR on server 2
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
 --echo Starting GR on server 3
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
 
 --echo Waiting for GR members to come online.
 --let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
@@ -99,7 +94,7 @@ DELETE FROM T1 WHERE C2 = 0;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
 
 # Wait for synchronization between the nodes.
 
@@ -121,7 +116,7 @@ DELETE FROM T2 WHERE C1 = 'ABC';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
 
 # Wait for synchronization between the nodes.
 
@@ -146,7 +141,7 @@ DELETE FROM T3 WHERE C1 > 0;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/ddl_dml_on_server3.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/ddl_dml_on_server3.tmp 2>&1
 
 # Wait for synchronization between the nodes.
 
@@ -163,7 +158,7 @@ EOF
 -->wait_for 23	SELECT C2 FROM test.T2 WHERE C1="ABC"
 EOF
 
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
 
 --let $wait_condition=SELECT COUNT(*)=0 FROM test.T3
 --source include/wait_condition.inc
@@ -179,7 +174,7 @@ DROP TABLE T3;
 EOF
 
 # Deleting tables.
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
 --source include/rpl_sync.inc
 
 # Creating temp file to stop GR.
@@ -190,11 +185,11 @@ EOF
 
 # Stopping GR on all the servers
 --echo Stopping GR on server 1
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 --echo Stopping GR on server 2
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 --echo Stopping GR on server 3
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 
 # Uninstall mysqlx on all servers
 --let $rpl_connection_name= server1
@@ -202,21 +197,18 @@ EOF
 --let $group_replication_member_state= OFFLINE
 --source ../inc/gr_wait_for_member_state.inc
 --source include/assert_and_disable_read_only.inc
-UNINSTALL PLUGIN mysqlx;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $group_replication_member_state= OFFLINE
 --source ../inc/gr_wait_for_member_state.inc
 --source include/assert_and_disable_read_only.inc
-UNINSTALL PLUGIN mysqlx;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --let $group_replication_member_state= OFFLINE
 --source ../inc/gr_wait_for_member_state.inc
 --source include/assert_and_disable_read_only.inc
-UNINSTALL PLUGIN mysqlx;
 
 # clean-up
 --remove_file $MYSQL_TMP_DIR/bootstrap_server.tmp

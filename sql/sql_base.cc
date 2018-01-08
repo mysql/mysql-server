@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -574,12 +581,14 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     if (column->is_hidden())
       continue;
 
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(schema->name(),
+                                          table_def->name(),
+                                          column->name(),
+                                          &mdl_key);
+
     MDL_request *request= new (thd->mem_root) MDL_request;
-    dd::String_type mdl_key=
-      dd::Column_statistics::create_mdl_key(schema->name(), table_def->name(),
-                                            column->name());
-    MDL_REQUEST_INIT(request, MDL_key::COLUMN_STATISTICS, "", mdl_key.c_str(),
-                     MDL_SHARED_READ, MDL_STATEMENT);
+    MDL_REQUEST_INIT_BY_KEY(request, &mdl_key, MDL_SHARED_READ, MDL_STATEMENT);
     mdl_requests.push_front(request);
   }
 
@@ -1155,6 +1164,7 @@ void intern_close_table(TABLE *table)
   destroy(table->triggers);
   if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
+  destroy(table);
   my_free(table);
   DBUG_VOID_RETURN;
 }
@@ -1165,11 +1175,17 @@ void intern_close_table(TABLE *table)
 void free_io_cache(TABLE *table)
 {
   DBUG_ENTER("free_io_cache");
-  if (table->sort.io_cache)
+  if (table->sort_result.io_cache)
   {
-    close_cached_file(table->sort.io_cache);
-    my_free(table->sort.io_cache);
-    table->sort.io_cache=0;
+    close_cached_file(table->sort_result.io_cache);
+    my_free(table->sort_result.io_cache);
+    table->sort_result.io_cache= nullptr;
+  }
+  if (table->unique_result.io_cache)
+  {
+    close_cached_file(table->unique_result.io_cache);
+    my_free(table->unique_result.io_cache);
+    table->unique_result.io_cache= nullptr;
   }
   DBUG_VOID_RETURN;
 }
@@ -1974,7 +1990,7 @@ bool close_temporary_tables(THD *thd)
     did SET GTID_NEXT just before disconnecting the client), we must
     ensure that it will be able to generate GTIDs for the statements
     with this server's UUID. Therefore we set gtid_next to
-    AUTOMATIC_GROUP.
+    AUTOMATIC_GTID.
   */
   gtid_state->update_on_rollback(thd);
   thd->variables.gtid_next.set_automatic();
@@ -2619,6 +2635,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
   if (free_share)
   {
     free_table_share(table->s);
+    destroy(table);
     my_free(table);
   }
   DBUG_VOID_RETURN;
@@ -3619,6 +3636,7 @@ share_found:
 
     if (error)
     {
+      destroy(table);
       my_free(table);
 
       if (error == 7)
@@ -3642,6 +3660,7 @@ share_found:
         break;
       default:
         closefrm(table, 0);
+        destroy(table);
         my_free(table);
         my_error(ER_CRASHED_ON_USAGE, MYF(0), share->table_name.str);
         goto err_lock;
@@ -3651,6 +3670,7 @@ share_found:
     if (open_table_entry_fini(thd, share, table_def, table))
     {
       closefrm(table, 0);
+      destroy(table);
       my_free(table);
       goto err_lock;
     }
@@ -7761,6 +7781,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
+    destroy(tmp_table);
     my_free(tmp_table);
     DBUG_RETURN(0);
   }
@@ -7786,6 +7807,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
+    destroy(tmp_table);
     my_free(tmp_table);
     DBUG_RETURN(0);
   }

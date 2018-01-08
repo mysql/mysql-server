@@ -1,4 +1,5 @@
  #Get deafult engine value
+--source include/no_ps_protocol.inc
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #

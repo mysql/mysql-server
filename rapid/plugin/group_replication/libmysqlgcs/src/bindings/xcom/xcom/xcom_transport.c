@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -335,12 +342,8 @@ static void dump_header(char *buf) {
 
 void dbg_app_data(app_data_ptr a);
 
-#ifdef HAVE___CONST
-#define const __const
-#else
 #ifdef OLD_XDR
 #define const
-#endif
 #endif
 
 /* ARGSUSED */
@@ -373,9 +376,8 @@ static bool_t x_putbytes(XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)),
 #endif
 
 static u_int
-#if defined(__APPLE__) || defined(__FreeBSD__) || \
-    defined(X_GETPOSTN_NOT_USE_CONST)
-x_getpostn(__const XDR *xdrs)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(LINUX_ALPINE)
+x_getpostn(XDR *xdrs)
 #else
 x_getpostn(const XDR *xdrs)
 #endif
@@ -816,10 +818,10 @@ int tcp_server(task_arg arg) {
   ep->refused = 0;
   unblock_fd(ep->fd);
   DBGOUT(FN; NDBG(ep->fd, d););
+  G_MESSAGE("XCom protocol version: %d", my_xcom_version);
   G_MESSAGE(
-      "Ready to accept incoming connections on %s:%d "
-      "(socket=%d)!",
-      "0.0.0.0", xcom_listen_port, ep->fd);
+      "XCom initialized and ready to accept incoming connections on port %d",
+      xcom_listen_port);
   do {
     TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
     /* Callback to check that the file descriptor is accepted. */
@@ -828,7 +830,7 @@ int tcp_server(task_arg arg) {
       ep->cfd = -1;
     }
     if(ep->cfd == -1){
-      G_MESSAGE("accept failed");
+      G_DEBUG("accept failed");
       ep->refused = 1;
       TASK_DELAY(0.1);
     } else {

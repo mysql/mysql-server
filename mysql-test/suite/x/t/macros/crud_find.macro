@@ -1,0 +1,14 @@
+
+-->macro_varg Crud_find
+-->varlet %PAYLOAD% 
+-->callmacro Crud %VAR_ARGS%
+Mysqlx.Crud.Find {
+  %PAYLOAD%
+}
+-->endmacro
+
+-->macro Show  %TABLE%
+# "Fast" to write, version of Mysqlx.Crud.Find
+-->stmtsql SELECT doc FROM xtest.%TABLE%
+-->recvresult
+-->endmacro

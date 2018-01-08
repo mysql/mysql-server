@@ -1,18 +1,24 @@
-# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING. If not, write to the
-# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
-# MA  02110-1301  USA.
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
@@ -75,11 +81,11 @@
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
 %endif
 
+%global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
+
 %if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql %{src_dir}/README
 %global license_type          Commercial
 %else
-%global license_files_server  %{src_dir}/COPYING %{src_dir}/README
 %global license_type          GPLv2
 %endif
 
@@ -98,7 +104,7 @@ Vendor:         %{mysql_vendor}
 %if 0%{?compatlib}
 Source7:        %{compatsrc}
 %endif
-Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 BuildRequires:  devtoolset-6-gcc
@@ -118,9 +124,7 @@ BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
 %endif
 BuildRequires:  cyrus-sasl-devel
-%if 0%{?commercial}
 BuildRequires:  openldap-devel
-%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -903,6 +907,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
@@ -912,7 +918,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mysqlx.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
@@ -926,6 +931,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
@@ -935,7 +942,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysqlx.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
@@ -1203,6 +1209,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services_threaded.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_attach.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_in_thd.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_info.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_2_sessions.so
@@ -1227,6 +1234,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
@@ -1268,6 +1277,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services_threaded.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_attach.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_in_thd.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_info.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_2_sessions.so
@@ -1292,6 +1302,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/udf_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 
 %if 0%{?rhel} == 7
 %files embedded-compat
@@ -1365,16 +1377,18 @@ fi
 %endif
 
 %changelog
-* Wed Nov 15 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
+* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+- Move mysqlx to default plugin
+- Add component_mysqlx_global_reset.so
+- Change the global milestone to 'dmr'
 - Add meb as sub package
 - Remove obsoleted mysqltest man pages
 - Independently choose SSL for the 5.6 compat lib, depending on commercial
+- Include udf_example.so in test package
+- Add component_validate_password component
+- Add License Book, remove COPYING
 
-* Tue Aug 29 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
-- Change the global milestone to 'dmr'
-
-* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
-- Updated for 8.0.3 release
+* Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin
 
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1

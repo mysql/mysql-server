@@ -69,7 +69,7 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 
 DROP TABLE articles;
 
-SET NAMES utf8;
+SET NAMES utf8mb4;
 
 # Test Case 3: Test UFT8 Charset
 CREATE TABLE articles (

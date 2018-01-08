@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,7 +27,6 @@
 #include <sys/types.h>
 #include <string>
 
-#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -53,17 +59,11 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
-#else /* !UNIV_HOTBACKUP */
-#ifdef MYSQL_CLIENT
-#undef MYSQL_CLIENT
-#endif /* MYSQL_CLIENT */
-#endif /* !UNIV_HOTBACKUP */
 
 #include "sql/mem_root_array.h"
 
 class Field;
 
-#ifndef UNIV_HOTBACKUP
 namespace histograms
 {
   class Histogram;
@@ -130,14 +130,12 @@ enum class enum_json_diff_operation;
                           if ((A)->s->null_bytes > 0) \
                           memset((A)->null_flags, 255, (A)->s->null_bytes);\
                         }
-#endif /* !UNIV_HOTBACKUP */
 
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 #define TMP_TABLE_KEY_EXTRA 8
 #define PLACEHOLDER_TABLE_ROW_ESTIMATE 2
 
-#ifndef UNIV_HOTBACKUP
 /**
   Enumerate possible types of a table from re-execution
   standpoint.
@@ -579,10 +577,11 @@ struct TABLE_FIELD_DEF
 class Table_check_intact
 {
 protected:
+  bool has_keys;
   virtual void report_error(uint code, const char *fmt, ...)= 0;
 
 public:
-  Table_check_intact() {}
+  Table_check_intact() : has_keys(false) {}
   virtual ~Table_check_intact() {}
 
   /**
@@ -1163,8 +1162,6 @@ public:
 };
 
 
-#endif /* UNIV_HOTBACKUP */
-
 /**
   Class that represents a single change to a column value in partial
   update of a JSON column.
@@ -1212,8 +1209,6 @@ public:
 */
 using Binary_diff_vector= Mem_root_array<Binary_diff>;
 
-#ifndef UNIV_HOTBACKUP
-
 /**
   Flags for TABLE::m_status (maximum 8 bits).
   The flags define the state of the row buffer in TABLE::record[0].
@@ -1251,14 +1246,12 @@ enum index_hint_type
 /* Bitmap of table's fields */
 typedef Bitmap<MAX_FIELDS> Field_map;
 
+/*
+  NOTE: Despite being a struct (for historical reasons), TABLE has
+  a nontrivial destructor.
+*/
 struct TABLE
 {
-  /*
-    Since TABLE instances are often cleared using memset(), do not
-    add virtual members and do not inherit from TABLE.
-    Otherwise memset() will start overwriting the vtable pointer.
-  */
-
   TABLE_SHARE	*s{nullptr};
   handler	*file{nullptr};
   TABLE *next{nullptr}, *prev{nullptr};
@@ -1539,6 +1532,13 @@ public:
    */
   Blob_mem_storage *blob_storage{nullptr};
   Filesort_info sort;
+  /**
+    The result of applying a unique opertion (by row ID) to the table, if done.
+    In particular, this is done in some forms of index merge.
+  */
+  Sort_result unique_result;
+  /// The result of sorting the table, if done.
+  Sort_result sort_result;
   partition_info *part_info{nullptr};            /* Partition related information */
   /* If true, all partitions have been pruned away */
   bool all_partitions_pruned_away{false};
@@ -2448,20 +2448,6 @@ struct TABLE_LIST
   /// Cleanup field translations for a view
   void cleanup_items();
 
-  /**
-    Check whether the table is a placeholder, ie a derived table, a view or
-    a schema table.
-    A table is also considered to be a placeholder if it does not have a
-    TABLE object for some other reason.
-    A recursive reference in a CTE is also a placeholder: it doesn't need any
-    locking, binary logging...
-  */
-  bool is_placeholder() const
-  {
-    return is_view_or_derived() || schema_table || !table ||
-      m_is_recursive_reference || is_table_function();
-  }
-
   /// Produce a textual identification of this object
   void print(THD *thd, String *str, enum_query_type query_type) const;
 
@@ -2532,6 +2518,29 @@ struct TABLE_LIST
     @returns true if error
   */
   bool set_recursive_reference();
+
+  /**
+    @returns true for a table that represents an optimizer internal table,
+    is a derived table, a recursive reference, a table function.
+    Internal tables are only visible inside a query expression, and is hence
+    not visible in any schema, or need any kind of privilege checking.
+  */
+  bool is_internal() const
+  {
+    return is_derived() || is_recursive_reference() || is_table_function();
+  }
+
+  /**
+    @returns true for a table that is a placeholder, ie a derived table,
+    a view, a recursive reference, a table function or a schema table.
+    A table is also considered to be a placeholder if it does not have a
+    TABLE object for some other reason.
+  */
+  bool is_placeholder() const
+  {
+    return is_view_or_derived() || is_recursive_reference() ||
+           is_table_function() || schema_table || table == nullptr;
+  }
 
   /// Return true if view or derived table and can be merged
   bool is_mergeable() const;
@@ -3696,19 +3705,19 @@ extern LEX_STRING SLOW_LOG_NAME;
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 
-/* mysql schema */
+/* mysql schema name and DD ID */
 extern LEX_STRING MYSQL_SCHEMA_NAME;
+static const uint MYSQL_SCHEMA_DD_ID= 1;
 
-/* mysql tablespace */
+/* mysql tablespace name and DD ID */
 extern LEX_STRING MYSQL_TABLESPACE_NAME;
+static const uint MYSQL_TABLESPACE_DD_ID= 1;
 
 /* replication's tables */
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
-#endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 inline bool is_infoschema_db(const char *name, size_t len)
 {
   return (INFORMATION_SCHEMA_NAME.length == len &&
@@ -3924,5 +3933,4 @@ bool create_table_share_for_upgrade(THD *thd,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
 
-#endif /* !UNIV_HOTBACKUP */
 #endif /* TABLE_INCLUDED */

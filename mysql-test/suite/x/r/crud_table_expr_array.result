@@ -1,0 +1,994 @@
+=============================================
+CRUD TABLE ARRAY EXPRESIONS SCENARIOS
+=============================================
+
+================================================================================
+PREAMBLE
+================================================================================
+================================================================================
+TEST START
+================================================================================
+RUN DROP SCHEMA IF EXISTS xtest
+
+0 rows affected
+RUN CREATE SCHEMA xtest
+
+1 rows affected
+RUN CREATE TABLE xtest.xtable (xfield JSON)
+
+0 rows affected
+Inserting array into table
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "xfield"
+  }
+  row {
+    field {
+      type: OBJECT
+      object {
+        fld {
+          key: "first"
+          value {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "ten"
+              }
+            }
+          }
+        }
+        fld {
+          key: "second"
+          value {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "twenty"
+              }
+            }
+          }
+        }
+        fld {
+          key: "third"
+          value {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "thirty"
+              }
+            }
+          }
+        }
+        fld {
+          key: "units"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: LITERAL
+                literal {
+                  type: V_SINT
+                  v_signed_int: 1
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_SINT
+                  v_signed_int: 2
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_SINT
+                  v_signed_int: 3
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "second": "twenty"}
+0 rows affected
+Inserting array into collection with all the datatypes
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "xfield"
+  }
+  row {
+    field {
+      type: OBJECT
+      object {
+        fld {
+          key: "first"
+          value {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "ten again"
+              }
+            }
+          }
+        }
+        fld {
+          key: "second"
+          value {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "twenty again"
+              }
+            }
+          }
+        }
+        fld {
+          key: "third"
+          value {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "thirty again"
+              }
+            }
+          }
+        }
+        fld {
+          key: "units"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: LITERAL
+                literal {
+                  type: V_SINT
+                  v_signed_int: 1
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_UINT
+                  v_unsigned_int: 2
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_DOUBLE
+                  v_double: 3.13
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_FLOAT
+                  v_float: 4.34
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_BOOL
+                  v_bool: false
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_NULL
+                }
+              }
+              value {
+                type: LITERAL
+                literal {
+                  type: V_STRING
+                  v_string {
+                    value: "extrainfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "second": "twenty"}
+{"first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, false, null, "extrainfo"], "second": "twenty again"}
+0 rows affected
+Selecting array from table
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: OBJECT
+      object {
+        fld {
+          key: "dozens"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: IDENT
+                identifier {
+                  document_path {
+                    type: MEMBER
+                    value: "first"
+                  }
+                  name: "xfield"
+                }
+              }
+              value {
+                type: IDENT
+                identifier {
+                  document_path {
+                    type: MEMBER
+                    value: "second"
+                  }
+                  name: "xfield"
+                }
+              }
+              value {
+                type: IDENT
+                identifier {
+                  document_path {
+                    type: MEMBER
+                    value: "third"
+                  }
+                  name: "xfield"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    alias: "result"
+  }
+}
+
+result
+{"dozens": ["ten", "twenty", "thirty"]}
+{"dozens": ["ten again", "twenty again", "thirty again"]}
+command ok
+Selecting array from table
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: OBJECT
+      object {
+        fld {
+          key: "UnitArray"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: IDENT
+                identifier {
+                  document_path {
+                    type: MEMBER
+                    value: "units"
+                  }
+                  name: "xfield"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    alias: "result"
+  }
+}
+
+result
+{"UnitArray": [[1, 2, 3]]}
+{"UnitArray": [[1, 2, 3.13, 4.34, false, null, "extrainfo"]]}
+command ok
+Selecting a value not available from table to get null values
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: OBJECT
+      object {
+        fld {
+          key: "UnitArray"
+          value {
+            type: ARRAY
+            array {
+              value {
+                type: IDENT
+                identifier {
+                  document_path {
+                    type: MEMBER
+                    value: "notavailable"
+                  }
+                  name: "xfield"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    alias: "result"
+  }
+}
+
+result
+{"UnitArray": [null]}
+{"UnitArray": [null]}
+command ok
+Selecting only array from table
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: ARRAY
+      array {
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "first"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "second"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "third"
+            }
+            name: "xfield"
+          }
+        }
+      }
+    }
+    alias: "result"
+  }
+}
+
+result
+["ten", "twenty", "thirty"]
+["ten again", "twenty again", "thirty again"]
+command ok
+Selecting only array with sub-array from table
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: ARRAY
+      array {
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "first"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: ARRAY
+          array {
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 0
+                }
+                name: "xfield"
+              }
+            }
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 2
+                }
+                name: "xfield"
+              }
+            }
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "third"
+            }
+            name: "xfield"
+          }
+        }
+      }
+    }
+    alias: "result"
+  }
+}
+
+result
+["ten", [1, 3], "thirty"]
+["ten again", [1, 3.13], "thirty again"]
+command ok
+Selecting only array with sub-array including null values from table with alias
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: ARRAY
+      array {
+        value {
+          type: ARRAY
+          array {
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 1
+                }
+                name: "xfield"
+              }
+            }
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 5
+                }
+                name: "xfield"
+              }
+            }
+          }
+        }
+        value {
+          type: ARRAY
+          array {
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 2
+                }
+                name: "xfield"
+              }
+            }
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 5
+                }
+                name: "xfield"
+              }
+            }
+          }
+        }
+        value {
+          type: ARRAY
+          array {
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 3
+                }
+                name: "xfield"
+              }
+            }
+            value {
+              type: IDENT
+              identifier {
+                document_path {
+                  type: MEMBER
+                  value: "units"
+                }
+                document_path {
+                  type: ARRAY_INDEX
+                  index: 5
+                }
+                name: "xfield"
+              }
+            }
+          }
+        }
+      }
+    }
+    alias: "Array_SubArray_Null"
+  }
+}
+
+Array_SubArray_Null
+[[2, null], [3, null], [null, null]]
+[[2, null], [3.13, null], [4.34, null]]
+command ok
+Updating table by array
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "dozens"
+      }
+      name: "xfield"
+    }
+    operation: ITEM_SET
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "first"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "second"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "third"
+            }
+            name: "xfield"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "dozens": ["ten", "twenty", "thirty"], "second": "twenty"}
+{"first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, false, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": "twenty again"}
+0 rows affected
+Updating table by array with null values
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "NewArray"
+      }
+      name: "xfield"
+    }
+    operation: ITEM_SET
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "units"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "dozens"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "first"
+            }
+            name: "xfield"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "dozens": ["ten", "twenty", "thirty"], "second": "twenty", "NewArray": [[1, 2, 3], ["ten", "twenty", "thirty"], "ten"]}
+{"first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, false, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": "twenty again", "NewArray": [[1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
+0 rows affected
+Updating table by array in a current member value
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "second"
+      }
+      name: "xfield"
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "units"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "dozens"
+            }
+            name: "xfield"
+          }
+        }
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "first"
+            }
+            name: "xfield"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3], ["ten", "twenty", "thirty"], "ten"], "NewArray": [[1, 2, 3], ["ten", "twenty", "thirty"], "ten"]}
+{"first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, false, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"], "NewArray": [[1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
+0 rows affected
+Updating table by appending an array in a current array member value
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "second"
+      }
+      name: "xfield"
+    }
+    operation: ARRAY_APPEND
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "units"
+            }
+            name: "xfield"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3], ["ten", "twenty", "thirty"], "ten", [[1, 2, 3]]], "NewArray": [[1, 2, 3], ["ten", "twenty", "thirty"], "ten"]}
+{"first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, false, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again", [[1, 2, 3.13, 4.34, false, null, "extrainfo"]]], "NewArray": [[1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
+0 rows affected
+Updating table by inserting an array in a current array member
+send Mysqlx.Crud.Update {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "second"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 0
+      }
+      name: "xfield"
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "units"
+            }
+            name: "xfield"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Rows matched: 2  Changed: 2  Warnings: 0
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "dozens": ["ten", "twenty", "thirty"], "second": [[[1, 2, 3]], [1, 2, 3], ["ten", "twenty", "thirty"], "ten", [[1, 2, 3]]], "NewArray": [[1, 2, 3], ["ten", "twenty", "thirty"], "ten"]}
+{"first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, false, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[[1, 2, 3.13, 4.34, false, null, "extrainfo"]], [1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again", [[1, 2, 3.13, 4.34, false, null, "extrainfo"]]], "NewArray": [[1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
+0 rows affected
+Inserting (directly) array into table with all data types
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    name: "xfield"
+  }
+  row {
+    field {
+      type: ARRAY
+      array {
+        value {
+          type: LITERAL
+          literal {
+            type: V_SINT
+            v_signed_int: -10
+          }
+        }
+        value {
+          type: LITERAL
+          literal {
+            type: V_UINT
+            v_unsigned_int: 2
+          }
+        }
+        value {
+          type: LITERAL
+          literal {
+            type: V_DOUBLE
+            v_double: 3.13
+          }
+        }
+        value {
+          type: LITERAL
+          literal {
+            type: V_FLOAT
+            v_float: 4.34
+          }
+        }
+        value {
+          type: LITERAL
+          literal {
+            type: V_BOOL
+            v_bool: false
+          }
+        }
+        value {
+          type: LITERAL
+          literal {
+            type: V_NULL
+          }
+        }
+        value {
+          type: LITERAL
+          literal {
+            type: V_STRING
+            v_string {
+              value: "extrainfo"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM xtest.xtable
+xfield
+{"first": "ten", "third": "thirty", "units": [1, 2, 3], "dozens": ["ten", "twenty", "thirty"], "second": [[[1, 2, 3]], [1, 2, 3], ["ten", "twenty", "thirty"], "ten", [[1, 2, 3]]], "NewArray": [[1, 2, 3], ["ten", "twenty", "thirty"], "ten"]}
+{"first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, false, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[[1, 2, 3.13, 4.34, false, null, "extrainfo"]], [1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again", [[1, 2, 3.13, 4.34, false, null, "extrainfo"]]], "NewArray": [[1, 2, 3.13, 4.34, false, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
+[-10, 2, 3.13, 4.34, false, null, "extrainfo"]
+0 rows affected
+NOT Error: empty array
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  projection {
+    source {
+      type: ARRAY
+      array {
+      }
+    }
+    alias: "result"
+  }
+}
+
+result
+[]
+[]
+[]
+command ok
+================================================================================
+CLEAN UP
+================================================================================
+RUN drop schema if exists xtest
+
+1 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

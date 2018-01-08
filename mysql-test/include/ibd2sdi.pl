@@ -47,6 +47,9 @@ sub ibd2sdi_replace() {
     # Remove mysql version id
     $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
 
+    # Remove dd version id
+    $_=~ s/("dd_version": )[0-9]+/$1X/g;
+
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
     {
@@ -110,6 +113,9 @@ sub ibd2sdi_replace_system() {
     # Remove mysql version id
     $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
 
+    # Remove dd version id
+    $_=~ s/("dd_version": )[0-9]+/$1X/g;
+
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
     {
@@ -171,6 +177,9 @@ sub ibd2sdi_replace_mysql() {
 
     # Remove mysql version id
     $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
+
+    # Remove dd version id
+    $_=~ s/("dd_version": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)

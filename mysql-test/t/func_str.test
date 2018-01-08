@@ -3,6 +3,7 @@
 #but needs to be kept for tests that would need MyISAM in future.
 
 # When removing this, also remove 'SET default_storage_engine InnoDB' below
+--source include/no_ps_protocol.inc
 --source include/force_myisam_default.inc
 
 # Description

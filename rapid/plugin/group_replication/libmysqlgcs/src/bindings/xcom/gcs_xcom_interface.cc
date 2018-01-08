@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -76,6 +83,7 @@ void      cb_xcom_comms(int status);
 void      cb_xcom_ready(int status);
 void      cb_xcom_exit(int status);
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
+int       cb_xcom_get_should_exit();
 void      cb_xcom_handle_app_snap(blob *gcs_snap);
 int       cb_xcom_socket_accept(int fd);
 
@@ -351,6 +359,9 @@ err:
    on initialize.
   */
   finalize_logging();
+
+  m_wait_for_ssl_init_mutex.destroy();
+  m_wait_for_ssl_init_cond.destroy();
 
   return GCS_NOK;
 }
@@ -881,6 +892,7 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   ::set_xcom_global_view_receiver(cb_xcom_receive_global_view);
   ::set_port_matcher(cb_xcom_match_port);
   ::set_app_snap_handler(cb_xcom_handle_app_snap);
+  ::set_should_exit_getter(cb_xcom_get_should_exit);
   ::set_app_snap_getter(cb_xcom_get_app_snap);
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
@@ -1579,6 +1591,13 @@ synode_no cb_xcom_get_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused)))
   return null_synode;
 }
 
+int cb_xcom_get_should_exit()
+{
+  if (xcom_proxy)
+    return (int)xcom_proxy->get_should_exit();
+  else
+    return 0;
+}
 
 void cb_xcom_ready(int status MY_ATTRIBUTE((unused)))
 {

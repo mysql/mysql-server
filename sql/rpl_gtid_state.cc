@@ -1,19 +1,24 @@
 /* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; version 2 of the
-   License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
 
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-   General Public License for more details.
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-   02110-1301 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <time.h>
 #include <atomic>
@@ -288,11 +293,11 @@ void Gtid_state::end_gtid_violating_transaction(THD *thd)
   DBUG_ENTER("end_gtid_violating_transaction");
   if (thd->has_gtid_consistency_violation)
   {
-    if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+    if (thd->variables.gtid_next.type == AUTOMATIC_GTID)
       end_automatic_gtid_violating_transaction();
     else
     {
-      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
+      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GTID);
       end_anonymous_gtid_violating_transaction();
     }
     thd->has_gtid_consistency_violation= false;
@@ -529,7 +534,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
   DBUG_ENTER("Gtid_state::generate_automatic_gtid");
   enum_return_status ret= RETURN_STATUS_OK;
 
-  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GTID);
   DBUG_ASSERT(specified_sidno >= 0);
   DBUG_ASSERT(specified_gno >= 0);
   DBUG_ASSERT(thd->owned_gtid.is_empty());
@@ -671,21 +676,33 @@ enum_return_status Gtid_state::ensure_sidno()
 }
 
 
-enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
+enum_return_status Gtid_state::add_lost_gtids(Gtid_set *gtid_set,
+                                              bool starts_with_plus)
 {
   DBUG_ENTER("Gtid_state::add_lost_gtids()");
   sid_lock->assert_some_wrlock();
 
   gtid_set->dbug_print("add_lost_gtids");
 
+  if (!starts_with_plus)
+  {
+    if (!gtid_state->get_lost_gtids()->is_subset(gtid_set))
+    {
+      my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
+               "the new value must be a superset of the old value");
+      RETURN_REPORTED_ERROR;
+    }
+    /*
+      Remove @@GLOBAL.GTID_PURGED from gtid_set. This ensures that
+      the next check generates an error only if gtid_set intersects
+      (@@GLOBAL.GTID_EXECUTED - @@GLOBAL.GTID_PURGED).
+    */
+    gtid_set->remove_gtid_set(gtid_state->get_lost_gtids());
+  }
   if (executed_gtids.is_intersection_nonempty(gtid_set))
   {
     my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
-             gtid_set->is_appendable() ?
-             "the being assigned value must not overlap with the current "
-             "executed gtids in incremental assignment" :
-             "the being assigned value must not overlap with the current "
-             "executed not purged gtids in plain assignment");
+             "the added gtid set must not overlap with @@GLOBAL.GTID_EXECUTED");
     RETURN_REPORTED_ERROR;
   }
   DBUG_ASSERT(!lost_gtids.is_intersection_nonempty(gtid_set));
@@ -693,8 +710,7 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
   if (owned_gtids.is_intersection_nonempty(gtid_set))
   {
     my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
-             "the being assigned value must not overlap with GTIDS of "
-             "transactions in progress");
+             "the added gtid set must not overlap with @@GLOBAL.GTID_OWNED");
     RETURN_REPORTED_ERROR;
   }
 
@@ -845,7 +861,7 @@ bool Gtid_state::update_gtids_impl_do_nothing(THD *thd)
 {
   if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
   {
-    if (thd->variables.gtid_next.type == GTID_GROUP)
+    if (thd->variables.gtid_next.type == ASSIGNED_GTID)
       thd->variables.gtid_next.set_undefined();
     DBUG_PRINT("info", ("skipping update_gtids_impl because "
                         "thread does not own anything and does not violate "
@@ -982,7 +998,7 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
   }
 
   thd->clear_owned_gtids();
-  if (thd->variables.gtid_next.type == GTID_GROUP)
+  if (thd->variables.gtid_next.type == ASSIGNED_GTID)
   {
     DBUG_ASSERT(!thd->is_commit_in_middle_of_statement);
     thd->variables.gtid_next.set_undefined();
@@ -994,8 +1010,8 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit)
       gtid_pre_statement_checks skips the test for undefined,
       e.g. ROLLBACK.
     */
-    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
-                thd->variables.gtid_next.type == UNDEFINED_GROUP);
+    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GTID ||
+                thd->variables.gtid_next.type == UNDEFINED_GTID);
   }
 }
 
@@ -1019,8 +1035,8 @@ void Gtid_state::update_gtids_impl_broadcast_and_unlock_sidnos()
 void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
                                                  bool *more_trx)
 {
-  DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP ||
-              thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GTID ||
+              thd->variables.gtid_next.type == AUTOMATIC_GTID);
   /*
     If there is more in the transaction cache, set more_trx to indicate this.
 
@@ -1039,7 +1055,7 @@ void Gtid_state::update_gtids_impl_own_anonymous(THD* thd,
     }
   }
   if (!(*more_trx &&
-        thd->variables.gtid_next.type == ANONYMOUS_GROUP))
+        thd->variables.gtid_next.type == ANONYMOUS_GTID))
   {
     release_anonymous_ownership();
     thd->clear_owned_gtids();
@@ -1050,7 +1066,7 @@ void Gtid_state::update_gtids_impl_own_nothing(THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(thd->commit_error != THD::CE_COMMIT_ERROR ||
               thd->has_gtid_consistency_violation);
-  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GTID);
 }
 
 void Gtid_state::update_gtids_impl_end(THD *thd, bool more_trx)

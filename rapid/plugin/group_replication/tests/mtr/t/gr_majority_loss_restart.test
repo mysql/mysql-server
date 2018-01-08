@@ -143,6 +143,9 @@ SET SESSION sql_log_bin= 1;
 --echo # 7. Rejoin server2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+# Ensure that GR is already stopped on server2.
+--let $skip_assert_read_only= 1
+--source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
 

@@ -125,7 +125,7 @@ while ($i < 2)
   --let $gtid2= ANONYMOUS
   --source extra/binlog_tests/gtid_next_xa.test
 
-  --let $error= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GROUP)
+  --let $error= convert_error(ER_GTID_NEXT_TYPE_UNDEFINED_GTID)
   --let $gtid1= $uuida:$xid
   --let $gtid2= none
   --source extra/binlog_tests/gtid_next_xa.test

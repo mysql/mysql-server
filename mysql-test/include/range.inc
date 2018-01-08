@@ -2664,6 +2664,7 @@ UPDATE mysql.innodb_table_stats SET n_rows=3001 WHERE TABLE_name='transactions';
 FLUSH TABLE transactions;
 --enable_query_log
 
+--replace_column 10 # 11 #
 eval EXPLAIN $query1;
 
 SET optimizer_trace="enabled=on";

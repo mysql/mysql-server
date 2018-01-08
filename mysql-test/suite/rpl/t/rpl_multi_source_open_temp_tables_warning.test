@@ -122,6 +122,3 @@ RESET SLAVE ALL;
 --let $rpl_only_running_threads= 1
 --let $rpl_group_replication= 1
 --source include/rpl_end.inc
-
-# Remove this line after Bug#24700334 is fixed.
---source include/force_restart.inc

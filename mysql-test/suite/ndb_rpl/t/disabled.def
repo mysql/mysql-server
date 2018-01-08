@@ -20,7 +20,6 @@ ndb_rpl_row_implicit_commit_binlog : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_stm_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
 ndb_rpl_mix_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
 ndb_dist_priv_ndb : Bug#22826700 TEST NDB_RPL.NDB_DIST_PRIV_NDB FAILS
-ndb_rpl_gcol: Bug#25827408 STORED GENERATED COLUMNS REPLICATION FAILURE
 
 ndb_rpl_basic: Need WL#10665 Extend size of extra table metadata 
 

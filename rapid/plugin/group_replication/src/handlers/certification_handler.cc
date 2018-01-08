@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/handlers/certification_handler.h"
 
@@ -397,7 +404,7 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
       {
         // Create new GTID event.
         Gtid gtid= { group_sidno, seq_number };
-        Gtid_specification gtid_specification= { GTID_GROUP, gtid };
+        Gtid_specification gtid_specification= { ASSIGNED_GTID, gtid };
         Gtid_log_event *gle_generated= new Gtid_log_event(gle->server_id,
                                                 gle->is_using_trans_cache(),
                                                 gle->last_committed,
@@ -615,7 +622,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
     cont->signal(1, true);
     DBUG_RETURN(1);
   }
-  Gtid_specification gtid_specification= { GTID_GROUP, gtid };
+  Gtid_specification gtid_specification= { ASSIGNED_GTID, gtid };
   /**
    The original_commit_timestamp of this Gtid_log_event will be zero
    because the transaction corresponds to a View_change_event, which is

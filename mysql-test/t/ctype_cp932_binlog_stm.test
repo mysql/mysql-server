@@ -5,7 +5,6 @@
 -- source extra/binlog_tests/ctype_cp932_binlog.test
 -- source include/big_test.inc
 
-call mtr.add_suppression('Error in Log_event::read_log_event()');
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
@@ -33,14 +32,6 @@ DROP TABLE t4;
 --source include/show_binlog_events.inc
 
 --echo End of 5.0 tests
-
-#
-# #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
---disable_result_log
---error 0,1220
-# Zero error can become possible over time still proving no crash.
-SHOW BINLOG EVENTS FROM 490;
---enable_result_log
 
 --echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;

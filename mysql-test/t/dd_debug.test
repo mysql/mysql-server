@@ -309,6 +309,34 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 
 DROP TABLE t2, t1;
 
+--echo #
+--echo # Bug#25887335 : TEST CASE INNODB_MYSQL_SYNC CRASH ON PB2 RUN.
+--echo #
+CREATE TABLE t1(a INT) Engine=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+
+connect (con1, localhost, root);
+let $con1_id= `select connection_id()`;
+SET DEBUG_SYNC= "open_and_process_table SIGNAL kill_truncate WAIT_FOR killed";
+--echo # Sending: (not reaped since connection is killed later)
+--echo # Default connection tries to kill con1 when it is in the kill immune mode
+--echo # In this mode, state of the kill operation state is stored and applied
+--echo # while exiting from the mode.
+--echo # Without fix socket of the con1 was not closed. So the error message
+--echo # was sent to client and cause the assertion.
+--send TRUNCATE t1
+
+connection default;
+SET DEBUG_SYNC= "now WAIT_FOR kill_truncate";
+--replace_result $con1_id con1_id
+eval KILL $con1_id;
+SET DEBUG_SYNC= "now SIGNAL killed";
+
+#Cleanup
+DROP TABLE t1;
+disconnect con1;
+SET DEBUG_SYNC= "RESET";
+
 --echo ###################################################################
 
 --disable_connect_log

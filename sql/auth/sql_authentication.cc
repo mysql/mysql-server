@@ -1,17 +1,28 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#if defined(HAVE_OPENSSL)
+#define LOG_SUBSYSTEM_TAG  "sha256_password"
+#endif
 
 #include "sql/auth/sql_authentication.h"
 
@@ -20,7 +31,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
 #include <utility>
 #include <vector>                       /* std::vector */
@@ -86,6 +96,8 @@ struct MEM_ROOT;
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
+#include <mysql/components/my_service.h>
+
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
@@ -599,7 +611,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_NO_PASSWORD_ERROR,
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR_WITHOUT_PASSWORD,
            mpvio->auth_info.user_name,
            mpvio->auth_info.host_or_ip);
   }
@@ -619,7 +631,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR,
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR_WITH_PASSWORD,
            mpvio->auth_info.user_name,
            mpvio->auth_info.host_or_ip,
            passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
@@ -2640,7 +2652,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
                mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      LogErr(INFORMATION_LEVEL, ER_ACCOUNT_HAS_BEEN_LOCKED,
+      LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED,
              mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
       DBUG_RETURN(1);
     }
@@ -2671,7 +2683,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
                                      "%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_PASSWORD_LOGIN);
+      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -3042,6 +3054,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 }
 
 #if defined(HAVE_OPENSSL)
+
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
 
@@ -3329,17 +3342,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (private_key == NULL || public_key == NULL)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-        "Authentication requires either RSA keys or SSL encryption");
+      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
       DBUG_RETURN(CR_ERROR);
     }
 
 
     if ((cipher_length= g_sha256_rsa_keys->get_cipher_length()) > MAX_CIPHER_LENGTH)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-        "RSA key cipher length of %u is too long. Max value is %u.",
-        g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
+      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_RSA_KEY_TOO_LONG,
+                   g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
     }
 
@@ -3406,9 +3417,8 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   if (is_error)
   {
     /* User salt is not correct */
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Password salt for user '%s' is corrupt.",
-                          info->user_name);
+    LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_SALT_FOR_USER_CORRUPT,
+                 info->user_name);
     DBUG_RETURN(CR_ERROR);
   }
 
@@ -3497,21 +3507,17 @@ public:
   File_IO(const File_IO& src)
     : m_file_name(src.file_name()),
       m_read(src.read_mode()),
-      m_error_state(src.get_error())
+      m_error_state(src.get_error()),
+      m_file(-1)
   {
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
+    file_open();
   }
 
   File_IO & operator=(const File_IO& src)
   {
     m_file_name= src.file_name();
     m_read= src.read_mode();
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
-
+    file_open();
     return *this;
   }
 
@@ -3525,8 +3531,11 @@ public:
   */
   void close()
   {
-    if (m_file.is_open())
-      m_file.close();
+    if (file_is_open())
+    {
+      my_close(m_file, MYF(MY_WME));
+      m_file= -1;
+    }
   }
 
   /*
@@ -3564,17 +3573,43 @@ protected:
   File_IO(const Sql_string_t filename, bool read)
     : m_file_name(filename),
       m_read(read),
-      m_error_state(false)
+      m_error_state(false),
+      m_file(-1)
   {
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
+    file_open();
+  }
+
+  /**
+    A constructor to create the class with the right umask mode
+    @param filename name of the file
+    @param mode the create attributes to pass to my_create()
+  */
+  File_IO(const Sql_string_t filename, MY_MODE mode)
+    : m_file_name(filename),
+    m_read(false),
+    m_error_state(false),
+    m_file(-1)
+  {
+    m_file = my_create(m_file_name.c_str(),
+      mode, O_WRONLY, MYF(MY_WME));
+  }
+
+  void file_open()
+  {
+    m_file = my_open(m_file_name.c_str(),
+      m_read ? O_RDONLY : O_WRONLY | O_TRUNC | O_CREAT,
+      MYF(MY_WME));
+  }
+
+  bool file_is_open()
+  {
+    return m_file >= 0;
   }
 private:
   Sql_string_t m_file_name;
   bool m_read;
   bool m_error_state;
-  std::fstream m_file;
+  File m_file;
   /* Only File_creator can create File_IO */
   friend class File_creator;
 };
@@ -3593,15 +3628,18 @@ private:
 File_IO &
 File_IO::operator>>(Sql_string_t &s)
 {
-  DBUG_ASSERT(read_mode() && m_file.is_open());
+  DBUG_ASSERT(read_mode() && file_is_open());
 
-  m_file.seekg(0, std::ios::end);
-  if (resize_no_exception(s, m_file.tellg()) == false)
+  my_off_t off= my_seek(m_file, 0, SEEK_END, MYF(MY_WME));
+  if (off == MY_FILEPOS_ERROR ||
+      resize_no_exception(s, off) == false)
     set_error();
   else
   {
-    m_file.seekg(0, std::ios::beg);
-    m_file.read(&s[0], s.size());
+    if (MY_FILEPOS_ERROR == my_seek(m_file, 0, SEEK_SET, MYF(MY_WME)) ||
+        (size_t) -1 == my_read(m_file, reinterpret_cast<uchar *>(&s[0]),
+                               s.size(), MYF(0)))
+      set_error();
     close();
   }
   return *this;
@@ -3621,12 +3659,14 @@ File_IO::operator>>(Sql_string_t &s)
 File_IO &
 File_IO::operator<<(const Sql_string_t &output_string)
 {
-  DBUG_ASSERT(!read_mode() && m_file.is_open());
+  DBUG_ASSERT(!read_mode() && file_is_open());
 
-  if (!output_string.size())
+  if (!output_string.size() ||
+    MY_FILE_ERROR ==
+    my_write(m_file,
+      reinterpret_cast<const uchar *>(output_string.data()),
+      output_string.length(), MYF(MY_NABP | MY_WME)))
     set_error();
-  else
-    m_file << output_string;
 
   close();
   return *this;
@@ -3657,6 +3697,16 @@ public:
   File_IO * operator()(const Sql_string_t filename, bool read=false)
   {
     File_IO * f= new File_IO(filename, read);
+    m_file_vector.push_back(f);
+    return f;
+  }
+
+  /*
+    Note : Do not free memory.
+  */
+  File_IO * operator()(const Sql_string_t filename, MY_MODE mode)
+  {
+    File_IO * f= new File_IO(filename, mode);
     m_file_vector.push_back(f);
     return f;
   }
@@ -3693,7 +3743,24 @@ public:
   RSA *operator()(void)
   {
     /* generate RSA keys */
-    RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
+    RSA *rsa= RSA_new();
+    if (!rsa)
+      return NULL;
+    BIGNUM *e= BN_new();
+    if (!e)
+    {
+      RSA_free(rsa);
+      return NULL;
+    }
+    if (!BN_set_word(e, m_exponent) ||
+        !RSA_generate_key_ex(rsa, m_key_size, e, NULL))
+    {
+      RSA_free(rsa);
+      BN_free(e);
+      return NULL;
+    }
+    BN_free(e);
+
     return rsa; // pass ownership
   }
 
@@ -4016,9 +4083,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   File_IO *x509_ca_cert_file_istream= NULL;
   X509_gen x509_gen;
   MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
-  MY_MODE saved_umask= umask(~(file_creation_mode));
 
-  x509_key_file_ostream= filecr(key_filename);
+  x509_key_file_ostream= filecr(key_filename, file_creation_mode);
 
   /* Generate private key for X509 certificate */
   rsa= rsa_gen();
@@ -4047,13 +4113,6 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   if (x509_key_file_ostream->get_error())
   {
     LogErr(ERROR_LEVEL, ER_X509_CANT_WRITE_KEY, key_filename.c_str());
-    ret_val= false;
-    goto end;
-  }
-
-  if (my_chmod(key_filename.c_str(), USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME)))
-  {
-    LogErr(ERROR_LEVEL, ER_X509_CANT_CHMOD_KEY, key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -4145,7 +4204,6 @@ end:
   if (ca_x509)
     X509_free(ca_x509);
 
-  umask(saved_umask);
   return ret_val;
 }
 
@@ -4195,7 +4253,7 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
     goto end;
   }
 
-  priv_key_file_ostream= filecr(priv_key_filename);
+  priv_key_file_ostream= filecr(priv_key_filename, file_creation_mode);
   (*priv_key_file_ostream)<< rsa_priv_key_write(rsa);
 
   DBUG_EXECUTE_IF("key_file_write_error",
@@ -4379,36 +4437,42 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
 
 
 /*
-  Check sha256_password_auto_generate_rsa_keys option and generate
-  RSA key pair if required.
+ Generate RSA keys
 
-  RSA key pair is generated iff following conditions are met.
-  1> sha256_password_auto_generate_rsa_keys is set to ON.
-  2> sha256_password_private_key_path or sha256_password_public_key_path
-     are pointing to non-default locations.
-  3> Following files are not present in data directory.
-     a> private_key.pem
-     b> public_key.pem
+ @param [in] auto_generate Variable to control key generation
+ @param [in] priv_key_path Path to store/check private key
+ @param [in] pub_key_path  Path to store/check public key
+ @param [in] message       Message part to be logged
 
-  If above mentioned conditions are satified private_key.pem and
-  public_key.pem files are generated and placed in data directory.
+ @returns status of key generation
+   @retval true  Success
+   @retval false Error generating keys
 */
-static bool do_auto_rsa_keys_generation()
+
+static bool generate_rsa_keys(bool auto_generate,
+                              const char *priv_key_path,
+                              const char *pub_key_path,
+                              const char *message)
 {
-  if (auth_rsa_auto_generate_rsa_keys == true)
+  DBUG_ENTER("generate_rsa_keys");
+  if (auto_generate)
   {
     MY_STAT priv_stat, pub_stat;
-    if (strcmp(auth_rsa_private_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
-        strcmp(auth_rsa_public_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
+    if (strcmp(priv_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
+        strcmp(pub_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
     {
-      LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION);
-      return true;
+      LogErr(INFORMATION_LEVEL,
+             ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION,
+             message);
+      DBUG_RETURN(true);
     }
     else if (my_stat(AUTH_DEFAULT_RSA_PRIVATE_KEY, &priv_stat, MYF(0)) ||
              my_stat(AUTH_DEFAULT_RSA_PUBLIC_KEY, &pub_stat, MYF(0)))
     {
-      LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT);
-      return true;
+      LogErr(INFORMATION_LEVEL,
+             ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT,
+             message);
+      DBUG_RETURN(true);
     }
     else
     {
@@ -4419,17 +4483,55 @@ static bool do_auto_rsa_keys_generation()
 
       if (create_RSA_key_pair(rsa_gen, "private_key.pem", "public_key.pem",
                               fcr) == false)
-        return false;
+        DBUG_RETURN(false);
 
-      LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR);
-      return true;
+      LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR, message);
+      DBUG_RETURN(true);
     }
   }
   else
   {
-    LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED);
-    return true;
+    LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED,
+           message);
+    DBUG_RETURN(true);
   }
+}
+
+
+/*
+  Generate RSA keypair.
+
+  @returns Status of key generation
+    @retval true Success
+    @retval false Failure
+
+  Check sha256_password_auto_generate_rsa_keys/
+  caching_sha2_password_auto_generate_rsa_keys
+  option and generate RSA key pair if required.
+
+  RSA key pair is generated iff following conditions are met.
+  1> sha256_password_auto_generate_rsa_keys/
+     caching_sha2_password_auto_generate_rsa_keys is set to ON.
+  2> sha256_password_private_key_path/caching_sha2_rsa_private_key_path
+     or sha256_password_public_key_path/caching_sha2_rsa_public_key_path
+     are pointing to non-default locations.
+  3> Following files are not present in data directory.
+     a> private_key.pem
+     b> public_key.pem
+
+  If above mentioned conditions are satified private_key.pem and
+  public_key.pem files are generated and placed in data directory.
+*/
+static bool do_auto_rsa_keys_generation()
+{
+  return (generate_rsa_keys(auth_rsa_auto_generate_rsa_keys,
+                            auth_rsa_private_key_path,
+                            auth_rsa_public_key_path,
+                            "--sha256_password_auto_generate_rsa_keys") &&
+          generate_rsa_keys(caching_sha2_auto_generate_rsa_keys,
+                            caching_sha2_rsa_private_key_path,
+                            caching_sha2_rsa_public_key_path,
+                            "--caching_sha2_password_auto_generate_rsa_keys"));
 }
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */

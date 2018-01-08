@@ -102,10 +102,10 @@ RESET MASTER;
 SET @@GTID_NEXT='11111111-1111-1111-1111-111111111111:1';
 BEGIN;
 SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:1-2';
-ERROR HY000: @@GLOBAL.GTID_PURGED cannot be changed: the being assigned value must not overlap with GTIDS of transactions in progress
+ERROR HY000: @@GLOBAL.GTID_PURGED cannot be changed: the added gtid set must not overlap with @@GLOBAL.GTID_OWNED
 SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2-2';
 SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:1-1';
-ERROR HY000: @@GLOBAL.GTID_PURGED cannot be changed: the being assigned value must not overlap with GTIDS of transactions in progress
+ERROR HY000: @@GLOBAL.GTID_PURGED cannot be changed: the added gtid set must not overlap with @@GLOBAL.GTID_OWNED
 SET @@global.gtid_purged= '+11111111-1111-1111-1111-111111111111:3-3';
 SELECT @@global.gtid_purged;
 @@global.gtid_purged

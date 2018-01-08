@@ -1,17 +1,24 @@
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
-// This program is free software; you can redistribute it and/or modify it under
-// the terms of the GNU General Public License as published by the Free Software
-// Foundation; version 2 of the License.
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
 //
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-// details.
+// This program is also distributed with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have included with MySQL.
 //
-// You should have received a copy of the GNU General Public License along with
-// this program; if not, write to the Free Software Foundation, 51 Franklin
-// Street, Suite 500, Boston, MA 02110-1335 USA.
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 /// @file
 ///
@@ -39,27 +46,27 @@ Length::Length(double major, double minor)
     : m_geographic_strategy(new bgsd::andoyer<bgs::spheroid<double>>(
           bgs::spheroid<double>(major, minor))) {}
 
-double Length::operator()(const Geometry *g1) { return apply(*this, g1); }
+double Length::operator()(const Geometry &g1) const { return apply(*this, g1); }
 
-double Length::eval(const Geometry *) const {
+double Length::eval(const Geometry &) const {
   DBUG_ASSERT(false); /* purecov: inspected */
   throw std::exception();
 }
 
-double Length::eval(const Geographic_linestring *g1) {
-  return bg::length(*g1, *m_geographic_strategy);
+double Length::eval(const Geographic_linestring &g1) const {
+  return bg::length(g1, *m_geographic_strategy);
 }
 
-double Length::eval(const Cartesian_linestring *g1) { return bg::length(*g1); }
+double Length::eval(const Cartesian_linestring &g1) const { return bg::length(g1); }
 
 /////////////////////////////////////////////////////////////////////////////
 
-double Length::eval(const Geographic_multilinestring *g1) {
-  return bg::length(*g1, *m_geographic_strategy);
+double Length::eval(const Geographic_multilinestring &g1) const {
+  return bg::length(g1, *m_geographic_strategy);
 }
 
-double Length::eval(const Cartesian_multilinestring *g1) {
-  return bg::length(*g1);
+double Length::eval(const Cartesian_multilinestring &g1) const {
+  return bg::length(g1);
 }
 /////////////////////////////////////////////////////////////////////////////
 
@@ -82,7 +89,7 @@ bool length(const dd::Spatial_reference_system *srs, const Geometry *g1,
 
     Length len(srs ? srs->semi_major_axis() : 0.0,
                srs ? srs->semi_minor_axis() : 0.0);
-    *length = len(g1);
+    *length = len(*g1);
   } catch (...) {
     handle_gis_exception("st_length");
     return true;

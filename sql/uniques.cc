@@ -1,13 +1,20 @@
 /* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -974,15 +981,16 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
 
 bool Unique::get(TABLE *table)
 {
-  table->sort.found_records=elements+tree.elements_in_tree;
+  table->unique_result.found_records=elements+tree.elements_in_tree;
 
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    DBUG_ASSERT(table->sort.sorted_result == NULL);
-    if ((record_pointers= table->sort.sorted_result= (uchar*)
+    DBUG_ASSERT(table->unique_result.sorted_result == NULL);
+    table->unique_result.sorted_result.reset((uchar*)
 	 my_malloc(key_memory_Filesort_info_record_pointers,
-                   size * tree.elements_in_tree, MYF(0))))
+                   size * tree.elements_in_tree, MYF(0)));
+    if ((record_pointers= table->unique_result.sorted_result.get()))
     {
       (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
 		       this, left_root_right);
@@ -993,7 +1001,7 @@ bool Unique::get(TABLE *table)
   if (flush())
     return 1;
 
-  IO_CACHE *outfile=table->sort.io_cache;
+  IO_CACHE *outfile=table->unique_result.io_cache;
   Merge_chunk *file_ptr= file_ptrs.begin();
   size_t num_chunks= file_ptrs.size();
   uchar *sort_memory;
@@ -1001,10 +1009,10 @@ bool Unique::get(TABLE *table)
   bool error=1;
 
       /* Open cached file if it isn't open */
-  DBUG_ASSERT(table->sort.io_cache == NULL);
-  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
-                                                     sizeof(IO_CACHE),
-                                MYF(MY_ZEROFILL));
+  DBUG_ASSERT(table->unique_result.io_cache == NULL);
+  outfile=table->unique_result.io_cache=(IO_CACHE*)
+    my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
+              MYF(MY_ZEROFILL));
 
   if (!outfile || (! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,

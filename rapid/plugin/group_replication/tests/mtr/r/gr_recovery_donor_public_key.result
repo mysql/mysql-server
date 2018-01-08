@@ -1,0 +1,77 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group on server1.
+[connection server1]
+CREATE USER 'u1_caching_sha2_password'@'127.0.0.1' IDENTIFIED WITH 'caching_sha2_password' BY 'pwd';
+GRANT REPLICATION SLAVE ON *.* TO 'u1_caching_sha2_password'@'127.0.0.1';
+FLUSH PRIVILEGES;
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Prepare server2 configuration to force public key
+#    authentication.
+[connection server2]
+SET @group_replication_recovery_get_public_key= @@GLOBAL.group_replication_recovery_get_public_key;
+SET @group_replication_recovery_public_key_path= @@GLOBAL.group_replication_recovery_public_key_path;
+SET @group_replication_recovery_use_ssl= @@GLOBAL.group_replication_recovery_use_ssl;
+SET GLOBAL group_replication_recovery_use_ssl= FALSE;
+SET @group_replication_recovery_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
+SET GLOBAL group_replication_recovery_retry_count= 1;
+CHANGE MASTER TO MASTER_USER='u1_caching_sha2_password', MASTER_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table*");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Can't locate server public key '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
+call mtr.add_suppression("Public key is not in PEM format: '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 3. Disable fetch donor public key and do not set donor
+#    public key, recovery must fail and the member status must
+#    change to ERROR.
+[connection server2]
+SET GLOBAL group_replication_recovery_get_public_key= FALSE;
+SET GLOBAL group_replication_recovery_public_key_path= "";
+include/start_group_replication.inc
+include/stop_group_replication.inc
+
+############################################################
+# 4. Disable fetch donor public key and do set a donor invalid
+#    public key, recovery must fail and the member status must
+#    change to ERROR.
+[connection server2]
+SET GLOBAL group_replication_recovery_get_public_key= FALSE;
+SET GLOBAL group_replication_recovery_public_key_path= "MYSQL_TEST_DIR/std_data/invalid_rsa_public_key.pem";
+include/start_group_replication.inc
+include/stop_group_replication.inc
+
+############################################################
+# 5. Disable fetch donor public key and do set a donor valid
+#    public key, recovery must succeed and the member status
+#    must change to ONLINE.
+[connection server2]
+SET GLOBAL group_replication_recovery_get_public_key= FALSE;
+SET GLOBAL group_replication_recovery_public_key_path= "MYSQL_TEST_DIR/std_data/rsa_public_key.pem";
+include/start_group_replication.inc
+
+############################################################
+# 6. Clean up.
+[connection server1]
+DROP USER 'u1_caching_sha2_password'@'127.0.0.1';
+[connection server2]
+SET GLOBAL group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl;
+SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count;
+SET GLOBAL group_replication_recovery_get_public_key= @group_replication_recovery_get_public_key;
+SET GLOBAL group_replication_recovery_public_key_path= @group_replication_recovery_public_key_path;
+include/group_replication_end.inc

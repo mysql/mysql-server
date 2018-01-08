@@ -245,9 +245,9 @@ SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 localhost	joe	%	wp_administrators
 ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators,engineering;
+ERROR HY000: `engineering`@`%` is not granted to `joe`@`localhost`
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
-localhost	joe	%	engineering
 localhost	joe	%	wp_administrators
 ALTER USER `joe`@`localhost` DEFAULT ROLE wp_administrators;
 SELECT * FROM mysql.default_roles;
@@ -902,7 +902,9 @@ CREATE USER u1@localhost IDENTIFIED BY 'foo';
 GRANT SELECT ON test.* TO u1@localhost;
 CREATE USER r1;
 ALTER USER u1@localhost DEFAULT ROLE r1;
+ERROR HY000: `r1`@`%` is not granted to `u1`@`localhost`
 GRANT r1 TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE r1;
 GRANT UPDATE ON *.* TO r1;
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
@@ -959,15 +961,15 @@ use other;
 SET ROLE `no such role`;
 ERROR HY000: `no such role`@`%` is not granted to `u1`@`localhost`
 SET DEFAULT ROLE `rrrrr` TO u1@localhost;
-ERROR 28000: Access denied for user 'u1'@'localhost' (using password: YES)
-SET DEFAULT ROLE `rrrrr` TO u1@localhost;
-SET ROLE DEFAULT;
 ERROR HY000: `rrrrr`@`%` is not granted to `u1`@`localhost`
-ALTER USER u1@localhost DEFAULT ROLE `asdasd`;
-ERROR 28000: Access denied for user 'u1'@'localhost' (using password: YES)
-ALTER USER u1@localhost DEFAULT ROLE `asdasd`;
+SET DEFAULT ROLE `rrrrr` TO u1@localhost;
+ERROR HY000: `rrrrr`@`%` is not granted to `u1`@`localhost`
 SET ROLE DEFAULT;
+ALTER USER u1@localhost DEFAULT ROLE `asdasd`;
 ERROR HY000: `asdasd`@`%` is not granted to `u1`@`localhost`
+ALTER USER u1@localhost DEFAULT ROLE `asdasd`;
+ERROR HY000: `asdasd`@`%` is not granted to `u1`@`localhost`
+SET ROLE DEFAULT;
 SET ROLE ALL;
 SET ROLE NONE;
 DROP DATABASE other;
@@ -1032,7 +1034,7 @@ Grants for u1@localhost
 GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT `r1`@`%` TO `u1`@`localhost`
 ALTER USER u1@localhost DEFAULT ROLE r2;
-ERROR 28000: Access denied for user 'u1'@'localhost' (using password: YES)
+ERROR HY000: `r2`@`%` is not granted to `u1`@`localhost`
 ALTER USER u1@localhost DEFAULT ROLE r1;
 DROP USER u1@localhost;
 DROP ROLE r1,r2;
@@ -1072,17 +1074,42 @@ CREATE ROLE r1,r2;
 GRANT r2 TO u1@localhost;
 GRANT ALL ON test.* TO r2;
 ALTER USER u1@localhost DEFAULT ROLE r1,r2;
+ERROR HY000: `r1`@`%` is not granted to `u1`@`localhost`
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
-localhost	u1	%	r1
-localhost	u1	%	r2
 SELECT current_role();
 current_role()
-`r2`@`%`
+NONE
 SET ROLE DEFAULT;
-ERROR HY000: `r1`@`%` is not granted to `u1`@`localhost`
 DROP ROLE r1,r2;
 DROP USER u1@localhost;
++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ Rename the AuthId after it has been released from
+++ the Role Graph after revoking it  from the user
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+RENAME USER role_usr_test to role_usr;
+ERROR HY000: Renaming of a role identifier is forbidden
+REVOKE role_usr_test from usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER usr, role_usr;
++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++ Rename the AuthId after it has been released from
+++ the Role Graph after the user has been dropped.
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+CREATE USER usr, role_usr;
+RENAME USER role_usr to role_usr_test;
+GRANT role_usr_test to usr;
+RENAME USER role_usr_test to role_usr;
+ERROR HY000: Renaming of a role identifier is forbidden
+DROP USER usr;
+RENAME USER role_usr_test to role_usr;
+DROP USER role_usr;
+++++++++++++++++++++++++++++++++++
+++ Additional RENAME user tests
+++++++++++++++++++++++++++++++++++
 DROP USER IF EXISTS u5, u2, u1, r1,r2, r3;
 Warnings:
 Note	3162	Authorization ID 'u5'@'%' does not exist.
@@ -1094,14 +1121,13 @@ Note	3162	Authorization ID 'r3'@'%' does not exist.
 CREATE USER u5;
 CREATE ROLE r1,r2,r3;
 GRANT ALL ON test.* TO r2;
-GRANT r1, r2 TO u5;
+GRANT r1, r2, r3 TO u5;
 ALTER USER u5 DEFAULT ROLE r2,r3;
 RENAME USER u5 to u1;
 SELECT current_role();
 current_role()
-`r2`@`%`
+`r2`@`%`,`r3`@`%`
 SET ROLE DEFAULT;
-ERROR HY000: `r3`@`%` is not granted to `u1`@`%`
 RENAME USER u1 to u2;
 GRANT r3 TO u2;
 ALTER USER u2 DEFAULT ROLE r1, r2, r3;
@@ -1183,25 +1209,35 @@ SET @@global.mysql_native_password_proxy_users = OFF;
 #
 # SHOW CREATE USER DOESN'T SHOW DEFAULT ROLE
 #
+CREATE ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 CREATE USER u1 IDENTIFIED BY 'foo' DEFAULT ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
 # Same as before and don't crash.
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # check that we can combine different properties with default roles.
+CREATE ROLE r1;
 CREATE USER u2 DEFAULT ROLE r1 REQUIRE SSL ACCOUNT LOCK;
 SHOW CREATE USER u2;
 CREATE USER for u2@%
-CREATE USER 'u2'@'%' IDENTIFIED WITH 'mysql_native_password' DEFAULT ROLE `r1`@`%` REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u2'@'%' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT user,host FROM mysql.user;
 user	host
+a	%
+aaa	%
+b	%
+c c	%
+r1	%
 u1	%
 u2	%
+a	a
+b	local
+a	localhost
 mysql.infoschema	localhost
 mysql.session	localhost
 mysql.sys	localhost
@@ -1217,15 +1253,118 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	u1	localhost	a
 %	u2	%	r1
 DROP USER u1,u2;
+DROP ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 CREATE USER u1;
 # If I alter user this will show up in show create user
+GRANT r1 TO u1;
 ALTER USER u1 DEFAULT ROLE r1;
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	u1	%	r1
 DROP USER u1;
+DROP ROLE r1;
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+#
+# USERS CAN BE ASSIGNED NON-EXISTING ROLES AS DEFAULT
+#
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+SET DEFAULT ROLE 'r1' TO u1@localhost;
+ERROR HY000: `r1`@`%` is not granted to `u1`@`localhost`
+ALTER USER u1@localhost DEFAULT ROLE 'r1';
+ERROR HY000: `r1`@`%` is not granted to `u1`@`localhost`
+GRANT r1 TO u1@localhost;
+SET DEFAULT ROLE 'r1' TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE 'r1';
+DROP USER u1@localhost;
+CREATE ROLE r2;
+# Error if the role doesn't exist.
+CREATE USER u1@localhost IDENTIFIED BY 'foo' DEFAULT ROLE 'rr1';
+ERROR HY000: Authorization ID `rr1`@`%` does not exist.
+# Grant role if it isn't granted.
+CREATE USER u1@localhost IDENTIFIED BY 'foo' DEFAULT ROLE 'r2';
+GRANT r1 TO u1@localhost;
+# Should show r1,r2 granted to u1
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	localhost	u1	N
+%	r2	localhost	u1	N
+SELECT * FROM mysql.default_roles;
+HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
+localhost	u1	%	r2
+DROP ROLE r1,r2;
+DROP USER u1@localhost;
+CREATE USER foo@localhost IDENTIFIED BY 'foo';
+CREATE ROLE r1;
+GRANT r1 to foo@localhost;
+SET DEFAULT ROLE ALL TO foo@localhost;
+# One default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+ONE
+1
+DROP ROLE r1;
+# No default role policies left after DROP ROLE.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+ZERO
+0
+CREATE ROLE r1;
+GRANT r1 TO foo@localhost;
+SET DEFAULT ROLE ALL TO foo@localhost;
+# Restored one default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+ONE
+1
+DROP USER foo@localhost;
+# No default role policies left after DROP USER.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+ZERO
+0
+CREATE USER foo@localhost IDENTIFIED BY 'foo' DEFAULT ROLE r1;
+# Restored one default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+ONE
+1
+REVOKE r1 FROM foo@localhost;
+# No default role policies left after REVOKE.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+ZERO
+0
+GRANT CREATE USER ON *.* TO r1;
+GRANT SELECT ON test.* TO r1;
+GRANT r1 TO foo@localhost;
+SET DEFAULT ROLE r1 TO foo@localhost;
+SELECT CURRENT_USER(),CURRENT_ROLE();
+CURRENT_USER()	CURRENT_ROLE()
+foo@localhost	`r1`@`%`
+# foo has the privilege to create new users
+CREATE USER 'ok' IDENTIFIED BY 'ok';
+# foo has not the privilege to grant roles
+CREATE USER 'fail' IDENTIFIED BY 'fail' DEFAULT ROLE 'r1';
+ERROR 42000: Access denied; you need (at least one of) the WITH ADMIN, ROLE_ADMIN, SUPER privilege(s) for this operation
+DROP USER foo@localhost,ok;
+DROP ROLE r1;
+CREATE USER foo@localhost;
+CREATE ROLE r1;
+GRANT r1 TO foo@localhost;
+SET DEFAULT ROLE ALL TO foo@localhost;
+# One default role policy for foo@%
+SELECT count(*) as 'ONE' FROM mysql.default_roles;
+ONE
+1
+# One entry in role_edges
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+%	r1	localhost	foo	N
+DROP USER r1;
+# No default role policies left after DROP ROLE.
+SELECT count(*) as 'ZERO' FROM mysql.default_roles;
+ZERO
+0
+# 0 entry in role_edges
+SELECT * FROM mysql.role_edges;
+FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
+DROP USER foo@localhost;

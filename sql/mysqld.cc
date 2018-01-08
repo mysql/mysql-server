@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -370,7 +377,6 @@
 #include "binlog_event.h"
 #include "control_events.h"
 #include "errmsg.h"                     // init_client_errs
-#include "extra/regex/my_regex.h"
 #include "ft_global.h"
 #include "keycache.h"                   // KEY_CACHE
 #include "m_string.h"
@@ -427,6 +433,9 @@
 #include "mysys_err.h"                  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
+#ifdef _WIN32
+#include <shellapi.h>
+#endif
 #include "sql/auth/auth_common.h"       // grant_init
 #include "sql/auth/sql_authentication.h" // init_rsa_keys
 #include "sql/auth/sql_security_ctx.h"
@@ -447,6 +456,7 @@
 #include "sql/handler.h"
 #include "sql/hostname.h"               // hostname_cache_init
 #include "sql/init.h"                   // unireg_init
+#include "sql/instance_log_resource.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"           // Arg_comparator
 #include "sql/item_create.h"
@@ -470,6 +480,9 @@
 #include "sql/query_options.h"
 #include "sql/replication.h"            // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h" // init, post_init
+#ifdef _WIN32
+#include "sql/restart_monitor_win.h"
+#endif
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"       // Gtid_table_persistor
@@ -501,6 +514,7 @@
 #include "sql/sql_plugin.h"             // opt_plugin_dir
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_reload.h"             // reload_acl_and_cache
+#include "sql/sql_restart_server.h"     // is_mysqld_managed
 #include "sql/sql_servers.h"
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"              // build_table_filename
@@ -532,7 +546,6 @@
 #include "sql/conn_handler/named_pipe_connection.h"
 #include "sql/conn_handler/shared_memory_connection.h"
 #include "sql/named_pipe.h"
-#include "sql/nt_servc.h"
 #endif
 
 #ifdef MY_MSCRT_DEBUG
@@ -619,7 +632,6 @@ extern "C" int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #  define _FPU_SETCW(cw)
 # endif
 #endif
-
 inline void setup_fpu()
 {
 #ifdef HAVE_FEDISABLEEXCEPT
@@ -706,6 +718,7 @@ static PSI_mutex_key key_LOCK_log_throttle_qni;
 static PSI_mutex_key key_LOCK_reset_gtid_table;
 static PSI_mutex_key key_LOCK_offline_mode;
 static PSI_mutex_key key_LOCK_compress_gtid_table;
+static PSI_mutex_key key_LOCK_collect_instance_log;
 static PSI_mutex_key key_BINLOG_LOCK_commit;
 static PSI_mutex_key key_BINLOG_LOCK_commit_queue;
 static PSI_mutex_key key_BINLOG_LOCK_done;
@@ -736,7 +749,7 @@ static PSI_thread_key key_thread_handle_con_sharedmem;
 static PSI_thread_key key_thread_handle_con_sockets;
 static PSI_mutex_key key_LOCK_handler_count;
 static PSI_cond_key key_COND_handler_count;
-static PSI_thread_key key_thread_handle_shutdown;
+static PSI_thread_key key_thread_handle_shutdown_restart;
 #else
 static PSI_mutex_key key_LOCK_socket_listener_active;
 static PSI_cond_key key_COND_socket_listener_active;
@@ -826,7 +839,7 @@ char *opt_log_syslog_facility;
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
 */
-my_thread_handle shutdown_thr_handle;
+my_thread_handle shutdown_restart_thr_handle;
 #endif
 uint host_cache_size;
 ulong log_error_verbosity= 3; // have a non-zero value during early start-up
@@ -835,6 +848,7 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 ulong slow_start_timeout;
 #endif
 
+bool opt_no_dd_upgrade= false;
 bool opt_initialize= 0;
 bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 bool opt_enable_named_pipe= 0;
@@ -1051,6 +1065,8 @@ const int index_ext_length= 6;
 const char *index_ext= ".index";
 const int relay_ext_length= 10;
 const char *relay_ext= "-relay-bin";
+/* True if --log-bin option is used. */
+bool log_bin_supplied= false;
 
 time_t server_start_time, flush_status_time;
 
@@ -1058,6 +1074,7 @@ char server_uuid[UUID_LENGTH+1];
 const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
+char default_binlogfile_name[FN_REFLEN];
 char default_binlog_index_name[FN_REFLEN+index_ext_length];
 char default_relaylogfile_name[FN_REFLEN+relay_ext_length];
 char default_relaylog_index_name[FN_REFLEN+relay_ext_length+index_ext_length];
@@ -1165,6 +1182,7 @@ mysql_cond_t COND_server_started;
 mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
+mysql_mutex_t LOCK_collect_instance_log;
 #if !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -1196,6 +1214,17 @@ bool opt_relaylog_index_name_supplied= false;
   config file or command line.
 */
 bool opt_relay_logname_supplied= false;
+/*
+  True if --log-slave-updates option is set explicitly
+  on command line or configuration file.
+*/
+bool log_slave_updates_supplied= false;
+
+/*
+  True if --slave-preserve-commit-order-supplied option is set explicitly
+  on command line or configuration file.
+*/
+bool slave_preserve_commit_order_supplied= false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
@@ -1217,12 +1246,16 @@ static char **remaining_argv;
 
 int orig_argc;
 char **orig_argv;
-
 namespace
 {
 FILE *nstdout= nullptr;
 char my_progpath[FN_REFLEN];
 const char *my_orig_progname= nullptr;
+
+/**
+  This variable holds the exit value of the signal handler thread.
+*/
+std::atomic<int> signal_hand_thr_exit_code(MYSQLD_SUCCESS_EXIT);
 
 /**
   Inspects the program name in argv[0] and substitutes the full path
@@ -1293,8 +1326,7 @@ void substitute_progpath(char** argv)
 #endif // defined(_WIN32)
   if (my_orig_progname == nullptr)
   {
-    sql_print_warning("Failed to get absolute path of program executable %s",
-                      argv[0]);
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_GET_ABSOLUTE_PATH, argv[0]);
   }
 }
 } // namespace
@@ -1396,18 +1428,23 @@ static my_thread_t main_thread_id;
 /* OS specific variables */
 
 #ifdef _WIN32
+static bool mysqld_early_option= false;
 static bool windows_service= false;
 static bool use_opt_args;
 static int opt_argc;
 static char **opt_argv;
+static char **my_global_argv= nullptr;
+static int my_global_argc;
 
 static mysql_mutex_t LOCK_handler_count;
 static mysql_cond_t COND_handler_count;
 static HANDLE hEventShutdown;
+static HANDLE hEventRestart;
 char *shared_memory_base_name= default_shared_memory_base_name;
 bool opt_enable_shared_memory;
 static char shutdown_event_name[40];
-static   NTService  Service;        ///< Service object for WinNT
+static char restart_event_name[40];
+static NTService  Service;        ///< Service object for WinNT
 #endif /* _WIN32 */
 
 static bool dynamic_plugins_are_initialized= false;
@@ -1488,7 +1525,7 @@ static bool component_infrastructure_init()
   }
   if (pfs_init_services(&imp_mysql_server_registry_registration))
   {
-    sql_print_error("Failed to bootstrap performance schema components infrastructure.\n");
+    LogErr(ERROR_LEVEL, ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
   }
   return false;
@@ -1500,17 +1537,17 @@ static bool component_infrastructure_init()
 */
 static void server_component_init()
 {
+  mysql_comp_sys_var_services_init();
   /*
     Below are dummy initialization functions. Else linker, is cutting out (as
-    library optimization) the string services, component system variables and
-    backup lock service code. This is because of libsql code is not calling
-    any functions of them
+    library optimization) all the below services code. This is because of
+    libsql code is not calling any functions of them.
   */
   mysql_string_services_init();
   mysql_comp_status_var_services_init();
-  mysql_comp_sys_var_services_init();
   mysql_comp_system_variable_source_init();
   mysql_backup_lock_service_init();
+  mysql_security_context_init();
 }
 
 /**
@@ -1556,7 +1593,7 @@ static bool component_infrastructure_deinit()
 
   if (pfs_deinit_services(&imp_mysql_server_registry_registration))
   {
-    sql_print_error("Failed to deinit performance schema components infrastructure.\n");
+    LogErr(ERROR_LEVEL, ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     return true;
   }
   if (mysql_services_shutdown())
@@ -1564,7 +1601,6 @@ static bool component_infrastructure_deinit()
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     return true;
   }
-
   return false;
 }
 
@@ -1686,7 +1722,7 @@ public:
     if (closing_thd->get_protocol()->connection_alive())
     {
       LEX_CSTRING main_sctx_user= closing_thd->m_main_security_ctx.user();
-      LogErr(WARNING_LEVEL, ER_FORCING_CLOSE, my_progname,
+      LogErr(WARNING_LEVEL, ER_FORCE_CLOSE_THREAD, my_progname,
              (long) closing_thd->thread_id(),
              (main_sctx_user.length ? main_sctx_user.str : ""));
       /*
@@ -1796,6 +1832,34 @@ static void close_connections(void)
 }
 
 
+bool signal_restart_server()
+{
+#ifdef _WIN32
+  if (!SetEvent(hEventRestart))
+  {
+    sql_print_error("Got error: %ld from SetEvent", GetLastError());
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Internal operation failure");
+    return true;
+  }
+#else
+  if (!is_mysqld_managed())
+  {
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0),
+             "mysqld is not managed by supervisor process");
+    return true;
+  }
+
+  if (pthread_kill(signal_thread_id.thread, SIGUSR2))
+  {
+    DBUG_PRINT("error", ("Got error %d from pthread_kill", errno));
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Internal operation failure");
+    return true;
+  }
+#endif
+  return false;
+}
+
+
 void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
@@ -1866,10 +1930,16 @@ static void unireg_abort(int exit_code)
 }
 
 
+void clean_up_mysqld_mutexes()
+{
+  clean_up_mutexes();
+}
+
 static void mysqld_exit(int exit_code)
 {
-  DBUG_ASSERT(exit_code >= MYSQLD_SUCCESS_EXIT
-              && exit_code <= MYSQLD_FAILURE_EXIT);
+  DBUG_ASSERT((exit_code >= MYSQLD_SUCCESS_EXIT
+              && exit_code <= MYSQLD_ABORT_EXIT) ||
+	          exit_code == MYSQLD_RESTART_EXIT);
   mysql_audit_finalize();
   Srv_session::module_deinit();
   delete_optimizer_cost_module();
@@ -1879,18 +1949,13 @@ static void mysqld_exit(int exit_code)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
 #endif
+
 #if defined(_WIN32)
-  if (Service.IsNT() && windows_service)
-  {
-    Service.Stop();
-  }
-  else
-  {
-    Service.SetShutdownEvent(0);
-    if (hEventShutdown)
-      CloseHandle(hEventShutdown);
-  }
-#endif
+  if (hEventShutdown)
+    CloseHandle(hEventShutdown);
+  close_service_status_pipe_in_mysqld();
+#endif // _WIN32
+
   exit(exit_code); /* purecov: inspected */
 }
 
@@ -2025,7 +2090,7 @@ static void clean_up(bool print_message)
     tc_log= NULL;
   }
 
-  if (dd::upgrade::in_progress())
+  if (dd::upgrade_57::in_progress())
     delete_dictionary_tablespace();
 
   delegates_destroy();
@@ -2053,7 +2118,7 @@ static void clean_up(bool print_message)
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(SYSTEM_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname);
+    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname);
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -2141,6 +2206,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_reset_gtid_table);
   mysql_mutex_destroy(&LOCK_compress_gtid_table);
   mysql_cond_destroy(&COND_compress_gtid_table);
+  mysql_mutex_destroy(&LOCK_collect_instance_log);
   mysql_mutex_destroy(&LOCK_password_history);
   mysql_mutex_destroy(&LOCK_password_reuse_interval);
   mysql_cond_destroy(&COND_manager);
@@ -2718,13 +2784,14 @@ void my_init_signals()
 
   (void) sigemptyset(&mysqld_signal_mask);
   /*
-    Block SIGQUIT, SIGHUP and SIGTERM.
+    Block SIGQUIT, SIGHUP, SIGTERM and SIGUSR2.
     The signal handler thread does sigwait() on these.
   */
   (void) sigaddset(&mysqld_signal_mask, SIGQUIT);
   (void) sigaddset(&mysqld_signal_mask, SIGHUP);
   (void) sigaddset(&mysqld_signal_mask, SIGTERM);
   (void) sigaddset(&mysqld_signal_mask, SIGTSTP);
+  (void) sigaddset(&mysqld_signal_mask, SIGUSR2);
   /*
     Block SIGINT unless debugging to prevent Ctrl+C from causing
     unclean shutdown of the server.
@@ -2758,7 +2825,7 @@ static void start_signal_handler()
   (void) my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
 
   /*
-    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL can interrupt
+    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL/SIGUSR2 can interrupt
     the socket listener successfully.
   */
   main_thread_id= my_thread_self();
@@ -2791,6 +2858,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
   (void) sigaddset(&set, SIGTERM);
   (void) sigaddset(&set, SIGQUIT);
   (void) sigaddset(&set, SIGHUP);
+  (void) sigaddset(&set, SIGUSR2);
 
   /*
     Signal to start_signal_handler that we are ready.
@@ -2807,19 +2875,38 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
     all server components have been initialized.
   */
   server_components_init_wait();
-
   for (;;)
   {
     int sig;
+#ifdef __APPLE__
     while (sigwait(&set, &sig) == EINTR)
     {}
+#else
+    siginfo_t sig_info;
+    while (sigwaitinfo(&set, &sig_info) == EINTR)
+    {}
+    sig= sig_info.si_signo;
+#endif // __APPLE__
     if (cleanup_done)
     {
       my_thread_end();
       my_thread_exit(0);      // Safety
       return NULL;            // Avoid compiler warnings
     }
-    switch (sig) {
+    switch (sig)
+    {
+    case SIGUSR2:
+      signal_hand_thr_exit_code= MYSQLD_RESTART_EXIT;
+#ifndef __APPLE__ // Mac OS doesn't have sigwaitinfo.
+      //  Log a note if mysqld is restarted via kill command.
+      if (sig_info.si_pid != getpid())
+      {
+        sql_print_information("Received signal SIGUSR2."
+                              " Restarting mysqld (Version %s)",
+                              server_version);
+      }
+#endif // __APPLE__
+      // fall through
     case SIGTERM:
     case SIGQUIT:
       // Switch to the file log message processing.
@@ -2857,7 +2944,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
         close_connections();
       }
       my_thread_end();
-      my_thread_exit(0);
+      my_thread_exit(nullptr);
       return NULL;  // Avoid compiler warnings
       break;
     case SIGHUP:
@@ -2950,10 +3037,12 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
 
   if (!thd || MyFlags & ME_ERRORLOG)
+  {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .errcode(error)
               .message("%s: %s", my_progname, str);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -3065,6 +3154,7 @@ SHOW_VAR com_status_vars[]= {
   {"create_udf",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_FUNCTION]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_user",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_USER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_view",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_VIEW]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_spatial_reference_system", (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_SRS]),      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"dealloc_sql",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DEALLOCATE_PREPARE]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"delete",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DELETE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"delete_multi",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DELETE_MULTI]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3077,6 +3167,7 @@ SHOW_VAR com_status_vars[]= {
   {"drop_resource_group",  (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_RESOURCE_GROUP]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_role",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_ROLE]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_server",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_SERVER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_spatial_reference_system", (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_SRS]),          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_table",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TABLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_trigger",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TRIGGER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_user",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_USER]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3116,6 +3207,7 @@ SHOW_VAR com_status_vars[]= {
   {"replace_select",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REPLACE_SELECT]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"reset",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESET]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"resignal",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESIGNAL]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"restart",              (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_RESTART_SERVER]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke_all",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ALL]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"revoke_roles",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_REVOKE_ROLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3425,6 +3517,7 @@ int init_common_variables()
     strmake(default_logfile_name, glob_hostname,
       sizeof(default_logfile_name)-5);
 
+  strmake(default_binlogfile_name, STRING_WITH_LEN("binlog"));
   if (opt_initialize || opt_initialize_insecure)
   {
     /*
@@ -3495,6 +3588,29 @@ int init_common_variables()
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
+  /*
+    The opt_bin_log can be false (binary log is disabled) only if
+    --skip-log-bin/--disable-log-bin is configured or while the
+    system is initializing.
+  */
+  if (!opt_bin_log)
+  {
+    /*
+      The log-slave-updates should be disabled if binary log is disabled
+      and --log-slave-updates option is not set explicitly on command
+      line or configuration file.
+    */
+    if (!log_slave_updates_supplied)
+      opt_log_slave_updates= false;
+    /*
+      The slave-preserve-commit-order should be disabled if binary log is
+      disabled and --slave-preserve-commit-order option is not set
+      explicitly on command line or configuration file.
+    */
+    if (!slave_preserve_commit_order_supplied)
+      opt_slave_preserve_commit_order= false;
+  }
+
   update_parser_max_mem_size();
 
   if (set_default_auth_plugin(default_auth_plugin, strlen(default_auth_plugin)))
@@ -3506,7 +3622,7 @@ int init_common_variables()
 
   if (!opt_help)
   {
-    sql_print_information("Basedir set to %s", mysql_home);
+    LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
 
   LogErr(SYSTEM_LEVEL, ER_STARTING_AS,
@@ -3620,7 +3736,7 @@ int init_common_variables()
   while (!(my_default_lc_messages=
            my_locale_by_name(NULL, lc_messages)))
   {
-    LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_messages);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_messages);
     if (!my_strcasecmp(&my_charset_latin1,
                        lc_messages, mysqld_default_locale_name))
       return 1;
@@ -3670,7 +3786,8 @@ int init_common_variables()
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation)
     {
-      LogErr(ERROR_LEVEL, ER_UNKNOWN_COLLATION, default_collation_name);
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_COLLATION_NAME,
+             default_collation_name);
       return 1;
     }
     if (!my_charset_same(default_charset_info, default_collation))
@@ -3715,7 +3832,7 @@ int init_common_variables()
   while (!(my_default_lc_time_names=
            my_locale_by_name(NULL, lc_time_names_name)))
   {
-    LogErr(ERROR_LEVEL, ER_UNKNOWN_LOCALE, lc_time_names_name);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_time_names_name);
     if (!my_strcasecmp(&my_charset_latin1,
                        lc_time_names_name, mysqld_default_locale_name))
       return 1;
@@ -3753,8 +3870,9 @@ int init_common_variables()
   if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
       && mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode != DEPENDENCY_TRACKING_COMMIT_ORDER)
   {
-    sql_print_error("The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32"
-                    " when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.");
+    LogErr(ERROR_LEVEL,
+           ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING,
+           "XXHASH64 or MURMUR32", "WRITESET or WRITESET_SESSION");
     return 1;
   }
   else
@@ -3892,6 +4010,8 @@ static int init_thread_environment()
                    &LOCK_reset_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_compress_gtid_table,
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_collect_instance_log,
+                   &LOCK_collect_instance_log, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
                   &COND_compress_gtid_table);
   Events::init_mutexes();
@@ -4052,7 +4172,11 @@ static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  OPENSSL_malloc_init();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
   ssl_start();
 #endif
@@ -4081,7 +4205,9 @@ static int init_ssl_communication()
 					  opt_ssl_cipher, &error,
                                           opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p", ssl_acceptor_fd));
-    ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     if (!ssl_acceptor_fd)
     {
       /*
@@ -4172,8 +4298,6 @@ static int generate_server_uuid()
     mysqlds on the same host. This avoids that another mysqld started
     at the same time on the same host get the same "server_uuid".
   */
-  LogErr(INFORMATION_LEVEL, ER_UUID_SALT, current_pid,
-         (ulong)server_start_time, thd->status_var.bytes_sent);
 
   const time_t save_server_start_time= server_start_time;
   server_start_time+= ((ulonglong)current_pid << 48) + current_pid;
@@ -4184,8 +4308,6 @@ static int generate_server_uuid()
   func_uuid->fixed= 1;
   func_uuid->val_str(&uuid);
 
-  LogErr(INFORMATION_LEVEL, ER_UUID_IS, uuid.c_ptr(),
-         (ulong)server_start_time, thd->status_var.bytes_sent);
   // Restore global variables used for salting
   server_start_time = save_server_start_time;
 
@@ -4326,7 +4448,15 @@ static int init_server_auto_options()
     if (generate_server_uuid())
       goto err;
     DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
-    LogErr(WARNING_LEVEL, ER_CREATING_NEW_UUID, server_uuid);
+    if (opt_initialize || opt_initialize_insecure)
+    {
+      LogErr(INFORMATION_LEVEL, ER_CREATING_NEW_UUID_FIRST_START, server_uuid);
+
+    }
+    else
+    {
+      LogErr(WARNING_LEVEL, ER_CREATING_NEW_UUID, server_uuid);
+    }
   }
 
   if (flush)
@@ -4456,8 +4586,7 @@ static int init_server_components()
       nstdout= fdopen(dup(STDOUT_FILENO), "a");
       if (nstdout == nullptr)
       {
-        sql_print_error("Could not open duplicate fd for stdout: %s",
-                        strerror(errno));
+        LogErr(ERROR_LEVEL, ER_DUP_FD_OPEN_FAILED, "stdout", strerror(errno));
         unireg_abort(MYSQLD_ABORT_EXIT);
       }
       // Display location of error log file on stdout if connected to tty
@@ -4472,7 +4601,7 @@ static int init_server_components()
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 #ifdef _WIN32
-    FreeConsole();        // Remove window
+    // FreeConsole();        // Remove window
 #endif /* _WIN32 */
   }
   else
@@ -4558,14 +4687,24 @@ static int init_server_components()
 
     char buf[FN_REFLEN];
     const char *ln;
-    /*
-      Binary log basename defaults to "`hostname`-bin" name prefix
-      if no configuration and argument were provided to --log-bin
-      and --loose-log-bin, and no one of --(loose-)skip-log-bin
-      and --(loose-)disable-log-bin is set explicitly.
-    */
-    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", buf);
-    if (!opt_bin_logname && !opt_binlog_index_name)
+    if (log_bin_supplied)
+    {
+      /*
+        Binary log basename defaults to "`hostname`-bin" name prefix
+        if --log-bin is used without argument.
+      */
+      ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", buf);
+    }
+    else
+    {
+      /*
+        Binary log basename defaults to "binlog" name prefix
+        if --log-bin is not used.
+      */
+      ln= mysql_bin_log.generate_name(opt_bin_logname, "", buf);
+    }
+
+    if (!opt_bin_logname && !opt_binlog_index_name && log_bin_supplied)
     {
       /*
         User didn't give us info to name the binlog index file.
@@ -4574,7 +4713,7 @@ static int init_server_components()
         require a name. But as we don't want to break many existing setups, we
         only give warning, not error.
       */
-      LogErr(WARNING_LEVEL, ER_LOG_BIN_BETTER_WITH_NAME, ln);
+      LogErr(INFORMATION_LEVEL, ER_LOG_BIN_BETTER_WITH_NAME, ln);
     }
     if (ln == buf)
     {
@@ -4601,10 +4740,21 @@ static int init_server_components()
       not an empty string, incase it is an empty string default file
       extension will be passed
      */
-    log_bin_basename=
-      rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
-                        opt_bin_logname, default_logfile_name,
-                        (opt_bin_logname && opt_bin_logname[0]) ? "" : "-bin");
+    if (log_bin_supplied)
+    {
+      log_bin_basename=
+        rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
+                          opt_bin_logname, default_logfile_name,
+                          (opt_bin_logname && opt_bin_logname[0]) ?
+                          "" : "-bin");
+    }
+    else
+    {
+      log_bin_basename=
+        rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
+                          opt_bin_logname, default_binlogfile_name, "");
+    }
+
     log_bin_index=
       rpl_make_log_name(key_memory_MYSQL_BIN_LOG_index,
                         opt_binlog_index_name, log_bin_basename, ".index");
@@ -4680,10 +4830,11 @@ static int init_server_components()
   if (log_bin_basename != NULL && !strcmp(log_bin_basename, relay_log_basename))
   {
     const int bin_ext_length= 4;
-    char default_binlogfile_name[FN_REFLEN+bin_ext_length];
+    char default_binlogfile_name_from_hostname[FN_REFLEN+bin_ext_length];
     /* Generate default bin log file name. */
-    strmake(default_binlogfile_name, default_logfile_name, FN_REFLEN - 1);
-    strcat(default_binlogfile_name, "-bin");
+    strmake(default_binlogfile_name_from_hostname, default_logfile_name,
+            FN_REFLEN - 1);
+    strcat(default_binlogfile_name_from_hostname, "-bin");
 
     if (!default_relaylogfile_name[0])
     {
@@ -4697,6 +4848,7 @@ static int init_server_components()
     */
     LogErr(ERROR_LEVEL, ER_RPL_CANT_HAVE_SAME_BASENAME, log_bin_basename,
            "--log-bin", default_binlogfile_name,
+           default_binlogfile_name_from_hostname,
            "--relay-log", default_relaylogfile_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -4726,10 +4878,10 @@ static int init_server_components()
       {
       case ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED:
       case ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES:
-        sql_print_warning(ER_DEFAULT(err), msg, "PARTIAL_JSON");
+        LogErr(WARNING_LEVEL, err, msg, "PARTIAL_JSON");
         break;
       case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
-        sql_print_warning(ER_DEFAULT(err), msg);
+        LogErr(WARNING_LEVEL, err, msg);
         break;
       default:
         DBUG_ASSERT(0); /* purecov: deadcode */
@@ -4748,6 +4900,19 @@ static int init_server_components()
   {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
     unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  {
+    /*
+      We have to call a function in instance_log_resource.cc, or its references
+      won't be visible to plugins.
+    */
+#ifndef DBUG_OFF
+    int dummy=
+#endif
+      Instance_log_resource::
+      dummy_function_to_ensure_we_are_linked_into_the_server();
+    DBUG_ASSERT(dummy == 1);
   }
 
   /*
@@ -4806,7 +4971,7 @@ static int init_server_components()
 
       if (dd::init(dd::enum_dd_init_type::DD_INITIALIZE_SYSTEM_VIEWS))
       {
-        sql_print_error("System views initialization failed.");
+        LogErr(ERROR_LEVEL, ER_SYSTEM_VIEW_INIT_FAILED);
         unireg_abort(1);
       }
     }
@@ -4840,7 +5005,7 @@ static int init_server_components()
                                PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
     // Delete all DD tables in case of error in initializing plugins.
-    if (dd::upgrade::in_progress())
+    if (dd::upgrade_57::in_progress())
       (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
 
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
@@ -4864,10 +5029,10 @@ static int init_server_components()
     dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE) returned.
     So make its copy to call init_pfs_tables() with right argument value later.
   */
-  bool dd_upgrade_was_initiated= dd::upgrade::in_progress();
+  bool dd_upgrade_was_initiated= dd::upgrade_57::in_progress();
 #endif
   // Populate DD tables with meta data from 5.7 in case of upgrade
-  if (!opt_help && dd::upgrade::in_progress() &&
+  if (!opt_help && dd::upgrade_57::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE))
   {
     LogErr(ERROR_LEVEL, ER_DD_POPULATING_TABLES_FAILED);
@@ -4878,7 +5043,7 @@ static int init_server_components()
     Store server and plugin IS tables metadata into new DD.
     This is done after all the plugins are registered.
   */
-  if (!opt_help && !opt_initialize && !dd::upgrade::in_progress() &&
+  if (!opt_help && !opt_initialize && !dd::upgrade_57::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_UPDATE_I_S_METADATA))
   {
     LogErr(ERROR_LEVEL, ER_DD_UPDATING_PLUGIN_MD_FAILED);
@@ -4898,7 +5063,7 @@ static int init_server_components()
 
     if (st)
     {
-      sql_print_error("Performance schema initialization failed.");
+      LogErr(ERROR_LEVEL, ER_PERFSCHEMA_TABLES_INIT_FAILED);
       unireg_abort(1);
     }
   }
@@ -4910,7 +5075,7 @@ static int init_server_components()
   {
     if (res_grp_mgr->post_init())
     {
-      sql_print_error("Resource group post initialization failed");
+      LogErr(ERROR_LEVEL, ER_RESOURCE_GROUP_POST_INIT_FAILED);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
@@ -5048,7 +5213,7 @@ static int init_server_components()
   if (gtid_mode == GTID_MODE_ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
-    LogErr(ERROR_LEVEL, ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON);
+    LogErr(ERROR_LEVEL, ER_RPL_GTID_MODE_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
@@ -5081,9 +5246,7 @@ static int init_server_components()
 
     if (binlog_expire_logs_seconds)
     {
-      sql_print_warning("The option expire_logs_days cannot be used together"
-                        " with option binlog_expire_logs_seconds. Therefore,"
-                        " value of expire_logs_days is ignored.");
+      LogErr(WARNING_LEVEL, ER_BINLOG_EXPIRAY_LOG_DAYS_AND_SECS_USED_TOGETHER);
       purge_time= my_time(0) - binlog_expire_logs_seconds;
     }
     else
@@ -5130,15 +5293,27 @@ static int init_server_components()
 
 #ifdef _WIN32
 
-extern "C" void *handle_shutdown(void *arg)
+extern "C" void *handle_shutdown_and_restart(void *arg)
 {
   MSG msg;
+  HANDLE event_handles[2];
+  event_handles[0]= hEventShutdown;
+  event_handles[1]= hEventRestart;
+
   my_thread_init();
   /* This call should create the message queue for this thread. */
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
-  if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
+  DWORD ret_code= WaitForMultipleObjects(2, static_cast<HANDLE*>(event_handles),
+                                         FALSE, INFINITE);
+
+
+  if (ret_code == WAIT_OBJECT_0 || ret_code == WAIT_OBJECT_0 + 1)
   {
-    LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
+    if (ret_code == WAIT_OBJECT_0)
+      LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
+    else
+      signal_hand_thr_exit_code= MYSQLD_RESTART_EXIT;
+
     set_connection_events_loop_aborted(true);
     close_connections();
     my_thread_end();
@@ -5148,19 +5323,29 @@ extern "C" void *handle_shutdown(void *arg)
 }
 
 
-static void create_shutdown_thread()
+static void create_shutdown_and_restart_thread()
 {
-  hEventShutdown=CreateEvent(0, false, false, shutdown_event_name);
+  DBUG_ENTER("create_shutdown_and_restart_thread");
+
+  const char *errmsg;
   my_thread_attr_t thr_attr;
-  DBUG_ENTER("create_shutdown_thread");
+  SECURITY_ATTRIBUTES *shutdown_sec_attr;
+
+  my_security_attr_create(&shutdown_sec_attr, &errmsg, GENERIC_ALL,
+			  SYNCHRONIZE | EVENT_MODIFY_STATE);
+
+  hEventShutdown= CreateEvent(shutdown_sec_attr, FALSE, FALSE,
+			      shutdown_event_name);
+  hEventRestart= CreateEvent(0, FALSE, FALSE, restart_event_name);
 
   my_thread_attr_init(&thr_attr);
 
-  if (my_thread_create(&shutdown_thr_handle, &thr_attr, handle_shutdown, 0))
+  if (my_thread_create(&shutdown_restart_thr_handle, &thr_attr,
+		       handle_shutdown_and_restart, 0))
     LogErr(WARNING_LEVEL, ER_CANT_CREATE_SHUTDOWN_THREAD, errno);
+
+  my_security_attr_free(shutdown_sec_attr);
   my_thread_attr_destroy(&thr_attr);
-  // On "Stop Service" we have to do regular shutdown
-  Service.SetShutdownEvent(hEventShutdown);
 }
 #endif /* _WIN32 */
 
@@ -5518,7 +5703,7 @@ int mysqld_main(int argc, char **argv)
   {
     if (res_grp_mgr->init())
     {
-      sql_print_error("Resource Group subsystem initialization failed.");
+      LogErr(ERROR_LEVEL, ER_RESOURCE_GROUP_SUBSYSTEM_INIT_FAILED);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
@@ -5626,15 +5811,13 @@ int mysqld_main(int argc, char **argv)
   {
     if (chdir("/") < 0)
     {
-      fprintf(stderr, "Cannot change to root directory: %s\n",
-                      strerror(errno));
+      LogErr(ERROR_LEVEL, ER_CANNOT_CHANGE_TO_ROOT_DIR, strerror(errno));
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     if ((pipe_write_fd= mysqld::runtime::mysqld_daemonize()) < -1)
     {
-      sql_print_error("Failed to start mysqld daemon. "
-                      "Check mysqld error log.");
+      LogErr(ERROR_LEVEL, ER_FAILED_START_MYSQLD_DAEMON);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
@@ -5714,8 +5897,7 @@ int mysqld_main(int argc, char **argv)
                 opt_keyring_migration_socket,
                 opt_keyring_migration_port))
     {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
+      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
       log_error_dest= "stderr";
       flush_error_log_messages();
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -5723,19 +5905,17 @@ int mysqld_main(int argc, char **argv)
 
     if (mk.execute())
     {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
+      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
       log_error_dest= "stderr";
       flush_error_log_messages();
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 
     my_getopt_skip_unknown= 0;
-    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "sucessfull");
+    LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
     log_error_dest= "stderr";
     flush_error_log_messages();
-    exit(MYSQLD_SUCCESS_EXIT);
+    unireg_abort(MYSQLD_SUCCESS_EXIT);
   }
 
   /*
@@ -5752,7 +5932,16 @@ int mysqld_main(int argc, char **argv)
    Thus set the long running service control manager timeout
   */
 #if defined(_WIN32)
-  Service.SetSlowStarting(slow_start_timeout);
+  if (windows_service)
+  {
+    if (setup_service_status_cmd_processed_handle())
+      unireg_abort(MYSQLD_ABORT_EXIT);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "T %lu", slow_start_timeout);
+    Service_status_msg msg(buf);
+    send_service_status(msg);
+  }
 #endif
 
   if (init_server_components())
@@ -5769,7 +5958,7 @@ int mysqld_main(int argc, char **argv)
   }
 
   if (!server_id_supplied)
-    LogErr(WARNING_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
+    LogErr(INFORMATION_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
 
 
   /*
@@ -5793,9 +5982,12 @@ int mysqld_main(int argc, char **argv)
   if (gtid_ret)
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  // Initialize executed_gtids from mysql.gtid_executed table.
-  if (gtid_state->read_gtid_executed_from_table() == -1)
-    unireg_abort(1);
+  if (!opt_initialize && !opt_initialize_insecure)
+  {
+    // Initialize executed_gtids from mysql.gtid_executed table.
+    if (gtid_state->read_gtid_executed_from_table() == -1)
+      unireg_abort(1);
+  }
 
   if (opt_bin_log)
   {
@@ -6003,9 +6195,7 @@ int mysqld_main(int argc, char **argv)
       and issue a warning.
     */
     opt_noacl= true;
-    sql_print_warning("The privilege system failed to initialize correctly. "
-      "If you have upgraded your server, make sure you're executing "
-      "mysql_upgrade to correct the issue.");
+    LogErr(WARNING_LEVEL, ER_PRIVILEGE_SYSTEM_INIT_FAILED);
   }
   if (abort || my_tz_init((THD *)0, default_tz_name, opt_initialize)
       || grant_init(opt_noacl))
@@ -6076,9 +6266,8 @@ int mysqld_main(int argc, char **argv)
   }
   else
   {
-    sql_print_information("Cannot set services \"%s\" requested in "
-                          "--log-error-services, using defaults",
-                          opt_log_error_services);
+    LogErr(INFORMATION_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
+           opt_log_error_services);
     /*
       We were given an illegal value at start-up, so the default was
       used instead. We have reported the problem (and the dodgy value);
@@ -6096,7 +6285,7 @@ int mysqld_main(int argc, char **argv)
   */
   if (dynamic_privilege_init())
   {
-    sql_print_warning("Failed to bootstrap persistent privileges.");
+    LogErr(WARNING_LEVEL, ER_PERSISTENT_PRIVILEGES_BOOTSTRAP);
   }
 
   if (!opt_initialize)
@@ -6197,7 +6386,7 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
-  create_shutdown_thread();
+  create_shutdown_and_restart_thread();
 #endif
   start_handle_manager();
 
@@ -6205,7 +6394,7 @@ int mysqld_main(int argc, char **argv)
 
   LogEvent().type(LOG_TYPE_ERROR)
             .prio(SYSTEM_LEVEL)
-            .lookup(ER_STARTUP,
+            .lookup(ER_SERVER_STARTUP_MSG,
                     my_progname,
                     server_version,
 #  ifdef HAVE_SYS_UN_H
@@ -6216,7 +6405,11 @@ int mysqld_main(int argc, char **argv)
                     mysqld_port, MYSQL_COMPILATION_COMMENT);
 
 #if defined(_WIN32)
-  Service.SetRunning();
+  if (windows_service)
+  {
+    Service_status_msg s("R");
+    send_service_status(s);
+  }
 #endif
 
   server_components_initialized();
@@ -6294,21 +6487,21 @@ int mysqld_main(int argc, char **argv)
   DBUG_PRINT("info", ("Waiting for shutdown proceed"));
   int ret= 0;
 #ifdef _WIN32
-  if (shutdown_thr_handle.handle)
-    ret= my_thread_join(&shutdown_thr_handle, NULL);
-  shutdown_thr_handle.handle= NULL;
+  if (shutdown_restart_thr_handle.handle)
+    ret= my_thread_join(&shutdown_restart_thr_handle, NULL);
+  shutdown_restart_thr_handle.handle= NULL;
   if (0 != ret)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "shutdown ", ret);
 #else
   if (signal_thread_id.thread != 0)
-    ret= my_thread_join(&signal_thread_id, NULL);
+    ret= my_thread_join(&signal_thread_id, nullptr);
   signal_thread_id.thread= 0;
   if (0 != ret)
     LogErr(WARNING_LEVEL, ER_CANT_JOIN_SHUTDOWN_THREAD, "signal_", ret);
-#endif
+#endif // _WIN32
 
   clean_up(1);
-  mysqld_exit(MYSQLD_SUCCESS_EXIT);
+  mysqld_exit(signal_hand_thr_exit_code);
 }
 
 
@@ -6318,18 +6511,58 @@ int mysqld_main(int argc, char **argv)
 ****************************************************************************/
 
 #if defined(_WIN32)
+
+
+bool is_windows_service()
+{
+  return windows_service;
+}
+
+
+NTService *get_win_service_ptr()
+{
+  return &Service;
+}
+
+
 int mysql_service(void *p)
 {
+  int my_argc;
+  char **my_argv;
+
+  if (use_opt_args)
+  {
+    my_argc= opt_argc;
+    my_argv= opt_argv;
+  }
+  else if (is_mysqld_monitor())
+  {
+      my_argc= Service.my_argc;
+      my_argv= Service.my_argv;
+  }
+  else
+  {
+    my_argc= my_global_argc;
+    my_argv= my_global_argv;
+  }
+
+  if (!mysqld_early_option)
+  {
+    int res= start_monitor();
+    if (res != -1)
+    {
+      deinitialize_mysqld_monitor();
+      return res;
+    }
+  }
+
   if (my_thread_init())
   {
     flush_error_log_messages();
     return 1;
   }
 
-  if (use_opt_args)
-    win_main(opt_argc, opt_argv);
-  else
-    win_main(Service.my_argc, Service.my_argv);
+  win_main(my_argc, my_argv);
 
   my_thread_end();
   return 0;
@@ -6422,29 +6655,47 @@ default_service_handling(char **argv,
 
 int mysqld_main(int argc, char **argv)
 {
-  /*
-    When several instances are running on the same machine, we
-    need to have an  unique  named  hEventShudown  through the
-    application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
-  */
-  int10_to_str((int) GetCurrentProcessId(),my_stpcpy(shutdown_event_name,
-                                                  "MySQLShutdown"), 10);
+   bool mysqld_monitor= false;
+   mysqld_early_option= is_early_option(argc, argv);
 
-  /* Must be initialized early for comparison of service name */
-  system_charset_info= &my_charset_utf8_general_ci;
+   if (!mysqld_early_option)
+   {
+     initialize_mysqld_monitor();
+     mysqld_monitor = is_mysqld_monitor();
+   }
 
+   if (mysqld_early_option || !mysqld_monitor)
+   {
+     /*
+       When several instances are running on the same machine, we
+       need to have an  unique  named  hEventShudown  through the
+       application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
+     */
+
+     snprintf(shutdown_event_name, sizeof(shutdown_event_name),
+              "mysqld%s_shutdown",  get_monitor_pid());
+     int10_to_str((int)GetCurrentProcessId(),
+                  my_stpcpy(restart_event_name, "MYSQLRestart"), 10);
+   }
+
+   /* Must be initialized early for comparison of service name */
+   system_charset_info= &my_charset_utf8_general_ci;
+
+   if (mysqld_early_option || !mysqld_monitor)
+   {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  pre_initialize_performance_schema();
+     pre_initialize_performance_schema();
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-  if (my_init())
-  {
-    LogErr(ERROR_LEVEL, ER_MYINIT_FAILED);
-    flush_error_log_messages();
-    return 1;
-  }
+     if (my_init())
+     {
+       LogErr(ERROR_LEVEL, ER_MYINIT_FAILED);
+       flush_error_log_messages();
+       return 1;
+     }
+   }
 
-  if (Service.GetOS())  /* true NT family */
+  if (Service.GetOS() && mysqld_monitor)  /* true NT family */
   {
     char file_path[FN_REFLEN];
     my_path(file_path, argv[0], "");          /* Find name in path */
@@ -6467,6 +6718,7 @@ int mysqld_main(int argc, char **argv)
         if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
           load_default_groups[load_default_groups_sz-2]= argv[1];
         windows_service= true;
+
         Service.Init(argv[1], mysql_service);
         return 0;
       }
@@ -6525,11 +6777,21 @@ int mysqld_main(int argc, char **argv)
       return 0;
     }
   }
-  /* Start as standalone server */
-  Service.my_argc=argc;
-  Service.my_argv=argv;
-  mysql_service(NULL);
-  return 0;
+
+  // Set windows_service value in mysqld
+  if (!mysqld_monitor)
+  {
+    windows_service= is_monitor_win_service();
+    my_global_argc= argc;
+    my_global_argv= argv;
+  }
+  else
+  {
+    Service.my_argc= argc;
+    Service.my_argv= argv;
+  }
+
+  return mysql_service(NULL);
 }
 #endif // _WIN32
 
@@ -6782,6 +7044,11 @@ struct my_option my_long_early_options[]=
    "Port number to use for connection.",
    &opt_keyring_migration_port, &opt_keyring_migration_port,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-dd-upgrade", 0,
+   "Abort restart if automatic upgrade or downgrade of the data dictionary "
+   "is needed.",
+   &opt_no_dd_upgrade, &opt_no_dd_upgrade, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -6907,11 +7174,12 @@ struct my_option my_long_options[]=
    &lc_time_names_name, &lc_time_names_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"log-bin", OPT_BIN_LOG,
-   "Configures the name prefix to use for binary log files. The name prefix "
-   "defaults to `hostname`-bin if the --log-bin option is not configured. "
-   "To set a different name prefix for binary log files use --log-bin=name. "
-   "To disable binary logging use the --skip-log-bin or --disable-log-bin "
-   "option.",
+   "Configures the name prefix to use for binary log files. If the --log-bin "
+   "option is not supplied, the name prefix defaults to \"binlog\". If the "
+   "--log-bin option is supplied without argument, the name prefix defaults "
+   "to \"HOSTNAME-bin\", where HOSTNAME is the machine's hostname. To set a "
+   "different name prefix for binary log files, use --log-bin=name. To disable "
+   "binary logging, use the --skip-log-bin or --disable-log-bin option.",
    &opt_bin_logname, &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", 0,
@@ -8458,16 +8726,15 @@ mysqld_get_one_option(int optid,
   case 's':
     if (argument[0] == '0')
     {
-      sql_print_warning("Disabling symbolic links using --skip-symbolic-links "
-                        "(or equivalent) is the default. Consider not using "
-                        "this option as it is deprecated and will be removed "
-                        "in a future release.");
+      LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
+             "Disabling symbolic links using --skip-symbolic-links"
+             " (or equivalent) is the default. Consider not using"
+             " this option as it");
     }
     else
     {
-      sql_print_warning("Enabling symbolic links using --symbolic-links/-s "
-                        "(or equivalent) is deprecated and will be removed in "
-                        "a future release.");
+      LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
+             "Enabling symbolic using --symbolic-links/-s (or equivalent)");
     }
     break;
   case 'L':
@@ -8528,6 +8795,7 @@ mysqld_get_one_option(int optid,
         opt_bin_logname= NULL;
       }
     }
+    log_bin_supplied= true;
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
@@ -8631,7 +8899,7 @@ mysqld_get_one_option(int optid,
     {
       if (rpl_global_filter.add_wild_do_table(argument))
       {
-        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED, argument);
         return 1;
       }
       rpl_global_filter.wild_do_table_statistics.set_all(
@@ -8643,7 +8911,7 @@ mysqld_get_one_option(int optid,
       rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_do_table(filter_val))
       {
-        sql_print_error("Could not add wild do table rule '%s'!\n", argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED, argument);
         return 1;
       }
       rpl_filter->wild_do_table_statistics.set_all(
@@ -8657,8 +8925,8 @@ mysqld_get_one_option(int optid,
     {
       if (rpl_global_filter.add_wild_ignore_table(argument))
       {
-        sql_print_error("Could not add wild ignore table rule '%s'!\n",
-                        argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED,
+               argument);
         return 1;
       }
       rpl_global_filter.wild_ignore_table_statistics.set_all(
@@ -8670,8 +8938,8 @@ mysqld_get_one_option(int optid,
       rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_ignore_table(filter_val))
       {
-        sql_print_error("Could not add wild ignore table rule '%s'!\n",
-                        argument);
+        LogErr(ERROR_LEVEL, ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED,
+               argument);
         return 1;
       }
       rpl_filter->wild_ignore_table_statistics.set_all(
@@ -8923,6 +9191,12 @@ pfs_error:
   case OPT_KEYRING_MIGRATION_PORT:
     migrate_connect_options= 1;
     break;
+  case OPT_LOG_SLAVE_UPDATES:
+    log_slave_updates_supplied= true;
+    break;
+  case OPT_SLAVE_PRESERVE_COMMIT_ORDER:
+    slave_preserve_commit_order_supplied= true;
+    break;
   case OPT_ENFORCE_GTID_CONSISTENCY:
   {
     const char *wrong_value=
@@ -9024,7 +9298,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if (opt_help || opt_initialize)
   {
     /*
-      Show errors during --help, but gag everything else so the info the
+      Show errors during --help, but mute everything else so the info the
       user actually wants isn't lost in the spam.  (For --help --verbose,
       we need to set up far enough to be able to print variables provided
       by plugins, so a good number of warnings/notes might get printed.)
@@ -9631,6 +9905,41 @@ static int test_if_case_insensitive(const char *dir_name)
 static void create_pid_file()
 {
   File file;
+  bool check_parent_path= 1, is_path_accessible= 1;
+  char pid_filepath[FN_REFLEN], *pos= NULL;
+  /* Copy pid file name to get pid file path */
+  strcpy(pid_filepath, pidfile_name);
+
+  /* Iterate through the entire path to check if even one of the sub-dirs
+     is world-writable */
+  while (check_parent_path && (pos= strrchr(pid_filepath, FN_LIBCHAR))
+         && (pos != pid_filepath)) /* shouldn't check root */
+  {
+    *pos= '\0';  /* Trim the inner-most dir */
+    switch (is_file_or_dir_world_writable(pid_filepath))
+    {
+      case -2:
+        is_path_accessible= 0;
+        break;
+      case -1:
+        sql_print_error("Can't start server: can't check PID filepath: %s",
+                        strerror(errno));
+        exit(MYSQLD_ABORT_EXIT);
+      case 1:
+        sql_print_warning("Insecure configuration for --pid-file: Location "
+                          "'%s' in the path is accessible to all OS users. "
+                          "Consider choosing a different directory.",
+                          pid_filepath);
+        check_parent_path= 0;
+        break;
+      case 0:
+        continue; /* Keep checking the parent dir */
+    }
+  }
+  if (!is_path_accessible)
+  {
+    sql_print_warning("Few location(s) are inaccessible while checking PID filepath.");
+  }
   if ((file= mysql_file_create(key_file_pid, pidfile_name, 0664,
                                O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {
@@ -9698,7 +10007,7 @@ static void delete_dictionary_tablespace()
   (void) mysql_file_delete(key_file_misc, path, MYF(MY_WME));
 
   // Drop file which tracks progress of upgrade.
-  dd::upgrade::Upgrade_status().remove();
+  dd::upgrade_57::Upgrade_status().remove();
 }
 
 /**
@@ -9887,6 +10196,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_collect_instance_log, "LOCK_collect_instance_log", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0, 0, PSI_DOCUMENT_ME},
   { &key_thd_timer_mutex, "thd_timer_mutex", 0, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0, 0, PSI_DOCUMENT_ME},
@@ -10017,7 +10327,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_namedpipes, "con_named_pipes", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_handle_con_sharedmem, "con_shared_mem", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_handle_shutdown_restart, "shutdown_restart", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #endif /* _WIN32 */
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_handle_manager, "manager", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},

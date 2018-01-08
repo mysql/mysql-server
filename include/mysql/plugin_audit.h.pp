@@ -123,6 +123,7 @@ void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
+void remove_ssl_err_thread_state();
 #include "mysql/mysql_lex_string.h"
 struct MYSQL_LEX_STRING
 {
@@ -329,6 +330,9 @@ enum enum_sql_command {
   SQLCOM_CLONE,
   SQLCOM_LOCK_INSTANCE,
   SQLCOM_UNLOCK_INSTANCE,
+  SQLCOM_RESTART_SERVER,
+  SQLCOM_CREATE_SRS,
+  SQLCOM_DROP_SRS,
   SQLCOM_END
 };
 typedef enum

@@ -93,6 +93,7 @@ INSERT INTO t1 VALUES (3);
 --let $rpl_channel_name= ''
 --source include/show_relaylog_events.inc
 --let $rpl_channel_name= 'ch1'
+--let $binlog_limit= 3
 --source include/show_relaylog_events.inc
 
 --echo #
@@ -137,6 +138,7 @@ DELETE FROM t1 WHERE c1 = 4;
 --echo #
 
 --let $rpl_channel_name=
+--let $binlog_limit=
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
 --source include/rpl_connection_master.inc

@@ -99,6 +99,8 @@ connection master;
 
 # show the binlog events on the master
 connection master;
+--let $mask_user_password_events=1
 source include/show_binlog_events.inc;
+--let $mask_user_password_events=0
 
 --source ../inc/group_replication_end.inc

@@ -1,17 +1,24 @@
-/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD_SYSTEM_VIEWS__SYSTEM_VIEW_DEFINITION_IMPL_INCLUDED
 #define DD_SYSTEM_VIEWS__SYSTEM_VIEW_DEFINITION_IMPL_INCLUDED
@@ -78,11 +85,14 @@ public:
     @param field_number  Ordinal position of field in the projection list.
     @param field_name    Field name used for the SELECT's projection.
     @param field_definition Expression representing the projection.
+    @param add_quotes    If true, output single quotes around the
+                         field_definition.
 
     @return void.
   */
   virtual void add_field(int field_number, const String_type &field_name,
-                         const String_type field_definition)
+                         const String_type field_definition,
+                         bool add_quotes=false)
   {
     // Make sure the field_number and field_name are not added twise.
     DBUG_ASSERT(
@@ -94,7 +104,15 @@ public:
 
     // Store the field definition expression.
     Stringstream_type ss;
-    ss << field_definition << " AS " << field_name;
+    if (add_quotes)
+    {
+      DBUG_ASSERT(field_definition.find('\'') == String_type::npos);
+      ss << '\'' << field_definition << '\'';
+    }
+    else
+      ss << field_definition;
+
+    ss << " AS " << field_name;
     m_field_definitions[field_number]= ss.str();
   }
 

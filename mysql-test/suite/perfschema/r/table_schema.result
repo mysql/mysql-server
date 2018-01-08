@@ -821,6 +821,10 @@ def	performance_schema	host_cache	FIRST_SEEN	26	0000-00-00 00:00:00	NO	timestamp
 def	performance_schema	host_cache	LAST_SEEN	27	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	host_cache	LAST_ERROR_SEEN	29	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	instance_log_status	SERVER_UUID	1	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references			NULL
+def	performance_schema	instance_log_status	MASTER	2	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references			NULL
+def	performance_schema	instance_log_status	CHANNELS	3	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references			NULL
+def	performance_schema	instance_log_status	STORAGE_ENGINES	4	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references			NULL
 def	performance_schema	memory_summary_by_account_by_event_name	USER	1	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	MUL		select,insert,update,references			NULL
 def	performance_schema	memory_summary_by_account_by_event_name	HOST	2	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references			NULL
 def	performance_schema	memory_summary_by_account_by_event_name	EVENT_NAME	3	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references			NULL
@@ -884,13 +888,14 @@ def	performance_schema	memory_summary_global_by_event_name	HIGH_NUMBER_OF_BYTES_
 def	performance_schema	metadata_locks	OBJECT_TYPE	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references			NULL
 def	performance_schema	metadata_locks	OBJECT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	metadata_locks	OBJECT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_TYPE	5	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_DURATION	6	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_STATUS	7	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	SOURCE	8	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OWNER_THREAD_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OWNER_EVENT_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	COLUMN_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_TYPE	6	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_DURATION	7	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_STATUS	8	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	SOURCE	9	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OWNER_THREAD_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OWNER_EVENT_ID	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references			NULL
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
@@ -1009,6 +1014,8 @@ def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INT
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	18	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3) unsigned			select,insert,update,references	Number of seconds after which a heartbeat will be sent .		NULL
 def	performance_schema	replication_connection_configuration	TLS_VERSION	19	NULL	NO	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	PUBLIC_KEY_PATH	20	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	GET_PUBLIC_KEY	21	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references			NULL

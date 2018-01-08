@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1097,6 +1104,60 @@ public:
     return false;
   }
 };
+
+void Window::remove_unused_windows(THD *thd,
+                                   List<Window> &windows)
+{
+  /*
+    Go through the list. Check if a window is used by any function. If not,
+    check if any other window (used by window functions) is actually inheriting
+    from this window. If not, remove this window definition.
+  */
+  List_iterator<Window> wi1(windows);
+  for (Window *w1= wi1++; w1 != nullptr; w1= wi1++)
+  {
+    if (w1->m_functions.elements == 0)
+    {
+      /*
+        No window functions use this window, so check if other used window
+        definitions inherit from this window.
+      */
+      bool window_used= false;
+      List_iterator<Window> wi2(windows);
+      for (const Window *w2= wi2++; w2 != nullptr; w2= wi2++)
+      {
+        if (w2->m_functions.elements > 0)
+        {
+          /*
+            Go through the ancestor list and see if the current window
+            definition is used by this window.
+          */
+          for (const Window *w_a= w2->m_ancestor; w_a != nullptr;
+               w_a= w_a->m_ancestor)
+          {
+            // Can't inherit from unnamed window:
+            DBUG_ASSERT(w_a->m_name != nullptr);
+
+            if (my_strcasecmp(system_charset_info,
+                              w1->m_name->str_value.ptr(),
+                              w_a->m_name->str_value.ptr()) == 0)
+            {
+              window_used= true;
+              break;
+            }
+          }
+        }
+        if (window_used)
+          break;
+      }
+      if (!window_used)
+      {
+        w1->cleanup(thd);
+        wi1.remove();
+      }
+    }
+  }
+}
 
 
 bool Window::setup_windows(THD* thd,

@@ -1,0 +1,49 @@
+call mtr.add_suppression("option 'mysqlx-port-open-timeout': value -1 adjusted to 0");
+call mtr.add_suppression("option 'mysqlx-port-open-timeout': unsigned value 10000 adjusted to 120");
+call mtr.add_suppression("option 'mysqlx-port-open-timeout': unsigned value 2147483648 adjusted to 120");
+call mtr.add_suppression("option 'mysqlx-port-open-timeout': unsigned value 1024 adjusted to 120");
+call mtr.add_suppression("Parsing options for plugin 'mysqlx' failed");
+#
+#
+# X Plugin started with timeout set to "0"
+#
+#
+include/assert.inc [Mysqlx_port_open_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_port_open_timeout=1;
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a read only variable
+SET @@GLOBAL.Mysqlx_port_open_timeout="1.0.1.0";
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a read only variable
+SELECT COUNT(@@local.Mysqlx_port_open_timeout);
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a GLOBAL variable
+SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a GLOBAL variable
+include/assert.inc [Mysqlx_port_open_timeout global variable must is read-only, should hold to 0]
+#
+#
+# X Plugin started with timeout set to "1"
+#
+#
+# restart: --loose-mysqlx-port-open-timeout=1
+include/assert.inc [Mysqlx_port_open_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_port_open_timeout=1;
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a read only variable
+SET @@GLOBAL.Mysqlx_port_open_timeout="1.0.1.0";
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a read only variable
+SELECT COUNT(@@local.Mysqlx_port_open_timeout);
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a GLOBAL variable
+SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
+ERROR HY000: Variable 'mysqlx_port_open_timeout' is a GLOBAL variable
+include/assert.inc [Mysqlx_port_open_timeout global variable must is read-only, should hold to 1]
+#
+#
+# X Plugin restarted with invalid values
+#
+#
+# restart: --loose-mysqlx-port-open-timeout=-1
+include/assert.inc [Mysqlx_port_open_timeout global variable must be changed to 0 by MySQL Server]
+# restart: --loose-mysqlx-port-open-timeout=10000
+include/assert.inc [Mysqlx_port_open_timeout global variable must be changed to 120 by MySQL Server]
+# restart: --loose-mysqlx-port-open-timeout=2G
+include/assert.inc [2Giga is outside the range of Mysqlx_port_open_timeout global variable, MySQL Server is going to set it to 120]
+# restart: --loose-mysqlx-port-open-timeout=1K
+include/assert.inc [1Kilo is outside the range of Mysqlx_port_open_timeout global variable, MySQL Server is going to set it to 120]

@@ -1,17 +1,24 @@
 /* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -26,11 +33,9 @@
 #include <boost/geometry/algorithms/area.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
-#include <boost/geometry/algorithms/is_simple.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
-#include <boost/geometry/strategies/spherical/distance_haversine.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/geometry/geometry.hpp>
 #include <boost/iterator/iterator_facade.hpp>
@@ -57,7 +62,10 @@
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"   // ER_THD
 #include "sql/gis/distance.h"
+#include "sql/gis/distance_sphere.h"
 #include "sql/gis/geometries.h"
+#include "sql/gis/is_simple.h"
+#include "sql/gis/is_valid.h"
 #include "sql/gis/length.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb_parser.h"
@@ -5539,147 +5547,52 @@ longlong Item_func_isempty::val_int()
 }
 
 
-longlong Item_func_issimple::val_int()
+longlong Item_func_st_issimple::val_int()
 {
-  DBUG_ENTER("Item_func_issimple::val_int");
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ENTER("Item_func_st_issimple::val_int");
+  DBUG_ASSERT(fixed);
 
-  tmp.length(0);
-  String *arg_wkb= args[0]->val_str(&tmp);
-  if ((null_value= args[0]->null_value))
-  {
+  String backing_arg_wkb;
+  String *arg_wkb= args[0]->val_str(&backing_arg_wkb);
+
+  // Note: Item.null_value is valid only after Item.val_* has been invoked.
+
+  if (args[0]->null_value) {
+    null_value= true;
     DBUG_ASSERT(maybe_null);
     DBUG_RETURN(0);
   }
-  if (arg_wkb == NULL)
-  {
-    // Invalid geometry.
+
+  if (!arg_wkb) {
+    // Item.val_str should not have returned nullptr if Item.null_value is
+    // false.
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_int());
   }
 
-  Geometry_buffer buffer;
-  Geometry *arg= Geometry::construct(&buffer, arg_wkb);
-  if (arg == NULL)
-  {
-    // Invalid geometry.
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  // Auto_releaser for *srs to be allocated in gis::parse_geometry
+  dd::cache::Dictionary_client::Auto_releaser
+    releaser(current_thd->dd_client());
+
+  const dd::Spatial_reference_system *srs;
+  std::unique_ptr<gis::Geometry> g;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb, &srs, &g)) {
+    DBUG_ASSERT(current_thd->is_error());
     DBUG_RETURN(error_int());
   }
+  DBUG_ASSERT(g);
 
-  if (verify_cartesian_srs(arg, func_name()))
+  bool result;
+  if (gis::is_simple(srs, g.get(), func_name(), &result, &null_value)) {
+    DBUG_ASSERT(current_thd->is_error());
     DBUG_RETURN(error_int());
-
-  DBUG_RETURN(issimple(arg));
-}
-
-
-/**
-  Evaluate if a geometry object is simple according to the OGC definition.
-
-  @param g The geometry to evaluate.
-  @return True if the geometry is simple, false otherwise.
-*/
-bool Item_func_issimple::issimple(Geometry *g)
-{
-  bool res= false;
-
-  try
-  {
-    switch (g->get_type())
-    {
-    case Geometry::wkb_point:
-      {
-        Gis_point arg(g->get_data_ptr(), g->get_data_size(),
-                      g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_linestring:
-      {
-        Gis_line_string arg(g->get_data_ptr(), g->get_data_size(),
-                            g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-    break;
-    case Geometry::wkb_polygon:
-      {
-        const void *arg_wkb= g->normalize_ring_order();
-        if (arg_wkb == NULL)
-        {
-          // Invalid polygon.
-          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-          return error_bool();
-        }
-        Gis_polygon arg(arg_wkb, g->get_data_size(),
-                        g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multipoint:
-      {
-        Gis_multi_point arg(g->get_data_ptr(), g->get_data_size(),
-                            g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multilinestring:
-      {
-        Gis_multi_line_string arg(g->get_data_ptr(), g->get_data_size(),
-                                  g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multipolygon:
-      {
-        const void *arg_wkb= g->normalize_ring_order();
-        if (arg_wkb == NULL)
-        {
-          // Invalid multipolygon.
-          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-          return error_bool();
-        }
-        Gis_multi_polygon arg(arg_wkb, g->get_data_size(),
-                              g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_geometrycollection:
-      {
-        BG_geometry_collection collection;
-        collection.fill(g);
-
-        res= true;
-        for (BG_geometry_collection::Geometry_list::iterator i=
-               collection.get_geometries().begin();
-             i != collection.get_geometries().end();
-             ++i)
-        {
-          res= issimple(*i);
-          if (current_thd->is_error())
-          {
-            res= error_bool();
-            break;
-          }
-          if (!res)
-          {
-            break;
-          }
-        }
-      }
-      break;
-    default:
-      DBUG_ASSERT(0);
-      break;
-    }
   }
-  catch (...)
-  {
-    res= error_bool();
-    handle_gis_exception(func_name());
-  }
+  DBUG_ASSERT(!g->is_empty() || result == true);
+  // gis::is_simple never returns null
+  DBUG_ASSERT(!null_value);
 
-  return res;
+  DBUG_RETURN(result);
 }
 
 
@@ -5883,34 +5796,42 @@ static int check_geometry_valid(Geometry *geom)
 
 longlong Item_func_isvalid::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
+
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
-  Geometry_buffer buffer;
-  Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return 0L;
+  if ((null_value= args[0]->null_value))
+  {
+    DBUG_ASSERT(maybe_null);
+    return 0;
+  }
 
-  // It should return false if the argument isn't a valid GEOMETRY string.
-  if (!(geom= Geometry::construct(&buffer, swkb)))
-    return 0L;
-
-  if (verify_cartesian_srs(geom, func_name()))
+  if (swkb == nullptr)
+  {
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
-
-  int ret= 0;
-  try
-  {
-    ret= check_geometry_valid(geom);
-  }
-  catch (...)
-  {
-    null_value= true;
-    handle_gis_exception("ST_IsValid");
   }
 
-  return ret;
+  const dd::Spatial_reference_system *srs= nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
+
+  if ( gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
+  {
+    return error_int();
+  }
+
+  bool result= false;
+
+  if (gis::is_valid(srs, g.get(),func_name(), &result))
+  {
+    return error_int();
+  }
+
+  return result;
 }
 
 
@@ -6675,236 +6596,110 @@ double Item_func_distance::val_real()
 }
 
 
-double Item_func_distance_sphere::val_real()
+double Item_func_st_distance_sphere::val_real()
 {
-  DBUG_ENTER("Item_func_distance_sphere::val_real");
+  DBUG_ENTER("Item_func_st_distance_sphere::val_real");
   DBUG_ASSERT(fixed);
 
-  String tmp_value1;
-  String tmp_value2;
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
-  // Earth radius in meters.
-  double earth_radius= 6370986.0;
+  String backing_arg_wkb1;
+  String *arg_wkb1= args[0]->val_str(&backing_arg_wkb1);
 
-  if ((null_value= (!res1 || args[0]->null_value ||
-                    !res2 || args[1]->null_value)))
-    DBUG_RETURN(0.0);
+  String backing_arg_wkb2;
+  String *arg_wkb2= args[1]->val_str(&backing_arg_wkb2);
 
-  if (!(g1= Geometry::construct(&buffer1, res1)) ||
-      !(g2= Geometry::construct(&buffer2, res2)))
-  {
-    // If construction fails, we assume invalid input data.
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
+  // Note: Item.null_value is valid only after Item.val_* has been invoked.
 
-  // The two geometry operand must be in the same coordinate system.
-  if (g1->get_srid() != g2->get_srid())
-  {
-    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
-             g1->get_srid(), g2->get_srid());
-    DBUG_RETURN(error_real());
-  }
-
-  // Normally, we would have called normalize_ring_order() here, but
-  // it's not necessary since we only support points and multipoints.
-
-  Geometry::wkbType gt1= g1->get_geotype();
-  Geometry::wkbType gt2= g2->get_geotype();
-  if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
-        (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
-  {
-    my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
-  if (g1->get_srid() != 0)
-  {
-    THD *thd= current_thd;
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(g1->get_srid(), &srs))
-      DBUG_RETURN(error_real()); // Error has already been flagged.
-
-    if (srs == nullptr)
-    {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), g1->get_srid());
-      DBUG_RETURN(error_real());
-    }
-
-    if (!srs->is_cartesian())
-    {
-      DBUG_ASSERT(srs->is_geographic());
-      std::string parameters(g1->get_class_info()->m_name.str);
-      parameters.append(", ").append(g2->get_class_info()->m_name.str);
-      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
-               parameters.c_str());
-      DBUG_RETURN(error_real());
-    }
-  }
-
-  if (arg_count == 3)
-  {
-    earth_radius= args[2]->val_real();
-    if ((null_value= args[2]->null_value))
-      DBUG_RETURN(0.0);
-    if (earth_radius <= 0.0)
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-  }
-
-  /*
-    Make sure all points' coordinates are valid:
-    x in (-180, 180], y in [-90, 90].
-  */
-  Numeric_interval<double> x_range(-180.0, true, 180.0, false);   // (-180, 180]
-  Numeric_interval<double> y_range(-90.0, false, 90.0, false);    // [-90, 90]
-  Point_coordinate_checker checker(x_range, y_range);
-
-  uint32 wkblen= res1->length() - SRID_SIZE;
-  wkb_scanner(res1->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
-              true, &checker);
-  if (checker.has_invalid_point())
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
-  wkblen= res2->length() - SRID_SIZE;
-  wkb_scanner(res2->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
-              true, &checker);
-  if (checker.has_invalid_point())
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
-  double distance= bg_distance_spherical(g1, g2, earth_radius);
-
-  if (null_value)
-    DBUG_RETURN(error_real());
-
-  if (!std::isfinite(distance) || distance < 0.0)
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-  DBUG_RETURN(distance);
-}
-
-
-double Item_func_distance_sphere::
-distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2,
-                                  double earth_radius)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0.0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Point
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  return res;
-}
-
-
-double Item_func_distance_sphere::
-distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2,
-                                       double earth_radius)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0.0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Multipoint
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-double Item_func_distance_sphere::bg_distance_spherical(const Geometry *g1,
-                                                        const Geometry *g2,
-                                                        double earth_radius)
-{
-  double res= 0.0;
-
-  try
-  {
-    switch (g1->get_type())
-    {
-    case Geometry::wkb_point:
-      res= distance_point_geometry_spherical(g1, g2, earth_radius);
-      break;
-    case Geometry::wkb_multipoint:
-      res= distance_multipoint_geometry_spherical(g1, g2, earth_radius);
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-  }
-  catch (...)
+  if (args[0]->null_value || args[1]->null_value)
   {
     null_value= true;
-    handle_gis_exception("st_distance_sphere");
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0.0);
   }
 
-  return res;
+  if (!arg_wkb1 || !arg_wkb2)
+  {
+    // Item.val_str should not have returned nullptr if Item.null_value is
+    // false.
+    DBUG_ASSERT(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  // Auto_releaser for *srs to be allocated in gis::parse_geometry
+  dd::cache::Dictionary_client::Auto_releaser
+    releaser(current_thd->dd_client());
+
+  const dd::Spatial_reference_system *srs1;
+  std::unique_ptr<gis::Geometry> g1;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb1, &srs1, &g1))
+  {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_ASSERT(g1);
+
+  const dd::Spatial_reference_system *srs2;
+  std::unique_ptr<gis::Geometry> g2;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb2, &srs2, &g2))
+  {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_ASSERT(g2);
+
+  gis::srid_t srid1= srs1 ? srs1->id() : 0;
+  gis::srid_t srid2= srs2 ? srs2->id() : 0;
+
+  if (srid1 != srid2)
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
+    DBUG_RETURN(error_real());
+  }
+
+  // Sphere raduis initialized to default radius for SRID 0. Approximates Earth
+  // radius.
+  double sphere_radius= 6370986.0;
+
+  // Non-zero SRS overrides default radius.
+  if (srs1)
+  {
+    double a = srs1->semi_major_axis();
+    double b = srs1->semi_minor_axis();
+    if (a == b)
+      // Avoid possible loss of precission.
+      sphere_radius= a;
+    else
+      // Mean radius, as defined by the IUGG
+      sphere_radius= ((2.0*a + b) / 3.0);
+  }
+
+  // Optional 3rd argument overrides both default and SRS-based choice.
+  if (arg_count >= 3)
+  {
+    sphere_radius= args[2]->val_real();
+
+    if (args[2]->null_value)
+    {
+      null_value= true;
+      DBUG_RETURN(0.0);
+    }
+
+    if (sphere_radius <= 0.0)
+    {
+      my_error(ER_NONPOSITIVE_RADIUS, MYF(0), func_name());
+      DBUG_RETURN(error_real());
+    }
+  }
+
+  double result;
+  if (gis::distance_sphere(srs1, g1.get(), g2.get(), func_name(),
+                           sphere_radius, &result, &null_value))
+  {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  // gis::gistance_sphere will always return a valid result or error.
+  DBUG_ASSERT(!null_value);
+
+  DBUG_RETURN(result);
 }

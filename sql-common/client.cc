@@ -1,13 +1,25 @@
 /* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -126,6 +138,7 @@ using std::swap;
 }
 
 #define native_password_plugin_name "mysql_native_password"
+#define caching_sha2_password_plugin_name "caching_sha2_password"
 
 PSI_memory_key key_memory_mysql_options;
 PSI_memory_key key_memory_MYSQL_DATA;
@@ -2871,7 +2884,11 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     goto error;
   }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   cn= (char *) ASN1_STRING_data(cn_asn1);
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  cn= (char *) ASN1_STRING_get0_data(cn_asn1);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   // There should not be any NULL embedded in the CN
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))
@@ -3299,7 +3316,7 @@ static auth_plugin_t caching_sha2_password_client_plugin=
 {
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
-  "caching_sha2_password",
+  caching_sha2_password_plugin_name,
   "Oracle Inc",
   "SHA2 based authentication with salt",
   {1, 0, 0},
@@ -4302,7 +4319,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   }
   else
   {
-    auth_plugin= &native_password_client_plugin;
+    auth_plugin= &caching_sha2_password_client_plugin;
     auth_plugin_name= auth_plugin->name;
   }
 
@@ -5071,7 +5088,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     else
     {
       scramble_data_len= (int)(pkt_end - scramble_data);
-      scramble_plugin= native_password_plugin_name;
+      scramble_plugin= caching_sha2_password_plugin_name;
     }
   }
   else
@@ -6729,29 +6746,16 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   DBUG_ENTER("native_password_auth_client");
 
+  /* read the scramble */
+  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+    DBUG_RETURN(CR_ERROR);
 
-  if (((MCPVIO_EXT *)vio)->mysql_change_user)
-  {
-    /*
-      in mysql_change_user() the client sends the first packet.
-      we use the old scramble.
-    */
-    pkt= (uchar*)mysql->scramble;
-    pkt_len= SCRAMBLE_LENGTH + 1;
-  }
-  else
-  {
-    /* read the scramble */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      DBUG_RETURN(CR_ERROR);
+  if (pkt_len != SCRAMBLE_LENGTH + 1)
+    DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
 
-    if (pkt_len != SCRAMBLE_LENGTH + 1)
-      DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
-
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-    mysql->scramble[SCRAMBLE_LENGTH] = 0;
-  }
+  /* save it in MYSQL */
+  memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
+  mysql->scramble[SCRAMBLE_LENGTH] = 0;
 
   if (mysql->passwd[0])
   {

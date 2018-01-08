@@ -1,13 +1,25 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2201,7 +2213,19 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
     if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
       mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
 
-    if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY))
+    /*
+      After having read the query result, we need to make sure that the client
+      does not end up into a hang waiting for the server to send a packet.
+      If the CURSOR_TYPE_READ_ONLY flag is set, we would want to perform the
+      additional packet read mainly for prepared statements involving SELECT
+      queries. For SELECT queries, the result format would either be
+      <Metadata><OK> or <Metadata><rows><OK>. We would have read the metadata
+      by now and have the field_count populated. The check for field_count will
+      help determine if we can expect an additional packet from the server.
+    */
+
+    if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY) &&
+        mysql->field_count != 0)
     {
       /*
         server can now respond with a cursor - then the respond will be

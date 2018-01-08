@@ -37,7 +37,7 @@ select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
   from performance_schema.variables_info
   where VARIABLE_SOURCE = 'COMMAND_LINE' AND
   (VARIABLE_NAME = 'max_connections' OR
@@ -64,7 +64,7 @@ select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
   from performance_schema.variables_info
   where VARIABLE_SOURCE = 'PERSISTED'
   order by VARIABLE_NAME;

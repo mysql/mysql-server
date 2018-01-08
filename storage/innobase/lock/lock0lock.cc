@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -2880,6 +2888,51 @@ lock_grant_vats(
 	}
 }
 
+/** Grant lock to waiting requests that no longer conflicts
+@param[in,out]	in_lock		record lock object: grant all non-conflicting
+				locks waiting behind this lock object
+@param[in]	use_fcfs	true -> use first come first served strategy */
+static
+void
+lock_rec_grant(lock_t* in_lock, bool use_fcfs)
+{
+	auto	space = in_lock->space_id();
+	auto	page_no = in_lock->page_no();
+	auto	lock_hash = in_lock->hash_table();
+
+	if (use_fcfs || lock_use_fcfs(in_lock->trx)) {
+
+		/* Check if waiting locks in the queue can now be granted:
+		grant locks if there are no conflicting locks ahead. Stop at
+		the first X lock that is waiting or has been granted. */
+
+		for (auto lock = lock_rec_get_first_on_page_addr(
+			lock_hash, space, page_no);
+		     lock != nullptr;
+		     lock = lock_rec_get_next_on_page(lock)) {
+
+			if (lock->is_waiting()
+			    && !lock_rec_has_to_wait_in_queue(lock)) {
+
+				/* Grant the lock */
+				ut_ad(lock->trx != in_lock->trx);
+				lock_grant(lock);
+			}
+		}
+
+	} else {
+
+		for (ulint heap_no = 0;
+		     heap_no < lock_rec_get_n_bits(in_lock);
+		     ++heap_no) {
+
+			if (lock_rec_get_nth_bit(in_lock, heap_no)) {
+				lock_grant_vats(lock_hash, in_lock, heap_no);
+			}
+		}
+	}
+}
+
 /** Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed.
@@ -2915,37 +2968,7 @@ lock_rec_dequeue_from_page(lock_t* in_lock, bool use_fcfs)
 	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
 
-	if (use_fcfs || lock_use_fcfs(in_lock->trx)) {
-
-		/* Check if waiting locks in the queue can now be granted:
-		grant locks if there are no conflicting locks ahead. Stop at
-		the first X lock that is waiting or has been granted. */
-
-		for (auto lock = lock_rec_get_first_on_page_addr(
-			lock_hash, space, page_no);
-		     lock != nullptr;
-		     lock = lock_rec_get_next_on_page(lock)) {
-
-			if (lock->is_waiting()
-			    && !lock_rec_has_to_wait_in_queue(lock)) {
-
-				/* Grant the lock */
-				ut_ad(lock->trx != in_lock->trx);
-				lock_grant(lock);
-			}
-		}
-
-	} else {
-
-		for (ulint heap_no = 0;
-		     heap_no < lock_rec_get_n_bits(in_lock);
-		     ++heap_no) {
-
-			if (lock_rec_get_nth_bit(in_lock, heap_no)) {
-				lock_grant_vats(lock_hash, in_lock, heap_no);
-			}
-		}
-	}
+	lock_rec_grant(in_lock, use_fcfs);
 }
 
 /** Removes a record lock request, waiting or granted, from the queue.
@@ -3119,6 +3142,12 @@ lock_rec_inherit_to_gap(
 	     lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
+		/* Skip inheriting lock if set */
+		if (lock->trx->skip_lock_inheritance) {
+
+			continue;
+		}
+
 		if (!lock_rec_get_insert_intention(lock)
 		    && !lock->index->table->skip_gap_locks()
 		    && !(lock->trx->skip_gap_locks()
@@ -3156,6 +3185,12 @@ lock_rec_inherit_to_gap_if_gap_lock(
 	for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
 	     lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
+
+		/* Skip inheriting lock if set */
+		if (lock->trx->skip_lock_inheritance) {
+
+			continue;
+		}
 
 		if (!lock_rec_get_insert_intention(lock)
 		    && (heap_no == PAGE_HEAP_NO_SUPREMUM
@@ -4811,6 +4846,89 @@ lock_rec_unlock(
 
 		err.write(stmt, stmt_len);
 	}
+}
+
+/** Release read locks of a transacion. It is called during XA
+prepare to release locks early.
+@param[in,out]	trx		transaction
+@param[in]	only_gap	release only GAP locks */
+void
+lock_trx_release_read_locks(
+	trx_t*		trx,
+	bool		only_gap)
+{
+	lock_t*		lock;
+	lock_t*		next_lock;
+	ulint		count = 0;
+
+	/* Avoid taking lock_sys if trx didn't acquire any lock */
+	if (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0) {
+
+		return;
+	}
+
+	lock_mutex_enter();
+
+	lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+
+	while (lock != NULL) {
+
+		next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
+
+		/* Check only for record lock */
+		if (!lock->is_record_lock()
+		    || lock->is_insert_intention()) {
+
+			lock = next_lock;
+			continue;
+		}
+
+		/* Release any GAP only lock. */
+		if (lock->is_gap()) {
+
+			lock_rec_dequeue_from_page(lock, false);
+			lock = next_lock;
+			continue;
+		}
+
+		/* Don't release any non-GAP lock if not asked. */
+		if (lock->is_record_not_gap() && only_gap) {
+
+			lock = next_lock;
+			continue;
+		}
+
+		/* Release Shared Next Key Lock(SH + GAP) if asked for */
+		if (lock->mode() == LOCK_S && !only_gap) {
+
+			lock_rec_dequeue_from_page(lock, false);
+			lock = next_lock;
+			continue;
+		}
+
+		/* Release GAP lock from Next Key lock */
+		lock->remove_gap_lock();
+
+		/* Grant locks */
+		lock_rec_grant(lock, false);
+
+		lock = next_lock;
+
+		++count;
+
+		if (count == LOCK_RELEASE_INTERVAL) {
+			/* Release the mutex for a while, so that we
+			do not monopolize it */
+
+			lock_mutex_exit();
+
+			lock_mutex_enter();
+
+			count = 0;
+		}
+	}
+
+	lock_mutex_exit();
 }
 
 /*********************************************************************//**

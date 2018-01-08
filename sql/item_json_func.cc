@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -3529,7 +3536,25 @@ String *Item_func_json_quote::val_str(String *str)
       depends on whether or not ensure_utf8mb4() needed to do charset
       conversion. Make res point to the available buffer.
     */
-    res= (str->ptr() == safep) ? &m_value : str;
+    if (safep == m_value.ptr())
+    {
+      /*
+        ensure_utf8mb4() converted the input string to utf8mb4 by
+        copying it into m_value. str is now available for reuse as
+        result buffer.
+      */
+      res= str;
+    }
+    else
+    {
+      /*
+        Conversion to utf8mb4 was not needed, so ensure_utf8mb4() did
+        not touch the m_value buffer, and the input string still lives
+        in res. Use m_value as result buffer.
+      */
+      DBUG_ASSERT(safep == res->ptr());
+      res= &m_value;
+    }
 
     res->length(0);
     res->set_charset(&my_charset_utf8mb4_bin);

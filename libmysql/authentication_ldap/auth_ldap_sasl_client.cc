@@ -1,17 +1,24 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "auth_ldap_sasl_client.h"
 #include <string.h>
@@ -74,19 +81,46 @@ void Sasl_client::set_plugin_info(MYSQL_PLUGIN_VIO *vio,  MYSQL *mysql)
 */
 int Sasl_client::read_method_name_from_server()
 {
-  int rc_server_read= CR_ERROR;
+  int rc_server_read= -1;
   unsigned char* packet= NULL;
   std::stringstream log_stream;
+  /*
+    We are assuming that there will be only one method name passed by
+    server, and length of the method name will not exceed 256 chars.
+  */
+  const int max_method_name_len= 256;
+
   if (m_vio == NULL)
   {
     return rc_server_read;
   }
   /** Get authentication method from the server. */
   rc_server_read= m_vio->read_packet(m_vio, (unsigned char**)&packet);
-  strncpy(m_mechanism, (const char*)packet, sizeof(m_mechanism)-1);
-  m_mechanism[sizeof(m_mechanism)-1]= '\0';
-  log_stream << "Sasl_client::read_method_name_from_server : " << m_mechanism;
-  log_dbg(log_stream.str());
+  if (rc_server_read >= 0 && rc_server_read <= max_method_name_len)
+  {
+    strncpy(m_mechanism, (const char*)packet, rc_server_read);
+    m_mechanism[sizeof(m_mechanism) - 1]= '\0';
+    log_stream << "Sasl_client::read_method_name_from_server : "
+               << m_mechanism;
+    log_dbg(log_stream.str());
+  }
+  else if (rc_server_read > max_method_name_len)
+  {
+    rc_server_read= -1;
+    m_mechanism[0]= '\0';
+    log_stream << "Sasl_client::read_method_name_from_server : Method name "
+               << "is greater then allowed limit of 256 characters.";
+    log_error(log_stream.str());
+  }
+  else
+  {
+    m_mechanism[0]= '\0';
+    log_stream << "Sasl_client::read_method_name_from_server : Plugin has "
+               << "failed to read the method name, make sure that default "
+               << "authentication plugin and method name specified at "
+               << "server are correct.";
+    log_error(log_stream.str());
+  }
   return rc_server_read;
 }
 
@@ -193,7 +227,7 @@ EXIT:
 int Sasl_client::sasl_start(char **client_output, int* client_output_length)
 {
   int rc_sasl= SASL_FAIL;
-  const char *mechanisum= NULL;
+  const char *mechanism= NULL;
   char* sasl_client_output= NULL;
   sasl_interact_t *interactions= NULL;
   std::stringstream log_stream;
@@ -208,7 +242,7 @@ int Sasl_client::sasl_start(char **client_output, int* client_output_length)
      rc_sasl= sasl_client_start(m_connection, m_mechanism, &interactions,
                                 (const char**)&sasl_client_output,
                                 (unsigned int *)client_output_length,
-                                &mechanisum);
+                                &mechanism);
      if(rc_sasl == SASL_INTERACT) interact(interactions);
   }
   while(rc_sasl == SASL_INTERACT);
@@ -278,7 +312,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   server_packet_len= sasl_client.read_method_name_from_server();
   if (server_packet_len < 0)
   {
-    log_error("sasl_authenticate: method name read from server side plug-in failed");
+    // Callee has already logged the messages.
     goto EXIT;
   }
 

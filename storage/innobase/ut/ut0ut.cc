@@ -3,16 +3,24 @@
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -79,9 +87,8 @@ ut_win_init_time()
 	}
 	DWORD error = GetLastError();
 #ifndef UNIV_HOTBACKUP
-	sql_print_error(
-		"LoadLibrary(\"kernel32.dll\") failed:"
-		" GetLastError returns %lu", error);
+	log_errlog(ERROR_LEVEL, ER_WIN_LOAD_LIBRARY_FAILED, "kernel32.dll",
+		error);
 #else /* !UNIV_HOTBACKUP */
 	fprintf(stderr,
 		"LoadLibrary(\"kernel32.dll\") failed:"
@@ -323,6 +330,7 @@ ut_2_power_up(
 	return(res);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Get a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
@@ -341,19 +349,13 @@ ut_get_name(
 	char		buf[3 * NAME_LEN];
 	const char*	bufend;
 
-#ifndef UNIV_HOTBACKUP
 	bufend = innobase_convert_name(buf, sizeof buf,
 				       name, strlen(name),
 				       trx ? trx->mysql_thd : NULL);
-#else /* !UNIV_HOTBACKUP */
-	bufend = innobase_convert_name(
-		buf, sizeof buf, name, strlen(name), NULL);
-#endif /* !UNIV_HOTBACKUP */
 	buf[bufend - buf] = '\0';
 	return(std::string(buf, 0, bufend - buf));
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
@@ -706,37 +708,41 @@ namespace ib {
 
 info::~info()
 {
-	sql_print_information("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+		m_oss.str().c_str());
 }
 
 warn::~warn()
 {
-	sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 }
 
 error::~error()
 {
-	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 }
 
 fatal::~fatal()
 {
-	sql_print_error("[FATAL] InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_FATAL_MSG,
+		m_oss.str().c_str());
 	ut_error;
 }
 
 error_or_warn::~error_or_warn()
 {
 	if (m_error) {
-		sql_print_error("InnoDB: %s", m_oss.str().c_str());
+		log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+			m_oss.str().c_str());
 	} else {
-		sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+		log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+			m_oss.str().c_str());
 	}
 }
 
 fatal_or_error::~fatal_or_error()
 {
-	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 	ut_a(!m_fatal);
 }
 

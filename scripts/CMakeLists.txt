@@ -1,17 +1,24 @@
 # Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Build comp_sql - used for embedding SQL in C or C++ programs
 IF(NOT CMAKE_CROSSCOMPILING)
@@ -393,14 +400,19 @@ SET(CONFIG_LIBS_PRIVATE "${CLIENT_LIBS}")
 SET(CONFIG_REQUIRES_PRIVATE "")
 # ssl.cmake should have used pkg-config rather than cmake to locate ssl
 IF (WITH_SSL STREQUAL "system")
-  SET(CONFIG_REQUIRES_PRIVATE "openssl")
-  STRING(REPLACE "-lssl" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
-  STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
-  STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  # We have implemented "system" for other platforms as well, but those
+  # are non-native packages.
+  IF(LINUX OR SOLARIS OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+    SET(CONFIG_REQUIRES_PRIVATE "openssl")
+    STRING(REPLACE "-lssl" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+    STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+    STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
+  ENDIF()
 ENDIF()
 
 # libmysqlclient.dylib will depend on @loader_path/libssl.1.0.0.dylib
-IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+# However, libmysqlclient.a has no such dependency, so output SSL libs anyways.
+IF(FALSE AND APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
   STRING(REPLACE "-lssl" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
   STRING(REPLACE "-lcrypto" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
   STRING(REGEX REPLACE "[ ]+" " " CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")

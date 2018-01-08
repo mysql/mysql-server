@@ -2756,3 +2756,26 @@ INSERT INTO t VALUES(NULL,1),('2017-01-14',3);
 SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10;
 SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10 DESC;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#21974696 WRONG RESULT WHEN GROUPING ON VALUE FROM SUBQUERY
+--echo #              AND USING COUNT DISTINCT
+--echo #
+
+--let $i= 0
+while ($i < 2) {
+# The bug was seen with BLOB-based types, such as TEXT and JSON. Test both.
+--let $type= `SELECT CASE $i WHEN 0 THEN 'TEXT' WHEN 1 THEN 'JSON' END`
+--eval CREATE TABLE t(a $type, b INT)
+INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
+--source include/turn_off_only_full_group_by.inc
+SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
+# This query gave the right results also before the fix:
+SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
+# Same query with SQL_BIG_RESULT or WITH ROLLUP gave wrong results:
+SELECT SQL_BIG_RESULT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
+SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1 WITH ROLLUP;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+DROP TABLE t;
+--inc $i
+}

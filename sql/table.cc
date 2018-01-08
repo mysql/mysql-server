@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -3945,7 +3952,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
-    DBUG_RETURN(false);
+    goto end;
 
   if (table->s->fields != table_def->count)
   {
@@ -4062,6 +4069,15 @@ Table_check_intact::check(THD *thd, TABLE *table,
 
   if (! error)
     table->s->table_field_def_cache= table_def;
+
+end:
+
+  if (has_keys && !error && !table->key_info)
+  {
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    error= true;
+  }
 
   DBUG_RETURN(error);
 }

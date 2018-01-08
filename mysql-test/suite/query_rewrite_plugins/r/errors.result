@@ -47,7 +47,7 @@ UPDATE error_log SET line = replace ( line, '\r', '' );
 # Avoid seeing any other error that might be there.
 SELECT search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" );
 search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" )
-[ERROR] [000000] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
+[ERROR] [MY-011235] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 Variable_name	Value
 Rewriter_number_reloads	1
@@ -70,7 +70,7 @@ UPDATE error_log SET line = replace ( line, '\r', '' );
 # Avoid seeing any other error that might be there.
 SELECT search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" );
 search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" )
-[ERROR] [000000] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
+[ERROR] [MY-011235] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 Variable_name	Value
 Rewriter_number_reloads	1
@@ -167,7 +167,7 @@ id	pattern	pattern_database	replacement	enabled	message
 DELETE FROM query_rewrite.rewrite_rules
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c2 = ?';
 ALTER TABLE query_rewrite.rewrite_rules
-MODIFY COLUMN replacement VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin;
+MODIFY COLUMN replacement VARCHAR(10000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 INSERT INTO query_rewrite.rewrite_rules ( pattern )
 VALUES ( 'SELECT c1 FROM test.t1 WHERE c2 = ?' );
 CALL query_rewrite.flush_rewrite_rules();
@@ -187,7 +187,7 @@ id	pattern	pattern_database	replacement	enabled	message
 DELETE FROM query_rewrite.rewrite_rules
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c2 = ?';
 ALTER TABLE query_rewrite.rewrite_rules
-MODIFY COLUMN pattern VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin;
+MODIFY COLUMN pattern VARCHAR(5000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 INSERT INTO query_rewrite.rewrite_rules ( replacement )
 VALUES ( 'SELECT c1 FROM test.t1 WHERE c2 = ?' );
 CALL query_rewrite.flush_rewrite_rules();

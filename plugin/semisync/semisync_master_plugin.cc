@@ -2,17 +2,24 @@
    Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include <stddef.h>
@@ -41,6 +48,10 @@ enum enum_wait_point {
 static ulong rpl_semi_sync_master_wait_point= WAIT_AFTER_COMMIT;
 
 thread_local bool THR_RPL_SEMI_SYNC_DUMP= false;
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 static inline bool is_semi_sync_dump()
 {
@@ -127,8 +138,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   {
     if (ack_receiver->add_slave(current_thd))
     {
-      sql_print_error("Failed to register slave to semi-sync ACK receiver "
-                      "thread.");
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_REGISTER_SLAVE_TO_RECEIVER);
       return -1;
     }
 
@@ -149,10 +159,9 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   else
     param->set_dont_observe_flag();
 
-  sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
-			semi_sync_slave != 0 ? "semi-sync" : "asynchronous",
-			param->server_id, log_file, (unsigned long)log_pos);
-
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_START_BINLOG_DUMP_TO_SLAVE,
+         semi_sync_slave != 0 ? "semi-sync" : "asynchronous",
+         param->server_id, log_file, (unsigned long)log_pos);
   return 0;
 }
 
@@ -160,9 +169,10 @@ static int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
 {
   bool semi_sync_slave= is_semi_sync_dump();
 
-  sql_print_information("Stop %s binlog_dump to slave (server_id: %d)",
-                        semi_sync_slave ? "semi-sync" : "asynchronous",
-                        param->server_id);
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STOP_BINLOG_DUMP_TO_SLAVE,
+         semi_sync_slave ? "semi-sync" : "asynchronous",
+         param->server_id);
+
   if (semi_sync_slave)
   {
     ack_receiver->remove_slave(current_thd);
@@ -575,6 +585,10 @@ static void init_semisync_psi_keys(void)
 
 static int semi_sync_master_plugin_init(void *p)
 {
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    return 1;
+
 #ifdef HAVE_PSI_INTERFACE
   init_semisync_psi_keys();
 #endif
@@ -594,15 +608,30 @@ static int semi_sync_master_plugin_init(void *p)
   ack_receiver= new Ack_receiver();
 
   if (repl_semisync->initObject())
+  {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
+  }
   if (ack_receiver->init())
+  {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
+  }
   if (register_trans_observer(&trans_observer, p))
+  {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
+  }
   if (register_binlog_storage_observer(&storage_observer, p))
+  {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
+  }
   if (register_binlog_transmit_observer(&transmit_observer, p))
+  {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
+  }
   return 0;
 }
 
@@ -613,17 +642,22 @@ static int semi_sync_master_plugin_deinit(void *p)
 
   if (unregister_trans_observer(&trans_observer, p))
   {
-    sql_print_error("unregister_trans_observer failed");
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_UNREGISTER_TRX_OBSERVER_FAILED);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (unregister_binlog_storage_observer(&storage_observer, p))
   {
-    sql_print_error("unregister_binlog_storage_observer failed");
+    LogErr(ERROR_LEVEL,
+           ER_SEMISYNC_UNREGISTER_BINLOG_STORAGE_OBSERVER_FAILED);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   if (unregister_binlog_transmit_observer(&transmit_observer, p))
   {
-    sql_print_error("unregister_binlog_transmit_observer failed");
+    LogErr(ERROR_LEVEL,
+           ER_SEMISYNC_UNREGISTER_BINLOG_TRANSMIT_OBSERVER_FAILED);
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
   delete ack_receiver;
@@ -631,7 +665,8 @@ static int semi_sync_master_plugin_deinit(void *p)
   delete repl_semisync;
   repl_semisync= nullptr;
 
-  sql_print_information("unregister_replicator OK");
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UNREGISTERED_REPLICATOR);
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 

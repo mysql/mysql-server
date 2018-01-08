@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
 #include <signal.h>
@@ -36,7 +43,7 @@ static void *launch_broadcast_thread(void* arg)
 }
 
 Certifier_broadcast_thread::Certifier_broadcast_thread()
-  :aborted(false), broadcast_thd_running(false), broadcast_counter(0),
+  :aborted(false), broadcast_thd_state(), broadcast_counter(0),
    broadcast_gtid_executed_period(BROADCAST_GTID_EXECUTED_PERIOD)
 {
   DBUG_EXECUTE_IF("group_replication_certifier_broadcast_thread_big_period",
@@ -67,7 +74,7 @@ int Certifier_broadcast_thread::initialize()
   DBUG_ENTER("Certifier_broadcast_thread::initialize");
 
   mysql_mutex_lock(&broadcast_run_lock);
-  if (broadcast_thd_running)
+  if (broadcast_thd_state.is_thread_alive())
   {
     mysql_mutex_unlock(&broadcast_run_lock); /* purecov: inspected */
     DBUG_RETURN(0); /* purecov: inspected */
@@ -84,8 +91,9 @@ int Certifier_broadcast_thread::initialize()
     mysql_mutex_unlock(&broadcast_run_lock); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
+  broadcast_thd_state.set_created();
 
-  while (!broadcast_thd_running)
+  while (broadcast_thd_state.is_alive_not_running())
   {
     DBUG_PRINT("sleep",("Waiting for certifier broadcast thread to start"));
     mysql_cond_wait(&broadcast_run_cond, &broadcast_run_lock);
@@ -101,14 +109,14 @@ int Certifier_broadcast_thread::terminate()
   DBUG_ENTER("Certifier_broadcast_thread::terminate");
 
   mysql_mutex_lock(&broadcast_run_lock);
-  if (!broadcast_thd_running)
+  if (broadcast_thd_state.is_thread_dead())
   {
     mysql_mutex_unlock(&broadcast_run_lock);
     DBUG_RETURN(0);
   }
 
   aborted= true;
-  while (broadcast_thd_running)
+  while (broadcast_thd_state.is_thread_alive())
   {
     DBUG_PRINT("loop", ("killing certifier broadcast thread"));
     mysql_mutex_lock(&broadcast_thd->LOCK_thd_data);
@@ -142,7 +150,7 @@ void Certifier_broadcast_thread::dispatcher()
   broadcast_thd= thd;
 
   mysql_mutex_lock(&broadcast_run_lock);
-  broadcast_thd_running= true;
+  broadcast_thd_state.set_running();
   mysql_cond_broadcast(&broadcast_run_cond);
   mysql_mutex_unlock(&broadcast_run_lock);
 
@@ -189,7 +197,7 @@ void Certifier_broadcast_thread::dispatcher()
   delete thd;
 
   mysql_mutex_lock(&broadcast_run_lock);
-  broadcast_thd_running= false;
+  broadcast_thd_state.set_terminated();
   mysql_cond_broadcast(&broadcast_run_cond);
   mysql_mutex_unlock(&broadcast_run_lock);
 
@@ -732,7 +740,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     If the current transaction doesn't have a specified GTID, one
     for group UUID will be generated.
     This situation happens when transactions are executed with
-    GTID_NEXT equal to AUTOMATIC_GROUP (the default case).
+    GTID_NEXT equal to AUTOMATIC_GTID (the default case).
   */
   if (generate_group_id)
   {

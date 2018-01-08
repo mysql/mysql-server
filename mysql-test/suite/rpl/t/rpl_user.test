@@ -26,8 +26,8 @@ create user 'foo'@'fakehost', 'bar'@'fakehost';
 create user 'bar'@'fakehost';
 
 # In log event, Plaintext password 'foo1' is replaced by ciphertext.
-create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
-  IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
+create user 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password 'BY 'foo1',
+  'foo2'@'fakehost' IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
   'foo3'@'fakehost';
 --source include/sync_slave_sql_with_master.inc
 select Host,User from mysql.user where Host='fakehost';

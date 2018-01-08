@@ -1,20 +1,27 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
    Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "rpl_semi_sync_slave"
 
 #include <mysql.h>
 #include <mysqld_error.h>
@@ -36,6 +43,10 @@ ReplSemiSyncSlave *repl_semisync= nullptr;
   checked in repl_semi_slave_queue_event.
 */
 bool semi_sync_need_reply= false;
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 static int repl_semi_apply_slave(Binlog_relay_IO_param *,
                                  Trans_param *,
@@ -73,7 +84,8 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
     mysql_error= mysql_errno(mysql);
     if (mysql_error != ER_UNKNOWN_SYSTEM_VARIABLE)
     {
-      sql_print_error("Execution failed on master: %s; error %d", query, mysql_error);
+      LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_EXECUTION_FAILED_ON_MASTER, query,
+                   mysql_error);
       return 1;
     }
   }
@@ -91,8 +103,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE)
   {
     /* Master does not support semi-sync */
-    sql_print_warning("Master server does not support semi-sync, "
-                      "fallback to asynchronous replication");
+    LogPluginErr(WARNING_LEVEL, ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER);
     rpl_semi_sync_slave_status= 0;
     mysql_free_result(res);
     return 0;
@@ -106,7 +117,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   query= "SET @rpl_semi_sync_slave= 1";
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))))
   {
-    sql_print_error("Set 'rpl_semi_sync_slave=1' on master failed");
+    LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_SET_FAILED);
     return 1;
   }
   mysql_free_result(mysql_store_result(mysql));
@@ -231,11 +242,22 @@ Binlog_relay_IO_observer relay_io_observer = {
 
 static int semi_sync_slave_plugin_init(void *p)
 {
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    return 1;
+
   repl_semisync= new ReplSemiSyncSlave();
   if (repl_semisync->initObject())
+  {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
+  }
   if (register_binlog_relay_io_observer(&relay_io_observer, p))
+  {
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
+  }
+
   return 0;
 }
 
@@ -245,6 +267,7 @@ static int semi_sync_slave_plugin_deinit(void *p)
     return 1;
   delete repl_semisync;
   repl_semisync= nullptr;
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 

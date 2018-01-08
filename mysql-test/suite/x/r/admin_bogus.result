@@ -1,0 +1,22 @@
+send Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "xplugin"
+}
+
+Got expected error: Invalid xplugin command whatever (code 5157)
+send Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "bogus"
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5162
+  msg: "Unknown namespace bogus"
+  sql_state: "HY000"
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

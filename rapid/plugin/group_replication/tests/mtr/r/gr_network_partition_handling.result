@@ -19,14 +19,10 @@ include/rpl_sync.inc
 [connection server1]
 # 2.1. Set group_replication_unreachable_majority_timeout below min value
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= -1;
-Warnings:
-Warning	1292	Truncated incorrect group_replication_unreachable_ma value: '-1'
 # 2.1. Check min value of group_replication_unreachable_majority_timeout
 include/assert.inc [Minimum group_replication_unreachable_majority_timeout is 0]
 # 2.2. Set group_replication_unreachable_majority_timeout above max value.
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= 31536001;
-Warnings:
-Warning	1292	Truncated incorrect group_replication_unreachable_ma value: '31536001'
 # 2.2. Check max value of group_replication_unreachable_majority_timeout.
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= 11;
 #

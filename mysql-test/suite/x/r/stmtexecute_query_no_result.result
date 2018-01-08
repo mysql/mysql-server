@@ -1,0 +1,47 @@
+RUN drop schema if exists xtest
+
+0 rows affected
+RUN create schema xtest
+
+1 rows affected
+RUN use xtest
+
+0 rows affected
+RUN create table mytable (pk int primary key auto_increment, data varchar(100))
+
+0 rows affected
+RUN create procedure result_and_error ()
+begin
+select 1;
+select * from invalid_table;
+end
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into mytable values (DEFAULT, \'one\')"
+}
+
+
+1 rows affected
+last insert id: 1
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into mytable values (DEFAULT, \'two\')"
+}
+
+
+1 rows affected
+last insert id: 2
+send Mysqlx.Sql.StmtExecute {
+  stmt: "insert into mytable values (DEFAULT, \'three\')"
+}
+
+
+1 rows affected
+last insert id: 3
+RUN drop schema if exists xtest
+
+1 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

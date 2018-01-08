@@ -1,13 +1,20 @@
 /* Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -703,6 +710,8 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_DROP_ROLE]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_USER]|=        CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_RESTART_SERVER]=     CF_AUTO_COMMIT_TRANS |
+                                                CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ROLE]|=       CF_AUTO_COMMIT_TRANS;
@@ -727,6 +736,10 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLESPACE]|=  CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=        CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_SRS]|=          CF_AUTO_COMMIT_TRANS |
                                                 CF_ACQUIRE_BACKUP_LOCK;
 
   /*
@@ -836,6 +849,8 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_UNINSTALL_COMPONENT]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_IMPORT]|=           CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_SRS]|=         CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -984,6 +999,8 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]|= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_IMPORT]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_SRS]|=                CF_ALLOW_PROTOCOL_PLUGIN;
 
   /*
     Mark DDL statements which require that auto-commit mode to be temporarily
@@ -1044,6 +1061,10 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_ALTER_EVENT]|=      CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_SRS]|=         CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
 }
 
@@ -1628,13 +1649,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       PS_PARAM *parameters= com_data->com_stmt_execute.parameters;
       mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                           com_data->com_stmt_execute.open_cursor, parameters);
-
-      DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
-        LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
-      });
-      DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
-        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
-      });
     }
     break;
   }
@@ -1665,6 +1679,16 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     /* Clear possible warnings from the previous command */
     thd->reset_for_next_command();
     Prepared_statement *stmt= nullptr;
+
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
+      LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE,
+             com_data->com_stmt_prepare.query);
+    });
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+      LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE,
+             com_data->com_stmt_prepare.query);
+    });
+
     if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
       mysqld_stmt_prepare(thd, com_data->com_stmt_prepare.query,
                           com_data->com_stmt_prepare.length, stmt);
@@ -4642,6 +4666,9 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_UNLOCK_INSTANCE:
   case SQLCOM_ALTER_TABLESPACE:
   case SQLCOM_EXPLAIN_OTHER:
+  case SQLCOM_RESTART_SERVER:
+  case SQLCOM_CREATE_SRS:
+  case SQLCOM_DROP_SRS:
 
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
@@ -6049,7 +6076,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   DBUG_ENTER("add_table_to_list");
 
   DBUG_ASSERT(table_name != nullptr);
-  if (!(table_options & TL_OPTION_ALIAS))
+  // A derived table has no table name, only an alias.
+  if (!(table_options & TL_OPTION_ALIAS) && !table_name->is_derived_table())
   {
     Ident_name_check ident_check_status=
       check_table_name(table_name->table.str, table_name->table.length);
@@ -6262,6 +6290,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   {
     ptr->derived_key_list.empty();
     derived_table_count++;
+    ptr->save_name_temporary();
   }
 
   // Check access to DD tables. We must allow CHECK and ALTER TABLE
@@ -6280,16 +6309,12 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
               lex->sql_command != SQLCOM_ALTER_TABLE,
              ptr->db, ptr->db_length, ptr->table_name))
   {
-    // TODO: Allow access to 'st_spatial_reference_systems' until
-    // dedicated DDL statements for adding reference systems are
-    // implemented.
     // We must allow creation of the system views even for non-system
     // threads since this is expected by the mysql_upgrade utility.
     if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
           dd::get_dictionary()->is_system_view_name(
                                   lex->query_tables->db,
-                                  lex->query_tables->table_name)) &&
-        strcmp(ptr->table_name, "st_spatial_reference_systems"))
+                                  lex->query_tables->table_name)))
     {
       my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
                ER_THD(thd, dictionary->table_type_error_code(ptr->db,

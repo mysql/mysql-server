@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -452,6 +459,11 @@ LEX::~LEX()
 
 void LEX::reset()
 {
+  // CREATE VIEW
+  create_view_mode= enum_view_create_mode::VIEW_CREATE_NEW;
+  create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+  create_view_suid= true;
+
   context_stack.empty();
   unit= NULL;
   select_lex= NULL;
@@ -913,9 +925,9 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function)
 
   if (symbol)
   {
-    lip->yylval->symbol.symbol=symbol;
-    lip->yylval->symbol.str= (char*) tok;
-    lip->yylval->symbol.length=len;
+    lip->yylval->keyword.symbol=symbol;
+    lip->yylval->keyword.str= (char*) tok;
+    lip->yylval->keyword.length=len;
 
     if ((symbol->tok == NOT_SYM) &&
         (lip->m_thd->variables.sql_mode & MODE_HIGH_NOT_PRECEDENCE))
@@ -1623,6 +1635,10 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 
       if (yylval->lex_str.str[0] == '_')
       {
+        auto charset_name= yylval->lex_str.str + 1;
+        if (native_strcasecmp(charset_name, "utf8") == 0)
+          push_warning(thd, ER_DEPRECATED_UTF8_ALIAS);
+
         CHARSET_INFO *cs= get_charset_by_csname(yylval->lex_str.str + 1,
                                                 MY_CS_PRIMARY, MYF(0));
         if (cs)
@@ -3074,7 +3090,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
   else
   {
     const char *cmp_name;                         // Name to compare with alias
-    if (view_name.str)
+    if (view_name.length)
     {
       // A view or CTE
       if (view_db.length &&
@@ -3123,17 +3139,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       }
       else
       {
-        /**
-         Fix for printing empty string when internal_table_name is
-         used. Actual length of internal_table_name cannot be reduced
-         as server expects a valid string of length atleast 1 for any
-         table. So while printing we use the correct length of the
-         table_name i.e 0 when internal_table_name is used.
-        */
-        if (table_name != internal_table_name)
-          append_identifier(thd, str, table_name, table_name_length);
-        else
-          append_identifier(thd, str, table_name, 0);
+        append_identifier(thd, str, table_name, table_name_length);
         cmp_name= table_name;
       }
       if (partition_names && partition_names->elements)
@@ -3175,7 +3181,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       CTE, the definition is in WITH, and here we only have a
       reference. For a Derived Table, the definition is here.
     */
-    if (!view_name.str)
+    if (!view_name.length)
       print_derived_column_names(thd, str, m_derived_column_names);
 
     if (index_hints)
@@ -4875,9 +4881,10 @@ void LEX_MASTER_INFO::initialize()
   view_id= NULL;
   until_after_gaps= false;
   ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt=
-    retry_count_opt= auto_position= port_opt= LEX_MI_UNCHANGED;
+    retry_count_opt= auto_position= port_opt= get_public_key= LEX_MI_UNCHANGED;
   ssl_key= ssl_cert= ssl_ca= ssl_capath= ssl_cipher= NULL;
   ssl_crl= ssl_crlpath= NULL;
+  public_key_path= NULL;
   tls_version= NULL;
   relay_log_name= NULL;
   relay_log_pos= 0;

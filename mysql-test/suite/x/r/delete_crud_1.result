@@ -1,0 +1,377 @@
+RUN DROP SCHEMA if EXISTS dbmysqlxplugintest
+
+0 rows affected
+RUN CREATE SCHEMA dbmysqlxplugintest DEFAULT CHARSET='utf8'
+
+1 rows affected
+RUN USE dbmysqlxplugintest
+
+0 rows affected
+RUN CREATE TABLE Categories (
+ CategoryID int NOT NULL AUTO_INCREMENT,
+ CategoryName varchar(100),
+ CategoryDescription varchar(200),
+ CategoryIMEI tinyint,	  
+ CategoryDecimal decimal(5,2),
+ PRIMARY key (CategoryID)
+ )
+
+0 rows affected
+RUN INSERT INTO Categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal)
+ VALUES
+ (1,'Sports','Sports related category',1,235.15),
+ (2,'Entertaiment','Entertaiment related category',2,235.15),
+ (3, 'Home','Home related category',3,235.15),
+ (4, 'Kitchen','Kitchen related category',4,235.15),
+ (5, 'Garden','Garden related category',5,535.15),
+ (6, 'Toys','Toys related category',6,635.15)
+
+6 rows affected
+last insert id: 6
+Records: 6  Duplicates: 0  Warnings: 0
+RUN CREATE TABLE ExtraCategoryInfo (
+ ExtraCategoryInfoID int NOT NULL AUTO_INCREMENT,
+ CategoryID int NOT NULL,
+ MainParentCategoryName varchar(100),
+ PRIMARY key (ExtraCategoryInfoID)
+ )
+
+0 rows affected
+RUN INSERT INTO ExtraCategoryInfo(ExtraCategoryInfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (1,1,'People'),
+ (2,2,'People'),
+ (3,2,'House'),
+ (4,3,'House'),
+ (5,1,'People'),
+ (6,2,'People'),
+ (7,2,'House'),
+ (8,3,'House'),
+ (9,1,'People'),
+ (10,2,'House')
+
+10 rows affected
+last insert id: 10
+Records: 10  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+3	2	House
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Delete with In, && operators
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "ExtraCategoryInfoID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 1
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 3
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param {
+            type: IDENT
+            identifier {
+              name: "CategoryID"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 2
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+Delete with == operator and rollback operation
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "ExtraCategoryInfoID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+RUN ROLLBACK
+
+0 rows affected
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+Delete with == operator and commit
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "ExtraCategoryInfoID"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN COMMIT
+
+0 rows affected
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN USE dbmysqlxplugintest
+
+0 rows affected
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Use delete with limit and order parameters
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: DOCUMENT
+  limit {
+    row_count: 2
+    offset: 5
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5012
+  msg: "Invalid parameter: non-zero offset value not allowed for this operation"
+  sql_state: "HY000"
+}
+
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Use delete with limit 0 and order parameters
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: DOCUMENT
+  limit {
+    row_count: 0
+    offset: 0
+  }
+}
+
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN USE dbmysqlxplugintest
+
+0 rows affected
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+8	3	House
+9	1	People
+10	2	House
+0 rows affected
+Use delete with limit and order parameters
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "ExtraCategoryInfo"
+    schema: "dbmysqlxplugintest"
+  }
+  data_model: DOCUMENT
+  limit {
+    row_count: 1
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "CategoryID"
+      }
+    }
+    direction: DESC
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "ExtraCategoryInfoID"
+      }
+    }
+    direction: DESC
+  }
+}
+
+
+1 rows affected
+RUN SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+2	2	People
+4	3	House
+5	1	People
+6	2	People
+7	2	House
+9	1	People
+10	2	House
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP DATABASE IF EXISTS dbmysqlxplugintest;

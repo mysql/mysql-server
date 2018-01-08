@@ -172,6 +172,8 @@ def	mysql	slave_master_info	Ssl_crlpath	22	NULL	YES	text	65535	65535	NULL	NULL	N
 def	mysql	slave_master_info	Enabled_auto_position	23	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Indicates whether GTIDs will be used to retrieve events from the master.		NULL
 def	mysql	slave_master_info	Channel_name	24	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The channel on which the slave is connected to a source. Used in Multisource Replication		NULL
 def	mysql	slave_master_info	Tls_version	25	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Tls version		NULL
+def	mysql	slave_master_info	Public_key_path	26	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The file containing public key of master server.		NULL
+def	mysql	slave_master_info	Get_public_key	27	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Preference to get public key from master.		NULL
 def	mysql	slave_relay_log_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	Number of lines in the file or rows in the table. Used to version table definitions.		NULL
 def	mysql	slave_relay_log_info	Relay_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the current relay log file.		NULL
 def	mysql	slave_relay_log_info	Relay_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	The relay log position of the last executed event.		NULL
@@ -267,7 +269,7 @@ def	mysql	user	max_questions	36	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11) u
 def	mysql	user	max_updates	37	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11) unsigned			select,insert,update,references			NULL
 def	mysql	user	max_connections	38	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11) unsigned			select,insert,update,references			NULL
 def	mysql	user	max_user_connections	39	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11) unsigned			select,insert,update,references			NULL
-def	mysql	user	plugin	40	mysql_native_password	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references			NULL
+def	mysql	user	plugin	40	caching_sha2_password	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references			NULL
 def	mysql	user	authentication_string	41	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references			NULL
 def	mysql	user	password_expired	42	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 def	mysql	user	password_last_changed	43	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
@@ -511,6 +513,8 @@ NULL	mysql	slave_master_info	Retry_count	bigint	NULL	NULL	NULL	NULL	bigint(20) u
 NULL	mysql	slave_master_info	Enabled_auto_position	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	slave_master_info	Channel_name	char	64	192	utf8	utf8_general_ci	char(64)
 1.0000	mysql	slave_master_info	Tls_version	text	65535	65535	utf8	utf8_bin	text
+1.0000	mysql	slave_master_info	Public_key_path	text	65535	65535	utf8	utf8_bin	text
+NULL	mysql	slave_master_info	Get_public_key	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned

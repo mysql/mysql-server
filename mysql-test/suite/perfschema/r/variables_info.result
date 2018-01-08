@@ -32,15 +32,15 @@ VARIABLE_NAME = 'skip_networking')
 order by VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_SOURCE	SET_TIME	SET_USER	SET_HOST
 # Restart server with command line option
-select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
 from performance_schema.variables_info
 where VARIABLE_SOURCE = 'COMMAND_LINE' AND
 (VARIABLE_NAME = 'max_connections' OR
 VARIABLE_NAME = 'skip_networking')
 order by VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_SOURCE	SET_TIME	SET_USER	SET_HOST
-max_connections	COMMAND_LINE	NULL	NULL	NULL
-skip_networking	COMMAND_LINE	NULL	NULL	NULL
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER	SET_HOST
+max_connections	COMMAND_LINE	NULL	NULL
+skip_networking	COMMAND_LINE	NULL	NULL
 # Test persisted variables
 SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
@@ -52,17 +52,17 @@ where VARIABLE_SOURCE = 'PERSISTED'
   order by VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_SOURCE	SET_TIME	SET_USER	SET_HOST
 # Restart server with some persisted variables
-select VARIABLE_NAME, VARIABLE_SOURCE, SET_TIME, SET_USER, SET_HOST
+select VARIABLE_NAME, VARIABLE_SOURCE, SET_USER, SET_HOST
 from performance_schema.variables_info
 where VARIABLE_SOURCE = 'PERSISTED'
   order by VARIABLE_NAME;
-VARIABLE_NAME	VARIABLE_SOURCE	SET_TIME	SET_USER	SET_HOST
-innodb_default_row_format	PERSISTED	NULL	NULL	NULL
-max_execution_time	PERSISTED	NULL	NULL	NULL
-max_heap_table_size	PERSISTED	NULL	NULL	NULL
-max_user_connections	PERSISTED	NULL	NULL	NULL
-slave_net_timeout	PERSISTED	NULL	NULL	NULL
-sort_buffer_size	PERSISTED	NULL	NULL	NULL
+VARIABLE_NAME	VARIABLE_SOURCE	SET_USER	SET_HOST
+innodb_default_row_format	PERSISTED	root	localhost
+max_execution_time	PERSISTED	root	localhost
+max_heap_table_size	PERSISTED	root	localhost
+max_user_connections	PERSISTED	root	localhost
+slave_net_timeout	PERSISTED	root	localhost
+sort_buffer_size	PERSISTED	root	localhost
 # Change persisted variables to dynamic
 SELECT now() into @before_timestamp;
 Sleep 1 second

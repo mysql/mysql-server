@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -45,7 +52,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/resource_group.h"
 #include "sql/handler.h"
-#include "sql/log.h"                             // sql_print_error
+#include "sql/log.h"                             // LogErr
 #include "sql/mysqld.h"                          // key_resource_group_mgr*
 #include "sql/resourcegroups/platform/thread_attrs_api.h"
 #include "sql/resourcegroups/resource_group.h"
@@ -122,8 +129,7 @@ static inline bool persist_resource_group(
   handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->is_dict_readonly && ddse->is_dict_readonly())
   {
-    sql_print_warning("Skipped updating resource group metadata "
-                      "in InnoDB read only mode.");
+    LogErr(WARNING_LEVEL, ER_RESOURCE_GROUP_METADATA_UPDATE_SKIPPED);
     return false;
   }
 
@@ -134,8 +140,8 @@ static inline bool persist_resource_group(
 
   if (res)
   {
-    sql_print_error("Failed to persist resource group %s to Data Dictionary",
-                    resource_group.name().c_str());
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_PERSIST_RESOURCE_GROUP_METADATA,
+           resource_group.name().c_str());
     return true;
   }
 
@@ -178,8 +184,8 @@ static bool deserialize_resource_groups(THD *thd)
         res_grp_mgr->deserialize_resource_group(resource_group);
       if (resource_group_ptr == nullptr)
       {
-        sql_print_error("Failed to deserialize resource group %s.",
-                        resource_group->name().c_str());
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_DESERIALIZE_RESOURCE_GROUP,
+               resource_group->name().c_str());
         DBUG_RETURN(true);
       }
 
@@ -199,13 +205,13 @@ static bool deserialize_resource_groups(THD *thd)
       if (dd::update_resource_group(thd, resource_group_ptr->name().c_str(),
                                     *resource_group_ptr))
       {
-        sql_print_warning("Update of resource group %s failed.",
-                          resource_group_ptr->name().c_str());
+        LogErr(WARNING_LEVEL, ER_FAILED_TO_UPDATE_RESOURCE_GROUP,
+               resource_group_ptr->name().c_str());
         DBUG_RETURN(true);
       }
-      sql_print_warning("Validation of resource group %s failed."
-                        "Resource group is disabled.",
-                        resource_group_ptr->name().c_str());
+
+      LogErr(WARNING_LEVEL, ER_RESOURCE_GROUP_VALIDATION_FAILED,
+             resource_group_ptr->name().c_str());
     }
   }
 
@@ -233,8 +239,8 @@ Resource_group *Resource_group_mgr::deserialize_resource_group(
 
   if (vcpu_range_vector.get() == nullptr)
   {
-    sql_print_error("Unable to allocate memory for Resource Group %s",
-                    name_cstr.str);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP,
+           name_cstr.str);
     return nullptr;
   }
 
@@ -259,8 +265,7 @@ Resource_group *Resource_group_mgr::deserialize_resource_group(
 
   if (resource_group_ptr == nullptr)
   {
-    sql_print_error("Failed to add resource group %s to resource group map",
-                     name_cstr.str);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ADD_RESOURCE_GROUP_TO_MAP, name_cstr.str);
     return nullptr;
   }
 
@@ -358,8 +363,7 @@ bool Resource_group_mgr::init()
 #ifdef DISABLE_PSI_THREAD
   // Resource group not supported with DISABLE_PSI_THREAD.
   m_resource_group_support= false;
-  sql_print_information("Resource group feature is disabled. "
-                        "(Server compiled with DISABLE_PSI_THREAD.)");
+  LogErr(INFORMATION_LEVEL, ER_RESOURCE_GROUP_IS_DISABLED);
   m_unsupport_reason= "Server compiled with DISABLE_PSI_THREAD";
   DBUG_RETURN(false);
 #endif
@@ -372,13 +376,17 @@ bool Resource_group_mgr::init()
   m_registry_svc= mysql_plugin_registry_acquire();
   if (!m_registry_svc)
   {
-    sql_print_warning("mysql_plugin_registry_acquire() failed");
+    LogErr(WARNING_LEVEL,
+           ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION,
+           "registry");
     DBUG_RETURN(true);
   }
 
   if (m_registry_svc->acquire("pfs_resource_group", &m_h_res_grp_svc))
   {
-    sql_print_warning("Can't find pfs_resource_group service");
+    LogErr(WARNING_LEVEL,
+           ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION,
+           "pfs_resource_group");
     DBUG_RETURN(true);
   }
   m_resource_group_svc= reinterpret_cast<SERVICE_TYPE(pfs_resource_group) *>(
@@ -386,7 +394,9 @@ bool Resource_group_mgr::init()
 
   if (m_registry_svc->acquire("pfs_notification", &m_h_notification_svc))
   {
-    sql_print_warning("Unable to get handle for pfs notification service.");
+    LogErr(WARNING_LEVEL,
+           ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION,
+           "pfs_notification");
     DBUG_RETURN(true);
   }
 
@@ -402,7 +412,8 @@ bool Resource_group_mgr::init()
   m_notify_handle= m_notify_svc->register_notification(&callbacks, false);
   if (m_notify_handle == 0)
   {
-    sql_print_warning("register_notify failed");
+    LogErr(WARNING_LEVEL, ER_PFS_NOTIFICATION_FUNCTION_REGISTER_FAILED,
+           "Thread creation");
     DBUG_RETURN(true);
   }
 
@@ -411,7 +422,7 @@ bool Resource_group_mgr::init()
                                       PSI_INSTRUMENT_ME);
   if (m_resource_group_hash == nullptr)
   {
-    sql_print_error("Failed to allocate memory for resource group hash");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP_HASH);
     DBUG_RETURN(true);
   }
 
@@ -420,7 +431,8 @@ bool Resource_group_mgr::init()
 
   if (m_usr_default_resource_group == nullptr)
   {
-    sql_print_error("Failed to allocate memory for user Resource Group.");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP,
+           "USR_default");
     delete m_resource_group_hash;
     m_resource_group_hash= nullptr;
     DBUG_RETURN(true);
@@ -431,7 +443,8 @@ bool Resource_group_mgr::init()
 
   if (m_sys_default_resource_group == nullptr)
   {
-    sql_print_error("Failed to allocate memory for user Resource Group.");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP,
+           "SYS_default");
     delete m_resource_group_hash;
     m_resource_group_hash= nullptr;
     delete m_usr_default_resource_group;
@@ -463,8 +476,8 @@ bool Resource_group_mgr::move_resource_group(
 
   if (to_res_grp->controller()->apply_control())
   {
-    sql_print_warning("Unable to apply resource group controller %s",
-                      to_res_grp->name().c_str());
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_APPLY_RESOURCE_GROUP_CONTROLLER,
+           to_res_grp->name().c_str());
     return false;
   }
 
@@ -607,8 +620,8 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
                                                             MDL_EXPLICIT,
                                                             ticket, false))
     {
-      sql_print_warning("Unable to acquire lock. Resource group hint to switch"
-                        " resource group %s shall be ignored", res_grp_name);
+      LogErr(WARNING_LEVEL, ER_FAILED_TO_ACQUIRE_LOCK_ON_RESOURCE_GROUP,
+             res_grp_name);
       res_grp_name[0]= '\0';
       return false;
     }
@@ -653,9 +666,8 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
                                                             MDL_EXPLICIT,
                                                             cur_ticket, true))
     {
-      sql_print_warning("Unable to acquire lock on current resource group %s."
-                        "Hint shall be ignored for the query. ",
-                        src_res_grp_str);
+      LogErr(WARNING_LEVEL, ER_FAILED_TO_ACQUIRE_LOCK_ON_RESOURCE_GROUP,
+             src_res_grp_str);
       mysql_mutex_unlock(&thd->LOCK_thd_data);
       res_grp_name[0]= '\0';
       return false;

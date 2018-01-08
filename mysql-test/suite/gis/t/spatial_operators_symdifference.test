@@ -1066,18 +1066,6 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 ));
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 22000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (22000001, 1, 'TEST22000001', 'Foo', 22000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
-  ST_GEOMFROMTEXT('POINT(0 0)', 22000001),
-  ST_GEOMFROMTEXT('POINT(0 0)', 22000001)
-));
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22000001;
-
 --echo #
 --echo # Bug #25510403 SRID OF RESULT OF SET OPERATION IS DIFFERENT FROM INPUT
 --echo # GEOMETRIES

@@ -48,8 +48,26 @@ CALL SampleProc1();
 ## Use Connection 2 for default target thread id
 
 ## Create index_test() procedure
+update performance_schema.setup_consumers
+set enabled = 'NO' where name = 'global_instumentation';
 
 ===== BEGIN TEST =====
+========
+SELECT * FROM performance_schema.events_waits_current WHERE thread_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.events_waits_current WHERE thread_id is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.events_waits_current WHERE thread_id = @target_thread_id
 
@@ -76,6 +94,22 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT * FROM performance_schema.events_waits_current WHERE thread_id = @target_thread_id ORDER BY thread_id DESC
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.events_waits_current WHERE thread_id = @target_thread_id AND event_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT * FROM performance_schema.events_waits_current WHERE thread_id = @target_thread_id AND event_id is not null
 
 OK: Handler_read_key
 
@@ -130,6 +164,8 @@ OK: Handler_read_key
 OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
+update performance_schema.setup_consumers
+set enabled = 'YES' where name = 'global_instumentation';
 
 ===== CLEAN UP =====
 ## Default connection

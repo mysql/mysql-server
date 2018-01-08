@@ -1,17 +1,24 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/upgrade/table.h"
 
@@ -98,7 +105,7 @@ class Table;
 }  // namespace dd
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /*
   Custom version of standard offsetof() macro which can be used to get
@@ -355,7 +362,7 @@ bool Trigger_loader::load_triggers(THD *thd,
       DBUG_RETURN(true);
     }
 
-    LogErr(WARNING_LEVEL, ER_TRG_NO_CREATION_CTX, db_name, table_name);
+    LogErr(WARNING_LEVEL, ER_TRG_CREATION_CTX_NOT_SET, db_name, table_name);
 
 
     /*
@@ -565,7 +572,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     const char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
-    LogErr(WARNING_LEVEL, ER_OLD_FILE_FORMAT, m_path, "TRIGGER");
+    LogErr(WARNING_LEVEL, ER_FILE_HAS_OLD_FORMAT, m_path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
     {
@@ -982,9 +989,8 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
       if (Bootstrap_error_handler::abort_on_error)
       {
         // Exit the upgrade process by reporting an error.
-        sql_print_error("Upgrade of view '%s.%s' failed. Re-create the view "
-                        "with the explicit column name lesser than 64 characters.",
-                         db_name.c_str(), view_name.c_str());
+        LogErr(ERROR_LEVEL, ER_DD_UPGRADE_VIEW_COLUMN_NAME_TOO_LONG,
+               db_name.c_str(), view_name.c_str());
         error= true;
       }
       else
@@ -1073,7 +1079,7 @@ static bool migrate_view_to_dd(THD *thd,
   {
     // Print warning only once in the error log.
     if (!is_fix_view_cols_and_deps)
-      LogErr(WARNING_LEVEL, ER_VIEW_NO_CREATION_CTX,
+      LogErr(WARNING_LEVEL, ER_VIEW_CREATION_CTX_NOT_SET,
              db_name.c_str(), view_name.c_str());
     invalid_ctx= true;
   }
@@ -1596,7 +1602,8 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (was_truncated)
   {
-    LogErr(ERROR_LEVEL, ER_IDENT_CAUSES_TOO_LONG_PATH, sizeof(path) - 1, path);
+    LogErr(ERROR_LEVEL, ER_TABLE_NAME_CAUSES_TOO_LONG_PATH,
+           sizeof(path) - 1, path);
     return true;
   }
 
@@ -1720,11 +1727,10 @@ static bool migrate_table_to_dd(THD *thd,
   if (error)
   {
     if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
-      sql_print_error("Table upgrade required for "
-                      "`%-.64s`.`%-.64s`. Please dump/reload table to "
-                      "fix it!", schema_name.c_str(), table_name.c_str());
+      LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_DUMP_UPGRADE, schema_name.c_str(),
+             table_name.c_str());
     else
-      LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
+      LogErr(ERROR_LEVEL, ER_TABLE_UPGRADE_REQUIRED, table_name.c_str());
 
     return true;
   }

@@ -1,0 +1,8 @@
+Variable_name	Value
+Mysqlx_ssl_server_not_after	
+Mysqlx_ssl_server_not_before	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok

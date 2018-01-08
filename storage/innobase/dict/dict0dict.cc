@@ -4,16 +4,24 @@ Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -117,6 +125,11 @@ extern uint	ibuf_debug;
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
+
+/** The set of SE private IDs of DD tables. Used to tell whether a table is
+a DD table. Since the DD tables can be rebuilt with new SE private IDs,
+this set replaces checks based on ranges of IDs. */
+std::set<dd::Object_id> dict_sys_t::s_dd_table_ids = {};
 
 /** The name of the data dictionary tablespace. */
 const char*	dict_sys_t::s_dd_space_name = "mysql";
@@ -1666,14 +1679,20 @@ dict_table_rename_in_cache(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			dict_table_t*, table2, ut_ad(table2->cached),
 			(ut_strcmp(table2->name.m_name, new_name) == 0));
+
 	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
 		if (table2 == NULL) {
 			table2 = (dict_table_t*) -1;
 		} );
-	if (table2) {
-		ib::error() << "Cannot rename table '" << old_name
+
+	if (table2 != nullptr) {
+
+		ib::error()
+			<< "Cannot rename table '" << old_name
 			<< "' to '" << new_name << "' since the"
-			" dictionary cache already contains '" << new_name << "'.";
+			" dictionary cache already contains '"
+			<< new_name << "'.";
+
 		return(DB_ERROR);
 	}
 
@@ -1689,22 +1708,28 @@ dict_table_rename_in_cache(
 		/* Make sure the data_dir_path is set. */
 		dd_get_and_save_data_dir_path<dd::Table>(table, NULL, true);
 
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			ut_a(table->data_dir_path);
+		std::string	path = dict_table_get_datadir(table);
 
-			filepath = fil_make_filepath(
-				table->data_dir_path, table->name.m_name,
-				IBD, true);
-		} else {
-			filepath = fil_make_filepath(
-				NULL, table->name.m_name, IBD, false);
-		}
+		filepath = Fil_path::make(path, table->name.m_name, IBD, true);
 
 		if (filepath == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
+		err = fil_delete_tablespace(
+                        table->space, BUF_REMOVE_ALL_NO_WRITE);
+
+                ut_a(err == DB_SUCCESS
+		     || err == DB_TABLESPACE_NOT_FOUND
+		     || err == DB_IO_ERROR);
+
+		if (err == DB_IO_ERROR) {
+
+			ib::info()
+				<< "IO error while deleting: " << table->space
+				<< " during rename of '" << old_name << "' to"
+				<< " '" << new_name << "'";
+		}
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &ftype)
@@ -1724,11 +1749,14 @@ dict_table_rename_in_cache(
 		ut_ad(!table->is_temporary());
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			new_path = os_file_make_new_pathname(
-				old_path, new_name);
+			std::string	new_ibd;
+
+			new_ibd = Fil_path::make_new_ibd(old_path, new_name);
+
+			new_path = mem_strdup(new_ibd.c_str());
+
 		} else {
-			new_path = fil_make_filepath(
-				NULL, new_name, IBD, false);
+			new_path = Fil_path::make_ibd_from_table_name(new_name);
 		}
 
 		/* New filepath must not exist. */
@@ -1746,7 +1774,8 @@ dict_table_rename_in_cache(
 		dd_filename_to_spacename(new_name, &new_tablespace_name);
 
 		bool	success = fil_rename_tablespace(
-			table->space, old_path, new_tablespace_name.c_str(), new_path);
+			table->space, old_path, new_tablespace_name.c_str(),
+			new_path);
 
 		clone_mark_active();
 
@@ -2202,8 +2231,9 @@ dict_partitioned_table_remove_from_cache(
 
 			if ((strncmp(name, prev_table->name.m_name, name_len)
 			     == 0)
-			    && (strncmp(prev_table->name.m_name + name_len,
-					part_sep, strlen(part_sep)) == 0)) {
+			    && strncmp(prev_table->name.m_name + name_len,
+					PART_SEPARATOR,
+					PART_SEPARATOR_LEN) == 0) {
 
 				btr_drop_ahi_for_table(prev_table);
 				dict_table_remove_from_cache(prev_table);
@@ -8151,5 +8181,21 @@ dd_sdi_acquire_shared_mdl(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/** Get the tablespace data directory if set, otherwise empty string.
+@return the data directory */
+std::string
+dict_table_get_datadir(const dict_table_t* table)
+{
+	std::string	path;
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)
+		&& table->data_dir_path != nullptr) {
+
+		path.assign(table->data_dir_path);
+	}
+
+	return(path);
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -203,13 +210,12 @@ static Value_map_type field_type_to_value_map_type(const Field *field)
 
   @return true on error, false on success
 */
-static bool lock_for_write(THD *thd, const dd::String_type &mdl_key)
+static bool lock_for_write(THD *thd, const MDL_key &mdl_key)
 {
   DBUG_EXECUTE_IF("histogram_fail_during_lock_for_write", { return true; });
 
   MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::COLUMN_STATISTICS, "",
-                   mdl_key.c_str(), MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT_BY_KEY(&mdl_request, &mdl_key, MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   // If locking fails, an error has already been flagged.
   return thd->mdl_context.acquire_lock(&mdl_request,
@@ -1158,7 +1164,11 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   /*
     Ensure that we estimate at least one row in the table, so we avoid
     division by zero error.
+
+    NOTE: We ignore errors from "fetch_number_of_rows()" on purpose, since we
+    don't consider it fatal not having the correct row estimate.
   */
+  table->fetch_number_of_rows();
   ha_rows rows_in_table= std::max(1ULL, tbl->file->stats.records);
 
   double sample_percentage= rows_in_memory / rows_in_table * 100.0;
@@ -1228,11 +1238,12 @@ bool drop_histograms(THD *thd, const TABLE_LIST &table,
 
   for (const std::string &column_name : columns)
   {
-    dd::String_type mdl_key=
-      dd::Column_statistics::create_mdl_key({table.db, table.db_length},
-                                           {table.table_name,
-                                            table.table_name_length},
-                                           column_name.c_str());
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key({table.db, table.db_length},
+                                          {table.table_name,
+                                           table.table_name_length},
+                                          column_name.c_str(),
+                                          &mdl_key);
 
     if (lock_for_write(thd, mdl_key))
       return true; // error is already reported.
@@ -1277,10 +1288,11 @@ bool Histogram::store_histogram(THD *thd) const
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
 
-  dd::String_type mdl_key=
-    dd::Column_statistics::create_mdl_key(get_database_name().str,
-                                          get_table_name().str,
-                                          get_column_name().str);
+  MDL_key mdl_key;
+  dd::Column_statistics::create_mdl_key(get_database_name().str,
+                                        get_table_name().str,
+                                        get_column_name().str,
+                                        &mdl_key);
 
   if (lock_for_write(thd, mdl_key))
   {
@@ -1369,9 +1381,9 @@ rename_histogram(THD *thd, const char *old_schema_name,
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(client);
 
   // First find the histogram with the old name.
-  dd::String_type mdl_key=
-    dd::Column_statistics::create_mdl_key(old_schema_name, old_table_name,
-                                         column_name);
+  MDL_key mdl_key;
+  dd::Column_statistics::create_mdl_key(old_schema_name, old_table_name,
+                                        column_name, &mdl_key);
 
   if (lock_for_write(thd, mdl_key))
   {
@@ -1396,9 +1408,8 @@ rename_histogram(THD *thd, const char *old_schema_name,
     return false;
   }
 
-  mdl_key=
-    dd::Column_statistics::create_mdl_key(new_schema_name, new_table_name,
-                                         column_name);
+  dd::Column_statistics::create_mdl_key(new_schema_name, new_table_name,
+                                        column_name, &mdl_key);
 
   if (lock_for_write(thd, mdl_key))
   {

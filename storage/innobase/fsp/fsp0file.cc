@@ -3,16 +3,24 @@
 Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -78,12 +86,6 @@ Datafile::shutdown()
 		ut_free(m_encryption_iv);
 		m_encryption_iv = NULL;
 	}
-#ifdef UNIV_HOTBACKUP
-	if (m_dirpath != NULL) {
-		ut_free(m_dirpath);
-		m_dirpath = NULL;
-	}
-#endif /* UNIV_HOTBACKUP */
 }
 
 /** Create/open a data file.
@@ -218,13 +220,22 @@ void
 Datafile::make_filepath(
 	const char*	dirpath,
 	const char*	filename,
-	ib_extention	ext)
+	ib_file_suffix	ext)
 {
-	ut_ad(dirpath != NULL || filename != NULL);
-
 	free_filepath();
 
-	m_filepath = fil_make_filepath(dirpath, filename, ext, false);
+	std::string	path;
+	std::string	name;
+
+	if (dirpath != nullptr) {
+		path.assign(dirpath);
+	}
+
+	if (filename != nullptr) {
+		name.assign(filename);
+	}
+
+	m_filepath = Fil_path::make(path, name, ext);
 
 	ut_ad(m_filepath != NULL);
 
@@ -428,7 +439,7 @@ Datafile::validate_to_dd(
 	dberr_t err;
 
 	if (!is_open()) {
-		return DB_ERROR;
+		return(DB_ERROR);
 	}
 
 	/* Validate this single-table-tablespace with the data dictionary,
@@ -543,7 +554,7 @@ m_is_valid is set true on success, else false.
 @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
 @param[in]	for_import	if it is for importing
 (only valid for the first file of the system tablespace)
-@retval DB_TABLESPACE_NOT_FOUND tablespace in file header doesn't match
+@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
 	expected value
 @retval DB_SUCCESS on if the datafile is valid
 @retval DB_CORRUPTION if the datafile is not readable
@@ -641,7 +652,7 @@ Datafile::validate_first_page(
 		     << m_space_id;
 #endif /* !UNIV_HOTBACKUP */
 
-		return(DB_TABLESPACE_NOT_FOUND);
+		return(DB_WRONG_FILE_NAME);
 
 	} else {
 		BlockReporter	reporter(
@@ -688,7 +699,7 @@ Datafile::validate_first_page(
 		m_encryption_iv = static_cast<byte*>(
 			ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 #ifdef	UNIV_ENCRYPT_DEBUG
-                fprintf(stderr, "Got from file %lu:", m_space_id);
+		fprintf(stderr, "Got from file %lu:", m_space_id);
 #endif
 
 #ifdef UNIV_HOTBACKUP

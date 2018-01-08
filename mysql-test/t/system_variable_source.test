@@ -24,7 +24,7 @@ remove_file $MYSQLD_DATADIR/test_system_variable_source.log;
 #    innodb_buffer_pool_size is set from command line                  #
 #    Expected source : COMMAND_LINE                                    #
 ########################################################################
-let $restart_parameters = restart: --innodb_dedicated_server=OFF --innodb_buffer_pool_size=24M;
+let $restart_parameters = restart: --innodb_dedicated_server=OFF --innodb_buffer_pool_size=24M --skip-mysqlx;
 --source include/restart_mysqld.inc
 
 --echo # Install test component
@@ -73,7 +73,7 @@ let $MYSQL_SERVER_ID= `SELECT @@server_id`;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 

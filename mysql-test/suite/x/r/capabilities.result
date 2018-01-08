@@ -1,0 +1,1592 @@
+call mtr.add_suppression("Capability expired password failed with error: Invalid data, expected numeric type");
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities {
+  capabilities {
+    name: "authentication.mechanisms"
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "MYSQL41"
+            }
+          }
+        }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "doc.formats"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "text"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "node_type"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "mysql"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.pwd_expire_ok"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+
+setting Not existing capability,expect error
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "NotExistingCapability"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5002
+  msg: "Capability \'NotExistingCapability\' doesn\'t exist"
+  sql_state: "HY000"
+}
+
+try setting read only doc.formats capabilities
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "doc.formats"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "text"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'doc.formats\'"
+  sql_state: "HY000"
+}
+
+Try setting auth capabilities which is read only
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "authentication.mechanisms"
+      value {
+        type: ARRAY
+        array {
+          value {
+            type: SCALAR
+            scalar {
+              type: V_STRING
+              v_string {
+                value: "MYSQL41"
+              }
+            }
+          }
+          value {
+            type: SCALAR
+            scalar {
+              type: V_STRING
+              v_string {
+                value: "PLAIN"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'authentication.mechanisms\'"
+  sql_state: "HY000"
+}
+
+setting Read only message.maxSendLength cap
+this param is not ready and needs changes in result file once available
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "message.maxSendLength"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "int32"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5002
+  msg: "Capability \'message.maxSendLength\' doesn\'t exist"
+  sql_state: "HY000"
+}
+
+setting Read only message.maxReceiveLength cap
+this param is not ready and needs changes in result file once available
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "message.maxReceiveLength"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "int32"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5002
+  msg: "Capability \'message.maxReceiveLength\' doesn\'t exist"
+  sql_state: "HY000"
+}
+
+setting read/write  tls param with true while the SSL isn't configured 
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+setting read/write  tls param with false while the SSL isn't configured 
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+setting read/write  tls param with String type instead of Bool
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+setting read/write  tls param with possible data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 19.49
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 1111111
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_OCTETS
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities {
+  capabilities {
+    name: "authentication.mechanisms"
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "MYSQL41"
+            }
+          }
+        }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "doc.formats"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "text"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "node_type"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "mysql"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.pwd_expire_ok"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 19.49
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 1111111
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_OCTETS
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities {
+  capabilities {
+    name: "authentication.mechanisms"
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "MYSQL41"
+            }
+          }
+        }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "doc.formats"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "text"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "node_type"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "mysql"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.pwd_expire_ok"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 19.49
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 1111111
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_OCTETS
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+setting "client.pwd_expire_ok" param with possible invalid data types
+setting "client.pwd_expire_ok" capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+setting "client.interactive" param with possible invalid data types
+setting "client.interactive" capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+ok
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities {
+  capabilities {
+    name: "authentication.mechanisms"
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "MYSQL41"
+            }
+          }
+        }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "doc.formats"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "text"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "node_type"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "mysql"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.pwd_expire_ok"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+
+setting Not existing capability,expect error
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "NotExistingCapability"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5002
+  msg: "Capability \'NotExistingCapability\' doesn\'t exist"
+  sql_state: "HY000"
+}
+
+try setting read only doc.formats capabilities
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "doc.formats"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "text"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'doc.formats\'"
+  sql_state: "HY000"
+}
+
+Try setting auth capabilities which is read only
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "authentication.mechanisms"
+      value {
+        type: ARRAY
+        array {
+          value {
+            type: SCALAR
+            scalar {
+              type: V_STRING
+              v_string {
+                value: "MYSQL41"
+              }
+            }
+          }
+          value {
+            type: SCALAR
+            scalar {
+              type: V_STRING
+              v_string {
+                value: "PLAIN"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'authentication.mechanisms\'"
+  sql_state: "HY000"
+}
+
+setting Read only message.maxSendLength cap
+this param is not ready and needs changes in result file once available
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "message.maxSendLength"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "int32"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5002
+  msg: "Capability \'message.maxSendLength\' doesn\'t exist"
+  sql_state: "HY000"
+}
+
+setting Read only message.maxReceiveLength cap
+this param is not ready and needs changes in result file once available
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "message.maxReceiveLength"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_STRING
+          v_string {
+            value: "int32"
+          }
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5002
+  msg: "Capability \'message.maxReceiveLength\' doesn\'t exist"
+  sql_state: "HY000"
+}
+
+setting read/write  tls param with true while the SSL isn't configured 
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+setting read/write  tls param with false while the SSL isn't configured 
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+Restart server and verify if ssl callback works
+# restart: --ssl=1
+capabilities.result checks the presence of tls cap
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities {
+  capabilities {
+    name: "tls"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "authentication.mechanisms"
+    value {
+      type: ARRAY
+      array {
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "MYSQL41"
+            }
+          }
+        }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "doc.formats"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "text"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+  capabilities {
+    name: "node_type"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_STRING
+        v_string {
+          value: "mysql"
+        }
+      }
+    }
+  }
+  capabilities {
+    name: "client.pwd_expire_ok"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
+      }
+    }
+  }
+}
+
+ok

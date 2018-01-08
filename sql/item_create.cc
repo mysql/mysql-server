@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1634,7 +1641,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_DIMENSION", SQL_FN(Item_func_dimension, 1) },
   { "ST_DISJOINT", SQL_FN(Item_func_st_disjoint, 2) },
   { "ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2) },
-  { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
+  { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_st_distance_sphere, 2, 3) },
   { "ST_ENDPOINT", SQL_FACTORY(Endpoint_instantiator) },
   { "ST_ENVELOPE", SQL_FN(Item_func_envelope, 1) },
   { "ST_EQUALS", SQL_FN(Item_func_st_equals, 2) },
@@ -1657,7 +1664,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_INTERSECTION", SQL_FN(Item_func_st_intersection, 2) },
   { "ST_ISCLOSED", SQL_FN(Item_func_isclosed, 1) },
   { "ST_ISEMPTY", SQL_FN(Item_func_isempty, 1) },
-  { "ST_ISSIMPLE", SQL_FN(Item_func_issimple, 1) },
+  { "ST_ISSIMPLE", SQL_FN(Item_func_st_issimple, 1) },
   { "ST_ISVALID", SQL_FN(Item_func_isvalid, 1) },
   { "ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1) },
   { "ST_LENGTH", SQL_FN(Item_func_st_length, 1) },
@@ -1804,6 +1811,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
     SQL_FN_INTERNAL(Item_func_internal_tablespace_autoextend_size, 4) },
   { "INTERNAL_TABLESPACE_VERSION",
     SQL_FN_INTERNAL(Item_func_internal_tablespace_version, 4) },
+  { "INTERNAL_TABLESPACE_ROW_FORMAT",
+    SQL_FN_INTERNAL(Item_func_internal_tablespace_row_format, 4) },
   { "INTERNAL_TABLESPACE_DATA_FREE",
     SQL_FN_INTERNAL(Item_func_internal_tablespace_data_free, 4) },
   { "INTERNAL_TABLESPACE_STATUS",
