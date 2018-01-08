@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include "welcome_copyright_notice.h"
 
 #include "m_ctype.h"
 
@@ -293,36 +295,8 @@ static void dispcset(FILE *f,CHARSET_INFO *cs)
     fprintf(f,"  &my_collation_8bit_bin_handler,\n");
   else
     fprintf(f,"  &my_collation_8bit_simple_ci_handler,\n");
+  fprintf(f,"  PAD_SPACE\n");
   fprintf(f,"}\n");
-}
-
-
-static void
-fprint_copyright(FILE *file)
-{
-  fprintf(file,
-"/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.\n"
-"\n"
-"   This program is free software; you can redistribute it and/or modify\n"
-"   it under the terms of the GNU General Public License, version 2.0,\n"
-"   as published by the Free Software Foundation.\n"
-"\n"
-"   This program is also distributed with certain software (including\n"
-"   but not limited to OpenSSL) that is licensed under separate terms,\n"
-"   as designated in a particular file or component or in included license\n"
-"   documentation.  The authors of MySQL hereby grant you an additional\n"
-"   permission to link the program and your derivative works with the\n"
-"   separately licensed software that they have included with MySQL.\n"
-"\n"
-"   This program is distributed in the hope that it will be useful,\n"
-"   but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-"   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
-"   GNU General Public License, version 2.0, for more details.\n"
-"\n"
-"   You should have received a copy of the GNU General Public License\n"
-"   along with this program; if not, write to the Free Software\n"
-"   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */\n"
-"\n");
 }
 
 
@@ -368,7 +342,7 @@ main(int argc, char **argv  MY_ATTRIBUTE((unused)))
           "directory:\n");
   fprintf(f, "    ./conf_to_src {CMAKE_SOURCE_DIR}/share/charsets/ > ctype-extra.cc\n");
   fprintf(f, "*/\n\n");
-  fprint_copyright(f);
+  fprintf(f, ORACLE_GPL_FOSS_COPYRIGHT_NOTICE("2003"));
   fprintf(f,"#include <stddef.h>\n\n");
   fprintf(f,"#include \"m_ctype.h\"\n");
   fprintf(f,"#include \"my_inttypes.h\"\n\n");
