@@ -5,13 +5,13 @@
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
- 
+
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/check_unixsocket.tmp
 ## Test data
 #Ensure that each of following uses UNIX Socket
--->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
--->recvresult
+-->quiet
+-->wait_for 1	SELECT count(*) from performance_schema.threads WHERE PROCESSLIST_COMMAND='Query' AND CONNECTION_TYPE='Socket';
 EOF
 
 --write_file $MYSQL_TMP_DIR/check_connection.tmp
