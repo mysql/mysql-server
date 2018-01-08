@@ -4,16 +4,24 @@ Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -26,6 +34,8 @@ Created 1/8/1996 Heikki Tuuri
 
 #ifndef dict0dict_h
 #define dict0dict_h
+
+#include <set>
 
 #include "univ.i"
 #include "sql/dd/object_id.h"
@@ -1533,7 +1543,12 @@ struct dict_sys_t{
 	@param[in]	space	tablespace id to check
 	@return true if a reserved tablespace id, otherwise false */
 	static bool is_reserved(space_id_t space)
-	{ return(space >= dict_sys_t::s_reserved_space_id); }
+	{
+		return(space >= dict_sys_t::s_reserved_space_id);
+	}
+
+	/** Set of ids of DD tables */
+	static std::set<dd::Object_id> s_dd_table_ids;
 
 	/** Check if a table is hardcoded. it only includes the dd tables
 	@param[in]	id	table ID
@@ -1541,16 +1556,10 @@ struct dict_sys_t{
 			(dict_table_t::is_temporary() will not hold)
 	@retval false	if the table is not hard-coded
 			(it can be persistent or temporary) */
-	static bool is_hardcoded(table_id_t id)
+	static bool is_dd_table_id(table_id_t id)
 	{
-		return(id <= s_num_hard_coded_tables);
+		return(s_dd_table_ids.find(id) != s_dd_table_ids.end());
 	}
-
-	/** Number of hard coded new dd tables */
-	static constexpr table_id_t	s_num_hard_coded_tables = 33;
-
-	/** Max table id for DD table */
-	static constexpr uint	INNODB_DD_TABLE_ID_MAX = 60;
 
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	s_log_space_first_id = 0xFFFFFFF0UL;
@@ -1604,10 +1613,10 @@ struct dict_sys_t{
 	static const char*		s_file_per_table_name;
 
 	/** The table ID of mysql.innodb_dynamic_metadata */
-	static constexpr table_id_t	s_dynamic_meta_table_id = 33;
+	static constexpr table_id_t	s_dynamic_meta_table_id = 2;
 
 	/** The clustered index ID of mysql.innodb_dynamic_metadata */
-        static constexpr space_index_t	s_dynamic_meta_index_id = 90;
+        static constexpr space_index_t	s_dynamic_meta_index_id = 2;
 };
 
 /** Structure for persisting dynamic metadata of data dictionary */
@@ -2251,6 +2260,12 @@ an earlier upgrade. This will update the table_id by adding DICT_MAX_DD_TABLES *
 void
 dict_table_change_id_sys_tables();
 
+
+/** Get the tablespace data directory if set, otherwise empty string.
+@return the data directory */
+std::string
+dict_table_get_datadir(const dict_table_t* table)
+	MY_ATTRIBUTE((warn_unused_result));
 
 #include "dict0dict.ic"
 

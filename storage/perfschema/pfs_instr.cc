@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/pfs_instr.cc
@@ -87,7 +94,7 @@ PFS_file **file_handle_array = NULL;
 PFS_stage_stat *global_instr_class_stages_array = NULL;
 PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
-std::atomic<PFS_memory_stat *> global_instr_class_memory_array{nullptr};
+std::atomic<PFS_memory_shared_stat *> global_instr_class_memory_array{nullptr};
 
 static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 
@@ -231,8 +238,8 @@ init_instruments(const PFS_global_param *param)
     global_instr_class_memory_array =
       PFS_MALLOC_ARRAY(&builtin_memory_global_memory,
                        memory_class_max,
-                       sizeof(PFS_memory_stat),
-                       PFS_memory_stat,
+                       sizeof(PFS_memory_shared_stat),
+                       PFS_memory_shared_stat,
                        MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_memory_array.load() == nullptr))
     {
@@ -283,7 +290,7 @@ cleanup_instruments(void)
 
   PFS_FREE_ARRAY(&builtin_memory_global_memory,
                  memory_class_max,
-                 sizeof(PFS_memory_stat),
+                 sizeof(PFS_memory_shared_stat),
                  global_instr_class_memory_array);
   global_instr_class_memory_array = nullptr;
 }
@@ -556,6 +563,17 @@ PFS_thread::set_history_derived_flags()
 }
 
 void
+PFS_thread::rebase_memory_stats()
+{
+  PFS_memory_safe_stat *stat = m_instr_class_memory_stats;
+  PFS_memory_safe_stat *stat_last = stat + memory_class_max;
+  for (; stat < stat_last; stat++)
+  {
+    stat->reset();
+  }
+}
+
+void
 PFS_thread::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 {
   if (m_account != NULL)
@@ -582,7 +600,7 @@ PFS_thread::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 void
 carry_global_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 {
-  PFS_memory_stat *stat;
+  PFS_memory_shared_stat *stat;
   PFS_memory_stat_delta delta_buffer;
 
   stat = &global_instr_class_memory_array[index];
@@ -1882,12 +1900,12 @@ aggregate_all_errors(PFS_error_stat *from_array,
 
 void
 aggregate_all_memory(bool alive,
-                     PFS_memory_stat *from_array,
-                     PFS_memory_stat *to_array)
+                     PFS_memory_safe_stat *from_array,
+                     PFS_memory_shared_stat *to_array)
 {
-  PFS_memory_stat *from;
-  PFS_memory_stat *from_last;
-  PFS_memory_stat *to;
+  PFS_memory_safe_stat *from;
+  PFS_memory_safe_stat *from_last;
+  PFS_memory_shared_stat *to;
 
   from = from_array;
   from_last = from_array + memory_class_max;
@@ -1897,14 +1915,14 @@ aggregate_all_memory(bool alive,
   {
     for (; from < from_last; from++, to++)
     {
-      from->partial_aggregate_to(to);
+      memory_partial_aggregate(from, to);
     }
   }
   else
   {
     for (; from < from_last; from++, to++)
     {
-      from->full_aggregate_to(to);
+      memory_full_aggregate(from, to);
       from->reset();
     }
   }
@@ -1912,14 +1930,44 @@ aggregate_all_memory(bool alive,
 
 void
 aggregate_all_memory(bool alive,
-                     PFS_memory_stat *from_array,
-                     PFS_memory_stat *to_array_1,
-                     PFS_memory_stat *to_array_2)
+                     PFS_memory_shared_stat *from_array,
+                     PFS_memory_shared_stat *to_array)
 {
-  PFS_memory_stat *from;
-  PFS_memory_stat *from_last;
-  PFS_memory_stat *to_1;
-  PFS_memory_stat *to_2;
+  PFS_memory_shared_stat *from;
+  PFS_memory_shared_stat *from_last;
+  PFS_memory_shared_stat *to;
+
+  from = from_array;
+  from_last = from_array + memory_class_max;
+  to = to_array;
+
+  if (alive)
+  {
+    for (; from < from_last; from++, to++)
+    {
+      memory_partial_aggregate(from, to);
+    }
+  }
+  else
+  {
+    for (; from < from_last; from++, to++)
+    {
+      memory_full_aggregate(from, to);
+      from->reset();
+    }
+  }
+}
+
+void
+aggregate_all_memory(bool alive,
+                     PFS_memory_safe_stat *from_array,
+                     PFS_memory_shared_stat *to_array_1,
+                     PFS_memory_shared_stat *to_array_2)
+{
+  PFS_memory_safe_stat *from;
+  PFS_memory_safe_stat *from_last;
+  PFS_memory_shared_stat *to_1;
+  PFS_memory_shared_stat *to_2;
 
   from = from_array;
   from_last = from_array + memory_class_max;
@@ -1930,14 +1978,47 @@ aggregate_all_memory(bool alive,
   {
     for (; from < from_last; from++, to_1++, to_2++)
     {
-      from->partial_aggregate_to(to_1, to_2);
+      memory_partial_aggregate(from, to_1, to_2);
     }
   }
   else
   {
     for (; from < from_last; from++, to_1++, to_2++)
     {
-      from->full_aggregate_to(to_1, to_2);
+      memory_full_aggregate(from, to_1, to_2);
+      from->reset();
+    }
+  }
+}
+
+void
+aggregate_all_memory(bool alive,
+                     PFS_memory_shared_stat *from_array,
+                     PFS_memory_shared_stat *to_array_1,
+                     PFS_memory_shared_stat *to_array_2)
+{
+  PFS_memory_shared_stat *from;
+  PFS_memory_shared_stat *from_last;
+  PFS_memory_shared_stat *to_1;
+  PFS_memory_shared_stat *to_2;
+
+  from = from_array;
+  from_last = from_array + memory_class_max;
+  to_1 = to_array_1;
+  to_2 = to_array_2;
+
+  if (alive)
+  {
+    for (; from < from_last; from++, to_1++, to_2++)
+    {
+      memory_partial_aggregate(from, to_1, to_2);
+    }
+  }
+  else
+  {
+    for (; from < from_last; from++, to_1++, to_2++)
+    {
+      memory_full_aggregate(from, to_1, to_2);
       from->reset();
     }
   }

@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__TRANSACTION_IMPL_INCLUDED
 #define DD__TRANSACTION_IMPL_INCLUDED
@@ -23,6 +30,29 @@
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/dd_kill_immunizer.h" // dd::DD_kill_immunizer
 #include "sql/dd/string_type.h"       // dd::String_type
+#include "sql/dd/impl/types/abstract_table_impl.h"
+#include "sql/dd/impl/types/charset_impl.h"
+#include "sql/dd/impl/types/collation_impl.h"
+#include "sql/dd/impl/types/column_impl.h"
+#include "sql/dd/impl/types/column_statistics_impl.h"
+#include "sql/dd/impl/types/event_impl.h"
+#include "sql/dd/impl/types/foreign_key_impl.h"
+#include "sql/dd/impl/types/function_impl.h"
+#include "sql/dd/impl/types/index_stat_impl.h"
+#include "sql/dd/impl/types/parameter_impl.h"
+#include "sql/dd/impl/types/partition_impl.h"
+#include "sql/dd/impl/types/procedure_impl.h"
+#include "sql/dd/impl/types/resource_group_impl.h"
+#include "sql/dd/impl/types/routine_impl.h"
+#include "sql/dd/impl/types/schema_impl.h"
+#include "sql/dd/impl/types/spatial_reference_system_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/table_stat_impl.h"
+#include "sql/dd/impl/types/tablespace_impl.h"
+#include "sql/dd/impl/types/trigger_impl.h"
+#include "sql/dd/impl/types/view_impl.h"
+#include "sql/dd/impl/types/view_routine_impl.h"
+#include "sql/dd/impl/types/view_table_impl.h"
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -56,15 +86,15 @@ public:
 
   template <typename T>
   Raw_table *get_table() const
-  { return get_table(T::OBJECT_TABLE().name()); }
+  { return get_table(T::DD_table::instance().name()); }
 
   template <typename X>
   void register_tables()
-  { X::TYPE().register_tables(this); }
+  { X::Impl::register_tables(this); }
 
   template <typename X>
   void add_table()
-  { this->add_table(X::table_name()); }
+  { this->add_table(X::instance().name()); }
 
   /**
     Open all the DD tables in list Open_dictionary_tables_ctx::m_tables.

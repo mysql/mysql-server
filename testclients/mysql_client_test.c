@@ -1,17 +1,24 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
@@ -16133,6 +16140,7 @@ static void test_change_user()
   DIE_UNLESS(rc);
   if (! opt_silent)
     printf("Got error (as expected): %s\n", mysql_error(l_mysql));
+  reconnect(&l_mysql);
 
   rc= mysql_change_user(l_mysql, user_no_pw, pw, "");
   DIE_UNLESS(rc);
@@ -16174,6 +16182,7 @@ static void test_change_user()
   DIE_UNLESS(rc);
   if (! opt_silent)
     printf("Got error (as expected): %s\n", mysql_error(l_mysql));
+  reconnect(&l_mysql);
 
   rc= mysql_change_user(l_mysql, NULL, pw, NULL);
   DIE_UNLESS(rc);
@@ -16906,13 +16915,18 @@ static void test_bug31669()
   user[USERNAME_CHAR_LENGTH]= 0;
   memset(buff, 'c', sizeof(buff));
   buff[LARGE_BUFFER_SIZE]= 0;
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
-                 "'", buff, "' WITH GRANT OPTION", NullS);
+
+  strxmov(query, "CREATE USER '", user, "'@'%' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' WITH GRANT OPTION", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
-                 "'", buff, "' WITH GRANT OPTION", NullS);
+  strxmov(query, "CREATE USER '", user, "'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' WITH GRANT OPTION", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
@@ -20919,6 +20933,55 @@ static void test_skip_metadata()
 }
 
 
+static void test_bug25701141()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  MYSQL_BIND my_bind[2];
+  char query[MAX_TEST_QUERY_LENGTH];
+  const char* input1= "abcdefgh";
+  const char* input2=  "mnopqrst";
+  const ulong type = CURSOR_TYPE_READ_ONLY;
+
+  myheader("test_bug25701141");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1( "
+      "id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,"
+      "serial CHAR(10) NOT NULL,"
+      "pretty CHAR(20) DEFAULT NULL,"
+      "CONSTRAINT UNIQUE KEY unique_serial (serial) USING HASH,"
+      "INDEX pretty_index USING HASH (pretty)"
+      ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8_bin");
+  myquery(rc);
+
+  my_stpcpy(query, "INSERT IGNORE INTO t1 SET `serial`=?, `pretty`=?");
+  stmt= mysql_simple_prepare(mysql, query);
+  check_stmt(stmt);
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_STRING;
+  my_bind[0].buffer = (char*)input1;
+  my_bind[0].buffer_length = (ulong)strlen(input1);
+
+  my_bind[1].buffer_type = MYSQL_TYPE_STRING;
+  my_bind[1].buffer = (char*)input2;
+  my_bind[1].buffer_length = (ulong)strlen(input2);
+
+  rc= mysql_stmt_bind_param(stmt, my_bind);
+  check_execute(stmt, rc);
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  /* Execute */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  myquery(mysql_query(mysql, "DROP TABLE t1"));
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -21200,6 +21263,7 @@ static struct my_tests_st my_tests[]= {
   { "test_mysql_binlog", test_mysql_binlog },
   { "test_bug22028117", test_bug22028117 },
   { "test_skip_metadata", test_skip_metadata },
+  { "test_bug25701141", test_bug25701141 },
   { 0, 0 }
 };
 

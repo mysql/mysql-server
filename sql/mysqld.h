@@ -1,17 +1,24 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef MYSQLD_INCLUDED
 #define MYSQLD_INCLUDED
@@ -61,6 +68,9 @@
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
+#ifdef _WIN32
+#include "sql/nt_servc.h"
+#endif // _WIN32
 #include "sql/rpl_filter.h"                // Rpl_filter
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"                 // UUID_LENGTH
@@ -112,6 +122,16 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
 /* Function prototypes */
+
+
+/**
+  Signal the server thread for restart.
+
+  @return false if the thread has been successfully signalled for restart
+          else true.
+*/
+
+bool signal_restart_server();
 void kill_mysql(void);
 void refresh_status();
 bool is_secure_file_path(const char *path);
@@ -125,6 +145,7 @@ int init_common_variables();
 void my_init_signals();
 bool gtid_server_init();
 void gtid_server_cleanup();
+void clean_up_mysqld_mutexes();
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
@@ -154,6 +175,7 @@ extern bool opt_help;
 extern bool opt_verbose;
 extern bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT std::atomic<int32> connection_events_loop_aborted_flag;
+extern bool opt_no_dd_upgrade;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
@@ -622,6 +644,8 @@ extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct System_variables global_system_variables;
 extern char default_logfile_name[FN_REFLEN];
+extern bool log_bin_supplied;
+extern char default_binlogfile_name[FN_REFLEN];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
@@ -648,6 +672,7 @@ extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
 extern mysql_mutex_t LOCK_keyring_operations;
+extern mysql_mutex_t LOCK_collect_instance_log;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -690,6 +715,13 @@ static inline void set_connection_events_loop_aborted(bool value)
 {
   connection_events_loop_aborted_flag.store(value);
 }
+
+#ifdef _WIN32
+
+bool is_windows_service();
+NTService *get_win_service_ptr();
+
+#endif
 
 extern LEX_STRING opt_mandatory_roles;
 extern bool opt_mandatory_roles_cache;

@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define HAVE_PSI_MUTEX_INTERFACE
 #define HAVE_PSI_RWLOCK_INTERFACE
@@ -8195,11 +8202,7 @@ pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
     return PSI_NOT_INSTRUMENTED;
   }
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *delta;
 
   if (flag_thread_instrumentation && !klass->is_global())
   {
@@ -8214,6 +8217,11 @@ pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
       *owner_thread = NULL;
       return PSI_NOT_INSTRUMENTED;
     }
+
+    PFS_memory_safe_stat *event_name_array;
+    PFS_memory_safe_stat *stat;
+    PFS_memory_stat_delta delta_buffer;
+    PFS_memory_stat_delta *delta;
 
     /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     event_name_array = pfs_thread->write_instr_class_memory_stats();
@@ -8230,10 +8238,13 @@ pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
   }
   else
   {
+    PFS_memory_shared_stat *event_name_array;
+    PFS_memory_shared_stat *stat;
+
     /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
     event_name_array = global_instr_class_memory_array;
     stat = &event_name_array[index];
-    (void)stat->count_alloc(size, &delta_buffer);
+    stat->count_global_alloc(size);
 
     *owner_thread = NULL;
   }
@@ -8257,8 +8268,6 @@ pfs_memory_realloc_v1(PSI_memory_key key,
     return PSI_NOT_INSTRUMENTED;
   }
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
@@ -8280,6 +8289,9 @@ pfs_memory_realloc_v1(PSI_memory_key key,
         }
       }
 #endif /* PFS_PARANOID */
+
+      PFS_memory_safe_stat *event_name_array;
+      PFS_memory_safe_stat *stat;
 
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
       event_name_array = pfs_thread->write_instr_class_memory_stats();
@@ -8305,17 +8317,20 @@ pfs_memory_realloc_v1(PSI_memory_key key,
     }
   }
 
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
+
   /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
   event_name_array = global_instr_class_memory_array;
   stat = &event_name_array[index];
 
   if (flag_global_instrumentation && klass->m_enabled)
   {
-    (void)stat->count_realloc(old_size, new_size, &delta_buffer);
+    stat->count_global_realloc(old_size, new_size);
   }
   else
   {
-    (void)stat->count_free(old_size, &delta_buffer);
+    stat->count_global_free(old_size);
     key = PSI_NOT_INSTRUMENTED;
   }
 
@@ -8343,8 +8358,6 @@ pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
     the corresponding free must be instrumented.
   */
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
@@ -8353,6 +8366,9 @@ pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
   {
     PFS_thread *old_thread = sanitize_thread(*owner_thread);
     PFS_thread *new_thread = my_thread_get_THR_PFS();
+    PFS_memory_safe_stat *event_name_array;
+    PFS_memory_safe_stat *stat;
+
     if (old_thread != new_thread)
     {
       if (old_thread != NULL)
@@ -8407,8 +8423,6 @@ pfs_memory_free_v1(PSI_memory_key key,
     the corresponding free must be instrumented.
   */
 
-  PFS_memory_stat *event_name_array;
-  PFS_memory_stat *stat;
   uint index = klass->m_event_name_index;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
@@ -8438,6 +8452,8 @@ pfs_memory_free_v1(PSI_memory_key key,
         the corresponding free must be instrumented.
       */
       /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+      PFS_memory_safe_stat *event_name_array;
+      PFS_memory_safe_stat *stat;
       event_name_array = pfs_thread->write_instr_class_memory_stats();
       stat = &event_name_array[index];
       delta = stat->count_free(size, &delta_buffer);
@@ -8450,6 +8466,8 @@ pfs_memory_free_v1(PSI_memory_key key,
     }
   }
 
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
   /* Aggregate to MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME */
   event_name_array = global_instr_class_memory_array;
   if (event_name_array)

@@ -3,6 +3,7 @@
 #but needs to be kept for tests that would need MyISAM in future.
 
 # When removing this, also remove 'SET default_storage_engine InnoDB' below
+--source include/no_ps_protocol.inc
 --source include/force_myisam_default.inc
 
 # Description
@@ -1692,6 +1693,7 @@ DROP TABLE t1;
 --echo # Bug#22888420 CONCAT_WS: ASSERTION FAILED: !S.USES_BUFFER_OWNED_BY(THIS)
 --echo #
 
+--error ER_WRONG_ARGUMENTS
 do concat('a',concat_ws('a', 0x2859, 'a' ,
                         trim(period_add('a',1) from (1&''))
                         )

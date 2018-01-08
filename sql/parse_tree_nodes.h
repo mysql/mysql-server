@@ -1,13 +1,20 @@
 /* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,6 +23,8 @@
 #ifndef PARSE_TREE_NODES_INCLUDED
 #define PARSE_TREE_NODES_INCLUDED
 
+#include <cctype>                    // std::isspace
+#include <limits>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -53,6 +62,7 @@
 #include "sql/query_result.h"        // Query_result
 #include "sql/resourcegroups/resource_group_sql_cmd.h"
 #include "sql/resourcegroups/resource_group_sql_cmd.h" // Type, Range
+#include "sql/sql_restart_server.h"  // Sql_cmd_restart_server
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"             // sp_head
@@ -61,6 +71,7 @@
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_cmd_ddl_table.h"   // Sql_cmd_create_table
+#include "sql/sql_cmd_srs.h"
 #include "sql/sql_lex.h"             // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"           // add_join_natural
@@ -2732,6 +2743,265 @@ public:
 
 
 /**
+  Top-level node for the CREATE [OR REPLACE] SPATIAL REFERENCE SYSTEM statement.
+
+  @ingroup ptn_stmt
+*/
+class PT_create_srs final : public Parse_tree_root
+{
+  /// The SQL command object.
+  Sql_cmd_create_srs sql_cmd;
+  /// Whether OR REPLACE is specified.
+  bool m_or_replace;
+  /// Whether IF NOT EXISTS is specified.
+  bool m_if_not_exists;
+  /// SRID of the SRS to create.
+  ///
+  /// The range is larger than that of gis::srid_t, so it must be
+  /// verified to be less than the uint32 maximum value.
+  unsigned long long m_srid;
+  /// All attributes except SRID.
+  const Sql_cmd_srs_attributes &m_attributes;
+
+  /// Check if a UTF-8 string contains control characters.
+  ///
+  /// @note This function only checks single byte control characters (U+0000 to
+  /// U+001F, and U+007F). There are some control characters at U+0080 to U+00A0
+  /// that are not detected by this function.
+  ///
+  /// @param str The string.
+  /// @param length Length of the string.
+  ///
+  /// @retval false The string contains no control characters.
+  /// @retval true The string contains at least one control character.
+  bool contains_control_char(char *str, size_t length)
+  {
+    for (size_t pos= 0; pos < length; pos++)
+    {
+      if (std::iscntrl(str[pos]))
+        return true;
+    }
+    return false;
+  }
+
+public:
+  PT_create_srs (unsigned long long srid,
+                 const Sql_cmd_srs_attributes &attributes,
+                 bool or_replace, bool if_not_exists)
+    : m_or_replace(or_replace), m_if_not_exists(if_not_exists), m_srid(srid),
+      m_attributes(attributes)
+  {}
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    // Note: This function hard-codes the maximum length of various
+    // strings. These lengths must match those in
+    // sql/dd/impl/tables/spatial_reference_systems.cc.
+
+    thd->lex->sql_command= SQLCOM_CREATE_SRS;
+
+    if (m_srid > std::numeric_limits<gis::srid_t>::max())
+    {
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID",
+               m_or_replace ? "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM"
+                            : "CREATE SPATIAL REFERENCE SYSTEM");
+      return nullptr;
+    }
+    if (m_srid == 0)
+    {
+      my_error(ER_CANT_MODIFY_SRID_0, MYF(0));
+      return nullptr;
+    }
+
+    if (m_attributes.srs_name.str == nullptr)
+    {
+      my_error(ER_SRS_MISSING_MANDATORY_ATTRIBUTE, MYF(0), "NAME");
+      return nullptr;
+    }
+    MYSQL_LEX_STRING srs_name_utf8= {nullptr, 0};
+    if (thd->convert_string(&srs_name_utf8,
+                            &my_charset_utf8_bin,
+                            m_attributes.srs_name.str,
+                            m_attributes.srs_name.length,
+                            thd->charset()))
+    {
+      /* purecov: begin inspected */
+      my_error(ER_OOM, MYF(0));
+      return nullptr;
+      /* purecov: end */
+    }
+    if (srs_name_utf8.length == 0 ||
+        std::isspace(srs_name_utf8.str[0]) ||
+        std::isspace(srs_name_utf8.str[srs_name_utf8.length - 1]))
+    {
+      my_error(ER_SRS_NAME_CANT_BE_EMPTY_OR_WHITESPACE, MYF(0));
+      return nullptr;
+    }
+    if (contains_control_char(srs_name_utf8.str, srs_name_utf8.length))
+    {
+      my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "NAME");
+      return nullptr;
+    }
+    String srs_name_str(srs_name_utf8.str, srs_name_utf8.length,
+                        &my_charset_utf8_bin);
+    if (srs_name_str.numchars() > 80)
+    {
+      my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "NAME", 80);
+      return nullptr;
+    }
+
+    if (m_attributes.definition.str == nullptr)
+    {
+      my_error(ER_SRS_MISSING_MANDATORY_ATTRIBUTE, MYF(0), "DEFINITION");
+      return nullptr;
+    }
+    MYSQL_LEX_STRING definition_utf8= {nullptr, 0};
+    if (thd->convert_string(&definition_utf8,
+                            &my_charset_utf8_bin,
+                            m_attributes.definition.str,
+                            m_attributes.definition.length,
+                            thd->charset()))
+    {
+      /* purecov: begin inspected */
+      my_error(ER_OOM, MYF(0));
+      return nullptr;
+      /* purecov: end */
+    }
+    String definition_str(definition_utf8.str, definition_utf8.length,
+                        &my_charset_utf8_bin);
+    if (contains_control_char(definition_utf8.str, definition_utf8.length))
+    {
+      my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "DEFINITION");
+      return nullptr;
+    }
+    if (definition_str.numchars() > 4096)
+    {
+      my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "DEFINITION", 4096);
+      return nullptr;
+    }
+
+    MYSQL_LEX_STRING organization_utf8= {nullptr, 0};
+    if (m_attributes.organization.str != nullptr)
+    {
+      if (thd->convert_string(&organization_utf8,
+                              &my_charset_utf8_bin,
+                              m_attributes.organization.str,
+                              m_attributes.organization.length,
+                              thd->charset()))
+      {
+        /* purecov: begin inspected */
+        my_error(ER_OOM, MYF(0));
+        return nullptr;
+        /* purecov: end */
+      }
+      if (organization_utf8.length == 0 ||
+          std::isspace(organization_utf8.str[0]) ||
+          std::isspace(organization_utf8.str[organization_utf8.length - 1]))
+      {
+        my_error(ER_SRS_ORGANIZATION_CANT_BE_EMPTY_OR_WHITESPACE, MYF(0));
+        return nullptr;
+      }
+      String organization_str(organization_utf8.str, organization_utf8.length,
+                            &my_charset_utf8_bin);
+      if (contains_control_char(organization_utf8.str,
+                                organization_utf8.length))
+      {
+        my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "ORGANIZATION");
+        return nullptr;
+      }
+      if (organization_str.numchars() > 256)
+      {
+        my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "ORGANIZATION", 256);
+        return nullptr;
+      }
+
+      if (m_attributes.organization_coordsys_id >
+          std::numeric_limits<gis::srid_t>::max())
+      {
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "IDENTIFIED BY",
+                 m_or_replace ? "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM"
+                 : "CREATE SPATIAL REFERENCE SYSTEM");
+        return nullptr;
+      }
+    }
+
+    MYSQL_LEX_STRING description_utf8= {nullptr, 0};
+    if (m_attributes.description.str != nullptr)
+    {
+      if (thd->convert_string(&description_utf8,
+                              &my_charset_utf8_bin,
+                              m_attributes.description.str,
+                              m_attributes.description.length,
+                              thd->charset()))
+      {
+        /* purecov: begin inspected */
+        my_error(ER_OOM, MYF(0));
+        return nullptr;
+        /* purecov: end */
+      }
+      String description_str(description_utf8.str, description_utf8.length,
+                            &my_charset_utf8_bin);
+      if (contains_control_char(description_utf8.str, description_utf8.length))
+      {
+        my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "DESCRIPTION");
+        return nullptr;
+      }
+      if (description_str.numchars() > 2048)
+      {
+        my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "DESCRIPTION", 2048);
+        return nullptr;
+      }
+    }
+
+    sql_cmd.init(m_or_replace, m_if_not_exists, m_srid, srs_name_utf8,
+                 definition_utf8, organization_utf8,
+                 m_attributes.organization_coordsys_id, description_utf8);
+    return &sql_cmd;
+  }
+};
+
+
+/**
+  Top-level node for the DROP SPATIAL REFERENCE SYSTEM statement.
+
+  @ingroup ptn_stmt
+*/
+class PT_drop_srs final : public Parse_tree_root
+{
+  /// The SQL command object.
+  Sql_cmd_drop_srs sql_cmd;
+  /// SRID of the SRS to drop.
+  ///
+  /// The range is larger than that of gis::srid_t, so it must be
+  /// verified to be less than the uint32 maximum value.
+  unsigned long long m_srid;
+
+public:
+  PT_drop_srs (unsigned long long srid, bool if_exists)
+    : sql_cmd(srid, if_exists), m_srid(srid)
+  {}
+
+  Sql_cmd *make_cmd(THD *thd) override {
+    thd->lex->sql_command= SQLCOM_DROP_SRS;
+
+    if (m_srid > std::numeric_limits<gis::srid_t>::max())
+    {
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID",
+               "DROP SPATIAL REFERENCE SYSTEM");
+      return nullptr;
+    }
+    if (m_srid == 0)
+    {
+      my_error(ER_CANT_MODIFY_SRID_0, MYF(0));
+      return nullptr;
+    }
+
+    return &sql_cmd;
+  }
+};
+
+
+/**
   Top-level node for the ALTER INSTANCE statement
 
   @ingroup ptn_stmt
@@ -3581,7 +3851,7 @@ public:
                        const List<LEX_USER> *opt_except_roles= NULL)
   : sql_cmd(role_type, opt_except_roles)
   {
-    DBUG_ASSERT(role_type == ROLE_ALL || opt_except_roles == NULL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || opt_except_roles == NULL);
   }
   explicit PT_set_role(const List<LEX_USER> *roles) : sql_cmd(roles) {}
 
@@ -5772,6 +6042,25 @@ private:
   PT_item_list *m_opt_fields_or_vars;
   PT_item_list *m_opt_set_fields;
   PT_item_list *m_opt_set_exprs;
+};
+
+
+/**
+  Top-level node for the SHUTDOWN statement
+
+  @ingroup ptn_stmt
+*/
+
+class PT_restart_server final : public Parse_tree_root
+{
+public:
+  Sql_cmd *make_cmd(THD *thd) override {
+    thd->lex->sql_command= SQLCOM_RESTART_SERVER;
+    return &sql_cmd;
+  }
+
+private:
+  Sql_cmd_restart_server sql_cmd;
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -59,6 +66,7 @@ class Tablespace_statistics
 {
 public:
   Tablespace_statistics()
+    : m_found_error(false)
   {}
 
   /**
@@ -90,7 +98,7 @@ public:
                    ha_tablespace_statistics &stats)
   {
     m_stats= stats;
-    m_error.clear();
+    m_found_error= false;
     set_stat_cached(tablespace_name, file_name);
   }
 
@@ -117,13 +125,26 @@ public:
   void invalidate_cache(void)
   {
     m_key.clear();
-    m_error.clear();
+    m_found_error= false;
   }
 
 
-  // Get error string. Its empty if a error is not reported.
-  inline String_type error()
-  { return m_error; }
+  /**
+    Mark that error was found for the given key. The combination of
+    tablespace and file name forms the key.
+
+    @param tablespace_name  - Tablespace name.
+    @param file_name        - File name.
+
+    @return void
+  */
+  void mark_as_error_found(const String &tablespace_name,
+                           const String &file_name)
+  {
+    m_stats= {};
+    m_found_error= true;
+    m_key= form_key(tablespace_name, file_name);
+  }
 
 
   /**
@@ -183,7 +204,7 @@ private:
   inline bool check_error_for_key(const String &tablespace_name,
                                   const String &file_name)
   {
-    if (is_stat_cached(tablespace_name, file_name) && !m_error.empty())
+    if (is_stat_cached(tablespace_name, file_name) && m_found_error)
       return true;
 
     return false;
@@ -212,7 +233,7 @@ private:
   String_type m_key; // Format '<tablespace_name>'
 
   // Error found when reading statistics.
-  String_type m_error;
+  bool m_found_error;
 
 public:
 

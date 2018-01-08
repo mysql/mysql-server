@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1511,17 +1518,6 @@ validate_user_plugin_records()
                static_cast<int>(acl_user->host.get_host_len()),
                acl_user->host.get_host(), missing);
       }
-      if (acl_user->plugin.str == caching_sha2_password_plugin_name.str &&
-          caching_sha2_rsa_auth_status() && !ssl_acceptor_fd)
-      {
-        const char *missing= "but neither SSL nor RSA keys are";
-
-        LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG,
-               caching_sha2_password_plugin_name.str,
-               acl_user->user,
-               static_cast<int>(acl_user->host.get_host_len()),
-               acl_user->host.get_host(), missing);
-      }
     }
   }
   unlock_plugin_data();
@@ -2258,8 +2254,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   else
   {
-    sql_print_error("Missing system table mysql.global_grants; "
-                    "please run mysql_upgrade to create it");
+    LogErr(ERROR_LEVEL, ER_MISSING_GRANT_SYSTEM_TABLE);
   }
 
   initialized=1;
@@ -2373,8 +2368,8 @@ bool check_acl_tables_intact(THD *thd)
       if (tables[idx].table)
         table_intact.check(tables[idx].table, (ACL_TABLES) idx);
       else
-        sql_print_warning("ACL table mysql.%.*s missing. Some operations may fail.",
-                          tables[idx].table_name_length, tables[idx].table_name);
+        LogErr(WARNING_LEVEL, ER_MISSING_ACL_SYSTEM_TABLE,
+               tables[idx].table_name_length, tables[idx].table_name);
     commit_and_close_mysql_tables(thd);
   }
   thd->pop_internal_handler();

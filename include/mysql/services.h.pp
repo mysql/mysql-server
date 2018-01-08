@@ -13,6 +13,7 @@ extern struct srv_session_service_st
   int (*detach_session)(MYSQL_SESSION session);
   int (*close_session)(MYSQL_SESSION session);
   int (*server_is_available)();
+  int (*attach_session)(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 } *srv_session_service;
 int srv_session_init_thread(const void *plugin);
 void srv_session_deinit_thread();
@@ -20,6 +21,7 @@ MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
 int srv_session_detach(MYSQL_SESSION session);
 int srv_session_close(MYSQL_SESSION session);
 int srv_session_server_is_available();
+int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 #include <mysql/service_srv_session_info.h>
 #include "mysql/service_srv_session.h"
 extern struct srv_session_info_service_st {
@@ -658,6 +660,7 @@ void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
+void remove_ssl_err_thread_state();
 typedef char my_svc_bool;
 extern struct security_context_service_st {
   my_svc_bool (*thd_get_security_context)(void*, void* *out_ctx);

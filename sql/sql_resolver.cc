@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -480,6 +487,13 @@ bool SELECT_LEX::prepare(THD *thd)
     if (apply_local_transforms(thd, true))
       DBUG_RETURN(true);
   }
+
+  /*
+    If the query directly contains windowing, remove any unused explicit window
+    definitions.
+  */
+  if (m_windows.elements != 0)
+    Window::remove_unused_windows(thd, m_windows);
 
   DBUG_ASSERT(!thd->is_error());
   DBUG_RETURN(false);
@@ -1003,11 +1017,41 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin)
 
   DBUG_ASSERT(derived_table_count > 0 || table_func_count > 0);
 
+  /*
+    A table function TF may depend on a previous derived table DT in the same
+    FROM clause.
+    Thus DT must be resolved before TF.
+    It is the case, as the loops below progress from left to right in FROM.
+    Alas this progress misses formerly-nested derived tables which are handled
+    last, by the special branch 'if (!first_execution)'.
+    So, assume a prepared statement:
+    - SELECT FROM (SELECT FROM (SELECT ...) AS DT) AS DT1, JSON_TABLE(DT1.col);
+    - DT1 is resolved, which materializes DT
+    - JSON_TABLE is resolved
+    - DT1 is merged
+    Now we execute the statement:
+    - in the first loop in the function,
+        DT1 is not resolved again, as it was merged,
+        and DT is not reached
+    - we must thus defer resolution of JSON_TABLE
+    - until DT is reached and resolved by the special branch 'if
+    (!first_execution)' for formerly-nested derived tables
+    - and then we can resolve JSON_TABLE.
+    So, we run the code in this function twice: a first time for all
+    non-JSON_TABLE tables, a second time for JSON_TABLE.
+    @todo remove this in WL#6570.
+  */
+  bool do_tf= false;
+
+loop:
+
   // Prepare derived tables and views that belong to this query block.
   for (TABLE_LIST *tl= get_table_list(); tl; tl= tl->next_local)
   {
     if ((!tl->is_view_or_derived() && !tl->is_table_function()) ||
         tl->is_merged())
+      continue;
+    if (tl->is_table_function() ^ do_tf)
       continue;
     if (tl->resolve_derived(thd, apply_semijoin))
       DBUG_RETURN(true);
@@ -1027,6 +1071,8 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin)
           tl->is_merged() ||
           !tl->is_mergeable())
         continue;
+      if (tl->is_table_function() ^ do_tf)
+        continue;
       if (merge_derived(thd, tl))
         DBUG_RETURN(true);        /* purecov: inspected */
     }
@@ -1041,6 +1087,8 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin)
                 tl->is_table_function());
     if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
         tl->is_merged())
+      continue;
+    if (tl->is_table_function() ^ do_tf)
       continue;
     /*
       If tl->resolve_derived() created the tmp table, don't create it again.
@@ -1073,6 +1121,8 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin)
       if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
           tl->table != NULL)
         continue;
+      if (tl->is_table_function() ^ do_tf)
+        continue;
       DBUG_ASSERT(!tl->is_merged());
       if (tl->is_table_function())
       {
@@ -1090,6 +1140,12 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin)
         so do not do it once more.
       */
     }
+  }
+
+  if (!do_tf && table_func_count > 0)
+  {
+    do_tf= true;
+    goto loop;
   }
 
   DBUG_RETURN(false);

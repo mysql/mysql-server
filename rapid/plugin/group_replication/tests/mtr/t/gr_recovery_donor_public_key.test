@@ -1,0 +1,134 @@
+################################################################################
+# Validate the correct behaviour of
+# group_replication_recovery_get_public_key and
+# group_replication_recovery_public_key_path options on Group Replication.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap group on server1.
+# 2. Prepare server2 configuration to force public key
+#    authentication.
+# 3. Disable fetch donor public key and do not set donor
+#    public key, recovery must fail and the member status must
+#    change to ERROR.
+# 4. Disable fetch donor public key and do set a donor invalid
+#    public key, recovery must fail and the member status must
+#    change to ERROR.
+# 5. Disable fetch donor public key and do set a donor valid
+#    public key, recovery must succeed and the member status
+#    must change to ONLINE.
+# 6. Clean up.
+################################################################################
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap group on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE USER 'u1_caching_sha2_password'@'127.0.0.1' IDENTIFIED WITH 'caching_sha2_password' BY 'pwd';
+GRANT REPLICATION SLAVE ON *.* TO 'u1_caching_sha2_password'@'127.0.0.1';
+FLUSH PRIVILEGES;
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Prepare server2 configuration to force public key
+--echo #    authentication.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @group_replication_recovery_get_public_key= @@GLOBAL.group_replication_recovery_get_public_key;
+SET @group_replication_recovery_public_key_path= @@GLOBAL.group_replication_recovery_public_key_path;
+
+# We need to disable encrypted connection to force
+# public key authentication.
+SET @group_replication_recovery_use_ssl= @@GLOBAL.group_replication_recovery_use_ssl;
+SET GLOBAL group_replication_recovery_use_ssl= FALSE;
+
+# Reduce the retry count to try only once.
+SET @group_replication_recovery_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
+SET GLOBAL group_replication_recovery_retry_count= 1;
+
+CHANGE MASTER TO MASTER_USER='u1_caching_sha2_password', MASTER_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table*");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Can't locate server public key '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
+call mtr.add_suppression("Public key is not in PEM format: '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Disable fetch donor public key and do not set donor
+--echo #    public key, recovery must fail and the member status must
+--echo #    change to ERROR.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_recovery_get_public_key= FALSE;
+SET GLOBAL group_replication_recovery_public_key_path= "";
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Disable fetch donor public key and do set a donor invalid
+--echo #    public key, recovery must fail and the member status must
+--echo #    change to ERROR.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_recovery_get_public_key= FALSE;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET GLOBAL group_replication_recovery_public_key_path= "$MYSQL_TEST_DIR/std_data/invalid_rsa_public_key.pem"
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Disable fetch donor public key and do set a donor valid
+--echo #    public key, recovery must succeed and the member status
+--echo #    must change to ONLINE.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_recovery_get_public_key= FALSE;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval SET GLOBAL group_replication_recovery_public_key_path= "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
+
+--let $group_replication_start_member_state= ONLINE
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP USER 'u1_caching_sha2_password'@'127.0.0.1';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl;
+SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count;
+
+SET GLOBAL group_replication_recovery_get_public_key= @group_replication_recovery_get_public_key;
+SET GLOBAL group_replication_recovery_public_key_path= @group_replication_recovery_public_key_path;
+
+--source ../inc/group_replication_end.inc

@@ -1,17 +1,24 @@
 /* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sql_view.h"
 
@@ -372,6 +379,13 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       Ensure that we have some privileges on this table, stricter checks will
       be performed for each referenced column during resolving.
     */
+    if (tbl->is_internal())
+    {
+      // Optimizer internal tables have no ACL entries
+      tbl->set_privileges(SELECT_ACL);
+      continue;
+    }
+
     if (check_some_access(thd, VIEW_ANY_ACL, tbl))
     {
       my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "ANY",
@@ -385,11 +399,8 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
       TABLE::grant field. tbl->table_name will be correct name of table
       because VIEWs are not opened yet.
     */
-    if (tbl->is_derived())
-      tbl->set_privileges(SELECT_ACL);
-    else
-      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                      tbl->get_table_name());
+    fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                    tbl->get_table_name());
   }
 
   /*
@@ -664,7 +675,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /*
     Compare/check grants on view with grants of underlying tables
   */
-  if (view->is_derived())
+  if (view->is_internal())
     view->set_privileges(SELECT_ACL);
   else
     fill_effective_table_privileges(thd, &view->grant, view->db,
@@ -1271,17 +1282,17 @@ public:
 };
 
 /**
-  parse_view_definition creates a dummy lex object. Restore the parent_lex for
-  all the selects.
+  Merge a view query expression into the parent expression.
+  Update all LEX pointers inside the view expression to point to the parent LEX.
 
-  @param view_lex  View's LEX object.
-  @param old_lex   Original LEX object.
+  @param view_lex   View's LEX object.
+  @param parent_lex Original LEX object.
 */
-void restore_parent_lex(LEX *view_lex, LEX *old_lex)
+void merge_query_blocks(LEX *view_lex, LEX *parent_lex)
 {
   for (SELECT_LEX *select= view_lex->all_selects_list;
        select != nullptr; select= select->next_select_in_list())
-    select->parent_lex= old_lex;
+    select->parent_lex= parent_lex;
 }
 
 
@@ -1741,7 +1752,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     sl->context.view_error_handler_arg= view_ref;
   }
 
-  restore_parent_lex(thd->lex, old_lex);
+  merge_query_blocks(thd->lex, old_lex);
 
   view_select->linkage= DERIVED_TABLE_TYPE;
 

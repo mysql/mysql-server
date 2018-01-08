@@ -19,7 +19,6 @@ call mtr.add_suppression("When binlog_format=STATEMENT, the option binlog_row_va
 call mtr.add_suppression("When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON");
 call mtr.add_suppression("When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1");
 call mtr.add_suppression("When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON");
-call mtr.add_suppression("No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a master and has his hostname changed!! Please use '--log-bin=.* to avoid this problem.");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 
 --echo # binlog-format=stmt is not compatible with partial json
@@ -54,7 +53,7 @@ SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 
 --echo # the binlog is disabled
---let $restart_parameters= "restart: --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL --skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order"
+--let $restart_parameters= "restart: --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL --skip-log-bin --skip-log-slave-updates"
 --source include/restart_mysqld.inc
 
 --let $assert_select= When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON

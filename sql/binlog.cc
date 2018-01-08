@@ -1,17 +1,24 @@
 /* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/binlog.h"
 
@@ -1145,7 +1152,7 @@ void check_binlog_cache_size(THD *thd)
     }
     else
     {
-      LogErr(WARNING_LEVEL, ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
+      LogErr(WARNING_LEVEL, ER_BINLOG_CACHE_SIZE_TOO_LARGE,
              binlog_cache_size,
              (ulong) max_binlog_cache_size);
     }
@@ -1172,7 +1179,7 @@ void check_binlog_stmt_cache_size(THD *thd)
     }
     else
     {
-      LogErr(WARNING_LEVEL, ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
+      LogErr(WARNING_LEVEL, ER_BINLOG_STMT_CACHE_SIZE_TOO_LARGE,
              binlog_stmt_cache_size,
              (ulong) max_binlog_stmt_cache_size);
     }
@@ -1496,10 +1503,10 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen)
 
   for (THD *head= first_seen ; head ; head = head->next_to_commit)
   {
-    DBUG_ASSERT(head->variables.gtid_next.type != UNDEFINED_GROUP);
+    DBUG_ASSERT(head->variables.gtid_next.type != UNDEFINED_GTID);
 
     /* Generate GTID */
-    if (head->variables.gtid_next.type == AUTOMATIC_GROUP)
+    if (head->variables.gtid_next.type == AUTOMATIC_GTID)
     {
       if (!is_global_sid_locked)
       {
@@ -1522,11 +1529,11 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen)
                           "thd->owned_gtid.sidno=%d",
                           head->variables.gtid_next.type,
                           head->owned_gtid.sidno));
-      if (head->variables.gtid_next.type == GTID_GROUP)
+      if (head->variables.gtid_next.type == ASSIGNED_GTID)
         DBUG_ASSERT(head->owned_gtid.sidno > 0);
       else
       {
-        DBUG_ASSERT(head->variables.gtid_next.type == ANONYMOUS_GROUP);
+        DBUG_ASSERT(head->variables.gtid_next.type == ANONYMOUS_GTID);
         DBUG_ASSERT(head->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
       }
     }
@@ -1634,13 +1641,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
     if (original_commit_timestamp > immediate_commit_timestamp &&
         !thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged)
     {
-      sql_print_warning("Invalid replication timestamps: original commit "
-                        "timestamp is more recent than the immediate commmit "
-                        "timestamp. This may be an issue if delayed "
-                        "replication is active. Make sure that servers have "
-                        "their clocks set to the correct time. No further "
-                        "message will be emitted until after timestamps become "
-                        "valid again.");
+      LogErr(WARNING_LEVEL, ER_INVALID_REPLICATION_TIMESTAMPS);
       thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged= true;
     }
     else
@@ -1648,8 +1649,7 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
       if (thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged &&
           original_commit_timestamp <= immediate_commit_timestamp)
       {
-        sql_print_warning("The replication timestamps have returned to normal "
-                          "values.");
+        LogErr(WARNING_LEVEL, ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL);
         thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged= false;
       }
     }
@@ -1694,7 +1694,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
 
   if (thd->owned_gtid.sidno > 0)
   {
-    DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
+    DBUG_ASSERT(thd->variables.gtid_next.type == ASSIGNED_GTID);
 
     if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
     {
@@ -1760,7 +1760,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   {
     gtid_state->update_on_commit(thd);
   }
-  else if (thd->variables.gtid_next.type == GTID_GROUP &&
+  else if (thd->variables.gtid_next.type == ASSIGNED_GTID &&
            thd->owned_gtid.is_empty())
   {
     DBUG_ASSERT(thd->has_gtid_consistency_violation == false);
@@ -2202,7 +2202,7 @@ static void exec_binlog_error_action_abort(const char* err_string)
     thd->send_statement_status();
   }
   else
-    sql_print_error("%s",err_string);
+    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_NOT_POSSIBLE, err_string);
   abort();
 }
 
@@ -3824,7 +3824,7 @@ int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name,
       my_printf_error(ER_NO_UNIQUE_LOGFILE,
                       ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
                       MYF(ME_FATALERROR), log_name);
-      LogErr(ERROR_LEVEL, ER_NO_UNIQUE_LOGFILE, log_name);
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_GENERATE_UNIQUE_LOGFILE, log_name);
       return 1;
     }
   }
@@ -3843,7 +3843,11 @@ const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
 {
   if (!log_name || !log_name[0])
   {
-    strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
+    if (is_relay_log || log_bin_supplied)
+      strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
+    else
+      strmake(buff, default_binlogfile_name, FN_REFLEN - strlen(suffix) - 1);
+
     return (const char *)
       fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
   }
@@ -4101,7 +4105,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
   const char *errmsg= NULL;
   if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
   {
-    sql_print_error("%s", errmsg);
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
     /*
       As read_gtids_from_binlog() will not throw error on truncated
       relaylog files, we should do the same here in order to keep the
@@ -4415,7 +4419,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   const char *errmsg= NULL;
   if ((file= open_binlog_file(&log, filename, &errmsg)) < 0)
   {
-    sql_print_error("%s", errmsg);
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
     /*
       We need to revisit the recovery procedure for relay log
       files. Currently, it is called after this routine.
@@ -7038,6 +7042,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   int error= 0;
   bool close_on_error= false;
   char new_name[FN_REFLEN], *new_name_ptr= NULL, *old_name, *file_to_open;
+  const size_t ERR_CLOSE_MSG_LEN = 1024;
+  char close_on_error_msg[ERR_CLOSE_MSG_LEN];
+  memset(close_on_error_msg, 0, sizeof close_on_error_msg);
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
   if (!is_open())
@@ -7084,6 +7091,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
     {
       close_on_error= true;
+      snprintf(close_on_error_msg, sizeof close_on_error_msg, "%s",
+               ER_THD(current_thd, ER_OOM_SAVE_GTIDS));
       goto end;
     }
   }
@@ -7098,7 +7107,13 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   {
     // Use the old name if generation of new name fails.
     strcpy(new_name, name);
-    close_on_error= TRUE;
+    close_on_error= true;
+    snprintf(close_on_error_msg, sizeof close_on_error_msg,
+             ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE), name);
+    if (strlen(close_on_error_msg))
+    {
+      close_on_error_msg[strlen(close_on_error_msg) - 1] = '\0';
+    }
     goto end;
   }
 
@@ -7129,6 +7144,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       char errbuf[MYSYS_STRERROR_SIZE];
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
       close_on_error= true;
+      snprintf(close_on_error_msg, sizeof close_on_error_msg,
+               ER_THD(current_thd, ER_ERROR_ON_WRITE), name,
+               errno, my_strerror(errbuf, sizeof(errbuf), errno));
       my_printf_error(ER_ERROR_ON_WRITE,
                       ER_THD(current_thd, ER_ERROR_ON_WRITE),
                       MYF(ME_FATALERROR), name,
@@ -7140,6 +7158,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     if ((error= flush_io_cache(&log_file)))
     {
       close_on_error= true;
+      snprintf(close_on_error_msg, sizeof close_on_error_msg, "%s",
+               "Either disk is full or file system is read only");
       goto end;
     }
   }
@@ -7159,18 +7179,18 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     binlog_checksum_options= checksum_alg_reset;
   }
   /*
-     Note that at this point, atomic_log_state != LOG_CLOSED
-     (important for is_open()).
+    Note that at this point, atomic_log_state != LOG_CLOSED
+    (important for is_open()).
   */
 
   DEBUG_SYNC(current_thd, "before_rotate_binlog_file");
   /*
-     new_file() is only used for rotation (in FLUSH LOGS or because size >
-     max_binlog_size or max_relay_log_size).
-     If this is a binary log, the Format_description_log_event at the beginning of
-     the new file should have created=0 (to distinguish with the
-     Format_description_log_event written at server startup, which should
-     trigger temp tables deletion on slaves.
+    new_file() is only used for rotation (in FLUSH LOGS or because size >
+    max_binlog_size or max_relay_log_size).
+    If this is a binary log, the Format_description_log_event at the beginning of
+    the new file should have created=0 (to distinguish with the
+    Format_description_log_event written at server startup, which should
+    trigger temp tables deletion on slaves.
   */
 
   /* reopen index binlog file, BUG#34582 */
@@ -7195,6 +7215,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
                     MYF(ME_FATALERROR), file_to_open,
                     error, my_strerror(errbuf, sizeof(errbuf), error));
     close_on_error= true;
+    snprintf(close_on_error_msg, sizeof close_on_error_msg,
+             ER_THD(current_thd, ER_CANT_OPEN_FILE), file_to_open,
+             error, my_strerror(errbuf, sizeof(errbuf), error));
   }
   my_free(old_name);
 
@@ -7216,9 +7239,13 @@ end:
     */
     if (binlog_error_action == ABORT_SERVER)
     {
-      exec_binlog_error_action_abort("Either disk is full or file system is"
-                                     " read only while rotating the binlog."
-                                     " Aborting the server.");
+      char abort_msg[ERR_CLOSE_MSG_LEN];
+      memset(abort_msg, 0, sizeof abort_msg);
+      snprintf(
+               abort_msg, sizeof abort_msg,
+               "%s, while rotating the binlog. "
+               "Aborting the server", close_on_error_msg);
+      exec_binlog_error_action_abort(abort_msg);
     }
     else
       LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING,
@@ -7300,7 +7327,8 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
       if (!last_gtid_queued->is_empty())
       {
         mi->rli->get_sid_lock()->rdlock();
-        DBUG_SIGNAL_WAIT_FOR("updating_received_transaction_set",
+        DBUG_SIGNAL_WAIT_FOR(current_thd,
+                             "updating_received_transaction_set",
                              "reached_updating_received_transaction_set",
                              "continue_updating_received_transaction_set");
         mi->rli->add_logged_gtid(last_gtid_queued->sidno,
@@ -8003,7 +8031,6 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
   if (!is_open())
     DBUG_RETURN(error);
 
-  // @todo make this work with the group log. /sven
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
 
 #ifndef DBUG_OFF
@@ -8056,7 +8083,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(false);
     if ((error= cache_data->write_event(thd, ev)))
     {
-      sql_print_error("Failed to write an incident event into stmt_cache.");
+      LogErr(ERROR_LEVEL, ER_BINLOG_EVENT_WRITE_TO_STMT_CACHE_FAILED);
       cache_mngr->stmt_cache.reset();
       DBUG_RETURN(error);
     }
@@ -8223,7 +8250,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       if (cache->error)				// Error on read
       {
         char errbuf[MYSYS_STRERROR_SIZE];
-        LogErr(ERROR_LEVEL, ER_ERROR_ON_READ, cache->file_name,
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_READ_FILE, cache->file_name,
                errno, my_strerror(errbuf, sizeof(errbuf), errno));
         write_error= true; // Don't give more errors
         goto err;
@@ -8239,7 +8266,7 @@ err:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     write_error= true;
-    LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name,
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, name,
            errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   thd->commit_error= THD::CE_FLUSH_ERROR;
@@ -8353,7 +8380,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name, errno,
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, name, errno,
                my_strerror(errbuf, sizeof(errbuf), errno));
       }
 
@@ -8361,7 +8388,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, name, errno,
+        LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, name, errno,
                my_strerror(errbuf, sizeof(errbuf), errno));
       }
     }
@@ -8389,7 +8416,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      LogErr(ERROR_LEVEL, ER_ERROR_ON_WRITE, index_file_name,
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, index_file_name,
              errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
@@ -8505,7 +8532,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
 
     if ((file= open_binlog_file(&log, log_name, &errmsg)) < 0)
     {
-      sql_print_error("%s", errmsg);
+      LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
       goto err;
     }
 
@@ -8631,9 +8658,8 @@ bool MYSQL_BIN_LOG::truncate_relaylog_file(Master_info *mi,
     }
     else
     {
-      sql_print_information("Relaylog file %s size was %llu, "
-                            "but was truncated at %llu.",
-                            log_file_name, relaylog_file_size, truncate_pos);
+      LogErr(INFORMATION_LEVEL, ER_SLAVE_RELAY_LOG_TRUNCATE_INFO,
+             log_file_name, relaylog_file_size, truncate_pos);
 
       // Re-init the I/O thread IO_CACHE
       reinit_io_cache(&log_file, WRITE_CACHE, truncate_pos, 0, true);
@@ -8827,15 +8853,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       DBUG_RETURN(RESULT_ABORTED);
   }
 
-  /*
-    If there is anything in the stmt cache, and GTIDs are enabled,
-    then this is a single statement outside a transaction and it is
-    impossible that there is anything in the trx cache.  Hence, we
-    write any empty group(s) to the stmt cache.
-
-    Otherwise, we write any empty group(s) to the trx cache at the end
-    of the transaction.
-  */
   if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
     /*
@@ -11289,7 +11306,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
 {
   DBUG_ENTER("handle_gtid_consistency_violation");
 
-  enum_group_type gtid_next_type= thd->variables.gtid_next.type;
+  enum_gtid_type gtid_next_type= thd->variables.gtid_next.type;
   global_sid_lock->rdlock();
   enum_gtid_consistency_mode gtid_consistency_mode=
     get_gtid_consistency_mode();
@@ -11311,9 +11328,9 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
       commit usinga GTID), or
     - ENFORCE_GTID_CONSISTENCY=ON.
   */
-  if ((gtid_next_type == AUTOMATIC_GROUP &&
+  if ((gtid_next_type == AUTOMATIC_GTID &&
        gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
-      gtid_next_type == GTID_GROUP ||
+      gtid_next_type == ASSIGNED_GTID ||
       gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON)
   {
     global_sid_lock->unlock();
@@ -11338,11 +11355,11 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
     */
     if (!thd->has_gtid_consistency_violation)
     {
-      if (gtid_next_type == AUTOMATIC_GROUP)
+      if (gtid_next_type == AUTOMATIC_GTID)
         gtid_state->begin_automatic_gtid_violating_transaction();
       else
       {
-        DBUG_ASSERT(gtid_next_type == ANONYMOUS_GROUP);
+        DBUG_ASSERT(gtid_next_type == ANONYMOUS_GTID);
         gtid_state->begin_anonymous_gtid_violating_transaction();
       }
 
@@ -11363,7 +11380,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code)
     {
       // Need to print to log so that replication admin knows when users
       // have adjusted their workloads.
-      sql_print_warning("%s", ER_DEFAULT(error_code));
+      LogErr(WARNING_LEVEL, error_code);
       // Need to print to client so that users can adjust their workload.
       push_warning(thd, Sql_condition::SL_WARNING, error_code,
                    ER_THD(thd, error_code));
@@ -12142,7 +12159,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   DBUG_ENTER("print_unsafe_warning_in_log");
   sprintf(buf, ER_DEFAULT(ER_BINLOG_UNSAFE_STATEMENT),
           ER_DEFAULT(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-  LogErr(WARNING_LEVEL, ER_MESSAGE_AND_STATEMENT, buf, query);
+  LogErr(WARNING_LEVEL, ER_BINLOG_UNSAFE_MESSAGE_AND_STATEMENT, buf, query);
   DBUG_VOID_RETURN;
 }
 

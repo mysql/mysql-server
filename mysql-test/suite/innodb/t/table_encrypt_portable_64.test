@@ -1,0 +1,73 @@
+# InnoDB transparent tablespace data encryption
+# This test case will test portability of encrypted table support features.
+# This test try to port an encrypted table which created by 32bits server to 64bits server.
+# The data files of source table is in mysql-test/std_data/table_encrypted_32.zip.
+# For update the table_encrypted_32.zip, you have to run the test case table_encrypt_portable_32 in
+# record mode.
+
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+--source include/have_64bit.inc
+--source include/not_windows.inc
+
+#########################
+#  how to record test result for 32bit test case table_encrypt_portable_32 content mismatch
+#  1) change the record value from 0 to 1. it should be "--let $RECORD=1"
+#  2) run the test, it will fail (this is expected). The zip files are updated
+#  3) change the line to "--let $RECORD=0" and run test
+#########################
+--let $RECORD=0
+
+let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld_no_echo.inc
+
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+let $source_db = test;
+
+let $dest_db = test;
+
+if ($RECORD == 1) {
+# Create a table with encryption
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+
+eval FLUSH TABLES $source_db.t1 FOR EXPORT;
+
+--exec zip -j $MYSQL_TMP_DIR/table_encrypted.zip $MYSQLD_DATADIR/$source_db/t1.* 2>&1 > /dev/null
+--move_file $MYSQL_TMP_DIR/table_encrypted.zip $MYSQL_TEST_DIR/std_data/table_encrypted_64.zip
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+}
+
+if ($RECORD == 0) {
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+
+--exec unzip -qo $MYSQL_TEST_DIR/std_data/table_encrypted_32.zip -d $MYSQLD_DATADIR/$dest_db
+
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+
+SELECT * FROM t1;
+
+# Cleanup
+DROP TABLE t1;
+
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring
+}
+

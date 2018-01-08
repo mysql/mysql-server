@@ -3692,6 +3692,8 @@ CREATE DATABASE db1;
 # Connection con3
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
@@ -3714,12 +3716,18 @@ ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
 # Connection con3
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection con2
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection default
 SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
 # Sending:
@@ -3732,6 +3740,8 @@ DROP DATABASE db1;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection con2
 # Reaping: DROP DATABASE db1
 CREATE DATABASE db1;
@@ -3750,6 +3760,8 @@ DROP DATABASE db1;
 # Connection con3
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP DATABASE db2;
 SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Connection default
@@ -3879,6 +3891,8 @@ ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
 UNLOCK TABLES;
 # Connection con2
 # Reaping ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection default
 FLUSH TABLE WITH READ LOCK;
 # Connection con2

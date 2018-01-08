@@ -1,17 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/delayed_plugin_initialization.h"
 
@@ -32,7 +39,7 @@ static void *launch_handler_thread(void* arg)
 }
 
 Delayed_initialization_thread::Delayed_initialization_thread()
-  : thread_running(false), is_server_ready(false), is_super_read_only_set(false)
+  : thread_running(false), thread_terminated(false), is_server_ready(false), is_super_read_only_set(false)
 {
   mysql_mutex_init(key_GR_LOCK_delayed_init_run, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_GR_LOCK_delayed_init_server_ready,
@@ -130,7 +137,7 @@ int Delayed_initialization_thread::launch_initialization_thread()
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
-  while (!thread_running)
+  while (!thread_running && !thread_terminated)
   {
     DBUG_PRINT("sleep",("Waiting for the Delayed initialization thread to start"));
     mysql_cond_wait(&run_cond, &run_lock);
@@ -170,6 +177,8 @@ int Delayed_initialization_thread::initialization_thread_handler()
     //Protect this delayed start against other start/stop requests
     Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
 
+    plugin_is_setting_read_mode = true;
+
     error= initialize_plugin_and_join(PSESSION_INIT_THREAD, this);
   }
   else
@@ -183,6 +192,7 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
   mysql_mutex_lock(&run_lock);
   thread_running= false;
+  thread_terminated= true;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 

@@ -1,0 +1,52 @@
+## Test cases for authorization plugins
+
+--source include/have_ssl.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+#
+## Setup
+#
+
+--write_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
+-->import connection_auth_mechanism_memory_helpers.macro
+
+callmacro Login_ok	REQUIRED	plain	xuser_ssl	pass;
+callmacro Login_ok	REQUIRED	memory	xuser_ssl	pass;
+callmacro Login_failed	DISABLED	memory	xuser_ssl	pass;
+EOF
+
+CREATE USER xuser_ssl@localhost
+  IDENTIFIED WITH 'mysql_native_password' BY 'pass'
+  REQUIRE SSL;
+
+
+#
+## Test starts here
+#
+
+--echo
+--echo #######################################################################
+--echo ## 1. Memory authentication fails on non SSL connection when account
+--echo ##    is marked that it required SSL
+--echo ##
+--echo ## when:
+--echo ## * Fill the cache with the account
+--echo ## * Use memory auth on SSL connection, expect success
+--echo ## * Use memory auth on non SSL connection, expect failure
+--echo ##
+--echo ## Requirements: F6
+--echo #
+
+exec $MYSQLXTEST
+  --user x_root
+  --file=$MYSQL_TMP_DIR/try_login_using_memory.tmp 2>&1;
+
+
+#
+# Postamble
+#
+--remove_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
+--source include/xplugin_drop_user.inc
+DROP USER xuser_ssl@localhost;
+

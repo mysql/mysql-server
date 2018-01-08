@@ -633,13 +633,6 @@ DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1);
 # Geographic SRS (should fail)
 DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1);
 ERROR 22S00: st_simplify(POINT, ...) has not been implemented for geographic spatial reference systems.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (21000001, 1, 'TEST21000001', 'Foo', 21000001, 'FOOBAR', '');
-DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 21000001), 1);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 21000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 21000001;
 #
 # WL#11096 Don't do Cartesian computations on geographic geometries
 #

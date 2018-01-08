@@ -3,16 +3,24 @@
 Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -150,6 +158,16 @@ struct lock_t {
 	uint64_t		m_seq;
 #endif /* UNIV_DEBUG */
 
+	/** Remove GAP lock from a next Key Lock */
+	void remove_gap_lock()
+	{
+		ut_ad(!is_gap());
+		ut_ad(!is_insert_intention());
+		ut_ad(is_record_lock());
+
+		type_mode |= LOCK_REC_NOT_GAP;
+	}
+
 	/** Determine if the lock object is a record lock.
 	@return true if record lock, false otherwise. */
 	bool is_record_lock() const
@@ -191,6 +209,13 @@ struct lock_t {
 	lock_mode mode() const
 	{
 		return(static_cast<lock_mode>(type_mode & LOCK_MODE_MASK));
+	}
+
+	/** Get lock hash table
+	@return lock hash table */
+	hash_table_t* hash_table() const
+	{
+		return(lock_hash_get(type_mode));
 	}
 
 	/** @return the record lock tablespace ID */

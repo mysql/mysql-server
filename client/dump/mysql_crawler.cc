@@ -1,14 +1,21 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -52,6 +59,10 @@ Mysql_crawler::Mysql_crawler(I_connection_provider* connection_provider,
 void Mysql_crawler::enumerate_objects()
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  if (!runner)
+    return;
+
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> gtid_mode;
   std::string gtid_value("OFF");
   /* Check if the server is GTID enabled */
@@ -182,6 +193,8 @@ void Mysql_crawler::enumerate_tables(const Database& db)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
 
+  if (!runner)
+    return;
   /*
     Get statistics from SE by setting information_schema_stats_expiry=0.
     This makes the queries IS queries retrieve latest
@@ -349,6 +362,9 @@ void Mysql_crawler::enumerate_functions(const Database& db, std::string type)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
 
+  if (!runner)
+    return;
+
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> functions;
   runner->run_query_store("SHOW " + type + " STATUS WHERE db = '"
     + runner->escape_string(db.get_name()) + '\'', &functions);
@@ -376,6 +392,9 @@ void Mysql_crawler::enumerate_functions(const Database& db, std::string type)
 void Mysql_crawler::enumerate_event_scheduler_events(const Database& db)
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  if (!runner)
+    return;
 
   // Workaround for "access denied" error fixed in 5.7.6.
   if (this->get_server_version() < 50706
@@ -413,6 +432,9 @@ void Mysql_crawler::enumerate_event_scheduler_events(const Database& db)
 void Mysql_crawler::enumerate_users()
 {
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  if (!runner)
+    return;
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> users;
   runner->run_query_store(
@@ -470,6 +492,9 @@ void Mysql_crawler::enumerate_table_triggers(
 
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
 
+  if (!runner)
+    return;
+
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> triggers;
   runner->run_query_store("SHOW TRIGGERS FROM "
     + this->quote_name(table.get_schema()) + " LIKE '"
@@ -504,6 +529,9 @@ void Mysql_crawler::enumerate_column_statistics(
     return;
 
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  if (!runner)
+    return;
 
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> column_statistics;
   runner->run_query_store(

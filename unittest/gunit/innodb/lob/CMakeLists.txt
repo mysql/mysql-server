@@ -1,17 +1,24 @@
-# Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # PROJECT(lot0lot)
 INCLUDE_DIRECTORIES(
@@ -45,12 +52,17 @@ SET(PLOB_SRC_FILES
   ut0dbg.cc
   lob0int.cc)
 
-ADD_EXECUTABLE(lot0lot ${PLOB_SRC_FILES})
-ADD_EXECUTABLE(ut0plist ut0plist.cc lot0plist.h mtr0log.cc lot0buf.cc ut0dbg.cc)
-ADD_EXECUTABLE(ut0frags ut0frags.cc mtr0log.cc ut0dbg.cc lot0buf.cc fut0lst.cc zlob0int.cc fil0fil.cc)
+ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES})
+ADD_EXECUTABLE(ut0plist-t ut0plist.cc lot0plist.h mtr0log.cc lot0buf.cc ut0dbg.cc)
+ADD_EXECUTABLE(ut0frags-t ut0frags.cc mtr0log.cc ut0dbg.cc lot0buf.cc fut0lst.cc zlob0int.cc fil0fil.cc)
 ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES})
 
-TARGET_LINK_LIBRARIES(zlob0int-t zlib ${GTEST_LIBRARIES} gunit_small)
-TARGET_LINK_LIBRARIES(lot0lot zlib ${GTEST_LIBRARIES} gunit_small)
-TARGET_LINK_LIBRARIES(ut0frags zlib)
+TARGET_LINK_LIBRARIES(zlob0int-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
+TARGET_LINK_LIBRARIES(lot0lot-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
+TARGET_LINK_LIBRARIES(ut0frags-t ${ZLIB_LIBRARY})
 
+# Don't run these by default, run manually
+# ADD_TEST(lot0lot  lot0lot-t)
+# ADD_TEST(ut0plist ut0plist-t)
+# ADD_TEST(ut0frags ut0frags-t)
+# ADD_TEST(zlob0int zlob0int-t)

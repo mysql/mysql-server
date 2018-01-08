@@ -168,7 +168,10 @@ while ($loops)
   --let $post_binlog_check=`SELECT post_binlog_check FROM $master_log_db.$master_log_table WHERE id = $id`
   if ($rpl_atomic_ddl_print_verbose)
   {
-  --echo Loop: $id out of $count_ddl_queries; current query: '$current_query'; pre-binlog check: '$pre_binlog_check'; pre-commit check: '$post_binlog_check';
+  # 
+  --let gen_current_query = `SELECT REPLACE("$current_query",'.so','_LIB')`
+  --let gen_current_query = `SELECT REPLACE("$gen_current_query",'.dll','_LIB')`
+  --echo Loop: $id out of $count_ddl_queries; current query: '$gen_current_query'; pre-binlog check: '$pre_binlog_check'; pre-commit check: '$post_binlog_check';
   }
   --source include/rpl_connection_slave.inc
 
@@ -176,7 +179,7 @@ while ($loops)
   # The rollback recovery upon the pre-binlog crash
   #
   --source include/expect_crash.inc
-  --echo *** Query: '$current_query'. $rollback_message. ***
+  --echo *** Query: '$gen_current_query'. $rollback_message. ***
   --eval SET @@GLOBAL.debug=$crash_rollback
 
   # Memorizing execution status right before "scheduled" failure
@@ -209,7 +212,7 @@ while ($loops)
   # Commit recovery upon the pre-commit crash.
   #
   --source include/expect_crash.inc
-  --echo *** Query: '$current_query'. $commit_message. ***
+  --echo *** Query: '$gen_current_query'. $commit_message. ***
   --eval SET @@GLOBAL.debug=$crash_commit
   --source include/gtid_step_reset.inc
   --error 0,2013

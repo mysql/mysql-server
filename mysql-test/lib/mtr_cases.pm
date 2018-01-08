@@ -1,18 +1,25 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is a library file used by the Perl version of mysql-test-run,
 # and is part of the translation of the Bourne shell script with the
@@ -1016,11 +1023,9 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check for replicaton tests
   # ----------------------------------------------------------------------
-  $tinfo->{'rpl_test'}= 1 if ($suitename eq 'rpl' or $suitename eq 'i_rpl');
-  $tinfo->{'rpl_nogtid_test'}= 1 if
-  ($suitename eq 'rpl_nogtid' or $suitename eq 'i_rpl_nogtid');
-  $tinfo->{'rpl_gtid_test'}= 1 if
-  ($suitename eq 'rpl_gtid' or $suitename eq 'i_rpl_gtid');
+  $tinfo->{'rpl_test'}= 1 if ($suitename =~ 'rpl');
+  $tinfo->{'rpl_nogtid_test'}= 1 if($suitename =~ 'rpl_nogtid');
+  $tinfo->{'rpl_gtid_test'}= 1 if ($suitename =~ 'rpl_gtid');
   $tinfo->{'grp_rpl_test'}= 1 if ($suitename =~ 'group_replication');
 
   # ----------------------------------------------------------------------
@@ -1292,28 +1297,33 @@ sub collect_one_test_case {
       # assume default.cnf will be used
       $config= "include/default_my.cnf";
 
-      # rpl_gtid and i_rpl_gtid tests must use the same cnf file.
+      # rpl_gtid tests must use their suite's cnf file having gtid mode on.
       if ( $tinfo->{rpl_gtid_test} )
       {
         $config= "suite/rpl_gtid/my.cnf";
       }
-      # rpl_nogtid,i_rpl_nogtid tests must use the same cnf file.
+      # rpl_nogtid tests must use their suite's cnf file having gtid mode off.
       elsif ( $tinfo->{rpl_nogtid_test} )
       {
         $config= "suite/rpl_nogtid/my.cnf";
       }
-      # rpl,i_rpl tests must use the same cnf file.
+      # rpl tests must use their suite's cnf file.
       elsif ( $tinfo->{rpl_test} )
       {
-	$config= "suite/rpl/my.cnf";
-	if ( $tinfo->{ndb_test} )
-        {
-	  $config= "suite/rpl_ndb/my.cnf";
-	}
+        $config= "suite/rpl/my.cnf";
       }
-      elsif ( $tinfo->{ndb_test} )
+
+      # ndb tests must use their suite specific cnf files.
+      if ( $tinfo->{ndb_test} )
       {
-	$config= "suite/ndb/my.cnf";
+        if ( $tinfo->{rpl_test} )
+        {
+          $config= "suite/rpl_ndb/my.cnf";
+        }
+        else
+        {
+          $config= "suite/ndb/my.cnf";
+        }
       }
     }
     $tinfo->{template_path}= $config;

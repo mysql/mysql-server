@@ -3,10 +3,6 @@
 #
 
 
-main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
-main.explain_for_connection_rqg_json @linux # Bug#20697533 2015-03-13 anitha Fails several times each day on linux platforms
-main.explain_for_connection_rqg_trad @linux # Bug#20697533 2015-03-20 erlend Fails several times each day on linux platforms
-
 innodb.log_file_name                     # Bug#19442959 2014-08-14 marko calling exit() trips ut_ad(!m_freed)
 innodb.innodb_page_size_func @windows    # Bug#19527616 2015-03-13 anitha Test fails almost daily on windows
 

@@ -356,6 +356,8 @@ SELECT CHARSET(ST_ASGEOJSON(POINT(-1.42, 283.12)));
 CHARSET(ST_ASGEOJSON(POINT(-1.42, 283.12)))
 utf8mb4
 SET NAMES 'utf8';
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CHARSET(ST_ASGEOJSON(POINT(-1.42, 283.12)));
 CHARSET(ST_ASGEOJSON(POINT(-1.42, 283.12)))
 utf8mb4
@@ -4112,13 +4114,6 @@ ST_SRID(ST_GEOMFROMGEOJSON(
 "        { \"type\": \"name\", \"properties\":                     "
 "          { \"name\"
 4326
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 22222222.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22222222;
 #
 # Bug #26941370 ST_GEOMFROMGEOJSON ALLOWS OUT-OF-RANGE COORDINATES
 #

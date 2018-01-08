@@ -12,7 +12,8 @@ drop procedure if exists test.pfs_check_proc;
 --echo "Checking the data dictionary properties ..."
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
-SELECT * from mysql.dd_properties;
+SELECT SUBSTRING_INDEX(SUBSTRING(properties, LOCATE('PS_VERSION', properties), 30), ';', 1)
+  FROM mysql.dd_properties;
 SET SESSION debug= '-d,skip_dd_table_access_check';
 
 SET @old_group_concat_max_len = @@group_concat_max_len;
@@ -60,7 +61,7 @@ create table test.pfs_published_schema
 
 insert into test.pfs_published_schema
  values("MySQL 8.0.4-rc",
-        "c021d793aaf460a0b4e2d44a7a61d9c79055fe30526c4cb28a2cac0662c851ff");
+        "aa77743b47ba8ce22bc3ceaa8136dbc5244f3f37c15f60923bbea0b8317fdbf5");
 
 create table test.pfs_check_table
   (id int(11) NOT NULL AUTO_INCREMENT,

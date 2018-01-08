@@ -1,18 +1,24 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License as
-    published by the Free Software Foundation; version 2 of the
-    License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
+
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_SRV_SESSION_SERVICE_INCLUDED
 #define MYSQL_SRV_SESSION_SERVICE_INCLUDED
 
@@ -58,6 +64,8 @@ extern struct srv_session_service_st
   int (*close_session)(MYSQL_SESSION session);
 
   int (*server_is_available)();
+
+  int (*attach_session)(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 } *srv_session_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -79,6 +87,9 @@ extern struct srv_session_service_st
 
 #define srv_session_server_is_available() \
         srv_session_service->server_is_available()
+
+#define srv_session_attach(session, thd) \
+        srv_session_service->attach_session((session), (thd))
 
 #else
 
@@ -124,16 +135,10 @@ MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
 /**
   Detaches a session from current physical thread.
 
-  Detaches a previously attached session. Sessions are automatically attached
-  when they are used with the Command service (command_service_run_command()).
-  If the session is opened in a spawned thread, then it will stay attached
-  after command_service_run_command() until another session is used in the
-  same physical thread. The command services will detach the previously used
-  session and attach the one to be used for execution.
-
-  This function should be called in case the session has to be used in
-  different physical thread. It will unbound the session from the current
-  physical thread. After that the session can be used in a different thread.
+  Detaches a previously session. Which can only occur when the MYSQL_SESSION
+  was manually attached by "srv_session_attach".
+  Other srv_session calls automatically attached/detached the THD when the
+  MYSQL_SESSION is used (for example command_service_run_command()).
 
   @param session  Session to detach
 
@@ -163,6 +168,19 @@ int srv_session_close(MYSQL_SESSION session);
 */
 int srv_session_server_is_available();
 
+/**
+  Attaches a session to current physical thread.
+
+  Previously attached THD is detached and returned through ret_previous_thd.
+  THD associated with session is attached.
+
+  @param session  Session to attach
+
+  @returns
+    0  success
+    1  failure
+*/
+int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 
 #endif
 

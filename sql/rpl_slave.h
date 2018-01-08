@@ -1,17 +1,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RPL_SLAVE_H
 #define RPL_SLAVE_H
@@ -77,7 +84,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #define SLAVE_NET_TIMEOUT  60
 
-#define MAX_SLAVE_ERROR    10000
+#define MAX_SLAVE_ERROR    12000
 
 #define MTS_WORKER_UNDEF ((ulong) -1)
 #define MTS_MAX_WORKERS  1024
@@ -92,22 +99,6 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 #define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 8) /* 524280 */
 
 extern bool server_id_supplied;
-
-/**
-  This macro simplifies when a DBUG_EXECUTE_IF will generate a given
-  signal and then will wait for another signal to continue.
-*/
-#define DBUG_SIGNAL_WAIT_FOR(A,B,C) \
-  DBUG_EXECUTE_IF(A,\
-                  {\
-                    const char act[]= "now SIGNAL "\
-                                      B\
-                                      " WAIT_FOR "\
-                                      C;\
-                    DBUG_ASSERT(\
-                      !debug_sync_set_action(current_thd,\
-                                             STRING_WITH_LEN(act)));\
-                  };)
 
 /*****************************************************************************
 

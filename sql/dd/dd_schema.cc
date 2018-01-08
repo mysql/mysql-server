@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -21,6 +28,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_time.h"                          // TIME_to_ulonglong_datetime
 #include "mysql_com.h"
 #include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                        // dd::get_dictionary
@@ -30,6 +38,7 @@
 #include "sql/mysqld.h"                       // lower_case_table_names
 #include "sql/sql_class.h"                    // THD
 #include "sql/system_variables.h"
+#include "sql/tztime.h"                       // Time_zone
 
 namespace dd {
 
@@ -60,6 +69,14 @@ bool create_schema(THD *thd, const char *schema_name,
   schema->set_name(schema_name);
   DBUG_ASSERT(charset_info);
   schema->set_default_collation_id(charset_info->number);
+
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+
+  schema->set_created(ull_curtime);
+  schema->set_last_altered(ull_curtime);
 
   // Store the schema. Error will be reported by the dictionary subsystem.
   return thd->dd_client()->store(schema.get());

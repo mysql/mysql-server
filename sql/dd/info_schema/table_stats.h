@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -262,6 +269,39 @@ public:
   // Get error string. Its empty if a error is not reported.
   inline String_type error()
   { return m_error; }
+
+
+  /**
+    Set error string for the given key. The combination of (db, table and
+    partition name) forms the key.
+
+    @param db_name          - Schema name.
+    @param table_name       - Table name.
+    @param partition_name   - Partition name.
+    @param error_msg        - Error message.
+
+    @note We store the error message so that the error message is shown in
+    I_S.TABLES.COMMENT field. Apart from storing the error message, the
+    below function resets the statistics, this will make sure,
+
+     1. We do not invoke open_tables_for_query() again for other
+        dynamic columns that are fetch from the current row being
+        processed.
+
+     2. We will not see junk values for statistics in results.
+
+    @return void
+  */
+  void store_error_message(const String &db_name,
+                           const String &table_name,
+                           const char *partition_name,
+                           const String_type error_msg)
+  {
+    m_stats= {};
+    m_checksum= 0;
+    m_error= error_msg;
+    m_key= form_key(db_name, table_name, partition_name);
+  }
 
 
 private:

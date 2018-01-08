@@ -15,3 +15,5 @@ CREATE USER foo@localhost IDENTIFIED BY 'C0mPl3%P@sSw0rD';
 DROP USER foo@localhost;
 # 3. Try uninstalling VALIDATE_PASSWORD plugin
 UNINSTALL PLUGIN VALIDATE_PASSWORD;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead

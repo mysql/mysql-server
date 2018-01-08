@@ -1,0 +1,45 @@
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+CREATE TABLE xtest.coll1 (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, "$._id"))) STORED PRIMARY KEY);
+INSERT INTO xtest.coll1 (doc) VALUES
+('{"F1": 1, "F2": 110, "_id": "1100"}'),
+('{"F1": 2, "F2": 111, "_id": "1101"}'),
+('{"F1": 3, "F2": 112, "_id": "1102"}'),
+('{"F1": 1, "F2": 120, "_id": "1200"}'),
+('{"F1": 2, "F2": 121, "_id": "1201"}'),
+('{"F1": 3, "F2": 122, "_id": "1202"}');
+CREATE TABLE xtest.tab1 (id VARCHAR(16), F1 INT, F2 INT)
+SELECT _id AS id,
+JSON_UNQUOTE(JSON_EXTRACT(doc, "$.F1")) AS F1,
+JSON_UNQUOTE(JSON_EXTRACT(doc, "$.F2")) AS F2
+FROM xtest.coll1;
+
+Issue #1
+========
+Table approach
+sum_f2	sum_f1
+232	4
+234	6
+command ok
+Collection approach
+doc
+{"sum_f1": 4, "sum_f2": 232}
+{"sum_f1": 6, "sum_f2": 234}
+command ok
+
+Issue #2
+========
+Table approach
+Fld	sum_f2
+3	234
+command ok
+Collection approach (doc member in grouping criteria)
+Got expected error: Invalid expression in grouping criteria (code 5154)
+Collection approach (alias in grouping criteria)
+doc
+{"Fld": 3, "sum_f2": 234}
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

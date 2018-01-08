@@ -181,7 +181,7 @@ DELETE FROM t;
 if ($gtid_mode_on)
 {
   --replace_result $server_1_uuid MASTER_UUID
-  --error ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+  --error ER_GTID_NEXT_TYPE_UNDEFINED_GTID
   CALL proc();
 }
 if (!$gtid_mode_on)

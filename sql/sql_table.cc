@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -28,21 +35,16 @@
 #include <memory>
 #include <string>
 
-#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "binlog_event.h"
 #include "lex_string.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
-#ifndef UNIV_HOTBACKUP
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_check_opt.h"             // T_EXTEND
 #include "my_compiler.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
-#ifndef UNIV_HOTBACKUP
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
@@ -130,14 +132,10 @@
 #include "sql/sql_tablespace.h"       // validate_tablespace_name
 #include "sql/sql_time.h"             // make_truncated_value_warning
 #include "sql/sql_trigger.h"          // change_trigger_table_name
-#endif /* !UNIV_HOTBACKUP */
 #include "sql/strfunc.h"                  // find_type2
-#ifndef UNIV_HOTBACKUP
 #include "sql/strfunc.h"              // find_type2
 #include "sql/system_variables.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "sql/table.h"
-#ifndef UNIV_HOTBACKUP
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"          // trans_commit_stmt
 #include "sql/transaction_info.h"
@@ -182,13 +180,6 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 static uint blob_length_by_type(enum_field_types type);
 static const Create_field *get_field_by_index(Alter_info *alter_info, uint idx);
 
-#else /* !UNIV_HOTBACKUP */
-/* Branches which use these, should not be taken by backup. */
-#define ER_THD_OR_DEFAULT(thd,X) ("Cannot explain file name, MySQL error")
-#define get_quote_char_for_identifier(thd, conv_name, len) ('`')
-#endif /* !UNIV_HOTBACKUP */
-
-#ifndef UNIV_HOTBACKUP
 /**
   RAII class to control the atomic DDL commit on slave.
   A slave context flag responsible to mark the DDL as committed is
@@ -243,7 +234,6 @@ static bool trans_intermediate_ddl_commit(THD *thd, bool error)
   }
   return trans_commit_stmt(thd) || trans_commit(thd);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 
 /**
@@ -518,7 +508,6 @@ size_t explain_filename(THD* thd,
   DBUG_RETURN(static_cast<size_t>(to_p - to));
 }
 
-#ifndef UNIV_HOTBACKUP
 void parse_filename(const char *filename, size_t filename_length,
                     const char ** schema_name, size_t *schema_name_length,
                     const char ** table_name, size_t *table_name_length,
@@ -633,7 +622,7 @@ void parse_filename(const char *filename, size_t filename_length,
   *subpartition_name= id_ptr;
   *subpartition_name_length= id_length;
 }
-#endif /* !UNIV_HOTBACKUP */
+
 
 /*
   Translate a file name to a table name (WL #1324).
@@ -668,7 +657,6 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                     system_charset_info,  to, to_length, &errors);
     if (errors) // Old 5.0 name
     {
-#ifndef UNIV_HOTBACKUP
       if (!stay_quiet) {
         LogErr(ERROR_LEVEL, ER_INVALID_OR_OLD_TABLE_OR_DB_NAME, from);
       }
@@ -676,7 +664,6 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
         TODO: add a stored procedure for fix table and database names,
         and mention its name in error log.
       */
-#endif /* !UNIV_HOTBACKUP */
     }
   }
 
@@ -685,7 +672,6 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
 }
 
 
-#ifndef UNIV_HOTBACKUP
 /*
   Translate a table name to a file name (WL #1324).
 
@@ -2094,7 +2080,7 @@ rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
 static bool
 rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
 {
-  if (thd->variables.gtid_next.type == GTID_GROUP)
+  if (thd->variables.gtid_next.type == ASSIGNED_GTID)
   {
     /*
       This statement has been assigned GTID.
@@ -2177,7 +2163,7 @@ rm_table_eval_gtid_and_table_groups_state(THD *thd, Drop_tables_ctx *drop_ctx)
            as single multi-table DROP TABLES under single GTID might be
            theoretically possible in some cases, but has its own problems).
         */
-        my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP,
+        my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID,
                  MYF(0));
         return true;
       }
@@ -3039,7 +3025,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
             We don't have GTID assigned and this is not single-table
             DROP TABLE. Commit change to binary log (if there was any)
             and get GTID assigned for our single-table change. Do not
-            release ANONYMOUS_GROUP ownership yet as there can be more
+            release ANONYMOUS_GTID ownership yet as there can be more
             tables to drop and corresponding statements to write to
             binary log. Do not update slave info as there might be more
             groups.
@@ -3212,7 +3198,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           We don't have GTID assigned and this is not fully-atomic DROP TABLES.
           Commit changes to SE, data-dictionary and binary log and get GTID
           assigned for our changes.
-          Do not release ANONYMOUS_GROUP ownership and update slave info yet
+          Do not release ANONYMOUS_GTID ownership and update slave info yet
           as there can be more tables (e.g. temporary) to drop and corresponding
           statements to write to binary log.
         */
@@ -11362,9 +11348,10 @@ bool prepare_fields_and_keys(THD *thd,
     if (!def->change)
     {
       /*
-        Check that the DATE/DATETIME not null field we are going to add is
-        either has a default value or the '0000-00-00' is allowed by the
-        set sql mode.
+        Check that the DATE/DATETIME NOT NULL field we are going to
+        add either has a default value, is a generated column, or the
+        date '0000-00-00' is allowed by the set sql mode.
+
         If the '0000-00-00' value isn't allowed then raise the error_if_not_empty
         flag to allow ALTER TABLE only if the table to be altered is empty.
       */
@@ -11373,6 +11360,7 @@ bool prepare_fields_and_keys(THD *thd,
            def->sql_type == MYSQL_TYPE_DATETIME ||
            def->sql_type == MYSQL_TYPE_DATETIME2) &&
           !alter_ctx->datetime_field &&
+          !def->is_gcol() &&
           !(~def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)))
       {
         alter_ctx->datetime_field= def;
@@ -12659,6 +12647,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   THD_STAGE_INFO(thd, stage_init);
+
+  // Reject invalid usage of the 'mysql' tablespace.
+  if (dd::invalid_tablespace_usage(thd, table_list->db,
+                                   table_list->table_name, create_info))
+    DBUG_RETURN(true);
 
   /*
     Assign target tablespace name to enable locking in lock_table_names().
@@ -15015,4 +15008,3 @@ static bool check_engine(THD *thd, const char *db_name,
 
   DBUG_RETURN(false);
 }
-#endif /* !UNIV_HOTBACKUP */

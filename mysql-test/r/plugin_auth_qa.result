@@ -105,7 +105,7 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 plug	test_plugin_server
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER plug, plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
@@ -115,7 +115,7 @@ DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 Warnings:
@@ -127,7 +127,7 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 plug	test_plugin_server
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER plug, plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 Warnings:
@@ -139,7 +139,7 @@ DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
@@ -151,7 +151,7 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 plug	test_plugin_server
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER plug, plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
@@ -163,7 +163,7 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 GRANT IDENTIFIED WITH for existing users is now allowed
@@ -216,6 +216,8 @@ plug_dest	test_plugin_server
 DROP USER plug,plug_dest;
 ========== test 1.1.1.1/1.1.2.1/1.1.1.5 ====================
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER plüg IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
@@ -224,7 +226,7 @@ DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-plüg_dest	mysql_native_password
+plüg_dest	caching_sha2_password
 DROP USER plüg_dest;
 SET NAMES ascii;
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
@@ -242,7 +244,7 @@ Warnings:
 Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-pl??g_dest	mysql_native_password
+pl??g_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 Warnings:
 Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
@@ -258,9 +260,11 @@ DROP USER 'plug';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-plüg_dest	mysql_native_password
+plüg_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
 ERROR HY000: Plugin 'test_pluggggin_server' is not loaded
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
@@ -271,7 +275,7 @@ DROP USER 'plüg';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-plüg_dest	mysql_native_password
+plüg_dest	caching_sha2_password
 DROP USER 'plüg_dest';
 CREATE USER plüg IDENTIFIED WITH test_plugin_server AS 'plüg_dest';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
@@ -281,7 +285,7 @@ DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-plüg_dest	mysql_native_password
+plüg_dest	caching_sha2_password
 DROP USER plüg_dest;
 ========== test 1.1.1.2/1.1.2.2=============================
 SET @auth_name= 'test_plugin_server';
@@ -301,7 +305,7 @@ DROP USER plug;
 CREATE USER 'hh''s_plug_dest' IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-hh's_plug_dest	mysql_native_password
+hh's_plug_dest	caching_sha2_password
 DROP USER 'hh''s_plug_dest';
 ========== test 1.1.1.4 ====================================
 CREATE USER plug IDENTIFIED WITH hh''s_test_plugin_server AS 'plug_dest';
@@ -328,7 +332,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 grant_user	test_plugin_server
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER grant_user,plug_dest;
 set @save_sql_mode= @@sql_mode;
 SET @@sql_mode=no_auto_create_user;
@@ -353,7 +357,7 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 grant_user	test_plugin_server
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_user_passwd';
 Warnings:
@@ -361,6 +365,6 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 grant_user	test_plugin_server
-plug_dest	mysql_native_password
+plug_dest	caching_sha2_password
 DROP USER grant_user,plug_dest;
 DROP DATABASE test_user_db;

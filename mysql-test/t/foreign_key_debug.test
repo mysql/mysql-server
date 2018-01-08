@@ -375,8 +375,10 @@ LOCK TABLES parent WRITE;
 --echo # There are two metadata locks because the child has
 --echo # two different FK roles wrt. the parent. Note that
 --echo # the locks are stronger for LOCK TABLES.
-SELECT LOCK_TYPE FROM performance_schema.metadata_locks
-  WHERE OBJECT_NAME LIKE 'child';
+SELECT OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME,
+  LOCK_TYPE FROM performance_schema.metadata_locks
+  WHERE OBJECT_NAME LIKE 'child'
+  ORDER BY OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME, LOCK_TYPE;
 
 --echo # From another connection, verify that child is locked.
 --connect (con_1, localhost, root)

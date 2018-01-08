@@ -1,17 +1,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -547,8 +554,8 @@ int init_slave()
                                 mi,
                                 thread_mask))
         {
-          sql_print_error("Failed to start slave threads for channel '%s'",
-                          mi->get_channel());
+          LogErr(ERROR_LEVEL, ER_FAILED_TO_START_SLAVE_THREAD,
+                 mi->get_channel());
         }
       }
     }
@@ -558,11 +565,8 @@ err:
 
   channel_map.unlock();
   if (error)
-    sql_print_information("Some of the channels are not created/initialized "
-                          "properly. Check for additional messages above. "
-                          "You will not be able to start replication on those "
-                          "channels until the issue is resolved and "
-                          "the server restarted.");
+    LogErr(INFORMATION_LEVEL, ER_SLAVE_NOT_STARTED_ON_SOME_CHANNELS);
+
   DBUG_RETURN(error);
 }
 
@@ -1362,6 +1366,16 @@ int load_mi_and_rli_from_repositories(Master_info* mi,
     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
         && mi->rli->rli_init_info())
       init_error= 1;
+    else
+    {
+      /*
+        During rli_init_info() above, the relay log is opened (if rli was not
+        initialized yet). The function below expects the relay log to be opened
+        to get its coordinates and store as the last flushed relay log
+        coordinates from I/O thread point of view.
+      */
+      mi->update_flushed_relay_log_info();
+    }
   }
 
   DBUG_EXECUTE_IF("enable_mts_worker_failure_init",
@@ -1473,11 +1487,18 @@ int flush_master_info(Master_info* mi, bool force,
     thread will jump from 100 to 150, and replication will silently break.
   */
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
+  mysql_mutex_t *data_lock= &mi->data_lock;
 
   if (need_lock)
+  {
     mysql_mutex_lock(log_lock);
+    mysql_mutex_lock(data_lock);
+  }
   else
+  {
     mysql_mutex_assert_owner(log_lock);
+    mysql_mutex_assert_owner(&mi->data_lock);
+  }
 
   int err= 0;
   /*
@@ -1490,7 +1511,10 @@ int flush_master_info(Master_info* mi, bool force,
   err|= mi->flush_info(force);
 
   if (need_lock)
+  {
+    mysql_mutex_unlock(data_lock);
     mysql_mutex_unlock(log_lock);
+  }
 
   DBUG_RETURN (err);
 }
@@ -1601,7 +1625,7 @@ static void add_slave_skip_errors(const uint* errors, uint n_errors)
     /*
       The range for client side error is [2000-2999]
       so if the err_code doesn't lie in that and if less
-      than MAX_SLAVE_ERROR[10000] we enter the if loop.
+      than MAX_SLAVE_ERROR[12000] we enter the if loop.
     */
     if (err_code < MAX_SLAVE_ERROR &&
         (err_code < CR_MIN_ERROR || err_code > CR_MAX_ERROR))
@@ -1830,11 +1854,14 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
     /*
       Flushes the master info regardles of the sync_master_info option.
     */
+    mysql_mutex_lock(&mi->data_lock);
     if (mi->flush_info(TRUE))
     {
+      mysql_mutex_unlock(&mi->data_lock);
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
+    mysql_mutex_unlock(&mi->data_lock);
 
     /*
       Flushes the relay log regardles of the sync_relay_log option.
@@ -3307,11 +3334,13 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
                  "failed to write a Rotate event"
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
+    mysql_mutex_lock(&mi->data_lock);
     if (flush_master_info(mi, true, false, false))
     {
       error= 1;
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_FLUSH_MASTER_INFO_FILE);
     }
+    mysql_mutex_unlock(&mi->data_lock);
     delete ev;
   }
   else
@@ -3548,6 +3577,9 @@ static void show_slave_status_metadata(List<Item> &field_list,
   field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
   field_list.push_back(new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
   field_list.push_back(new Item_empty_string("Master_TLS_Version", FN_REFLEN));
+  field_list.push_back(new Item_empty_string("Master_public_key_path", FN_REFLEN));
+  field_list.push_back(new Item_return_int("Get_master_public_key", sizeof(ulong),
+                                           MYSQL_TYPE_LONG));
 
 }
 
@@ -3835,6 +3867,10 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_channel(), &my_charset_bin);
   // Master_TLS_Version
   protocol->store(mi->tls_version, &my_charset_bin);
+  // Master_public_key_path
+  protocol->store(mi->public_key_path, &my_charset_bin);
+  // Get_master_public_key
+  protocol->store(mi->get_public_key ? 1 : 0);
 
   rpl_filter->unlock();
   mysql_mutex_unlock(&mi->rli->err_lock);
@@ -5410,7 +5446,8 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   if (io_slave_killed(thd, mi))
   {
     if (info)
-      sql_print_information("%s%s", info, mi->get_for_channel_str());
+      LogErr(INFORMATION_LEVEL, ER_RPL_IO_THREAD_KILLED, info,
+             mi->get_for_channel_str());
     return TRUE;
   }
   return FALSE;
@@ -5461,28 +5498,33 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   thd->proc_info = messages[SLAVE_RECON_MSG_AFTER];
   if (!suppress_warnings) 
   {
-    char buf[256], llbuff[22];
-    my_snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED], 
-                mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(),
-                llbuff));
+    char llbuff[22];
     /* 
       Raise a warining during registering on master/requesting dump.
       Log a message reading event.
     */
     if (messages[SLAVE_RECON_MSG_COMMAND][0])
     {
+      char buf[256];
+      my_snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED],
+                  mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(),
+                                                   llbuff));
+
       mi->report(WARNING_LEVEL, ER_SLAVE_MASTER_COM_FAILURE,
                  ER_THD(thd, ER_SLAVE_MASTER_COM_FAILURE), 
                  messages[SLAVE_RECON_MSG_COMMAND], buf);
     }
     else
     {
-      sql_print_information("%s%s", buf, mi->get_for_channel_str());
+      LogErr(INFORMATION_LEVEL, ER_SLAVE_RECONNECT_FAILED,
+             mi->get_io_rpl_log_name(),
+             llstr(mi->get_master_log_pos(), llbuff),
+             mi->get_for_channel_str());
     }
   }
   if (safe_reconnect(thd, mysql, mi, 1) || io_slave_killed(thd, mi))
   {
-    sql_print_information("%s", messages[SLAVE_RECON_MSG_KILLED_AFTER]);
+    LogErr(INFORMATION_LEVEL, ER_SLAVE_KILLED_AFTER_RECONNECT);
     return 1;
   }
   return 0;
@@ -6038,7 +6080,9 @@ err:
   mysql_mutex_unlock(&mi->run_lock);
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
@@ -6277,7 +6321,9 @@ err:
   }
 
   my_thread_end();
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -6474,7 +6520,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     {
       if ((file= open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       {
-        sql_print_error("%s", errmsg);
+        LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
         goto err;
       }
       /*
@@ -6498,7 +6544,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
         }
         if (!checksum_detected)
         {
-          sql_print_error("%s", "malformed or very old relay log which does not have FormatDescriptor");
+          LogErr(ERROR_LEVEL, ER_BINLOG_MALFORMED_OR_OLD_RELAY_LOG);
           goto err;
         }
       }
@@ -7584,7 +7630,9 @@ extern "C" void *handle_slave_sql(void *arg)
 
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(0);
   return 0;                             // Avoid compiler warnings
 }
@@ -7838,6 +7886,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       event from the next binlog (unless the master is presently running
       without --log-bin).
     */
+    do_flush_mi= false;
     goto end;
   case binary_log::ROTATE_EVENT:
   {
@@ -8021,6 +8070,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       mysql_mutex_unlock(&mi->data_lock);
       if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
         goto end;
+      do_flush_mi= false; /* write_rotate_... above flushed master info */
     }
     else
       mysql_mutex_unlock(&mi->data_lock);
@@ -8074,6 +8124,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
       goto err;
 
+    do_flush_mi= false; /* write_rotate_... above flushed master info */
     goto end;
   }
   break;
@@ -8260,7 +8311,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
     /* write the event to the relay log */
     if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0))
     {
-      DBUG_SIGNAL_WAIT_FOR("pause_on_queue_event_after_write_buffer",
+      DBUG_SIGNAL_WAIT_FOR(current_thd,
+                           "pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",
                            "receiver_continue_queuing_event");
       mysql_mutex_lock(&mi->data_lock);
@@ -8340,6 +8392,12 @@ end:
                  not in the middle of a transaction. Having a proper
                  relay log recovery can allow us to do this.
     */
+    if (lock_count == 1)
+    {
+      mysql_mutex_lock(&mi->data_lock);
+      lock_count= 2;
+    }
+
     if (flush_master_info(mi,
                           false/*force*/,
                           lock_count == 0/*need_lock*/,
@@ -8425,6 +8483,9 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   if (opt_slave_compressed_protocol)
     client_flag|= CLIENT_COMPRESS;              /* We will use compression */
 
+  /* Always reset public key to remove cached copy */
+  mysql_reset_server_public_key();
+
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
@@ -8498,8 +8559,19 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   else if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
 
+  if (mi->public_key_path[0])
+  {
+    /* Set public key path */
+    DBUG_PRINT("info", ("Set master's public key path"));
+    mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, mi->public_key_path);
+  }
+
+  /* Get public key from master */
+  DBUG_PRINT("info", ("Set preference to get public key from master"));
+  mysql_options(mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY, &mi->get_public_key);
+
   if (!mi->is_start_user_configured())
-    LogErr(WARNING_LEVEL, ER_INSECURE_CHANGE_MASTER);
+    LogErr(WARNING_LEVEL, ER_RPL_SLAVE_INSECURE_CHANGE_MASTER);
 
   if (mi->get_password(password, &password_size))
   {
@@ -8751,8 +8823,7 @@ void dump_next_event_debug_information(Relay_log_info *rli,
   @param rli Relay_log_info structure for the slave SQL thread.
 
   @return The event read, or NULL on error.  If an error occurs, the
-  error is reported through the sql_print_information() or
-  sql_print_error() functions.
+  error is reported through the LogErr() method.
 */
 static Log_event* next_event(Relay_log_info* rli)
 {
@@ -9255,8 +9326,8 @@ bool flush_relay_logs_cmd(THD *thd)
           /*
             Log warning on SQL or worker threads.
           */
-          LogErr(WARNING_LEVEL, ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED,
-                 "FLUSH RELAY LOGS", lex->mi.channel);
+          LogErr(WARNING_LEVEL, ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED,
+                 lex->mi.channel);
         }
         else
         {
@@ -9279,7 +9350,7 @@ bool flush_relay_logs_cmd(THD *thd)
         /*
           Log warning on SQL or worker threads.
         */
-        LogErr(WARNING_LEVEL, ER_SLAVE_CHANNEL_DOES_NOT_EXIST,
+        LogErr(WARNING_LEVEL, ER_RPL_SLAVE_INCORRECT_CHANNEL,
                lex->mi.channel);
       }
       else
@@ -9733,7 +9804,13 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
     {
       push_warning(thd, Sql_condition::SL_NOTE, slave_errno,
                    ER_THD(thd, slave_errno));
-      sql_print_warning("%s",ER_DEFAULT(slave_errno));
+
+      /*
+        If new slave_errno is added in the if() condition above then make sure
+        that there are no % in the error message or change the logging API
+        to use verbatim() to avoid % substitutions.
+      */
+      LogErr(WARNING_LEVEL, slave_errno);
     }
     if (net_report)
       my_error(slave_errno, MYF(0));
@@ -10021,7 +10098,9 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
       lex_mi->ssl_cipher ||
       lex_mi->ssl_crl ||
       lex_mi->ssl_crlpath ||
-      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
+      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->public_key_path ||
+      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_receive_option= true;
 
   DBUG_RETURN(have_receive_option);
@@ -10238,6 +10317,12 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     mi->ssl_verify_server_cert=
       (lex_mi->ssl_verify_server_cert == LEX_MASTER_INFO::LEX_MI_ENABLE);
 
+  if (lex_mi->public_key_path)
+    strmake(mi->public_key_path, lex_mi->public_key_path, sizeof(mi->public_key_path)-1);
+
+  if (lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
+    mi->get_public_key= (lex_mi->get_public_key == LEX_MASTER_INFO::LEX_MI_ENABLE);
+
   if (lex_mi->ssl_ca)
     strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
   if (lex_mi->ssl_capath)
@@ -10390,7 +10475,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   /*
     We want to save the old receive configurations so that we can use them to
     print the changes in these configurations (from-to form). This is used in
-    sql_print_information() later.
+    LogErr() later.
   */
   char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;
@@ -10945,7 +11030,9 @@ static bool is_invalid_change_master_for_group_replication_recovery(const
       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
       lex_mi->relay_log_name ||
       lex_mi->relay_log_pos ||
-      lex_mi->sql_delay != -1)
+      lex_mi->sql_delay != -1 ||
+      lex_mi->public_key_path ||
+      lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received= true;
 
   DBUG_RETURN(have_extra_option_received);

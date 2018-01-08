@@ -1,0 +1,167 @@
+#############################################################################
+#
+# The aim of this test case is to test the
+# "CREATE/DROP SPATIAL REFERENCE SYSTEM" statements to manipulate the
+# spatial reference systems in the data dictionary table.
+#
+# E.g:
+#   CREATE SPATIAL REFERENCE SYSTEM XXXX ...
+#   CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS XXXX
+#   CREATE OR REPLACE REFERENCE SYSTEM XXXX ...
+#
+#   DROP SPATIAL REFERENCE SYSTEM XXXX
+#   DROP SPATIAL REFERENCE SYSTEM IF EXISTS XXXX
+#
+# The following scenarios are tested :
+#
+#   1. SRS created in master must replicate properly and should be
+#      available for slave server.
+#
+#   2. SRS dropped in master shouldn't be available for slave
+#
+# Creation date: 2017-12-05
+# Author: Pavan Naik
+#
+#############################################################################
+
+--source include/master-slave.inc
+
+--connection master
+
+# Store the number of SRSs. Compare at the end to detect if we create an SRS and
+# forget to drop it afterwards.
+SET @number_of_srss =
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS);
+
+# Create SRS's to drop.
+CREATE SPATIAL REFERENCE SYSTEM 1000000000
+NAME 'foo_1000000000'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+
+CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1000000001
+NAME 'foo_1000000001'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+
+CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1000000002
+NAME 'foo_1000000002'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check whether SRS created in master is available on slave server(should exist)
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000000));
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000001));
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000002));
+
+--echo [Connection Master]
+--connection master
+
+# Drop the created SRS
+DROP SPATIAL REFERENCE SYSTEM 1000000000;
+DROP SPATIAL REFERENCE SYSTEM 1000000001;
+
+# Replace an exsisting SRS
+CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1000000002
+NAME 'foo_1000000000'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID = 1000000002;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check whether SRS modified in master is available on slave server(should exist)
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID = 1000000002;
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000002));
+
+--echo [Connection Master]
+--connection master
+
+# Drop the created SRS
+DROP SPATIAL REFERENCE SYSTEM IF EXISTS 1000000002;
+
+# Result should be empty
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check whether the SRS dropped on master is available on slave server(shouldn't exist)
+SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS WHERE SRS_ID = 1000000000;
+--error ER_SRS_NOT_FOUND
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000000));
+
+--echo [Connection Master]
+--connection master
+
+# Both CREATE and DROP SPATIAL REFERENCE SYSTEM causes an implicit
+# transaction commit.
+# CREATE SPATIAL REFERENCE SYSTEM inside a transaction on master.
+BEGIN;
+CREATE SPATIAL REFERENCE SYSTEM 1000000000
+NAME 'foo_1000000000'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+
+CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1000000001
+NAME 'foo_1000000001'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+
+CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 1000000002
+NAME 'foo_1000000002'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Lon",EAST],AUTHORITY["EPSG","4326"]]';
+
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check whether SRS created in master is available on slave server(should exist)
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000000));
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000001));
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000002));
+
+--echo [Connection Master]
+--connection master
+
+COMMIT;
+
+# DROP SPATIAL REFERENCE SYSTEM inside a transaction on master.
+BEGIN;
+DROP SPATIAL REFERENCE SYSTEM 1000000000;
+DROP SPATIAL REFERENCE SYSTEM 1000000001;
+DROP SPATIAL REFERENCE SYSTEM IF EXISTS 1000000002;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
+
+# Check whether SRS created in master is available on slave server(shouldn't exist)
+SELECT * FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS WHERE SRS_ID >= 1000000000 AND SRS_ID <= 1000000002;
+
+--error ER_SRS_NOT_FOUND
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000000));
+
+--error ER_SRS_NOT_FOUND
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000001));
+
+--error ER_SRS_NOT_FOUND
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000002));
+
+--echo [Connection Master]
+--connection master
+
+COMMIT;
+
+# Compare the number of SRSs with the number recorded at the top of the test to
+# detect if we created an SRS and forgot to drop it afterwards.
+SELECT @number_of_srss AS at_beginning, COUNT(*) AS at_end
+FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

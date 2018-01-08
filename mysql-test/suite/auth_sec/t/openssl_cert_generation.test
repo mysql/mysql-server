@@ -182,7 +182,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --echo # Ensure that server is ssl enabled
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 #-----------------------------------------------------------------------------
 
@@ -210,8 +210,8 @@ EOF
 --disable_reconnect
 --echo # Restart completed.
 
---echo # Search for : Auto generated RSA key files are placed in data directory.
-let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
+--echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.;
 --source include/search_pattern.inc
 --echo # Search completed.
 
@@ -265,7 +265,7 @@ EOF
 --echo # Search for : Messages related to skipped generation of SSL certificates and RSA key pair files.
 let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files are present in data directory;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= Skipping generation of RSA key pair as key files are present in data directory;
+let SEARCH_PATTERN= Skipping generation of RSA key pair;
 --source include/search_pattern.inc
 --echo # Search completed.
 
@@ -284,7 +284,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -335,8 +335,8 @@ EOF
 let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory.;
 --source include/search_pattern.inc
 --echo # Search completed.
---echo # Search for : Auto generated RSA key files are placed in data directory.
-let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
+--echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.;
 --source include/search_pattern.inc
 --echo # Search completed.
 
@@ -350,7 +350,7 @@ show variables like 'sha256%';
 
 --echo # 6.3 : SSL connection
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 
 
@@ -361,7 +361,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -409,8 +409,8 @@ EOF
 --disable_reconnect
 --echo # Restart completed.
 
---echo # Search for : Auto generated RSA key files are placed in data directory.
-let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
+--echo # Search for : Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.
+let SEARCH_PATTERN= Auto generated RSA key files through --sha256_password_auto_generate_rsa_keys are placed in data directory.;
 --source include/search_pattern.inc
 --echo # Search completed.
 

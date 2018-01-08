@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -47,7 +55,6 @@ Smart ALTER TABLE
 #include "dd/types/index_element.h"
 #include "dd/types/partition.h"
 #include "dd/types/partition_index.h"
-#include "dd/types/object_type.h"
 #include "dd/types/tablespace_file.h"
 #include "dd_table_share.h"
 
@@ -1043,7 +1050,7 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)
+	if (dict_sys_t::is_dd_table_id(m_prebuilt->table->id)
 	    && innobase_need_rebuild(ha_alter_info)) {
 		ut_ad(!m_prebuilt->table->is_temporary());
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
@@ -4650,12 +4657,10 @@ prepare_inplace_alter_table_dict(
 			/* Set the encryption flag. */
 			byte*			master_key = NULL;
 			ulint			master_key_id;
-			Encryption::Version	version;
 
 			/* Check if keyring is ready. */
 			Encryption::get_master_key(&master_key_id,
-						   &master_key,
-						   &version);
+						   &master_key);
 
 			if (master_key == NULL) {
 				dict_mem_table_free(ctx->new_table);
@@ -5274,17 +5279,22 @@ alter_fill_stored_column(
 	mem_heap_t**		s_heap)
 {
 	ulint	n_cols = altered_table->s->fields;
+	ulint   stored_col_no = 0;
 
 	for (ulint i = 0; i < n_cols; i++) {
 		Field* field = altered_table->field[i];
 		dict_s_col_t	s_col;
+
+		if (!innobase_is_v_fld(field)) {
+			stored_col_no++;
+		}
 
 		if (!innobase_is_s_fld(field)) {
 			continue;
 		}
 
 		ulint	num_base = field->gcol_info->non_virtual_base_columns();
-		dict_col_t*	col = table->get_col(i);
+		dict_col_t*	col = table->get_col(stored_col_no);
 
 		s_col.m_col = col;
 		s_col.s_pos = i;
@@ -5424,7 +5434,7 @@ ha_innobase::prepare_inplace_alter_table_impl(
 				     NULL,
 				     NULL,
 				     is_file_per_table,
-				     false);
+				     false, 0, 0);
 
 	info.set_tablespace_type(is_file_per_table);
 
@@ -6635,13 +6645,15 @@ innobase_rename_or_enlarge_columns_cache(
 	}
 }
 /** Get the auto-increment value of the table on commit.
-@param ha_alter_info Data used during in-place alter
-@param ctx In-place ALTER TABLE context
-@param altered_table MySQL table that is being altered
-@param old_table MySQL table as it is before the ALTER operation
-@return the next auto-increment value (0 if not present) */
+@param[in] ha_alter_info Data used during in-place alter
+@param[in,out] ctx In-place ALTER TABLE context
+	       return autoinc value in ctx->max_autoinc
+@param[in] altered_table MySQL table that is being altered
+@param[in] old_table MySQL table as it is before the ALTER operation
+@retval true Failure
+@retval false Success*/
 static MY_ATTRIBUTE((warn_unused_result))
-ulonglong
+bool
 commit_get_autoinc(
 /*===============*/
 	Alter_inplace_info*	ha_alter_info,
@@ -6649,23 +6661,27 @@ commit_get_autoinc(
 	const TABLE*		altered_table,
 	const TABLE*		old_table)
 {
-	ulonglong		max_autoinc;
-
 	DBUG_ENTER("commit_get_autoinc");
 
 	if (!altered_table->found_next_number_field) {
 		/* There is no AUTO_INCREMENT column in the table
 		after the ALTER operation. */
-		max_autoinc = 0;
+		ctx->max_autoinc = 0;
 	} else if (ctx->add_autoinc != ULINT_UNDEFINED) {
 		/* An AUTO_INCREMENT column was added. Get the last
 		value from the sequence, which may be based on a
 		supplied AUTO_INCREMENT value. */
-		max_autoinc = ctx->sequence.last();
+		ctx->max_autoinc = ctx->sequence.last();
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
+
+		/* Check if the table is discarded */
+		if(dict_table_is_discarded(ctx->old_table)) {
+			DBUG_RETURN(true);
+		}
+
 		/* An AUTO_INCREMENT value was supplied, but the table was not
 		rebuilt. Get the user-supplied value or the last value from the
 		sequence. */
@@ -6674,7 +6690,7 @@ commit_get_autoinc(
 		Field*	autoinc_field =
 			old_table->found_next_number_field;
 
-		max_autoinc = ha_alter_info->create_info->auto_increment_value;
+		ctx->max_autoinc = ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
 
@@ -6693,7 +6709,7 @@ commit_get_autoinc(
 
 		We could only search the tree to know current max counter
 		in the table and compare. */
-		if (max_autoinc <= max_value_table) {
+		if (ctx->max_autoinc <= max_value_table) {
 			dberr_t		err;
 			dict_index_t*	index;
 
@@ -6706,8 +6722,8 @@ commit_get_autoinc(
 
 			if (err != DB_SUCCESS) {
 				ut_ad(0);
-				max_autoinc = 0;
-			} else if (max_autoinc <= max_value_table) {
+				ctx->max_autoinc = 0;
+			} else if (ctx->max_autoinc <= max_value_table) {
 
 				ulonglong	col_max_value;
 				ulonglong	offset;
@@ -6715,7 +6731,7 @@ commit_get_autoinc(
 				col_max_value = autoinc_field->
 					get_max_int_value();
 				offset = ctx->prebuilt->autoinc_offset;
-				max_autoinc = innobase_next_autoinc(
+				ctx->max_autoinc = innobase_next_autoinc(
 					max_value_table, 1, 1, offset,
 					col_max_value);
 			}
@@ -6727,11 +6743,11 @@ commit_get_autoinc(
 		Read the old counter value from the table. */
 		ut_ad(old_table->found_next_number_field);
 		dict_table_autoinc_lock(ctx->old_table);
-		max_autoinc = ctx->old_table->autoinc;
+		ctx->max_autoinc = ctx->old_table->autoinc;
 		dict_table_autoinc_unlock(ctx->old_table);
 	}
 
-	DBUG_RETURN(max_autoinc);
+	DBUG_RETURN(false);
 }
 
 /** Add or drop foreign key constraints to the data dictionary tables,
@@ -7717,9 +7733,14 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 		DBUG_ASSERT(new_clustered == ctx->need_rebuild());
 
-		ctx->max_autoinc = commit_get_autoinc(
-			ha_alter_info, ctx, altered_table, table);
-
+		if (commit_get_autoinc(ha_alter_info, ctx, altered_table,
+			table)) {
+			fail = true;
+			my_error(ER_TABLESPACE_DISCARDED, MYF(0),
+				table->s->table_name.str);
+			goto rollback_trx;
+		}
+	
 		if (ctx->need_rebuild()) {
 			fail = commit_try_rebuild(
 				ha_alter_info, ctx, altered_table, table,
@@ -7753,6 +7774,8 @@ ha_innobase::commit_inplace_alter_table_impl(
 		}
 #endif
 	}
+
+rollback_trx:
 
 	/* Commit or roll back the changes to the data dictionary. */
 
@@ -8640,7 +8663,7 @@ alter_part::create(
 
 	return(innobase_basic_ddl::create_impl<dd::Partition>(
 		current_thd, part_name, table, &create_info, dd_part,
-		file_per_table, false, false));
+		file_per_table, false, false, 0, 0));
 }
 
 typedef std::vector<alter_part*, ut_allocator<alter_part*>> alter_part_array;

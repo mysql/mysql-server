@@ -1,4 +1,4 @@
-Illegal error code: 10000
+Illegal error code: 20000
 MySQL error code 1062 (ER_DUP_ENTRY): Duplicate entry '%-.192s' for key %d
 MySQL error code 1076 (ER_READY): %s: ready for connections.
 Version: '%s'  socket: '%s'  port: %d

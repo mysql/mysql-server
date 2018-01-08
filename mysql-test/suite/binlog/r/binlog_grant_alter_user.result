@@ -11,161 +11,141 @@ log_builtin_as_identified_by_password	OFF
 # CREATE USER
 
 CREATE USER user1;
-SELECT host,user,plugin,authentication_string
+SELECT host,user,plugin
 FROM mysql.user WHERE user = 'user1';
 host	%
 user	user1
-plugin	mysql_native_password
-authentication_string	
+plugin	caching_sha2_password
 
 CREATE USER user3@%;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '%' at line 1
 CREATE USER user3@localhost BY 'auth_string' WITH 'mysql_native_password';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BY 'auth_string' WITH 'mysql_native_password'' at line 1
 CREATE USER "user2"@'%';
-SELECT host,user,plugin,authentication_string
+SELECT host,user,plugin
 FROM mysql.user WHERE user='user2';
 host	%
 user	user2
-plugin	mysql_native_password
-authentication_string	
+plugin	caching_sha2_password
 
 CREATE USER u1@localhost;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u1';
+SELECT user,plugin FROM mysql.user WHERE USER='u1';
 user	u1
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string' ACCOUNT LOCK;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u2';
+SELECT user,plugin FROM mysql.user WHERE USER='u2';
 user	u2
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 
 CREATE USER user5@localhost IDENTIFIED  AS 'auth_string';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS 'auth_string'' at line 1
 CREATE USER u3@localhost IDENTIFIED WITH 'mysql_native_password';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u3';
+SELECT user,plugin FROM mysql.user WHERE USER='u3';
 user	u3
 plugin	mysql_native_password
-authentication_string	#
 CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u4';
+SELECT user,plugin FROM mysql.user WHERE USER='u4';
 user	u4
 plugin	mysql_native_password
-authentication_string	#
 SELECT USER();
 USER()
 u4@localhost
 
 CREATE USER user4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user4';
+SELECT user,plugin FROM mysql.user WHERE USER='user4';
 user	user4
 plugin	mysql_native_password
-authentication_string	#
 
 CREATE USER user6@localhost IDENTIFIED WITH 'mysql_native_password';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user6';
+SELECT user,plugin FROM mysql.user WHERE USER='user6';
 user	user6
 plugin	mysql_native_password
-authentication_string	#
 
 CREATE USER user7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y'
                             PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user7';
+SELECT user,plugin FROM mysql.user WHERE USER='user7';
 user	user7
 plugin	mysql_native_password
-authentication_string	#
 
 SELECT USER();
 USER()
 user7@localhost
 CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
                             AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='user8';
+SELECT user,plugin FROM mysql.user WHERE USER='user8';
 user	user8
 plugin	mysql_native_password
-authentication_string	#
 SELECT USER();
 USER()
 user8@localhost
 CREATE USER tu1@localhost IDENTIFIED WITH 'mysql_native_password';
-SELECT user,plugin,authentication_string,password_expired,
+SELECT user,plugin,password_expired,
 password_expired  FROM mysql.user WHERE USER='tu1';
 user	tu1
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_expired	N
 CREATE USER tu2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_@13*';
-SELECT user,plugin,authentication_string,
+SELECT user,plugin,
 password_expired FROM mysql.user WHERE USER='tu2';
 user	tu2
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 
 CREATE USER tu3@localhost IDENTIFIED WITH 'mysql_native_password' BY '%auth_O0s-tring';
-SELECT user,plugin,authentication_string,password_expired
+SELECT user,plugin,password_expired
 FROM mysql.user WHERE USER='tu3';
 user	tu3
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 
 CREATE USER u5@localhost REQUIRE SSL;
-SELECT user,plugin,authentication_string,ssl_type
+SELECT user,plugin,ssl_type
 FROM mysql.user WHERE USER='u5';
 user	u5
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 ssl_type	ANY
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
-SELECT user,plugin,authentication_string,ssl_type
+SELECT user,plugin,ssl_type
 FROM mysql.user WHERE USER='u6';
 user	u6
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 ssl_type	X509
 CREATE USER tu4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'djgsj743$' REQUIRE SSL;
-SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu4';
+SELECT user,plugin,ssl_type FROM mysql.user WHERE USER='tu4';
 user	tu4
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	ANY
 CREATE USER tu5@localhost IDENTIFIED WITH 'mysql_native_password' BY 'dwh@#ghd$!' REQUIRE X509;
-SELECT user,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='tu5';
+SELECT user,plugin,ssl_type FROM mysql.user WHERE USER='tu5';
 user	tu5
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	X509
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
             REQUIRE CIPHER 'cipher';
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u7';
 user	u7
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	cipher
 x509_issuer	
 x509_subject	
 CREATE USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA';
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u8';
 user	u8
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
 user	u9
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
@@ -174,11 +154,10 @@ CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_strin
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
 user	u10
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
@@ -191,11 +170,10 @@ CREATE USER tu6@localhost IDENTIFIED WITH 'mysql_native_password' BY '#hGrt0O6'
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+SELECT user,plugin,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='tu6';
 user	tu6
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
@@ -203,50 +181,43 @@ x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 max_questions	2
 max_user_connections	2
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
-SELECT user,plugin,authentication_string,max_questions
+SELECT user,plugin,max_questions
 FROM mysql.user WHERE USER='u11';
 user	u11
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 max_questions	2
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
-SELECT user,plugin,authentication_string,max_questions
+SELECT user,plugin,max_questions
 FROM mysql.user WHERE USER='u12';
 user	u12
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 max_questions	2
 CREATE USER u13@localhost IDENTIFIED WITH 'mysql_native_password'
             WITH MAX_CONNECTIONS_PER_HOUR 2;
-SELECT user,plugin,authentication_string,max_connections
+SELECT user,plugin,max_connections
 FROM mysql.user WHERE USER='u13';
 user	u13
 plugin	mysql_native_password
-authentication_string	#
 max_connections	2
 CREATE USER u14@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK;
-SELECT user,plugin,authentication_string,max_user_connections
+SELECT user,plugin,max_user_connections
 FROM mysql.user WHERE USER='u14';
 user	u14
 plugin	mysql_native_password
-authentication_string	#
 max_user_connections	2
 CREATE USER u15@localhost,
 u16@localhost IDENTIFIED BY 'auth_string',
 u17@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u15';
+SELECT user,plugin FROM mysql.user WHERE USER='u15';
 user	u15
-plugin	mysql_native_password
-authentication_string	#
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u16';
+plugin	caching_sha2_password
+SELECT user,plugin FROM mysql.user WHERE USER='u16';
 user	u16
-plugin	mysql_native_password
-authentication_string	#
-SELECT user,plugin,authentication_string FROM mysql.user WHERE USER='u17';
+plugin	caching_sha2_password
+SELECT user,plugin FROM mysql.user WHERE USER='u17';
 user	u17
 plugin	mysql_native_password
-authentication_string	#
 CREATE USER u18@localhost,
 u19@localhost IDENTIFIED BY 'auth_string',
 u20@localhost IDENTIFIED WITH 'mysql_native_password',
@@ -255,55 +226,50 @@ u22@localhost IDENTIFIED WITH 'mysql_native_password',
 u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT UNLOCK;
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u18';
 user	u18
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 max_questions	2
 max_user_connections	2
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u19';
 user	u19
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 max_questions	2
 max_user_connections	2
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u20';
 user	u20
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 max_questions	2
 max_user_connections	2
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u22';
 user	u22
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 max_questions	2
 max_user_connections	2
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_questions,max_user_connections FROM mysql.user WHERE USER='u23';
 user	u23
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
@@ -320,7 +286,7 @@ u19@localhost, u20@localhost,u21@localhost,u22@localhost,u23@localhost;
 # ALTER USER
 CREATE USER u1@localhost;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime
 FROM mysql.user WHERE USER='u1';
 user	u1
@@ -328,15 +294,14 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 # Its a no op
 ALTER USER u1@localhost;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime
 FROM mysql.user WHERE USER='u1';
 user	u1
@@ -344,36 +309,33 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 CREATE USER u2@localhost IDENTIFIED BY 'password_string';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u2';
 user	u2
 ssl_type	
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u2@localhost IDENTIFIED BY 'new_auth_string';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u2';
 user	u2
 ssl_type	
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -383,7 +345,7 @@ u2@localhost
 
 CREATE USER u3@localhost IDENTIFIED WITH 'mysql_native_password' ACCOUNT LOCK;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 user	u3
 ssl_type	
@@ -391,7 +353,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -399,7 +360,7 @@ ALTER USER u3@localhost IDENTIFIED WITH 'mysql_native_password'
                         AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                         PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 user	u3
 ssl_type	
@@ -407,7 +368,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	0
@@ -416,7 +376,7 @@ USER()
 u3@localhost
 ALTER USER u3@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 user	u3
 ssl_type	
@@ -424,7 +384,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	0
@@ -433,7 +392,7 @@ REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
            WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
 PASSWORD EXPIRE NEVER;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u3';
 user	u3
 ssl_type	SPECIFIED
@@ -441,14 +400,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	0
 CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             ACCOUNT LOCK PASSWORD EXPIRE DEFAULT;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u4';
 user	u4
 ssl_type	
@@ -456,14 +414,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u4@localhost IDENTIFIED WITH 'mysql_native_password'
            BY 'auth_string' ACCOUNT UNLOCK;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u4';
 user	u4
 ssl_type	
@@ -471,27 +428,25 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 CREATE USER u5@localhost REQUIRE SSL;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u5';
 user	u5
 ssl_type	ANY
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u5@localhost IDENTIFIED WITH 'mysql_native_password';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u5';
 user	u5
 ssl_type	ANY
@@ -499,7 +454,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	Y
 password_last_changed	#
 password_lifetime	NULL
@@ -509,21 +463,20 @@ USER()
 u5@localhost
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509 ACCOUNT UNLOCK ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 80 DAY;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u6';
 user	u6
 ssl_type	X509
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	80
 ALTER USER u6@localhost IDENTIFIED WITH 'mysql_native_password' BY 'new_auth_string' REQUIRE SSL ACCOUNT UNLOCK;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u6';
 user	u6
 ssl_type	ANY
@@ -531,14 +484,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	80
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
             BY 'auth_string' REQUIRE CIPHER 'DHE-RSA-AES256-SHA';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u7';
 user	u7
 ssl_type	SPECIFIED
@@ -546,14 +498,13 @@ ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'new_auth_string'
             REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' ACCOUNT UNLOCK;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u7';
 user	u7
 ssl_type	SPECIFIED
@@ -561,7 +512,6 @@ ssl_cipher
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -571,7 +521,7 @@ u7@localhost
 CREATE USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u8';
 user	u8
 ssl_type	SPECIFIED
@@ -579,14 +529,13 @@ ssl_cipher
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u8';
 user	u8
 ssl_type	SPECIFIED
@@ -594,7 +543,6 @@ ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -604,7 +552,7 @@ u8@localhost
 CREATE USER tu1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu1';
 user	tu1
 ssl_type	SPECIFIED
@@ -612,14 +560,13 @@ ssl_cipher
 x509_issuer	issuer
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER tu1@localhost IDENTIFIED WITH 'mysql_native_password'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu1';
 user	tu1
 ssl_type	SPECIFIED
@@ -627,42 +574,39 @@ ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	Y
 password_last_changed	#
 password_lifetime	NULL
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 user	u9
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	sub
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u9@localhost REQUIRE ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 user	u9
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u9@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string77hg'
                         REQUIRE ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u9';
 user	u9
 ssl_type	SPECIFIED
@@ -670,7 +614,6 @@ ssl_cipher
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -679,7 +622,7 @@ CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_strin
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u10';
 user	u10
 ssl_type	SPECIFIED
@@ -687,14 +630,13 @@ ssl_cipher	DHE-RSA-AES256-SHA
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE SSL;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u10';
 user	u10
 ssl_type	ANY
@@ -702,7 +644,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -735,7 +676,7 @@ max_questions	1000
 CREATE USER u13@localhost IDENTIFIED WITH 'mysql_native_password'
                           WITH MAX_CONNECTIONS_PER_HOUR 2;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u13';
 user	u13
 ssl_type	
@@ -743,13 +684,12 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 ALTER USER u13@localhost PASSWORD EXPIRE;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u13';
 user	u13
 ssl_type	
@@ -757,14 +697,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	Y
 password_last_changed	#
 password_lifetime	NULL
 CREATE USER u14@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u14';
 user	u14
 ssl_type	
@@ -772,7 +711,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 password_last_changed	#
@@ -780,7 +718,7 @@ password_lifetime	NULL
 ALTER USER u14@localhost WITH MAX_USER_CONNECTIONS 12
 PASSWORD EXPIRE INTERVAL 365 DAY;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u14';
 user	u14
 ssl_type	
@@ -788,7 +726,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	12
 password_last_changed	#
@@ -796,7 +733,7 @@ password_lifetime	365
 CREATE USER tu2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2 ;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,max_questions,
+plugin,password_expired,max_user_connections,max_questions,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu2';
 user	tu2
 ssl_type	
@@ -804,7 +741,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	0
@@ -813,7 +749,7 @@ password_lifetime	NULL
 ALTER USER tu2@localhost WITH MAX_USER_CONNECTIONS 12 MAX_QUERIES_PER_HOUR 543
 PASSWORD EXPIRE INTERVAL 365 DAY;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,max_questions,
+plugin,password_expired,max_user_connections,max_questions,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='tu2';
 user	tu2
 ssl_type	
@@ -821,7 +757,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	12
 max_questions	543
@@ -834,7 +769,7 @@ CREATE USER u15@localhost,
 u16@localhost IDENTIFIED WITH 'mysql_native_password',
 u17@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u15';
 user	u15
@@ -842,13 +777,12 @@ ssl_type
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u16';
 user	u16
@@ -857,12 +791,11 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u17';
 user	u17
@@ -871,7 +804,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -880,7 +812,7 @@ u16@localhost,
 u17@localhost IDENTIFIED BY 'new_auth_string'
            PASSWORD EXPIRE DEFAULT;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u15';
 user	u15
@@ -889,12 +821,11 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	Y
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u16';
 user	u16
@@ -903,12 +834,11 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u17';
 user	u17
@@ -917,7 +847,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 password_last_changed	#
 password_lifetime	NULL
@@ -930,7 +859,7 @@ u23@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_&string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u18';
 user	u18
@@ -938,15 +867,14 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u19';
 user	u19
@@ -954,15 +882,14 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u20';
 user	u20
@@ -971,14 +898,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u21';
 user	u21
@@ -987,14 +913,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u22';
 user	u22
@@ -1003,14 +928,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	NULL
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u23';
 user	u23
@@ -1019,7 +943,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -1032,7 +955,7 @@ REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
            WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
 PASSWORD EXPIRE NEVER;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u18';
 user	u18
@@ -1040,15 +963,14 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	0
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u19';
 user	u19
@@ -1056,15 +978,14 @@ ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	0
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u20';
 user	u20
@@ -1073,14 +994,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	0
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u21';
 user	u21
@@ -1089,14 +1009,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	0
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u22';
 user	u22
@@ -1105,14 +1024,13 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
 password_last_changed	#
 password_lifetime	0
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,max_user_connections,
+plugin,password_expired,max_user_connections,
 max_questions,password_last_changed,password_lifetime FROM mysql.user
 WHERE USER='u23';
 user	u23
@@ -1121,7 +1039,6 @@ ssl_cipher
 x509_issuer	
 x509_subject	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
 plugin	mysql_native_password
-authentication_string	#
 password_expired	N
 max_user_connections	2
 max_questions	2
@@ -1174,15 +1091,14 @@ ALTER USER ;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 ALTER USER u2@localhost IDENTIFIED BY 'auth_string' PASSWORD EXPIRE INTERVAL 45 DAY;
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,
-plugin,authentication_string,password_expired,
+plugin,password_expired,
 password_last_changed,password_lifetime FROM mysql.user WHERE USER='u2';
 user	u2
 ssl_type	
 ssl_cipher	
 x509_issuer	
 x509_subject	
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 password_last_changed	#
 password_lifetime	45
@@ -1191,11 +1107,11 @@ DROP USER u1@localhost, u2@localhost;
 CREATE USER u1@localhost;
 SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
-CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
 SHOW CREATE USER u2@localhost;
 CREATE USER for u2@localhost
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # DDL output for SHOW CREATE USER u2@localhost and recreating user
 DROP USER u2@localhost;
 CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
@@ -1225,11 +1141,11 @@ CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non
 CREATE USER u5@localhost REQUIRE SSL;
 SHOW CREATE USER u5@localhost;
 CREATE USER for u5@localhost
-CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
             REQUIRE CIPHER 'cipher';
 SHOW CREATE USER u7@localhost;
@@ -1243,7 +1159,7 @@ CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-de
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
 SHOW CREATE USER u9@localhost;
 CREATE USER for u9@localhost
-CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT 'sub' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
@@ -1254,11 +1170,11 @@ CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-d
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u11@localhost;
 CREATE USER for u11@localhost
-CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u12@localhost;
 CREATE USER for u12@localhost
-CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u13@localhost IDENTIFIED WITH 'mysql_native_password'
             WITH MAX_CONNECTIONS_PER_HOUR 2;
 SHOW CREATE USER u13@localhost;
@@ -1289,13 +1205,12 @@ CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password'
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
 MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_user_connections,
 max_questions,max_updates,max_connections FROM mysql.user
 WHERE USER='user1';
 user	user1
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
@@ -1326,12 +1241,11 @@ GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost IDENTIFIED BY 'admin'
 MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
 Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_user_connections,
 max_questions,max_updates,max_connections FROM mysql.user WHERE USER='user2';
 user	user2
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	SPECIFIED
 ssl_cipher	
 x509_issuer	/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA
@@ -1379,55 +1293,49 @@ SELECT USER();
 USER()
 user3@localhost
 SET PASSWORD='auth_xyz';
-SELECT user,plugin,authentication_string,ssl_type,password_expired,
+SELECT user,plugin,ssl_type,password_expired,
 password_lifetime FROM mysql.user WHERE user='user3';
 user	user3
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 ssl_type	
 password_expired	N
 password_lifetime	NULL
 
 SET PASSWORD FOR user4@localhost='auth_xyz';
-SELECT user,plugin,authentication_string,ssl_type,password_expired,
+SELECT user,plugin,ssl_type,password_expired,
 password_lifetime FROM mysql.user WHERE user='user4';
 user	user4
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 ssl_type	
 password_expired	N
 password_lifetime	NULL
 
 SET PASSWORD FOR user5@localhost='auth_dhsga5';
-SELECT user,plugin,authentication_string,ssl_type,password_expired,
+SELECT user,plugin,ssl_type,password_expired,
 password_lifetime FROM mysql.user WHERE user='user5';
 user	user5
 plugin	mysql_native_password
-authentication_string	#
 ssl_type	
 password_expired	N
 password_lifetime	NULL
 
 CREATE USER user6@localhost IDENTIFIED BY 'auth_string';
-SELECT user,plugin,authentication_string,password_expired
+SELECT user,plugin,password_expired
 FROM mysql.user WHERE USER='user6';
 user	user6
-plugin	mysql_native_password
-authentication_string	#
+plugin	caching_sha2_password
 password_expired	N
 ALTER USER user6@localhost IDENTIFIED WITH 'mysql_native_password';
-SELECT user,plugin,authentication_string,password_expired
+SELECT user,plugin,password_expired
 FROM mysql.user WHERE USER='user6';
 user	user6
 plugin	mysql_native_password
-authentication_string	#
 password_expired	Y
 SET PASSWORD FOR user6@localhost='plaintext_password';
-SELECT user,plugin,authentication_string
+SELECT user,plugin
 FROM mysql.user WHERE USER='user6';
 user	user6
 plugin	mysql_native_password
-authentication_string	#
 SELECT USER();
 USER()
 user6@localhost
@@ -1482,10 +1390,10 @@ include/sync_slave_sql_with_master.inc
 [On Slave]
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'%' IDENTIFIED WITH 'mysql_native_password'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'%' IDENTIFIED WITH 'mysql_native_password'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT LOCK
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'%' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'%' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' ACCOUNT LOCK
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
@@ -1495,21 +1403,21 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user8'@'localhost' IDENTIF
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*688BC28176C50B8E37AB2D9BDFDCC945AD0CAD61'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*4CB92EE3F6DCB4480A1ED46B0B82E3E6180947D5'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE X509
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*0D38B5A8766439BA457E3FDFAF84D794245A1C8B' REQUIRE SSL
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu5'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*87CAAC9F8E0664808E450E3E9D4CCCA455FB90F0' REQUIRE X509
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'cipher'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT 'sub'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D0B4490FF0452CF4EAA50F79F6B06F859FA2B012' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6F268C32216139F3B99FEBA90FC68F8D9651382A' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_QUERIES_PER_HOUR 2
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_CONNECTIONS_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u14'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'mysql_native_password','u16'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'mysql_native_password','u19'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u20'@'localhost' IDENTIFIED WITH 'mysql_native_password','u21'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u22'@'localhost' IDENTIFIED WITH 'mysql_native_password','u23'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT UNLOCK
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u16'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u19'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER tu1@localhost,tu2@localhost,tu3@localhost,tu4@localhost,tu5@localhost,
 tu6@localhost,user1@'%',user2@'%',user4@localhost,user6@localhost,
 user7@localhost,user8@localhost, u1@localhost,u2@localhost,u3@localhost,
@@ -1517,20 +1425,20 @@ u4@localhost,u5@localhost,u6@localhost, u7@localhost, u8@localhost,
 u9@localhost, u10@localhost,u11@localhost, u12@localhost,u13@localhost,
 u14@localhost,u15@localhost,u16@localhost,u17@localhost,u18@localhost,
 u19@localhost, u20@localhost,u21@localhost,u22@localhost,u23@localhost
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*10E2B9FB284D94506F54D6DE3CD51DAC2F01CA1E'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' ACCOUNT LOCK
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u3'@'localhost' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509 PASSWORD EXPIRE INTERVAL 80 DAY ACCOUNT LOCK
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE X509 PASSWORD EXPIRE INTERVAL 80 DAY ACCOUNT LOCK
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6' REQUIRE SSL ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE CIPHER 'DHE-RSA-AES256-SHA'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' ACCOUNT UNLOCK
@@ -1538,14 +1446,14 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE CIPHER 'DHE-RSA-AES256-SHA'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'tu1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'DHE-RSA-AES256-SHA'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT 'sub'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u9'@'localhost' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*AEEAD8F349FAED7CA659DCEFCEC2F0BF90241263' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SSL
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u11'@'localhost' WITH MAX_QUERIES_PER_HOUR 6
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_QUERIES_PER_HOUR 8
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_QUERIES_PER_HOUR 1000
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_CONNECTIONS_PER_HOUR 2
@@ -1554,43 +1462,43 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u14'@'localhost' IDENTIFIE
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u14'@'localhost' WITH MAX_USER_CONNECTIONS 12 PASSWORD EXPIRE INTERVAL 365 DAY
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'tu2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_USER_CONNECTIONS 2
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'tu2'@'localhost' WITH MAX_QUERIES_PER_HOUR 543 MAX_USER_CONNECTIONS 12 PASSWORD EXPIRE INTERVAL 365 DAY
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'mysql_native_password','u16'@'localhost' IDENTIFIED WITH 'mysql_native_password','u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u16'@'localhost' IDENTIFIED WITH 'mysql_native_password','u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u15'@'localhost' IDENTIFIED WITH 'mysql_native_password','u16'@'localhost','u17'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5B3304C97AB136DEBC2C0B46336F27398F7AEFB6' PASSWORD EXPIRE DEFAULT
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'mysql_native_password','u19'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','u20'@'localhost' IDENTIFIED WITH 'mysql_native_password','u21'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*8A92C25096CC077349306CDC1CA8BE466ED357E3','u22'@'localhost' IDENTIFIED WITH 'mysql_native_password','u23'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u18'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u19'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u18'@'localhost','u19'@'localhost','u20'@'localhost','u21'@'localhost','u22'@'localhost','u23'@'localhost' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER tu1@localhost,tu2@localhost,u1@localhost, u2@localhost, u3@localhost,
 u4@localhost,u5@localhost,u6@localhost, u7@localhost, u8@localhost,
 u9@localhost,u10@localhost,u11@localhost,u12@localhost,u13@localhost,
 u14@localhost,u15@localhost,u16@localhost,u17@localhost,u18@localhost,
 u19@localhost,u20@localhost,u21@localhost,u22@localhost,u23@localhost
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*0D3CED9BEC10A777AEC23CCC353A8C08A633045E'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' PASSWORD EXPIRE
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*EFA28F5E94885AA962E1AFC1912CE376EE374F65'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' PASSWORD EXPIRE
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*0D3CED9BEC10A777AEC23CCC353A8C08A633045E'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' PASSWORD EXPIRE
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*EFA28F5E94885AA962E1AFC1912CE376EE374F65'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*0D3CED9BEC10A777AEC23CCC353A8C08A633045E'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password','u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; GRANT ALL PRIVILEGES ON *.* TO 'u2'@'localhost'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE INTERVAL 45 DAY
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' PASSWORD EXPIRE INTERVAL 45 DAY
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost, u2@localhost
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER u2@localhost
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SSL
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u5'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SSL
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE X509
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u7'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE CIPHER 'cipher'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u8'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE ISSUER 'issuer'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE SUBJECT 'sub'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u9'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE SUBJECT 'sub'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_QUERIES_PER_HOUR 2
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'caching_sha2_password' WITH MAX_QUERIES_PER_HOUR 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' WITH MAX_QUERIES_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u13'@'localhost' IDENTIFIED WITH 'mysql_native_password' WITH MAX_CONNECTIONS_PER_HOUR 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u14'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WITH MAX_USER_CONNECTIONS 2
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u15'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'cipher' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
@@ -1603,24 +1511,24 @@ slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON *.* TO 'user1'@'localho
 slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT, UPDATE ON `mysql`.* TO 'user1'@'localhost'
 slave-bin.000001	#	Query	#	#	use `test`; REVOKE INSERT,UPDATE ON mysql.* FROM user1@localhost
 slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT, UPDATE ON *.* TO 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*4ACFE3202A5FF5CF467898FC58AAB1D615029441' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100 MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `mysql`.* TO 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100 MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER user1@localhost,user2@localhost,user3@localhost
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*BB2A6C4B68EBE1B781C294D655785971401FB13B'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5BC789A788B4F867BF1B8DB2A6A20ACDF5B32C49'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*F03819CC796CCA4052B8928179B81D18288B05A8'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user4'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' PASSWORD EXPIRE
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user5'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*BB2A6C4B68EBE1B781C294D655785971401FB13B'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9EAD043037BDC069CBBF0A05A1702BF0217BC238'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON *.* TO 'user3'@'localhost'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*FFC91FB317629FBAC23400346B54066C4C3389A6'
-slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*FFC91FB317629FBAC23400346B54066C4C3389A6'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user5'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*960F0A06F105B0FE8089E3F6FAD5369E8A28E241'
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user6'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user6'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*9CAB2BAE176801E82ABA9E55CCCDDBF388E0301D'
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER user1@localhost,user2@localhost,user3@localhost,

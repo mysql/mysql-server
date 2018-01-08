@@ -26,6 +26,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile f
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table `\.\.*`\.`\.\.*` because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing!");
 --enable_query_log
 
 --error ER_TABLESPACE_MISSING

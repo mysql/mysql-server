@@ -88,7 +88,9 @@ class NTService
       Stop() is to be called by the application to stop 
       the service
     */
-    void Stop(void); 
+    void Stop(void);
+
+    void SetExitEvent(void);
 
   protected:
     LPSTR		   ServiceName;

@@ -1,17 +1,26 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#define LOG_SUBSYSTEM_TAG "keyring_file"
 
 #include "my_config.h"
 
@@ -22,6 +31,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/keyring/buffered_file_io.h"
 #include "plugin/keyring/common/keyring.h"
 
@@ -94,8 +105,16 @@ static struct st_mysql_sys_var *keyring_file_system_variables[]= {
   NULL
 };
 
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
+
 static int keyring_init(MYSQL_PLUGIN plugin_info)
 {
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    return TRUE;
+
   try
   {
     SSL_library_init(); //always returns 1
@@ -144,6 +163,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     if (logger != NULL)
       logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure due to internal"
                                   " exception inside the plugin");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return TRUE;
   }
 }
@@ -152,7 +172,9 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   //not taking a lock here as the calls to keyring_deinit are serialized by
   //the plugin framework
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   ERR_free_strings();
   EVP_cleanup();
 #ifndef HAVE_YASSL
@@ -162,6 +184,9 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
   logger.reset();
   keyring_file_data.reset();
   mysql_rwlock_destroy(&LOCK_keyring);
+
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+
   return 0;
 }
 

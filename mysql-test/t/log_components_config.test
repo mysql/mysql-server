@@ -40,7 +40,9 @@ SELECT @@global.log_error_services;
 # (we're only using rules here that should be "neutral", i.e. no
 # add/delete item, no relative prio, etc.)
 INSTALL COMPONENT "file://component_log_sink_json";
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_filter_internal; log_sink_json";
+SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_sink_json";
 SELECT "Let's do the double dutch!";
 # internal sink doesn't allow multi-open for now
 --error ER_WRONG_VALUE_FOR_VAR

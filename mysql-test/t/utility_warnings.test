@@ -55,7 +55,7 @@ INSERT INTO t_25380000 VALUES(1);
 --source include/search_pattern.inc
 
 --echo #MYSQLADMIN
---exec $MYSQLADMIN --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping > $MYSQLTEST_VARDIR/tmp/25380000_mysqladmin_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
+--exec $MYSQLADMIN --no-defaults --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping > $MYSQLTEST_VARDIR/tmp/25380000_mysqladmin_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
 # Search for warning message in the result file

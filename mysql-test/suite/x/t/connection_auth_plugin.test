@@ -1,0 +1,64 @@
+## Test cases for authorization plugins
+
+--source include/have_ssl.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
+
+## Test starts here
+
+--let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin.tmp
+--write_file $xtest_file
+-->quiet
+-->sql
+SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '');
+SHOW STATUS LIKE 'Mysqlx_ssl_active';
+-->endsql
+EOF
+
+CREATE USER xuser_native@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'native';
+CREATE USER xuser_sha256@localhost
+            IDENTIFIED WITH 'sha256_password' BY 'sha256';
+GRANT ALL ON *.* TO xuser_native@localhost;
+GRANT ALL ON *.* TO xuser_sha256@localhost;
+
+--let $XBASIC= --file=$xtest_file 2>&1
+--let $XSSLPARAM= --ssl-cipher='DHE-RSA-AES256-SHA' $XBASIC
+
+--echo Plain connection as x_root (just check) -> success
+--exec $MYSQLXTEST -ux_root                  $XBASIC
+
+--echo Ssl connection as x_root (just check) -> success
+--exec $MYSQLXTEST -ux_root                  $XSSLPARAM
+
+--echo Ssl connection by native plugin  -> success
+--exec $MYSQLXTEST -uxuser_native -pnative $XSSLPARAM
+
+--echo Plain connection by native plugin -> success
+--exec $MYSQLXTEST -uxuser_native -pnative $XBASIC
+
+--echo Ssl connection by sha256 plugin  -> success
+--exec $MYSQLXTEST -uxuser_sha256 -psha256 $XSSLPARAM
+
+--echo Plain connection by sha256 plugin  -> fail (ssl is obligatory)
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -uxuser_sha256 -psha256 $XBASIC
+
+--echo Ssl connection by native plugin  -> fail (wrong password)
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -uxuser_native -psha256 $XSSLPARAM
+
+--echo Ssl connection by sha256 plugin  -> fail (wrong password)
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST -uxuser_sha256 -pnative $XSSLPARAM
+
+## Cleanup
+DROP USER xuser_native@localhost, xuser_sha256@localhost;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc
+

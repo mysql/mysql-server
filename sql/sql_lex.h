@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -119,6 +126,7 @@ class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
 class Window;
+struct Sql_cmd_srs_attributes;
 
 class Json_table_column;
 enum class enum_jt_column;
@@ -335,7 +343,6 @@ enum enum_drop_mode
 /* Structure for db & table in sql_yacc */
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
-extern char internal_table_name[2];
 
 class Table_function;
 
@@ -365,10 +372,8 @@ public:
   */
   Table_ident(SELECT_LEX_UNIT *s) : sel(s), table_function(NULL)
   {
-    /* We must have a table name here as this is used with add_table_to_list */
     db= EMPTY_CSTR;                    /* a subject to casedn_str */
-    table.str= internal_table_name;
-    table.length=1;
+    table = EMPTY_CSTR;
   }
   /*
     This constructor is used only for the case when we create a table function.
@@ -436,9 +441,10 @@ typedef struct st_lex_master_info
    */
   enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
     ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt,
-    retry_count_opt, auto_position, port_opt;
+    retry_count_opt, auto_position, port_opt, get_public_key;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
+  char *public_key_path;
   char *relay_log_name;
   ulong relay_log_pos;
   Prealloced_array<ulong, 2> repl_ignore_server_ids;
@@ -1972,7 +1978,7 @@ union YYSTYPE {
   LEX_CSTRING lex_cstr;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
-  LEX_SYMBOL symbol;
+  LEX_SYMBOL keyword;
   Table_ident *table;
   char *simple_string;
   Item *item;
@@ -2291,6 +2297,7 @@ union YYSTYPE {
     PT_item_list *set_expr_list;
     List<String> *set_expr_str_list;
   } load_set_list;
+  Sql_cmd_srs_attributes *sql_cmd_srs_attributes;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

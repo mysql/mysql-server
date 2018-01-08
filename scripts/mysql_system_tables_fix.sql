@@ -1,13 +1,20 @@
 -- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation; version 2 of the License.
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
+-- GNU General Public License, version 2.0, for more details.
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -499,9 +506,10 @@ DROP PREPARE stmt;
 drop procedure mysql.die;
 SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 
-ALTER TABLE user ADD plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,  ADD authentication_string TEXT;
-ALTER TABLE user MODIFY plugin char(64) DEFAULT 'mysql_native_password' NOT NULL;
-UPDATE user SET plugin=IF((length(password) = 41) OR (length(password) = 0), 'mysql_native_password', '') WHERE plugin = '';
+ALTER TABLE user ADD plugin char(64) DEFAULT 'caching_sha2_password' NOT NULL,  ADD authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) DEFAULT 'caching_sha2_password' NOT NULL;
+UPDATE user SET plugin=IF((length(password) = 41), 'mysql_native_password', '') WHERE plugin = '';
+UPDATE user SET plugin=IF((length(password) = 0), 'caching_sha2_password', '') WHERE plugin = '';
 ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- establish if the field is already there.
@@ -711,6 +719,21 @@ ALTER TABLE slave_master_info ADD Tls_version TEXT CHARACTER SET utf8 COLLATE ut
 ALTER TABLE slave_master_info
   MODIFY COLUMN Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version'
   AFTER Channel_name;
+
+# The Public_key_path field at slave_master_info should be added after the Tls_version field
+ALTER TABLE slave_master_info ADD Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.';
+
+# The Get_public_key field at slave_master_info should be added after the slave_master_info field
+ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.';
+
+# If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
+# slave_master_info table.
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.'
+  AFTER Tls_version;
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.'
+  AFTER Public_key_path;
 
 SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
 SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");

@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 #include <sql_class.h>
@@ -679,7 +687,7 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
     /* Set table id */
     part_obj->set_se_private_id(part_table->id);
 
-    /* Set DATADIRECTORY attribute in se_private_data */
+    /* Set DATA_DIRECTORY attribute in se_private_data */
     if (DICT_TF_HAS_DATA_DIR(part_table->flags)) {
       ut_ad(dict_table_is_file_per_table(part_table));
       part_obj->se_private_data().set_bool(
@@ -872,7 +880,7 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
 
   dd_table->set_se_private_id(ib_table->id);
 
-  /* Set DATADIRECTORY attribute in se_private_data */
+  /* Set DATA_DIRECTORY attribute in se_private_data */
   if (DICT_TF_HAS_DATA_DIR(ib_table->flags)) {
     ut_ad(dict_table_is_file_per_table(ib_table));
     dd_table->se_private_data().set_bool(

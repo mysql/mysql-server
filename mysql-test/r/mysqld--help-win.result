@@ -425,11 +425,13 @@ The following options may be given as the first argument:
  Timeout in seconds to wait for a lock before returning an
  error.
  --log-bin[=name]    Configures the name prefix to use for binary log files.
- The name prefix defaults to `hostname`-bin if the
- --log-bin option is not configured. To set a different
- name prefix for binary log files use --log-bin=name. To
- disable binary logging use the --skip-log-bin or
- --disable-log-bin option.
+ If the --log-bin option is not supplied, the name prefix
+ defaults to "binlog". If the --log-bin option is supplied
+ without argument, the name prefix defaults to
+ "HOSTNAME-bin", where HOSTNAME is the machine's hostname.
+ To set a different name prefix for binary log files, use
+ --log-bin=name. To disable binary logging, use the
+ --skip-log-bin or --disable-log-bin option.
  --log-bin-index=name 
  File that holds the names for binary log files.
  --log-bin-trust-function-creators 
@@ -451,8 +453,6 @@ The following options may be given as the first argument:
  user statements in replication binlogs, general query
  logs and audit logs.
  --log-error[=name]  Error log file
- --log-error-filter-rules[=name] 
- Error log filter rules
  --log-error-services=name 
  Services that should be called when an error event is
  received
@@ -653,6 +653,8 @@ The following options may be given as the first argument:
  Number of seconds to wait for a block to be written to a
  connection before aborting the write
  -n, --new           Use very new possible "unsafe" functions
+ --no-dd-upgrade     Abort restart if automatic upgrade or downgrade of the
+ data dictionary is needed.
  --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
@@ -1149,7 +1151,7 @@ The following options may be given as the first argument:
  --slave-parallel-type=name 
  Specifies if the slave will use database partitioning or
  information from master to parallelize
- transactions.(Default: LOGICAL_CLOCK).
+ transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --slave-pending-jobs-size-max=# 
@@ -1158,8 +1160,7 @@ The following options may be given as the first argument:
  master side max_allowed_packet.
  --slave-preserve-commit-order 
  Force slave workers to make commits in the same order as
- on the master. Enabled by default.
- (Defaults to on; use --skip-slave-preserve-commit-order to disable.)
+ on the master. Disabled by default.
  --slave-rows-search-algorithms=name 
  Set of searching algorithms that the slave will use while
  searching for records from the storage engine to either
@@ -1359,7 +1360,7 @@ concurrent-insert AUTO
 connect-timeout 10
 console FALSE
 cte-max-recursion-depth 1000
-default-authentication-plugin mysql_native_password
+default-authentication-plugin caching_sha2_password
 default-password-lifetime 0
 default-storage-engine InnoDB
 default-time-zone (No default value)
@@ -1425,7 +1426,6 @@ log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-builtin-as-identified-by-password FALSE
 log-error stderr
-log-error-filter-rules prio>=3? gag. err_code==1408? set_priority 0. err_code==1408? add_field log_label:="HELO". +source_line? delete_field. +err_code? delete_field.
 log-error-services log_filter_internal; log_sink_internal
 log-error-verbosity 2
 log-isam myisam.log
@@ -1433,7 +1433,7 @@ log-output FILE
 log-queries-not-using-indexes FALSE
 log-raw FALSE
 log-short-format FALSE
-log-slave-updates TRUE
+log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-statements-unsafe-for-binlog TRUE
@@ -1493,6 +1493,7 @@ net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60
 new FALSE
+no-dd-upgrade FALSE
 offline-mode FALSE
 old FALSE
 old-alter-table FALSE
@@ -1558,7 +1559,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 209
+performance-schema-max-statement-classes 212
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1623,10 +1624,10 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 60
-slave-parallel-type LOGICAL_CLOCK
-slave-parallel-workers 4
+slave-parallel-type DATABASE
+slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
-slave-preserve-commit-order TRUE
+slave-preserve-commit-order FALSE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE

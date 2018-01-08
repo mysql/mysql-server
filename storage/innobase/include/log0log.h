@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -450,6 +458,21 @@ ibool
 log_peek_lsn(
 /*=========*/
 	lsn_t*	lsn);	/*!< out: if returns TRUE, current lsn is here */
+/******************************************************//**
+Lock log. */
+void
+log_lock(void);
+/******************************************************//**
+Unlock log. */
+void
+log_unlock(void);
+/******************************************************//**
+Collect log info. */
+void
+log_collect_lsn_info(
+/*=========*/
+	lsn_t*	lsn,	/*!< out: current lsn */
+	lsn_t*	lsn_checkpoint);	/*!< out: current last_checkpoint_lsn */
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
 void
@@ -553,7 +576,7 @@ because InnoDB never supported more than one copy of the redo log. */
 /** 4 unused (zero-initialized) bytes. */
 #define LOG_HEADER_PAD1		4
 /** LSN of the start of data in this log file
-(with format version 1 and 2). */
+(with format version 1, 2 and 3). */
 #define LOG_HEADER_START_LSN	8
 /** A null-terminated string which will contain either the string 'MEB'
 and the MySQL version if the log file was created by mysqlbackup,
@@ -577,9 +600,13 @@ enum log_header_format_t
 	redo log record. */
 	LOG_HEADER_FORMAT_8_0_1 = 2,
 
+	/** Remove MLOG_FILE_OPEN, MLOG_FILE_CREATE2 and MLOG_FILE_RENAME2
+	Resurrect MLOG_FILE_CREATE and MLOG_FILE_RENAME. */
+	LOG_HEADER_FORMAT_8_0_3 = 3,
+
 	/** The redo log format identifier
 	corresponding to the current format version. */
-	LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_1
+	LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_3
 };
 /* @} */
 

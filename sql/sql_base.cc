@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -572,12 +579,14 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     if (column->is_hidden())
       continue;
 
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(schema->name(),
+                                          table_def->name(),
+                                          column->name(),
+                                          &mdl_key);
+
     MDL_request *request= new (thd->mem_root) MDL_request;
-    dd::String_type mdl_key=
-      dd::Column_statistics::create_mdl_key(schema->name(), table_def->name(),
-                                            column->name());
-    MDL_REQUEST_INIT(request, MDL_key::COLUMN_STATISTICS, "", mdl_key.c_str(),
-                     MDL_SHARED_READ, MDL_STATEMENT);
+    MDL_REQUEST_INIT_BY_KEY(request, &mdl_key, MDL_SHARED_READ, MDL_STATEMENT);
     mdl_requests.push_front(request);
   }
 
@@ -1973,7 +1982,7 @@ bool close_temporary_tables(THD *thd)
     did SET GTID_NEXT just before disconnecting the client), we must
     ensure that it will be able to generate GTIDs for the statements
     with this server's UUID. Therefore we set gtid_next to
-    AUTOMATIC_GROUP.
+    AUTOMATIC_GTID.
   */
   gtid_state->update_on_rollback(thd);
   thd->variables.gtid_next.set_automatic();

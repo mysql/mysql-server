@@ -1,0 +1,127 @@
+# ==== Requirements ====
+#
+# R1. For all storage engines, when using row based replication,
+#     the used columns bitset in a write-row event may have 0 bits
+#     assigned to columns with 'DEFAULT' value set.
+# R2. When using NDB storage engine, the used column bit set in a
+#     write row event may not be set for all generated columns.
+# R3. Whether or not, bits are set for generated columns in write-row
+#     event, slave should be able to replicate.
+#
+# ==== Implementation ====
+#
+# With row or mixed based replication setup:
+# 1) Iterate over storage engines and
+#    a) Create a table with default value columns and generated
+#       columns on MASTER.
+#    b) Sync SLAVE and ensure that table was replicated.
+#    c) Insert records on MASTER, with no values for default
+#       value columns.
+#    d) Sync SLAVE and ensure that records were replicated.
+#    e) Update default values, for inserted records, on MASTER.
+#    f) Sync SLAVE and ensure that records were replicated.
+#    g) Insert *more* records on MASTER, with values for default
+#       value columns.
+#    h) Sync SLAVE and ensure if records were replicated.
+#    i) Drop table
+#
+# ==== References ====
+#
+# Bug#25827408 STORED GENERATED COLUMNS REPLICATION FAILURE
+
+# No need to test with statement based replication, since
+# the patch concerns row events.
+#
+--source include/have_binlog_format_row.inc
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--let $engines= InnoDB, MyISAM, NDB
+
+--echo #
+--echo # 1) Iterate over storage engines and
+--echo #
+while ($engines)
+{
+  --let $db_type= `SELECT SUBSTRING_INDEX('$engines', ',', 1)`
+  --let $engines= `SELECT LTRIM(SUBSTRING('$engines', LENGTH('$db_type') + 2))`
+
+  --connection master
+
+  --echo #
+  --echo #    a) Create a table with default value columns and generated
+  --echo #       columns on MASTER.
+  --echo #
+  eval CREATE TABLE t (
+    id INT PRIMARY KEY NOT NULL,
+    name VARCHAR(20) NOT NULL,
+    nick VARCHAR(20) NOT NULL DEFAULT "",
+    state INT DEFAULT 0,
+    description varchar(64) GENERATED ALWAYS AS (CONCAT("User#", id, " (", name, ") has state ", state)) STORED,
+    welcome varchar(64) GENERATED ALWAYS AS (CONCAT("Welcome ", name, ", your nick is ", nick))
+  ) ENGINE= $db_type;
+
+  --echo #
+  --echo #    b) Sync SLAVE and ensure that table was replicated.
+  --echo #
+  --sync_slave_with_master
+  SHOW CREATE TABLE t;
+
+  --connection master
+  --echo #
+  --echo #    c) Insert records on MASTER, with no values for default
+  --echo #       value columns.
+  --echo #
+  INSERT INTO t (id, name) VALUES (1, "Scott Summers"), (2, "Ororo Munroe"), (3, "Remy LeBeau"), (4, "James Howlett"), (5, "Jean Grey");
+  SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+
+  --echo #
+  --echo #    d) Sync SLAVE and ensure that records were replicated.
+  --echo #
+  --sync_slave_with_master
+  --let $diff_tables= master:t, slave:t
+  --source include/diff_tables.inc
+
+  --connection master
+  --echo #
+  --echo #    e) Update default values, for inserted records, on MASTER.
+  --echo #
+  UPDATE t SET nick= "cycl0ps" WHERE id = 1;
+  UPDATE t SET nick= "st0rm" WHERE id = 2;
+  UPDATE t SET nick= "gamb1t" WHERE id = 3;
+  UPDATE t SET nick= "l0gan" WHERE id = 4;
+  UPDATE t SET nick= "f3nix" WHERE id = 5;
+  SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+
+  --echo #
+  --echo #    f) Sync SLAVE and ensure that records were replicated.
+  --echo #
+  --sync_slave_with_master
+  --let $diff_tables= master:t, slave:t
+  --source include/diff_tables.inc
+
+  --connection master
+  --echo #
+  --echo #    g) Insert *more* records on MASTER, with values for default
+  --echo #       value columns.
+  --echo #
+  INSERT INTO t (id, name, nick, state) VALUES (6, "Anna Marie", "r0gu3", 1), (7, "Alex Summers", "hav0k", 2), (8, "Warren Worthington", "ang3l", 1), (9, "Lorna Dane", "p0lar1s", 1);
+  SELECT CONCAT(welcome, ". Your ", description, ".") FROM t ORDER BY id;
+
+  --echo #
+  --echo #    h) Sync SLAVE and ensure if records were replicated.
+  --echo #
+  --sync_slave_with_master
+  --let $diff_tables= master:t, slave:t
+  --source include/diff_tables.inc
+
+  --connection master
+  --echo #
+  --echo #    i) Drop table
+  --echo #
+  DROP TABLE t;
+
+  --sync_slave_with_master
+}
+
+--source include/rpl_end.inc

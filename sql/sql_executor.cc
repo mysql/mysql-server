@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -802,12 +809,18 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     if ((error= table->file->ha_write_row(table->record[0])))
     {
       /* create_ondisk_from_heap will generate error if needed */
-      if (!table->file->is_ignorable_error(error) &&
-          create_ondisk_from_heap(thd, table,
+      if (!table->file->is_ignorable_error(error))
+      {
+        if (create_ondisk_from_heap(thd, table,
                                   sjm->table_param.start_recinfo, 
                                   &sjm->table_param.recinfo, error,
                                   TRUE, NULL))
-        DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+          DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+        /* Initialize the index, since create_ondisk_from_heap does
+           not replicate the earlier index initialization */
+        if (table->hash_field)
+          table->file->ha_index_init(0, false);
+      }
     }
   }
   DBUG_RETURN(NESTED_LOOP_OK);
@@ -5412,6 +5425,8 @@ process_buffered_windowing_record(THD *thd,
       {
         found_first= true;
         w.set_first_rowno_in_range_frame(rowno);
+        // Found the first row in this range frame. Make a note in the hint.
+        w.copy_pos(Window::REA_LAST_IN_FRAME, Window::REA_FIRST_IN_FRAME);
       }
       w.set_rowno_in_frame(rowno_in_frame).
         set_is_last_row_in_frame(true); // pessimistic assumption

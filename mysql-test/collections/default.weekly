@@ -51,11 +51,8 @@ perl mysql-test-run.pl --debug-server --timer --force  --comment=memcached --var
 
 # Additional mode for rpl. Multi-Threaded Slave
 # Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-db --vardir=var-rpl-mts-db --experimental=collections/default.experimental --mysqld=--slave-preserve-commit-order=OFF --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --non-parallel-test
-
-# Additional mode for rpl. Single-Threaded Slave
-# Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-sts --vardir=var-rpl-sts --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=0 --do-suite=rpl --no-skip --non-parallel-test
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-db --vardir=var-rpl-mts-db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --non-parallel-test
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-lc --vardir=var-rpl-mts-lc --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip --non-parallel-test
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
 # Run with --non-parallel-test option so that non parallel tests are also run
@@ -86,9 +83,8 @@ perl mysql-test-run.pl --debug-server --timer --force  --parallel=auto --comment
 ## Running default suites other than rpl and binlog with binlog-format mixed
 perl mysql-test-run.pl --comment=all-binlogformat-mix --vardir=var-binlogformat-mix --force --timer --debug-server --parallel=auto --suite=main,perfschema,sys_vars,federated,gis,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,innodb,innodb_fts,innodb_gis,innodb_zip,innodb_undo,json,x --mysqld=--binlog_format=mixed
 
-## Running default suites other than rpl and binlog with skip-log-bin,
-## skip-log-slave-updates and skip-slave-preserve-commit-order
-perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force --timer --debug-server --parallel=auto --suite=main,sys_vars,federated,gis,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x --mysqld=--skip-log-bin --mysqld=--skip-log-slave-updates --mysqld=--skip-slave-preserve-commit-order
+## Running default suites other than rpl and binlog with skip-log-bin and skip-log-slave-updates
+perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force --timer --debug-server --parallel=auto --suite=main,sys_vars,federated,gis,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x --mysqld=--skip-log-bin --mysqld=--skip-log-slave-updates
 
 # Run default suites with innodb_undo_tablespace set to > 0
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-tablespace-2 --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
@@ -131,14 +127,14 @@ perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experime
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_row_hash_scan --vardir=var-binlog_row_hash_scan --mysqld=--binlog-format=row --do-suite=binlog --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_hash_MTS --vardir=var-mts-rpl-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --no-skip
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_hash_MTS --vardir=var-mts-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_table_STS --vardir=var-sts-binlog-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=0 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_table_STS --vardir=var-sts-rpl-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=0 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_table_MTS --vardir=var-mts-binlog-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip 
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_table_MTS --vardir=var-mts-rpl-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip 
 
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_row_table_scan --vardir=var-binlog_row_table_scan --mysqld=--binlog-format=row --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=rpl_row_table_scan --vardir=var-rpl_row_table_scan --mysqld=--binlog-format=row --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
 
-# binlog-transaction-dependency-tracking=WRITESET with MTS
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=rpl-binlog-txn-dependency-tracking --vardir=var-rpl-binlog-txn-dependency-tracking --do-suite=rpl  --experimental=collections/default.experimental --mysqld=--binlog-format=row --no-skip --mysqld=--binlog-transaction-dependency-tracking=WRITESET
+# binlog-transaction-dependency-tracking=WRITESET with MTS slave-parellel-type=logical-clock
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=rpl_MTS-lc-binlog-txn-dependency-tracking --vardir=var-rpl-MTS-lc-binlog-txn-dependency-tracking --do-suite=rpl  --experimental=collections/default.experimental --mysqld=--binlog-format=row --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock  --no-skip --mysqld=--binlog-transaction-dependency-tracking=WRITESET
 
 # Rpl suite with Transaction-writeset-extraction disabled
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_without_txn_write_set_extraction --vardir=var-rpl_txn_write_set_extraction_disabled --suite=rpl,rpl_gtid,rpl_nogtid  --mysqld=--transaction-write-set-extraction=OFF --no-skip

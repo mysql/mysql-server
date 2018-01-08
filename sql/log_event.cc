@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -509,7 +516,7 @@ static int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      sql_print_warning("Unknown error detected %d in handler", error);
+      LogErr(WARNING_LEVEL, ER_UNKNOWN_ERROR_DETECTED_IN_SE, error);
   }
 
   return (actual_error);
@@ -1567,9 +1574,14 @@ err:
   if (!res)
   {
     DBUG_ASSERT(error != 0);
+#if defined(MYSQL_SERVER)
+    LogErr(ERROR_LEVEL, ER_READ_LOG_EVENT_FAILED, error, data_len,
+           head[EVENT_TYPE_OFFSET]);
+#else
     sql_print_error("Error in Log_event::read_log_event(): "
                     "'%s', data_len: %lu, event_type: %d",
 		    error,data_len,head[EVENT_TYPE_OFFSET]);
+#endif
     my_free(buf);
     /*
       The SQL slave thread will check if file->error<0 to know
@@ -3179,7 +3191,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
     being executed.
 
   @param        ev log event that has to be scheduled next.
-  @param       rli Pointer to coordinato's relay log info.
+  @param       rli Pointer to coordinator's relay log info.
   @return      true if error
                false otherwise
  */
@@ -5486,6 +5498,19 @@ compare_errors:
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
+    if (actual_error != 0 && expected_error == actual_error)
+    {
+      if (!has_ddl_committed &&                 // Slave didn't commit a DDL
+          ddl_xid == binary_log::INVALID_XID && // The event was not logged as atomic DDL on master
+          !thd->rli_slave->ddl_not_atomic &&    // The DDL was considered atomic by the slave
+          is_atomic_ddl(thd, true))             // The DDL is atomic for the local server
+      {
+        thd->get_stmt_da()->reset_diagnostics_area();
+        my_error(ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL, MYF(0), 0);
+        actual_error= ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL;
+      }
+    }
+
     /*
       If a statement with expected error is received on slave and if the
       statement is not filtered on the slave, only then compare the expected
@@ -6701,7 +6726,7 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 
 /**
    Worker commits Xid transaction and in case of its transactional
-   info table marks the current group as done in the Coordnator's
+   info table marks the current group as done in the Coordinator's
    Group Assigned Queue.
 
    @return zero as success or non-zero as an error
@@ -8640,8 +8665,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     if (length > remaining_space ||
         ((length + block_size) > remaining_space))
     {
-      sql_print_error("The row data is greater than 4GB, which is too big to "
-                      "write to the binary log.");
+      LogErr(ERROR_LEVEL, ER_ROW_DATA_TOO_BIG_TO_WRITE_IN_BINLOG);
       DBUG_RETURN(ER_BINLOG_ROW_LOGGING_FAILED);
     }
     const size_t new_alloc= 
@@ -9448,8 +9472,7 @@ Rows_log_event::next_record_scan(bool first_read)
                                                  HA_READ_KEY_EXACT)))
       {
         DBUG_PRINT("info",("no record matching the key found in the table"));
-        if (error == HA_ERR_RECORD_DELETED)
-          error= HA_ERR_KEY_NOT_FOUND;
+        error= HA_ERR_KEY_NOT_FOUND;
       }
   }
 
@@ -10477,7 +10500,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
-     if ( m_width == table->s->fields && bitmap_is_set_all(&m_cols))
+    if (m_width == table->s->fields && bitmap_is_set_all(&m_cols))
       set_flags(COMPLETE_ROWS_F);
 
     /*
@@ -10488,35 +10511,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       Write_set equals the m_cols bitmap sent from master but it can be
       longer if slave has extra columns.
-     */
-
-    DBUG_PRINT_BITSET("debug", "Setting table's read_set from: %s", &m_cols);
+    */
 
     bitmap_set_all(table->read_set);
     bitmap_set_all(table->write_set);
-
-    switch (get_general_type_code())
-    {
-      case binary_log::DELETE_ROWS_EVENT:
-        bitmap_intersect(table->read_set,  &m_cols);
-        stage= & stage_rpl_apply_row_evt_delete;
-        break;
-      case binary_log::UPDATE_ROWS_EVENT:
-        bitmap_intersect(table->read_set,  &m_cols);
-        bitmap_intersect(table->write_set, &m_cols_ai);
-        /* Skip update rows events that don't have data for this server's table. */
-        if (!is_any_column_signaled_for_table(table, &m_cols_ai))
-          no_columns_to_update= true;
-        stage= & stage_rpl_apply_row_evt_update;
-        break;
-      case binary_log::WRITE_ROWS_EVENT:
-        /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
-        bitmap_intersect(table->write_set, &m_cols);
-        stage= & stage_rpl_apply_row_evt_write;
-        break;
-      default:
-        DBUG_ASSERT(false);
-    }
 
     /*
       Call mark_generated_columns() to set read_set/write_set bits of the
@@ -10534,9 +10532,57 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       are no spurious fields (all generated columns are required to be written
       into the binlog).
     */
+    switch (get_general_type_code())
+    {
+      case binary_log::DELETE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        stage= & stage_rpl_apply_row_evt_delete;
+        if (m_table->vfield)
+          m_table->mark_generated_columns(false);
+        break;
+      case binary_log::UPDATE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        bitmap_intersect(table->write_set, &m_cols_ai);
+        if (m_table->vfield)
+          m_table->mark_generated_columns(true);
+        /* Skip update rows events that don't have data for this server's table. */
+        if (!is_any_column_signaled_for_table(table, &m_cols_ai))
+          no_columns_to_update= true;
+        stage= & stage_rpl_apply_row_evt_update;
+        break;
+      case binary_log::WRITE_ROWS_EVENT:
+        /*
+          For 'WRITE_ROWS_EVENT, the execution order for 'mark_generated_rows()'
+          and bitset intersection between 'write_set' and 'm_cols', is inverted.
+          This behaviour is necessary due to an inconsistency, between storage
+          engines, regarding the 'm_cols' bitset and generated columns: while
+          non-NDB engines always include the generated columns for write-rows
+          events, NDB doesnot if not necessary. The previous execution order
+          would set all generated columns bits to '1' in 'write_set', since
+          'mark_generated_columns()' is expecting that every column is present
+          in the log event. This would break replication of generated columns
+          for NDB.
 
-    if (m_table->vfield)
-      m_table->mark_generated_columns(get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
+          For engines that include every column in write-rows events, this order 
+          makes no difference, assuming that the master uses the same engine, 
+          since the master will include all the bits in the image.
+
+          For use-cases that use different storage engines, specifically NDB
+          and some other, this order may break replication due to the 
+          differences in behaviour regarding generated columns bits, in 
+          wrote-rows event bitsets. This issue should be further addressed by 
+          storage engines handlers, by converging behaviour regarding such use
+          cases.
+        */
+        /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
+        if (m_table->vfield)
+          m_table->mark_generated_columns(false);
+        bitmap_intersect(table->write_set, &m_cols);
+        stage= & stage_rpl_apply_row_evt_write;
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
 
     if (thd->slave_thread) // set the mode for slave
       this->rbr_exec_mode= slave_exec_mode_options;
@@ -13418,7 +13464,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 
   is_valid_param= true;
   spec.type= get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT ?
-             ANONYMOUS_GROUP : GTID_GROUP;
+             ANONYMOUS_GTID : ASSIGNED_GTID;
   sid.copy_from((uchar *)Uuid_parent_struct.bytes);
   spec.gtid.sidno= gtid_info_struct.rpl_gtid_sidno;
   spec.gtid.gno= gtid_info_struct.rpl_gtid_gno;
@@ -13436,7 +13482,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                          may_have_sbr_stmts_arg,
                          original_commit_timestamp_arg,
                          immediate_commit_timestamp_arg),
-  Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
+  Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GTID ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
             Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING,
@@ -13456,7 +13502,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
     sid.clear();
   }
 
-  Log_event_type event_type= (spec.type == ANONYMOUS_GROUP ?
+  Log_event_type event_type= (spec.type == ANONYMOUS_GTID ?
                               binary_log::ANONYMOUS_GTID_LOG_EVENT :
                               binary_log::GTID_LOG_EVENT);
   common_header->type_code= event_type;
@@ -13490,7 +13536,7 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   server_id= server_id_arg;
   common_header->unmasked_server_id= server_id_arg;
 
-  if (spec_arg.type == GTID_GROUP)
+  if (spec_arg.type == ASSIGNED_GTID)
   {
     DBUG_ASSERT(spec_arg.gtid.sidno > 0 && spec_arg.gtid.gno > 0);
     spec.set(spec_arg.gtid);
@@ -13500,14 +13546,14 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   }
   else
   {
-    DBUG_ASSERT(spec_arg.type == ANONYMOUS_GROUP);
+    DBUG_ASSERT(spec_arg.type == ANONYMOUS_GTID);
     spec.set_anonymous();
     spec.gtid.clear();
     sid.clear();
     common_header->flags|= LOG_EVENT_IGNORABLE_F;
   }
 
-  Log_event_type event_type= (spec.type == ANONYMOUS_GROUP ?
+  Log_event_type event_type= (spec.type == ANONYMOUS_GTID ?
                               binary_log::ANONYMOUS_GTID_LOG_EVENT :
                               binary_log::GTID_LOG_EVENT);
   common_header->type_code= event_type;
@@ -13724,18 +13770,18 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 
   /*
     In rare cases it is possible that we already own a GTID (either
-    ANONYMOUS or GTID_GROUP). This can happen if a transaction was truncated
+    ANONYMOUS or ASSIGNED_GTID). This can happen if a transaction was truncated
     in the middle in the relay log and then next relay log begins with a
     Gtid_log_events without closing the transaction context from the previous
     relay log. In this case the only sensible thing to do is to discard the
     truncated transaction and move on.
 
     Note that when the applier is "GTID skipping" a transactions it
-    owns nothing, but its gtid_next->type == GTID_GROUP.
+    owns nothing, but its gtid_next->type == ASSIGNED_GTID.
   */
   const Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (!thd->owned_gtid.is_empty() ||
-      (thd->owned_gtid.is_empty() && gtid_next->type == GTID_GROUP))
+      (thd->owned_gtid.is_empty() && gtid_next->type == ASSIGNED_GTID))
   {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
@@ -13767,7 +13813,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   global_sid_lock->rdlock();
 
   // make sure that sid has been converted to sidno
-  if (spec.type == GTID_GROUP)
+  if (spec.type == ASSIGNED_GTID)
   {
     if (get_sidno(false) < 0)
     {

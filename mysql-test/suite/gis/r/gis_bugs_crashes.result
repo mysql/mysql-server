@@ -1368,10 +1368,10 @@ GEOMETRYCOLLECTION(POLYGON((4294967211 0,1.8446744073709552e19 0,1.8446744073709
 ######################################################################################################
 # BUG#17535294 : ISSIMPLE() PRODUCING WRONG RESULTS W.R.T. SINGLE POINT POLYGON
 ######################################################################################################
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
-SELECT ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
-ERROR 22023: Invalid GIS data provided to function st_issimple.
+# Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
+# Invalid polygon in input
+DO ST_ISSIMPLE(ST_POLYGONFROMTEXT('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
 ######################################################################################################
 # BUG#17507827 : ISSIMPLE() FUNCTION PRODUCING WRONG RESULTS
 ######################################################################################################
@@ -6381,6 +6381,8 @@ Note	1051	Unknown table 'test.t'
 CREATE TABLE `t` (
 `geo` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t values (st_geomfromtext(@geom1));
 DROP TABLE IF EXISTS `t1`;
 Warnings:
@@ -6388,6 +6390,8 @@ Note	1051	Unknown table 'test.t1'
 CREATE TABLE `t1` (
 `geo` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (st_geomfromtext(@geom2));
 select t1.geo from t,t1 where st_intersects(t1.geo, st_buffer(t.geo,50));
 geo

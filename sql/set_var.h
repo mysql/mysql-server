@@ -3,13 +3,20 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -178,8 +185,10 @@ public:
   {
     strcpy(option.arg_source->m_path_name, path);
   }
+  void set_user(const char* usr) { strcpy(user, usr); }
   const char* get_user() { return user; }
   const char* get_host() { return host; }
+  void set_host(const char* hst) { strcpy(host, hst); }
   ulonglong get_timestamp() const { return timestamp; }
   void set_user_host(THD* thd);
   my_option* get_option() { return &option; }
@@ -187,6 +196,7 @@ public:
   {
     timestamp= my_micro_time();
   }
+  void set_timestamp(ulonglong ts) { timestamp= ts; }
   void clear_user_host_timestamp()
   {
     user[0] = '\0';
@@ -194,6 +204,11 @@ public:
     timestamp = 0;
   }
   virtual bool is_non_persistent() {return flags & NOTPERSIST; }
+  /**
+    Check if plugin variable is persisted as a read only variable. For
+    server variables always return false.
+  */
+  virtual bool is_plugin_var_read_only() { return 0; }
 
   /**
      Update the system variable with the default value from either

@@ -1,4 +1,4 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates
+/* Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 */
 #include "config.h"
 #include <stdio.h>

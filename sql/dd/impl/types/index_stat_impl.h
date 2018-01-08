@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__INDEX_STAT_IMPL_INCLUDED
 #define DD__INDEX_STAT_IMPL_INCLUDED
@@ -26,8 +33,7 @@
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/entity_object_table.h"
-#include "sql/dd/types/index_stat.h"          // dd::Index_stats
-#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/dd/types/index_stat.h"          // dd::Index_stat
 
 namespace dd {
 
@@ -37,7 +43,6 @@ class Charset;
 class Object_key;
 class Open_dictionary_tables_ctx;
 class Raw_table;
-class Transaction;
 class Weak_object;
 class Object_table;
 
@@ -55,8 +60,7 @@ public:
 public:
   virtual void debug_print(String_type &outb) const;
 
-  virtual const Object_table &object_table() const
-  { return Index_stat::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -64,6 +68,7 @@ public:
   virtual bool store_attributes(Raw_record *r);
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
   // schema name.
@@ -152,17 +157,6 @@ private:
 
   ulonglong m_cardinality;
   ulonglong m_cached_time;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Index_stat_type : public Object_type
-{
-public:
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Index_stat_impl(); }
-
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////

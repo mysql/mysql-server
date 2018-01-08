@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -329,15 +336,44 @@ sock_descriptor_to_sockaddr(int fd, struct sockaddr_storage *sa)
   {
     if (sa->ss_family != AF_INET && sa->ss_family != AF_INET6)
     {
-      MYSQL_GCS_LOG_WARN("Connection is not from an IPv4 nor IPv6 address. "
+      MYSQL_GCS_LOG_DEBUG("Connection is not from an IPv4 nor IPv6 address. "
                          "This is not supported. Refusing the connection!");
       res= 1;
     }
   }
   else
   {
-    MYSQL_GCS_LOG_WARN("Unable to handle socket descriptor, therefore "
-                       "refusing connection.");
+    int err = errno;
+    switch (err) {
+    case EBADF:
+      MYSQL_GCS_LOG_DEBUG("The file descriptor fd=%d is not valid", fd);
+      break;
+    case EFAULT:
+      MYSQL_GCS_LOG_DEBUG(
+          "The sockaddr_storage pointer sa=%p points to memory not in a "
+          "valid part of the process address space",
+          sa);
+      break;
+    case EINVAL:
+      MYSQL_GCS_LOG_DEBUG("The value of addr_size=%lu is invalid", addr_size);
+      break;
+    case ENOBUFS:
+      MYSQL_GCS_LOG_DEBUG(
+          "Insufficient resources were available in the system to perform "
+          "the getpeername operation");
+      break;
+    case ENOTCONN:
+      MYSQL_GCS_LOG_DEBUG("The socket fd=%d is not connected", fd);
+      break;
+    case ENOTSOCK:
+      MYSQL_GCS_LOG_DEBUG(
+          "The file descriptor fd=%d does not refer to a socket", fd);
+      break;
+    default:
+      MYSQL_GCS_LOG_DEBUG(
+          "Unable to perform getpeername, therefore refusing connection.");
+      break;
+    }
   }
   return res ? true: false;
 }

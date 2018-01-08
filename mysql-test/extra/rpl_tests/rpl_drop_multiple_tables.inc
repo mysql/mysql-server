@@ -73,7 +73,7 @@ if (!$automatic)
 # Execute DROP
 if ($expect_error)
 {
-  --error ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
+  --error ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
   eval DROP TABLE $table_list;
 }
 if (!$expect_error)

@@ -3,16 +3,24 @@
 Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -1660,13 +1668,6 @@ row_geo_field_is_valid(
 	if (dfield_is_null(dfield)
 	    || dfield_get_len(dfield) < GEO_DATA_HEADER_SIZE) {
 		return(false);
-	}
-
-	uchar* dptr = static_cast<uchar*>(dfield_get_data(dfield));
-	uint32_t srid = uint4korr(dptr);
-
-	if (index->srid_is_valid && index->srid != srid) {
-		return false;
 	}
 
 	return(true);
@@ -3640,23 +3641,24 @@ row_merge_file_create_low(
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
+
 	locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-				&state, innodb_temp_file_key.m_value,
-				PSI_FILE_OPEN,
-				"Innodb Merge Temp File", &locker);
+		&state, innodb_temp_file_key.m_value, PSI_FILE_OPEN,
+		"Innodb Merge Temp File", &locker);
+
 	if (locker != NULL) {
-		PSI_FILE_CALL(start_file_open_wait)(locker,
-						__FILE__,
-						__LINE__);
+		PSI_FILE_CALL(start_file_open_wait)(locker, __FILE__, __LINE__);
 	}
-#endif
+#endif /* UNIV_PFS_IO */
 	fd = innobase_mysql_tmpfile(path);
 #ifdef UNIV_PFS_IO
 	 if (locker != NULL) {
+
 		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(
-				locker, fd);
-		}
-#endif
+			locker, fd);
+
+	}
+#endif /* UNIV_PFS_IO */
 
 	if (fd < 0) {
 		ib::error() << "Cannot create temporary merge file";
@@ -3741,19 +3743,12 @@ row_make_new_pathname(
 	dict_table_t*	table,		/*!< in: table to be renamed */
 	const char*	new_name)	/*!< in: new name */
 {
-	char*	new_path;
-	char*	old_path;
-
 	ut_ad(dict_table_is_file_per_table(table));
 
-	old_path = fil_space_get_first_path(table->space);
-	ut_a(old_path);
+	auto	old_path = fil_space_get_first_path(table->space);
+	auto	new_path = Fil_path::make_new_ibd(old_path, new_name);
 
-	new_path = os_file_make_new_pathname(old_path, new_name);
-
-	ut_free(old_path);
-
-	return(new_path);
+	return(mem_strdup(new_path.c_str()));
 }
 
 /** Create the index and load in to the dictionary.

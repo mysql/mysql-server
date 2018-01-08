@@ -52,6 +52,54 @@ SET @pfs_columns = "USER, HOST, ERROR_NUMBER";
 
 ===== BEGIN TEST =====
 ========
+SELECT USER, HOST, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_account_by_error WHERE user is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, HOST, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_account_by_error WHERE user is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, HOST, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_account_by_error WHERE user = 'user1' and host is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, HOST, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_account_by_error WHERE user = 'user1' and host is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, HOST, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_account_by_error WHERE user = 'user1' and host = 'localhost' and error_number is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT USER, HOST, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_account_by_error WHERE user = 'user1' and host = 'localhost' and error_number is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT USER, HOST, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_account_by_error WHERE host = 'localhost' AND user= 'user1'
 
 OK: Handler_read_key

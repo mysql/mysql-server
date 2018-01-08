@@ -1,13 +1,20 @@
 /* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -127,6 +134,7 @@
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
@@ -780,7 +788,7 @@ static Sys_var_charptr Sys_default_authentication_plugin(
        "default_authentication_plugin", "The default authentication plugin "
        "used by the server to hash the password.",
        READ_ONLY NON_PERSIST GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
-       IN_FS_CHARSET, DEFAULT("mysql_native_password"));
+       IN_FS_CHARSET, DEFAULT("caching_sha2_password"));
 
 static PolyLock_mutex Plock_default_password_lifetime(
                         &LOCK_default_password_lifetime);
@@ -2188,50 +2196,6 @@ static Sys_var_charptr Sys_log_error(
        NULL, sys_var::PARSE_EARLY);
 
 
-/*
-  log_error_filter_rules: internal
-  (until components can have their own sysvars)
-*/
-
-static bool fix_log_error_filter_rules(sys_var *self,
-                                       THD *thd MY_ATTRIBUTE((unused)),
-                                       enum_var_type type
-                                         MY_ATTRIBUTE((unused)))
-{
-  int ret= LogVar(self->name).val(opt_log_error_filter_rules)
-                             .group("log_filter")
-                             .update();
-
-#if 0
-  /*
-    This will be enabled in the context of WL#9651:
-    Logging services: log filter (configuration engine)
-  */
-  if (ret < 1)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_COMPONENT_FILTER_FLABBERGASTED,
-                        ER_THD(thd, ER_COMPONENT_FILTER_FLABBERGASTED),
-                        "draugnet", &opt_log_error_filter_rules[ret]);
-  return (ret != 0);
-#endif
-  return (ret == 0);
-}
-
-static Sys_var_charptr Sys_log_error_filter_rules(
-       "log_error_filter_rules", "Error log filter rules",
-       GLOBAL_VAR(opt_log_error_filter_rules),
-       CMD_LINE(OPT_ARG),
-       IN_SYSTEM_CHARSET,
-       DEFAULT("prio>=3? gag. "
-               "err_code==1408? set_priority 0. "
-               "err_code==1408? add_field log_label:=\"HELO\". "
-               "+source_line? delete_field. "
-               "+err_code? delete_field."),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0),
-       ON_UPDATE(fix_log_error_filter_rules));
-
-
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 {
   // test whether syntax is OK and services exist
@@ -2244,8 +2208,8 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
                                     true)) < 0)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_VAR,
-                        "Value for %s got confusing at or around %s",
+                        ER_CANT_SET_ERROR_LOG_SERVICE,
+                        ER_THD(thd, ER_CANT_SET_ERROR_LOG_SERVICE),
                         self->name.str,
                         &((char *) var->save_result.string_value.str)[-(i+1)]);
     return true;
@@ -2253,8 +2217,8 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
   else if (strlen(var->save_result.string_value.str) < 1)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_VAR,
-                        "Setting an empty %s pipeline disables error logging!",
+                        ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE,
+                        ER_THD(thd, ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE),
                         self->name.str);
   }
 
@@ -2279,6 +2243,7 @@ static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
                           &((char *) opt_log_error_services)[rr]);
     return true;
   }
+
   return false;
 }
 
@@ -3755,10 +3720,10 @@ static Sys_var_enum Mts_parallel_type(
        "slave_parallel_type",
        "Specifies if the slave will use database partitioning "
        "or information from master to parallelize transactions."
-       "(Default: LOGICAL_CLOCK).",
+       "(Default: DATABASE).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
-       DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),  NO_MUTEX_GUARD,
+       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
@@ -3827,9 +3792,10 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
 static Sys_var_bool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
        "Force slave workers to make commits in the same order as on the master. "
-       "Enabled by default.",
-       GLOBAL_VAR(opt_slave_preserve_commit_order), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       "Disabled by default.",
+       GLOBAL_VAR(opt_slave_preserve_commit_order),
+       CMD_LINE(OPT_ARG, OPT_SLAVE_PRESERVE_COMMIT_ORDER),
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
@@ -4368,7 +4334,7 @@ static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
                                ER_SQL_MODE_MERGED,
                                ER_THD(thd, ER_SQL_MODE_MERGED));
     else
-      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED);
+      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED_WITH_STRICT_MODE);
   }
 }
 
@@ -5634,7 +5600,8 @@ static Sys_var_set Sys_log_output(
 static Sys_var_bool Sys_log_slave_updates(
        "log_slave_updates", "Tells the slave to log the updates from "
        "the slave thread to the binary log.",
-       READ_ONLY GLOBAL_VAR(opt_log_slave_updates), CMD_LINE(OPT_ARG),
+       READ_ONLY GLOBAL_VAR(opt_log_slave_updates),
+       CMD_LINE(OPT_ARG, OPT_LOG_SLAVE_UPDATES),
        DEFAULT(1));
 
 static Sys_var_charptr Sys_relay_log(
@@ -5861,7 +5828,7 @@ static Sys_var_ulong Sys_slave_parallel_workers(
        "slave_parallel_workers",
        "Number of worker threads for executing events in parallel ",
        GLOBAL_VAR(opt_mts_slave_parallel_workers), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4), BLOCK_SIZE(1));
+       VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
        "slave_pending_jobs_size_max",
@@ -6173,32 +6140,18 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&previous_gtid_purged);
-  enum_return_status ret;
-  Gtid_set gtid_set(global_sid_map, var->save_result.string_value.str,
-                    &ret, global_sid_lock);
+  Gtid_set gtid_set(global_sid_map, global_sid_lock);
+  bool starts_with_plus= false;
+  enum_return_status ret=
+    gtid_set.add_gtid_text(var->save_result.string_value.str, NULL,
+                           &starts_with_plus);
+
   if (ret != RETURN_STATUS_OK)
   {
     error= true;
     goto end;
   }
-  if (!gtid_set.is_appendable())
-  {
-    if (!gtid_state->get_lost_gtids()->is_subset(&gtid_set))
-    {
-      my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
-               "the being assigned value must include the former value of the variable "
-               "in plain assignment");
-      error= true;
-      goto end;
-    }
-    DBUG_ASSERT(gtid_state->get_lost_gtids()->is_subset(&gtid_set));
-    /*
-      Reduce the being assigned set to the intersect part which will
-      be used further.
-    */
-    gtid_set.remove_gtid_set(gtid_state->get_lost_gtids());
-  }
-  ret= gtid_state->add_lost_gtids(&gtid_set);
+  ret= gtid_state->add_lost_gtids(&gtid_set, starts_with_plus);
   if (ret != RETURN_STATUS_OK)
   {
     error= true;
@@ -6208,9 +6161,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
+  LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_UPDATED,
          previous_gtid_purged, current_gtid_purged);
-  LogErr(SYSTEM_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
+  LogErr(SYSTEM_LEVEL, ER_GTID_EXECUTED_WAS_UPDATED,
          previous_gtid_executed, current_gtid_executed);
 
 end:

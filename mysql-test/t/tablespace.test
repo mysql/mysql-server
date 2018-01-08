@@ -386,6 +386,79 @@ ALTER TABLESPACE ts RENAME TO innodb_file_per_table_whatever;
 ALTER TABLESPACE ts RENAME TO innodb_file_per_table;
 
 
+--echo #
+--echo # Test cases for Bug #26073851
+--echo # NO ERROR OR WARNING WHEN CREATING TABLES IN A RESERVED TABLESPACE
+--echo #
+CREATE TABLESPACE altering ADD DATAFILE 'altering.ibd' ENGINE InnoDB;
+CREATE TABLE altering_table (id int) TABLESPACE altering;
+
+--echo # Negative tests
+
+--echo # Altering tables in the mysql tablespace must be allowed
+--echo # because of the mysql upgrade client.
+ALTER TABLE mysql.user ENGINE InnoDB TABLESPACE mysql;
+
+--echo # An arbitrary table cannot be altered to be in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+ALTER TABLE altering_table TABLESPACE mysql;
+
+--echo # An arbitrary table cannot be created in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE foos (id int) TABLESPACE mysql;
+
+--echo # An arbitrary partitioned table cannot have partitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE partition_test (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE mysql,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE mysql,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE mysql,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE mysql);
+
+--echo # An arbitrary partitioned table cannot have partitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE partition_test2 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE mysql,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE mysql);
+
+--echo # Create a partitioned table to be altered later.
+CREATE TABLE partition_test3 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
+PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE altering,
+PARTITION p4 VALUES LESS THAN (400) TABLESPACE altering);
+
+--echo # An arbitrary partitioned table cannot have new partitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+ALTER TABLE partition_test3 ADD PARTITION
+(PARTITION p5 VALUES LESS THAN (500) TABLESPACE mysql);
+
+--echo # An arbitrary partitioned table cannot have partitions altered to be in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+ALTER TABLE partition_test3 REORGANIZE PARTITION p1 INTO
+  (PARTITION p1 VALUES LESS THAN (100) TABLESPACE `mysql`);
+
+--echo # An arbitrary partitioned table cannot have subpartitions in the mysql tablespace.
+--error ER_RESERVED_TABLESPACE_NAME
+CREATE TABLE partition_test4 (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY HASH(i) (
+    PARTITION p0 VALUES LESS THAN(100) (
+      SUBPARTITION sp00,
+      SUBPARTITION sp01),
+    PARTITION p1 VALUES LESS THAN(200) (
+      SUBPARTITION sp10,
+      SUBPARTITION sp11 TABLESPACE mysql));
+
+--echo Clean up
+DROP TABLE altering_table;
+DROP TABLE partition_test3;
+DROP TABLESPACE altering;
+
 # Check that new name shows up in I_S
 SELECT (COUNT(*)=1) FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME = 'ts';
 
@@ -504,6 +577,10 @@ SET AUTOCOMMIT=ON;
 
 --echo # Test ALTER TABLESPACE RENAME with partition tables
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+--source include/restart_mysqld.inc
 
 --disable_query_log
 --eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;

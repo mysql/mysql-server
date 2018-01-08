@@ -3,7 +3,7 @@
 // Copyright (c) 2007-2014 Barend Gehrels, Amsterdam, the Netherlands.
 
 // This file was modified by Oracle on 2014-2017.
-// Modifications copyright (c) 2014-2017, Oracle and/or its affiliates.
+// Modifications copyright (c) 2014, 2017, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Vissarion Fysikopoulos, on behalf of Oracle
 // Contributed and/or modified by Menelaos Karavelas, on behalf of Oracle

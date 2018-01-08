@@ -1913,10 +1913,159 @@ ERROR 22003: DOUBLE value is out of range in 'exp(39988664861.656386621526007875
 DO DAYOFYEAR(MAKETIME('1981-06-27 11:16:09.211343',
 (((NOT(ST_DISTANCE_SPHERE(POINT(4472,28027),
 POINT(28061,-9007199254740996),-644021130))))<=>(@c)),(1)));
-ERROR HY000: Incorrect arguments to st_distance_sphere
+ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
 DO DAYOFYEAR(MAKETIME(ROUND(-23797,'6588-01-08'),
 COERCIBILITY(BIT_COUNT(RTRIM((~(
 INET6_NTOA(0xa04810f0839d318fa075bd)))))),
 ((ST_ASWKT(1))OR(1))));
 ERROR 22023: Invalid GIS data provided to function st_astext.
 # End of test for Bug#26740635
+#
+# Bug #27004699: UBSAN: ITEM_FUNC_PERIOD_ADD::VAL_INT - SIGNED INTEGER OVERFLOW:
+#
+SELECT PERIOD_ADD(-11924, 2892462180);
+ERROR HY000: Incorrect arguments to period_add
+SELECT PERIOD_DIFF(200024, 200012);
+ERROR HY000: Incorrect arguments to period_diff
+SELECT PERIOD_DIFF(200012, 200024);
+ERROR HY000: Incorrect arguments to period_diff
+#
+# Bug #27004729: UBSAN: ITEM_FUNC_MAKEDATE::GET_DATE - SIGNED INTEGER OVERFLOW
+#
+SELECT MAKEDATE(1, 8.381922e+307);
+MAKEDATE(1, 8.381922e+307)
+NULL
+#
+# Bug#27134148 UBSAN: DATE_ADD_INTERVAL - SIGNED INTEGER OVERFLOW:
+#
+SELECT
+timestampadd(year ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(quarter,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+timestampadd(month ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(week,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+timestampadd(day ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(hour ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(minute ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+timestampadd(second ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '1.212208'
+Warning	1292	Truncated incorrect DECIMAL value: '99999999999999999999999999999999999999999999999999999999999999999'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+timestampadd(microsecond ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775807-02' YEAR_MONTH) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' YEAR_MONTH) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' DAY) as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9223372036854775808-02'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' WEEK) as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9223372036854775808-02'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775808-02' SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808'
+Warning	1441	Datetime function: date_add_interval field overflow
+SELECT
+date_add('1995-01-05', INTERVAL '9223372036854775700-02' YEAR_MONTH) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 MINUTE) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL 9223372036854775806 HOUR) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 SECOND) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 MINUTE) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow
+SELECT
+date_add('1995-01-05', INTERVAL -9223372036854775806 HOUR) as result;
+result
+NULL
+Warnings:
+Warning	1441	Datetime function: datetime field overflow

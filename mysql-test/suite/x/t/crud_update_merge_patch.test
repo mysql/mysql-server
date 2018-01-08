@@ -1,0 +1,350 @@
+#
+# Functional tests of WL#10797 - mysqlx.crud.Modify: MERGE_PATCH
+#
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test data
+CREATE SCHEMA xtest;
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_update_merge.tmp
+-->macro_delimiter_compress false
+import crud.macro;
+import crud_update.macro;
+import crud_insert.macro;
+import crud_find.macro;
+import crud_delete.macro;
+import %TABLE_SPECIFIC_OPERATIONS%;
+
+
+-->macro Set_field_sint %FIELDS%	%NAME%	%VALUE%
+-->varlet %FIELDS% %FIELDS% fld {
+-->varlet %FIELDS% %FIELDS%     key:"%NAME%"
+-->varlet %FIELDS% %FIELDS% value {
+-->varlet %FIELDS% %FIELDS%     type: LITERAL literal {
+-->varlet %FIELDS% %FIELDS%     type:V_SINT v_signed_int: %VALUE% }}}
+-->endmacro
+
+
+-->macro Set_field_string %FIELDS%	%NAME%	%VALUE%
+-->varlet %FIELDS% %FIELDS% fld {
+-->varlet %FIELDS% %FIELDS%     key:"%NAME%"
+-->varlet %FIELDS% %FIELDS% value {
+-->varlet %FIELDS% %FIELDS%     type: LITERAL literal {
+-->varlet %FIELDS% %FIELDS%     type:V_OCTETS v_octets { value: %VALUE% }}}}
+-->endmacro
+
+
+-->macro Set_field_doc_member %FIELDS%	%NAME%	%MEMBER%
+-->varlet %FIELDS% %FIELDS% fld {
+-->varlet %FIELDS% %FIELDS%     key:"%NAME%"
+-->varlet %FIELDS% %FIELDS% value {
+-->varlet %FIELDS% %FIELDS%     type: IDENT identifier {
+-->varlet %FIELDS% %FIELDS%     document_path {type:MEMBER value: %MEMBER% }}}}
+-->endmacro
+
+-->macro Set_field_ident %FIELDS%	%NAME%	%IDENT%
+-->varlet %FIELDS% %FIELDS% fld {
+-->varlet %FIELDS% %FIELDS%     key:"%NAME%"
+-->varlet %FIELDS% %FIELDS% value {
+-->varlet %FIELDS% %FIELDS%     type: IDENT identifier {
+-->varlet %FIELDS% %FIELDS%     %IDENT% }}}
+-->endmacro
+
+
+-->macro Set_field_literal %FIELDS%	%NAME%	%LITERAL%
+-->varlet %FIELDS% %FIELDS% fld {
+-->varlet %FIELDS% %FIELDS%     key:"%NAME%"
+-->varlet %FIELDS% %FIELDS% value {
+-->varlet %FIELDS% %FIELDS%     type: LITERAL literal {
+-->varlet %FIELDS% %FIELDS%     %LITERAL% }}}
+-->endmacro
+
+
+-->macro Set_field_function %FIELDS%	%NAME%	%FUNC%	%ARGS%
+-->varlet %FIELDS% %FIELDS% fld {
+-->varlet %FIELDS% %FIELDS%     key:"%NAME%"
+-->varlet %FIELDS% %FIELDS% value {
+-->varlet %FIELDS% %FIELDS%     type: FUNC_CALL function_call {
+-->varlet %FIELDS% %FIELDS%     name{ name: %FUNC% } %ARGS%}}}
+-->endmacro
+
+-->macro Set_field_expr_literal_plus_member_value	%FIELDS%	%NAME%	%LITERAL%	%MEMBER%
+-->varlet %FIELDS% %FIELDS% fld {
+-->varlet %FIELDS% %FIELDS%     key:"%NAME%"
+-->varlet %FIELDS% %FIELDS%     value {
+-->varlet %FIELDS% %FIELDS%       type: OPERATOR operator {
+-->varlet %FIELDS% %FIELDS%         name:"+"
+-->varlet %FIELDS% %FIELDS%         param { type: LITERAL
+-->varlet %FIELDS% %FIELDS%           literal{
+-->varlet %FIELDS% %FIELDS%             type:V_SINT v_signed_int: %LITERAL%
+-->varlet %FIELDS% %FIELDS%           }}
+-->varlet %FIELDS% %FIELDS%         param { type: IDENT
+-->varlet %FIELDS% %FIELDS%           identifier {
+-->varlet %FIELDS% %FIELDS%           document_path {
+-->varlet %FIELDS% %FIELDS%             type: MEMBER
+-->varlet %FIELDS% %FIELDS%             value: %MEMBER%
+-->varlet %FIELDS% %FIELDS%         }}}
+-->varlet %FIELDS% %FIELDS%   }}}
+-->endmacro
+
+
+callmacro Setup_Schema;
+
+title ## Implementations of test-cases from RFC 7396;
+echo # It covers requirements from the worklog:;
+echo # * F3 - Must allow deletion of a field;
+echo # * F4 - Must allow setting the value of a field to;
+echo #        a literal value;
+echo # * F6 - Must allow above operations to be performed on nested documents;
+
+#
+# macro Document_UpdatePatch_Find is going to execute following
+# operations in sequence:
+#
+# * Insert argument 2 (document) into to collection/table (argument 1 is expected error on this operation)
+# * Execute update with merge-patch taken from argument 3
+# * Execute a select on collection/table and comapre the result to argument 4
+#
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": "b", "_id": 1}
+	{"a": "c"}
+	{"a": "c", "_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": "b", "_id": 1}
+	{"b": "c"}
+	{"a": "b", "b": "c", "_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": "b", "_id": 1}
+	{"a": null}
+	{"_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": "b", "b":"c", "_id": 1}
+	{"a": null}
+	{"b": "c", "_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": ["b"], "_id": 1}
+	{"a": "c"}
+	{"a": "c", "_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": "c", "_id": 1}
+	{"a": ["b"]}
+	{"a": ["b"], "_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": {"b":"c"}, "_id": 1}
+	{"a": {"b":"d", "c": null}}
+	{"a": {"b": "d"}, "_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": [{"b": "c"}], "_id": 1}
+	{"a": [1]}
+	{"a": [1], "_id": 1};
+
+callmacro Document_OnlyTable_UpdatePatch_Find
+	ER_SUCCESS
+	["a", "b"]
+	["c", "d"]
+	["c", "d"];
+
+callmacro DocumentProtobuf_OnlyTable_UpdatePatch_Find
+	ER_SUCCESS
+	{type: V_NULL}
+	["c", "d"]
+	["c", "d"];
+
+callmacro Document_OnlyTable_UpdatePatch_Find
+	ER_SUCCESS
+	{}
+	["c", "d"]
+	["c", "d"];
+
+callmacro Document_UpdatePatch_Find
+	%NO_SUPPORTED_ON_COLLECTION%
+	{"a": "foo", "_id": 1}
+	["c"]
+	%RESULT_PATCH_ARRAY%;
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"a": "foo", "_id": 1}
+	{"_id": "foo"}
+	%RESULT_PATCH_ID%;
+
+
+callmacro Document_UpdatePatch_Find
+	%NO_SUPPORTED_ON_COLLECTION%
+	{"a": "foo", "_id": 1}
+	null
+	%RESULT_PATCH_NULL%;
+
+callmacro Document_UpdatePatch_Find
+	%NO_SUPPORTED_ON_COLLECTION%
+	{"a": "foo", "_id": 1}
+	"bar"
+	%RESULT_PATCH_STRING%;
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"e": null, "_id": 1}
+	{"a": 1}
+	{"a": 1, "e": null, "_id": 1};
+
+callmacro Document_OnlyTable_UpdatePatch_Find
+	ER_SUCCESS
+	[1, 2]
+	{"a": "b","c": null}
+	{"a": "b"};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"_id": 1}
+	{"a": "b", "c": null}
+	{"a": "b", "_id": 1};
+
+callmacro Document_UpdatePatch_Find
+	ER_SUCCESS
+	{"_id": 1}
+	{"a": {"bb": {"ccc": null}}}
+	{"a": {"bb": {}}, "_id": 1};
+
+#
+# Requirement:
+# * F1 - Must accept changes to be applied to matching documents of a collection
+#        in the form of a "patch" object, similar to a JSON object
+varlet %PROTOBUF_FIELDS% ;
+callmacro Set_field_sint	%PROTOBUF_FIELDS%	my_value_as_int	10;
+callmacro Set_field_string	%PROTOBUF_FIELDS%	my_value_as_string	"ten";
+callmacro Document_UpdatePatchObj_Find
+	ER_SUCCESS
+	{"_id": 1}
+	%PROTOBUF_FIELDS%
+	{"_id": 1, "my_value_as_int": 10, "my_value_as_string": "ten"};
+
+#
+# Requirement:
+# * F5 - Must allow setting the value of a field to the result of an expression
+varlet %PROTOBUF_FIELDS% ;
+callmacro Set_field_sint	%PROTOBUF_FIELDS%	b	10;
+callmacro Set_field_expr_literal_plus_member_value	%PROTOBUF_FIELDS%	c	20	"a";
+callmacro Document_UpdatePatchObj_Find
+	ER_SUCCESS
+	{"a":20, "_id": 1}
+	%PROTOBUF_FIELDS%
+	{"a": 20, "b": 10, "c": 40.0, "_id": 1};
+
+
+#
+# Rename field
+#
+varlet %PROTOBUF_FIELDS% ;
+callmacro Set_field_doc_member	%PROTOBUF_FIELDS%	new_field_name	"old_field_name";
+callmacro Set_field_literal	%PROTOBUF_FIELDS%	old_field_name	type: V_NULL;
+callmacro Document_UpdatePatchObj_Find
+	ER_SUCCESS
+	{"_id": 1, "old_field_name": {"field": "fields value"}, "other_fields": {"a": 1}}
+	%PROTOBUF_FIELDS%
+	{"_id": 1, "other_fields": {"a": 1}, "new_field_name": {"field": "fields value"}};
+
+
+#
+# Get nested document using expression
+# "a.[1].c
+#
+varlet %PROTOBUF_FIELDS% ;
+callmacro Set_field_ident	%PROTOBUF_FIELDS%	new_field
+	document_path {type:MEMBER value: "a" } document_path {type:ARRAY_INDEX index: 1 } document_path {type:MEMBER value: "c" };
+callmacro Document_UpdatePatchObj_Find
+	ER_SUCCESS
+	{"_id": 1, "a": [100, {"c": "nested_value"}, 4]}
+	%PROTOBUF_FIELDS%
+	{"a": [100, {"c": "nested_value"}, 4], "_id": 1, "new_field": "nested_value"};
+
+#
+# Use function call
+#
+varlet %PROTOBUF_FIELDS% ;
+callmacro Set_field_function	%PROTOBUF_FIELDS%	func_call1	"DATABASE"	;
+callmacro Set_field_function	%PROTOBUF_FIELDS%	func_call2	"CONCAT"
+	param { type:LITERAL literal{type:V_OCTETS v_octets{value:"A"}}} param { type:LITERAL literal{type:V_OCTETS v_octets{value:"B"}}};
+callmacro Document_UpdatePatchObj_Find
+	ER_SUCCESS
+	{"_id": 1, "old_field": true}
+	%PROTOBUF_FIELDS%
+	{"_id": 1, "old_field": true, "func_call1": "xtest", "func_call2": "AB"};
+
+#
+# Use patch on collection/tavle which
+#
+quiet;
+noquery_result;
+callmacro Crud_insert	%OBJECT%	'xdoc'	Row_octet	'{"_id": 1, "should_be_updated": "yes"}';
+callmacro Crud_insert	%OBJECT%	'xdoc'	Row_octet	'{"_id": 2, "should_be_updated": "yes"}';
+callmacro Crud_insert	%OBJECT%	'xdoc'	Row_octet	'{"_id": 3, "should_be_updated": "no"}';
+callmacro Crud_insert	%OBJECT%	'xdoc'	Row_octet	'{"_id": 4, "should_be_updated": "no"}';
+callmacro Crud_insert	%OBJECT%	'xdoc'	Row_octet	'{"_id": 5, "should_be_updated": "no"}';
+callmacro Crud_insert	%OBJECT%	'xdoc'	Row_octet	'{"_id": 6, "should_be_updated": "yes"}';
+recvresult;
+recvresult;
+recvresult;
+recvresult;
+recvresult;
+recvresult;
+query_result;
+callmacro Crud_update
+	%OBJECT%	'xdoc'
+	Op_octets	%OBJECT_COLUMN%	MERGE_PATCH	'{"new_field": 10}'
+	Where_field	"should_be_updated"	"yes";
+recvresult;
+noquiet;
+
+#
+# Compare with result file
+#
+callmacro Crud_find	%OBJECT%	'xdoc';
+recvresult;
+
+EOF
+
+
+--echo #
+--echo # Requirement:
+--echo # * F8 - Must work for collections
+exec $MYSQLXTEST
+	--user=x_root
+	--password=''
+	--schema=xtest
+	-v%NO_SUPPORTED_ON_COLLECTION%=ER_X_DOC_ID_MISSING
+	-v%TABLE_SPECIFIC_OPERATIONS%=test_collection_create_update_find.macro
+	--file=$MYSQL_TMP_DIR/crud_update_merge.tmp 2>&1;
+
+--echo #
+--echo # Requirement:
+--echo # * F10 - Must work for JSON document fields in tables
+exec $MYSQLXTEST
+	--user=x_root
+	--password=''
+	--schema=xtest
+	-v%NO_SUPPORTED_ON_COLLECTION%=ER_SUCCESS
+	-v%TABLE_SPECIFIC_OPERATIONS%=test_table_create_update_find.macro
+	--file=$MYSQL_TMP_DIR/crud_update_merge.tmp 2>&1;
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/crud_update_merge.tmp
+--source include/xplugin_drop_user.inc
+

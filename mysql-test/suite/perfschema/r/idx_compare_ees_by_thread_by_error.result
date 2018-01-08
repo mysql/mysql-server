@@ -52,6 +52,22 @@ SET @pfs_columns = "THREAD_ID, ERROR_NUMBER";
 
 ===== BEGIN TEST =====
 ========
+SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = @target_thread_id
 
 OK: Handler_read_key
@@ -84,7 +100,15 @@ OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = @target_thread_id AND error_number != 99999999
+SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = @target_thread_id AND error_number is null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = @target_thread_id AND error_number is not null
 
 OK: Handler_read_key
 
@@ -125,54 +149,6 @@ OK: Result set: Non-empty  Expected: Non-empty
 OK: Extra rows: 0  Missing rows: 0
 ========
 SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id <= @target_thread_id
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = 9999999 OR error_number != 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = 9999999 ORDER BY thread_id
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id > 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id < 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id >= 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id <= 9999999
 
 OK: Handler_read_key
 

@@ -63,6 +63,38 @@ SET @pfs_columns = "SCHEMA_NAME, DIGEST, DIGEST_TEXT";
 
 ===== BEGIN TEST =====
 ========
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT FROM performance_schema.events_statements_summary_by_digest WHERE schema_name is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT FROM performance_schema.events_statements_summary_by_digest WHERE schema_name is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT FROM performance_schema.events_statements_summary_by_digest WHERE schema_name = 'test2' and digest is null
+
+OK: Handler_read_key
+
+OK: Result set: Empty  Expected: Empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
+SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT FROM performance_schema.events_statements_summary_by_digest WHERE schema_name = 'test2' and digest is not null
+
+OK: Handler_read_key
+
+OK: Result set: Non-empty  Expected: Non-empty
+
+OK: Extra rows: 0  Missing rows: 0
+========
 SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT FROM performance_schema.events_statements_summary_by_digest WHERE schema_name = 'test2'
 
 OK: Handler_read_key

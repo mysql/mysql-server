@@ -1,17 +1,24 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
   */
 
 #ifndef PFS_TABLE_HELPER_H
@@ -28,6 +35,7 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/json_dom.h"
 #include "storage/perfschema/digest.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_digest.h"
@@ -440,6 +448,13 @@ void set_field_year(Field *f, ulong value);
 ulong get_field_year(Field *f);
 
 /**
+  Helper, assign a value to a JSON field.
+  @param f the field to set
+  @param json the value to assign
+*/
+void set_field_json(Field *f, const Json_wrapper *json);
+
+/**
   Helper, format sql text for output.
 
   @param source_sqltext  raw sqltext, possibly truncated
@@ -602,9 +617,32 @@ struct PFS_object_row
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
   int make_row(PFS_program *pfs);
-  int make_row(const MDL_key *pfs);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
+};
+
+/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, COLUMN_NAME. */
+struct PFS_column_row
+{
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column SCHEMA_NAME. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
+  /** Column OBJECT_NAME. */
+  char m_column_name[NAME_LEN];
+  /** Length in bytes of @c m_column_name. */
+  uint m_column_name_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(const MDL_key *pfs);
+  /** Set a table field from the row. */
   void set_nullable_field(uint index, Field *f);
 };
 
@@ -1072,13 +1110,28 @@ struct PFS_file_io_stat_row
 /** Row fragment for memory statistics columns. */
 struct PFS_memory_stat_row
 {
-  PFS_memory_stat m_stat;
+  PFS_memory_safe_stat m_stat;
 
   /** Build a row from a memory buffer. */
   inline void
-  set(const PFS_memory_stat *stat)
+  set(const PFS_memory_safe_stat *stat)
   {
     m_stat = *stat;
+  }
+
+  /** Build a row from a memory buffer. */
+  inline void
+  set(const PFS_memory_shared_stat *stat)
+  {
+    m_stat.m_used = stat->m_used;
+    m_stat.m_alloc_count = stat->m_alloc_count;
+    m_stat.m_free_count = stat->m_free_count;
+    m_stat.m_alloc_size = stat->m_alloc_size;
+    m_stat.m_free_size = stat->m_free_size;
+    m_stat.m_alloc_count_capacity = stat->m_alloc_count_capacity;
+    m_stat.m_free_count_capacity = stat->m_free_count_capacity;
+    m_stat.m_alloc_size_capacity = stat->m_alloc_size_capacity;
+    m_stat.m_free_size_capacity = stat->m_free_size_capacity;
   }
 
   /** Set a table field from the row. */
@@ -1111,6 +1164,9 @@ public:
 
   /** Set a table field from the row. */
   void set_field(Field *f);
+
+  const char* get_str() const { return m_str; }
+  uint get_length() const { return m_length; }
 
 private:
   int make_row(const CHARSET_INFO *cs, const char *str, size_t length);
@@ -1750,6 +1806,7 @@ public:
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_setup_object *pfs);
   bool match(const char *schema_name, uint schema_name_length);
 };
@@ -1769,9 +1826,24 @@ public:
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_index_row *pfs);
   bool match(const PFS_setup_object *pfs);
   bool match(const char *schema_name, uint schema_name_length);
+};
+
+class PFS_key_column_name : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_column_name(const char *name) : PFS_key_string(name)
+  {
+  }
+
+  ~PFS_key_column_name()
+  {
+  }
+
+  bool match(const PFS_column_row *pfs);
 };
 
 class PFS_key_object_type : public PFS_engine_key
@@ -1790,8 +1862,11 @@ public:
 
   bool match(enum_object_type object_type);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 
@@ -1814,6 +1889,8 @@ public:
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 

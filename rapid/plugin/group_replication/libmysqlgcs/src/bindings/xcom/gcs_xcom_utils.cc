@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -298,7 +305,8 @@ int Gcs_xcom_proxy_impl::xcom_exit(bool xcom_handlers_open)
   else if (!xcom_handlers_open)
   {
     /* The handlers were not yet open, so use basic xcom stop */
-    ::xcom_fsm(xa_exit, int_arg(0));
+    this->set_should_exit(1);
+
     res= false;
   }
 
@@ -506,7 +514,8 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
    m_crl_file(),
    m_crl_path(),
    m_cipher(),
-   m_tls_version()
+   m_tls_version(),
+   m_should_exit(false)
 {
   m_xcom_handlers= new Xcom_handler *[m_xcom_handlers_size];
 
@@ -550,7 +559,8 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
    m_crl_file(),
    m_crl_path(),
    m_cipher(),
-   m_tls_version()
+   m_tls_version(),
+   m_should_exit(false)
 {
   m_xcom_handlers= new Xcom_handler *[m_xcom_handlers_size];
 
@@ -864,6 +874,18 @@ Gcs_xcom_proxy_impl::xcom_signal_comms_status_changed(int status)
   m_xcom_comms_status= status;
   m_cond_xcom_comms_status.broadcast();
   m_lock_xcom_comms_status.unlock();
+}
+
+bool
+Gcs_xcom_proxy_impl::get_should_exit()
+{
+  return m_should_exit.load(std::memory_order_relaxed);
+}
+
+void
+Gcs_xcom_proxy_impl::set_should_exit(bool should_exit)
+{
+  m_should_exit.store(should_exit, std::memory_order_relaxed);
 }
 
 void Gcs_xcom_app_cfg::init()

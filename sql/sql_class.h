@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2647,7 +2654,7 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  virtual int is_killed() { return killed; }
+  virtual int is_killed() const final { return killed; }
   virtual THD* get_thd() { return this; }
 
   /**
@@ -3342,15 +3349,15 @@ public:
         used for another transaction, since only one transaction can
         have any given GTID.  To avoid the user mistake of forgetting
         to set back GTID_NEXT, on commit we set
-        thd->variables.gtid_next.type=UNDEFINED_GROUP.  Then, any
+        thd->variables.gtid_next.type=UNDEFINED_GTID.  Then, any
         statement that user tries to execute other than SET GTID_NEXT
         will generate an error.
 
     R2. A thread that holds anonymous ownership releases ownership at
         transaction commit or rollback.  In this case there is no harm
         in leaving GTID_NEXT='ANONYMOUS', so
-        thd->variables.gtid_next.type will remain ANONYMOUS_GROUP and
-        not UNDEFINED_GROUP.
+        thd->variables.gtid_next.type will remain ANONYMOUS_GTID and
+        not UNDEFINED_GTID.
 
     There are statements that generate multiple transactions in the
     binary log. This includes the following:
@@ -3520,7 +3527,7 @@ public:
     REPAIR TABLE) that might call trans_rollback_stmt() and also will be
     sucessfully executed and will have to go to the binary log.
     For these statements, the skip_gtid_rollback flag must be set to avoid
-    problems when the statement is executed with a GTID_NEXT set to GTID_GROUP
+    problems when the statement is executed with a GTID_NEXT set to ASSIGNED_GTID
     (like the SQL thread do when applying events from other server).
     When this flag is set, a call to gtid_rollback() will do nothing.
   */

@@ -1,4 +1,6 @@
 !include ../my.cnf
+[mysqld]
+mysqlx=ON
 
 [mysqld.1]
 

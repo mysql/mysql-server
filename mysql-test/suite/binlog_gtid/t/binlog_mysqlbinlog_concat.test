@@ -6,7 +6,7 @@
 # multiple binary log files into one output file, this
 # output file is not in useful state. When it is later
 # used for point-in-time recovery, it is producing
-# ER_GTID_NEXT_TYPE_UNDEFINED_GROUP "ERROR 1837: When
+# ER_GTID_NEXT_TYPE_UNDEFINED_GTID "ERROR 1837: When
 # @@SESSION.GTID_NEXT is set to a GTID, you must explicitly
 # set it to a different value after a COMMIT or ROLLBACK.
 # Please check GTID_NEXT variable manual page for detailed
@@ -29,7 +29,7 @@
 #    in binary log ( to generate GTID_NEXT events in binary log 3)
 # 6) Concat all three binary logs 1,2 and 3 and apply the generated
 #    sql against mysql command line tool and it should not cause
-#    any error (i.e., no ER_GTID_NEXT_TYPE_UNDEFINED_GROUP error)
+#    any error (i.e., no ER_GTID_NEXT_TYPE_UNDEFINED_GTID error)
 #################################################################
 --source include/have_binlog_format_statement.inc
 

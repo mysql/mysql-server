@@ -1,13 +1,20 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1400,7 +1407,7 @@ public:
       per privileges is 11 chars.
       So, setting max approximate to 200.
     */
-    set_data_type_string(14*11, default_charset());
+    set_data_type_string(14*11, system_charset_info);
     maybe_null= true;
     null_on_null= false;
 
@@ -1424,7 +1431,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= false;
     null_on_null= false;
 
@@ -1449,7 +1456,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
@@ -1522,7 +1529,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
@@ -1549,7 +1556,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
@@ -1565,8 +1572,8 @@ public:
 class Item_func_internal_tablespace_logfile_group_name : public Item_str_func
 {
 public:
-  Item_func_internal_tablespace_logfile_group_name(const POS &pos, Item *a, Item *b,
-                                          Item *c, Item *d)
+  Item_func_internal_tablespace_logfile_group_name(const POS &pos, Item *a,
+                                                   Item *b, Item *c, Item *d)
     :Item_str_func(pos, a, b, c, d)
   {}
 
@@ -1602,7 +1609,7 @@ public:
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
     null_on_null= false;
 
@@ -1611,6 +1618,33 @@ public:
 
   const char *func_name() const override
   { return "internal_tablespace_status"; }
+  String *val_str(String *) override;
+};
+
+
+class Item_func_internal_tablespace_row_format : public Item_str_func
+{
+public:
+  Item_func_internal_tablespace_row_format(const POS &pos, Item *a, Item *b,
+                                           Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, system_charset_info);
+    maybe_null= 1;
+    null_on_null= false;
+
+    return false;
+  }
+
+  const char *func_name() const override
+  { return "internal_tablespace_row_format"; }
+
   String *val_str(String *) override;
 };
 

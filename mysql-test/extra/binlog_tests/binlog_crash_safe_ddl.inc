@@ -84,7 +84,9 @@ if ($do_pre_binlog)
   #
   # prepare, the first CRASH,  /* log,  commit */
   #
-  --echo *** Crash right after '$ddl_query'  has been prepared in the engine before being logged ***
+  --let $gen_ddl_query = `SELECT REPLACE("$ddl_query",'.so','_LIB')`
+  --let $gen_ddl_query = `SELECT REPLACE("$gen_ddl_query",'.dll','_LIB')`
+  --echo *** Crash right after '$gen_ddl_query'  has been prepared in the engine before being logged ***
   --source include/expect_crash.inc
 
   SET @@SESSION.debug="+d,crash_commit_before_log";
@@ -94,6 +96,7 @@ if ($do_pre_binlog)
     --eval $manual_gtid_next
   }
   --enable_query_log
+  --replace_result .so _LIB .dll _LIB
   --error 2013
   --eval $ddl_query
 
@@ -134,7 +137,9 @@ if ($do_post_binlog)
   #
   # prepare, log, the 2nd CRASH, /* commit */
   #
-  --echo *** Crash right after '$ddl_query' has been binary-logged before committed in the engine ***
+  --let $gen_ddl_query = `SELECT REPLACE("$ddl_query",'.so','_LIB')`
+  --let $gen_ddl_query = `SELECT REPLACE("$gen_ddl_query",'.dll','_LIB')`
+  --echo *** Crash right after '$gen_ddl_query' has been binary-logged before committed in the engine ***
   --source include/expect_crash.inc
 
   SET @@SESSION.debug="+d,crash_commit_after_log";
@@ -145,6 +150,7 @@ if ($do_post_binlog)
     --eval $manual_gtid_next
   }
   --enable_query_log
+  --replace_result .so _LIB .dll _LIB
   --error 2013
   --eval $ddl_query
 
@@ -180,6 +186,8 @@ if ($do_post_binlog)
 if ($do_only_regular_logging)
 {
   FLUSH LOGS;
+  # Some uses of this involve the name of a library, mask OS difference
+  --replace_result .so _LIB .dll _LIB
   --eval $ddl_query
   if ($do_show_binlog_events)
   {

@@ -1,25 +1,32 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <string.h>
 #include <sys/types.h>
 #include <string>
 #include <utility>
 
-#include "../../components/mysql_server/component_sys_var_service.h"
-#include "../components/mysql_server/server_component.h"
+#include "components/mysql_server/component_sys_var_service.h"
+#include "components/mysql_server/server_component.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -34,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/components/service.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/component_sys_var_service.h"
+#include <mysql/components/services/log_builtins.h>
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_memory.h"
@@ -41,6 +49,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/persisted_variable.h"// Persisted_variables_cache
@@ -158,8 +167,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                                &opts_arg_source, sizeof(get_opt_arg_source),
                                NULL)))
     {
-       sql_print_error("Out of memory for component system variable '%s'.",
-                       var_name);
+       LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
        return ret;
     }
 
@@ -290,10 +298,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
         if (!(sysvar_str->flags & (PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_READONLY)))
         {
           sysvar_str->flags|= PLUGIN_VAR_READONLY;
-          sql_print_warning("variable %s of component %s was forced "
-                            "to be read-only: string variable without "
-                            "update_func and PLUGIN_VAR_MEMALLOC flag",
-                            var_name, component_name);
+          LogErr(WARNING_LEVEL, ER_SYS_VAR_COMPONENT_VARIABLE_SET_READ_ONLY,
+                 var_name, component_name);
         }
       }
 
@@ -319,8 +325,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       opt= (st_mysql_sys_var *) sysvar_enum;
       break;
     default:
-      sql_print_error("Unknown variable type code 0x%x in component '%s'.",
-                      flags, component_name);
+      LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_UNKNOWN_VARIABLE_TYPE,
+             flags, component_name);
       goto end;
     }
 
@@ -334,7 +340,9 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
     if (opt_error)
     {
-      sql_print_error("Parsing options for variable '%s' failed.", var_name);
+      LogErr(ERROR_LEVEL,
+             ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS,
+             var_name);
       if (opts)
         my_cleanup_options(opts);
       goto end;
@@ -345,8 +353,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
     if (sysvar == NULL)
     {
-      sql_print_error("Out of memory for component system variable '%s'.",
-                      var_name);
+      LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
       goto end;
     }
 
@@ -368,8 +375,9 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       Persisted_variables_cache *pv= Persisted_variables_cache::get_instance();
       if (pv && pv->set_persist_options(TRUE))
       {
-        sql_print_error("Setting persistent options for component variable"
-                        " '%s' failed.", com_sys_var_name);
+	LogErr(ERROR_LEVEL,
+               ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT,
+               com_sys_var_name);
       }
     }
     ret= false;

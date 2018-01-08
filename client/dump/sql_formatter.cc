@@ -1,14 +1,21 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -168,14 +175,17 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
       else if (is_blob_to_hex[column])
       {
         row_string+= "0x";
-        m_escaping_runner->append_hex_string(
+        Mysql::Tools::Base::Mysql_query_runner::append_hex_string(
           &row_string, column_data, column_length);
       }
       else
       {
         row_string+= '\"';
-        m_escaping_runner->append_escape_string(
-          &row_string, column_data, column_length);
+        if (m_escaping_runner)
+          m_escaping_runner->append_escape_string(
+            &row_string, column_data, column_length);
+        else
+          row_string.append(column_data, column_length);
         row_string+= '\"';
       }
     }
@@ -515,5 +525,6 @@ Sql_formatter::Sql_formatter(I_connection_provider* connection_provider,
 
 Sql_formatter::~Sql_formatter()
 {
-  delete m_escaping_runner;
+  if (m_escaping_runner)
+    delete m_escaping_runner;
 }

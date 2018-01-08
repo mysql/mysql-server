@@ -442,6 +442,9 @@ SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
 ROUTINE_SCHEMA
@@ -461,6 +464,9 @@ SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
@@ -495,6 +501,9 @@ FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
 db_datadict	db_datadict
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
 ROUTINE_SCHEMA
@@ -519,6 +528,9 @@ FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
 db_datadict	db_datadict
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
@@ -545,6 +557,9 @@ SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
 ROUTINE_SCHEMA
@@ -564,6 +579,9 @@ SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
 constraint_schema	table_schema
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema

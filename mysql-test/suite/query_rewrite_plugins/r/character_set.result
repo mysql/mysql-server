@@ -18,7 +18,7 @@ Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 's
 DROP DATABASE mydb;
 # We now set the global value of the variable, this should not affect
 # the plugin. It should copy the session value from our session.
-SET @@global.character_set_client = utf8;
+SET @@global.character_set_client = utf8mb4;
 SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
 rule1
 rule1
@@ -52,7 +52,7 @@ SET @@global.character_set_client = DEFAULT;
 # This is perhaps an unwanted result, but the rules table-reading
 # session can't access our session's setting.
 #
-SET @@session.character_set_client = utf8;
+SET @@session.character_set_client = utf8mb4;
 DELETE FROM query_rewrite.rewrite_rules;
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT * FROM mydb.mytable WHERE mycol = ?', 'select "rule1"' );

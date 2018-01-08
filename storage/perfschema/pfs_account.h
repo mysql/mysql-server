@@ -1,17 +1,24 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
   */
 
 #ifndef PFS_ACCOUNT_H
@@ -37,6 +44,7 @@ struct PFS_user;
 struct PFS_host;
 struct PFS_thread;
 struct PFS_memory_stat_delta;
+struct PFS_memory_shared_stat;
 
 /**
   @addtogroup performance_schema_buffers
@@ -94,7 +102,38 @@ public:
   void aggregate_stats(PFS_user *safe_user, PFS_host *safe_host);
   void release(void);
 
+  /** Reset all memory statistics. */
+  void rebase_memory_stats();
+
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
+
+  void
+  set_instr_class_memory_stats(PFS_memory_shared_stat *array)
+  {
+    m_has_memory_stats = false;
+    m_instr_class_memory_stats = array;
+  }
+
+  const PFS_memory_shared_stat *
+  read_instr_class_memory_stats() const
+  {
+    if (!m_has_memory_stats)
+    {
+      return NULL;
+    }
+    return m_instr_class_memory_stats;
+  }
+
+  PFS_memory_shared_stat *
+  write_instr_class_memory_stats()
+  {
+    if (!m_has_memory_stats)
+    {
+      rebase_memory_stats();
+      m_has_memory_stats = true;
+    }
+    return m_instr_class_memory_stats;
+  }
 
   /** Internal lock. */
   pfs_lock m_lock;
@@ -115,6 +154,14 @@ public:
 
 private:
   std::atomic<int> m_refcount;
+
+  /**
+    Per account memory aggregated statistics.
+    This member holds the data for the table
+    PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
+    Immutable, safe to use without internal lock.
+  */
+  PFS_memory_shared_stat *m_instr_class_memory_stats;
 };
 
 int init_account(const PFS_global_param *param);

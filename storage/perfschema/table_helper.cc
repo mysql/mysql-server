@@ -1,17 +1,24 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
   */
 
 /**
@@ -467,6 +474,15 @@ get_field_year(Field *f)
   return f2->val_int();
 }
 
+/* JSON TYPE */
+void
+set_field_json(Field *f, const Json_wrapper *json)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_JSON);
+  Field_json *f2 = (Field_json *)f;
+  f2->store_json(json);
+}
+
 void
 format_sqltext(const char *source_sqltext,
                size_t source_length,
@@ -773,85 +789,116 @@ PFS_object_row::make_row(PFS_program *pfs)
 }
 
 int
-PFS_object_row::make_row(const MDL_key *mdl)
+PFS_column_row::make_row(const MDL_key *mdl)
 {
+  static_assert(MDL_key::NAMESPACE_END == 16,
+                "Adjust performance schema when changing enum_mdl_namespace");
+
   switch (mdl->mdl_namespace())
   {
   case MDL_key::GLOBAL:
     m_object_type = OBJECT_TYPE_GLOBAL;
     m_schema_name_length = 0;
     m_object_name_length = 0;
-    break;
-  case MDL_key::SCHEMA:
-    m_object_type = OBJECT_TYPE_SCHEMA;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = 0;
-    break;
-  case MDL_key::TABLE:
-    m_object_type = OBJECT_TYPE_TABLE;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::FUNCTION:
-    m_object_type = OBJECT_TYPE_FUNCTION;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::PROCEDURE:
-    m_object_type = OBJECT_TYPE_PROCEDURE;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::TRIGGER:
-    m_object_type = OBJECT_TYPE_TRIGGER;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::EVENT:
-    m_object_type = OBJECT_TYPE_EVENT;
-    m_schema_name_length = mdl->db_name_length();
-    m_object_name_length = mdl->name_length();
-    break;
-  case MDL_key::COMMIT:
-    m_object_type = OBJECT_TYPE_COMMIT;
-    m_schema_name_length = 0;
-    m_object_name_length = 0;
-    break;
-  case MDL_key::USER_LEVEL_LOCK:
-    m_object_type = OBJECT_TYPE_USER_LEVEL_LOCK;
-    m_schema_name_length = 0;
-    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::TABLESPACE:
     m_object_type = OBJECT_TYPE_TABLESPACE;
     m_schema_name_length = 0;
     m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::SCHEMA:
+    m_object_type = OBJECT_TYPE_SCHEMA;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = 0;
+    m_column_name_length = 0;
+    break;
+  case MDL_key::TABLE:
+    m_object_type = OBJECT_TYPE_TABLE;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::FUNCTION:
+    m_object_type = OBJECT_TYPE_FUNCTION;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::PROCEDURE:
+    m_object_type = OBJECT_TYPE_PROCEDURE;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::TRIGGER:
+    m_object_type = OBJECT_TYPE_TRIGGER;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::EVENT:
+    m_object_type = OBJECT_TYPE_EVENT;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::COMMIT:
+    m_object_type = OBJECT_TYPE_COMMIT;
+    m_schema_name_length = 0;
+    m_object_name_length = 0;
+    m_column_name_length = 0;
+    break;
+  case MDL_key::USER_LEVEL_LOCK:
+    m_object_type = OBJECT_TYPE_USER_LEVEL_LOCK;
+    m_schema_name_length = 0;
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::LOCKING_SERVICE:
     m_object_type = OBJECT_TYPE_LOCKING_SERVICE;
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::SRID:
+    m_object_type = OBJECT_TYPE_SRID;
+    m_schema_name_length = 0;
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::ACL_CACHE:
     m_object_type = OBJECT_TYPE_ACL_CACHE;
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
+    break;
+  case MDL_key::COLUMN_STATISTICS:
+    m_object_type = OBJECT_TYPE_COLUMN_STATISTICS;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
+    m_column_name_length = mdl->col_name_length();
     break;
   case MDL_key::BACKUP_LOCK:
     m_object_type = OBJECT_TYPE_BACKUP_LOCK;
     m_schema_name_length = 0;
     m_object_name_length = 0;
+    m_column_name_length = 0;
     break;
   case MDL_key::RESOURCE_GROUPS:
     m_object_type = OBJECT_TYPE_RESOURCE_GROUPS;
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
+    m_column_name_length = 0;
     break;
   case MDL_key::NAMESPACE_END:
   default:
+    DBUG_ASSERT(false);
     m_object_type = NO_OBJECT_TYPE;
     m_schema_name_length = 0;
     m_object_name_length = 0;
+    m_column_name_length = 0;
     break;
   }
 
@@ -871,6 +918,15 @@ PFS_object_row::make_row(const MDL_key *mdl)
   if (m_object_name_length > 0)
   {
     memcpy(m_object_name, mdl->name(), m_object_name_length);
+  }
+
+  if (m_column_name_length > sizeof(m_column_name))
+  {
+    return 1;
+  }
+  if (m_column_name_length > 0)
+  {
+    memcpy(m_column_name, mdl->col_name(), m_column_name_length);
   }
 
   return 0;
@@ -924,6 +980,56 @@ PFS_object_row::set_nullable_field(uint index, Field *f)
     if (m_object_name_length > 0)
     {
       set_field_varchar_utf8(f, m_object_name, m_object_name_length);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+}
+
+void
+PFS_column_row::set_nullable_field(uint index, Field *f)
+{
+  switch (index)
+  {
+  case 0: /* OBJECT_TYPE */
+    if (m_object_type != NO_OBJECT_TYPE)
+    {
+      set_field_object_type(f, m_object_type);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  case 1: /* SCHEMA_NAME */
+    if (m_schema_name_length > 0)
+    {
+      set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  case 2: /* OBJECT_NAME */
+    if (m_object_name_length > 0)
+    {
+      set_field_varchar_utf8(f, m_object_name, m_object_name_length);
+    }
+    else
+    {
+      f->set_null();
+    }
+    break;
+  case 3: /* COLUMN_NAME */
+    if (m_column_name_length > 0)
+    {
+      set_field_varchar_utf8(f, m_column_name, m_column_name_length);
     }
     else
     {
@@ -1262,6 +1368,9 @@ set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type)
 void
 set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
 {
+  static_assert(MDL_TYPE_END == 11,
+                "Adjust performance schema when changing enum_mdl_type");
+
   enum_mdl_type e = (enum_mdl_type)mdl_type;
   switch (e)
   {
@@ -1298,6 +1407,7 @@ set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
   case MDL_EXCLUSIVE:
     set_field_varchar_utf8(f, "EXCLUSIVE", 9);
     break;
+  case MDL_TYPE_END:
   default:
     DBUG_ASSERT(false);
   }
@@ -1306,6 +1416,9 @@ set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
 void
 set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration)
 {
+  static_assert(MDL_DURATION_END == 3,
+                "Adjust performance schema when changing enum_mdl_duration");
+
   enum_mdl_duration e = (enum_mdl_duration)mdl_duration;
   switch (e)
   {
@@ -1765,7 +1878,8 @@ PFS_key_string<SIZE>::do_match_prefix(bool record_null,
 bool
 PFS_key_thread_id::match(ulonglong thread_id)
 {
-  return do_match(false, thread_id);
+  bool record_null = (thread_id == 0);
+  return do_match(record_null, thread_id);
 }
 
 bool
@@ -1785,7 +1899,8 @@ PFS_key_thread_id::match_owner(const PFS_table *pfs)
     return do_match(true, 0);
   }
 
-  return do_match(false, thread->m_thread_internal_id);
+  bool record_null = (thread->m_thread_internal_id == 0);
+  return do_match(record_null, thread->m_thread_internal_id);
 }
 
 bool
@@ -1817,13 +1932,15 @@ PFS_key_thread_id::match_owner(const PFS_mutex *pfs)
 bool
 PFS_key_thread_id::match_owner(const PFS_prepared_stmt *pfs)
 {
-  return do_match(false, pfs->m_owner_thread_id);
+  bool record_null = (pfs->m_owner_thread_id == 0);
+  return do_match(record_null, pfs->m_owner_thread_id);
 }
 
 bool
 PFS_key_thread_id::match_owner(const PFS_metadata_lock *pfs)
 {
-  return do_match(false, pfs->m_owner_thread_id);
+  bool record_null = (pfs->m_owner_thread_id == 0);
+  return do_match(record_null, pfs->m_owner_thread_id);
 }
 
 bool
@@ -1934,15 +2051,13 @@ PFS_key_port::match(const PFS_socket *pfs)
 bool
 PFS_key_error_number::match_error_index(uint error_index)
 {
-  if (error_index > 0 && error_index < PFS_MAX_SERVER_ERRORS)
-  {
-    server_error *temp_error;
-    temp_error = &error_names_array[pfs_to_server_error_map[error_index]];
+  DBUG_ASSERT(error_index < PFS_MAX_SERVER_ERRORS);
 
-    return do_match(false, (int32)temp_error->mysql_errno);
-  }
+  server_error *temp_error;
+  temp_error = &error_names_array[pfs_to_server_error_map[error_index]];
 
-  return false;
+  bool record_null = (temp_error->mysql_errno == 0);
+  return do_match(record_null, (int32)temp_error->mysql_errno);
 }
 
 bool
@@ -2321,19 +2436,76 @@ PFS_key_object_type::read(PFS_key_reader &reader,
 bool
 PFS_key_object_type::match(enum_object_type object_type)
 {
-  return (m_object_type == object_type);
+  bool record_null = (object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, object_type);
 }
 
 bool
 PFS_key_object_type::match(const PFS_object_row *pfs)
 {
-  return (m_object_type == pfs->m_object_type);  // FIXME null check?
+  bool record_null = (pfs->m_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_object_type);
+}
+
+bool
+PFS_key_object_type::match(const PFS_column_row *pfs)
+{
+  bool record_null = (pfs->m_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_object_type);
 }
 
 bool
 PFS_key_object_type::match(const PFS_program *pfs)
 {
-  return (m_object_type == pfs->m_type);
+  bool record_null = (pfs->m_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_type);
+}
+
+bool
+PFS_key_object_type::do_match(bool record_null, enum_object_type record_value)
+{
+  int cmp = 0;
+
+  if (m_is_null)
+  {
+    cmp = (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp = -1;
+    }
+    else if (record_value < m_object_type)
+    {
+      cmp = -1;
+    }
+    else if (record_value > m_object_type)
+    {
+      cmp = +1;
+    }
+    else
+    {
+      cmp = 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
 }
 
 void
@@ -2357,25 +2529,76 @@ PFS_key_object_type_enum::read(PFS_key_reader &reader,
 bool
 PFS_key_object_type_enum::match(enum_object_type object_type)
 {
-  return (m_object_type == object_type);
+  bool record_null = (object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, object_type);
 }
 
 bool
 PFS_key_object_type_enum::match(const PFS_prepared_stmt *pfs)
 {
-  return (m_object_type == pfs->m_owner_object_type);
+  bool record_null = (pfs->m_owner_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_owner_object_type);
 }
 
 bool
 PFS_key_object_type_enum::match(const PFS_object_row *pfs)
 {
-  return (m_object_type == pfs->m_object_type);  // FIXME null check?
+  bool record_null = (pfs->m_object_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_object_type);
 }
 
 bool
 PFS_key_object_type_enum::match(const PFS_program *pfs)
 {
-  return (m_object_type == pfs->m_type);
+  bool record_null = (pfs->m_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_type);
+}
+
+bool
+PFS_key_object_type_enum::do_match(bool record_null, enum_object_type record_value)
+{
+  int cmp = 0;
+
+  if (m_is_null)
+  {
+    cmp = (record_null ? 0 : 1);
+  }
+  else
+  {
+    if (record_null)
+    {
+      cmp = -1;
+    }
+    else if (record_value < m_object_type)
+    {
+      cmp = -1;
+    }
+    else if (record_value > m_object_type)
+    {
+      cmp = +1;
+    }
+    else
+    {
+      cmp = 0;
+    }
+  }
+
+  switch (m_find_flag)
+  {
+  case HA_READ_KEY_EXACT:
+    return (cmp == 0);
+  case HA_READ_KEY_OR_NEXT:
+    return (cmp >= 0);
+  case HA_READ_KEY_OR_PREV:
+    return (cmp <= 0);
+  case HA_READ_BEFORE_KEY:
+    return (cmp < 0);
+  case HA_READ_AFTER_KEY:
+    return (cmp > 0);
+  default:
+    DBUG_ASSERT(false);
+    return false;
+  }
 }
 
 bool
@@ -2399,6 +2622,13 @@ PFS_key_object_schema::match(const PFS_prepared_stmt *pfs)
 
 bool
 PFS_key_object_schema::match(const PFS_object_row *pfs)
+{
+  bool record_null = (pfs->m_object_name_length == 0);
+  return do_match(record_null, pfs->m_schema_name, pfs->m_schema_name_length);
+}
+
+bool
+PFS_key_object_schema::match(const PFS_column_row *pfs)
 {
   bool record_null = (pfs->m_object_name_length == 0);
   return do_match(record_null, pfs->m_schema_name, pfs->m_schema_name_length);
@@ -2445,6 +2675,13 @@ PFS_key_object_name::match(const PFS_object_row *pfs)
 }
 
 bool
+PFS_key_object_name::match(const PFS_column_row *pfs)
+{
+  bool record_null = (pfs->m_object_name_length == 0);
+  return do_match(record_null, pfs->m_object_name, pfs->m_object_name_length);
+}
+
+bool
 PFS_key_object_name::match(const PFS_index_row *pfs)
 {
   bool record_null = (pfs->m_index_name_length == 0);
@@ -2463,6 +2700,13 @@ PFS_key_object_name::match(const char *object_name, uint object_name_length)
 {
   bool record_null = (object_name_length == 0);
   return do_match(record_null, object_name, object_name_length);
+}
+
+bool
+PFS_key_column_name::match(const PFS_column_row *pfs)
+{
+  bool record_null = (pfs->m_column_name_length == 0);
+  return do_match(record_null, pfs->m_column_name, pfs->m_column_name_length);
 }
 
 bool

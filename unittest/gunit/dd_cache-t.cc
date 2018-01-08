@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_config.h"
 
@@ -31,6 +38,7 @@
 #include "sql/dd/impl/cache/free_list.h"
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"
 #include "sql/dd/impl/cache/storage_adapter.h"
+#include "sql/dd/impl/tables/tables.h"
 #include "sql/dd/impl/types/charset_impl.h"
 #include "sql/dd/impl/types/collation_impl.h"
 #include "sql/dd/impl/types/column_statistics_impl.h"
@@ -231,20 +239,20 @@ class CacheTestHelper
 public:
   template <typename T>
   static
-  std::vector<dd::cache::Cache_element<typename T::cache_partition_type>*>
+  std::vector<dd::cache::Cache_element<typename T::Cache_partition>*>
     *create_elements(uint num)
   {
     char name[2]= {'a', '\0'};
-    std::vector<dd::cache::Cache_element<typename T::cache_partition_type>*>
+    std::vector<dd::cache::Cache_element<typename T::Cache_partition>*>
       *objects= new std::vector<
-        dd::cache::Cache_element<typename T::cache_partition_type>*>();
+        dd::cache::Cache_element<typename T::Cache_partition>*>();
     for (uint id= 1; id <= num; id++, name[0]++)
     {
       T *object= new T();
       object->set_id(id);
       object->set_name(dd::String_type(name));
-      dd::cache::Cache_element<typename T::cache_partition_type> *element=
-        new dd::cache::Cache_element<typename T::cache_partition_type>();
+      dd::cache::Cache_element<typename T::Cache_partition> *element=
+        new dd::cache::Cache_element<typename T::Cache_partition>();
       element->set_object(object);
       element->recreate_keys();
       objects->push_back(element);
@@ -255,17 +263,17 @@ public:
   template <typename T>
   static
   void delete_elements(std::vector<dd::cache::Cache_element
-                       <typename T::cache_partition_type>*> *objects)
+                       <typename T::Cache_partition>*> *objects)
   {
     // Delete the objects and elements.
     for (typename std::vector<dd::cache::Cache_element
-           <typename T::cache_partition_type>*>::iterator it=
+           <typename T::Cache_partition>*>::iterator it=
              objects->begin();
          it != objects->end();)
     {
       // Careful about iterator invalidation.
       dd::cache::Cache_element
-           <typename T::cache_partition_type> *element= *it;
+           <typename T::Cache_partition> *element= *it;
       it++;
       delete(element->object());
       delete(element);
@@ -281,17 +289,17 @@ TYPED_TEST(CacheTest, FreeList)
 {
   // Create a free list and assert that it is empty.
   dd::cache::Free_list<dd::cache::Cache_element
-    <typename TypeParam::cache_partition_type> > free_list;
+    <typename TypeParam::Cache_partition> > free_list;
   ASSERT_EQ(0U, free_list.length());
 
   // Create objects and wrap them in elements, add to vector of pointers.
   std::vector<dd::cache::Cache_element
-    <typename TypeParam::cache_partition_type>*>
+    <typename TypeParam::Cache_partition>*>
       *objects= CacheTestHelper::create_elements<TypeParam>(4);
 
   // Add the elements to the free list.
   for (typename std::vector<dd::cache::Cache_element
-         <typename TypeParam::cache_partition_type>*>::iterator it=
+         <typename TypeParam::Cache_partition>*>::iterator it=
            objects->begin();
        it != objects->end(); ++it)
     free_list.add_last(*it);
@@ -300,7 +308,7 @@ TYPED_TEST(CacheTest, FreeList)
   ASSERT_EQ(4U, free_list.length());
 
   // Retrieving the least recently used element should return the first one.
-  dd::cache::Cache_element<typename TypeParam::cache_partition_type>
+  dd::cache::Cache_element<typename TypeParam::Cache_partition>
           *element= free_list.get_lru();
   free_list.remove(element);
   ASSERT_EQ(3U, free_list.length());
@@ -337,18 +345,18 @@ void element_map_test()
 {
   // Create an element map and assert that it is empty.
   dd::cache::Element_map<K, dd::cache::Cache_element
-                              <typename T::cache_partition_type> >
+                              <typename T::Cache_partition> >
     element_map;
   ASSERT_EQ(0U, element_map.size());
 
   // Create objects and wrap them in elements.
   std::vector<dd::cache::Cache_element
-    <typename T::cache_partition_type>*>
+    <typename T::Cache_partition>*>
       *objects= CacheTestHelper::create_elements<T>(4);
 
   // Add the elements to the map.
   for (typename std::vector<dd::cache::Cache_element
-         <typename T::cache_partition_type>*>::iterator it=
+         <typename T::Cache_partition>*>::iterator it=
            objects->begin();
        it != objects->end(); ++it)
   {
@@ -365,7 +373,7 @@ void element_map_test()
   // get the same element in return.
   // Add the elements to the map.
   for (typename std::vector<dd::cache::Cache_element
-         <typename T::cache_partition_type>*>::iterator it=
+         <typename T::Cache_partition>*>::iterator it=
            objects->begin();
        it != objects->end(); ++it)
   {
@@ -387,17 +395,17 @@ void element_map_test()
 TYPED_TEST(CacheTest, Element_map_reverse)
 {
   element_map_test<TypeParam,
-                   const typename TypeParam::cache_partition_type*>();
+                   const typename TypeParam::Cache_partition*>();
 }
 
 TYPED_TEST(CacheTest, Element_map_id_key)
 {
-  element_map_test<TypeParam, typename TypeParam::id_key_type>();
+  element_map_test<TypeParam, typename TypeParam::Id_key>();
 }
 
 TYPED_TEST(CacheTest, Element_map_name_key)
 {
-  element_map_test<TypeParam, typename TypeParam::name_key_type>();
+  element_map_test<TypeParam, typename TypeParam::Name_key>();
 }
 
 TYPED_TEST(CacheTest, Element_map_aux_key)
@@ -1447,8 +1455,8 @@ TEST_F(CacheStorageTest, TestCacheLookup)
   dd::cache::Dictionary_client &dc= *thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  dd::String_type obj_name= dd::Table::OBJECT_TABLE().name() +
-    dd::String_type("_cacheissue");
+  dd::String_type obj_name= dd::Table::DD_table::instance().
+          name() + dd::String_type("_cacheissue");
   dd::Object_id id;
   //
   // Create table object
@@ -1524,8 +1532,8 @@ TEST_F(CacheStorageTest, TestTriggers)
   dd::cache::Dictionary_client &dc= *thd()->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
 
-  dd::String_type obj_name= dd::Table::OBJECT_TABLE().name() +
-    dd::String_type("_trigs");
+  dd::String_type obj_name= dd::Table::DD_table::instance().
+          name() + dd::String_type("_trigs");
   dd::Object_id id MY_ATTRIBUTE((unused));
 
   //

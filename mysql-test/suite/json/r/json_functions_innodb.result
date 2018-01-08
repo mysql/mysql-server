@@ -2,6 +2,8 @@ set default_storage_engine=innodb;
 # Test of the JSON functions used in SQL statements
 # ----------------------------------------------------------------------
 SET NAMES utf8;
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (pk int  NOT NULL PRIMARY KEY AUTO_INCREMENT, i INT, j JSON);
 INSERT INTO t1(i, j) VALUES (0, NULL);
 INSERT INTO t1(i, j) VALUES (1, '{"a": 2}');
@@ -141,6 +143,8 @@ i
 23
 28
 29
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CAST(NULL AS UNSIGNED) = CAST(NULL AS JSON);
 CAST(NULL AS UNSIGNED) = CAST(NULL AS JSON)
 NULL
@@ -4579,6 +4583,8 @@ DROP TABLE t;
 Note: 'utf8' is a subset of internal 'utf8mb4'
 
 create table utf8_t (c varchar(20)) CHARACTER SET 'utf8';
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into utf8_t values (NULL);
 # Expect NULL:
 select JSON_VALID(c) from utf8_t;
@@ -4638,6 +4644,8 @@ drop table json_t;
 # Test of JSON_LENGTH function.
 # ----------------------------------------------------------------------
 create table utf8_mj_length (a int, c varchar(20)) CHARACTER SET 'utf8';
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into utf8_mj_length values( 1, null );
 insert into utf8_mj_length values( 2, '1' );
 insert into utf8_mj_length values( 3, 'abc' );
@@ -4680,6 +4688,8 @@ select a, c, json_length( c, '$' ) from utf8_mj_length where a = 2;
 a	c	json_length( c, '$' )
 2	1	1
 set names 'utf8';
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 1;
 a	c	json_length( c, '$' )
 1	NULL	NULL
@@ -5035,6 +5045,8 @@ ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extr
 drop table t1;
 create table t1 ( c1 varchar(200) character set 'latin1',
 c2 varchar(200) character set 'utf8' );
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('[1,2]',  # legal json, but not utf-8
 '[1,2 ');
 select cast(c1 as json) from t1;
@@ -5055,6 +5067,8 @@ select x, cast(y as json) from (select x, cast(cast(x as json) as char charset u
 x	cast(y as json)
 1	1
 2	2
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t2;
 # ----------------------------------------------------------------------
 # Test of CAST(<select> AS JSON)
@@ -5063,6 +5077,8 @@ select cast((select 1) as json);
 cast((select 1) as json)
 1
 create table t(i int, j json, c char(10) character set 'utf8');
+Warnings:
+Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t values (5, '6', '{}');
 select cast((select i from t) as json);
 cast((select i from t) as json)

@@ -1074,18 +1074,6 @@ SELECT MBRCOVEREDBY(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 );
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 26000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (26000001, 1, 'TEST26000001', 'Foo', 26000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-SELECT MBRCOVEREDBY(
-  ST_GEOMFROMTEXT('POINT(0 0)', 26000001),
-  ST_GEOMFROMTEXT('POINT(0 0)', 26000001)
-);
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 26000001;
-
 --echo #
 --echo # WL#10827 Ellipsoidal R-tree support functions
 --echo #

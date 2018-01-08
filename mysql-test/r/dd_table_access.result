@@ -368,9 +368,10 @@ ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.
 # Check that we may CREATE FROM mysql.innodb_index_stats.
 CREATE TABLE t1 SELECT * FROM mysql.innodb_index_stats;
 DROP TABLE t1;
-# Check that we may CREATE LIKE mysql.innodb_index_stats.
+# Check that we may not CREATE LIKE mysql.innodb_index_stats
+# due to restricted tablespace.
 CREATE TABLE t1 LIKE mysql.innodb_index_stats;
-DROP TABLE t1;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
 # Check access from stored programs.
 CREATE PROCEDURE ddse_access() CREATE TABLE mysql.innodb_index_stats(i INTEGER);
 ERROR HY000: Access to system table 'mysql.innodb_index_stats' is rejected.

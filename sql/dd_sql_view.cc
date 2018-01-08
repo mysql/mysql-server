@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -524,6 +531,24 @@ static bool open_views_and_update_metadata(
     */
     if (!commit_dd_changes)
       uncommitted_tables->add_table(view);
+
+    // Prepare view query from the Item-tree built from the original query.
+    char view_query_buff[4096];
+    String view_query(view_query_buff, sizeof(view_query_buff), thd->charset());
+    view_query.length(0);
+
+    if (thd->lex->unit->is_mergeable() &&
+        view->algorithm != VIEW_ALGORITHM_TEMPTABLE)
+    {
+      for (ORDER *order= thd->lex->select_lex->order_list.first;
+           order; order= order->next)
+        order->used_alias= false;              /// @see Item::print_for_order()
+    }
+    Sql_mode_parse_guard parse_guard(thd);
+    thd->lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
+    if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
+                              view_query.length(), false))
+      DBUG_RETURN(true);
 
     // Update view metadata in the data-dictionary tables.
     view->updatable_view= is_updatable_view(thd, view);

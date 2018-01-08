@@ -85,7 +85,7 @@ connection slave;
 --source include/stop_slave.inc
 
 # First, verify that 32 char maximum password works.
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='$passwd'
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='$passwd', master_ssl=1
 
 --source include/start_slave_io.inc
 
@@ -95,7 +95,7 @@ connection slave;
 
 # Now, prove 1 char oversized password is rejected
 --error ER_CHANGE_MASTER_PASSWORD_LENGTH
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='x$passwd'
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='x$passwd', master_ssl=1
 
 # Cleanup Bug #11752299
 
@@ -107,7 +107,7 @@ SET SQL_LOG_BIN=1;
 
 connection slave;
 --source include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL=0;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

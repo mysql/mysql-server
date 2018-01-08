@@ -898,7 +898,7 @@ SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLE
 DROP TABLE t1, t2;
 
 --echo "Check hints with uft8 charset for 2 cases"
-set names utf8;
+SET NAMES utf8mb4;
 EVAL CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         title VARCHAR(200),

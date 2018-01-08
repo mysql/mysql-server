@@ -1,0 +1,64 @@
+# ==== Purpose ====
+#
+# This test uses a binlog generated in a 5.7 server with a ER_BAD_TABLE_ERROR to
+# check that the slave ignoring that error using --skip-slave-errors will
+# continue its normal execution.
+#
+# ==== References ====
+#
+# BUG#26133488 SLAVE IS DIVERGED FROM MASTER BUT CROSS-VERSION RPL CONTINUES
+#              WITHOUT ERROR
+#
+
+
+# the 5.7 master binlog file was only recorded in statement format
+--source include/have_binlog_format_statement.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
+
+# clear slave datadir
+RESET SLAVE;
+--remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
+--remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+
+# copy the binlog with the following events:
+#  --source include/have_binlog_format_statement.inc
+#    CREATE TABLE t1 (a INT);
+#    --error ER_BAD_TABLE_ERROR
+#    DROP TABLE t1, t2;
+#    CREATE VIEW v1 AS SELECT 1;
+#    --error ER_BAD_TABLE_ERROR
+#    DROP VIEW v1, v2;
+
+# on Win* platforms path separator is backslash
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+    --copy_file std_data/slave-relay-bin_win.index $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+}
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
+{
+    --copy_file std_data/slave-relay-bin_linux.index $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+}
+
+--copy_file std_data/rpl_atomic_ddl_rollback_full.000001 $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
+
+START SLAVE;
+
+# wait until slave reads and applies all events from relay log
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Slave has read all relay log; waiting for more updates
+--source include/wait_for_slave_param.inc
+
+# The failed transactions were rollbacked in the slave when the error was
+# ignored, so we can safely drop t1 and v1 now
+DROP TABLE t1;
+DROP VIEW v1;
+
+# clean up
+--source include/stop_slave.inc
+RESET SLAVE;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

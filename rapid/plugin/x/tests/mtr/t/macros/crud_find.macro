@@ -1,8 +1,0 @@
-
--->macro_varg Crud_find
--->varlet %PAYLOAD% 
--->callmacro Crud %VAR_ARGS%
-Mysqlx.Crud.Find {
-  %PAYLOAD%
-}
--->endmacro

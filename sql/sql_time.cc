@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -207,6 +214,17 @@ void get_date_from_daynr(long daynr,uint *ret_year,uint *ret_month,
 }
 
 	/* Functions to handle periods */
+
+bool valid_period(ulong period)
+{
+  if (period <= 0)
+    return false;
+  if ((period % 100) == 0)
+    return false;
+  if ((period % 100) > 12)
+    return false;
+  return true;
+}
 
 ulong convert_period_to_month(ulong period)
 {
@@ -1377,16 +1395,14 @@ bool make_truncated_value_warning(THD *thd,
 
 
 /* Daynumber from year 0 to 9999-12-31 */
-#define MAX_DAY_NUMBER 3652424L
+#define MAX_DAY_NUMBER 3652424UL
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        Interval interval)
 {
-  long period, sign;
-
   ltime->neg= 0;
 
-  sign= (interval.neg ? -1 : 1);
+  long long sign= (interval.neg ? -1 : 1);
 
   switch (int_type) {
   case INTERVAL_SECOND:
@@ -1410,11 +1426,23 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     extra_sec= microseconds/1000000L;
     microseconds= microseconds%1000000L;
 
-    sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
+    if (interval.day > MAX_DAY_NUMBER)
+      goto invalid_date;
+    if (interval.hour > MAX_DAY_NUMBER * 24ULL)
+      goto invalid_date;
+    if (interval.minute > MAX_DAY_NUMBER * 24ULL * 60ULL)
+      goto invalid_date;
+    if (interval.second > MAX_DAY_NUMBER * 24ULL * 60ULL * 60ULL)
+      goto invalid_date;
+    sec=((ltime->day-1) * 3600LL * 24LL +
+         ltime->hour    * 3600LL +
+         ltime->minute  * 60LL +
 	 ltime->second +
-	 sign* (longlong) (interval.day*3600*24L +
-                           interval.hour*3600LL+interval.minute*60LL+
-                           interval.second))+ extra_sec;
+	 sign* (longlong) (interval.day    * 3600ULL * 24ULL +
+                           interval.hour   * 3600ULL +
+                           interval.minute *   60ULL +
+                           interval.second))
+      + extra_sec;
     if (microseconds < 0)
     {
       microseconds+= 1000000LL;
@@ -1440,15 +1468,29 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     break;
   }
   case INTERVAL_DAY:
-  case INTERVAL_WEEK:
-    period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
-             sign * (long) interval.day);
-    /* Daynumber from year 0 to 9999-12-31 */
-    if ((ulong) period > MAX_DAY_NUMBER)
-      goto invalid_date;
+  case INTERVAL_WEEK: {
+    unsigned long period;
+    period= calc_daynr(ltime->year,ltime->month,ltime->day);
+    if (interval.neg)
+    {
+      if (period < interval.day)  // Before 0.
+        goto invalid_date;
+      period-= interval.day;
+    }
+    else
+    {
+      if (period + interval.day < period)  // Overflow.
+        goto invalid_date;
+      if (period + interval.day > MAX_DAY_NUMBER)  // After 9999-12-31.
+        goto invalid_date;
+      period+= interval.day;
+    }
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
+  }
     break;
   case INTERVAL_YEAR:
+    if (interval.year > 10000UL)
+      goto invalid_date;
     ltime->year+= sign * (long) interval.year;
     if ((ulong) ltime->year >= 10000L)
       goto invalid_date;
@@ -1458,13 +1500,23 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     break;
   case INTERVAL_YEAR_MONTH:
   case INTERVAL_QUARTER:
-  case INTERVAL_MONTH:
-    period= (ltime->year*12 + sign * (long) interval.year*12 +
-	     ltime->month-1 + sign * (long) interval.month);
-    if ((ulong) period >= 120000L)
+  case INTERVAL_MONTH: {
+    unsigned long long period;
+
+    // Simple guards against arithmetic overflow when calculating period.
+    if (interval.month >= UINT_MAX / 2)
       goto invalid_date;
-    ltime->year= (uint) (period / 12);
-    ltime->month= (uint) (period % 12L)+1;
+    if (interval.year >= UINT_MAX / 12)
+      goto invalid_date;
+
+    period= (ltime->year * 12ULL +
+             sign * (unsigned long long) interval.year*12ULL +
+	     ltime->month - 1ULL +
+             sign * (unsigned long long) interval.month);
+    if (period >= 120000LL)
+      goto invalid_date;
+    ltime->year= period / 12;
+    ltime->month= (period % 12L)+1;
     /* Adjust day if the new month doesn't have enough days */
     if (ltime->day > days_in_month[ltime->month-1])
     {
@@ -1472,12 +1524,13 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
       if (ltime->month == 2 && calc_days_in_year(ltime->year) == 366)
 	ltime->day++;				// Leap-year
     }
+  }
     break;
   default:
     goto null_date;
   }
 
-  return 0;					// Ok
+  return false;					// Ok
 
 invalid_date:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -1485,7 +1538,7 @@ invalid_date:
                       ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
 null_date:
-  return 1;
+  return true;
 }
 #endif // ifdef MYSQL_SERVER
 

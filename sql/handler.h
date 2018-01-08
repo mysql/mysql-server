@@ -4,15 +4,21 @@
 /*
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; version 2 of
-   the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -28,6 +34,7 @@
 #include <time.h>
 #include <algorithm>
 #include <random>       // std::mt19937
+#include <set>
 #include <string>
 
 #include "ft_global.h"         // ft_hints
@@ -50,6 +57,7 @@
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/properties.h" // dd::Properties
+#include "sql/dd/types/object_table.h" // dd::Object_table
 #include "sql/discrete_interval.h" // Discrete_interval
 #include "sql/key.h"
 #include "sql/sql_alloc.h"
@@ -61,6 +69,7 @@
 #include "sql/thr_malloc.h"
 #include "thr_lock.h"          // thr_lock_type
 #include "typelib.h"
+#include "sql/json_dom.h"
 
 class Alter_info;
 class Create_field;
@@ -1117,6 +1126,24 @@ public:
 
   const char *get_tablespace_name() const
   { return m_tablespace_name; }
+
+  dd::String_type get_ddl() const
+  {
+    dd::Stringstream_type ss;
+    ss << "CREATE TABLE ";
+
+    if (m_schema_name != nullptr)
+      ss << m_schema_name << ".";
+
+    ss << m_table_name << "(\n";
+    ss << m_table_definition << ")";
+    ss << m_table_options;
+
+    if (m_tablespace_name != nullptr)
+      ss << " " << "TABLESPACE=" << m_tablespace_name;
+
+    return ss.str();
+  }
 };
 
 /**
@@ -1644,7 +1671,7 @@ enum dict_init_mode_t
 {
   DICT_INIT_CREATE_FILES,         //< Create all required SE files
   DICT_INIT_CHECK_FILES,          //< Verify existence of expected files
-  DICT_INIT_UPGRADE_FILES,        //< Used for upgrade from mysql-5.7
+  DICT_INIT_UPGRADE_57_FILES,     //< Used for upgrade from mysql-5.7
   DICT_INIT_IGNORE_FILES          //< Don't care about files at all
 };
 
@@ -1655,6 +1682,11 @@ enum dict_init_mode_t
   representing the required DDSE tables, i.e., tables that the DDSE
   expects to exist in the DD, and add them to the appropriate out
   parameter.
+
+  @note There are two variants of this function type, one is to be
+  used by the DDSE, and has a different type of output parameters
+  because the SQL layer needs more information about the DDSE tables
+  in order to support upgrade.
 
   @param dict_init_mode         How to initialize files
   @param version                Target DD version if a new
@@ -1675,6 +1707,19 @@ typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
                             uint version,
                             List<const Plugin_table> *DDSE_tables,
                             List<const Plugin_tablespace> *DDSE_tablespaces);
+
+typedef bool (*ddse_dict_init_t)(dict_init_mode_t dict_init_mode,
+                            uint version,
+                            List<const dd::Object_table> *DDSE_tables,
+                            List<const Plugin_tablespace> *DDSE_tablespaces);
+
+/**
+  Initialize the set of hard coded DD table ids.
+
+  @param dd_table_id  SE_private_id of DD table..
+*/
+typedef void (*dict_register_dd_table_id_t)(
+                             dd::Object_id hard_coded_tables);
 
 
 /**
@@ -1814,6 +1859,10 @@ typedef bool (*rotate_encryption_master_key_t)(void);
   @param flags                    Type of statistics to retrieve.
   @param[out] stats               Contains statistics read from SE.
 
+  @note Handlers that implement this callback/API should adhere
+        to servers expectation that, the implementation would invoke
+        my_error() before returning 'true'/failure from this function.
+
   @returns false on success,
            true on failure
 */
@@ -1838,6 +1887,10 @@ typedef bool (*get_table_statistics_t)(
   @param se_private_id            SE private id of the table.
   @param[out] cardinality         cardinality being returned by SE.
 
+  @note Handlers that implement this callback/API should adhere
+        to servers expectation that, the implementation would invoke
+        my_error() before returning 'true'/failure from this function.
+
   @returns false on success,
            true on failure
 */
@@ -1857,6 +1910,11 @@ typedef bool (*get_index_column_cardinality_t)(const char *db_name,
   @param tbl_se_private_data      Table SE private data.
   @param[out] stats               Contains tablespace
                                   statistics read from SE.
+
+  @note Handlers that implement this callback/API should adhere
+        to servers expectation that, the implementation would invoke
+        my_error() before returning 'true'/failure from this function.
+
   @returns false on success, true on failure
 */
 typedef bool (*get_tablespace_statistics_t)(
@@ -1919,6 +1977,27 @@ typedef void (*post_ddl_t)(THD *thd);
         committed or rolled back during recovery stage.
 */
 typedef void (*post_recover_t)(void);
+
+
+/**
+  Lock a handlerton (resource) log to collect log information.
+*/
+
+typedef bool (*lock_hton_log_t)(handlerton *hton);
+
+
+/**
+  Unlock a handlerton (resource) log after collecting log information.
+*/
+
+typedef bool (*unlock_hton_log_t)(handlerton *hton);
+
+
+/**
+  Collect a handlerton (resource) log information.
+*/
+
+typedef bool (*collect_hton_log_info_t)(handlerton *hton, Json_dom *json);
 
 
 /**
@@ -1996,6 +2075,8 @@ struct handlerton
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
+  ddse_dict_init_t ddse_dict_init;
+  dict_register_dd_table_id_t dict_register_dd_table_id;
   dict_cache_reset_t dict_cache_reset;
   dict_cache_reset_tables_and_tablespaces_t
     dict_cache_reset_tables_and_tablespaces;
@@ -2071,6 +2152,14 @@ struct handlerton
   uint32 license;
   /** Location for engines to keep personal structures. */
   void *data;
+
+  /*
+    Instance_log_resource functions that must be supported by storage engines
+    with relevant log information to be collected.
+  */
+  lock_hton_log_t lock_hton_log;
+  unlock_hton_log_t unlock_hton_log;
+  collect_hton_log_info_t collect_hton_log_info;
 };
 
 
@@ -3892,21 +3981,20 @@ public:
   /**
     Submit a dd::Table object representing a core DD table having
     hardcoded data to be filled in by the DDSE. This function can be
-    used for retrieving the hard coded SE private data for the dd.version
-    table, before creating or opening it (submitting dd_version = 0), or for
+    used for retrieving the hard coded SE private data for the
+    mysql.dd_properties table, before creating or opening it, or for
     retrieving the hard coded SE private data for a core table,
-    before creating or opening them (submit version == the actual version
-    which was read from the dd.version table).
+    before creating or opening them.
 
     @param dd_table [in,out]    A dd::Table object representing
                                 a core DD table.
-    @param dd_version           Actual version of the DD.
+    @param reset                Reset counters.
 
     @retval true                An error occurred.
     @retval false               Success - no errors.
    */
 
-  bool ha_get_se_private_data(dd::Table *dd_table, uint dd_version);
+  bool ha_get_se_private_data(dd::Table *dd_table, bool reset);
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -5683,7 +5771,7 @@ public:
                      dd::Table *table_def) = 0;
 
   virtual bool get_se_private_data(dd::Table *dd_table MY_ATTRIBUTE((unused)),
-                                   uint dd_version MY_ATTRIBUTE((unused)))
+                                   bool reset MY_ATTRIBUTE((unused)))
   { return false; }
 
   /**

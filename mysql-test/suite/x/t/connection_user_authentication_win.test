@@ -1,0 +1,6 @@
+--source include/windows.inc
+--source include/xplugin_preamble.inc
+
+--let $UNIX_SOCKET_TESTING= 0
+--let $USER_AUTH_PLUGIN= 'mysql_native_password'
+--source ../include/connection_user_authentication.inc

@@ -35,37 +35,17 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE
   FROM performance_schema.variables_info
   WHERE VARIABLE_NAME = 'auto_increment_increment';
 
---echo # Check mysqld-auto.cnf file.
-let $MYSQLD_DATADIR= `select @@datadir`;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
---echo # Setting variables value to DEFAULT.
-SET PERSIST auto_increment_increment=DEFAULT;
-SET @@persist.event_scheduler=DEFAULT;
-SET PERSIST slave_compressed_protocol=DEFAULT;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
-
---echo # Setting DEFAULT value for variable with PERSIT,
-       # Which is not there in mysqld-auto.cnf file.
-SET PERSIST read_only=DEFAULT, PERSIST innodb_fast_shutdown=DEFAULT;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
-
-SET PERSIST read_only=DEFAULT;
-SET PERSIST innodb_fast_shutdown=DEFAULT;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
-
 --echo # Setting multiple variables value as PERSIST.
 # Variable type 'enumeration'
 SET PERSIST innodb_checksum_algorithm=strict_crc32,
     PERSIST innodb_default_row_format=COMPACT,
     PERSIST sql_mode=NO_KEY_OPTIONS,PERSIST innodb_fast_shutdown=0;
 SET PERSIST innodb_flush_log_at_trx_commit=0,join_buffer_size=262144;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
 --echo # SET PERSIST invalid case for multiple variable set.
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET PERSIST innodb_thread_concurrency=32, PERSIST innodb_write_io_threads=32,
     PERSIST innodb_read_io_threads=invalid_val;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
 # Set variables to be used in parameters of mysqld.
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
@@ -83,7 +63,7 @@ let $MYSQL_SERVER_ID= `SELECT @@server_id`;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--no-defaults" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -116,7 +96,7 @@ EOF
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 
 # Creating sperate extra mysql configuration file.
@@ -135,7 +115,7 @@ EOF
 # This causes the server to throw an "unknown variable" error, so this testcase
 # will be commented out.
 # Restart server with defaults-file and defaults-extra-file.
-#--exec echo "restart:--defaults-extra-file=$MYSQLTEST_VARDIR/tmp/my_user_extra.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv=""> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+#--exec echo "restart:--defaults-extra-file=$MYSQLTEST_VARDIR/tmp/my_user_extra.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 #--remove_file $MYSQLTEST_VARDIR/tmp/my_user_extra.cnf
 --enable_reconnect
@@ -200,7 +180,7 @@ eval SET PERSIST slow_query_log_file='$slow_query_log_on';
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --echo # Restart server cmd line and mysql-auto.cnf testing.
---exec echo "restart"  --max_connections=default --innodb_fast_shutdown=1 --innodb_flush_log_at_trx_commit=2 innodb_flush_sync=DEFAULT > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart"  --max_connections=default --innodb_fast_shutdown=1 --innodb_flush_log_at_trx_commit=2 innodb_flush_sync=DEFAULT --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -251,7 +231,7 @@ SELECT VARIABLE_NAME,VARIABLE_SOURCE
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart: --performance_schema=OFF --log-bin" --server-id=$MYSQL_SERVER_ID > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --performance_schema=OFF --log-bin" --server-id=$MYSQL_SERVER_ID --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -277,7 +257,6 @@ reset master;
 
 SET PERSIST innodb_io_capacity=225;
 SET PERSIST innodb_flush_sync=DEFAULT;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 SELECT VARIABLE_NAME, VARIABLE_SOURCE
   FROM performance_schema.variables_info
   WHERE VARIABLE_NAME IN('innodb_io_capacity','innodb_flush_sync');
@@ -312,7 +291,6 @@ SET PERSIST innodb_fast_shutdown=DEFAULT,PERSIST innodb_default_row_format=DEFAU
     PERSIST max_connections=default, PERSIST join_buffer_size=default,
     PERSIST innodb_flush_sync=DEFAULT,PERSIST innodb_io_capacity=DEFAULT,
     PERSIST log_bin_trust_function_creators=DEFAULT, PERSIST autocommit=DEFAULT;
---cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
 --echo WL#9720 - SET PERSIST to capture user, host and timestamp
 # Verify new columns SET_TIME, SET_USER and SET_HOST added in
@@ -433,7 +411,7 @@ EOF
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my_tmp.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my_tmp.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --secure-file-priv="" --server-id=$MYSQL_SERVER_ID --innodb_dedicated_server=OFF --skip-mysqlx > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -529,5 +507,76 @@ EOF
 
 --echo # start server with all defaults
 --source include/start_mysqld.inc
+
+--echo #
+--echo # Bug#26100122: SERVER CRASHES WHEN SET PERSIST CALLS WITH A LONG STATEMENT
+--echo #
+
+set @a=repeat('A',2000);
+--eval SET PERSIST init_connect=@a;
+set @b=repeat('A',24000);
+--eval SET PERSIST init_connect=@b;
+
+--echo # Cleanup
+SET GLOBAL init_connect=default;
+RESET PERSIST;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug#25677422: SET_TIME IN VARIABLES_INFO REFLECTS RESTART TIME FOR
+--echo #               PERSISTED VARIABLES
+--echo #
+
+RESET PERSIST;
+CREATE USER bug25677422;
+GRANT ALL ON *.* TO bug25677422;
+--connect(con1, localhost, bug25677422)
+SET PERSIST sort_buffer_size=256000;
+SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST_ONLY innodb_read_io_threads= 16;
+connection default;
+SET PERSIST long_query_time= 8.3452;
+SET PERSIST_ONLY innodb_log_file_size= 4194304, log_slave_updates= 1;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'log_slave_updates');
+connection con1;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'log_slave_updates');
+
+connection default;
+disconnect con1;
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE
+  VARIABLE_SOURCE = 'PERSISTED';
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'log_slave_updates');
+--connect(con1, localhost, bug25677422)
+connection con1;
+SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
+  FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
+  ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
+   'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
+   'log_slave_updates');
+
+connection default;
+disconnect con1;
+DROP USER bug25677422;
+RESET PERSIST;
+SET GLOBAL sort_buffer_size=DEFAULT, max_heap_table_size=DEFAULT,
+  slave_net_timeout=DEFAULT, long_query_time=DEFAULT;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # Restart server with defaults
+--source include/restart_mysqld.inc
 
 SELECT 'END OF TEST';

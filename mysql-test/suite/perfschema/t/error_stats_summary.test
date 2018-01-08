@@ -25,7 +25,7 @@ END//
 
 CREATE PROCEDURE bigError()
 BEGIN
-   SIGNAL SQLSTATE "HY000" SET MYSQL_ERRNO = 20000, MESSAGE_TEXT = "A big error number";
+   SIGNAL SQLSTATE "HY000" SET MYSQL_ERRNO = 40000, MESSAGE_TEXT = "A big error number";
 END//
 
 delimiter ;//
@@ -75,7 +75,7 @@ SELECT * from test.no_table;
 --error 1644
 # Call the stored procedure
 call signalError();
---error 20000
+--error 40000
 call bigError();
 
 --echo

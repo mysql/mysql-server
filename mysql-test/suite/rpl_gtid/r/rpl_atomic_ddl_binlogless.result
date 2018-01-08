@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER Replicate_Do_DB= (test1);
+[connection master]
+CREATE TABLE test.t1 (a INT);
+[connection slave]
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_DB= ();
+include/start_slave_sql.inc
+[connection master]
+DROP TRIGGER IF EXISTS test1.trig_t1;
+Warnings:
+Note	1049	Unknown database '%-.192s'
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

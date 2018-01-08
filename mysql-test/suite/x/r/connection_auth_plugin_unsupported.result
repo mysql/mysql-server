@@ -1,0 +1,50 @@
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
+INSTALL PLUGIN test_plugin_server SONAME 'auth_test_plugin.so';
+INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
+CREATE USER xuser_test@localhost
+IDENTIFIED WITH 'test_plugin_server' BY 'test';
+GRANT ALL ON *.* TO xuser_test@localhost;
+CREATE USER xuser_nologin@localhost
+IDENTIFIED WITH 'mysql_no_login' BY 'nologin';
+GRANT ALL ON *.* TO xuser_nologin@localhost;
+Show users
+SELECT user, plugin FROM mysql.user WHERE user LIKE 'xuser%';
+user	plugin
+xuser_nologin	mysql_no_login
+xuser_test	test_plugin_server
+user	plugin
+x_root	mysql_native_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+user	plugin
+x_root	mysql_native_password
+0 rows affected
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Ssl connection by test plugin  -> fail
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
+Plain connection by test plugin  -> fail
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
+Ssl connection by no_login plugin  -> fail
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
+Ssl connection by no_login plugin  -> fail
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
+DROP USER xuser_test@localhost;
+DROP USER xuser_nologin@localhost;
+UNINSTALL PLUGIN test_plugin_server;
+UNINSTALL PLUGIN mysql_no_login;

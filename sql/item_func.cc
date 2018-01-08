@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -3296,13 +3303,17 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 {
   double tmp;
   bool dec_negative= (dec < 0) && !dec_unsigned;
+  int log_10_size= array_elements(log_10); // 309
+  if (dec_negative && dec <= -log_10_size)
+    return 0.0;
+
   ulonglong abs_dec= dec_negative ? -dec : dec;
   /*
     tmp2 is here to avoid return the value with 80 bit precision
     This will fix that the test round(0.1,1) = round(0.1,1) is true
     Tagging with volatile is no guarantee, it may still be optimized away...
   */
-  volatile double tmp2;
+  volatile double tmp2= 0.0;
 
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
@@ -3311,9 +3322,7 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   volatile double value_div_tmp= value / tmp;
   volatile double value_mul_tmp= value * tmp;
 
-  if (dec_negative && std::isinf(tmp))
-    tmp2= 0.0;
-  else if (!dec_negative && !std::isfinite(value_mul_tmp))
+  if (!dec_negative && !std::isfinite(value_mul_tmp))
     tmp2= value;
   else if (truncate)
   {

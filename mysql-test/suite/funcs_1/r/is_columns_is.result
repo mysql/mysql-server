@@ -109,7 +109,7 @@ def	information_schema	FILES	LAST_ACCESS_TIME	22	NULL	YES	binary	0	0	NULL	NULL	N
 def	information_schema	FILES	RECOVER_TIME	23	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TRANSACTION_COUNTER	24	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	VERSION	25	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	ROW_FORMAT	26	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	FILES	ROW_FORMAT	26	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	TABLE_ROWS	27	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	AVG_ROW_LENGTH	28	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	DATA_LENGTH	29	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
@@ -122,6 +122,8 @@ def	information_schema	FILES	CHECK_TIME	35	NULL	YES	binary	0	0	NULL	NULL	NULL	NU
 def	information_schema	FILES	CHECKSUM	36	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	STATUS	37	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	EXTRA	38	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	29	116	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(29)			select			NULL
+def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -281,7 +283,7 @@ def	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	6	NULL	YES	int	NULL	NULL	10	0	
 def	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME	1	NULL	NO	varchar	80	240	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
-def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_bin	varchar(256)			select			NULL
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	5	NULL	NO	varchar	4096	12288	NULL	NULL	NULL	utf8	utf8_bin	varchar(4096)			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	6	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
@@ -404,6 +406,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.3333	varchar	utf8	utf8_general_ci
 4.0000	varchar	utf8	utf8_general_ci
 3.0000	varchar	utf8	utf8_tolower_ci
+4.0000	varchar	utf8mb4	utf8mb4_0900_ai_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -541,7 +544,7 @@ NULL	information_schema	FILES	LAST_ACCESS_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	RECOVER_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TRANSACTION_COUNTER	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	VERSION	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	FILES	ROW_FORMAT	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	FILES	ROW_FORMAT	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 NULL	information_schema	FILES	TABLE_ROWS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	AVG_ROW_LENGTH	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	DATA_LENGTH	binary	0	0	NULL	NULL	binary(0)
@@ -554,6 +557,8 @@ NULL	information_schema	FILES	CHECK_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	CHECKSUM	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	STATUS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 NULL	information_schema	FILES	EXTRA	binary	0	0	NULL	NULL	binary(0)
+4.0000	information_schema	KEYWORDS	WORD	varchar	29	116	utf8mb4	utf8mb4_0900_ai_ci	varchar(29)
+NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int(11)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -713,7 +718,7 @@ NULL	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int(1
 1.0000	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
-3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	varchar	256	768	utf8	utf8_bin	varchar(256)
+3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	varchar	4096	12288	utf8	utf8_bin	varchar(4096)
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)

@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -33,11 +40,13 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/collection.h"                // dd::Collection
 #include "sql/dd/dd.h"                        // dd::get_dictionary
 #include "sql/dd/dictionary.h"                // dd::Dictionary
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "sql/dd/impl/dictionary_impl.h"      // default_catalog_name
 #include "sql/dd/impl/system_registry.h"      // dd::System_tables
+#include "sql/dd/impl/tables/dd_properties.h"      // dd::tables:.DD_properties
 #include "sql/dd/impl/utils.h"                // dd::escape
 #include "sql/dd/performance_schema/init.h"   // performance_schema::
                                               //   set_PS_version_for_table
@@ -56,6 +65,7 @@
 #include "sql/dd/types/table.h"               // dd::Table
 #include "sql/dd/types/tablespace.h"          // dd::Tablespace
 #include "sql/dd_table_share.h"               // is_suitable_for_primary_key
+#include "sql/dd/dd_version.h"                // DD_VERSION
 #include "sql/debug_sync.h"                   // DEBUG_SYNC
 #include "sql/default_values.h"               // max_pack_length
 #include "sql/enum_query_type.h"
@@ -63,6 +73,7 @@
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
+#include "sql/sql_lex.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/my_decimal.h"
@@ -2058,11 +2069,94 @@ static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
   return false;
 }
 
+bool invalid_tablespace_usage(THD *thd,
+                              const dd::String_type &schema_name,
+                              const dd::String_type &table_name,
+                              const HA_CREATE_INFO *create_info)
+{
+  DBUG_ASSERT(create_info);
+
+  // Checking if partitions contain a reserved tablespace.
+  bool rsrvd_tablespace= false;
+
+  const System_tables::Types *type= System_tables::instance()->
+    find_type(schema_name, table_name);
+
+  /*
+    DD tables (type INERT, CORE, SECOND or DDSE) and system
+    tables are allowed to be in the DD tablespace. And
+    additionally, a system thread can do what it likes.
+    Tables in the 'mysql' schema, with temporary names, are
+    also allowed to be in the DD tablespace, since mysql_upgrade
+    will ned to do ALTER TABLE.
+  */
+  if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name) ||
+      (type != nullptr && *type == System_tables::Types::SYSTEM) ||
+      thd->is_dd_system_thread() ||
+      (schema_name == dd::String_type(MYSQL_SCHEMA_NAME.str) &&
+       strstr(table_name.c_str(), tmp_file_prefix)))
+  {
+    /*
+      So for these tables, there is no point checking whether they
+      actually are in the 'mysql' tablespace, since the important
+      fact is that they are allowed to be there, not whether they
+      actually are there.
+    */
+    return false;
+  }
+
+  /*
+    Other tables are not allowed in the DD tablespace, neither at
+    the table level nor at the partition or subpartition level.
+  */
+  if (create_info->tablespace &&
+      strcmp(create_info->tablespace, MYSQL_TABLESPACE_NAME.str) == 0)
+  {
+    rsrvd_tablespace= true;
+  }
+  else if (thd->lex->part_info)
+  {
+    // Traverse through all partitions.
+    List_iterator<partition_element> part_it(thd->lex->part_info->partitions);
+    partition_element *part_elem;
+    while ((part_elem= part_it++) && !rsrvd_tablespace)
+    {
+      if (part_elem->tablespace_name &&
+          strcmp(part_elem->tablespace_name, MYSQL_TABLESPACE_NAME.str) == 0)
+      {
+        rsrvd_tablespace= true;
+      }
+      // Traverse through all subpartitions.
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      while ((sub_elem= sub_it++) && !rsrvd_tablespace)
+      {
+        // Check tablespace name from sub-partition elements, if used.
+        if (sub_elem->tablespace_name &&
+            strcmp(sub_elem->tablespace_name, MYSQL_TABLESPACE_NAME.str) == 0)
+        {
+          rsrvd_tablespace= true;
+        }
+      }
+    }
+  }
+
+  if (rsrvd_tablespace)
+  {
+    my_error(ER_RESERVED_TABLESPACE_NAME, MYF(0), table_name.c_str(),
+             MYSQL_TABLESPACE_NAME.str);
+    return true;
+  }
+
+  return false;
+}
+
 
 /** Fill dd::Table object from mysql_prepare_create_table() output. */
 static bool fill_dd_table_from_create_info(THD *thd,
                                            dd::Table *tab_obj,
                                            const dd::String_type &table_name,
+                                           const dd::String_type &schema_name,
                                            const HA_CREATE_INFO *create_info,
                                            const List<Create_field> &create_fields,
                                            const KEY *keyinfo,
@@ -2289,6 +2383,9 @@ static bool fill_dd_table_from_create_info(THD *thd,
                               create_info->options & HA_LEX_CREATE_TMP_TABLE))
     return true;
 
+  if (invalid_tablespace_usage(thd, schema_name, table_name, create_info))
+    return true;
+
   /*
     Add hidden columns and indexes which are implicitly created by storage
     engine for the table. This needs to be done before handling partitions
@@ -2310,6 +2407,89 @@ static bool fill_dd_table_from_create_info(THD *thd,
   return false;
 }
 
+/**
+  Get the SE private data from the dd_properties table.
+
+  @note During restart, when the scaffolding is created, we assign the
+  DD tablespace id (==1) even though this is different that the scaffolding
+  DD tablespace id. This is because both server code and innodb code has
+  hard coded expectations regarding the DD tablespace id.
+
+  @param [in]     thd        Thread context.
+  @param [in,out] tab_obj    Table object to which SE private
+                             data should be added.
+
+  @returns true if error, false otherwise.
+*/
+static bool get_se_private_data(THD *thd, dd::Table *tab_obj)
+{
+  using dd::tables::DD_properties;
+  std::unique_ptr<dd::Properties> sys_tbl_props;
+  bool exists= false;
+  String_type tbl_prop_str;
+  if (dd::tables::DD_properties::instance().get(thd,
+          "SYSTEM_TABLES", &sys_tbl_props, &exists) ||
+      !exists ||
+      sys_tbl_props->get(tab_obj->name(), tbl_prop_str))
+  {
+    my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+    return true;
+  }
+
+  std::unique_ptr<dd::Properties> tbl_props(
+    Properties::parse_properties(tbl_prop_str));
+  Object_id se_id= INVALID_OBJECT_ID;
+  Object_id space_id= INVALID_OBJECT_ID;
+  String_type se_data;
+
+  if (tbl_props->get_uint64(DD_properties::dd_key(
+        DD_properties::DD_property::ID), &se_id) ||
+      tbl_props->get_uint64(DD_properties::dd_key(
+        DD_properties::DD_property::SPACE_ID), &space_id) ||
+      tbl_props->get(DD_properties::dd_key(
+        DD_properties::DD_property::DATA), se_data))
+  {
+    my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+    return true;
+  }
+
+  tab_obj->set_se_private_id(se_id);
+  tab_obj->set_tablespace_id(space_id);
+  tab_obj->set_se_private_data_raw(se_data);
+
+  // Assign SE private data for indexes.
+  int count= 0;
+  for (auto idx: *tab_obj->indexes())
+  {
+    std::stringstream ss;
+    ss << DD_properties::dd_key(
+            DD_properties::DD_property::IDX) << count++;
+    if (tbl_props->get(ss.str().c_str(), se_data))
+    {
+      my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+      return true;
+    }
+    idx->set_se_private_data_raw(se_data);
+    // Assign the same tablespace id for the indexes as for the table.
+    idx->set_tablespace_id(space_id);
+  }
+
+  // Assign SE private data for columns.
+  count= 0;
+  for (auto col: *tab_obj->columns())
+  {
+    std::stringstream ss;
+    ss << DD_properties::dd_key(
+            DD_properties::DD_property::COL) << count++;
+    if (tbl_props->get(ss.str().c_str(), se_data))
+    {
+      my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+      return true;
+    }
+    col->set_se_private_data_raw(se_data);
+  }
+  return false;
+}
 
 static bool create_dd_system_table(THD *thd,
                                    const dd::Schema &system_schema,
@@ -2327,19 +2507,43 @@ static bool create_dd_system_table(THD *thd,
   std::unique_ptr<dd::Table> tab_obj(system_schema.create_table(thd));
 
   // Set to be hidden if appropriate.
-  tab_obj->set_hidden(dd_table.hidden() ?
+  tab_obj->set_hidden(dd_table.is_hidden() ?
                       dd::Abstract_table::HT_HIDDEN_SYSTEM :
                       dd::Abstract_table::HT_VISIBLE);
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
-                                     create_info, create_fields,
-                                     keyinfo, keys, Alter_info::ENABLE,
-                                     fk_keyinfo, fk_keys, file))
+                                     system_schema.name(), create_info,
+                                     create_fields, keyinfo, keys,
+                                     Alter_info::ENABLE, fk_keyinfo,
+                                     fk_keys, file))
     return true;
 
-  if (file->ha_get_se_private_data(tab_obj.get(),
-                                   dd_table.default_dd_version(thd)))
+  /*
+    During --initialize, and for inert tables, get the SE private data
+    from the SE, and store it in the dd_properties table at a later stage.
+    Otherwise, get the SE private data from the 'dd_properties' table.
+  */
+  const System_tables::Types *table_type= System_tables::instance()->
+          find_type(system_schema.name(), table_name);
+  if (opt_initialize || (table_type != nullptr &&
+                         *table_type  == System_tables::Types::INERT))
+  {
+    if (file->ha_get_se_private_data(tab_obj.get(),
+              (table_type != nullptr &&
+               *table_type  == System_tables::Types::INERT)))
+      return true;
+  }
+  else
+  {
+    if (get_se_private_data(thd, tab_obj.get()))
+      return true;
+  }
+
+  // Register the se private id with the DDSE.
+  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->dict_register_dd_table_id == nullptr)
     return true;
+  ddse->dict_register_dd_table_id(tab_obj->se_private_id());
 
   return thd->dd_client()->store(tab_obj.get());
 }
@@ -2383,9 +2587,10 @@ bool create_dd_user_table(THD *thd,
     performance_schema::set_PS_version_for_table(&tab_obj->options());
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
-                                     create_info, create_fields,
-                                     keyinfo, keys, keys_onoff,
-                                     fk_keyinfo, fk_keys, file))
+                                     sch_obj.name(), create_info,
+                                     create_fields, keyinfo, keys,
+                                     keys_onoff, fk_keyinfo, fk_keys,
+                                     file))
     return true;
 
   // Store info in DD tables.
@@ -2433,7 +2638,7 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
   std::unique_ptr<dd::Table> tab_obj(sch_obj.create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
-                                     create_info, create_fields,
+                                     sch_obj.name(), create_info, create_fields,
                                      keyinfo, keys, keys_onoff, NULL, 0, file))
     return nullptr;
 
