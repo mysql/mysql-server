@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ MACRO (FIND_SYSTEM_RE2)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_RE2)
+  SET(WITH_RE2 "bundled" CACHE STRING "By default use bundled re2 library")
   SET(BUILD_BUNDLED_RE2 1)
   SET(RE2_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/re2)
   SET(RE2_LIBRARY re2_lib)

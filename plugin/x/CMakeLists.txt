@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,11 @@ OPTION(DISABLE_MYSQLX_PROTOBUF_LITE
   "Link mysqlx plugin with agains full version of protobuf/mysqlxmessages/mysqlxclient"
   OFF
 )
+
+IF(NOT DISABLE_MYSQLX_PROTOBUF_LITE AND NOT PROTOBUF_LITE_LIBRARY)
+  SET(DISABLE_MYSQLX_PROTOBUF_LITE ON)
+  MESSAGE(WARNING "Disabling protobuf lite for mysqlx plugin.")
+ENDIF()
 
 IF(DISABLE_MYSQLX_PROTOBUF_LITE)
   SET(MYSQLX_PROTOBUF_LIB ${PROTOBUF_LIBRARY})

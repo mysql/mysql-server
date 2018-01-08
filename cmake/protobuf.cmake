@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ ENDMACRO()
 SET(BUNDLED_PROTO_SRCDIR ${CMAKE_SOURCE_DIR}/extra/protobuf/protobuf-2.6.1/src)
 
 MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
-  SET(WITH_PROTOBUF "bundled" CACHE INTERNAL
+  SET(WITH_PROTOBUF "bundled" CACHE STRING
     "Bundled protoc and protobuf library")
   # Set the same variables as FindProtobuf.cmake (First reset all)
   FOREACH(protovar
