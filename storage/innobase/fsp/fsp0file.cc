@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -500,6 +500,7 @@ Datafile::validate_for_recovery(space_id_t space_id)
 	case DB_SUCCESS:
 	case DB_TABLESPACE_EXISTS:
 	case DB_TABLESPACE_NOT_FOUND:
+	case DB_INVALID_ENCRYPTION_META:
 		break;
 
 	default:
@@ -508,6 +509,7 @@ Datafile::validate_for_recovery(space_id_t space_id)
 		if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
 			return(err);
 		}
+
 		/* Re-open the file in read-write mode  Attempt to restore
 		page 0 from doublewrite and read the space ID from a survey
 		of the first few pages. */
@@ -539,7 +541,7 @@ Datafile::validate_for_recovery(space_id_t space_id)
 		err = validate_first_page(space_id, 0, false);
 	}
 
-	if (err == DB_SUCCESS) {
+	if (err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META) {
 		set_name(NULL);
 	}
 
@@ -731,7 +733,7 @@ Datafile::validate_first_page(
 			ut_free(m_encryption_iv);
 			m_encryption_key = NULL;
 			m_encryption_iv = NULL;
-			return(DB_CORRUPTION);
+			return(DB_INVALID_ENCRYPTION_META);
 		} else {
 			ib::info()
 				<< "Read encryption metadata from "
