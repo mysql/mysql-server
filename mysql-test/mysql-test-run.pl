@@ -252,6 +252,9 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
+our $build_thread_id_file;
+our $build_thread_id_dir;
+
 my $previous_test_had_bootstrap_opts = 0;
 
 my $ports_per_thread= 10;
@@ -551,6 +554,9 @@ sub main {
     $ports_per_thread= $ports_per_thread + 10;
   }
 
+  $build_thread_id_file= "$opt_vardir/tmp/unique_ids.log";
+  create_unique_id_dir();
+
   # Create child processes
   my %children;
   for my $child_num (1..$opt_parallel){
@@ -646,6 +652,8 @@ sub main {
     mtr_report_test($tinfo);
     push @$completed, $tinfo;
   }
+
+  clean_unique_id_dir();
 
   mtr_print_line();
 
@@ -1110,8 +1118,62 @@ sub run_worker ($) {
   }
 
   stop_all_servers();
-
   exit(1);
+}
+
+
+## Create a directory to store build thread id files
+sub create_unique_id_dir()
+{
+  if(IS_WINDOWS)
+  {
+    # Try to use machine-wide directory location for unique IDs,
+    # $ALLUSERSPROFILE . IF it is not available, fallback to $TEMP
+    # which is typically a per-user temporary directory
+    if (exists $ENV{'ALLUSERSPROFILE'} && -w $ENV{'ALLUSERSPROFILE'})
+    {
+      $build_thread_id_dir= $ENV{'ALLUSERSPROFILE'}."/mysql-unique-ids";
+    }
+    else
+    {
+      $build_thread_id_dir= $ENV{'TEMP'}."/mysql-unique-ids";
+    }
+  }
+  else
+  {
+    $build_thread_id_dir= "/tmp/mysql-unique-ids";
+  }
+
+  # Check if directory already exists
+  if (! -d $build_thread_id_dir)
+  {
+    # If there is a file with the reserved directory name, just
+    # delete the file.
+    if (-e $build_thread_id_dir)
+    {
+      unlink($build_thread_id_dir);
+    }
+
+    mkdir $build_thread_id_dir;
+    chmod 0777, $build_thread_id_dir;
+
+    die "Can't create directory $build_thread_id_dir: $!"
+      if (! -d $build_thread_id_dir);
+  }
+}
+
+
+## Remove all the unique files created to reserve ports.
+sub clean_unique_id_dir ()
+{
+  open (FH, "<", $build_thread_id_file);
+  while (<FH>)
+  {
+    chomp ($_);
+    unlink $_ or warn "Cannot unlink file $_ : $!";
+  }
+  close (FH);
+  unlink ($build_thread_id_file);
 }
 
 
