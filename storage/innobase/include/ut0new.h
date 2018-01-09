@@ -575,7 +575,7 @@ public:
 	@param[in]	n_elements	number of elements
 	@param[in]	hint		pointer to a nearby memory location,
 					unused by this implementation
-	@param[in]	file		file name of the caller
+	@param[in]	key		Performance schema key
 	@param[in]	set_to_zero	if true, then the returned memory is
 					initialized with 0x0 bytes.
 	@param[in]	throw_on_error	error
@@ -906,7 +906,6 @@ public:
 #ifdef UNIV_PFS_MEMORY
 
 	/** Get the performance schema key to use for tracing allocations.
-	@param[in]	file	file name of the caller or NULL if unknown
 	@return performance schema key */
 	PSI_memory_key
 	get_mem_key() const
@@ -920,8 +919,7 @@ private:
 	@param[in]	ptr	pointer returned by new_array().
 	@return size of memory block */
 	size_type
-	n_elements_allocated(
-		const_pointer	ptr)
+	n_elements_allocated(const_pointer ptr)
 	{
 		const ut_new_pfx_t*	pfx
 			= reinterpret_cast<const ut_new_pfx_t*>(ptr) - 1;
@@ -935,21 +933,10 @@ private:
 	}
 
 	/** Trace a memory allocation.
-	After the accounting, the data needed for tracing the deallocation
-	later is written into 'pfx'.
-	The PFS event name is picked on the following criteria:
-	1. If key (!= PSI_NOT_INSTRUMENTED) has been specified when constructing
-	   this ut_allocator object, then the name associated with that key will
-	   be used (this is the recommended approach for new code)
-	2. Otherwise, if "file" is NULL, then the name associated with
-	   mem_key_std will be used
-	3. Otherwise, if an entry is found by ut_new_get_key_by_file(), that
-	   corresponds to "file", that will be used (see ut_new_boot())
-	4. Otherwise, the name associated with mem_key_other will be used.
 	@param[in]	size	number of bytes that were allocated
-	@param[in]	file	file name of the caller or NULL if unknown
+	@param[in]	key	Performance Schema key
 	@param[out]	pfx	placeholder to store the info which will be
-	needed when freeing the memory */
+				needed when freeing the memory */
 	void
 	allocate_trace(
 		size_t		size,
