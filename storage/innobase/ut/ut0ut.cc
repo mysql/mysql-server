@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -631,6 +631,9 @@ ut_strerr(
 		       "of stored column");
 	case DB_COMPUTE_VALUE_FAILED:
 		return("Compute generated column failed");
+
+	case DB_INVALID_ENCRYPTION_META:
+		return("Invalid encryption meta-data information");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
