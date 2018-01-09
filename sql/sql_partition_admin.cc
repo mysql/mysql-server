@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -506,6 +506,7 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   if (ha_error)
   {
+    handlerton *hton= part_table->file->ht;
     part_table->file->print_error(ha_error, MYF(0));
     // Close TABLE instances which marked as old earlier.
     close_all_tables_for_name(thd, swap_table->s, false, NULL);
@@ -523,9 +524,8 @@ bool Sql_cmd_alter_table_exchange_partition::
       rollback doesn't clear DD cache of modified uncommitted objects).
     */
     (void) trans_rollback(thd);
-    if ((part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-        part_table->file->ht->post_ddl)
-      part_table->file->ht->post_ddl(thd);
+    if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && hton->post_ddl)
+      hton->post_ddl(thd);
     (void) thd->locked_tables_list.reopen_tables(thd);
     DBUG_RETURN(true);
   }
