@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ TEST(ut0new, edgecases)
 #ifdef UNIV_PFS_MEMORY
 	ret = alloc1.allocate(16);
 	ASSERT_TRUE(ret != NULL);
-	ret = alloc1.reallocate(ret, 0, __FILE__);
+	ret = alloc1.reallocate(ret, 0, THIS_FILE_PSI_KEY);
 	EXPECT_EQ(null_ptr, ret);
 
 	ret = UT_NEW_ARRAY_NOKEY(byte, 0);
@@ -202,7 +202,7 @@ TEST(ut0new, edgecases)
 #ifdef UNIV_PFS_MEMORY
 	ret = alloc2.allocate(16);
 	ASSERT_TRUE(ret != NULL);
-	void *ret2 = alloc2.reallocate(ret, too_many_elements, __FILE__);
+	void *ret2 = alloc2.reallocate(ret, too_many_elements, THIS_FILE_PSI_KEY);
 	EXPECT_EQ(null_ptr, ret2);
 	/* If reallocate fails due to too many elements,
 	memory is still allocated. Do explicit deallocate do avoid mem leak. */
@@ -218,7 +218,7 @@ TEST(ut0new, edgecases)
 	}
 	EXPECT_TRUE(threw);
 
-	ret = alloc2.allocate(too_many_elements, NULL, NULL, false, false);
+	ret = alloc2.allocate(too_many_elements, NULL, PSI_NOT_INSTRUMENTED, false, false);
 	EXPECT_EQ(null_ptr, ret);
 
 	threw = false;
