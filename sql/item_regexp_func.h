@@ -100,28 +100,53 @@ class Item_func_regexp : public Item_func {
   Item *pattern() const { return args[1]; }
 
   /// The value of the `position` argument, or its default if absent.
-  int position() const {
+  Mysql::Nullable<int> position() const {
     int the_index = pos_arg_pos();
-    if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1)
-      return args[the_index]->val_int();
+    if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
+      int value = args[the_index]->val_int();
+      /*
+        Note: Item::null_value() can't be trusted alone here; there are cases
+        (for the DATE data type in particular) where we can have it set
+        without Item::maybe_null being set! This really should be cleaned up,
+        but until that happens, we need to have a more conservative check.
+      */
+      if (args[the_index]->maybe_null && args[the_index]->null_value)
+        return Mysql::Nullable<int>();
+      else
+        return value;
+    }
     return 1;
   }
 
   /// The value of the `occurrence` argument, or its default if absent.
-  int occurrence() const {
+  Mysql::Nullable<int> occurrence() const {
     int the_index = occ_arg_pos();
-    if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1)
-      return args[the_index]->val_int();
+    if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
+      int value = args[the_index]->val_int();
+      /*
+        Note: Item::null_value() can't be trusted alone here; there are cases
+        (for the DATE data type in particular) where we can have it set
+        without Item::maybe_null being set! This really should be cleaned up,
+        but until that happens, we need to have a more conservative check.
+      */
+      if (args[the_index]->maybe_null && args[the_index]->null_value)
+        return Mysql::Nullable<int>();
+      else
+        return value;
+    }
     return 0;
   }
 
   /// The value of the `match_parameter` argument, or an empty string if absent.
-  std::string match_parameter() const {
+  Mysql::Nullable<std::string> match_parameter() const {
     int the_index = match_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
       StringBuffer<5> buf;  // Longer match_parameter doesn't make sense.
       String *s = args[the_index]->val_str(&buf);
-      if (s != nullptr) return to_string(*s);
+      if (s != nullptr)
+        return to_string(*s);
+      else
+        return Mysql::Nullable<std::string>();
     }
     return std::string{};
   }
@@ -140,7 +165,7 @@ class Item_func_regexp : public Item_func {
   my_decimal *convert_int_to_decimal(my_decimal *value) {
     DBUG_ASSERT(fixed == 1);
     longlong nr = val_int();
-    if (null_value) return nullptr;  /* purecov: inspected */
+    if (null_value) return nullptr; /* purecov: inspected */
     int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, value);
     return value;
   }
@@ -214,10 +239,15 @@ class Item_func_regexp_instr : public Item_func_regexp {
   const char *func_name() const override { return "regexp_instr"; }
 
   /// The value of the `return_option` argument, or its default if absent.
-  int return_option() const {
+  Mysql::Nullable<int> return_option() const {
     int the_index = retopt_arg_pos();
-    if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1)
-      return args[the_index]->val_int();
+    if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
+      int value = args[the_index]->val_int();
+      if (args[the_index]->null_value)
+        return Mysql::Nullable<int>();
+      else
+        return value;
+    }
     return 0;
   }
 

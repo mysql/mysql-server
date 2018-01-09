@@ -97,7 +97,7 @@ SELECT regexp_instr( 'a', 'a+', 1, 1, -1 );
 ERROR HY000: Incorrect arguments to regexp_instr: return_option must be 1 or 0.
 SELECT regexp_instr( 'a', 'a+', 1, 1, NULL );
 regexp_instr( 'a', 'a+', 1, 1, NULL )
-1
+NULL
 SELECT regexp_instr( 'abcabcabc', 'a+', 1, 1, 0 );
 regexp_instr( 'abcabcabc', 'a+', 1, 1, 0 )
 1
@@ -125,7 +125,7 @@ SELECT regexp_instr( 'a', 'a+', 1, 1, 1, 'x' );
 ERROR HY000: Incorrect arguments to regexp_instr
 SELECT regexp_instr( 'a', 'a+', 1, 1, 1, NULL );
 regexp_instr( 'a', 'a+', 1, 1, 1, NULL )
-2
+NULL
 #
 # REGEXP_LIKE
 #
@@ -179,7 +179,7 @@ SELECT regexp_like( 'a', 'a+', 'cmnux' );
 ERROR HY000: Incorrect arguments to regexp_like
 SELECT regexp_like( 'a', 'a+', NULL );
 regexp_like( 'a', 'a+', NULL )
-1
+NULL
 # REGEXP_LIKE(), illegal types.
 SELECT regexp_like( 1, 'a' );
 regexp_like( 1, 'a' )
@@ -755,3 +755,39 @@ ERROR 70100: Query execution was interrupted
 disconnect conn1;
 connection default;
 SET GLOBAL regexp_time_limit = DEFAULT;
+#
+# Bug#27252630: REGEXP FUNCTIONS IGNORE NULLS
+#
+SELECT regexp_instr ( 'a', 'a', NULL );
+regexp_instr ( 'a', 'a', NULL )
+NULL
+SELECT regexp_instr ( 'a', 'a', 1, NULL );
+regexp_instr ( 'a', 'a', 1, NULL )
+NULL
+SELECT regexp_instr ( 'a', 'a', 1, 0, NULL );
+regexp_instr ( 'a', 'a', 1, 0, NULL )
+NULL
+SELECT regexp_instr ( 'a', 'a', 1, 0, 0, NULL );
+regexp_instr ( 'a', 'a', 1, 0, 0, NULL )
+NULL
+SELECT regexp_like ( 'a', 'a', NULL );
+regexp_like ( 'a', 'a', NULL )
+NULL
+SELECT regexp_replace ( 'a', 'a', 'a', NULL );
+regexp_replace ( 'a', 'a', 'a', NULL )
+NULL
+SELECT regexp_replace ( 'a', 'a', 'a', 1, NULL );
+regexp_replace ( 'a', 'a', 'a', 1, NULL )
+NULL
+SELECT regexp_replace ( 'a', 'a', 'a', 1, 0, NULL );
+regexp_replace ( 'a', 'a', 'a', 1, 0, NULL )
+NULL
+SELECT regexp_substr ( 'a', 'a', NULL );
+regexp_substr ( 'a', 'a', NULL )
+NULL
+SELECT regexp_substr ( 'a', 'a', 1, NULL );
+regexp_substr ( 'a', 'a', 1, NULL )
+NULL
+SELECT regexp_substr ( 'a', 'a', 1, 0, NULL );
+regexp_substr ( 'a', 'a', 1, 0, NULL )
+NULL
