@@ -1,5 +1,4 @@
-!include include/default_mysqld.cnf
-!include include/default_ndbd.cnf
+!include ../my.cnf
 
 [cluster_config.1]
 NoOfReplicas=                  2

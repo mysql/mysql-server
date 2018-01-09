@@ -1,5 +1,4 @@
-!include include/default_mysqld.cnf
-!include include/default_ndbd.cnf
+!include ../my.cnf
 
 [cluster_config.1]
 NoOfReplicas=                  2
@@ -37,6 +36,14 @@ Nodegroup=65536
 
 [cluster_config.ndbd.4.1]
 Nodegroup=65536
+
+[mysqld.1.1]
+log-bin
+log-slave-updates
+
+[mysqld.2.1]
+log-bin
+log-slave-updates
 
 [ENV]
 NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
