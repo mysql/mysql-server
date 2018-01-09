@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2195,7 +2195,13 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     {
       char* endptr = 0;
       double val = 0.0;
-      if (opt.m_charset == &my_charset_bin)
+      bool use_os_strtod =
+#ifndef _WIN32
+        (opt.m_charset == &my_charset_bin);
+#else
+        false;
+#endif
+      if (use_os_strtod)
       {
         errno = 0;
         val = ::strtod(datac, &endptr);
@@ -2256,7 +2262,13 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       int err = 0;
       char* endptr = 0;
       double val = 0.0;
-      if (opt.m_charset == &my_charset_bin)
+      bool use_os_strtod =
+#ifndef _WIN32
+        (opt.m_charset == &my_charset_bin);
+#else
+        false;
+#endif
+      if (use_os_strtod)
       {
         errno = 0;
         val = ::strtod(datac, &endptr);
