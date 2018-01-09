@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -127,21 +127,23 @@ InnoDB:
 #ifndef ut0new_h
 #define ut0new_h
 
-#include <errno.h>
-#include <stddef.h>
-#include <stdlib.h> /* malloc() */
-#include <string.h> /* strlen(), strrchr(), strncmp() */
-#include <algorithm> /* std::min() */
-#include <limits> /* std::numeric_limits */
-#include <map> /* std::map */
+#include <cerrno>
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
+#include <algorithm>
+#include <limits>
+#include <map>
 
-#include "mysql/psi/mysql_memory.h" /* PSI_MEMORY_CALL() */
-#include "mysql/psi/psi_base.h" /* PSI_NOT_INSTRUMENTED */
-#include "mysql/psi/psi_memory.h" /* PSI_memory_key, PSI_memory_info */
-#include "os0proc.h" /* os_mem_alloc_large() */
-#include "os0thread.h" /* os_thread_sleep() */
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/components/services/log_shared.h"
+
+#include "os0proc.h"
+#include "os0thread.h"
 #include "univ.i"
-#include "ut0ut.h" /* ut_strcmp_functor, ut_basename_noext() */
+#include "ut0ut.h"
 
 #define	OUT_OF_MEMORY_MSG \
 	"Check if you should increase the swap file or ulimits of your" \
@@ -190,13 +192,265 @@ ut_new_boot();
 
 #ifdef UNIV_PFS_MEMORY
 
-/** Retrieve a memory key (registered with PFS), given a portion of the file
-name of the caller.
-@param[in]	file	portion of the filename - basename without an extension
+/** List of filenames that allocate memory and are instrumented via PFS. */
+static constexpr const char*	auto_event_names[] = {
+	/* Keep this list alphabetically sorted. */
+	"api0api",
+	"api0misc",
+	"btr0btr",
+	"btr0bulk",
+	"btr0cur",
+	"btr0pcur",
+	"btr0sea",
+	"btr0types",
+	"buf",
+	"buf0buddy",
+	"buf0buf",
+	"buf0checksum",
+	"buf0dblwr",
+	"buf0dump",
+	"buf0flu",
+	"buf0lru",
+	"buf0rea",
+	"buf0stats",
+	"buf0types",
+	"checksum",
+	"crc32",
+	"create",
+	"data0data",
+	"data0type",
+	"data0types",
+	"db0err",
+	"dict",
+	"dict0boot",
+	"dict0crea",
+	"dict0dict",
+	"dict0load",
+	"dict0mem",
+	"dict0priv",
+	"dict0sdi",
+	"dict0stats",
+	"dict0stats_bg",
+	"dict0types",
+	"dyn0buf",
+	"dyn0types",
+	"eval0eval",
+	"eval0proc",
+	"fil0fil",
+	"fil0types",
+	"file",
+	"fsp0file",
+	"fsp0fsp",
+	"fsp0space",
+	"fsp0sysspace",
+	"fsp0types",
+	"fts0ast",
+	"fts0blex",
+	"fts0config",
+	"fts0fts",
+	"fts0opt",
+	"fts0pars",
+	"fts0plugin",
+	"fts0priv",
+	"fts0que",
+	"fts0sql",
+	"fts0tlex",
+	"fts0tokenize",
+	"fts0types",
+	"fts0vlc",
+	"fut0fut",
+	"fut0lst",
+	"gis0geo",
+	"gis0rtree",
+	"gis0sea",
+	"gis0type",
+	"ha0ha",
+	"ha0storage",
+	"ha_innodb",
+	"ha_innopart",
+	"ha_prototypes",
+	"handler0alter",
+	"hash0hash",
+	"i_s",
+	"ib0mutex",
+	"ibuf0ibuf",
+	"ibuf0types",
+	"lexyy",
+	"lob0lob",
+	"lock0iter",
+	"lock0lock",
+	"lock0prdt",
+	"lock0priv",
+	"lock0types",
+	"lock0wait",
+	"log0log",
+	"log0recv",
+	"log0types",
+	"mach0data",
+	"mem",
+	"mem0mem",
+	"memory",
+	"mtr0log",
+	"mtr0mtr",
+	"mtr0types",
+	"os0atomic",
+	"os0event",
+	"os0file",
+	"os0numa",
+	"os0once",
+	"os0proc",
+	"os0thread",
+	"page",
+	"page0cur",
+	"page0page",
+	"page0size",
+	"page0types",
+	"page0zip",
+	"pars0grm",
+	"pars0lex",
+	"pars0opt",
+	"pars0pars",
+	"pars0sym",
+	"pars0types",
+	"que0que",
+	"que0types",
+	"read0read",
+	"read0types",
+	"rec",
+	"rem0cmp",
+	"rem0rec",
+	"rem0types",
+	"row0ext",
+	"row0ftsort",
+	"row0import",
+	"row0ins",
+	"row0log",
+	"row0merge",
+	"row0mysql",
+	"row0purge",
+	"row0quiesce",
+	"row0row",
+	"row0sel",
+	"row0types",
+	"row0uins",
+	"row0umod",
+	"row0undo",
+	"row0upd",
+	"row0vers",
+	"sess0sess",
+	"srv0conc",
+	"srv0mon",
+	"srv0srv",
+	"srv0start",
+	"sync0arr",
+	"sync0debug",
+	"sync0policy",
+	"sync0rw",
+	"sync0sync",
+	"sync0types",
+	"trx0i_s",
+	"trx0purge",
+	"trx0rec",
+	"trx0roll",
+	"trx0rseg",
+	"trx0sys",
+	"trx0trx",
+	"trx0types",
+	"trx0undo",
+	"trx0xa",
+	"usr0sess",
+	"usr0types",
+	"ut",
+	"ut0byte",
+	"ut0counter",
+	"ut0crc32",
+	"ut0dbg",
+	"ut0list",
+	"ut0lock_free_hash",
+	"ut0lst",
+	"ut0mem",
+	"ut0mutex",
+	"ut0new",
+	"ut0pool",
+	"ut0rbt",
+	"ut0rnd",
+	"ut0sort",
+	"ut0stage",
+	"ut0ut",
+	"ut0vec",
+	"ut0wqueue",
+	"zipdecompress",
+};
+
+static constexpr size_t	n_auto = UT_ARR_SIZE(auto_event_names);
+extern PSI_memory_key   auto_event_keys[n_auto];
+extern PSI_memory_info  pfs_info_auto[n_auto];
+
+/** Compute whether a string begins with a given prefix, compile-time.
+Has to work recursively due to C++11 constexpr constraints (C++14 is
+more flexible).
+@param[in]	a	first string, taken to be zero-terminated
+@param[in]	b	second string (prefix to search for)
+@param[in]	b_len	length in bytes of second string
+@param[in]	index	character index to start comparing at
+@return whether b is a prefix of a */
+constexpr bool
+ut_string_begins_with(
+	const char*	a,
+	const char*	b,
+	size_t		b_len,
+	size_t		index = 0)
+{
+	return(index == b_len
+	       || (a[index] == b[index]
+		   && ut_string_begins_with(a, b, b_len, index + 1)));
+}
+
+/** Find the length of the filename without its file extension.
+Has to work recursively due to C++11 constexpr constraints (C++14 is
+more flexible).
+@param[in]	file	filename, with extension but without directory
+@param[in]	index	character index to start scanning for extension
+			separator at
+@return length, in bytes */
+constexpr size_t
+ut_len_without_extension(const char* file, size_t index = 0)
+{
+	return((file[index] == '\0' || file[index] == '.')
+	       ? index
+	       : ut_len_without_extension(file, index + 1));
+}
+
+/** Retrieve a memory key (registered with PFS), given the file name of the
+caller.
+Has to work recursively due to C++11 constexpr constraints (C++14 is
+more flexible).
+@param[in]	file	portion of the filename - basename, with extension
+@param[in]	len	length of the filename to check for
+@param[in]	index	index of first PSI key to check
 @return registered memory key or PSI_NOT_INSTRUMENTED if not found */
-PSI_memory_key
-ut_new_get_key_by_file(
-	const char*	file);
+constexpr PSI_memory_key
+ut_new_get_key_by_base_file(const char* file, size_t len, size_t index = 0)
+{
+	return((index == n_auto)
+	       ? PSI_NOT_INSTRUMENTED
+	       : (ut_string_begins_with(auto_event_names[index], file, len)
+		  ? auto_event_keys[index]
+		  : ut_new_get_key_by_base_file(file, len, index + 1)));
+}
+
+/** Retrieve a memory key (registered with PFS), given the file name of
+the caller.
+@param[in]	file	portion of the filename - basename, with extension
+@return registered memory key or PSI_NOT_INSTRUMENTED if not found */
+constexpr PSI_memory_key
+ut_new_get_key_by_file(const char *file)
+{
+	return(ut_new_get_key_by_base_file(
+		file, ut_len_without_extension(file)));
+}
+
+#define UT_NEW_THIS_FILE_PSI_KEY ut_new_get_key_by_file(MY_BASENAME)
 
 #endif /* UNIV_PFS_MEMORY */
 
@@ -274,7 +528,7 @@ public:
 		: m_oom_fatal(other.is_oom_fatal())
 	{
 #ifdef UNIV_PFS_MEMORY
-		const PSI_memory_key	other_key = other.get_mem_key(NULL);
+		const PSI_memory_key	other_key = other.get_mem_key();
 
 		m_key = (other_key != mem_key_std)
 			? other_key
@@ -330,7 +584,7 @@ public:
 	allocate(
 		size_type	n_elements,
 		const_pointer	hint = NULL,
-		const char*	file = NULL,
+		PSI_memory_key	key = PSI_NOT_INSTRUMENTED,
 		bool		set_to_zero = false,
 		bool		throw_on_error = true)
 	{
@@ -390,7 +644,7 @@ public:
 #ifdef UNIV_PFS_MEMORY
 		ut_new_pfx_t*	pfx = static_cast<ut_new_pfx_t*>(ptr);
 
-		allocate_trace(total_bytes, file, pfx);
+		allocate_trace(total_bytes, key, pfx);
 
 		return(reinterpret_cast<pointer>(pfx + 1));
 #else
@@ -470,13 +724,13 @@ public:
 	no longer needed.
 	@param[in,out]	ptr		old pointer to reallocate
 	@param[in]	n_elements	new number of elements to allocate
-	@param[in]	file		file name of the caller
+	@param[in]	key		Performance schema key to allocate under
 	@return newly allocated memory */
 	pointer
 	reallocate(
 		void*		ptr,
 		size_type	n_elements,
-		const char*	file)
+		PSI_memory_key	key)
 	{
 		if (n_elements == 0) {
 			deallocate(static_cast<pointer>(ptr));
@@ -484,7 +738,7 @@ public:
 		}
 
 		if (ptr == NULL) {
-			return(allocate(n_elements, NULL, file, false, false));
+			return(allocate(n_elements, NULL, key, false, false));
 		}
 
 		if (n_elements > max_size()) {
@@ -528,7 +782,7 @@ public:
 		deallocate_trace(pfx_new);
 
 		/* pfx_new is set here to describe the new block. */
-		allocate_trace(total_bytes, file, pfx_new);
+		allocate_trace(total_bytes, key, pfx_new);
 
 		return(reinterpret_cast<pointer>(pfx_new + 1));
 	}
@@ -539,14 +793,14 @@ public:
 	throw exceptions. After successfull completion the returned pointer
 	must be passed to delete_array() when no longer needed.
 	@param[in]	n_elements	number of elements to allocate
-	@param[in]	file		file name of the caller
+	@param[in]	key		Performance schema key to allocate under
 	@return pointer to the first allocated object or NULL */
 	pointer
 	new_array(
 		size_type	n_elements,
-		const char*	file)
+		PSI_memory_key	key)
 	{
-		T*	p = allocate(n_elements, NULL, file, false, false);
+		T*	p = allocate(n_elements, NULL, key, false, false);
 
 		if (p == NULL) {
 			return(NULL);
@@ -623,7 +877,7 @@ public:
 
 #ifdef UNIV_PFS_MEMORY
 		if (ptr != NULL) {
-			allocate_trace(n_bytes, NULL, pfx);
+			allocate_trace(n_bytes, PSI_NOT_INSTRUMENTED, pfx);
 		}
 #else
 		pfx->m_size = n_bytes;
@@ -655,32 +909,9 @@ public:
 	@param[in]	file	file name of the caller or NULL if unknown
 	@return performance schema key */
 	PSI_memory_key
-	get_mem_key(
-		const char*	file) const
+	get_mem_key() const
 	{
-		if (m_key != PSI_NOT_INSTRUMENTED) {
-			return(m_key);
-		}
-
-		if (file == NULL) {
-			return(mem_key_std);
-		}
-
-		/* e.g. "btr0cur", derived from "/path/to/btr0cur.cc" */
-		char		keyname[FILENAME_MAX];
-		const size_t	len = ut_basename_noext(file, keyname,
-							sizeof(keyname));
-		/* If sizeof(keyname) was not enough then the output would
-		be truncated, assert that this did not happen. */
-		ut_a(len < sizeof(keyname));
-
-		const PSI_memory_key	key = ut_new_get_key_by_file(keyname);
-
-		if (key != PSI_NOT_INSTRUMENTED) {
-			return(key);
-		}
-
-		return(mem_key_other);
+		return(m_key);
 	}
 
 private:
@@ -722,22 +953,22 @@ private:
 	void
 	allocate_trace(
 		size_t		size,
-		const char*	file,
+		PSI_memory_key	key,
 		ut_new_pfx_t*	pfx)
 	{
-		const PSI_memory_key	key = get_mem_key(file);
+		pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(
+			key, size, & pfx->m_owner);
 
-		pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, & pfx->m_owner);
 		pfx->m_size = size;
 	}
 
 	/** Trace a memory deallocation.
 	@param[in]	pfx	info for the deallocation */
 	void
-	deallocate_trace(
-		const ut_new_pfx_t*	pfx)
+	deallocate_trace(const ut_new_pfx_t* pfx)
 	{
-		PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size, pfx->m_owner);
+		PSI_MEMORY_CALL(memory_free)(
+			pfx->m_key, pfx->m_size, pfx->m_owner);
 	}
 
 	/** Performance schema key. */
@@ -750,8 +981,7 @@ private:
 	/** Assignment operator, not used, thus disabled (private). */
 	template <class U>
 	void
-	operator=(
-		const ut_allocator<U>&);
+	operator=(const ut_allocator<U>&);
 
 	/** A flag to indicate whether out of memory (OOM) error is considered
 	fatal.  If true, it is fatal. */
@@ -801,7 +1031,7 @@ pointer must be passed to UT_DELETE() when no longer needed.
 	object if the passed in pointer is NULL, e.g. if allocate() has
 	failed to allocate memory and has returned NULL. */ \
 	::new(ut_allocator<byte>(key).allocate( \
-		sizeof expr, NULL, __FILE__, false, false)) expr
+		sizeof expr, NULL, key, false, false)) expr
 
 /** Allocate, trace the allocation and construct an object.
 Use this macro instead of 'new' within InnoDB and instead of UT_NEW()
@@ -849,7 +1079,7 @@ The returned pointer must be passed to UT_DELETE_ARRAY().
 @param[in]	key		performance schema memory tracing key
 @return pointer to the first allocated object or NULL */
 #define UT_NEW_ARRAY(type, n_elements, key) \
-	ut_allocator<type>(key).new_array(n_elements, __FILE__)
+	ut_allocator<type>(key).new_array(n_elements, UT_NEW_THIS_FILE_PSI_KEY)
 
 /** Allocate and account 'n_elements' objects of type 'type'.
 Use this macro to allocate memory within InnoDB instead of 'new[]' and
@@ -880,28 +1110,28 @@ ut_delete_array(
 
 #define ut_malloc(n_bytes, key)		static_cast<void*>( \
 	ut_allocator<byte>(key).allocate( \
-		n_bytes, NULL, __FILE__, false, false))
+		n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false, false))
 
 #define ut_zalloc(n_bytes, key)		static_cast<void*>( \
 	ut_allocator<byte>(key).allocate( \
-		n_bytes, NULL, __FILE__, true, false))
+		n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
 
 #define ut_malloc_nokey(n_bytes)	static_cast<void*>( \
 	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).allocate( \
-		n_bytes, NULL, __FILE__, false, false))
+		n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false, false))
 
 #define ut_zalloc_nokey(n_bytes)	static_cast<void*>( \
 	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).allocate( \
-		n_bytes, NULL, __FILE__, true, false))
+		n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
 
 #define ut_zalloc_nokey_nofatal(n_bytes)	static_cast<void*>( \
 	ut_allocator<byte>(PSI_NOT_INSTRUMENTED). \
 		set_oom_not_fatal(). \
-		allocate(n_bytes, NULL, __FILE__, true, false))
+		allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
 
 #define ut_realloc(ptr, n_bytes)	static_cast<void*>( \
 	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).reallocate( \
-		ptr, n_bytes, __FILE__))
+		ptr, n_bytes, UT_NEW_THIS_FILE_PSI_KEY))
 
 #define ut_free(ptr)	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).deallocate( \
 	reinterpret_cast<byte*>(ptr))
