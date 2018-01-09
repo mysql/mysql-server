@@ -138,7 +138,7 @@ InnoDB:
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/components/services/log_shared.h"
+#include "my_basename.h"
 
 #include "os0proc.h"
 #include "os0thread.h"
