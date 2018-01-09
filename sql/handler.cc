@@ -8262,7 +8262,6 @@ int binlog_log_row(TABLE* table,
   {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
     {
-      bitmap_set_all(table->read_set);
       if (before_record && after_record)
       {
         size_t length= table->s->reclength;
