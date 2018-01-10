@@ -54,6 +54,3 @@ START SLAVE;
 
 --let $rpl_skip_sync=1
 --source include/rpl_end.inc
-
-# Remove this line after Bug#24702091 is fixed
---source include/force_restart.inc

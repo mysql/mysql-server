@@ -303,5 +303,5 @@ RESET SLAVE ALL;
 DROP TABLE t1;
 --source include/rpl_end.inc
 
-# Remove this line after Bug#24702091 is fixed
+# The above two assert_grep.inc sources require to restart server.
 --source include/force_restart.inc
