@@ -1973,6 +1973,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     */
     if (all && thd->rpl_unflag_detached_engine_ha_data())
     {
+      DBUG_PRINT("info", ("query='%s'",
+                          thd->query().str));
       DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT);
       DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,11 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
       goto err;
     }
 
+    /*
+      The 'has_gtid_consistency_violaion' must not be set,
+      since 'set_gtid_next' is inovked outside a transaction.
+    */
+    DBUG_ASSERT(!thd->has_gtid_consistency_violation);
     thd->variables.gtid_next.set_anonymous();
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
     thd->owned_gtid.gno= 0;

@@ -2560,14 +2560,14 @@ static inline void binlog_gtid_end_transaction(THD *thd)
     thd->lex->sql_command == SQLCOM_* clause; for temporary
     tables they match only thd->lex->sql_command == SQLCOM_*.)
   */
-  if ((thd->lex->sql_command == SQLCOM_COMMIT ||
-       (thd->slave_thread &&
-        (thd->lex->sql_command == SQLCOM_XA_COMMIT ||
-         thd->lex->sql_command == SQLCOM_XA_ROLLBACK)) ||
-       stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
-       ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
-         thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
-        !thd->in_multi_stmt_transaction_mode())))
+  if (thd->lex->sql_command == SQLCOM_COMMIT ||
+      thd->lex->sql_command == SQLCOM_XA_PREPARE ||
+      thd->lex->sql_command == SQLCOM_XA_COMMIT ||
+      thd->lex->sql_command == SQLCOM_XA_ROLLBACK ||
+      stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
+      ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+        thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
+       !thd->in_multi_stmt_transaction_mode()))
     (void) mysql_bin_log.gtid_end_transaction(thd);
 
   DBUG_VOID_RETURN;
