@@ -1065,7 +1065,6 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
 {
   Prealloced_array<char *, 100> my_args(key_memory_persisted_variables);
   MEM_ROOT alloc;
-  char *ptr, **res;
 
   if (*argc < 2 || no_defaults || !persisted_globals_load)
     return 0;
