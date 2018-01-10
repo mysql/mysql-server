@@ -77,9 +77,9 @@ wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	procs_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	role_edges	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	default_roles	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1

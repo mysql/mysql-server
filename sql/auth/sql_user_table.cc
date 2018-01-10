@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -907,9 +907,9 @@ bool acl_end_trans_and_close_tables(THD *thd,
       acquire MDL on privilege tables after the release_transactional_locks()
       and before acl_reload/grant_reload() below.
     */
-    (void) acl_reload(thd);
-    (void) grant_reload(thd);
-    (void) roles_init_from_tables(thd);
+    (void) acl_reload(thd, true);
+    (void) grant_reload(thd, true);
+    (void) roles_init_from_tables(thd, true);
   }
   else if (notify_htons)
   {

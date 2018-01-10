@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,6 +161,9 @@ void acl_insert_db(const char *user, const char *host, const char *db,
 bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
                        bool expired);
 void clear_and_init_db_cache();
+bool acl_reload(THD *thd, bool locked= false);
+bool grant_reload(THD *thd, bool locked= false);
+bool roles_init_from_tables(THD *thd, bool locked= false);
 
 /* sql_user_table */
 ulong get_access(TABLE *form,uint fieldnr, uint *next_field);

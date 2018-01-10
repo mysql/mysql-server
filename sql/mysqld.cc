@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -511,7 +511,7 @@
 #include "sql/sql_parse.h"              // check_stack_overrun
 #include "sql/sql_plugin.h"             // opt_plugin_dir
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_reload.h"             // reload_acl_and_cache
+#include "sql/sql_reload.h"             // handle_reload_request
 #include "sql/sql_restart_server.h"     // is_mysqld_managed
 #include "sql/sql_servers.h"
 #include "sql/sql_show.h"
@@ -2960,10 +2960,10 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
       {
         int not_used;
         mysql_print_status();   // Print some debug info
-        reload_acl_and_cache(NULL,
-                             (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-                              REFRESH_GRANT | REFRESH_THREADS | REFRESH_HOSTS),
-                             NULL, &not_used); // Flush logs
+        handle_reload_request(NULL,
+                              (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
+                               REFRESH_GRANT | REFRESH_THREADS | REFRESH_HOSTS),
+                              NULL, &not_used); // Flush logs
         // Reenable query logs after the options were reloaded.
         query_logger.set_handlers(log_output_options);
       }

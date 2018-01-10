@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -728,12 +728,10 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
 bool hostname_requires_resolving(const char *hostname);
 bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
-bool acl_reload(THD *thd);
 bool check_engine_type_for_acl_table(THD *thd);
 bool grant_init(bool skip_grant_tables);
 void grant_free(void);
-bool grant_reload(THD *thd);
-bool roles_init_from_tables(THD *thd);
+bool reload_acl_caches(THD *thd);
 ulong acl_get(THD *thd, const char *host, const char *ip,
               const char *user, const char *db, bool db_is_pattern);
 bool is_acl_user(THD *thd, const char *host, const char *user);
