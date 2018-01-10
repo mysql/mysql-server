@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ struct NdbError;
 namespace AQP{
   class Join_plan;
   class Table_access;
-};
+}
 
 void ndbcluster_build_key_map(const NdbDictionary::Table* table, 
 			      const NDB_INDEX_DATA& index,
