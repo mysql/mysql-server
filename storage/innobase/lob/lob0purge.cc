@@ -334,11 +334,7 @@ purge(
 	page_no_t first_page_no = ref.page_no();
 	page_id_t page_id(space_id, first_page_no);
 	page_size_t page_size(dict_table_page_size(index->table));
-
-	first_page_t first(mtr, index);
-	first.load_x(page_id, page_size);
-
-	page_type_t page_type = first.get_page_type();
+	page_type_t page_type = first_page_t::get_page_type(index, page_id, page_size);
 
 	if (page_type == FIL_PAGE_TYPE_ZBLOB
 	    || page_type == FIL_PAGE_TYPE_BLOB
@@ -348,6 +344,9 @@ purge(
 		free_blob.destroy();
 		DBUG_VOID_RETURN;
 	}
+
+	first_page_t first(mtr, index);
+	first.load_x(page_id, page_size);
 
 	if (page_type == FIL_PAGE_TYPE_ZLOB_FIRST) {
 		z_purge(ctx, index, trxid, undo_no, ref, rec_type);

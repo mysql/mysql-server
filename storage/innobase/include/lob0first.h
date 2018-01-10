@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -517,6 +517,26 @@ struct first_page_t : public basic_page_t
 	/** Validate the first page. */
 	bool validate() const;
 #endif /* UNIV_DEBUG */
+
+	ulint get_page_type()
+	{
+		return(basic_page_t::get_page_type());
+	}
+
+	static ulint get_page_type(
+		dict_index_t*	index,
+		const page_id_t&	page_id,
+		const page_size_t&	page_size)
+	{
+		mtr_t	local_mtr;
+		mtr_start(&local_mtr);
+		first_page_t first(&local_mtr, index);
+		first.load_x(page_id, page_size);
+		page_type_t page_type = first.get_page_type();
+		mtr_commit(&local_mtr);
+		return(page_type);
+	}
+
 };
 
 }; /* namespace lob */
