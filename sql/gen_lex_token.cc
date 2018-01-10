@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -537,9 +537,7 @@ int main(int, char **)
     return 1;
   }
 
-  puts("/*");
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2016"));
-  puts("*/");
+  puts(ORACLE_GPL_COPYRIGHT_NOTICE("2016"));
 
   printf("/*\n");
   printf("  This file is generated, do not edit.\n");
