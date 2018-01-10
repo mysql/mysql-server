@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,6 +88,18 @@ public:
   */
   virtual bool is_dd_table_name(const String_type &schema_name,
                                 const String_type &table_name) const = 0;
+
+  /**
+    Check if given table name is a system table name.
+
+    @param schema_name    Schema name to check.
+    @param table_name     Table name to check.
+
+    @returns true -  If given table name is a system table.
+    @returns false - If table name is not a system table.
+  */
+  virtual bool is_system_table_name(const String_type &schema_name,
+                                    const String_type &table_name) const = 0;
 
   /**
     Get the error code representing the type name string for a dictionary
