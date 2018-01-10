@@ -14,7 +14,7 @@ my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
 my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 my $test_bin = my_find_bin($bindir,
-		           ["runtime_output_directory", "bin"],
+		           ["storage/ndb/test/ndbapi", "bin"],
                            $name, NOT_REQUIRED);
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
