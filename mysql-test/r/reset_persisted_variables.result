@@ -67,3 +67,17 @@ SET GLOBAL long_query_time= DEFAULT,
 max_connections= DEFAULT, max_heap_table_size= DEFAULT,
 slave_net_timeout= DEFAULT, sort_buffer_size= DEFAULT,
 join_buffer_size= DEFAULT;
+#
+# Bug #27264789: CONCURRENT EXECUTION OF SET/RESET PERSIST CALL CRASHES SERVER
+#
+SET DEBUG_SYNC='in_set_persist_variables SIGNAL set WAIT_FOR go';
+SET PERSIST max_connections= 38;;
+SET DEBUG_SYNC='now WAIT_FOR set';
+RESET PERSIST IF EXISTS max_connections;;
+SET DEBUG_SYNC='now SIGNAL go';
+SELECT count(*) FROM performance_schema.persisted_variables
+WHERE variable_name = 'max_connections';
+count(*)
+0
+SET DEBUG_SYNC='RESET';
+SET GLOBAL max_connections=DEFAULT;
