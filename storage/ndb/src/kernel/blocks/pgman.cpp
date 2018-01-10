@@ -2330,8 +2330,8 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   Ptr<File_entry> file_ptr;
   Ptr<GlobalPage> gptr;
   File_map::ConstDataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, ptr.p->m_file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, ptr.p->m_file_no));
   m_file_entry_pool.getPtr(file_ptr, *it.data);
   Uint32 fd = file_ptr.p->m_fd;
 
@@ -2819,8 +2819,8 @@ Pgman::alloc_data_file(Uint32 file_no, Uint32 version)
   }
 
   File_map::DataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, file_no));
   if (* it.data != RNIL)
   {
     D("alloc_data_file: RNIL");
@@ -2841,8 +2841,8 @@ Pgman::map_file_no(Uint32 file_no, Uint32 fd)
 {
   Ptr<File_entry> file_ptr;
   File_map::DataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, file_no));
   D("map_file_no:" << V(file_no) << V(fd));
 
   m_file_entry_pool.getPtr(file_ptr, *it.data);
@@ -2855,8 +2855,8 @@ Pgman::free_data_file(Uint32 file_no, Uint32 fd)
 {
   Ptr<File_entry> file_ptr;
   File_map::DataBufferIterator it;
-  m_file_map.first(it);
-  m_file_map.next(it, file_no);
+  ndbrequire(m_file_map.first(it));
+  ndbrequire(m_file_map.next(it, file_no));
   m_file_entry_pool.getPtr(file_ptr, *it.data);
   
   if (fd == RNIL)
