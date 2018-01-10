@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,35 +30,38 @@
 
 #define JAM_FILE_ID 426
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_PGMAN 1
+//#define DEBUG_EXTENT_BITS 1
+//#define DEBUG_EXTENT_BITS_HASH 1
+//#define DEBUG_UNDO 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_PGMAN 1
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_EXTENT_BITS 1
 #ifdef DEBUG_EXTENT_BITS
 #define DEB_EXTENT_BITS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTENT_BITS(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_EXTENT_BITS_HASH 1
 #ifdef DEBUG_EXTENT_BITS_HASH
 #define DEB_EXTENT_BITS_HASH(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTENT_BITS_HASH(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_UNDO 1
 #ifdef DEBUG_UNDO
 #define DEB_UNDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -1503,7 +1506,7 @@ Dbtup::disk_page_free(Signal *signal,
     {
       g_eventLogger->info(
         "(%u)disk_page_free crash:tab(%u,%u):%u,page(%u,%u).%u.%u"
-        ",gci:%u,rowid(%u,%u)",
+        ",gci:%u,row(%u,%u)",
                  instance(),
                  fragPtrP->fragTableId,
                  fragPtrP->fragmentId,
@@ -1528,7 +1531,7 @@ Dbtup::disk_page_free(Signal *signal,
                              alloc_size);
     
     DEB_PGMAN((
-      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u.%u,gci:%u,rowid(%u,%u)"
+      "(%u)disk_page_free:tab(%u,%u):%u,page(%u,%u).%u.%u,gci:%u,row(%u,%u)"
       ", lsn=%llu",
                instance(),
                fragPtrP->fragTableId,
@@ -1820,6 +1823,45 @@ Dbtup::verify_undo_log_execution()
   ndbrequire(!f_undo.m_in_intermediate_log_record);
 }
 
+/**
+ * Preface:
+ * With parallel undo log application, many undo records can be sent to the
+ * LDM threads without waiting for the LDM threads to finish applying them.
+ *
+ * Before applying a log record, we must fetch the page (get_page) and
+ * sometimes, if the page is not available immediately, we have to wait for it
+ * before the log record can be applied. Waiting is done by periodically
+ * checking if the page is available (do_busy_loop()).
+ * However, between the checks, a subsequent log record belonging to the same
+ * page might get processed. This is because multiple log records are sent from
+ * LGMAN to the LDM threads continuously without waiting for the LDM threads to
+ * finish applying them. (WL #8478)
+ * This subsequent log record will try to get the page as well and might
+ * succeed. This will result in unordered application of the undo records.
+ *
+ * The solution for this is to order the undo records belonging to a page.
+ *
+ * Algorithm for ordering record types which require disk page requests:
+ * (UNDO_TUP_ALLOC, UNDO_TUP_UPDATE, UNDO_TUP_UPDATE_PART, UNDO_TUP_UPDATE_PART
+ * , UNDO_TUP_FREE, UNDO_TUP_FREE_PART)
+ *
+ * c_undo_page_hash holds all the pages (of type Pending_undo_page) which
+ * have requests pending. Each Pending_undo_page has a list of pending undo
+ * records (of type Apply_undo) for that page.
+ *
+ * First, the page to which the current record being processed belongs is
+ * searched in the hash table(c_undo_page_hash).
+ * If it exists, the current undo record is added to the list of pending undo
+ * records of the page.
+ *
+ * If the page isn't present in the hash table, it means there are no pending
+ * requests for that page and the page is requested from PGMAN.
+ * If the page is not available at the moment, it is added to the hash table
+ * and the current undo record being processed is added to the pending list of
+ * the page.
+ * When the page is available immediately, the callback which applies the
+ * undo records (disk_restart_undo_callback()) is executed.
+ */
 void
 Dbtup::disk_restart_undo(Signal* signal,
                          Uint64 lsn,
@@ -1990,6 +2032,7 @@ Dbtup::disk_restart_undo(Signal* signal,
   case File_formats::Undofile::UNDO_END:
     jam();
     f_undo_done = true;
+    ndbrequire(c_pending_undo_page_hash.getCount() == 0);
     return;
   default:
     ndbrequire(false);
@@ -2001,20 +2044,91 @@ Dbtup::disk_restart_undo(Signal* signal,
   preq.m_callback.m_callbackFunction = 
     safe_cast(&Dbtup::disk_restart_undo_callback);
 
+  Ptr<Pending_undo_page> cur_undo_record_page;
+  cur_undo_record_page.i = RNIL;
+
+  if (isNdbMtLqh())
+  {
+    Pending_undo_page key(preq.m_page.m_file_no, preq.m_page.m_page_no);
+
+    if (c_pending_undo_page_hash.find(cur_undo_record_page, key))
+    {
+      /**
+       *  Page of the current undo record being processed already has a pending
+       *  request.
+       */
+      Ptr<Apply_undo> cur_undo_record;
+      ndbrequire(c_apply_undo_pool.seize(cur_undo_record));
+
+      f_undo.m_magic = cur_undo_record.p->m_magic;
+      *(cur_undo_record.p) = f_undo;
+
+      LocalApply_undo_list undoList(c_apply_undo_pool,
+                                    cur_undo_record_page.p->m_apply_undo_head);
+      // add to Apply_undo list of the page it belongs to
+      undoList.addLast(cur_undo_record);
+      DEB_UNDO(("LDM(%u) WAIT Page:%u File:%u count:%u lsn:%llu",
+          instance(), preq.m_page.m_page_no, preq.m_page.m_file_no,
+          undoList.getCount(), f_undo.m_lsn));
+      ndbrequire(undoList.getCount() <= MAX_PENDING_UNDO_RECORDS);
+      return;
+    }
+
+    // page doesn't have any pending request
+    // allocate for cur_undo_record_page from pool
+    ndbrequire(c_pending_undo_page_pool.seize(cur_undo_record_page));
+    preq.m_callback.m_callbackData = cur_undo_record_page.i;
+  }
+
   int flags = Page_cache_client::UNDO_REQ;
   Page_cache_client pgman(this, c_pgman);
   int res= pgman.get_page(signal, preq, flags);
+
   jamEntry();
+
   switch(res)
   {
   case 0:
     jam();
     m_immediate_flag = false;
+
+    if (isNdbMtLqh())
+    {
+      //initialize page, add to hash table
+      new(cur_undo_record_page.p)
+          Pending_undo_page(preq.m_page.m_file_no, preq.m_page.m_page_no);
+      c_pending_undo_page_hash.add(cur_undo_record_page);
+
+      //add undo record to list
+      Ptr<Apply_undo> cur_undo_record;
+      ndbrequire(c_apply_undo_pool.seize(cur_undo_record));
+
+      f_undo.m_magic = cur_undo_record.p->m_magic;
+      *(cur_undo_record.p) = f_undo;
+
+      LocalApply_undo_list undoList(c_apply_undo_pool,
+                                    cur_undo_record_page.p->m_apply_undo_head);
+      undoList.addLast(cur_undo_record);
+      DEB_UNDO(("LDM(%u) FIRST WAIT Page:%u File:%u count:%u lsn:%llu",
+          instance(), preq.m_page.m_page_no, preq.m_page.m_file_no,
+          undoList.getCount(), f_undo.m_lsn));
+
+    }
     break; // Wait for callback
   case -1:
     ndbrequire(false);
     break;
   default:
+    DEB_UNDO(("LDM(%u) DIRECT_EXECUTE Page:%u lsn:%llu",
+                        instance(),
+                        preq.m_page.m_page_no,
+                        f_undo.m_lsn));
+    if (isNdbMtLqh())
+    {
+      c_pending_undo_page_pool.release(cur_undo_record_page);
+      // no page stored in hash, so i = RNIL
+      preq.m_callback.m_callbackData = RNIL;
+    }
     jam();
     /**
      * The m_immediate_flag variable stays false except for the time
@@ -2029,12 +2143,13 @@ Dbtup::disk_restart_undo(Signal* signal,
 }
 
 void
-Dbtup::disk_restart_undo_next(Signal* signal, Uint32 applied)
+Dbtup::disk_restart_undo_next(Signal* signal, Uint32 applied, Uint32 count_pending)
 {
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
   /* Flag indicating whether UNDO log was applied. */
   signal->theData[1] = applied;
-  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
+  signal->theData[2] = count_pending;
+  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 3, JBB);
 }
 
 /**
@@ -2176,8 +2291,26 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
 }
 
 void
+Dbtup::release_undo_record(Ptr<Apply_undo>& undo_record, bool pending)
+{
+  if (pending)
+  {
+    c_apply_undo_pool.release(undo_record);
+  }
+}
+
+/**
+ * Algorithm for applying undo records:
+ *
+ * The page_i passed is searched in the hashmap. If it is present,
+ * it means there are pending undo records for the page, and they are processed
+ * one by one from the list.
+ * If it isn't present, the current undo record being processed in this signal
+ * execution is the one which should be applied (f_undo).
+ */
+void
 Dbtup::disk_restart_undo_callback(Signal* signal,
-				  Uint32 id, 
+				  Uint32 page_i,
 				  Uint32 page_id)
 {
   jamEntry();
@@ -2188,8 +2321,34 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   pagePtr.p = reinterpret_cast<Page*>(gpage.p);
   bool immediate_flag = m_immediate_flag;
   m_immediate_flag = false;
-
+  Pending_undo_page* pendingPage = NULL;
   Apply_undo* undo = &f_undo;
+  Uint32 count_pending = 1;
+
+  bool pending = false;
+
+  if (isNdbMtLqh())
+  {
+    pending = (page_i != RNIL);
+
+    if (pending)
+    {
+      jam();
+      pendingPage = c_pending_undo_page_hash.getPtr(page_i);
+      // page has outstanding undo records
+      LocalApply_undo_list undoList(c_apply_undo_pool,
+                                    pendingPage->m_apply_undo_head);
+      count_pending = undoList.getCount();
+      DEB_UNDO(("LDM(%u) EXECUTE LIST CALLBACK Page:%u count:%u",
+                              instance(),
+                              pendingPage->m_page_no,
+                              count_pending));
+    }
+    else
+    {
+      DEB_UNDO(("LDM(%u) PAGE_NOT_FOUND_HASH", instance()));
+    }
+  }
 
   /**
    * Before we apply the UNDO record we need to discover which table
@@ -2269,8 +2428,25 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   
   Uint32 tableId= pagePtr.p->m_table_id;
   Uint32 fragId = pagePtr.p->m_fragment_id;
+  Uint32 applied = 0;
 
+  if (!pending) // direct execute, page not present in hash table.
   {
+    ndbrequire(count_pending == 1);
+  }
+
+  for (Uint32 i = 1; i <= count_pending; i++)
+  {
+    Ptr<Apply_undo> pending_undo;
+    if (pending)
+    {
+      //Remove, process, release all Apply_undo from the list.
+      LocalApply_undo_list undoList(c_apply_undo_pool,
+                                    pendingPage->m_apply_undo_head);
+      undoList.removeFirst(pending_undo);
+      undo = pending_undo.p;
+    }
+
     /**
      * Ensure that the Page entry in PGMAN has the correct table id
      * fragment id set if it will be used in a future LCP.
@@ -2282,190 +2458,208 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     preq.m_fragment_id = fragId;
     Page_cache_client pgman(this, c_pgman);
     ndbrequire(pgman.init_page_entry(preq));
-  }
-
-  if (tableId >= cnoOfTablerec)
-  {
-    jam();
-    DEB_UNDO(("(%u)UNDO table> %u, page(%u,%u).%u",
-             instance(),
-             tableId,
-             undo->m_key.m_file_no,
-             undo->m_key.m_page_no,
-             undo->m_key.m_page_idx));
-    disk_restart_undo_next(signal);
-    return;
-  }
-  undo->m_table_ptr.i = tableId;
-  ptrCheckGuard(undo->m_table_ptr, cnoOfTablerec, tablerec);
   
-  if (! (undo->m_table_ptr.p->tableStatus == DEFINED && 
-         undo->m_table_ptr.p->m_no_of_disk_attributes))
-  {
-    jam();
-    DEB_UNDO(("(%u)UNDO !defined (%u) on page(%u,%u).%u",
-              instance(),
-              tableId,
-              undo->m_key.m_file_no,
-              undo->m_key.m_page_no,
-              undo->m_key.m_page_idx));
-    disk_restart_undo_next(signal);
-    return;
-  }
-
-  Uint32 create_table_version = pagePtr.p->m_create_table_version;
-  Uint32 page_version = pagePtr.p->m_ndb_version;
-
-  ndbrequire(page_version >= NDB_DISK_V2);
-  if (create_table_version !=
-        c_lqh->getCreateSchemaVersion(tableId))
-  {
-    jam();
-    DEB_UNDO(("UNDO fragment null %u/%u, old,new=(%u,%u), page(%u,%u).%u",
+    // process the undo record/s
+    if (tableId >= cnoOfTablerec)
+    {
+      jam();
+      DEB_UNDO(("(%u)UNDO table> %u, page(%u,%u).%u",
+               instance(),
                tableId,
-               fragId,
-               create_table_version,
-               c_lqh->getCreateSchemaVersion(tableId),
                undo->m_key.m_file_no,
                undo->m_key.m_page_no,
                undo->m_key.m_page_idx));
-    disk_restart_undo_next(signal);
-    return;
-  }
-
-  getFragmentrec(undo->m_fragment_ptr, fragId, undo->m_table_ptr.p);
-  if(undo->m_fragment_ptr.isNull())
-  {
-    jam();
-    DEB_UNDO(("(%u)UNDO fragment null tab(%u,%u), page(%u,%u).%u",
-              instance(),
-              tableId,
-              fragId,
-              undo->m_key.m_file_no,
-              undo->m_key.m_page_no,
-              undo->m_key.m_page_idx));
-    disk_restart_undo_next(signal);
-    return;
-  }
-
-  Uint64 lsn = 0;
-  Uint32 applied = 0;
-  lsn += pagePtr.p->m_page_header.m_page_lsn_hi;
-  lsn <<= 32;
-  lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
-
-  undo->m_page_ptr = pagePtr;
+      release_undo_record(pending_undo, pending);
+      continue;
+    }
   
-  if (undo->m_lsn <= lsn &&
-      !undo->m_fragment_ptr.p->m_undo_complete)
-  {
-    jam();
+    undo->m_table_ptr.i = tableId;
+    ptrCheckGuard(undo->m_table_ptr, cnoOfTablerec, tablerec);
     
-    applied = 1;
-    /**
-     * Apply undo record
-     */
-    switch(undo->m_type){
-    case File_formats::Undofile::UNDO_TUP_ALLOC:
+    if (! (undo->m_table_ptr.p->tableStatus == DEFINED &&
+           undo->m_table_ptr.p->m_no_of_disk_attributes))
     {
       jam();
-      disk_restart_undo_alloc(undo);
-      break;
-    }
-    case File_formats::Undofile::UNDO_TUP_UPDATE:
-    {
-      jam();
-      disk_restart_undo_update(undo);
-      break;
-    }
-    case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
-    {
-      jam();
-      undo->m_in_intermediate_log_record = false;
-      disk_restart_undo_update_first_part(undo);
-      break;
-    }
-    case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
-    {
-      jam();
-      undo->m_in_intermediate_log_record = true;
-      disk_restart_undo_update_part(undo);
-      break;
-    }
-    case File_formats::Undofile::UNDO_TUP_FREE:
-    {
-      jam();
-      disk_restart_undo_free(undo, true);
-      break;
-    }
-    case File_formats::Undofile::UNDO_TUP_FREE_PART:
-    {
-      jam();
-      undo->m_in_intermediate_log_record = false;
-      disk_restart_undo_free(undo, false);
-      break;
-    }
-    default:
-      ndbrequire(false);
-    }
-
-    if (undo->m_type != File_formats::Undofile::UNDO_TUP_UPDATE_PART)
-    {
-      jam();
-      lsn = undo->m_lsn - 1; // make sure undo isn't run again...
-      Page_cache_client pgman(this, c_pgman);
-      pgman.update_lsn(signal, undo->m_key, lsn);
-      jamEntry();
-      disk_restart_undo_page_bits(signal, undo);
-    }
-  }
-  else
-  {
-    jam();
-    if (!immediate_flag &&
-        undo->m_fragment_ptr.p->m_undo_complete != Fragrecord::UC_CREATE)
-    {
-      jam();
-      /**
-       * See Lemma 1 and Lemma 2 in analysis of extent page
-       * synchronisation at restart.
-       *
-       * We don't need to call this function when immediate
-       * flag since we already applied the first UNDO log
-       * record on the page, there is no need to update
-       * the page bits and the first log record have ensured
-       * that the extent information is already allocated
-       * properly.
-       *
-       * Also we don't go back from when a table was dropped or
-       * created since we are then in territory where an old
-       * incarnation of the table was and we need not handle
-       * those log records.
-       */
-      DEB_UNDO(("(%u)disk_restart_undo_page_bits: page_lsn: %llu"
-                ", undo_lsn: %llu, page(%u,%u).%u",
+      DEB_UNDO(("(%u)UNDO !defined (%u) on page(%u,%u).%u",
                 instance(),
-                lsn,
-                undo->m_lsn,
+                tableId,
                 undo->m_key.m_file_no,
                 undo->m_key.m_page_no,
                 undo->m_key.m_page_idx));
-      disk_restart_undo_page_bits(signal, undo);
+      release_undo_record(pending_undo, pending);
+      continue;
+    }
+
+    Uint32 create_table_version = pagePtr.p->m_create_table_version;
+    Uint32 page_version = pagePtr.p->m_ndb_version;
+
+    ndbrequire(page_version >= NDB_DISK_V2);
+    if (create_table_version !=
+          c_lqh->getCreateSchemaVersion(tableId))
+    {
+      jam();
+      DEB_UNDO(("UNDO fragment null %u/%u, old,new=(%u,%u), page(%u,%u).%u",
+                 tableId,
+                 fragId,
+                 create_table_version,
+                 c_lqh->getCreateSchemaVersion(tableId),
+                 undo->m_key.m_file_no,
+                 undo->m_key.m_page_no,
+                 undo->m_key.m_page_idx));
+      release_undo_record(pending_undo, pending);
+      continue;
+    }
+
+    getFragmentrec(undo->m_fragment_ptr, fragId, undo->m_table_ptr.p);
+    if (undo->m_fragment_ptr.isNull())
+    {
+      jam();
+      DEB_UNDO(("(%u)UNDO fragment null tab(%u,%u), page(%u,%u).%u",
+                instance(),
+                tableId,
+                fragId,
+                undo->m_key.m_file_no,
+                undo->m_key.m_page_no,
+                undo->m_key.m_page_idx));
+      release_undo_record(pending_undo, pending);
+      continue;
+    }
+
+    Uint64 lsn = 0;
+    applied = 0;
+    lsn += pagePtr.p->m_page_header.m_page_lsn_hi;
+    lsn <<= 32;
+    lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
+
+    undo->m_page_ptr = pagePtr;
+
+    if (undo->m_lsn <= lsn &&
+        !undo->m_fragment_ptr.p->m_undo_complete)
+    {
+      jam();
+
+      applied = applied | 1;
+      /**
+       * Apply undo record
+       */
+      switch(undo->m_type){
+      case File_formats::Undofile::UNDO_TUP_ALLOC:
+      {
+        jam();
+        disk_restart_undo_alloc(undo);
+        break;
+      }
+      case File_formats::Undofile::UNDO_TUP_UPDATE:
+      {
+        jam();
+        disk_restart_undo_update(undo);
+        break;
+      }
+      case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
+      {
+        jam();
+        undo->m_in_intermediate_log_record = false;
+        disk_restart_undo_update_first_part(undo);
+        break;
+      }
+      case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
+      {
+        jam();
+        undo->m_in_intermediate_log_record = true;
+        disk_restart_undo_update_part(undo);
+        break;
+      }
+      case File_formats::Undofile::UNDO_TUP_FREE:
+      {
+        jam();
+        disk_restart_undo_free(undo, true);
+        break;
+      }
+      case File_formats::Undofile::UNDO_TUP_FREE_PART:
+      {
+        jam();
+        undo->m_in_intermediate_log_record = false;
+        disk_restart_undo_free(undo, false);
+        break;
+      }
+      default:
+        ndbrequire(false);
+      }
+
+      if (undo->m_type != File_formats::Undofile::UNDO_TUP_UPDATE_PART)
+      {
+        jam();
+        lsn = undo->m_lsn - 1; // make sure undo isn't run again...
+        Page_cache_client pgman(this, c_pgman);
+        pgman.update_lsn(signal, undo->m_key, lsn);
+        jamEntry();
+        disk_restart_undo_page_bits(signal, undo);
+      }
     }
     else
     {
-      DEB_UNDO(("(%u)UNDO ignored: page_lsn: %llu"
-                ", undo_lsn: %llu, page(%u,%u).%u",
-                instance(),
-                lsn,
-                undo->m_lsn,
-                undo->m_key.m_file_no,
-                undo->m_key.m_page_no,
-                undo->m_key.m_page_idx));
+      jam();
+      if (!immediate_flag &&
+          undo->m_fragment_ptr.p->m_undo_complete != Fragrecord::UC_CREATE)
+      {
+        jam();
+        /**
+         * See Lemma 1 and Lemma 2 in analysis of extent page
+         * synchronisation at restart.
+         *
+         * We don't need to call this function when immediate
+         * flag since we already applied the first UNDO log
+         * record on the page, there is no need to update
+         * the page bits and the first log record have ensured
+         * that the extent information is already allocated
+         * properly.
+         *
+         * Also we don't go back from when a table was dropped or
+         * created since we are then in territory where an old
+         * incarnation of the table was and we need not handle
+         * those log records.
+         */
+        DEB_UNDO(("(%u)disk_restart_undo_page_bits: page_lsn: %llu"
+                  ", undo_lsn: %llu, page(%u,%u).%u",
+                  instance(),
+                  lsn,
+                  undo->m_lsn,
+                  undo->m_key.m_file_no,
+                  undo->m_key.m_page_no,
+                  undo->m_key.m_page_idx));
+        disk_restart_undo_page_bits(signal, undo);
+      }
+      else
+      {
+        DEB_UNDO(("(%u)UNDO ignored: page_lsn: %llu"
+                  ", undo_lsn: %llu, page(%u,%u).%u",
+                  instance(),
+                  lsn,
+                  undo->m_lsn,
+                  undo->m_key.m_file_no,
+                  undo->m_key.m_page_no,
+                  undo->m_key.m_page_idx));
+      }
     }
+
+    release_undo_record(pending_undo, pending);
   }
 
-  disk_restart_undo_next(signal, applied);
+  ndbassert(count_pending != 0);
+  if (isNdbMtLqh() && pending)
+  {
+    LocalApply_undo_list undoList(c_apply_undo_pool,
+                                  pendingPage->m_apply_undo_head);
+    DEB_UNDO(("LDM(%u) Page:%u CheckCount:%u Applied:%u", instance(),
+        pendingPage->m_page_no, undoList.getCount(), count_pending));
+    ndbrequire(undoList.getCount() == 0);
+    c_pending_undo_page_hash.remove(page_i);
+    Ptr<Pending_undo_page> rel;
+    rel.p = pendingPage;
+    rel.i = page_i;
+    c_pending_undo_page_pool.release(rel);
+  }
+  disk_restart_undo_next(signal, applied, count_pending);
 }
 
 void

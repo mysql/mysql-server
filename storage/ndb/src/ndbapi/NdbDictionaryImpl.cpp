@@ -1339,6 +1339,9 @@ public:
       DBUG_RETURN(1);
     }
 
+    // Use best compression level in order to shrink as much as possible 
+    const int compression_level = Z_BEST_COMPRESSION;
+ 
     // Compress the data into the newly allocated memory, leave room
     // for the header to be written in front of the packed data
     // NOTE! The compressed_len variables provides the size of
@@ -1347,8 +1350,9 @@ public:
     // potential alignment issues.
     uLongf compressed_len = (uLongf)blob_len;
     const int compress_result =
-        compress((Bytef*) blob + BLOB_HEADER_SZ, &compressed_len,
-                 (Bytef*) data, (uLong)len);
+        compress2((Bytef*) blob + BLOB_HEADER_SZ, &compressed_len,
+                  (Bytef*) data, (uLong)len,
+                  compression_level);
     if (compress_result != Z_OK)
     {
       DBUG_PRINT("error", ("Failed to compress, error: %d", compress_result));

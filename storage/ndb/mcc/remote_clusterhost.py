@@ -85,7 +85,7 @@ class RemoteClusterHost(ABClusterHost):
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         if key_based is False:
             _logger.warning('--> ' + "Enter 1")
-            c.connect(hostname=self.host, username=self.user, password=self.pwd)
+            c.connect(hostname=self.host, username=self.user, password=self.pwd, pkey=None)
         else:
             if (key_file is None):
                 _logger.warning('--> ' + "Enter 2")
@@ -150,6 +150,9 @@ class RemoteClusterHost(ABClusterHost):
         preamble = None
         system = None
         processor = None
+        osver = None
+        osflavor = None
+        hlpstr = None
         try:
             preamble = self.exec_blocking(['uname', '-sp']) #'#'])
         except:
@@ -157,17 +160,74 @@ class RemoteClusterHost(ABClusterHost):
             (system, processor) = self.exec_blocking(['cmd.exe', '/c', 'echo', '%OS%', '%PROCESSOR_ARCHITECTURE%']).split(' ')
             if 'Windows' in system:
                 system = 'Windows'
+                hlpstr = (self.exec_blocking(['cmd.exe', '/c', 'systeminfo'])).split('\n')
+                for line in hlpstr:
+                    if line.startswith("OS Name:" ):
+                        hlp = line.split("OS Name:")[1]
+                        osflavor = hlp.strip()
+                    if line.startswith("OS Version:"):
+                        hlp = line.split("OS Version:")[1]
+                        hlp = hlp.strip()
+                        osver = hlp.split('.')[0]    
+                    if osver and osflavor:
+                        break
+                
         else:
             lc = preamble.count('\n')
             if lc > 1: #There was a prior error which occupies space on top of uname output.
                 preamble = preamble.split('\n')[lc-1]
-                
+
             uname = preamble
             _logger.debug('uname='+uname)
             (system, processor) = uname.split(' ')
             if 'CYGWIN' in system:
                 system = 'CYGWIN'
-        return (system, processor.strip())
+
+            # When issuing single-answer command, like uname -xy, I have to make sure
+            # there was no error when starting console occupying first line of answer. (SunOS/Darwin)
+            # When processing output of CAT looking for specific key, this is not relevant. (Linux)
+            if 'Darwin' in system:
+                system = "Darwin"
+                hlp = self.exec_blocking(['uname', '-r'])
+                lc = hlp.count('\n')
+                if lc > 1:
+                    hlpstr = str(str(((hlp).split('\n')[lc-1])))
+                else:
+                    hlpstr = str(hlp)
+                osver = hlpstr
+                osflavor = "MacOSX"
+
+            if "SunOS" in system:
+                system = "SunOS"
+                hlp = self.exec_blocking(['uname', '-v'])
+                lc = hlp.count('\n')
+                if lc > 1:
+                    hlpstr = str(str(((hlp).split('\n')[lc-1])))
+                else:
+                    hlpstr = str(hlp)
+                osver = hlpstr
+                osflavor = "Solaris"
+
+            if "Linux" in system:
+                system = "Linux"
+                # I assume all Linux flavors will have /etc/os-release file.
+                try:
+                    hlpstr = self.exec_blocking(['test', '-f', '/etc/os-release'])
+                except:
+                    hlpstr = "0"
+                if (hlpstr != "0"):
+                    hlpstr = self.exec_blocking(['cat', '/etc/os-release'])
+                    matched_lines = [line for line in hlpstr.split('\n') if "ID=" in line]
+                    hlp = (str(matched_lines[0]).split("ID=", 1)[1]).strip('"')
+                    osflavor = hlp
+                    matched_lines = [line for line in hlpstr.split('\n') if "VERSION_ID=" in line]
+                    hlp = (str(matched_lines[0]).split("VERSION_ID=", 1)[1]).strip('"')
+                    osver = hlp
+                else:
+                    #Bail out, no file
+                    _logger.warning('OS version (Linux) does not have /etc/os-release file!')
+
+        return (system, processor.strip(), osver, osflavor)
 
     def _exec_pkg_cmdv(self, cmdv):
         """For remote hosts the binary is fist copied over using sftp."""

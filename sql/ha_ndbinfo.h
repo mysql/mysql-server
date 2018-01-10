@@ -29,38 +29,38 @@ class ha_ndbinfo: public handler
 {
 public:
   ha_ndbinfo(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_ndbinfo();
+  ~ha_ndbinfo() override;
 
-  const char *table_type() const { return "NDBINFO"; }
-  ulonglong table_flags() const {
+  const char *table_type() const override { return "NDBINFO"; }
+  ulonglong table_flags() const override {
     return HA_REC_NOT_IN_SEQ | HA_NO_TRANSACTIONS |
            HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
   }
-  ulong index_flags(uint inx, uint part, bool all_parts) const {
+  ulong index_flags(uint, uint, bool) const override {
     return 0;
   }
 
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info,
-             dd::Table *table_def);
+             dd::Table *table_def) override;
 
   int open(const char *name, int mode, uint test_if_locked,
-           const dd::Table *table_def);
-  int close(void);
+           const dd::Table *table_def) override;
+  int close(void) override;
 
-  int rnd_init(bool scan);
-  int rnd_end();
-  int rnd_next(uchar *buf);
-  int rnd_pos(uchar *buf, uchar *pos);
-  void position(const uchar *record);
-  int info(uint);
+  int rnd_init(bool scan) override;
+  int rnd_end() override;
+  int rnd_next(uchar *buf) override;
+  int rnd_pos(uchar *buf, uchar *pos) override;
+  void position(const uchar *record) override;
+  int info(uint) override;
 
-  THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-                             enum thr_lock_type lock_type) {
+  THR_LOCK_DATA **store_lock(THD *, THR_LOCK_DATA **to,
+                             enum thr_lock_type) override {
     return to;
   }
 
-  bool low_byte_first() const {
+  bool low_byte_first() const override {
     // Data will be returned in machine format
 #ifdef WORDS_BIGENDIAN
     return false;
@@ -69,9 +69,9 @@ public:
 #endif
   }
 
-  bool get_error_message(int error, String *buf);
+  bool get_error_message(int error, String *buf) override;
 
-  virtual ha_rows estimate_rows_upper_bound() {
+  ha_rows estimate_rows_upper_bound() override {
     // Estimate "many" rows to be returned so that filesort
     // allocates buffers properly.
     // Default impl. for this function is otherwise 10 rows
@@ -83,7 +83,7 @@ private:
   void unpack_record(uchar *dst_row);
 
   bool is_open(void) const;
-  bool is_closed(void) const { return ! is_open(); };
+  bool is_closed(void) const { return ! is_open(); }
 
   bool is_offline(void) const;
 

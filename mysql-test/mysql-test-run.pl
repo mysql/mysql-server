@@ -2321,13 +2321,13 @@ sub executable_setup () {
     # Look for single threaded NDB
     $exe_ndbd=
       my_find_bin($bindir,
-		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
+		  ["runtime_output_directory", "libexec", "sbin", "bin"],
 		  "ndbd");
 
     # Look for multi threaded NDB
     $exe_ndbmtd=
       my_find_bin($bindir,
-		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
+		  ["runtime_output_directory", "libexec", "sbin", "bin"],
 		  "ndbmtd", NOT_REQUIRED);
     if ($exe_ndbmtd)
     {
@@ -2346,17 +2346,17 @@ sub executable_setup () {
 
     $exe_ndb_mgmd=
       my_find_bin($bindir,
-		  ["storage/ndb/src/mgmsrv", "libexec", "sbin", "bin"],
+		  ["runtime_output_directory", "libexec", "sbin", "bin"],
 		  "ndb_mgmd");
 
     $exe_ndb_mgm=
       my_find_bin($bindir,
-                  ["storage/ndb/src/mgmclient", "bin"],
+                  ["runtime_output_directory", "bin"],
                   "ndb_mgm");
 
     $exe_ndb_waiter=
       my_find_bin($bindir,
-		  ["storage/ndb/tools/", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_waiter");
 
   }
@@ -2717,39 +2717,39 @@ sub environment_setup {
   {
     $ENV{'NDB_MGM'}=
       my_find_bin($bindir,
-		  ["storage/ndb/src/mgmclient", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_mgm");
 
     $ENV{'NDB_WAITER'}= $exe_ndb_waiter;
 
     $ENV{'NDB_RESTORE'}=
       my_find_bin($bindir,
-		  ["storage/ndb/tools", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_restore");
 
     $ENV{'NDB_CONFIG'}=
       my_find_bin($bindir,
-		  ["storage/ndb/tools", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_config");
 
     $ENV{'NDB_SELECT_ALL'}=
       my_find_bin($bindir,
-		  ["storage/ndb/tools", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_select_all");
 
     $ENV{'NDB_DROP_TABLE'}=
       my_find_bin($bindir,
-		  ["storage/ndb/tools", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_drop_table");
 
     $ENV{'NDB_DESC'}=
       my_find_bin($bindir,
-		  ["storage/ndb/tools", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_desc");
 
     $ENV{'NDB_SHOW_TABLES'}=
       my_find_bin($bindir,
-		  ["storage/ndb/tools", "bin"],
+		  ["runtime_output_directory", "bin"],
 		  "ndb_show_tables");
 
       

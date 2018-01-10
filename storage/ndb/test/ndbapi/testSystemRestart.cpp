@@ -910,7 +910,7 @@ int runSystemRestartLCP_3(NDBT_Context *ctx, NDBT_Step *step)
     Uint32 batch = 1;
     Uint32 row_step = 10;
 
-    for (Uint32 k = 0; k < 3; k++)
+    for (Uint32 k = 0; k < 6; k++)
     {
       /**
        * We start by deleting 90% of the rows with row_step set to 10.
@@ -951,7 +951,7 @@ int runSystemRestartLCP_3(NDBT_Context *ctx, NDBT_Step *step)
       g_err << "Insert the deleted records" << endl;
       for (Uint32 start = 1; start < 10; start++)
       {
-        CHECK(hugoTrans.loadTableStartFrom(pNdb,
+        CHECK((result = hugoTrans.loadTableStartFrom(pNdb,
                                            start,
                                            num_deleted_records,
                                            100,
@@ -961,7 +961,7 @@ int runSystemRestartLCP_3(NDBT_Context *ctx, NDBT_Step *step)
                                            0,
                                            false,
                                            true,
-                                           10) == NDBT_OK);
+                                           10)) == NDBT_OK);
         if (result == NDBT_FAILED)
           return result;
       }

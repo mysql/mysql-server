@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,28 +47,31 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
 #define UNCOMMITTED_SHIFT 2
 
+#ifdef VM_TRACE
 //#define DEBUG_TSMAN 1
+//#define DEBUG_TSMAN_NUM_EXTENTS 1
+//#define DEBUG_TSMAN_RESTART 1
+//#define DEBUG_TSMAN_IO 1
+#endif
+
 #ifdef DEBUG_TSMAN
 #define DEB_TSMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TSMAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TSMAN_NUM_EXTENTS 1
 #ifdef DEBUG_TSMAN_NUM_EXTENTS
 #define DEB_TSMAN_NUM_EXTENTS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TSMAN_NUM_EXTENTS(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TSMAN_RESTART 1
 #ifdef DEBUG_TSMAN_RESTART
 #define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TSMAN_RESTART(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TSMAN_IO 1
 #ifdef DEBUG_TSMAN_IO
 #define DEB_TSMAN_IO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -2267,6 +2270,84 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
   FreeExtentReq* rep = (FreeExtentReq*)signal->getDataPtr();
   rep->reply.errorCode = err;
   return;
+}
+
+void
+Tsman::get_set_extent_info(Signal *signal,
+                           Local_key &key,
+                           Uint32 &tableId,
+                           Uint32 &fragId,
+                           Uint32 &create_table_version,
+                           bool read)
+{
+  EmulatedJamBuffer* const jamBuf = getThrJamBuf();
+  thrjamEntry(jamBuf);
+  Ptr<Datafile> file_ptr;
+  Datafile file_key;
+  file_key.m_file_no = key.m_file_no;
+  ndbrequire(m_file_hash.find(file_ptr, file_key));
+
+  // Get extent page info
+  struct req val = lookup_extent(key.m_page_no, file_ptr.p);
+
+  Page_cache_client::Request preq;
+  preq.m_page.m_page_no = val.m_extent_page_no;
+  preq.m_page.m_file_no = key.m_file_no;
+  preq.m_table_id = RNIL;
+  preq.m_fragment_id = 0;
+
+  int flags = 0;
+  int real_page_id;
+  Page_cache_client pgman(this, m_pgman);
+
+  /**
+   * Extent pages are locked into the page cache.
+   * This means that it is bound in the page cache until
+   * the node goes down. Hence, get_page should always return > 0
+   * for extent pages.
+   */
+  ndbrequire((real_page_id = pgman.get_page(signal, preq, flags)) > 0);
+  thrjam(jamBuf);
+  GlobalPage* ptr_p = pgman.m_ptr.p;
+  bool v2 = (file_ptr.p->m_ndb_version >= NDB_DISK_V2);
+  File_formats::Datafile::Extent_page* page =
+    (File_formats::Datafile::Extent_page*)ptr_p;
+
+  Uint32 *ext_table_id = page->get_table_id(val.m_extent_no,
+                                            val.m_extent_size,
+                                            v2);
+  Uint32 *ext_fragment_id = page->get_fragment_id(val.m_extent_no,
+                                                  val.m_extent_size,
+                                                  v2);
+  Uint32 *ext_create_table_version =
+    page->get_create_table_version(val.m_extent_no,
+                                   val.m_extent_size,
+                                   v2);
+
+  if (read)
+  {
+    thrjam(jamBuf);
+    tableId = *ext_table_id;
+    fragId = *ext_fragment_id;
+    create_table_version = *ext_create_table_version;
+  }
+  else
+  {
+    Uint32 eh_words;
+    thrjam(jamBuf);
+    File_formats::Datafile::Extent_header *header =
+      page->get_header(val.m_extent_no, val.m_extent_size, v2);
+    eh_words = File_formats::Datafile::extent_header_words(val.m_extent_size,
+                                                           v2);
+    memset(header, 0, 4*eh_words);
+    *ext_table_id = tableId;
+    *ext_fragment_id = fragId;
+    if (v2)
+    {
+      thrjam(jamBuf);
+      *ext_create_table_version = create_table_version;
+    }
+  }
 }
 
 int

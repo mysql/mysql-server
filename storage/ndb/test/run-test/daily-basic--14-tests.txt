@@ -100,3 +100,7 @@ max-time: 600
 cmd: testDict
 args: -n DropWithTakeover T1 T2
 max-time: 1800
+
+cmd: testScan
+args: -n ScanUsingMultipleNdbObjects T1
+max-time: 30

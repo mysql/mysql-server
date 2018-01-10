@@ -67,15 +67,16 @@ CHECK_FUNCTION_EXISTS(sysconf HAVE_SYSCONF)
 CHECK_FUNCTION_EXISTS(directio HAVE_DIRECTIO)
 CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP32)
 CHECK_FUNCTION_EXISTS(mlock HAVE_MLOCK)
-CHECK_FUNCTION_EXISTS(ffs HAVE_FFS)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_init HAVE_PTHREAD_MUTEXATTR_INIT)
 CHECK_FUNCTION_EXISTS(pthread_mutexattr_settype HAVE_PTHREAD_MUTEXATTR_SETTYPE)
 CHECK_FUNCTION_EXISTS(pthread_setschedparam HAVE_PTHREAD_SETSCHEDPARAM)
-CHECK_FUNCTION_EXISTS(bzero HAVE_BZERO)
 CHECK_FUNCTION_EXISTS(priocntl HAVE_PRIOCNTL)
 CHECK_FUNCTION_EXISTS(processor_affinity HAVE_PROCESSOR_AFFINITY)
 CHECK_FUNCTION_EXISTS(cpuset_setaffinity HAVE_CPUSET_SETAFFINITY)
 CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
+
+CHECK_SYMBOL_EXISTS(bzero "strings.h" HAVE_BZERO)
+CHECK_SYMBOL_EXISTS(ffs "strings.h" HAVE_FFS)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
@@ -86,10 +87,12 @@ CHECK_INCLUDE_FILES(ncurses.h HAVE_NCURSES_H)
 CHECK_INCLUDE_FILES(ncurses/curses.h HAVE_NCURSES_CURSES_H)
 
 CHECK_CXX_SOURCE_RUNS("
+template<class T> void ignore(const T&) {}
 unsigned A = 7;
 int main()
 {
   unsigned a = __builtin_ffs(A);
+  ignore(a);
   return 0;
 }"
 HAVE___BUILTIN_FFS)
@@ -99,7 +102,7 @@ unsigned A = 7;
 int main()
 {
   unsigned a = __builtin_ctz(A);
-  return 0;
+  return (int)a;
 }"
 HAVE___BUILTIN_CTZ)
 
@@ -108,7 +111,7 @@ unsigned A = 7;
 int main()
 {
   unsigned a = __builtin_clz(A);
-  return 0;
+  return (int)a;
 }"
 HAVE___BUILTIN_CLZ)
 
@@ -153,7 +156,7 @@ ret_code = thread_info(thread_port,
                        (thread_info_t) &basic_info,
                        &basic_info_count);
 mach_port_deallocate(current_task, thread_port);
-return 0;
+return ret_code;
 }"
 HAVE_MAC_OS_X_THREAD_INFO)
 
@@ -171,11 +174,11 @@ int main()
 {
   const cpu_set_t *p= (const cpu_set_t*)0;
   struct sched_param loc_sched_param;
-  int policy = 0, ret;
+  int policy = 0;
   pid_t tid = (unsigned)syscall(SYS_gettid);
   tid = getpid();
-  ret = sched_setaffinity(tid, sizeof(* p), p);
-  ret = sched_setscheduler(tid, policy, &loc_sched_param);
+  sched_setaffinity(tid, sizeof(* p), p);
+  sched_setscheduler(tid, policy, &loc_sched_param);
   return 0;
 }"
 HAVE_LINUX_SCHEDULING)
@@ -190,7 +193,7 @@ int main()
 {
   processorid_t cpu_id = (processorid_t)0;
   id_t tid = _lwp_self();
-  int ret = processor_bind(P_LWPID, tid, cpu_id, 0);
+  processor_bind(P_LWPID, tid, cpu_id, 0);
 }"
 HAVE_SOLARIS_AFFINITY)
 

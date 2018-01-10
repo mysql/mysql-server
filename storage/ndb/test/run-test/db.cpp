@@ -67,7 +67,10 @@ static const char* create_sql[] = {
     "  host_id int not null,"
     "  cluster_id int not null,"
     "  node_id int not null,"
-    "  type enum ('ndbd', 'ndbapi', 'ndb_mgmd', 'mysqld', 'mysql') not null,"
+    "  type"
+    "    enum ('ndbd', 'ndbapi', 'ndb_mgmd', 'mysqld', 'mysql', 'custom')"
+    "    not null,"
+    "  name varchar(255),"
     "  state enum ('starting', 'started', 'stopping', 'stopped') not null"
     "  ) engine = myisam;",
 
@@ -316,8 +319,9 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
 
   {
     const char* sql =
-        "INSERT INTO process (id, host_id, cluster_id, type, state, node_id) "
-        "values (?,?,?,?,?,?)";
+        "INSERT INTO process "
+        "(id, host_id, cluster_id, type, name, state, node_id) "
+        "values (?,?,?,?,?,?,?)";
 
     const char* sqlopt =
         "INSERT INTO options (id, process_id, name, value) values (?,?,?,?)";
@@ -336,8 +340,8 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
 
     int option_id = 0;
     for (unsigned i = 0; i < config.m_processes.size(); i++) {
-      unsigned long l0, l1;
-      MYSQL_BIND bind[6];
+      unsigned long l0, l1, l2;
+      MYSQL_BIND bind[7];
       bzero(bind, sizeof(bind));
       int id = (int)i;
       atrt_process* proc = config.m_processes[i];
@@ -346,6 +350,7 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
       int node_id = proc->m_nodeid;
 
       const char* type = 0;
+      const char* name = proc->m_name.c_str();
       const char* state = "started";
       switch (proc->m_type) {
         case atrt_process::AP_NDBD:
@@ -365,6 +370,9 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
           type = "mysql";
           state = "stopped";
           break;
+        case atrt_process::AP_CUSTOM:
+          type = "custom";
+          break;
         default:
           abort();
       }
@@ -373,8 +381,9 @@ static bool populate_db(atrt_config& config, atrt_process* mysqld) {
       BINDI(bind[1], &host_id);
       BINDI(bind[2], &cluster_id);
       BINDS(bind[3], type, &l0);
-      BINDS(bind[4], state, &l1);
-      BINDI(bind[5], &node_id);
+      BINDS(bind[4], name, &l1);
+      BINDS(bind[5], state, &l2);
+      BINDI(bind[6], &node_id);
 
       if (mysql_stmt_bind_param(stmt, bind)) {
         g_logger.error("Failed to bind: %s", mysql_error(&mysqld->m_mysql));

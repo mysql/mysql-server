@@ -9,12 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
-
-# the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
-ndb_cache_trans           : Bug#42197 Query cache and autocommit
-ndb_disconnect_ddl        : Bug#31853 flaky testcase...
-
 ndb_dbug_lock : SEAGULL gsl locking order
 ndb_insert : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
@@ -35,7 +29,6 @@ ndb_dd_restore_check_tablespace_mdl: Need WL#10167 On the fly frm translation
 ndb_restore_compat_compression: Need WL#10167 On the fly frm translation
 ndb_statistics0: Need WL#10167 On the fly frm translation
 
-ndb_basic: Need WL#10665 Extend size of extra table metadata
 ndb_alter_table:  Need WL#10665 Extend size of extra table metadata
 ndb_restore_schema_tolerance: Need WL#10665 Extend size of extra table metadata
 
@@ -58,13 +51,6 @@ ndb_fk_no_fk: Need WL#9185 MySQL Cluster support for new DD
 ndb_fk_db: Need WL#9185 MySQL Cluster support for new DD
 ndb_dd_alter: Need WL#9185 MySQL Cluster support for new DD
 
-# Problem with the "check_not_readonly" which now has been rewritten to create
-# a table called check_not_readonly, that table is soemtimes installed a second
-# time when running schema distribution synchronization during mysqld restart
-# Should find a different way to wait for "not readonly"
-ndb_share: Need WL#9185 MySQL Cluster support for new DD
-ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
-
 # Problem with distributed privilege tables in combination with shadow
 # table behaviour causing the DD come severly out of synch on participants
 # Example:
@@ -82,11 +68,6 @@ ndb_dist_priv: Need WL#9185 MySQL Cluster support for new DD
 # Need to remove stale .ndb files for DROP DATABASE
 drop_database_stale: Need WL#9185 MySQL Cluster support for new DD
 
-# Problem with inplace alter table, probably share released too early
-# (occurs when mtr.pl is run with --mysqld=--log-bin argument)
-ndb_addnode: Need WL#9185 MySQL Cluster support for new DD
-ndb_addnode_withbinlog: Need WL#9185 MySQL Cluster support for new DD
-
 # Problem with alter table while MDL lock is held on other mysqld
 ndb_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
 
@@ -99,6 +80,9 @@ clusterj_jpa: Bug#26027722 UNKNOWN INITIAL CHARACTER SET
 # Problem since DDL on tablespaces are not synchronized between mysqlds
 # this need to be implemented
 ndb_single_user: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem since tablespaces are not installed into DD during ndb_restore
+ndb_dd_backuprestore: Need WL#9185 MySQL Cluster support for new DD
 
 # Problem with failing ALTER, the Thd_ndb::open_tables contains
 # invalid THD_NDB_SHARE
@@ -123,7 +107,7 @@ ndb_no_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFO
 ndb_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
 
 # mysqldump fails to dump logfilegroups and partitions, thus the dump
-# is incomplete and tables in tablespaces can't be restored by running
+# is incomplete and tables in tablespaces cant be restored by running
 # the dumped sql file. This problem probably need both bug#26794727 as
 # well as WL#9185
 ndb_dd_dump: Bug#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
@@ -131,11 +115,8 @@ ndb_dd_dump: Bug#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
 # Problem with table present in DD and not in SE
 ndb_restore_schema_rewrites: Need WL#9185 MySQL Cluster support for new DD
 
-# Problem with SendBufferMemory being exhausted
-ndb_blob_big: Bug #25958538 BLOB SIZE INCREASES IN 8.0
-
 # Clusterj fails to start since libndbclient.se fails to load
 clusterj: Bug#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
 
 # Test fails with varying failures in all versions
-ndb_truncate_nologging: Bug#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES
+ndb_truncate_nologging: Bug#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES: Could not acquire global schema lock

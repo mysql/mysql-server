@@ -107,11 +107,6 @@ public:
 
   virtual bool doSend() = 0;
 
-  bool has_data_to_send()
-  {
-    return get_callback_obj()->has_data_to_send(remoteNodeId);
-  }
-
   /* Get the configured maximum send buffer usage. */
   Uint32 get_max_send_buffer() { return m_max_send_buffer; }
 

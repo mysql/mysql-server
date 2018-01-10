@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,63 +104,66 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+#ifdef VM_TRACE
 //#define DEBUG_EXTRA_LCP 1
+//#define DEBUG_LCP 1
+//#define DEBUG_LCP_RESTORE
+//#define DEBUG_COPY 1
+//#define DEBUG_GCP 1
+//#define DEBUG_CUT_REDO 1
+//#define DEBUG_LOCAL_LCP 1
+//#define DEBUG_LOCAL_LCP_EXTRA
+//#define DEBUG_REDO_FLAG
+#endif
+
 #ifdef DEBUG_EXTRA_LCP
 #define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTRA_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_RESTORE
 #ifdef DEBUG_LCP_RESTORE
 #define DEB_LCP_RESTORE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_RESTORE(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_COPY 1
 #ifdef DEBUG_COPY
 #define DEB_COPY(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_COPY(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_GCP 1
 #ifdef DEBUG_GCP
 #define DEB_GCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_GCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_CUT_REDO 1
 #ifdef DEBUG_CUT_REDO
 #define DEB_CUT_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_CUT_REDO(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LOCAL_LCP 1
 #ifdef DEBUG_LOCAL_LCP
 #define DEB_LOCAL_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LOCAL_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LOCAL_LCP_EXTRA
 #ifdef DEBUG_LOCAL_LCP_EXTRA
 #define DEB_LOCAL_LCP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LOCAL_LCP_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_REDO_FLAG
 #ifdef DEBUG_REDO_FLAG
 #define DEB_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -6495,7 +6498,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
           jam();
           c_restore->delete_by_rowid_succ(regTcPtr.p->tcOprec);
         }
-        DEB_LCP_RESTORE(("(%u)tab(%u,%u) rowid(%u,%u), set GCI = %u",
+        DEB_LCP_RESTORE(("(%u)tab(%u,%u) row(%u,%u), set GCI = %u",
                  instance(),
                  regTcPtr.p->tableref,
                  regTcPtr.p->fragmentid,
@@ -14126,9 +14129,13 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
    *  messing with if's below...
    */
   Uint32 keyLen ;
-  if (refToMain(ref) == SUMA)
+  /* The blockReference ref could belong to an API node.
+   * But the refToMain() is supposed to be used with only data nodes
+   * as certain BlockReference numbers of API nodes will also
+   * return true for 'refToMain(ref) == SUMA' which is not right.
+   * So check the node id first before checking for the block */
+  if (refToNode(ref) == getOwnNodeId() && refToMain(ref) == SUMA)
   {
-    ndbassert(refToNode(ref) == getOwnNodeId());
     keyLen = 0;
   }
   else
@@ -28813,6 +28820,87 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
               rate);
   }
 
+
+  if (arg == 2355)
+  {
+    jam();
+    /* Test clean signal shut-off at node failure */
+    const Uint32 sigLen = signal->getLength();
+    
+    if (sigLen < 2)
+    {
+      jam();
+      return;
+    }
+    
+    const Uint32 nodeId = signal->theData[1];
+
+    if (nodeId == cownNodeid)
+    {
+      jam();
+      if (sigLen == 2)
+      {
+        jam();
+        /* Initial request, wait a moment */
+        sendSignalWithDelay(reference(),
+                            GSN_DUMP_STATE_ORD, 
+                            signal,
+                            200,
+                            3);
+        return;
+      }
+
+      jam();
+                            
+      /* Goodbye */
+      progError(__LINE__, NDBD_EXIT_ERROR_INSERT, __FILE__);
+      return;
+    }
+    else
+    {
+      if (sigLen == 2)
+      {
+        /* Send a harmless signal to our counterpart on the node */
+
+        BlockReference luckyRecipient = numberToRef(DBLQH, instance(), nodeId);
+      
+        g_eventLogger->info("LQH %u about to send slow signal to %u",
+                            instance(), nodeId);
+
+#ifdef ERROR_INSERT
+        setDelayedPrepare();
+#endif
+
+        sendSignal(luckyRecipient,
+                   GSN_DUMP_STATE_ORD,
+                   signal,
+                   3,
+                   JBB);
+
+        /* DelayedPrepare cancelled now */
+        /* Do it again, unless the node has failed */
+        if (getNodeInfo(nodeId).m_connected)
+        {
+          sendSignal(reference(),
+                     GSN_DUMP_STATE_ORD,
+                     signal,
+                     2,
+                     JBB);
+        }
+        else
+        {
+          g_eventLogger->info("LQH %u.  DUMP 2355 Node %u not connected anymore",
+                              instance(), nodeId);
+        }
+      }
+      else
+      {
+        jam();
+        /* 'Harmless' longer signal */
+      }
+    }
+    return;
+  }
 }//Dblqh::execDUMP_STATE_ORD()
 
 void Dblqh::get_redo_size(Uint64 & size_in_bytes)

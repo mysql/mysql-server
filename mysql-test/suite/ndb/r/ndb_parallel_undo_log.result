@@ -1,0 +1,22 @@
+"WL-8478"
+"Inserting 100000 rows...";
+100000 records in table dt_1
+
+NDBT_ProgramExit: 0 - OK
+
+"Run DUMP commands to start LCP"
+"Sleep 10s so that LCP can complete"
+"Restarting node 1 with -n"
+"Node 1 started"
+90000 records in table dt_1
+
+NDBT_ProgramExit: 0 - OK
+
+90004 records in table dt_1
+
+NDBT_ProgramExit: 0 - OK
+
+80003 records in table dt_1
+
+NDBT_ProgramExit: 0 - OK
+

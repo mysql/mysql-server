@@ -271,7 +271,10 @@ ndbcluster_global_schema_lock(THD *thd,
   proc_info.set("Waiting for ndbcluster global schema lock");
   thd_ndb->global_schema_lock_trans= gsl_lock_ext(thd, ndb, ndb_error);
 
-  DBUG_EXECUTE_IF("sleep_after_global_schema_lock", ndb_milli_sleep(6000););
+  if (DBUG_EVALUATE_IF("sleep_after_global_schema_lock", true, false))
+  {
+    ndb_milli_sleep(6000);
+  }
 
   if (thd_ndb->global_schema_lock_trans)
   {
@@ -284,7 +287,7 @@ ndbcluster_global_schema_lock(THD *thd,
 
     DBUG_RETURN(0);
   }
-  // Else, didn't get GSL: Deadlock or failure from ndbcluster:
+  // Else, didn't get GSL: Deadlock or failure from NDB
 
   /**
    * If GSL request failed due to no cluster connection (4009),
@@ -464,7 +467,8 @@ mdl_namespace_name(const MDL_key* mdl_key)
 
 static
 bool
-ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+ndbcluster_notify_alter_table(THD *thd,
+                              const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
                               ha_notification_type notification)
 {
   DBUG_ENTER("ndbcluster_notify_alter_table");
@@ -507,7 +511,8 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 static
 bool
-ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+ndbcluster_notify_exclusive_mdl(THD *thd,
+                                const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
                                 ha_notification_type notification,
                                 bool *victimized)
 {

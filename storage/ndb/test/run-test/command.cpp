@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,16 +172,23 @@ do_change_version(atrt_config& config, SqlResultSet& command,
     return false;
   }
 
+  g_logger.info("stopping process...");
+  if (!stop_process(proc))
+    return false;
+
+  g_logger.info("waiting for process to stop...");
+  if (!wait_for_process_to_stop(config, proc)) {
+    g_logger.critical("Failed to stop process");
+    return false;
+  }
+
   // Save current proc state
   if (proc.m_save.m_saved == false)
   {
     proc.m_save.m_proc= proc.m_proc;
     proc.m_save.m_saved= true;
   }
-  
-  g_logger.info("stopping process...");
-  if (!stop_process(proc))
-    return false;
+
   BaseString newEnv = set_env_var(proc.m_proc.m_env, 
                                   BaseString("MYSQL_BASE_DIR"),
                                   BaseString(new_prefix));
@@ -264,13 +271,15 @@ do_reset_proc(atrt_config& config, SqlResultSet& command,
   if (!stop_process(proc))
     return false;
 
+  if (!wait_for_process_to_stop(config, proc))
+    return false;
+
   if (proc.m_save.m_saved)
   {
     ndbout << "before: " << proc << endl;
 
     proc.m_proc= proc.m_save.m_proc;
     proc.m_save.m_saved= false;
-    proc.m_proc.m_id= -1;
 
     ndbout << "after: " << proc << endl;
 

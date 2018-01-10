@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,8 +56,9 @@ public:
     T_WD    = 5, /* SocketServer, Socket Client, Watchdog */
     T_TC    = 6, /* TC+SPJ */
     T_SEND  = 7, /* No blocks */
+    T_IXBLD = 8, /* File thread during offline index build */
 
-    T_END  = 8
+    T_END  = 9
   };
 
   THRConfig();
@@ -109,6 +110,7 @@ protected:
   SparseBitmask m_LockExecuteThreadToCPU;
   SparseBitmask m_LockIoThreadsToCPU;
   Vector<SparseBitmask> m_cpu_sets;
+  Vector<unsigned> m_perm_cpu_sets;
   Vector<T_Thread> m_threads[T_END];
 
   BaseString m_err_msg;
@@ -119,7 +121,7 @@ protected:
   void add(T_Type, unsigned realtime, unsigned spintime);
   int handle_spec(char *ptr, unsigned real_time, unsigned spin_time);
 
-  unsigned createCpuSet(const SparseBitmask&);
+  unsigned createCpuSet(const SparseBitmask&, bool permanent);
   int do_bindings(bool allow_too_few_cpus);
   int do_validate();
 
@@ -132,6 +134,8 @@ public:
     unsigned m_type;
     unsigned m_min_cnt;
     unsigned m_max_cnt;
+    bool     m_is_exec_thd; /* Is this a non-blocking execution thread type */
+    bool     m_is_permanent;/* Is this a fixed thread type */
   };
 };
 
@@ -161,8 +165,10 @@ public:
 
   int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
   int do_bind_io(NdbThread*);
+  int do_bind_idxbuild(NdbThread*);
   int do_bind_watchdog(NdbThread*);
   int do_bind_send(NdbThread*, unsigned);
+  int do_unbind(NdbThread*);
   bool do_get_realtime_io() const;
   bool do_get_realtime_wd() const;
   bool do_get_realtime_send(unsigned) const;
@@ -171,14 +177,27 @@ public:
                        unsigned cnt) const;
   unsigned do_get_spintime(const unsigned short list[],
                            unsigned cnt) const;
-
 protected:
   const T_Thread* find_thread(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const T_Thread*) const;
   int do_bind(NdbThread*, const T_Thread*);
 };
 
+/**
+ * This class is used to temporarily change the thread
+ * type during some task
+ */
+class THRConfigRebinder
+{
+public:
+  THRConfigRebinder(THRConfigApplier*, THRConfig::T_Type, NdbThread*);
+  ~THRConfigRebinder();
+private:
+  THRConfigApplier* m_config_applier;
+  int m_state;
+  NdbThread* m_thread;
+};
 
 #undef JAM_FILE_ID
 
-#endif // IPCConfig_H
+#endif // THRConfig_H

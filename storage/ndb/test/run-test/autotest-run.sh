@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.09"
+VERSION="autotest-run.sh version 1.12"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -370,10 +370,14 @@ then
 else
     echo "clonename=$clone0" >> info.txt
 fi
-for f in INFO_BIN INFO_SRC ; do
-  [ ! -f "${install_dir0}/docs/${f}" ] || cp "${install_dir0}/docs/${f}" "${f}.0"
-  [ ! -f "${install_dir1}/docs/${f}" ] || cp "${install_dir1}/docs/${f}" "${f}.1"
+for f in $(find "${install_dir0}/docs" -name 'INFO_*'); do
+  cp "${f}" "$(basename ${f}).0"
 done
+if [ -d "${install_dir1}/docs" ]; then
+  for f in $(find "${install_dir1}/docs" -name 'INFO_*'); do
+    cp "${f}" "$(basename ${f}).1"
+  done
+fi
 find . | xargs chmod ugo+r
 
 # Try to pack and transfer as much as possible

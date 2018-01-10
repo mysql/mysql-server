@@ -213,6 +213,7 @@ ClusterMgr::configure(Uint32 nodeId,
 void
 ClusterMgr::startThread()
 {
+  DBUG_ENTER("ClusterMgr::startThread");
   /**
    * We use the clusterMgrThreadMutex as a signalling object between this
    * thread and the main thread of the ClusterMgr.
@@ -226,6 +227,13 @@ ClusterMgr::startThread()
                                          0, // default stack size
                                          "ndb_clustermgr",
                                          NDB_THREAD_PRIO_HIGH);
+  if (theClusterMgrThread == NULL)
+  {
+    ndbout_c("ClusterMgr::startThread: Failed to create thread for cluster management.");
+    assert(theClusterMgrThread != NULL);
+    DBUG_VOID_RETURN;
+  }
+
   Uint32 cnt = 0;
   while (theStop == -1 && cnt < 60)
   {
@@ -233,6 +241,7 @@ ClusterMgr::startThread()
   }
 
   assert(theStop == 0);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -1370,6 +1379,7 @@ ArbitMgr::~ArbitMgr()
 void
 ArbitMgr::doStart(const Uint32* theData)
 {
+  DBUG_ENTER("ArbitMgr::doStart");
   ArbitSignal aSignal;
   NdbMutex_Lock(theThreadMutex);
   if (theThread != NULL) {
@@ -1389,7 +1399,13 @@ ArbitMgr::doStart(const Uint32* theData)
     0, // default stack size
     "ndb_arbitmgr",
     NDB_THREAD_PRIO_HIGH);
+  if (theThread == NULL)
+  {
+    ndbout_c("ArbitMgr::doStart: Failed to create thread for arbitration.");
+    assert(theThread != NULL);
+  }
   NdbMutex_Unlock(theThreadMutex);
+  DBUG_VOID_RETURN;
 }
 
 // The "choose me" signal from a candidate.

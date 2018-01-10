@@ -1159,6 +1159,7 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
     if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       hostptr.i = i;
       ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+      hostptr.p->m_location_domain_id = 0;
 
       if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
         jam();
@@ -1176,6 +1177,46 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
       }//if
     }//if
   }//for
+
+  ndb_mgm_configuration *p =
+    m_ctx.m_config.getClusterConfig();
+  ndb_mgm_configuration_iterator *p_iter =
+    ndb_mgm_create_configuration_iterator(p, CFG_SECTION_NODE);
+
+  for (ndb_mgm_first(p_iter);
+       ndb_mgm_valid(p_iter);
+       ndb_mgm_next(p_iter))
+  {
+    jam();
+    Uint32 location_domain_id = 0;
+    Uint32 nodeId = 0;
+    Uint32 nodeType = 0;
+    ndbrequire(!ndb_mgm_get_int_parameter(p_iter, CFG_NODE_ID, &nodeId) &&
+               nodeId != 0);
+    ndbrequire(!ndb_mgm_get_int_parameter(p_iter,
+                                          CFG_TYPE_OF_SECTION,
+                                          &nodeType));
+    jamLine(Uint16(nodeId));
+    if (nodeType != NODE_TYPE_DB)
+    {
+      jam();
+      continue;
+    }
+    hostptr.i = nodeId;
+    ptrCheckGuard(hostptr, chostFilesize, hostRecord);
+
+    ndb_mgm_get_int_parameter(p_iter,
+                              CFG_LOCATION_DOMAIN_ID,
+                              &location_domain_id);
+    hostptr.p->m_location_domain_id = location_domain_id;
+  }
+  ndb_mgm_destroy_iterator(p_iter);
+  {
+    HostRecordPtr Town_hostptr;
+    Town_hostptr.i = cownNodeid;
+    ptrCheckGuard(Town_hostptr, chostFilesize, hostRecord);
+    m_my_location_domain_id = Town_hostptr.p->m_location_domain_id;
+  }
   ndbsttorry010Lab(signal);
 }//Dbtc::execREAD_NODESCONF()
 
@@ -3745,6 +3786,55 @@ Dbtc::isRefreshSupported() const
 }
 
 /**
+ * This method comes in with a list of nodes.
+ * We have already verified that our own node
+ * isn't in this list. If we have a node in this
+ * list that is in the same location domain as
+ * this node, it will be selected before any
+ * other node. So we will always try to keep
+ * the read coming from the same location domain.
+ *
+ * To avoid radical imbalances we provide a bit
+ * of round robin on a node bases. It isn't
+ * any perfect round robin. We simply rotate a
+ * bit among the selected nodes instead of
+ * always selecting the first one we find.
+ */
+Uint32
+Dbtc::check_own_location_domain(Uint16 *nodes,
+                                Uint32 end)
+{
+  Uint32 loc_nodes[MAX_NDB_NODES];
+  Uint32 loc_node_count = 0;
+  Uint32 my_location_domain_id = m_my_location_domain_id;
+
+  if (my_location_domain_id == 0)
+  {
+    jam();
+    return 0;
+  }
+  for (Uint32 i = 0; i < end; i++)
+  {
+    jam();
+    Uint32 node = nodes[i];
+    HostRecordPtr Tnode_hostptr;
+    Tnode_hostptr.i = node;
+    ptrCheckGuard(Tnode_hostptr, chostFilesize, hostRecord);
+    if (my_location_domain_id ==
+        Tnode_hostptr.p->m_location_domain_id)
+    {
+      jam();
+      loc_nodes[loc_node_count++] = node;
+    }
+  }
+  if (loc_node_count > 0)
+  {
+    return loc_nodes[m_load_balancer_location++ % loc_node_count];
+  }
+  return 0;
+}
+
+/**
  * tckeyreq050Lab
  * This method is executed once all KeyInfo has been obtained for
  * the TcKeyReq signal
@@ -3950,14 +4040,26 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
       arrGuard(tnoOfBackup, MAX_REPLICAS);
       UintR Tindex;
       UintR TownNode = cownNodeid;
+      bool foundOwnNode = false;
       for (Tindex = 1; Tindex <= tnoOfBackup; Tindex++) {
         UintR Tnode = regTcPtr->tcNodedata[Tindex];
         jam();
         if (Tnode == TownNode) {
           jam();
           regTcPtr->tcNodedata[0] = Tnode;
+          foundOwnNode = true;
         }//if
       }//for
+      if (!foundOwnNode)
+      {
+        Uint32 node;
+        jam();
+        if ((node = check_own_location_domain(&regTcPtr->tcNodedata[0],
+                                              tnoOfBackup+1)) != 0)
+        {
+          regTcPtr->tcNodedata[0] = node;
+        }
+      }
       if(ERROR_INSERTED(8048) || ERROR_INSERTED(8049))
       {
 	for (Tindex = 0; Tindex <= tnoOfBackup; Tindex++) 
@@ -13463,6 +13565,21 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
         break;
       }
     }
+    if (nodeId != ownNodeId)
+    {
+      Uint32 node;
+      jam();
+      Uint16 nodes[4];
+      nodes[0] = (Uint16)conf->nodes[0];
+      nodes[1] = (Uint16)conf->nodes[1];
+      nodes[2] = (Uint16)conf->nodes[2];
+      nodes[3] = (Uint16)conf->nodes[3];
+      if ((node = check_own_location_domain(&nodes[0],
+                                            count)) != 0)
+      {
+        nodeId = node;
+      }
+    }
   }
 
   if (ERROR_INSERTED(8083) &&
@@ -18544,6 +18661,9 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
   indexOpPtr.p = indexOp;
   tcRollbackRep =  (TcRollbackRep *)signal->getDataPtrSend();
   tcRollbackRep->connectPtr = indexOp->tcIndxReq.senderData;
+  ApiConnectRecordPtr apiConnectptr;
+  apiConnectptr.i = indexOp->tcIndxReq.apiConnectPtr;
+  ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   sendSignal(apiConnectptr.p->ndbapiBlockref, 
 	     GSN_TCROLLBACKREP, signal, TcRollbackRep::SignalLength, JBB);
 }

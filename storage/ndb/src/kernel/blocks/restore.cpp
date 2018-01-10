@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,49 +48,52 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
 
+#ifdef VM_TRACE
 //#define DEBUG_RES 1
+//#define DEBUG_RES_OPEN 1
+//#define DEBUG_RES_PARTS 1
+//#define DEBUG_RES_STAT 1
+//#define DEBUG_RES_STAT_EXTRA 1
+//#define DEBUG_RES_DEL 1
+//#define DEBUG_HIGH_RES 1
+#endif
+
 #ifdef DEBUG_RES
 #define DEB_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_OPEN 1
 #ifdef DEBUG_RES_OPEN
 #define DEB_RES_OPEN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_OPEN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_PARTS 1
 #ifdef DEBUG_RES_PARTS
 #define DEB_RES_PARTS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_PARTS(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_STAT 1
 #ifdef DEBUG_RES_STAT
 #define DEB_RES_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_STAT(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_STAT_EXTRA 1
 #ifdef DEBUG_RES_STAT_EXTRA
 #define DEB_RES_STAT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_STAT_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_RES_DEL 1
 #ifdef DEBUG_RES_DEL
 #define DEB_RES_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_DEL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_HIGH_RES 1
 #ifdef DEBUG_HIGH_RES
 #define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -2908,7 +2911,7 @@ Restore::parse_record(Signal* signal,
     Uint32 attrLen = 1 + len - 3;
     file_ptr.p->m_rows_restored_insert++;
     memcpy(attr_start + 1, data+2, 4 * (len - 3));
-    DEB_HIGH_RES(("(%u)INSERT_TYPE tab(%u,%u), rowid(%u,%u),"
+    DEB_HIGH_RES(("(%u)INSERT_TYPE tab(%u,%u), row(%u,%u),"
                   " keyLen: %u, key[0]: %x",
                   instance(),
                   file_ptr.p->m_table_id,
@@ -2973,7 +2976,7 @@ Restore::parse_record(Signal* signal,
         }
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_TYPE;
         file_ptr.p->m_rows_restored_delete++;
-        DEB_HIGH_RES(("(%u)1:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u),"
+        DEB_HIGH_RES(("(%u)1:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
                       " gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
@@ -2986,7 +2989,7 @@ Restore::parse_record(Signal* signal,
       {
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_WRITE_TYPE;
         file_ptr.p->m_rows_restored_write++;
-        DEB_HIGH_RES(("(%u)2:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u),"
+        DEB_HIGH_RES(("(%u)2:DELETE_BY_ROWID tab(%u,%u), row(%u,%u),"
                       " gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
@@ -3017,7 +3020,7 @@ Restore::parse_record(Signal* signal,
          * records, so the performance impact should not be
          * very high.
          */
-        DEB_HIGH_RES(("(%u)WRITE_TYPE tab(%u,%u), rowid(%u,%u), gci=%u",
+        DEB_HIGH_RES(("(%u)WRITE_TYPE tab(%u,%u), row(%u,%u), gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
                        file_ptr.p->m_fragment_id,
@@ -3060,7 +3063,7 @@ Restore::parse_record(Signal* signal,
          * The key is instead the rowid which is sent when the row id flag is
          * set.
          */
-        DEB_HIGH_RES(("(%u)3:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u), gci=%u",
+        DEB_HIGH_RES(("(%u)3:DELETE_BY_ROWID tab(%u,%u), row(%u,%u), gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
                        file_ptr.p->m_fragment_id,
@@ -3160,7 +3163,7 @@ Restore::handle_return_execute_operation(Signal *signal,
    * the first LCP file.
    */
 
-  DEB_RES(("(%u)tab(%u,%u) rowid(%u,%u) key already existed,"
+  DEB_RES(("(%u)tab(%u,%u) row(%u,%u) key already existed,"
            " num_files: %u, current_file: %u",
            instance(),
            file_ptr.p->m_table_id,
@@ -3214,7 +3217,7 @@ Restore::handle_return_execute_operation(Signal *signal,
   return;
 
 error:
-  g_eventLogger->info("(%u)tab(%u,%u),rowid(%u,%u) crash, error: %u",
+  g_eventLogger->info("(%u)tab(%u,%u),row(%u,%u) crash, error: %u",
                       instance(),
                       file_ptr.p->m_table_id,
                       file_ptr.p->m_fragment_id,

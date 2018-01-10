@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,42 +34,45 @@
 
 #define JAM_FILE_ID 415
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_LCP_REL 1
+//#define DEBUG_LCP_ALLOC 1
+//#define DEBUG_LCP_FREE 1
+//#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_SCANNED_BIT 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_REL 1
 #ifdef DEBUG_LCP_REL
 #define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_REL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_ALLOC 1
 #ifdef DEBUG_LCP_ALLOC
 #define DEB_LCP_ALLOC(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_ALLOC(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_FREE 1
 #ifdef DEBUG_LCP_FREE
 #define DEB_LCP_FREE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_FREE(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SCANNED_BIT 1
 #ifdef DEBUG_LCP_SCANNED_BIT
 #define DEB_LCP_SCANNED_BIT(arglist) \
   do { g_eventLogger->info arglist ; } while (0)
@@ -413,6 +416,14 @@ Dbtup::get_lcp_scanned_bit(Uint32 *next_ptr)
   return false;
 }
 
+bool
+Dbtup::get_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
+{
+  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  Uint32 *ptr = map.set(2 * logicalPageId);
+  return get_lcp_scanned_bit(ptr);
+}
+
 void
 Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
 {
@@ -690,6 +701,7 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
     key.m_page_no = page_no;
     key.m_page_idx = ZNIL;
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      fragPtrP,
                                       key,
                                       *scanOp.p,
                                       2 /* Debug for LCP skip bit */))
@@ -993,6 +1005,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
     key.m_page_no = logicalPageId;
     key.m_page_idx = ZNIL;
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      fragPtrP,
                                       key,
                                       *scanOp.p,
                                       1 /* Debug for LCP scanned bit */) ||
@@ -1112,12 +1125,12 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                      fragPtrP->fragTableId,
                      fragPtrP->fragmentId,
                      logicalPageId));
-        /* ndbassert(false); COVERAGE TEST */
+        /* Coverage tested */
       }
     }
     else
     {
-      /* ndbassert(pagePtr.p->is_page_to_skip_lcp()); COVERAGE TEST */
+      /* Coverage tested */
     }
   }
   if (!lcp_to_scan)

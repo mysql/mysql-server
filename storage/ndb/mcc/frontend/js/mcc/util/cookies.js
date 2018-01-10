@@ -243,7 +243,12 @@ function getCookie(key) {
 
 // Store a cookie with the given name, value and default expiration
 function setCookie(name, value) {
+    //Stores that keep sensitive information should NOT be kept in cookies!
+    if (name == "clusterStore") {
+        return; //Do NOT set cookies for cluster!
+    }
     if (name == "hostStore") {
+        return; //Do NOT set cookies for hosts!
         // Skip over Empty/AnyHost
         if (value.length > 200) {
             mcc.util.dbg("Removing passwords from Host cookie store.");

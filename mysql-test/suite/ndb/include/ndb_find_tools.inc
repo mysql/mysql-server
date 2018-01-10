@@ -19,27 +19,27 @@ if (! -d "$basedir/sql" and ! -d "$basedir/bin" )
 my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 my $NDBINFO_SELECT_ALL =  my_find_bin($bindir,
-                           ["storage/ndb/tools", "bin"],
+                           ["runtime_output_directory", "bin"],
                            "ndbinfo_select_all");
 
 my $NDB_DELETE_ALL =  my_find_bin($bindir,
-                           ["storage/ndb/tools", "bin"],
+                           ["runtime_output_directory", "bin"],
                            "ndb_delete_all");
 
 my $NDB_BLOB_TOOL =  my_find_bin($bindir,
-                           ["storage/ndb/tools", "bin"],
+                           ["runtime_output_directory", "bin"],
                            "ndb_blob_tool");
 
 my $NDB_DROP_INDEX =  my_find_bin($bindir,
-                           ["storage/ndb/tools", "bin"],
+                           ["runtime_output_directory", "bin"],
                            "ndb_drop_index");
 
 
 my $NDB_SELECT_COUNT =  my_find_bin($bindir,
-                           ["storage/ndb/tools", "bin"],
+                           ["runtime_output_directory", "bin"],
                            "ndb_select_count");
 my $NDB_PRINT_BACKUP_FILE = my_find_bin($bindir,
-                           ["storage/ndb/src/kernel/blocks/backup", "bin"],
+                           ["runtime_output_directory", "bin"],
                            "ndb_print_backup_file");
 
 

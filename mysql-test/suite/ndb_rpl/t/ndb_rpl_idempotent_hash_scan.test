@@ -35,6 +35,7 @@ INSERT INTO t3 VALUES ('K','K'), ('L','L'), ('M','M'), ('N','N');
 
 set @prior_slave_exec_mode=@@global.slave_exec_mode;
 set @prior_slave_rows_search_algorithms=@@global.slave_rows_search_algorithms;
+set @prior_slave_allow_batching=@@global.slave_allow_batching;
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 set @@global.slave_rows_search_algorithms= 'HASH_SCAN';
 set @@global.slave_allow_batching = OFF;
@@ -78,6 +79,7 @@ drop table t1, t2, t3;
 --echo **** Cleanup on Slave ****
 set @@global.slave_exec_mode= @prior_slave_exec_mode;
 set @@global.slave_rows_search_algorithms= @prior_slave_rows_search_algorithms;
+set @@global.slave_allow_batching= @prior_slave_allow_batching;
 call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t.* Error_code: 1032");
 
 --source include/rpl_end.inc

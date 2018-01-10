@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,77 +35,79 @@
 
 #define JAM_FILE_ID 408
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_DEL2 1
+//#define DEBUG_LCP_DEL_EXTRA 1
+//#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_SKIP_EXTRA 1
+//#define DEBUG_LCP_KEEP 1
+//#define DEBUG_LCP_REL 1
+//#define DEBUG_NR_SCAN 1
+//#define DEBUG_NR_SCAN_EXTRA 1
+//#define DEBUG_LCP_SCANNED_BIT 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL2 1
 #ifdef DEBUG_LCP_DEL2
 #define DEB_LCP_DEL2(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL2(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL_EXTRA 1
 #ifdef DEBUG_LCP_DEL_EXTRA
 #define DEB_LCP_DEL_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP_EXTRA 1
 #ifdef DEBUG_LCP_SKIP_EXTRA
 #define DEB_LCP_SKIP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_KEEP 1
 #ifdef DEBUG_LCP_KEEP
 #define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_KEEP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_REL 1
 #ifdef DEBUG_LCP_REL
 #define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_REL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_NR_SCAN 1
 #ifdef DEBUG_NR_SCAN
 #define DEB_NR_SCAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_NR_SCAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_NR_SCAN_EXTRA 1
 #ifdef DEBUG_NR_SCAN_EXTRA
 #define DEB_NR_SCAN_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_NR_SCAN_EXTRA(arglist) do { } while (0)
 #endif
-
-//#define DEBUG_LCP_SCANNED_BIT 1
 
 #ifdef VM_TRACE
 #define dbg(x) globalSignalLoggers.log x
@@ -1009,7 +1011,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * will make this code path using an ndbrequire instead.
                */
               jam();
-              ndbrequire(false); //COVERAGE_TEST
+              //ndbassert(false); //COVERAGE_TEST
               /* We will not scan this page, so reset flag immediately */
               reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
               scan.m_last_seen = __LINE__;
@@ -1553,7 +1555,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             if ((bits & ScanOp::SCAN_LCP) &&
                 (thbits & Tuple_header::LCP_DELETE))
             {
-              g_eventLogger->info("(%u)LCP_DELETE on tab(%u,%u), rowid(%u,%u)"
+              g_eventLogger->info("(%u)LCP_DELETE on tab(%u,%u), row(%u,%u)"
                                   " ALL ROWS page, header: %x",
                                   instance(),
                                   fragPtr.p->fragTableId,
@@ -1583,7 +1585,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               jam();
               tuple_header_ptr->m_header_bits =
                 thbits & (~Tuple_header::LCP_SKIP);
-              DEB_LCP_SKIP(("(%u)Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
+              DEB_LCP_SKIP(("(%u)Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
                             ", header: %x",
                             instance(),
                             fragPtr.p->fragTableId,
@@ -1629,7 +1631,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	      goto found_tuple; // Locked tuple...
 	      // skip free tuple
 	    }
-            DEB_NR_SCAN_EXTRA(("(%u)NR_SCAN_SKIP:tab(%u,%u) rowid(%u,%u),"
+            DEB_NR_SCAN_EXTRA(("(%u)NR_SCAN_SKIP:tab(%u,%u) row(%u,%u),"
                                " recGCI: %u, scanGCI: %u, header: %x",
                                instance(),
                                fragPtr.p->fragTableId,
@@ -1688,7 +1690,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                tuple_header_ptr->m_header_bits);
                 ndbassert(!(thbits & Tuple_header::LCP_SKIP));
                 DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
-                             " rowid(%u,%u), header: %x",
+                             " row(%u,%u), header: %x",
                              instance(),
                              fragPtr.p->fragTableId,
                              fragPtr.p->fragmentId,
@@ -1738,7 +1740,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 /* Coverage tested */
                 tuple_header_ptr->m_header_bits =
                   thbits & (~Tuple_header::LCP_SKIP);
-                DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
+                DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
                               ", header: %x",
                               instance(),
                               fragPtr.p->fragTableId,
@@ -1753,7 +1755,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               }
               else
               {
-                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), rowid(%u,%u),"
+                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
                               " foundGCI: %u, scanGCI: %u, header: %x",
                               instance(),
                               fragPtr.p->fragTableId,
@@ -1763,7 +1765,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                               foundGCI,
                               scan.m_scanGCI,
                               thbits));
-                ndbassert(false); //COVERAGE_TEST
+                //ndbassert(false); //COVERAGE_TEST
               }
               jam();
               scan.m_last_seen = __LINE__;
@@ -1791,7 +1793,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 jam();
                 /* Coverage tested */
                 ndbassert(!(thbits & Tuple_header::LCP_SKIP));
-                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), rowid(%u,%u),"
+                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
                               " foundGCI: %u, scanGCI: %u, header: %x",
                               instance(),
                               fragPtr.p->fragTableId,
@@ -1881,7 +1883,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           tuple_header_ptr->m_header_bits =
             thbits & ~(Uint32)Tuple_header::LCP_SKIP;
 
-          DEB_LCP_SKIP(("(%u) 3 Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
+          DEB_LCP_SKIP(("(%u) 3 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
                         ", header: %x",
                         instance(),
                         fragPtr.p->fragTableId,
@@ -2017,7 +2019,7 @@ Dbtup::record_delete_by_rowid(Signal *signal,
                               bool set_scan_state)
 {
   const Uint32 bits = scan.m_bits;
-  DEB_LCP_DEL_EXTRA(("(%u)Delete by rowid tab(%u,%u), page(%u,%u)",
+  DEB_LCP_DEL_EXTRA(("(%u)Delete by rowid tab(%u,%u), row(%u,%u)",
                      instance(),
                      tableId,
                      fragmentId,
@@ -2205,13 +2207,15 @@ Dbtup::handle_lcp_keep(Signal* signal,
      * current page temporarily. This can be found in copytuple[0]
      * where handle_lcp_keep_commit puts it.
      */
-    remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
-
     c_backup->change_current_page_temp(copytuple[0]);
-    DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u,%u): Handle LCP keep insert entry",
+    remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
+    DEB_LCP_KEEP(("(%u)tab(%u,%u) row(%u,%u) page(%u,%u): Handle LCP keep"
+                  " insert entry",
                   instance(),
                   fragPtr.p->fragTableId,
                   fragPtr.p->fragmentId,
+                  copytuple[0],
+                  copytuple[1],
                   tmp.m_page_no,
                   tmp.m_page_idx));
     Local_key save = tmp;
@@ -2359,6 +2363,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
       key.m_page_idx = idx;
       bool is_in_remaining_lcp_set =
         is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      fragPtrP,
                                       key,
                                       *scanPtr.p,
                                       0);
@@ -2400,7 +2405,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   else
   {
     jam();
-    ndbassert(false); //COVERAGE TEST
+    //ndbassert(false); //COVERAGE TEST
     found_idx_count = 1;
     found_idx[0] = ZNIL; /* Indicates DELETE by PAGEID */
     DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) Keep_list DELETE_BY_PAGEID",
@@ -2460,10 +2465,13 @@ Dbtup::insert_lcp_keep_list(Fragrecord *fragPtrP,
   Local_key nil;
   nil.setNull();
   memcpy(copytuple+2, &nil, sizeof(Local_key));
-  DEB_LCP_KEEP(("(%u)tab(%u,%u) Insert LCP keep location page(%u,%u)",
+  DEB_LCP_KEEP(("(%u)tab(%u,%u) Insert LCP keep for row(%u,%u)"
+                " from location page(%u,%u)",
                 instance(),
                 fragPtrP->fragTableId,
                 fragPtrP->fragmentId,
+                rowid->m_page_no,
+                rowid->m_page_idx,
                 location.m_page_no,
                 location.m_page_idx));
 

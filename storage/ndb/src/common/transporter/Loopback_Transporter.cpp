@@ -62,6 +62,7 @@ Loopback_Transporter::connect_client()
 
   theSocket = pair[0];
   m_send_socket = pair[1];
+
   m_connected = true;
   return true;
 

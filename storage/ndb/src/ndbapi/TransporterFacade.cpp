@@ -466,6 +466,8 @@ int
 TransporterFacade::start_instance(NodeId nodeId,
                                   const ndb_mgm_configuration* conf)
 {
+  DBUG_ENTER("TransporterFacade::start_instance");
+
   assert(theOwnId == 0);
   theOwnId = nodeId;
 
@@ -473,40 +475,63 @@ TransporterFacade::start_instance(NodeId nodeId,
   (void)signal(SIGPIPE, SIG_IGN);
 #endif
 
-  theTransporterRegistry = new TransporterRegistry(this, this, false);
+  theTransporterRegistry = new TransporterRegistry(this, this);
   if (theTransporterRegistry == NULL)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!theTransporterRegistry->init(nodeId))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (theClusterMgr == NULL)
+  {
     theClusterMgr = new ClusterMgr(*this);
+  }
 
   if (theClusterMgr == NULL)
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!configure(nodeId, conf))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   if (!theTransporterRegistry->start_service(m_socket_server))
-    return -1;
+  {
+    DBUG_RETURN(-1);
+  }
 
   theReceiveThread = NdbThread_Create(runReceiveResponse_C,
                                       (void**)this,
                                       0, // Use default stack size
                                       "ndb_receive",
                                       NDB_THREAD_PRIO_LOW);
-
+  if (theReceiveThread == NULL)
+  {
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for receive.");
+    assert(theReceiveThread != NULL);
+    DBUG_RETURN(-1);
+  }
   theSendThread = NdbThread_Create(runSendRequest_C,
                                    (void**)this,
                                    0, // Use default stack size
                                    "ndb_send",
                                    NDB_THREAD_PRIO_LOW);
+  if (theSendThread == NULL)
+  {
+    ndbout_c("TransporterFacade::start_instance: Failed to create thread for send.");
+    assert(theSendThread != NULL);
+    DBUG_RETURN(-1);
+  }
 
   theClusterMgr->startThread();
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 void
@@ -1236,6 +1261,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theSendThread(NULL),
   theReceiveThread(NULL),
   recv_client(NULL),
+  m_enabled_nodes_mask(),
   m_fragmented_signal_id(0),
   m_open_close_mutex(NULL),
   thePollMutex(NULL),
@@ -1565,9 +1591,19 @@ TransporterFacade::connected()
   DBUG_VOID_RETURN;
 }
 
+/**
+ * perform_close_clnt()
+ *
+ * Invoked from close_clnt via sending a CLOSE_COMREQ signal.
+ * Reason is that the poll-right is needed to guard agains
+ * that clients are taken out of the m_threads[] array while
+ * being looked up by trp_deliver_signal, or iterated by e.g.
+ * for_each(), or enable_ / disable_send_buffer().
+ */
 void
 TransporterFacade::perform_close_clnt(trp_client* clnt)
 {
+  assert(is_poll_owner_thread());
   Guard g(m_open_close_mutex);
   m_threads.close(clnt->m_blockNo);
   dbg("perform_close_clnt: poll_owner: %p", m_poll_owner);
@@ -1651,9 +1687,19 @@ TransporterFacade::close_clnt(trp_client* clnt)
   return 0;
 }
 
+/**
+ * expand_clnt()
+ *
+ * Invoked from open_clnt() with the EXPAND_CLNT signal iff
+ * the m_threads[] array has to be expanded (and relocated).
+ * The poll-right is needed to guard against relocation of
+ * m_threads[] array while being accessed by trp_deliver_signal,
+ * or iterated by e.g. for_each(), or enable_ / disable_send_buffer().
+ */
 void
 TransporterFacade::expand_clnt()  //Handle EXPAND_CLNT signal
 {
+  assert(is_poll_owner_thread());
   Guard g(m_open_close_mutex);
   m_threads.expand(64);
 }
@@ -1664,7 +1710,11 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   DBUG_ENTER("TransporterFacade::open");
   dbg("open(%p)", clnt);
 
+  /**
+   * Need 'm_open_close_mutex' as m_threads[] will be updated.
+   */
   NdbMutex_Lock(m_open_close_mutex);
+  
   while (unlikely(m_threads.freeCnt() == 0))
   {
     // First ::open_clnt seeing 'freeCnt() == 0' will expand
@@ -1696,7 +1746,17 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
       signal.theData[0] = 0;  //Unused
 
       clnt->prepare_poll();
-      clnt->raw_sendSignal(&signal, theOwnId);
+      // This client should be allowed to sent to 'ownId'
+      assert(theOwnId > 0);
+      assert(clnt->isSendEnabled(theOwnId));
+
+      const int res = clnt->raw_sendSignal(&signal, theOwnId);
+      if (res != 0)
+      {
+        // 'open' failed if expand request could not be sent.
+        clnt->complete_poll();
+        DBUG_RETURN(0);
+      }
       clnt->do_forceSend(1);
       clnt->do_poll(10);
       clnt->complete_poll();
@@ -1713,6 +1773,32 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   {
     DBUG_RETURN(0);
   }
+
+  /**
+   * A successful m_threads.open() above also included this client in
+   * the list of clients receiving enable_send()/disable_send() callbacks
+   * as we (dis)connects to other nodes. First we have to set the initial
+   * known set of enabled nodes:
+   *
+   * As the lock order requires client lock to be taken before
+   * open_close_mutex, we have to release it above, before relocking
+   * below in correct order. This create a possible race inbetween
+   * here, where a Transporter (dis)connect may enable/disable
+   * a send buffer for the client now being in m_client[], without
+   * its enabled_nodes_mask yet being set. This should not really
+   * matter, as we 'set' the updated enabled mask to the latest
+   * value below anyway, overwritting what any races did inbetween here.
+   * The same race could also result in enable/disable notifications
+   * arriving after set_enabled_send(), appearing as duplicates which
+   * should be ignored.
+   *
+   * (Also see disable_/enable_send_buffer comments)
+   */
+  clnt->lock();
+  NdbMutex_Lock(m_open_close_mutex);
+  clnt->set_enabled_send(m_enabled_nodes_mask);
+  NdbMutex_Unlock(m_open_close_mutex);
+  clnt->unlock();
 
   if (unlikely(blockNo != -1))
   {
@@ -3194,19 +3280,31 @@ SignalSectionIterator::getNextWords(Uint32& sz)
 }
 
 /**
- * Append the send buffers 'sb' to the transporters list of buffers
- * ready to be delivered to 'node'.
+ * ::flush_send_buffer()
+ *
+ * Append a set of send buffer pages (TFPage) to the
+ * TransporterFacade 'global' list of send buffers to
+ * the specified node.
+ *
+ * The send buffers to be appended has been produced
+ * thread-locally by the client thread. The send buffers,
+ * both in the TransporterFacade, and trp_client is enabled/disabled
+ * synchronously when a Transporter connect or disconnect.
+ * Furthermore, the client is not allowed to allocate 
+ * from a disabled send buffer. This guards us from ever
+ * flushing any data into a disabled send buffer. (Asserted below)
  */
 void
 TransporterFacade::flush_send_buffer(Uint32 node, const TFBuffer * sb)
 {
-  if (unlikely(sb->m_head == NULL)) //Cleared by ::reset_send_buffer()
+  if (unlikely(sb->m_head == NULL)) //Cleared by ::disable_send_buffer()
     return;
 
   assert(node < NDB_ARRAY_SIZE(m_send_buffers));
   assert(m_active_nodes.get(node));
   struct TFSendBuffer * b = m_send_buffers + node;
   Guard g(&b->m_mutex);
+  assert(b->m_node_enabled);
   b->m_current_send_buffer_size += sb->m_bytes_in_buffer;
   b->m_flushed_cnt++;
   link_buffer(&b->m_buffer, sb);
@@ -3332,6 +3430,7 @@ void
 TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
 {
   assert(!b->try_lock_send()); //Sending already locked
+  assert(b->m_node_enabled);
 
   /**
    * Copy all data from m_buffer to m_out_buffer
@@ -3339,8 +3438,12 @@ TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
   TFBuffer copy = b->m_buffer;
   b->m_buffer.clear();
   b->m_flushed_cnt = 0;
-  NdbMutex_Unlock(&b->m_mutex);
 
+  /**
+   * Note that we still hold the 'b->m_sending' right
+   * even if we now unlock 'm_mutex'.
+   */
+  NdbMutex_Unlock(&b->m_mutex);
   if (copy.m_bytes_in_buffer > 0)
   {
     link_buffer(&b->m_out_buffer, &copy);
@@ -3349,17 +3452,14 @@ TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
 
   NdbMutex_Lock(&b->m_mutex);
   /**
-   * There might be a pending reset prev. skipped
-   * as it would have interfered with ongoing send.
+   * Sending to node could possible have been disabled
+   * wo/ 'out_buffer' being cleared as we held the send_lock.
+   * Thus, discard any out_buffer'ed send data now.
    */
-  if (unlikely(b->m_reset))
+  if (unlikely(!b->m_node_enabled && b->m_out_buffer.m_head != NULL))
   {
-    if (b->m_out_buffer.m_head != NULL)
-    {
-      m_send_buffer.release_list(b->m_out_buffer.m_head);
-      b->m_out_buffer.clear();
-    }
-    b->m_reset = false;
+    m_send_buffer.release_list(b->m_out_buffer.m_head);
+    b->m_out_buffer.clear();
   }
 
   /* Update pending bytes to be sent. */
@@ -3448,92 +3548,180 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
   return used_bytes;
 }
 
-bool
-TransporterFacade::has_data_to_send(NodeId node)
+/**
+ * ::enable_send_buffer(), ::disable_send_buffer()
+ *
+ * Enable / disable send to the specified 'node'.
+ * Any pending data in the TransporterFacade and trp_client's
+ * send buffers are discarded when 'disabled'.
+ *
+ * Require the 'poll-right' to be held, and takes the required locks
+ * to update the global and local send buffer structures as needed.
+ *
+ * Handle both the 'global' send buffers in the TransporterFacade,
+ * and the clients thread-local send buffers. Note, that enable/disable is
+ * *not* an atomic operation across the global TF-buffers and thread-local
+ * client buffers: The consistency requirement is such that the global TF buffer
+ * should be enabled if any of the thread-local client buffers are enabled.
+ * Thus, the 'global' (TF) buffers has to be enabled prior to enabling
+ * any thread-local client buffers. While disabling, all thread-local buffers
+ * must be disabled before disabling the 'global' TF buffers.
+ *
+ * The above 'protocol' also ensure that trp_client::isSendEnabled()
+ * correctly reflect the current status of the local trp_client
+ * buffers and its related 'global' TF buffers.
+ *
+ * The poll-right guarantee that a enable/disable sequence is fully
+ * executed across both the global and local send buffers.
+ * It also protects against races between enable, disable (and close)
+ * of clients, which otherwise could result in an enabling being overtaken
+ * by a disable of the same node, or a client being closed while being
+ * notified about enable/disable.
+ *
+ * A 'global' TransporterFacade::m_enabled_nodes_mask holding the
+ * current set of enabled nodes is also maintained. 'Open' of new
+ * clients will  use this to init their current set of enabled nodes.
+ * (Must be set prior to client enable/disable callback to handle a
+ * a race in ::open_clnt()) 
+ *
+ * Also see comments for these methods in TransporterCallback.hpp,
+ * and how ::open_clnt() synchronize its set of enabled nodes. */
+void
+TransporterFacade::enable_send_buffer(NodeId node)
 {
-  struct TFSendBuffer *b = &m_send_buffers[node];
-  Guard g(&m_send_buffers[node].m_mutex);
-  assert(b->m_current_send_buffer_size == 
-         b->m_buffer.m_bytes_in_buffer+b->m_out_buffer.m_bytes_in_buffer);
-  return (b->m_current_send_buffer_size > 0);
+  assert(is_poll_owner_thread());
+
+  //Always set the 'outcome' first
+  NdbMutex_Lock(m_open_close_mutex);
+  assert(!m_enabled_nodes_mask.get(node));
+  m_enabled_nodes_mask.set(node);
+  NdbMutex_Unlock(m_open_close_mutex);
+
+  //Enable global buffers
+  {
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    Guard g(&b->m_mutex);
+
+    //There should be no pending buffered send data
+    assert(b->m_buffer.m_bytes_in_buffer == 0);
+    assert(b->m_out_buffer.m_bytes_in_buffer == 0);
+
+    assert(b->m_node_enabled == false);
+    b->m_node_enabled = true;
+  }
+
+  //Enable thread-local buffers
+  const Uint32 sz = m_threads.m_clients.size();
+  for (Uint32 i = 0; i < sz ; i ++)
+  {
+    trp_client *const clnt = m_threads.m_clients[i].m_clnt;
+    if (clnt != NULL)
+    {
+      if (clnt->is_locked_for_poll())
+      {
+        clnt->enable_send(node);
+      }
+      else
+      {
+        Guard g(clnt->m_mutex);
+        clnt->enable_send(node);
+      }
+    }
+  }
 }
 
-/**
- * Precondition: No locks held, do the protection myself.
- * Assumed to be called by thread being poll owner.
- *
- * Reset all buffered data to specified node. If there
- * are active senders (m_sending==true') to this node,
- * the reset of m_out_buffer is made 'pending'. It will
- * then be reset by the sender when it completes.
- */
 void
-TransporterFacade::reset_send_buffer(NodeId node)
+TransporterFacade::disable_send_buffer(NodeId node)
 {
+  assert(is_poll_owner_thread());
+
+  //Always set the 'outcome' first.
+  NdbMutex_Lock(m_open_close_mutex);
+  m_enabled_nodes_mask.clear(node);
+  NdbMutex_Unlock(m_open_close_mutex);
+
   /**
-   * Clear all clients send buffer to 'node'
+   * Disable thread local buffers:
+   * disable and discard all clients send buffer to 'node'.
    * Avoids these later being flushed to the TransporterFacade send buffer,
    * creating a non-empty transporter send buffer when expecting
-   * to be empty after this reset.
+   * to be empty after 'disable'.
    */
   const Uint32 sz = m_threads.m_clients.size();
-  for (Uint32 i = 0; i < sz ; i ++) 
+  for (Uint32 i = 0; i < sz ; i ++)
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
     if (clnt != NULL)
     {
-      const bool locked_for_poll = clnt->is_locked_for_poll();
-      if (!locked_for_poll)
+      if (clnt->is_locked_for_poll())
       {
-        NdbMutex_Lock(clnt->m_mutex);
+        clnt->disable_send(node);
       }
-      TFBuffer* b = clnt->m_send_buffers + node;
-      TFBufferGuard g0(* b);
-      if (b->m_head != 0)
+      else
       {
-        m_send_buffer.release_list(b->m_head);
-        b->clear();
-      }
-      if (!locked_for_poll)
-      {
-        NdbMutex_Unlock(clnt->m_mutex);
+        Guard g(clnt->m_mutex);
+        clnt->disable_send(node);
       }
     }
   }
+  
+  //Disable global buffers when all thread-locals are disabled.
+  {
+    struct TFSendBuffer *b = &m_send_buffers[node];
+    Guard g(&b->m_mutex);
+    b->m_node_enabled = false;
+    discard_send_buffer(b);
+    m_has_data_nodes.set(node);
+  }
+}
 
+/**
+ * Precondition: Called with 'm_mutex' lock held.
+ *
+ * Release all data in our two levels of send buffers.
+ * We do not wait for the 'sending lock' to become
+ * available. Instead the sender holding it will check 
+ * for 'disabled' send buffers and clear any remaining
+ * data in the m_out_buffer.
+ */
+void
+TransporterFacade::discard_send_buffer(struct TFSendBuffer *b)
+{
   /**
    * Clear the TransporterFacade two levels of send buffers.
    */
-  Guard g(&m_send_buffers[node].m_mutex);
   {
-    TFBuffer *b = &m_send_buffers[node].m_buffer;
-    if (b->m_head != 0)
+    TFBuffer *buffer = &b->m_buffer;
+    if (buffer->m_head != NULL)
     {
-      m_send_buffer.release_list(b->m_head);
-      b->clear();
+      m_send_buffer.release_list(buffer->m_head);
+      buffer->clear();
     }
   }
 
-  if (likely(m_send_buffers[node].try_lock_send()))
+  if (b->try_lock_send())
   {
-    TFBuffer *b = &m_send_buffers[node].m_out_buffer;
-    if (b->m_head != 0)
+    TFBuffer *out_buffer = &b->m_out_buffer;
+    if (out_buffer->m_head != NULL)
     {
-      m_send_buffer.release_list(b->m_head);
-      b->clear();
+      m_send_buffer.release_list(out_buffer->m_head);
+      out_buffer->clear();
     }
-    m_send_buffers[node].m_reset = false;
-    m_send_buffers[node].unlock_send();
+    b->unlock_send();
   }
   else
   {
-    // Await for current do_send_buffer() to complete
-    // before 'm_out_buffers' can be released.
-    m_send_buffers[node].m_reset = true;
+    /**
+     * Current do_send_buffer() hold the send lock.
+     * It will detect the disabled node when completed,
+     * and clear any remaining out_buffer. Thus,
+     * no further action is required now.
+     */
+    assert(!b->m_node_enabled);  //-> do_send_buffer() will clear
   }
-  m_send_buffers[node].m_current_send_buffer_size = 0;
-  m_send_buffers[node].m_flushed_cnt = 0;
-  m_has_data_nodes.clear(node);
+  
+  b->m_current_send_buffer_size = 0;
+  b->m_flushed_cnt = 0;
 }
 
 #ifdef UNIT_TEST

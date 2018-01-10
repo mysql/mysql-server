@@ -1,0 +1,61 @@
+--source include/have_ndb.inc
+--source include/not_windows.inc
+
+use test;
+
+--echo Create a table with some heavy indexing
+
+
+create table t1 (a int primary key, b int, c varchar(100), d int,
+        key (a,b,c,d),
+        key (b,a),
+        key (b,c),
+        key (b,d),
+        key (c,a),
+        key (c,d),
+        key (d,c,b,a),
+        key (c,b,a),
+        key (c,b,a,d),
+        key (b,a,d,c),
+        key (a,d,c,b))
+engine = ndb;
+
+--echo Insert some rows
+--disable_query_log
+--disable_result_log
+insert into test.t1 values (1,1,repeat('sh', 50), 1);
+insert into test.t1 select a+1, b+1, c, d+1 from test.t1;
+insert into test.t1 select a+2, b+2, c, d+2 from test.t1;
+insert into test.t1 select a+4, b+4, c, d+4 from test.t1;
+insert into test.t1 select a+8, b+8, c, d+8 from test.t1;
+insert into test.t1 select a+16, b+16, c, d+16 from test.t1;
+insert into test.t1 select a+32, b+32, c, d+32 from test.t1;
+insert into test.t1 select a+64, b+64, c, d+64 from test.t1;
+insert into test.t1 select a+128, b+128, c, d+128 from test.t1;
+insert into test.t1 select a+256, b+256, c, d+256 from test.t1;
+insert into test.t1 select a+512, b+512, c, d+512 from test.t1;
+insert into test.t1 select a+1024, b+1024, c, d+1024 from test.t1;
+insert into test.t1 select a+2048, b+2048, c, d+2048 from test.t1;
+insert into test.t1 select a+4096, b+4096, c, d+4096 from test.t1;
+insert into test.t1 select a+8192, b+8192, c, d+8192 from test.t1 limit 8000;
+insert into test.t1 select a+16384, b+16384, c, d+16384 from test.t1 limit 8000;
+insert into test.t1 select a+32768, b+32768, c, d+32768 from test.t1 limit 8000;
+insert into test.t1 select a+65536, b+65536, c, d+65536 from test.t1 limit 8000;
+insert into test.t1 select a+131072, b+131072, c, d+131072 from test.t1 limit 8000;
+
+--enable_query_log
+--enable_result_log
+
+select count(1) from test.t1;
+
+--echo Generate a backup
+--source include/ndb_backup.inc
+
+drop table test.t1;
+
+--echo Restore with offline (parallel) rebuild
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m --disable-indexes -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 --disable_indexes -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+drop table test.t1;

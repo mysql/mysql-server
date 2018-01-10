@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,35 +87,39 @@ static const Uint32 WaitScanTempErrorRetryMillis = 10;
 
 static NDB_TICKS startTime;
 
-#define DEBUG_LCP 1
+#ifdef VM_TRACE
+//#define DEBUG_LCP 1
+//#define DEBUG_LCP_ROW 1
+//#define DEBUG_LCP_DEL_FILES 1
+//#define DEBUG_LCP_DEL 1
+//#define DEBUG_EXTRA_LCP 1
+#define DEBUG_LCP_STAT 1
+#endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL_FILES 1
 #ifdef DEBUG_LCP_DEL_FILES
 #define DEB_LCP_DEL_FILES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL_FILES(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_STAT 1
 #ifdef DEBUG_LCP_STAT
 #define DEB_LCP_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_STAT(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_EXTRA_LCP 1
 #ifdef DEBUG_EXTRA_LCP
 #define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -5718,7 +5722,7 @@ Backup::start_lcp_scan(Signal *signal,
 
     if (ptr.p->m_lcp_max_page_cnt > 20)
     {
-      delay = 3000;
+      delay = 9000;
     }
   }
   sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, delay);
@@ -6340,7 +6344,7 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   copy_array[0] = pageNo;
   copy_array[1] = pageIndex;
   copy_array[2] = gci;
-  DEB_LCP_DEL(("(%u) DELETE_BY_ROWID: rowid(%u,%u)",
+  DEB_LCP_DEL(("(%u) DELETE_BY_ROWID: row(%u,%u)",
                 instance(),
                 pageNo,
                 pageIndex));
@@ -6404,6 +6408,19 @@ Backup::execTRANSID_AI(Signal* signal)
     const Uint32 * src = &signal->theData[3];
     * dst = htonl(header);
     memcpy(dst + 1, src, 4*dataLen);
+#ifdef DEBUG_LCP_ROW
+    TablePtr debTabPtr;
+    FragmentPtr fragPtr;
+    ptr.p->tables.first(debTabPtr);
+    debTabPtr.p->fragments.getPtr(fragPtr, 0);
+    g_eventLogger->info("(%u) tab(%u,%u) Write row(%u,%u) into LCP, bits: %x",
+                 instance(),
+                 debTabPtr.p->tableId,
+                 fragPtr.p->fragmentId,
+                 src[0],
+                 src[1],
+                 src[3]));
+#endif
     if (unlikely(dataLen >= op.maxRecordSize))
     {
       g_eventLogger->info("dataLen: %u, op.maxRecordSize = %u, header: %u",
@@ -7290,11 +7307,26 @@ Backup::fragmentCompleted(Signal* signal,
      * the LCP scan in an orderly manner with no rows read. So we
      * should not crash in this case.
      */
-    ndbrequire(errCode != 0 ||
-               ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-      ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
-       (ptr.p->m_row_count >=
-        (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
+    if (!(errCode != 0 ||
+          ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
+          ((ptr.p->m_num_parts_in_this_lcp !=
+            BackupFormat::NDB_MAX_LCP_PARTS) &&
+           (ptr.p->m_row_count >=
+            (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes)))))
+    {
+      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
+                          ", writes: %llu, parts: %u",
+                          errCode,
+                          ptr.p->m_row_count,
+                          filePtr.p->m_lcp_inserts,
+                          filePtr.p->m_lcp_writes,
+                          ptr.p->m_num_parts_in_this_lcp);
+      ndbrequire(errCode != 0 ||
+                 ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
+        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
+         (ptr.p->m_row_count >=
+          (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
+    }
 
     ptr.p->slaveState.setState(STOPPING);
 
@@ -9705,16 +9737,22 @@ Backup::execFSREMOVECONF(Signal* signal)
  *
  * Observation 2:
  * --------------
- * The selected algorithm of performing an LCP means that we scan the
- * rows in an order that is not strictly from page id 0 and onwards,
- * we will however only pass by each page once for scanning it. Thus
- * we can safely clear the LCP_SKIP bit when we pass by a page as
- * part of the LCP, so even with multiple files and multiple LCP
- * scans we will only scan each page once per LCP.
+ * Given that we need two different mechanisms to deduce if a page should
+ * be skipped when LCP scanned (is_page_to_skip_lcp() through state on
+ * page and lcp_scanned_bit set in page map) this means that both of
+ * those need to be checked to see if a row is in remaining LCP set
+ * that is used to decide whether to set LCP_SKIP bit on the row.
  *
- * This means that the BACKUP blocks needs to be involved in checking
- * if a rowid has been scanned yet or not as part of the LCP_SKIP bit
- * setting for inserts and the LCP keep list for deletes.
+ * The is_page_to_skip_lcp() flag on page is set when a page as first
+ * alloc/release page event after start of LCP scan is allocated. After
+ * this the page can be released and if so the last LCP state of the
+ * page will be updated and the lcp scanned bit will be set.
+ *
+ * Similarly if the page is released as the first page event after
+ * start of LCP scan we will also update the last LCP state and
+ * next set the lcp scanned bit. So when we see a lcp scanned bit we
+ * need never do anything more during the LCP scan, we only need to
+ * reset the bit.
  *
  * Lemma 1:
  * --------

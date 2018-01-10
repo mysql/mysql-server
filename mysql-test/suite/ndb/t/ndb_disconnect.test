@@ -37,5 +37,8 @@ source include/ndb_not_readonly.inc;
 show create table test.t1;
 --enable_warnings
 
+#Clean Up
 drop table test.t1;
 --echo # End of bug#21837074
+
+

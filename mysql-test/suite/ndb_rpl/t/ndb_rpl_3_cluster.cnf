@@ -35,6 +35,9 @@ log-bin=                       cluster1-bin
 # for performance reasons
 ndb-table-temporary=1
 ndb-extra-logging=99
+# Set error log verbosity to max, otherwise info messages
+# are filtered away
+log-error-verbosity=3
 binlog-format=row
 
 [mysqld.1.cluster1]

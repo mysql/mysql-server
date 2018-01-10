@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,14 +58,17 @@
 
 extern EventLogger * g_eventLogger;
 
+#ifdef VM_TRACE
 //#define DEBUG_TUP_META
+//#define DEBUG_TUP_META_EXTRA
+#endif
+
 #ifdef DEBUG_TUP_META
 #define DEB_TUP_META(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TUP_META(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TUP_META_EXTRA
 #ifdef DEBUG_TUP_META_EXTRA
 #define DEB_TUP_META_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

@@ -315,6 +315,29 @@ private:
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
   NdbMutex *m_client_mutex;
+
+  /**
+   * Index 0 : Total number of pending undo records (All LDMs combined)
+   * Index i(>0) : Number of pending undo records for DBTUP instance i
+   *
+   * The counts are incremented in LGMAN when a
+   * CONTINUEB (ZDISK_RESTART_UNDO) is sent to a single LDM with the required
+   * undo record data.
+   * The counts are decremented in LGMAN when a CONTINUEB is received from
+   * an LDM thread.
+   * Note: The numbers are applicable only to records of type UNDO_TUP_ALLOC,
+   * UNDO_TUP_UPDATE, UNDO_TUP_UPDATE_PART, UNDO_TUP_UPDATE_PART,
+   * UNDO_TUP_FREE and UNDO_TUP_FREE_PART.
+   *
+   */
+  int m_pending_undo_records[MAX_NDBMT_LQH_WORKERS + 1];
+  struct serial_record
+  {
+    Uint64 lsn;
+    Uint32 ptr_array[20 + MAX_TUPLE_SIZE_IN_WORDS];
+    Uint32* ptr;
+  } m_serial_record;
+
   void client_lock(BlockNumber block, int line, SimulatedBlock*);
   void client_unlock(BlockNumber block, int line, SimulatedBlock*);
 
@@ -418,6 +441,15 @@ private:
                                  Ptr<Undofile> file_ptr);
   void sendCUT_UNDO_LOG_TAIL_CONF(Signal*);
   void execCUT_UNDO_LOG_TAIL_REQ(Signal*);
+
+  /**
+   * Checks if it's needed to wait for the pending records to complete.
+   * If waiting is required, it saves "ptr" in a member variable.
+   * @param ptr The undo log record that requires all the pending records to
+   * complete execution
+   * @return true if wait required, false otherwise.
+   */
+  bool wait_pending(Uint64 lsn, const Uint32* ptr, Uint32 len);
 };
 
 class Logfile_client {

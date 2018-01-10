@@ -1,0 +1,2265 @@
+use test;
+Test read-locality of READ-BACKUP
+create table test.t1 (a int primary key,
+b int,
+c int,
+d int,
+unique(b) using hash,
+key(c),
+key(a,c))
+comment="NDB_TABLE=READ_BACKUP=1"
+  engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+create table test.t2 (a int primary key,
+b int,
+c int,
+d text,
+unique(b) using hash,
+key(c))
+comment="NDB_TABLE=READ_BACKUP=1"
+  engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
+select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;
+select id into @t2_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t2';
+select id into @t2ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and type = 3;
+select id into @t2bt_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and fq_name like 'test/def/NDB$BLOB%';
+Put some data in.
+Make it more interesting for joining
+update test.t1 set c=c+1, d=d+1;
+select count(distinct node_id) into @nodes
+from ndbinfo.ndb$membership where group_id < 0xFFFFFF00;
+Check replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1'
+   and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with table data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1';
+count(distinct node_id)
+2
+Check UI replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with UI data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id;
+count(distinct node_id)
+2
+Put some data in.
+insert into test.t2 select a,b,c,repeat('BJC',300) from test.t1;
+Check blob table replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with blob data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id;
+count(distinct node_id)
+2
+set @partitions = 'PARTITION p2 VALUES IN (2)';
+set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
+set @@new = 1;
+create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+insert into hints values (2);
+Hint node by 2 of 2
+Tests on T1 (!Blobs)
+Test some basic NdbApi
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	0	24
+PK lookups
+explain select * from test.t1 where t1.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` = 6)
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	1
+1	READS	20
+2	LOCAL_READS	11
+2	READS	12
+3	LOCAL_READS	0
+3	READS	8
+4	LOCAL_READS	0
+4	READS	10
+5	LOCAL_READS	0
+5	READS	9
+6	LOCAL_READS	0
+6	READS	12
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	40	24
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	1
+1	READS	20
+2	LOCAL_READS	51
+2	READS	52
+3	LOCAL_READS	0
+3	READS	8
+4	LOCAL_READS	0
+4	READS	10
+5	LOCAL_READS	0
+5	READS	9
+6	LOCAL_READS	0
+6	READS	12
+UI lookups
+explain select * from test.t1 where t1.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	80	24
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	1
+1	READS	20
+2	LOCAL_READS	131
+2	READS	132
+3	LOCAL_READS	0
+3	READS	8
+4	LOCAL_READS	0
+4	READS	10
+5	LOCAL_READS	0
+5	READS	9
+6	LOCAL_READS	0
+6	READS	12
+OI scan
+explain select * from test.t1 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	80	24
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Table scan
+explain select * from test.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	80	32
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Test pushed queries (SPJ)
+Pushed pk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	160	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed uk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	239	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	120	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed uk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	319	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	160	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed pk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	398	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	200	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding pk lookups of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	438	48
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	200	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding uk lookups of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	477	56
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	240	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed scan originating sub-scans
+Range scan on a.a > 10 getting a.d, feeding range scans on b.c = a.d
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	477	56
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	240	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	16
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Tests on T2 (Blobs)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	0	12
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	1
+1	READS	20
+2	LOCAL_READS	291
+2	READS	292
+3	LOCAL_READS	0
+3	READS	8
+4	LOCAL_READS	0
+4	READS	10
+5	LOCAL_READS	0
+5	READS	9
+6	LOCAL_READS	0
+6	READS	12
+Test some basic NdbApi
+explain select * from test.t2 where t2.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	eq_ref	PRIMARY	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`a` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	80	12
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	40	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	1
+1	READS	20
+2	LOCAL_READS	372
+2	READS	374
+3	LOCAL_READS	0
+3	READS	8
+4	LOCAL_READS	0
+4	READS	10
+5	LOCAL_READS	0
+5	READS	9
+6	LOCAL_READS	0
+6	READS	12
+UI lookups
+explain select * from test.t2 where t2.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	160	12
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	0
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	80	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	1
+1	READS	20
+2	LOCAL_READS	572
+2	READS	574
+3	LOCAL_READS	0
+3	READS	8
+4	LOCAL_READS	0
+4	READS	10
+5	LOCAL_READS	0
+5	READS	9
+6	LOCAL_READS	0
+6	READS	12
+OI scan
+explain select * from test.t2 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	160	12
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	0
+test/def/t2	sys/def/15/c	Ordered index	2	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	115	0
+Table scan
+explain select * from test.t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	160	20
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	0
+test/def/t2	sys/def/15/c	Ordered index	2	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	155	0
+drop table hints;
+delete from t1;
+delete from t2;
+drop table test.t1;
+drop table test.t2;
+Test read-locality of FULLY-REPLICATED
+create table test.t1 (a int primary key,
+b int,
+c int,
+d int,
+unique(b) using hash,
+key(c),
+key(a,c))
+comment="NDB_TABLE=FULLY_REPLICATED=1"
+   engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+create table test.t2 (a int primary key,
+b int,
+c int,
+d text,
+unique(b) using hash,
+key(c))
+comment="NDB_TABLE=FULLY_REPLICATED=1"
+  engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
+select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;
+select id into @t2_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t2';
+select id into @t2ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and type = 3;
+select id into @t2bt_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and fq_name like 'test/def/NDB$BLOB%';
+Put some data in.
+Make it more interesting for joining
+update test.t1 set c=c+1, d=d+1;
+select count(distinct node_id) into @nodes
+from ndbinfo.ndb$membership where group_id < 0xFFFFFF00;
+Check replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1'
+   and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with table data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1';
+count(distinct node_id)
+2
+Check UI replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with UI data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id;
+count(distinct node_id)
+2
+Put some data in.
+insert into test.t2 select a,b,c,repeat('BJC',300) from test.t1;
+Check blob table replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with blob data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id;
+count(distinct node_id)
+2
+set @partitions = 'PARTITION p2 VALUES IN (2)';
+set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
+set @@new = 1;
+create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+insert into hints values (2);
+Hint node by 2 of 2
+Tests on T1 (!Blobs)
+Test some basic NdbApi
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	0	24
+PK lookups
+explain select * from test.t1 where t1.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` = 6)
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	11
+1	READS	42
+2	LOCAL_READS	579
+2	READS	587
+3	LOCAL_READS	0
+3	READS	16
+4	LOCAL_READS	0
+4	READS	63
+5	LOCAL_READS	0
+5	READS	17
+6	LOCAL_READS	0
+6	READS	102
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	40	24
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	11
+1	READS	42
+2	LOCAL_READS	619
+2	READS	627
+3	LOCAL_READS	0
+3	READS	16
+4	LOCAL_READS	0
+4	READS	63
+5	LOCAL_READS	0
+5	READS	17
+6	LOCAL_READS	0
+6	READS	102
+UI lookups
+explain select * from test.t1 where t1.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	80	24
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	11
+1	READS	42
+2	LOCAL_READS	699
+2	READS	707
+3	LOCAL_READS	0
+3	READS	16
+4	LOCAL_READS	0
+4	READS	63
+5	LOCAL_READS	0
+5	READS	17
+6	LOCAL_READS	0
+6	READS	102
+OI scan
+explain select * from test.t1 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	80	24
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Table scan
+explain select * from test.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	80	32
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Test pushed queries (SPJ)
+Pushed pk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	160	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	40	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed uk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	239	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	120	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed uk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	319	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	160	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed pk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	398	40
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	200	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding pk lookups of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	438	48
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	200	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding uk lookups of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	477	56
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	240	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	8
+Pushed scan originating sub-scans
+Range scan on a.a > 10 getting a.d, feeding range scans on b.c = a.d
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	477	56
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	240	0
+test/def/t1	sys/def/10/c	Ordered index	2	0	16
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Tests on T2 (Blobs)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	0	12
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	11
+1	READS	42
+2	LOCAL_READS	859
+2	READS	867
+3	LOCAL_READS	0
+3	READS	16
+4	LOCAL_READS	0
+4	READS	63
+5	LOCAL_READS	0
+5	READS	17
+6	LOCAL_READS	0
+6	READS	102
+Test some basic NdbApi
+explain select * from test.t2 where t2.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	eq_ref	PRIMARY	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`a` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	80	12
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	40	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	11
+1	READS	42
+2	LOCAL_READS	939
+2	READS	949
+3	LOCAL_READS	0
+3	READS	16
+4	LOCAL_READS	0
+4	READS	63
+5	LOCAL_READS	0
+5	READS	17
+6	LOCAL_READS	0
+6	READS	102
+UI lookups
+explain select * from test.t2 where t2.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	160	12
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	0
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	80	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	11
+1	READS	42
+2	LOCAL_READS	1139
+2	READS	1149
+3	LOCAL_READS	0
+3	READS	16
+4	LOCAL_READS	0
+4	READS	63
+5	LOCAL_READS	0
+5	READS	17
+6	LOCAL_READS	0
+6	READS	102
+OI scan
+explain select * from test.t2 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	160	12
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	0
+test/def/t2	sys/def/15/c	Ordered index	2	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	115	0
+Table scan
+explain select * from test.t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	160	20
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	0
+test/def/t2	sys/def/15/c	Ordered index	2	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	155	0
+drop table hints;
+delete from t1;
+delete from t2;
+Test read-locality of FULLY-REPLICATED with 2 node groups
+Nodegroup 1 created
+alter table t1 algorithm=inplace, reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
+select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;
+select id into @t2_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t2';
+select id into @t2ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and type = 3;
+select id into @t2bt_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and fq_name like 'test/def/NDB$BLOB%';
+Put some data in.
+Make it more interesting for joining
+update test.t1 set c=c+1, d=d+1;
+select count(distinct node_id) into @nodes
+from ndbinfo.ndb$membership where group_id < 0xFFFFFF00;
+Check replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1'
+   and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with table data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1';
+count(distinct node_id)
+4
+Check UI replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with UI data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id;
+count(distinct node_id)
+4
+Put some data in.
+insert into test.t2 select a,b,c,repeat('BJC',300) from test.t1;
+Check blob table replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with blob data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id;
+count(distinct node_id)
+4
+set @partitions = 'PARTITION p4 VALUES IN (4)';
+set @partitions = concat(@partitions,',PARTITION p3 VALUES IN (3)');
+set @partitions = concat(@partitions,',PARTITION p2 VALUES IN (2)');
+set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
+set @@new = 1;
+create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p4 VALUES IN (4),PARTITION p3 VALUES IN (3),PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+insert into hints values (4);
+Hint node by 4 of 4
+Tests on T1 (!Blobs)
+Test some basic NdbApi
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	477	88
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	240	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	16
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+PK lookups
+explain select * from test.t1 where t1.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` = 6)
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	16
+1	READS	49
+2	LOCAL_READS	1261
+2	READS	1277
+3	LOCAL_READS	0
+3	READS	19
+4	LOCAL_READS	0
+4	READS	66
+5	LOCAL_READS	0
+5	READS	20
+6	LOCAL_READS	0
+6	READS	105
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	517	88
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	240	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	16
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	16
+1	READS	49
+2	LOCAL_READS	1301
+2	READS	1317
+3	LOCAL_READS	0
+3	READS	19
+4	LOCAL_READS	0
+4	READS	66
+5	LOCAL_READS	0
+5	READS	20
+6	LOCAL_READS	0
+6	READS	105
+UI lookups
+explain select * from test.t1 where t1.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	557	88
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	280	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	16
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	16
+1	READS	49
+2	LOCAL_READS	1381
+2	READS	1397
+3	LOCAL_READS	0
+3	READS	19
+4	LOCAL_READS	0
+4	READS	66
+5	LOCAL_READS	0
+5	READS	20
+6	LOCAL_READS	0
+6	READS	105
+OI scan
+explain select * from test.t1 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	557	88
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	280	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Table scan
+explain select * from test.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	557	96
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	280	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Test pushed queries (SPJ)
+Pushed pk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	637	104
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	280	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Pushed uk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	716	104
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	360	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Pushed uk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	796	104
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	400	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Pushed pk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	875	104
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	440	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding pk lookups of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	915	112
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	440	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding uk lookups of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	954	120
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	480	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	24
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	8
+Pushed scan originating sub-scans
+Range scan on a.a > 10 getting a.d, feeding range scans on b.c = a.d
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	24
+NULL	test/def/t1	User table	2	954	120
+test/def/t1	sys/def/10/b$unique	Unique hash index	1	0	8
+test/def/t1	sys/def/10/b$unique	Unique hash index	2	480	8
+test/def/t1	sys/def/10/c	Ordered index	2	0	32
+test/def/t1	sys/def/10/PRIMARY	Ordered index	2	0	16
+Tests on T2 (Blobs)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	16
+NULL	test/def/t2	User table	2	200	40
+test/def/t2	sys/def/15/b$unique	Unique hash index	1	0	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	8
+test/def/t2	sys/def/15/c	Ordered index	2	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	1	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	155	8
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	16
+1	READS	49
+2	LOCAL_READS	1541
+2	READS	1557
+3	LOCAL_READS	0
+3	READS	19
+4	LOCAL_READS	0
+4	READS	66
+5	LOCAL_READS	0
+5	READS	20
+6	LOCAL_READS	0
+6	READS	105
+Test some basic NdbApi
+explain select * from test.t2 where t2.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	eq_ref	PRIMARY	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`a` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	16
+NULL	test/def/t2	User table	2	244	40
+NULL	test/def/t2	User table	4	36	0
+test/def/t2	sys/def/15/b$unique	Unique hash index	1	0	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	80	8
+test/def/t2	sys/def/15/c	Ordered index	2	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	1	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	177	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	4	18	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	16
+1	READS	49
+2	LOCAL_READS	1585
+2	READS	1601
+3	LOCAL_READS	0
+3	READS	19
+4	LOCAL_READS	36
+4	READS	102
+5	LOCAL_READS	0
+5	READS	20
+6	LOCAL_READS	0
+6	READS	105
+UI lookups
+explain select * from test.t2 where t2.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	16
+NULL	test/def/t2	User table	2	284	40
+NULL	test/def/t2	User table	4	76	0
+test/def/t2	sys/def/15/b$unique	Unique hash index	1	0	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	120	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	4	40	0
+test/def/t2	sys/def/15/c	Ordered index	2	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	1	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	197	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	4	38	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	16
+1	READS	49
+2	LOCAL_READS	1685
+2	READS	1701
+3	LOCAL_READS	0
+3	READS	19
+4	LOCAL_READS	136
+4	READS	202
+5	LOCAL_READS	0
+5	READS	20
+6	LOCAL_READS	0
+6	READS	105
+OI scan
+explain select * from test.t2 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	16
+NULL	test/def/t2	User table	2	284	40
+NULL	test/def/t2	User table	4	76	0
+test/def/t2	sys/def/15/b$unique	Unique hash index	1	0	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	120	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	4	40	0
+test/def/t2	sys/def/15/c	Ordered index	2	0	16
+test/def/t2	test/def/NDB$BLOB_15_3	User table	1	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	232	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	4	38	0
+Table scan
+explain select * from test.t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	16
+NULL	test/def/t2	User table	2	284	40
+NULL	test/def/t2	User table	4	76	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	1	0	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	2	120	8
+test/def/t2	sys/def/15/b$unique	Unique hash index	4	40	0
+test/def/t2	sys/def/15/c	Ordered index	2	0	16
+test/def/t2	test/def/NDB$BLOB_15_3	User table	1	0	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	2	232	8
+test/def/t2	test/def/NDB$BLOB_15_3	User table	4	78	0
+drop table hints;
+delete from t1;
+delete from t2;
+drop table test.t1;
+drop table test.t2;
+Test read-locality of READ-BACKUP with 3 node groups
+Nodegroup 2 created
+create table test.t1 (a int primary key,
+b int,
+c int,
+d int,
+unique(b) using hash,
+key(c),
+key(a,c))
+comment="NDB_TABLE=READ_BACKUP=1"
+  engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+create table test.t2 (a int primary key,
+b int,
+c int,
+d text,
+unique(b) using hash,
+key(c))
+comment="NDB_TABLE=READ_BACKUP=1"
+  engine=ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+select id into @t1_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t1';
+select id into @t1ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t1_id and type = 3;
+select id into @t2_id from ndbinfo.ndb$dict_obj_info where fq_name = 'test/def/t2';
+select id into @t2ui_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and type = 3;
+select id into @t2bt_id from ndbinfo.ndb$dict_obj_info where parent_obj_id = @t2_id and fq_name like 'test/def/NDB$BLOB%';
+Put some data in.
+Make it more interesting for joining
+update test.t1 set c=c+1, d=d+1;
+select count(distinct node_id) into @nodes
+from ndbinfo.ndb$membership where group_id < 0xFFFFFF00;
+Check replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1'
+   and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with table data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where fq_name='test/def/t1';
+count(distinct node_id)
+6
+Check UI replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with UI data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t1ui_id;
+count(distinct node_id)
+6
+Put some data in.
+insert into test.t2 select a,b,c,repeat('BJC',300) from test.t1;
+Check blob table replicas
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id
+and fragment_num=0;
+count(distinct node_id)
+2
+Check nodes with blob data
+select count(distinct node_id)
+from ndbinfo.operations_per_fragment
+where table_id = @t2bt_id;
+count(distinct node_id)
+6
+set @partitions = 'PARTITION p6 VALUES IN (6)';
+set @partitions = concat(@partitions,',PARTITION p5 VALUES IN (5)');
+set @partitions = concat(@partitions,',PARTITION p4 VALUES IN (4)');
+set @partitions = concat(@partitions,',PARTITION p3 VALUES IN (3)');
+set @partitions = concat(@partitions,',PARTITION p2 VALUES IN (2)');
+set @partitions = concat(@partitions,',PARTITION p1 VALUES IN (1)');
+set @@new = 1;
+create table hints (i int primary key) engine=ndb partition by list(i) (PARTITION p6 VALUES IN (6),PARTITION p5 VALUES IN (5),PARTITION p4 VALUES IN (4),PARTITION p3 VALUES IN (3),PARTITION p2 VALUES IN (2),PARTITION p1 VALUES IN (1));
+insert into hints values (6);
+Hint node by 6 of 6
+Tests on T1 (!Blobs)
+Test some basic NdbApi
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	0	24
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	0	24
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	0	24
+PK lookups
+explain select * from test.t1 where t1.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` = 6)
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	33
+1	READS	70
+2	LOCAL_READS	1723
+2	READS	1749
+3	LOCAL_READS	0
+3	READS	28
+4	LOCAL_READS	216
+4	READS	290
+5	LOCAL_READS	0
+5	READS	28
+6	LOCAL_READS	0
+6	READS	125
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	11	24
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	16	24
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	13	24
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	33
+1	READS	70
+2	LOCAL_READS	1734
+2	READS	1760
+3	LOCAL_READS	0
+3	READS	28
+4	LOCAL_READS	232
+4	READS	306
+5	LOCAL_READS	0
+5	READS	28
+6	LOCAL_READS	13
+6	READS	138
+UI lookups
+explain select * from test.t1 where t1.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	22	24
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	32	24
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	26	24
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	11	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	16	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	13	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	33
+1	READS	70
+2	LOCAL_READS	1756
+2	READS	1782
+3	LOCAL_READS	0
+3	READS	28
+4	LOCAL_READS	264
+4	READS	338
+5	LOCAL_READS	0
+5	READS	28
+6	LOCAL_READS	39
+6	READS	164
+OI scan
+explain select * from test.t1 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	22	24
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	32	24
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	26	24
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	11	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	16	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	13	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Table scan
+explain select * from test.t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	22	32
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	32	32
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	26	32
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	11	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	16	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	13	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Test pushed queries (SPJ)
+Pushed pk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	45	40
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	64	40
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	51	40
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	11	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	16	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	13	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Pushed uk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	67	40
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	96	40
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	76	40
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	34	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	48	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	38	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Pushed uk->pk
+Lookup to get a.d, feeding pk lookup of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a
+where a.b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	90	40
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	128	40
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	101	40
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	45	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	64	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	51	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Pushed pk->uk
+Lookup to get a.d, feeding uk lookup of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b
+where a.a = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	112	40
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	160	40
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	126	40
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	57	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	80	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	63	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding pk lookups of b.a
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.a;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	124	48
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	176	48
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	138	48
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	57	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	80	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	63	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Pushed scan originating sub-lookups
+Table scan to get a.d, feeding uk lookups of b.b
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+a.d = b.b;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	135	56
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	192	56
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	150	56
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	69	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	96	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	75	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	8
+test/def/t1	sys/def/11/c	Ordered index	4	0	8
+test/def/t1	sys/def/11/c	Ordered index	6	0	8
+Pushed scan originating sub-scans
+Range scan on a.a > 10 getting a.d, feeding range scans on b.c = a.d
+explain select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
+select a.a, a.d, b.d
+from
+test.t1 a
+join
+test.t1 b
+on
+b.c=a.d
+where
+a.a>10;
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t1	User table	1	0	8
+NULL	test/def/t1	User table	2	135	56
+NULL	test/def/t1	User table	3	0	8
+NULL	test/def/t1	User table	4	192	56
+NULL	test/def/t1	User table	5	0	8
+NULL	test/def/t1	User table	6	150	56
+test/def/t1	sys/def/11/b$unique	Unique hash index	2	69	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	4	96	0
+test/def/t1	sys/def/11/b$unique	Unique hash index	6	75	0
+test/def/t1	sys/def/11/c	Ordered index	2	0	32
+test/def/t1	sys/def/11/c	Ordered index	4	0	32
+test/def/t1	sys/def/11/c	Ordered index	6	0	32
+test/def/t1	sys/def/11/PRIMARY	Ordered index	2	0	8
+test/def/t1	sys/def/11/PRIMARY	Ordered index	4	0	8
+test/def/t1	sys/def/11/PRIMARY	Ordered index	6	0	8
+Tests on T2 (Blobs)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	0	12
+NULL	test/def/t2	User table	3	0	4
+NULL	test/def/t2	User table	4	0	12
+NULL	test/def/t2	User table	5	0	4
+NULL	test/def/t2	User table	6	0	12
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	33
+1	READS	70
+2	LOCAL_READS	1800
+2	READS	1826
+3	LOCAL_READS	0
+3	READS	28
+4	LOCAL_READS	328
+4	READS	402
+5	LOCAL_READS	0
+5	READS	28
+6	LOCAL_READS	91
+6	READS	216
+Test some basic NdbApi
+explain select * from test.t2 where t2.a=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	eq_ref	PRIMARY	PRIMARY	4	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`a` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	22	12
+NULL	test/def/t2	User table	3	0	4
+NULL	test/def/t2	User table	4	32	12
+NULL	test/def/t2	User table	5	0	4
+NULL	test/def/t2	User table	6	26	12
+test/def/t2	test/def/NDB$BLOB_16_3	User table	2	11	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	4	16	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	6	13	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	33
+1	READS	70
+2	LOCAL_READS	1823
+2	READS	1850
+3	LOCAL_READS	0
+3	READS	28
+4	LOCAL_READS	360
+4	READS	434
+5	LOCAL_READS	0
+5	READS	28
+6	LOCAL_READS	117
+6	READS	242
+UI lookups
+explain select * from test.t2 where t2.b=6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ref	b	b	5	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	44	12
+NULL	test/def/t2	User table	3	0	4
+NULL	test/def/t2	User table	4	64	12
+NULL	test/def/t2	User table	5	0	4
+NULL	test/def/t2	User table	6	52	12
+test/def/t2	sys/def/16/b$unique	Unique hash index	2	22	0
+test/def/t2	sys/def/16/b$unique	Unique hash index	4	32	0
+test/def/t2	sys/def/16/b$unique	Unique hash index	6	26	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	2	22	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	4	32	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	6	26	0
+select node_id, counter_name, sum(val) from ndbinfo.counters
+where counter_name = 'READS' or counter_name = 'LOCAL_READS'
+  group by node_id, counter_name;
+node_id	counter_name	sum(val)
+1	LOCAL_READS	33
+1	READS	70
+2	LOCAL_READS	1878
+2	READS	1905
+3	LOCAL_READS	0
+3	READS	28
+4	LOCAL_READS	440
+4	READS	514
+5	LOCAL_READS	0
+5	READS	28
+6	LOCAL_READS	182
+6	READS	307
+OI scan
+explain select * from test.t2 where c > 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	44	12
+NULL	test/def/t2	User table	3	0	4
+NULL	test/def/t2	User table	4	64	12
+NULL	test/def/t2	User table	5	0	4
+NULL	test/def/t2	User table	6	52	12
+test/def/t2	sys/def/16/b$unique	Unique hash index	2	22	0
+test/def/t2	sys/def/16/b$unique	Unique hash index	4	32	0
+test/def/t2	sys/def/16/b$unique	Unique hash index	6	26	0
+test/def/t2	sys/def/16/c	Ordered index	2	0	8
+test/def/t2	sys/def/16/c	Ordered index	4	0	8
+test/def/t2	sys/def/16/c	Ordered index	6	0	8
+test/def/t2	test/def/NDB$BLOB_16_3	User table	2	32	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	4	45	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	6	38	0
+Table scan
+explain select * from test.t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	#	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2`
+select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
+from ndbinfo.operations_per_fragment
+where (parent_fq_name='test/def/t2' OR fq_name='test/def/t2') and
+(tot_key_reads > 0 or tot_frag_scans > 0)
+group by parent_fq_name, fq_name, type, node_id;
+parent_fq_name	fq_name	type	node_id	sum(tot_key_reads)	sum(tot_frag_scans)
+NULL	test/def/t2	User table	1	0	4
+NULL	test/def/t2	User table	2	44	20
+NULL	test/def/t2	User table	3	0	4
+NULL	test/def/t2	User table	4	64	20
+NULL	test/def/t2	User table	5	0	4
+NULL	test/def/t2	User table	6	52	20
+test/def/t2	sys/def/16/b$unique	Unique hash index	2	22	0
+test/def/t2	sys/def/16/b$unique	Unique hash index	4	32	0
+test/def/t2	sys/def/16/b$unique	Unique hash index	6	26	0
+test/def/t2	sys/def/16/c	Ordered index	2	0	8
+test/def/t2	sys/def/16/c	Ordered index	4	0	8
+test/def/t2	sys/def/16/c	Ordered index	6	0	8
+test/def/t2	test/def/NDB$BLOB_16_3	User table	2	43	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	4	61	0
+test/def/t2	test/def/NDB$BLOB_16_3	User table	6	51	0
+drop table hints;
+delete from t1;
+delete from t2;
+drop table test.t1;
+drop table test.t2;

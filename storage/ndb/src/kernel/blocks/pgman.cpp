@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,21 +54,24 @@ extern EventLogger *g_eventLogger;
 
 static bool g_dbg_lcp = false;
 
+#ifdef VM_TRACE
 //#define DEBUG_PGMAN 1
+//#define DEBUG_PGMAN_IO 1
+//#define DEBUG_PGMAN_LCP 1
+#endif
+
 #ifdef DEBUG_PGMAN
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_PGMAN_IO 1
 #ifdef DEBUG_PGMAN_IO
 #define DEB_PGMAN_IO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN_IO(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_PGMAN_LCP 1
 #ifdef DEBUG_PGMAN_LCP
 #define DEB_PGMAN_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -2609,21 +2612,21 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
   }
 
   Ptr<Pgman::Page_request> req_ptr;
+  if (likely(m_page_request_pool.seize(req_ptr)))
   {
     Local_page_request_list req_list(m_page_request_pool, ptr.p->m_requests);
     if (! (req_flags & Page_request::ALLOC_REQ))
     {
       thrjam(jamBuf);
-      req_list.seizeLast(req_ptr);
+      req_list.addLast(req_ptr);
     }
     else
     {
       thrjam(jamBuf);
-      req_list.seizeFirst(req_ptr);
+      req_list.addFirst(req_ptr);
     }
   }
-  
-  if (req_ptr.i == RNIL)
+  else
   {
     thrjam(jamBuf);
     if (is_new)

@@ -200,7 +200,6 @@ private:
   */
   static
   int check_schema(const NdbDictionary::Table* reptab,
-                   NdbDictionary::Dictionary* dict,
                    const char** error_str);
 
   /**

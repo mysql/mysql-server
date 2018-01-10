@@ -815,6 +815,10 @@ protected:
    */
   bool checkNodeFailSequence(Signal*);
 
+#ifdef ERROR_INSERT
+  void setDelayedPrepare();
+#endif
+
   /**********************************************************
    * Fragmented signals
    */
