@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,21 +44,23 @@
 
 #define JAM_FILE_ID 422
 
+#ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_DELETE 1
+//#define DEBUG_LCP_LGMAN 1
+#endif
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_DELETE 1
 #ifdef DEBUG_DELETE
 #define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DELETE(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_LGMAN 1
 #ifdef DEBUG_LCP_LGMAN
 #define DEB_LCP_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -2222,7 +2224,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     {
       insert_str = (char*)"INSERT";
     }
-    DEB_DELETE(("(%u)%s: tab(%u,%u) rowid(%u,%u)",
+    DEB_DELETE(("(%u)%s: tab(%u,%u) row(%u,%u)",
                 instance(),
                 insert_str,
                 regFragPtr->fragTableId,
@@ -4789,7 +4791,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
 
-  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) rowid(%u,%u), gci: %u",
+  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) row(%u,%u), gci: %u",
                instance(),
                fragPtr.p->fragTableId,
                fragPtr.p->fragmentId,

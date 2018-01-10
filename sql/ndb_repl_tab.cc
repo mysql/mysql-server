@@ -171,7 +171,6 @@ Ndb_rep_tab_reader::Ndb_rep_tab_reader()
 }
 
 int Ndb_rep_tab_reader::check_schema(const NdbDictionary::Table* reptab,
-                                     NdbDictionary::Dictionary* dict,
                                      const char** error_str)
 {
   DBUG_ENTER("check_schema");
@@ -438,15 +437,12 @@ Ndb_rep_tab_reader::lookup(Ndb* ndb,
       }
     }
 
-    if ((error= check_schema(reptab,
-                             dict,
-                             &error_str)) != 0)
+    if ((error = check_schema(reptab, &error_str)) != 0)
     {
       DBUG_PRINT("info", ("check_schema failed : %u, error_str : %s",
                           error, error_str));
       break;
     }
-
 
     Ndb_rep_tab_row best_match_row;
 
@@ -542,7 +538,7 @@ Ndb_rep_tab_reader::lookup(Ndb* ndb,
                                              "NULL")));
 
   DBUG_RETURN(error);
-};
+}
 
 Uint32
 Ndb_rep_tab_reader::get_binlog_flags() const

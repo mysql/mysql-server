@@ -75,7 +75,7 @@ namespace ndb_dummy_ts {
     @retval		true		failure
   */
   static
-  bool sdi_get_keys(const dd::Tablespace&, dd::sdi_vector_t& vector)
+  bool sdi_get_keys(const dd::Tablespace&, dd::sdi_vector_t&)
   {
     DBUG_ASSERT(false); // Never called
     return false; // Success

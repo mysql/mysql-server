@@ -83,7 +83,16 @@ void ndb_index_stat_end();
   queries. Returns info about ndb index stat related status variables.
 */
 
-int
-show_ndb_status_index_stat(THD* thd, struct st_mysql_show_var* var, char* buff);
+int show_ndb_status_index_stat(THD* thd, struct st_mysql_show_var* var,
+                               char* buff);
+
+// Check and update functions for  --ndb-index-stat-option=
+int ndb_index_stat_option_check(THD*, struct st_mysql_sys_var*, void* save,
+                                struct st_mysql_value* value);
+void ndb_index_stat_option_update(THD*, struct st_mysql_sys_var*, void* var_ptr,
+                                  const void* save);
+// Storage for --ndb-index-stat-option=
+extern char ndb_index_stat_option_buf[];
+
 
 #endif

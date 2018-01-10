@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,10 @@ dojo.require("mcc.gui.clusterdef");
 mcc.gui.showClusterDefinition = mcc.gui.clusterdef.showClusterDefinition;
 mcc.gui.saveClusterDefinition = mcc.gui.clusterdef.saveClusterDefinition;
 mcc.gui.getSSHPwd = mcc.gui.clusterdef.getSSHPwd;
+mcc.gui.getSSHUser = mcc.gui.clusterdef.getSSHUser;
+mcc.gui.getSSHkeybased = mcc.gui.clusterdef.getSSHkeybased;
+mcc.gui.getOpenFW = mcc.gui.clusterdef.getOpenFW;
+mcc.gui.getInstallCl = mcc.gui.clusterdef.getInstallCl;
 
 /***************************** Host definition ********************************/
 

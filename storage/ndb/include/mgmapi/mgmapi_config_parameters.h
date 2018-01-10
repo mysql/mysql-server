@@ -36,6 +36,7 @@
 #define CFG_NODE_SYSTEM               6
 #define CFG_NODE_DATADIR              7
 #define CFG_TOTAL_SEND_BUFFER_MEMORY  9
+#define CFG_LOCATION_DOMAIN_ID        10
 
 /**
  * DB config parameters

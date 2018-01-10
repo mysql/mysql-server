@@ -1,0 +1,86 @@
+--source include/have_ndb.inc
+
+# Tests for CREATE TABLE .. ROW_FORMAT=[DEFAULT|FIXED|DYNAMIC|COMPRESSED|etc.]
+
+--echo # Create table without specifying ROW_FORMAT, should use default
+--echo # which is DYNAMIC
+CREATE TABLE t1_dynamic(
+  a int primary key,
+  b int
+) engine = NDB;
+
+--echo # Create table with ROW_FORMAT=FIXED, should use FIXED
+CREATE TABLE t2_fixed(
+  a int primary key,
+  b int
+) ROW_FORMAT=FIXED engine = NDB;
+
+--echo # Create table with ROW_FORMAT=DEFAULT, will also use DYNAMIC
+CREATE TABLE t4_default_dynamic(
+  a int primary key,
+  b int
+) ROW_FORMAT=DEFAULT engine = NDB;
+
+--echo # Show that tables are using the expected row_format
+SELECT table_name, row_format FROM information_schema.tables
+  WHERE TABLE_SCHEMA = 'test' order by TABLE_NAME;
+
+--echo #
+--echo # Check that columns can _not_ be added inplace on a table
+--echo # which has ROW_FORMAT=FIXED
+--echo #
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t2_fixed
+  algorithm=inplace,
+  ADD COLUMN c int null;
+
+--echo #
+--echo # Check that columns can be added inplace on a table
+--echo # which has ROW_FORMAT=DYNAMIC
+--echo #
+ALTER TABLE t1_dynamic
+  algorithm=inplace,
+  ADD COLUMN c int null COLUMN_FORMAT DYNAMIC;
+
+--echo #
+--echo # Check that ROW_FORMAT can _not_ be changed with inplace ALTER
+--echo #
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1_dynamic
+  algorithm=inplace,
+  ROW_FORMAT=FIXED;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t2_fixed
+  algorithm=inplace,
+  ROW_FORMAT=DYNAMIC;
+
+--echo #
+--echo # Check that ROW_FORMAT can be changed with copying ALTER
+--echo #
+--echo # DYNAMIC -> FIXED
+ALTER TABLE t4_default_dynamic
+  algorithm=copy,
+  ROW_FORMAT=FIXED;
+let $t4_row_format = `SELECT row_format FROM information_schema.tables
+                        WHERE TABLE_NAME='t4_default_dynamic'`;
+if ($t4_row_format != "Fixed")
+{
+  echo t4_row_format: $t4_row_format;
+  die Failed to change ROW_FORMAT of t4 to FIXED;
+}
+
+--echo # FIXED -> DYNAMIC
+ALTER TABLE t2_fixed
+  algorithm=copy,
+  ROW_FORMAT=DYNAMIC;
+let $t2_row_format = `SELECT row_format FROM information_schema.tables
+                        WHERE TABLE_NAME='t2_fixed'`;
+if ($t2_row_format != "Dynamic")
+{
+  echo t2_row_format: $t2_row_format;
+  die Failed to change ROW_FORMAT of t2 to DYNAMIC;
+}
+
+DROP TABLE t1_dynamic,t2_fixed,t4_default_dynamic;
+

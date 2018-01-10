@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,9 +215,17 @@ NdbImportImpl::do_connect()
     c.m_connections = new Ndb_cluster_connection* [c.m_connectioncnt];
     for (uint i = 0; i < c.m_connectioncnt; i++)
     {
+      /*
+       * There is a single --ndb-nodeid value but there can be
+       * several connections.  Use nodeid values consecutively
+       * starting with --ndb-nodeid.  All must exist as API
+       * nodes in the config.
+       */
+      int nodeid = opt_ndb_nodeid != 0 ? opt_ndb_nodeid + i : 0;
       c.m_connections[i] =
         new Ndb_cluster_connection(opt_ndb_connectstring,
-                                   c.m_mainconnection);
+                                   c.m_mainconnection,
+                                   nodeid);
       if (i == 0)
         c.m_mainconnection = c.m_connections[i];
     }
@@ -395,6 +403,11 @@ NdbImportImpl::Job::Job(NdbImportImpl& impl, uint jobno) :
     const Name name("job", "rowmap");
     Stat* stat = stats.create(name, 0, 0);
     m_stat_rowmap = stat;
+  }
+  {
+    const Name name("job", "rowmap-utime");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_rowmap_utime = stat;
   }
   log1("ctor");
 }
@@ -730,6 +743,7 @@ NdbImportImpl::Job::collect_stats()
   m_stat_reject->add(reject);
   m_stat_runtime->add(msec);
   m_stat_rowssec->add(rowssec);
+  m_stat_rowmap_utime->add(m_timer.m_utime_msec);
 }
 
 void

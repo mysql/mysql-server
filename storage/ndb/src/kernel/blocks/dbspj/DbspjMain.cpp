@@ -648,6 +648,43 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
     c_alive_nodes.bitOR(tmp);
   }
 
+  for (Uint32 i = 0; i < MAX_NDB_NODES; i++)
+  {
+    m_location_domain_id[i] = 0;
+  }
+
+  ndb_mgm_configuration *p =
+    m_ctx.m_config.getClusterConfig();
+  ndb_mgm_configuration_iterator *p_iter =
+    ndb_mgm_create_configuration_iterator(p, CFG_SECTION_NODE);
+
+  for (ndb_mgm_first(p_iter);
+       ndb_mgm_valid(p_iter);
+       ndb_mgm_next(p_iter))
+  {
+    jam();
+    Uint32 location_domain_id = 0;
+    Uint32 nodeId = 0;
+    Uint32 nodeType = 0;
+    ndbrequire(!ndb_mgm_get_int_parameter(p_iter, CFG_NODE_ID, &nodeId) &&
+               nodeId != 0);
+    jamLine(Uint16(nodeId));
+    ndbrequire(!ndb_mgm_get_int_parameter(p_iter,
+                                          CFG_TYPE_OF_SECTION,
+                                          &nodeType));
+    ndbrequire(nodeId != 0);
+    if (nodeType != NODE_TYPE_DB)
+    {
+      jam();
+      continue;
+    }
+    ndbrequire(nodeId < MAX_NDB_NODES);
+    ndb_mgm_get_int_parameter(p_iter,
+                              CFG_LOCATION_DOMAIN_ID,
+                              &location_domain_id);
+    m_location_domain_id[nodeId] = location_domain_id;
+  }
+  ndb_mgm_destroy_iterator(p_iter);
   sendSTTORRY(signal);
 }
 
@@ -5261,6 +5298,62 @@ Dbspj::computePartitionHash(Signal* signal,
   return 0;
 }
 
+/**
+ * This method comes in with a list of nodes.
+ * We have already verified that our own node
+ * isn't in this list. If we have a node in this
+ * list that is in the same location domain as
+ * this node, it will be selected before any
+ * other node. So we will always try to keep
+ * the read coming from the same location domain.
+ *
+ * To avoid radical imbalances we provide a bit
+ * of round robin on a node bases. It isn't
+ * any perfect round robin. We simply rotate a
+ * bit among the selected nodes instead of
+ * always selecting the first one we find.
+ */
+Uint32
+Dbspj::check_own_location_domain(const Uint32 *nodes,
+                                 Uint32 end)
+{
+  Uint32 loc_nodes[MAX_NDB_NODES];
+  Uint32 loc_node_count = 0;
+  Uint32 my_location_domain_id =
+    m_location_domain_id[getOwnNodeId()];
+
+  if (my_location_domain_id == 0)
+  {
+    jam();
+    return 0;
+  }
+  for (Uint32 i = 0; i < end; i++)
+  {
+    jam();
+    Uint32 node = nodes[i];
+    ndbrequire(node != 0 && node < MAX_NDB_NODES);
+    if (my_location_domain_id ==
+        m_location_domain_id[node])
+    {
+      jam();
+      loc_nodes[loc_node_count++] = node;
+    }
+  }
+  if (loc_node_count != 0)
+  {
+    jam();
+    /**
+     * If many nodes in the same location domain we will
+     * spread the load on them by using a very simple load
+     * balancing routine.
+     */
+    m_load_balancer_location++;
+    Uint32 ret_node = loc_nodes[m_load_balancer_location % loc_node_count];
+    return ret_node;
+  }
+  return 0;
+}
+
 Uint32
 Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 {
@@ -5315,6 +5408,16 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
         jam();
         nodeId = getOwnNodeId();
         break;
+      }
+    }
+    if (nodeId != getOwnNodeId())
+    {
+      Uint32 node;
+      jam();
+      if ((node = check_own_location_domain(&conf->nodes[0],
+                                            cnt)) != 0)
+      {
+        nodeId = node;
       }
     }
   }
@@ -6151,6 +6254,16 @@ Dbspj::scanFrag_sendDihGetNodesReq(Signal* signal,
               jam();
               nodeId = getOwnNodeId();
               break;
+            }
+          }
+          if (nodeId != getOwnNodeId())
+          {
+            Uint32 node;
+            jam();
+            if ((node = check_own_location_domain(&conf->nodes[0],
+                                                  cnt)) != 0)
+            {
+              nodeId = node;
             }
           }
         }

@@ -993,7 +993,13 @@ create unique index ix2 on t1(b) using hash;
 
 set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
 
-select type, state, parent_obj_type, replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name, if(parent_obj_id=@t1_id, "child_of_t1", if(parent_obj_id=0, "root", "error!")) as  nesting from ndbinfo.ndb$dict_obj_info where id >= @t1_id and type <= 6 order by type, id;
+select type, state, parent_obj_type,
+  replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name,
+  if(parent_obj_id=@t1_id, "child_of_t1",
+    if(parent_obj_id=0, "root", "error!")) as  nesting
+  from ndbinfo.ndb$dict_obj_info
+  where id >= @t1_id and id < @t1_id + 5 and type <= 6
+  order by type, id;
 type	state	parent_obj_type	fq_name	nesting
 2	4	0	ndbinfo/def/t1	root
 2	4	2	ndbinfo/def/NDB$BLOB_<t1 id>_4	child_of_t1

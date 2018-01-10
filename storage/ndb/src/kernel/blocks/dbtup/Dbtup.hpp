@@ -3184,10 +3184,11 @@ private:
                         Uint32 **prev_ptr);
   void set_last_lcp_state(Fragrecord*, Uint32, bool);
   void set_last_lcp_state(Uint32*, bool);
-  bool get_lcp_scanned_bit(Uint32 *next_ptr);
-  void reset_lcp_scanned_bit(Uint32 *next_ptr);
-  void reset_lcp_scanned_bit(Fragrecord*, Uint32);
   bool get_last_lcp_state(Uint32 *prev_ptr);
+  bool get_lcp_scanned_bit(Fragrecord*, Uint32);
+  bool get_lcp_scanned_bit(Uint32 *next_ptr);
+  void reset_lcp_scanned_bit(Fragrecord*, Uint32);
+  void reset_lcp_scanned_bit(Uint32 *next_ptr);
 
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
   Uint32 getEmptyPage(Fragrecord* regFragPtr);
@@ -3623,14 +3624,57 @@ public:
     Uint32 m_len;
     Uint32 m_offset;
     const Uint32* m_ptr;
+    Uint32 m_data[MAX_UNDO_DATA];
     Uint64 m_lsn;
     Ptr<Tablerec> m_table_ptr;
     Ptr<Fragrecord> m_fragment_ptr;
     Ptr<Page> m_page_ptr;
     Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
+    Uint32 nextList;
+    union { Uint32 nextPool; Uint32 prevList; };
+    Uint32 m_magic;
+
     Apply_undo();
   };
+  typedef RecordPool<RWPool<Apply_undo> > Apply_undo_pool;
+  typedef DLCFifoList<Apply_undo_pool> Apply_undo_list;
+  typedef LocalDLCFifoList<Apply_undo_pool> LocalApply_undo_list;
+
+  Apply_undo_pool c_apply_undo_pool;
+
+  struct Pending_undo_page
+  {
+    Pending_undo_page()  {}
+    Pending_undo_page(Uint32 file_no, Uint32 page_no)
+    {
+      m_file_no = file_no;
+      m_page_no = page_no;
+    }
+
+    Uint16 m_file_no;
+    Uint32 m_page_no;
+    Apply_undo_list::Head m_apply_undo_head;
+
+    Uint32 nextHash;
+    union { Uint32 prevHash; Uint32 nextPool; };
+    Uint32 m_magic;
+
+    Uint32 hashValue() const
+    {
+      return m_file_no << 16 | m_page_no;
+    }
+
+    bool equal(const Pending_undo_page& obj) const
+    {
+      return m_file_no == obj.m_file_no && m_page_no == obj.m_page_no;
+    }
+  };
+
+  typedef RecordPool<RWPool<Pending_undo_page> >
+    Pending_undo_page_pool;
+  typedef DLCHashTable<Pending_undo_page_pool>
+    Pending_undo_page_hash;
 
   void disk_restart_lcp_id(Uint32 table,
                            Uint32 frag,
@@ -3641,17 +3685,24 @@ public:
 
 private:
   bool c_started;
+
+  Pending_undo_page_pool c_pending_undo_page_pool;
+  Pending_undo_page_hash c_pending_undo_page_hash;
+
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;
-  Uint32 c_proxy_undo_data[20 + MAX_TUPLE_SIZE_IN_WORDS];
 
-  void disk_restart_undo_next(Signal*, Uint32 applied = 0);
+  void disk_restart_undo_next(Signal*,
+                              Uint32 applied = 0,
+                              Uint32 count_pending = 1);
   void disk_restart_undo_lcp(Uint32,
                              Uint32,
                              Uint32 flag,
                              Uint32 lcpId,
                              Uint32 localLcpId);
+  void release_undo_record(Ptr<Apply_undo>&, bool);
+
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
@@ -3668,9 +3719,10 @@ private:
   
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_in_remaining_lcp_set(const Page* page,
+		                     Fragrecord* regFragPtr, 
                                      const Local_key& key1,
                                      const Dbtup::ScanOp& op,
-                                     Uint32 debug_val) const;
+                           Uint32 check_lcp_scanned_state_reversed);
   void update_gci(Fragrecord*, Tablerec*, Tuple_header*, Uint32);
   void commit_operation(Signal*,
                         Uint32,

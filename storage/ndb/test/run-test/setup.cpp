@@ -24,6 +24,8 @@
 
 #include <ndb_global.h>
 #include <util/ndb_opts.h>
+#include <map>
+#include <string>
 #include <util/BaseString.hpp>
 #include <util/File.hpp>
 #include <util/NdbOut.hpp>
@@ -33,12 +35,15 @@ extern int g_mt;
 extern int g_mt_rr;
 
 static atrt_host* find(const char* hostname, Vector<atrt_host*>&);
-static bool load_process(atrt_config&, atrt_cluster&, atrt_process::Type,
-                         unsigned idx, const char* hostname);
+static bool load_process(atrt_config&, atrt_cluster&, BaseString,
+                         atrt_process::Type, unsigned idx,
+                         const char* hostname);
 static bool load_options(int argc, char** argv, int type, atrt_options&);
-
-bool load_deployment_options_for_process(atrt_process& proc,
-                                         BaseString clusterName);
+bool load_custom_processes(atrt_config& config, atrt_cluster& cluster);
+bool load_deployment_options_for_process(atrt_cluster& cluster,
+                                         atrt_process& proc);
+bool matches_custom_process_option(char* arg, BaseString& proc_name,
+                                   BaseString& hosts);
 BaseString getProcGroupName(atrt_process::Type type);
 
 enum {
@@ -150,17 +155,23 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
     /**
      * Load each process
      */
+    BaseString name;
     for (j = 0; proc_args[j].name; j++) {
       if (proc_args[j].value) {
         BaseString tmp(proc_args[j].value);
         Vector<BaseString> list;
         tmp.split(list, ",");
         for (unsigned k = 0; k < list.size(); k++)
-          if (!load_process(config, *cluster, proc_args[j].type, k + 1,
+          if (!load_process(config, *cluster, name, proc_args[j].type, k + 1,
                             list[k].c_str()))
             return false;
       }
     }
+
+    /**
+     * Load custom processes
+     */
+    if (!load_custom_processes(config, *cluster)) return false;
 
     {
       /**
@@ -182,6 +193,60 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
       load_options(argc, tmp, atrt_process::AP_CLUSTER, cluster->m_options);
     }
   }
+  return true;
+}
+
+bool load_custom_processes(atrt_config& config, atrt_cluster& cluster) {
+  int argc = 1;
+  const char* argv[] = {"atrt", 0, 0};
+
+  BaseString buf;
+  buf.assfmt("--defaults-group-suffix=%s", cluster.m_name.c_str());
+  argv[argc++] = buf.c_str();
+  char** tmp = (char**)argv;
+  const char* groups[] = {"cluster_deployment", 0};
+
+  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+  if (ret != 0) {
+    g_logger.error("Failure to '%s' group for cluster %s", groups[0],
+                   cluster.m_name.c_str());
+    return false;
+  }
+
+  for (int i = 1; i < argc; i++) {
+    BaseString proc_name;
+    BaseString hosts;
+    if (!matches_custom_process_option(tmp[i], proc_name, hosts)) continue;
+
+    Vector<BaseString> host_list;
+    hosts.split(host_list, ",");
+    for (unsigned int j = 0; j < host_list.size(); j++) {
+      bool ok =
+          load_process(config, cluster, proc_name, atrt_process::AP_CUSTOM,
+                       j + 1, host_list[j].c_str());
+      if (!ok) return false;
+    }
+  }
+
+  return true;
+}
+
+bool matches_custom_process_option(char* arg, BaseString& proc_name,
+                                   BaseString& hosts) {
+  const char* opt_prefix = "--proc:";
+
+  if (strncmp(arg, opt_prefix, strlen(opt_prefix)) != 0) return false;
+
+  arg += strlen(opt_prefix);  // advance prefix
+
+  char* list = strstr(arg, "=");
+  if (list == NULL) return false;
+
+  proc_name.assign(arg, list - arg);
+
+  list++;  // advance "="
+  hosts.assign(list);
+
   return true;
 }
 
@@ -215,64 +280,89 @@ static char* dirname(const char* path) {
   return 0;
 }
 
-bool load_deployment_options(atrt_config& config) {
-  bool status = true;
-  for (unsigned i = 0; i < config.m_clusters.size(); i++) {
-    atrt_cluster& cluster = *config.m_clusters[i];
-    for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
-      atrt_process& proc = *cluster.m_processes[j];
-      status &= load_deployment_options_for_process(proc, cluster.m_name);
-    }
-  }
-  return status;
-}
-
-bool load_deployment_options_for_process(atrt_process& proc,
-                                         BaseString cluster_name) {
-  BaseString proc_name = getProcGroupName(proc.m_type);
-  if (proc_name.empty()) {
+bool load_deployment_options_for_process(atrt_cluster& cluster,
+                                         atrt_process& proc) {
+  if (proc.m_name.empty()) {
     g_logger.debug("Skipping deployment_options loading for process type %d",
                    proc.m_type);
     return true;
   }
 
-  const char* groups[] = {"cluster_deployment", 0, 0, 0};
-  BaseString proc_group;
-  proc_group.assfmt("%s.%s", groups[0], proc_name.c_str());
-  groups[1] = proc_group.c_str();
-  BaseString proc_group_idx;
-  proc_group_idx.assfmt("%s.%s.%d", groups[0], proc_name.c_str(), proc.m_index);
-  groups[2] = proc_group_idx.c_str();
-
   BaseString suffix;
-  suffix.assfmt("--defaults-group-suffix=%s", cluster_name.c_str());
+  suffix.assfmt("--defaults-group-suffix=%s", cluster.m_name.c_str());
+
+  const char* argv[] = {"atrt", suffix.c_str(), 0};
   int argc = 2;
-  const char* argv[] = {"cluster_deployment", suffix.c_str(), 0};
   char** tmp = (char**)argv;
+
+  BaseString buf[2];
+  buf[0].assfmt("cluster_deployment.%s", proc.m_name.c_str());
+  buf[1].assfmt("cluster_deployment.%s.%u", proc.m_name.c_str(), proc.m_index);
+  const char* groups[] = {buf[0].c_str(), buf[1].c_str(), 0};
 
   int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
   if (ret != 0) {
-    g_logger.error("Failed to load defaults for cluster %s's process %d",
-                   cluster_name.c_str(), proc.m_type);
-
+    g_logger.error("Failed to load defaults for cluster %s's process %s",
+                   cluster.m_name.c_str(), proc.m_name.c_str());
     return false;
   }
 
+  char* cmd = NULL;
+  char* args = NULL;
+  bool generate_port = false;
   char* cpuset = NULL;
+
   struct my_option options[] = {
-      {"cpuset", 0, "CPU affinity set to which the process will be locked to",
-       &cpuset, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+      {"cmd", 0, "Executable name", &cmd, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0,
+       0},
+      {"args", 0, "Arguments passed to process", &args, 0, 0, GET_STR, OPT_ARG,
+       0, 0, 0, 0, 0, 0},
+      {"port-generate", 0, "Flag to generate --port=N", &generate_port, 0, 0,
+       GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+      {"cpuset", 0, "Process's CPU affinity", &cpuset, 0, 0, GET_STR, OPT_ARG,
+       0, 0, 0, 0, 0, 0},
       {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
   int status = handle_options(&argc, &tmp, options, NULL);
   if (status != 0) {
     g_logger.error("Failed to handle options for cluster %s' process %d",
-                   cluster_name.c_str(), proc.m_type);
+                   cluster.m_name.c_str(), proc.m_type);
 
     return false;
   }
 
   proc.m_proc.m_cpuset = BaseString(cpuset);
+
+  if (proc.m_type != atrt_process::AP_CUSTOM) {
+    // Prevent overwriting settings of non custom processes
+    return true;
+  }
+
+  if (!cmd) {
+    g_logger.error("Cluster's %s process %s must define 'cmd'",
+                   cluster.m_name.c_str(), proc.m_name.c_str());
+    return false;
+  }
+
+  char* bin_path = find_bin_path(cmd);
+  if (!bin_path) {
+    g_logger.error("Cluster's %s custom process %s binary could not be found",
+                   cluster.m_name.c_str(), proc.m_name.c_str());
+    return false;
+  }
+
+  proc.m_proc.m_path.assign(bin_path);
+
+  if (args) proc.m_proc.m_args.assign(args);
+
+  if (generate_port) {
+    BaseString portno;
+    portno.assfmt("%d", g_baseport + proc.m_procno);
+
+    proc.m_proc.m_args.appfmt(" --port=%s", portno.c_str());
+    proc.m_options.m_generated.put("--port", portno.c_str());
+  }
+
   return true;
 }
 
@@ -294,6 +384,7 @@ BaseString getProcGroupName(atrt_process::Type type) {
     case atrt_process::AP_NDBD:
       name.assign("ndbd");
       break;
+    case atrt_process::AP_CUSTOM:
     case atrt_process::AP_ALL:
     case atrt_process::AP_CLUSTER:
       // No group name in my.cnf skipping
@@ -304,7 +395,7 @@ BaseString getProcGroupName(atrt_process::Type type) {
 }
 
 static bool load_process(atrt_config& config, atrt_cluster& cluster,
-                         atrt_process::Type type, unsigned idx,
+                         BaseString name, atrt_process::Type type, unsigned idx,
                          const char* hostname) {
   atrt_host* host_ptr = find(hostname, config.m_hosts);
   atrt_process* proc_ptr = new atrt_process;
@@ -318,6 +409,9 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
 
   proc.m_index = idx;
   proc.m_type = type;
+
+  proc.m_name = name.empty() ? getProcGroupName(type) : name;
+  proc.m_procno = proc_no;
   proc.m_host = host_ptr;
   proc.m_save.m_saved = false;
   proc.m_nodeid = -1;
@@ -398,6 +492,8 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
       break;
     case atrt_process::AP_NDB_API:
       if (g_fix_nodeid) proc.m_nodeid = cluster.m_next_nodeid++;
+      break;
+    case atrt_process::AP_CUSTOM:
       break;
     default:
       g_logger.critical("Unhandled process type: %d", type);
@@ -495,6 +591,12 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
                                cluster.m_name.c_str());
       break;
     }
+    case atrt_process::AP_CUSTOM: {
+      proc.m_proc.m_name.assfmt("%u-%s", proc_no, proc.m_name.c_str());
+      proc.m_proc.m_cwd.assfmt("%s%s.%u", dir.c_str(), proc.m_name.c_str(),
+                               proc.m_index);
+      break;
+    }
     case atrt_process::AP_ALL:
     case atrt_process::AP_CLUSTER:
       g_logger.critical("Unhandled process type: %d", proc.m_type);
@@ -505,7 +607,8 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
     /**
      * Add a client for each mysqld
      */
-    if (!load_process(config, cluster, atrt_process::AP_CLIENT, idx,
+    BaseString name;
+    if (!load_process(config, cluster, name, atrt_process::AP_CLIENT, idx,
                       hostname)) {
       return false;
     }
@@ -515,7 +618,8 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_mysqld = cluster.m_processes[cluster.m_processes.size() - 2];
   }
 
-  return true;
+  bool status = load_deployment_options_for_process(cluster, proc);
+  return status;
 }
 
 static bool load_options(int argc, char** argv, int type, atrt_options& opts) {
@@ -555,6 +659,7 @@ static bool pr_proc_options(Properties&, proc_rule_ctx&, int);
 static bool pr_fix_ndb_connectstring(Properties&, proc_rule_ctx&, int);
 static bool pr_set_ndb_connectstring(Properties&, proc_rule_ctx&, int);
 static bool pr_check_proc(Properties&, proc_rule_ctx&, int);
+static bool pr_set_customprocs_connectstring(Properties&, proc_rule_ctx&, int);
 
 static proc_rule f_rules[] = {
     {atrt_process::AP_CLUSTER, pr_check_features, 0},
@@ -567,6 +672,7 @@ static proc_rule f_rules[] = {
     {atrt_process::AP_CLUSTER, pr_fix_ndb_connectstring, 0},
     {atrt_process::AP_MYSQLD, pr_set_ndb_connectstring, 0},
     {atrt_process::AP_ALL, pr_check_proc, 0},
+    {atrt_process::AP_CLUSTER, pr_set_customprocs_connectstring, 0},
     {0, 0, 0}};
 
 bool configure(atrt_config& config, int setup) {
@@ -927,23 +1033,66 @@ static bool pr_check_proc(Properties& props, proc_rule_ctx& ctx, int) {
   return ok;
 }
 
+static bool pr_set_customprocs_connectstring(Properties& props,
+                                             proc_rule_ctx& ctx, int) {
+  atrt_cluster& cluster = *ctx.m_cluster;
+
+  std::map<BaseString, BaseString> connectstrings;
+  std::map<BaseString, BaseString>::iterator it;
+  for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
+    atrt_process* proc = cluster.m_processes[i];
+    if (proc->m_type != atrt_process::AP_CUSTOM) continue;
+
+    BaseString host_list;
+
+    it = connectstrings.find(proc->m_name);
+    if (it != connectstrings.end()) {
+      host_list = it->second;
+      host_list.appfmt(",%s", proc->m_host->m_hostname.c_str());
+    } else {
+      host_list.assign(proc->m_host->m_hostname);
+    }
+
+    const char* portno;
+    if (proc->m_options.m_generated.get("--port", &portno)) {
+      host_list.appfmt(":%s", portno);
+    }
+
+    connectstrings[proc->m_name] = host_list;
+  }
+
+  for (unsigned i = 0; i < cluster.m_processes.size(); i++) {
+    atrt_process* proc = cluster.m_processes[i];
+
+    bool client_or_api =
+        proc->m_type & (atrt_process::AP_CLIENT | atrt_process::AP_NDB_API);
+    if (!client_or_api) continue;
+
+    for (it = connectstrings.begin(); it != connectstrings.end(); ++it) {
+      BaseString connstr(it->first);
+      connstr.ndb_toupper();
+      connstr.append("_CONNECTSTRING");
+
+      if (!proc->m_proc.m_env.empty()) proc->m_proc.m_env.append(" ");
+      proc->m_proc.m_env.appfmt("%s=%s", connstr.c_str(), it->second.c_str());
+    }
+  }
+
+  return true;
+}
+
 NdbOut& operator<<(NdbOut& out, const atrt_process& proc) {
   out << "[ atrt_process: ";
   switch (proc.m_type) {
     case atrt_process::AP_NDB_MGMD:
-      out << "ndb_mgmd";
-      break;
     case atrt_process::AP_NDBD:
-      out << "ndbd";
-      break;
     case atrt_process::AP_MYSQLD:
-      out << "mysqld";
-      break;
     case atrt_process::AP_NDB_API:
-      out << "ndbapi";
-      break;
     case atrt_process::AP_CLIENT:
-      out << "client";
+      out << proc.m_name.c_str();
+      break;
+    case atrt_process::AP_CUSTOM:
+      out << "custom:" << proc.m_name.c_str() << ": ";
       break;
     default:
       out << "<unknown: " << (int)proc.m_type << " >";

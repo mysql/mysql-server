@@ -38,9 +38,8 @@ extern st_ndb_slave_state g_ndb_slave_state;
 
 extern ulong opt_ndb_slave_conflict_role;
 
-#define NDBTAB NdbDictionary::Table
-#define NDBCOL NdbDictionary::Column
-
+typedef NdbDictionary::Table NDBTAB;
+typedef NdbDictionary::Column NDBCOL;
 
 #define NDB_EXCEPTIONS_TABLE_SUFFIX "$EX"
 #define NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER "$ex"
@@ -1081,16 +1080,16 @@ st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
 
   current_master_server_epoch_committed = true;
 
-  DBUG_EXECUTE_IF("ndb_slave_fail_marking_epoch_committed",
-                  {
-                    fprintf(stderr, 
-                            "Slave clearing epoch committed flag "
-                            "for epoch %llu/%llu (%llu)\n",
-                            current_master_server_epoch >> 32,
-                            current_master_server_epoch & 0xffffffff,
-                            current_master_server_epoch);
-                    current_master_server_epoch_committed = false;
-                  });
+  if (DBUG_EVALUATE_IF("ndb_slave_fail_marking_epoch_committed", true, false))
+  {
+    fprintf(stderr,
+            "Slave clearing epoch committed flag "
+            "for epoch %llu/%llu (%llu)\n",
+            current_master_server_epoch >> 32,
+            current_master_server_epoch & 0xffffffff,
+            current_master_server_epoch);
+    current_master_server_epoch_committed = false;
+  }
 }
 
 /**
@@ -1880,12 +1879,12 @@ st_ndb_slave_state::atConflictPreCommit(bool& retry_slave_trans)
 */
 static int
 row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
-                    enum_conflicting_op_type op_type,
+                    enum_conflicting_op_type,
                     const NdbRecord* data_record,
                     const uchar* old_data,
-                    const uchar* new_data,
+                    const uchar*,
                     const MY_BITMAP* bi_cols,
-                    const MY_BITMAP* ai_cols,
+                    const MY_BITMAP*,
                     NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_old");
@@ -1961,11 +1960,11 @@ row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
 
 static int
 row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
-                                enum_conflicting_op_type op_type,
+                                enum_conflicting_op_type,
                                 const NdbRecord* data_record,
-                                const uchar* old_data,
+                                const uchar*,
                                 const uchar* new_data,
-                                const MY_BITMAP* bi_cols,
+                                const MY_BITMAP*,
                                 const MY_BITMAP* ai_cols,
                                 NdbInterpretedCode* code)
 {
@@ -2151,13 +2150,13 @@ row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
 */
 
 static int
-row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
+row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE*,
                       enum_conflicting_op_type op_type,
-                      const NdbRecord* data_record,
-                      const uchar* old_data,
-                      const uchar* new_data,
-                      const MY_BITMAP* bi_cols,
-                      const MY_BITMAP* ai_cols,
+                      const NdbRecord*,
+                      const uchar*,
+                      const uchar*,
+                      const MY_BITMAP*,
+                      const MY_BITMAP*,
                       NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_epoch");
@@ -2242,13 +2241,13 @@ row_conflict_fn_epoch2_primary(NDB_CONFLICT_FN_SHARE* cfn_share,
 }
 
 static int
-row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE* cfn_share,
+row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE*,
                                  enum_conflicting_op_type op_type,
-                                 const NdbRecord* data_record,
-                                 const uchar* old_data,
-                                 const uchar* new_data,
-                                 const MY_BITMAP* bi_cols,
-                                 const MY_BITMAP* ai_cols,
+                                 const NdbRecord*,
+                                 const uchar*,
+                                 const uchar*,
+                                 const MY_BITMAP*,
+                                 const MY_BITMAP*,
                                  NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_epoch2_secondary");
@@ -2700,7 +2699,7 @@ setup_conflict_fn(Ndb* ndb,
                   const char* dbName,
                   const char* tabName,
                   bool tableBinlogUseUpdate,
-                  const NDBTAB *ndbtab,
+                  const NdbDictionary::Table* ndbtab,
                   char *msg, uint msg_len,
                   const st_conflict_fn_def* conflict_fn,
                   const st_conflict_fn_arg* args,
@@ -2801,22 +2800,17 @@ setup_conflict_fn(Ndb* ndb,
   case CFT_NDB_EPOCH2_TRANS:
   {
     /* Check how updates will be logged... */
-    bool log_update_as_write = (!tableBinlogUseUpdate);
-    
-    if (log_update_as_write)
-    {
+    const bool log_update_as_write = (!tableBinlogUseUpdate);
+    if (log_update_as_write) {
       my_snprintf(msg, msg_len,
                   "Table %s.%s configured to log updates as writes.  "
                   "Not suitable for %s.",
-                  dbName,
-                  tabName,
-                  conflict_fn->name);
+                  dbName, tabName, conflict_fn->name);
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
-    
-    /* Fall through for the rest of the EPOCH* processing... */
   }
+  /* Fall through - for the rest of the EPOCH* processing... */
   case CFT_NDB_EPOCH:
   case CFT_NDB_EPOCH_TRANS:
   {

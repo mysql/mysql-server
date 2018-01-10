@@ -705,14 +705,6 @@ ndb_transid_mysql_connection_map_init(void *p)
   DBUG_RETURN(0);
 }
 
-static
-int
-ndb_transid_mysql_connection_map_deinit(void *p)
-{
-  DBUG_ENTER("ndb_transid_mysql_connection_map_deinit");
-  DBUG_RETURN(0);
-}
-
 #include <mysql/plugin.h>
 
 static struct st_mysql_information_schema i_s_info =
@@ -730,7 +722,7 @@ struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin =
   PLUGIN_LICENSE_GPL,
   ndb_transid_mysql_connection_map_init,
   NULL,
-  ndb_transid_mysql_connection_map_deinit,
+  NULL,
   0x0001,
   NULL,
   NULL,

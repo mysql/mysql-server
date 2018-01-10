@@ -143,25 +143,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
 ENDIF()
 
-# Disable specific types of warnings for ndbcluster source files
-# if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning
-          "unused-but-set-variable"
-          # Missing falltrough in switch/case/break statements
-	  "implicit-fallthrough"
-	  "error=unused-parameter")
-    STRING(REPLACE "-" "_" warning_ ${warning})
-    STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
-    IF(HAVE_${WARNING})
-      ADD_COMPILE_FLAGS(${NDBCLUSTER_SOURCES}
-                        COMPILE_FLAGS -Wno-${warning})
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
-
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
   MESSAGE(STATUS "Building NDB 32-bit")
 ELSE()

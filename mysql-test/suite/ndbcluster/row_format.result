@@ -1,0 +1,61 @@
+# Create table without specifying ROW_FORMAT, should use default
+# which is DYNAMIC
+CREATE TABLE t1_dynamic(
+a int primary key,
+b int
+) engine = NDB;
+# Create table with ROW_FORMAT=FIXED, should use FIXED
+CREATE TABLE t2_fixed(
+a int primary key,
+b int
+) ROW_FORMAT=FIXED engine = NDB;
+# Create table with ROW_FORMAT=DEFAULT, will also use DYNAMIC
+CREATE TABLE t4_default_dynamic(
+a int primary key,
+b int
+) ROW_FORMAT=DEFAULT engine = NDB;
+# Show that tables are using the expected row_format
+SELECT table_name, row_format FROM information_schema.tables
+WHERE TABLE_SCHEMA = 'test' order by TABLE_NAME;
+TABLE_NAME	ROW_FORMAT
+t1_dynamic	Dynamic
+t2_fixed	Fixed
+t4_default_dynamic	Dynamic
+#
+# Check that columns can _not_ be added inplace on a table
+# which has ROW_FORMAT=FIXED
+#
+ALTER TABLE t2_fixed
+algorithm=inplace,
+ADD COLUMN c int null;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
+#
+# Check that columns can be added inplace on a table
+# which has ROW_FORMAT=DYNAMIC
+#
+ALTER TABLE t1_dynamic
+algorithm=inplace,
+ADD COLUMN c int null COLUMN_FORMAT DYNAMIC;
+#
+# Check that ROW_FORMAT can _not_ be changed with inplace ALTER
+#
+ALTER TABLE t1_dynamic
+algorithm=inplace,
+ROW_FORMAT=FIXED;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: ROW_FORMAT changed. Try ALGORITHM=COPY.
+ALTER TABLE t2_fixed
+algorithm=inplace,
+ROW_FORMAT=DYNAMIC;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: ROW_FORMAT changed. Try ALGORITHM=COPY.
+#
+# Check that ROW_FORMAT can be changed with copying ALTER
+#
+# DYNAMIC -> FIXED
+ALTER TABLE t4_default_dynamic
+algorithm=copy,
+ROW_FORMAT=FIXED;
+# FIXED -> DYNAMIC
+ALTER TABLE t2_fixed
+algorithm=copy,
+ROW_FORMAT=DYNAMIC;
+DROP TABLE t1_dynamic,t2_fixed,t4_default_dynamic;

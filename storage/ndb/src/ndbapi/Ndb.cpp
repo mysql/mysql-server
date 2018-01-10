@@ -791,10 +791,7 @@ NdbImpl::select_node(NdbTableImpl *table_impl,
 {
   if (table_impl == NULL)
   {
-    /**
-     * No table hint given, let caller select node.
-     */
-    return 0;
+    return m_ndb_cluster_connection.select_any(this);
   }
 
   Uint32 nodeId;
@@ -803,7 +800,29 @@ NdbImpl::select_node(NdbTableImpl *table_impl,
 
   if (cnt && !readBackup && !fullyReplicated)
   {
-    nodeId = nodes[0]; // Choose primary replica
+    /**
+     * We select the primary replica node normally. If the user
+     * have specified location domains we will always ensure that
+     * we pick a node within the same location domain before we
+     * pick the primary replica.
+     *
+     * The reason is that the transaction could be large and involve
+     * many more operations not necessarily using the same partition
+     * key. The jump to the primary is to a different location domain,
+     * so we keeping the TC local to this domain always seems preferrable
+     * to picking the perfect path for this operation.
+     */
+    if (m_optimized_node_selection)
+    {
+      nodeId = m_ndb_cluster_connection.select_location_based(this,
+                                                              nodes,
+                                                              cnt);
+    }
+    else
+    {
+      /* Backwards compatible setting */
+      nodeId = nodes[0];
+    }
   }
   else if (fullyReplicated)
   {
@@ -813,7 +832,7 @@ NdbImpl::select_node(NdbTableImpl *table_impl,
      */
     cnt = table_impl->m_fragments.size();
     nodes = table_impl->m_fragments.getBase();
-    nodeId = m_ndb_cluster_connection.select_node(nodes, cnt);
+    nodeId = m_ndb_cluster_connection.select_node(this, nodes, cnt);
   }
   else if (cnt == 0)
   {
@@ -821,7 +840,7 @@ NdbImpl::select_node(NdbTableImpl *table_impl,
      * For unhinted select, let caller select node.
      * Except for fully replicated tables, see above.
      */
-    nodeId = 0;
+    nodeId = m_ndb_cluster_connection.select_any(this);
   }
   else
   {
@@ -830,7 +849,7 @@ NdbImpl::select_node(NdbTableImpl *table_impl,
      * Consider one fragment and any replica for readBackup
      */
     require(readBackup);
-    nodeId = m_ndb_cluster_connection.select_node(nodes, cnt);
+    nodeId = m_ndb_cluster_connection.select_node(this, nodes, cnt);
   }
   return nodeId;
 }

@@ -1172,6 +1172,10 @@ struct MY_ALIGNED(NDB_CL) thr_data
   Uint32 m_sched_responsiveness;
   Uint32 m_max_signals_before_send;
   Uint32 m_max_signals_before_send_flush;
+
+#ifdef ERROR_INSERT
+  bool m_delayed_prepare;
+#endif
 };
 
 struct mt_send_handle  : public TransporterSendBufferHandle
@@ -1191,13 +1195,14 @@ struct trp_callback : public TransporterCallback
   trp_callback() {}
 
   /* Callback interface. */
+  void enable_send_buffer(NodeId node);
+  void disable_send_buffer(NodeId node);
+
   void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
   void lock_transporter(NodeId node);
   void unlock_transporter(NodeId node);
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
-  bool has_data_to_send(NodeId node);
-  void reset_send_buffer(NodeId node);
 };
 
 static char *g_thr_repository_mem = NULL;
@@ -1282,6 +1287,8 @@ struct thr_repository
     /* Size of resp. 'm_buffer' and 'm_sending' buffered data */
     Uint64 m_buffered_size;             //Protected by m_buffer_lock
     Uint64 m_sending_size;              //Protected by m_send_lock
+
+    bool m_enabled;                     //Protected by m_send_lock
 
     /**
      * Flag used to coordinate sending to same remote node from different
@@ -2553,7 +2560,7 @@ thr_send_threads::handle_send_node(NodeId node,
   /**
    * Need a lock on the send buffers to protect against 
    * worker thread doing ::forceSend, possibly
-   * reset_send_buffers() and/or lock_/unlock_transporter().
+   * disable_send_buffers() and/or lock_/unlock_transporter().
    * To avoid a livelock with ::forceSend() on an overloaded 
    * systems, we 'try-lock', and reinsert the node for 
    * later retry if failed.
@@ -4128,6 +4135,20 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
   return bytes;
 }
 
+static
+void
+release_list(thread_local_pool<thr_send_page>* pool,
+             thr_send_page* head, thr_send_page * tail)
+{
+  while (head != tail)
+  {
+    thr_send_page * tmp = head;
+    head = head->m_next;
+    pool->release_local(tmp);
+  }
+  pool->release_local(tail);
+}
+
 /**
  * Get buffered pages ready to be sent by the transporter.
  * All pages returned from this function will refer to
@@ -4136,10 +4157,11 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
  * The 'sb->m_send_lock' has to be held prior to calling
  * this function.
  *
- * If more send_buffer pages are required from the
- * 'm_buffer', we will also grab the m_buffer_lock as 
- * required. Any grabbed m_buffer's will be moved to
- * m_sending buffers
+ * Any available 'm_buffer's will be appended to the
+ * 'm_sending' buffers with apropriate locks taken.
+ *
+ * If sending to 'node' is not enabled, the buffered pages
+ * are released instead of being returned from this method.
  */
 Uint32
 trp_callback::get_bytes_to_send_iovec(NodeId node,
@@ -4147,8 +4169,9 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
                                       Uint32 max)
 {
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers + node;
+  sb->m_bytes_sent = 0;
 
-  if (max == 0)
+  if (unlikely(max == 0))
     return 0;
 
   /**
@@ -4186,13 +4209,27 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
   }
 
   /**
+   * If sending to 'node' is not enabled; discard the send buffers.
+   */
+  if (unlikely(!sb->m_enabled))
+  {
+    thread_local_pool<thr_send_page> pool(&g_thr_repository->m_sb_pool, 0);
+    release_list(&pool, sb->m_sending.m_first_page, sb->m_sending.m_last_page);
+    pool.release_all(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
+
+    sb->m_sending.m_first_page = NULL;
+    sb->m_sending.m_last_page = NULL;
+    sb->m_sending_size = 0;
+    return 0;
+  }
+
+  /**
    * Process linked-list and put into iovecs
    */
 fill_iovec:
   Uint32 tot = 0;
   Uint32 pos = 0;
   thr_send_page * p = sb->m_sending.m_first_page;
-  sb->m_bytes_sent = 0;
 
 #ifdef NDB_LUMPY_SEND
   /* Drip feed transporter a few bytes at a time to send */
@@ -4230,7 +4267,6 @@ fill_iovec:
 
   return pos;
 #endif
-
 
   do {
     dst[pos].iov_len = p->m_bytes;
@@ -4272,20 +4308,6 @@ fill_iovec:
     goto fill_iovec;
   }
   return pos;
-}
-
-static
-void
-release_list(thread_local_pool<thr_send_page>* pool,
-             thr_send_page* head, thr_send_page * tail)
-{
-  while (head != tail)
-  {
-    thr_send_page * tmp = head;
-    head = head->m_next;
-    pool->release_local(tmp);
-  }
-  pool->release_local(tail);
 }
 
 static
@@ -4399,72 +4421,62 @@ trp_callback::bytes_sent(NodeId node, Uint32 bytes)
   }
 }
 
-/**
- * NOTE:
- *    In Release builds ::has_data_to_send() is only called
- *    from TransporterRegistry::performSend().
- *    ::performSend() in turn, is only called from either
- *    the single threaded scheduler, or the API, which
- *    will end up in the single threaded ::has_data_to_send()
- *    implemented in class TransporterCallbackKernelNonMT
- *    Thus, this ::has_data_to_send is not used in Release builds.
- *
- *    In addition Debug builds use ::has_data_to_send() to assert
- *    that the send buffer is empty when expected to be.
- *    a simple implementaton based on probing
- *    get_bytes_to_send_iovec() is provided for this purpose.
- */
-bool
-trp_callback::has_data_to_send(NodeId node)
+void
+trp_callback::enable_send_buffer(NodeId node)
 {
-  struct iovec v[1];
-  return (get_bytes_to_send_iovec(node, v, 1) > 0);
+  thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
+  lock(&sb->m_send_lock);
+  assert(sb->m_sending_size == 0);
+  {
+    /**
+     * Collect and discard any sent buffered signals while
+     * send buffers were disabled.
+     */ 
+    lock(&sb->m_buffer_lock);
+    link_thread_send_buffers(sb, node);
+
+    if (sb->m_buffer.m_first_page != NULL)
+    {
+      thread_local_pool<thr_send_page> pool(&g_thr_repository->m_sb_pool, 0);
+      release_list(&pool, sb->m_buffer.m_first_page, sb->m_buffer.m_last_page);
+      pool.release_all(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
+      sb->m_buffer.m_first_page = NULL;
+      sb->m_buffer.m_last_page = NULL;
+      sb->m_buffered_size = 0;
+    }
+    unlock(&sb->m_buffer_lock);
+  }
+  assert(sb->m_enabled == false);
+  sb->m_enabled = true;
+  unlock(&sb->m_send_lock);
 }
 
-/**
- * Reset send buffers by releasing all buffered send pages,
- * in both the m_buffer and m_sending buffers, *and*
- * available thread send buffers.
- *
- * Neither m_send_lock or m_buffer_lock should be set prior
- * to calling this function, they will be acquired here
- * as required.
- */
 void
-trp_callback::reset_send_buffer(NodeId node)
+trp_callback::disable_send_buffer(NodeId node)
 {
-  struct thr_repository *rep = g_thr_repository;
-  thr_repository::send_buffer * sb = rep->m_send_buffers+node;
-
-  thread_local_pool<thr_send_page> pool(&rep->m_sb_pool, 0);
-
+  thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
   lock(&sb->m_send_lock);
-  lock(&sb->m_buffer_lock);
+  sb->m_enabled = false;
 
-  /* Collect thread send buffers into m_buffer. */
-  link_thread_send_buffers(sb, node);
-
-  /* Drop all pending data in m_buffer. */
-  if (sb->m_buffer.m_first_page)
+  /**
+   * Discard buffered signals not yet sent:
+   * Note that other threads may still continue send-buffering into
+   * their thread local send buffers until they discover that the 
+   * transporter has disconnect. However, these sent signals will
+   * either be discarded when collected by ::get_bytes_to_send_iovec(),
+   * or any leftovers discarded by ::enable_send_buffer()
+   */
+  if (sb->m_sending.m_first_page != NULL)
   {
-    release_list(&pool, sb->m_buffer.m_first_page, sb->m_buffer.m_last_page);
-    sb->m_buffer.m_first_page = NULL;
-    sb->m_buffer.m_last_page  = NULL;
-  }
-  sb->m_buffered_size = 0;
-  unlock(&sb->m_buffer_lock);
-
-  /* Drop all pending data in m_sending buffers. */
-  if (sb->m_sending.m_first_page)
-  {
+    thread_local_pool<thr_send_page> pool(&g_thr_repository->m_sb_pool, 0);
     release_list(&pool, sb->m_sending.m_first_page, sb->m_sending.m_last_page);
+    pool.release_all(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
     sb->m_sending.m_first_page = NULL;
     sb->m_sending.m_last_page = NULL;
+    sb->m_sending_size = 0;
   }
-  sb->m_sending_size = 0;
-  unlock(&sb->m_send_lock);
 
-  pool.release_all(rep->m_mm, RG_TRANSPORTER_BUFFERS);
+  unlock(&sb->m_send_lock);
 }
 
 static inline
@@ -5039,6 +5051,18 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
     : false;                     // All busy, or didn't find any work (-> -0)
 }
 
+#ifdef ERROR_INSERT
+void
+mt_set_delayed_prepare(Uint32 self)
+{
+  thr_repository *rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  
+  selfptr->m_delayed_prepare = true;
+}
+#endif
+
+
 /**
  * These are the implementations of the TransporterSendBufferHandle methods
  * in ndbmtd.
@@ -5046,14 +5070,29 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
 Uint32 *
 mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
 {
+
+#ifdef ERROR_INSERT
+  if (m_selfptr->m_delayed_prepare)
+  {
+    g_eventLogger->info("MT thread %u delaying in prepare",
+                        m_selfptr->m_thr_no);
+    NdbSleep_MilliSleep(500);
+    g_eventLogger->info("MT thread %u finished delay, clearing",
+                        m_selfptr->m_thr_no);
+    m_selfptr->m_delayed_prepare = false;
+  }
+#endif
+
   struct thr_send_buffer * b = m_selfptr->m_send_buffers+node;
   thr_send_page * p = b->m_last_page;
-  if ((p != 0) && (p->m_bytes + p->m_start + len <= thr_send_page::max_bytes()))
+  if (p != NULL)
   {
-    return (Uint32*)(p->m_data + p->m_start + p->m_bytes);
-  }
-  else if (p != 0)
-  {
+    assert(p->m_start == 0); //Nothing sent until flushed
+    
+    if (likely(p->m_bytes + len <= thr_send_page::max_bytes()))
+    {
+      return (Uint32*)(p->m_data + p->m_bytes);
+    }
     // TODO: maybe dont always flush on page-boundary ???
     flush_send_buffer(m_selfptr, node);
     if (!g_send_threads)
@@ -5964,6 +6003,7 @@ init_thread(thr_data *selfptr)
   selfptr->m_wakeup_instance = 0;
   selfptr->m_last_wakeup_idle_thread = NdbTick_getCurrentTicks();
   selfptr->m_num_send_nodes_saved = 0;
+  selfptr->m_micros_send = 0;
   selfptr->m_micros_sleep = 0;
   selfptr->m_buffer_full_micros_sleep = 0;
   selfptr->m_measured_spintime = 0;
@@ -6060,7 +6100,9 @@ init_thread(thr_data *selfptr)
   fflush(stdout);
   if (fail)
   {
+#ifndef HAVE_MAC_OS_X_THREAD_INFO
     abort();
+#endif
   }
 }
 
@@ -7294,6 +7336,9 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
 
   selfptr->m_thread = 0;
   selfptr->m_cpu = NO_LOCK_CPU;
+#ifdef ERROR_INSERT
+  selfptr->m_delayed_prepare = false;
+#endif
 }
 
 /* Have to do this after init of all m_in_queues is done. */
@@ -7331,9 +7376,12 @@ send_buffer_init(Uint32 node, thr_repository::send_buffer * sb)
   register_lock(&sb->m_send_lock, buf);
   BaseString::snprintf(buf, sizeof(buf), "send_buffer lock node %d", node);
   register_lock(&sb->m_buffer_lock, buf);
+  sb->m_buffered_size = 0;
+  sb->m_sending_size = 0;
   sb->m_force_send = 0;
   sb->m_bytes_sent = 0;
   sb->m_send_thread = NO_SEND_THREAD;
+  sb->m_enabled = false;
   bzero(&sb->m_buffer, sizeof(sb->m_buffer));
   bzero(&sb->m_sending, sizeof(sb->m_sending));
   bzero(sb->m_read_index, sizeof(sb->m_read_index));
@@ -8386,5 +8434,4 @@ mt_get_trp_receive_handle(unsigned instance)
  */
 static struct trp_callback g_trp_callback;
 
-TransporterRegistry globalTransporterRegistry(&g_trp_callback, NULL,
-                                              false);
+TransporterRegistry globalTransporterRegistry(&g_trp_callback, NULL);

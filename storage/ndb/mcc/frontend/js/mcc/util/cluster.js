@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *      mcc.util.cluster.getNodeDistribution: Get #nodes of various types
  *      mcc.util.cluster.checkValidNodeId: Check if the node id is valid
  *      mcc.util.cluster.getNextNodeId: Get next available id in a given range
-
+ *      mcc.util.cluster.setConfigFile: Set the name of configuration user selected.
+ *      mcc.util.cluster.setConfigFileContents: Set contents of configuration file to variable
+ *      mcc.util.cluster.getConfigFileContents: Retrieve contents of configuration file from variable
+ *
  *  External data: 
  *      None
  *
@@ -47,7 +50,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *      None
  *
  *  Internal data: 
- *      None
+ *      configFile: The name of the configuration file in use.
+ *      configFileContents: The contents of the configuration file in use.
  *
  *  Unit test interface: 
  *      None
@@ -73,6 +77,8 @@ mcc.util.cluster.getColleagueNodes = getColleagueNodes;
 mcc.util.cluster.getNodeDistribution = getNodeDistribution;
 mcc.util.cluster.checkValidNodeId = checkValidNodeId;
 mcc.util.cluster.getNextNodeId = getNextNodeId;
+
+/****************************** Internal data   *******************************/
 
 /****************************** Implementation  *******************************/
 

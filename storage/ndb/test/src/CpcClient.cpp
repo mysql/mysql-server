@@ -311,13 +311,21 @@ int SimpleCpcClient::list_processes(Vector<Process> &procs, Properties &reply) {
 
   const Properties args;
 
-  cpc_send("list processes", args);
+  int status = cpc_send("list processes", args);
+  if (status == -1) {
+    ndbout_c("Failed to send command to CPCD: %d", __LINE__);
+    return -1;
+  }
 
   bool done = false;
   while (!done) {
     const Properties *proc;
     void *p;
-    cpc_recv(list_reply, &proc, &p);
+    status = cpc_recv(list_reply, &proc, &p);
+    if (status == -1) {
+      ndbout_c("Failed to receive data from CPCD: %d", __LINE__);
+      return -1;
+    }
 
     end++;
     if (p == &start) {
@@ -487,7 +495,10 @@ void SimpleCpcClient::close_connection() {
 int SimpleCpcClient::cpc_send(const char *cmd, const Properties &args) {
   SocketOutputStream cpc_out(cpc_sock);
 
-  cpc_out.println("%s", cmd);
+  int status = cpc_out.println("%s", cmd);
+  if (status == -1) {
+    return -1;
+  }
 
   Properties::Iterator iter(&args);
   const char *name;
@@ -534,9 +545,9 @@ int SimpleCpcClient::cpc_send(const char *cmd, const Properties &args) {
         break;
     }
   }
-  cpc_out.println("%s", "");
+  status = cpc_out.println("%s", "");
 
-  return 0;
+  return status == -1 ? status : 0;
 }
 
 /**

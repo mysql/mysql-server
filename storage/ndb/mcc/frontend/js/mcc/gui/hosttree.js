@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -305,7 +305,7 @@ function hostTreeMenuSetup() {
         // Rebuild menu depending on tree node
         if (hostTreeItem.treeItem.isType("process")) {
             hostTreeMenu.addChild(new dijit.MenuItem({
-                label: "Delete process",
+                label: "Del process",
                 onClick: function() {
                     mcc.storage.processStorage().deleteItem(
                             hostTreeItem.storageItem)
@@ -355,7 +355,7 @@ function hostTreeButtonSetup() {
 
     var addButton= new dijit.form.Button({label: "Add process",
             iconClass: "dijitIconAdd"}, "addProcessButton");
-    var deleteButton= new dijit.form.Button({label: "Delete process",
+    var deleteButton= new dijit.form.Button({label: "Del process",
             iconClass: "dijitIconDelete"}, "deleteProcessButton");
     
     dojo.connect(addButton, "onClick", addTreeItem);

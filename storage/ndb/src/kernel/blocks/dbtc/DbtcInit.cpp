@@ -47,6 +47,7 @@ void Dbtc::initData()
   ctcConnectFilesize = ZTC_CONNECT_FILESIZE;
   cdihblockref = DBDIH_REF;
   cspjInstanceRR = 1;
+  m_load_balancer_location = 0;
 
   c_lqhkeyconf_direct_sent = 0;
  

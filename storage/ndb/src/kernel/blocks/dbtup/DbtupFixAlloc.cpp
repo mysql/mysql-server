@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,10 @@
 
 #define JAM_FILE_ID 421
 
+#ifdef VM_TRACE
 //#define DEBUG_899_ERROR 1
+#endif
+
 #ifdef DEBUG_899_ERROR
 #define DEB_899_ERROR(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -258,7 +261,7 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
   case ZTH_MM_FREE:
     if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)
     {
-      DEB_899_ERROR(("(%u)899 error FREE: tab(%u,%u) rowid(%u,%u)",
+      DEB_899_ERROR(("(%u)899 error FREE: tab(%u,%u) row(%u,%u)",
                       instance(),
                       regFragPtr->fragTableId,
                       regFragPtr->fragmentId,
@@ -282,7 +285,7 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
     return pagePtr.p->m_data + idx;
   case ZTH_MM_FULL:
     * err = ZROWID_ALLOCATED;
-    DEB_899_ERROR(("(%u)899 error FULL: tab(%u,%u) rowid(%u,%u)",
+    DEB_899_ERROR(("(%u)899 error FULL: tab(%u,%u) row(%u,%u)",
                     instance(),
                     regFragPtr->fragTableId,
                     regFragPtr->fragmentId,

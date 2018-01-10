@@ -202,9 +202,9 @@ Ndb_local_schema::Table::remove_table(void) const
   }
 
   // Remove the table from DD
-  if (!ndb_dd_drop_table(m_thd, m_db, m_name))
+  if (!ndb_dd_remove_table(m_thd, m_db, m_name))
   {
-    log_warning("Failed to drop table from DD");
+    log_warning("Failed to remove table from DD");
     return;
   }
 

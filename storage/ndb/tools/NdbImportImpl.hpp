@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include <NdbError.hpp>
 #include <NdbSleep.h>
 #include <ndb_rand.h>
-#include <NdbImport.hpp>
+#include "NdbImport.hpp"
 #include "NdbImportUtil.hpp"
 #include "NdbImportCsv.hpp"
 // STL
@@ -315,9 +315,10 @@ public:
     Stat* m_stat_reject;        // rows rejected at some stage
     Stat* m_stat_runtime;       // total runtime in milliseconds
     Stat* m_stat_rowssec;       // rows inserted per second
-    Stat* m_stat_utime;
+    Stat* m_stat_utime;         // from workers
     Stat* m_stat_stime;
     Stat* m_stat_rowmap;
+    Stat* m_stat_rowmap_utime;    // mainly from rowmap merges
   };
 
   struct Team {

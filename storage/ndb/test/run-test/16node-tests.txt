@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -743,6 +743,15 @@ args: -n SR_UNDO T7
 max-time: 1500
 cmd: testSystemRestart
 args: -n SR_UNDO T8 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO D2
+
 
 # OLD FLEX
 max-time: 500

@@ -1758,14 +1758,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
   DBUG_RETURN(0);
 }
 
-bool
-ha_ndbcluster::is_fk_defined_on_table_or_index(uint index)
-{
-  /**
-   * This doesnt seem implemented in Innodb either...
-   */
-  return false;
-}
 
 uint
 ha_ndbcluster::referenced_by_foreign_key()
@@ -2144,8 +2136,7 @@ ha_ndbcluster::release_fk_data()
 }
 
 int
-ha_ndbcluster::get_child_or_parent_fk_list(THD *thd,
-                                           List<FOREIGN_KEY_INFO> * f_key_list,
+ha_ndbcluster::get_child_or_parent_fk_list(List<FOREIGN_KEY_INFO> * f_key_list,
                                            bool is_child, bool is_parent)
 {
   DBUG_ENTER("ha_ndbcluster::get_child_or_parent_fk_list");
@@ -2184,21 +2175,21 @@ ha_ndbcluster::get_child_or_parent_fk_list(THD *thd,
 }
 
 int
-ha_ndbcluster::get_foreign_key_list(THD *thd,
+ha_ndbcluster::get_foreign_key_list(THD*,
                                     List<FOREIGN_KEY_INFO> * f_key_list)
 {
   DBUG_ENTER("ha_ndbcluster::get_foreign_key_list");
-  int res= get_child_or_parent_fk_list(thd, f_key_list, true, false);
+  int res= get_child_or_parent_fk_list(f_key_list, true, false);
   DBUG_PRINT("info", ("count FKs child %u", f_key_list->elements));
   DBUG_RETURN(res);
 }
 
 int
-ha_ndbcluster::get_parent_foreign_key_list(THD *thd,
+ha_ndbcluster::get_parent_foreign_key_list(THD*,
                                            List<FOREIGN_KEY_INFO> * f_key_list)
 {
   DBUG_ENTER("ha_ndbcluster::get_parent_foreign_key_list");
-  int res= get_child_or_parent_fk_list(thd, f_key_list, false, true);
+  int res= get_child_or_parent_fk_list(f_key_list, false, true);
   DBUG_PRINT("info", ("count FKs parent %u", f_key_list->elements));
   DBUG_RETURN(res);
 }

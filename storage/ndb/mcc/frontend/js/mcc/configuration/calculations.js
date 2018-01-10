@@ -75,7 +75,7 @@ mcc.configuration.calculations.typeSetup = typeSetup;
 
 /****************************** Implementation  *******************************/
 
-// Add processes to the cluster if noone exists already
+// Add processes to the cluster if none exists already
 function autoConfigure() {
     var waitCondition = new dojo.Deferred();
     // If no processes, add
@@ -111,7 +111,7 @@ function autoConfigure() {
             if (!hosts || hosts.length == 0 || 
                     (hosts.length == 1 && hosts[0].getValue("anyHost"))) {
                 alert("No hosts - unable to add default processes")
-                mcc.util.dbg("No hosts - unable tocall add default processes")
+                mcc.util.dbg("No hosts - unable to call add default processes")
                 waitCondition.resolve();
                 return;
             }
@@ -120,7 +120,10 @@ function autoConfigure() {
             var names = [];
             var familyHead = [];    // Ptype hashed on family name
             var typeHead = [];      // Ptype hashed on type name
-            var dataNodeId = 1; 
+            var dataNodeId = 1;
+            var mgmtNodeID = 49;
+            var sqlNodeID = 53;
+            var apiNodeID = 231;
             var otherNodeId = 49; 
 
             // Get ids of all process types
@@ -134,15 +137,36 @@ function autoConfigure() {
                 names[pType.getValue("name")] = pType.getValue("nodeLabel");
             },
             function () {
-                // Add new process
+                // Add new process following same ID rules set in MCCStorage.js::initializeProcessTypeStorage
+                var NID = 0;
                 function newProcess(pname, host) {
+                    switch(pname) {
+                        case "ndb_mgmd":
+                            NID = mgmtNodeID;
+                            mgmtNodeID++;
+                            otherNodeId++;
+                            break;
+                        case "mysqld":
+                            NID = sqlNodeID;
+                            sqlNodeID++;
+                            otherNodeId++;
+                            break;
+                        case "api":
+                            NID = apiNodeID;
+                            apiNodeID++;
+                            otherNodeId++;
+                            break;
+                        default:
+                            NID = dataNodeId;
+                            dataNodeId++;
+                    }
+
                     mcc.storage.processStorage().newItem({
                         name: names[pname] + " " + 
                                 typeHead[pname].getValue("currSeq"),
                         host: host.getId(),
                         processtype: typeIds[pname],
-                        NodeId: (pname == "ndbd" || pname == "ndbmtd") ? 
-                                dataNodeId++ : otherNodeId++,
+                        NodeId: NID,
                         seqno: typeHead[pname].getValue("currSeq")
                     });
                 }
@@ -755,6 +779,6 @@ function instanceSetup(processFamilyName, processItem) {
 /******************************** Initialize  *********************************/
 
 dojo.ready(function () {
-    mcc.util.dbg("Configuration calulations module initialized");
+    mcc.util.dbg("Configuration calculations module initialized");
 });
 

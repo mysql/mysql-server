@@ -1538,6 +1538,7 @@ private:
   void scanFrag_dumpNode(const Ptr<Request> requestPtr,
                          const Ptr<TreeNode> treeNodePtr);
 
+  Uint32 check_own_location_domain(const Uint32 *nodes, Uint32 node_count);
   /**
    * Page manager
    */
@@ -1555,6 +1556,8 @@ private:
                        const Uint32* src, Uint32 len);
 #endif
 
+  Uint32 m_location_domain_id[MAX_NDB_NODES];
+  Uint32 m_load_balancer_location;
   /**
    * Scratch buffers...
    */

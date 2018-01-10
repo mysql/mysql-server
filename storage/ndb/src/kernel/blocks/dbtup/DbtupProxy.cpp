@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,10 @@
 
 extern EventLogger * g_eventLogger;
 
+#ifdef VM_TRACE
 //#define DEBUG_TUP_RESTART_ 1
+#endif
+
 #ifdef DEBUG_TUP_RESTART
 #define DEB_TUP_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -79,7 +82,8 @@ DbtupProxy::callREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &c_tableRecSize));
-  c_tableRec = (Uint8*)allocRecord("TableRec", sizeof(Uint8), c_tableRecSize);
+  c_tableRec = (Uint32*)allocRecord("TableRec", sizeof(Uint32),
+                                    c_tableRecSize);
   D("proxy:" << V(c_tableRecSize));
   Uint32 i;
   for (i = 0; i < c_tableRecSize; i++)
@@ -96,7 +100,9 @@ DbtupProxy::callSTTOR(Signal* signal)
   switch (startPhase) {
   case 1:
     c_pgman = (Pgman*)globalData.getBlock(PGMAN);
+    c_tsman = (Tsman*)globalData.getBlock(TSMAN);
     ndbrequire(c_pgman != 0);
+    ndbrequire(c_tsman != 0);
     break;
   }
   backSTTOR(signal);
@@ -232,15 +238,10 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   D("proxy: disk_restart_undo" << V(type) << hex << V(ptr) << dec << V(len) << V(lsn));
   undo.m_type = type;
   undo.m_len = len;
-  undo.m_ptr = ptr;
+  undo.m_ptr = ptr; /* Ptr to memory managed by lgman */
   undo.m_lsn = lsn;
 
-  /*
-   * The timeslice via PGMAN/5 gives LGMAN a chance to overwrite the
-   * data pointed to by ptr.  So save it now and do not use ptr.
-   */
-  ndbrequire(undo.m_len <= Proxy_undo::MaxData);
-  memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
+  ndbrequire(undo.m_len <= MAX_UNDO_DATA);
 
   /**
    * All the logic about when to stop executing the UNDO log
@@ -282,6 +283,16 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    /**
+     * Setting the SendUndoNext flag makes DbtupProxy send a CONTINUEB to
+     * LGMAN thread immediately after sending the current undo record to the
+     * respective LDM.
+     * This enables LGMAN to proceed to the next undo record immediately.
+     * If SendUndoNext is not set,  LGMAN waits for a CONTINUEB from LDM to
+     * confirm completion and then proceeds to fetch the next undo record.
+     */
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
+
     break;
   }
   case File_formats::Undofile::UNDO_TUP_UPDATE:
@@ -294,6 +305,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
     break;
   }
   case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
@@ -305,6 +317,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
     break;
   }
   case File_formats::Undofile::UNDO_TUP_FREE:
@@ -317,6 +330,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
     break;
   }
   case File_formats::Undofile::UNDO_TUP_DROP:
@@ -345,43 +359,91 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
 
   if (undo.m_actions & Proxy_undo::ReadTupPage) {
     jam();
-    /*
-     * Page request goes to the extra PGMAN worker (our thread).
-     * TUP worker reads same page again via another PGMAN worker.
-     * MT-LGMAN is planned, do not optimize (pass page) now
-     *
-     * We need to read page in order to get table id and fragment id.
-     * This is not part of the UNDO log information and this information
-     * is required such that we can map this to the correct LDM
-     * instance. We will not make page dirty, so it will be replaced
-     * as soon as we need a dirty page or we're out of pages in this
-     * PGMAN instance.
-     */
-    Page_cache_client pgman(this, c_pgman);
-    Page_cache_client::Request req;
-
-    /**
-     * Ensure that we crash if we try to make a LCP of this page
-     * later, should never happen since we never do any LCP of
-     * pages connected to fragments in extra pgman worker.
-     * page.
-     */
-    req.m_table_id = RNIL;
-    req.m_fragment_id = 0;
-    req.m_page = undo.m_key;
-    req.m_callback.m_callbackData = 0;
-    req.m_callback.m_callbackFunction = 
-      safe_cast(&DbtupProxy::disk_restart_undo_callback);
-
-    int ret = pgman.get_page(signal, req, 0);
-    ndbrequire(ret >= 0);
-    if (ret > 0) {
-      jam();
-      execute(signal, req.m_callback, (Uint32)ret);
+    Uint32 create_table_version;
+    Uint32 tableId;
+    Uint32 fragId;
+    {
+      /**
+       * A quick way to get the page id translated to table id
+       * and fragment id is to get it from the extent information
+       * stored in TSMAN. It creates a contention point around
+       * TSMAN that eventually will have to be resolved, but it
+       * should be much preferred to reading each page from disk
+       * to be able to get the fragment id and table id.
+       *
+       * In rare cases we will not find a translation, in this case
+       * we need to read the page to get the table id and fragment
+       * id. If the page also doesn't contain any valid table id
+       * and fragment id then it is safe to ignore the log record
+       * since there is no page written that needs UNDO on.
+       *
+       * We need the table id and fragment id to be able to map the
+       * page id to the correct LDM instance.
+       */
+      Tablespace_client tsman(signal, this, c_tsman,
+                              0, 0, 0, 0); //Ignored for this call
+      tsman.get_extent_info(undo.m_key);
+      tableId = tsman.get_table_id();
+      fragId = tsman.get_fragment_id();
+      create_table_version = tsman.get_create_table_version();
     }
-    return;
-  }
 
+    if (tableId >= c_tableRecSize ||
+        c_tableRec[tableId] != create_table_version)
+    {
+      jam();
+      /*
+       * The timeslice via PGMAN/5 gives LGMAN a chance to overwrite the
+       * data pointed to by ptr.  So save it now and do not use ptr.
+       */
+      memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
+      undo.m_ptr = undo.m_data;
+      /*
+       * An invalid table id or an incorrect table version means that
+       * the extent information was not to be trusted. We attempt to
+       * read the page and get information from there instead.
+       *
+       * Page request goes to the extra PGMAN worker (our thread).
+       * TUP worker reads same page again via another PGMAN worker.
+       * MT-LGMAN is planned, do not optimize (pass page) now
+       *
+       * We need to read page in order to get table id and fragment id.
+       * This is not part of the UNDO log information and this information
+       * is required such that we can map this to the correct LDM
+       * instance. We will not make page dirty, so it will be replaced
+       * as soon as we need a dirty page or we're out of pages in this
+       * PGMAN instance.
+       */
+      Page_cache_client pgman(this, c_pgman);
+      Page_cache_client::Request req;
+
+      /**
+       * Ensure that we crash if we try to make a LCP of this page
+       * later, should never happen since we never do any LCP of
+       * pages connected to fragments in extra pgman worker.
+       * page.
+       */
+      req.m_table_id = RNIL;
+      req.m_fragment_id = 0;
+      req.m_page = undo.m_key;
+      req.m_callback.m_callbackData = 0;
+      req.m_callback.m_callbackFunction =
+        safe_cast(&DbtupProxy::disk_restart_undo_callback);
+
+      int ret = pgman.get_page(signal, req, 0);
+      ndbrequire(ret >= 0);
+      if (ret > 0) {
+        jam();
+        execute(signal, req.m_callback, (Uint32)ret);
+      }
+      return;
+    }
+    DEB_TUP_RESTART(("DBTUP(0) create_table_version:%u c_tableRec:%u",
+                              create_table_version,
+                              c_tableRec[tableId]));
+    undo.m_table_id = tableId;
+    undo.m_fragment_id = fragId;
+  }
   disk_restart_undo_finish(signal);
 }
 
@@ -401,63 +463,98 @@ DbtupProxy::disk_restart_undo_callback(Signal* signal, Uint32, Uint32 page_id)
     const File_formats::Page_header& header = page->m_page_header;
     const Uint32 page_type = header.m_page_type;
 
-    if (page_type == 0) { // wl4391_todo ?
+    if (page_type == 0)
+    {
       jam();
+      /**
+       * Page not written, no need to worry about UNDO log, nothing
+       * written that requires UNDO.
+       */
       ndbrequire(header.m_page_lsn_hi == 0 && header.m_page_lsn_lo == 0);
       undo.m_actions |= Proxy_undo::NoExecute;
       undo.m_actions |= Proxy_undo::SendUndoNext;
-      D("proxy: callback" << V(page_type));
-    } else {
-      ndbrequire(page_type == File_formats::PT_Tup_fixsize_page ||
-                 page_type == File_formats::PT_Tup_varsize_page);
-
-      Uint64 page_lsn = (Uint64(header.m_page_lsn_hi) << 32) + header.m_page_lsn_lo;
-      if (! (undo.m_lsn <= page_lsn))
-      {
-        jam();
-        undo.m_actions |= Proxy_undo::NoExecute;
-        undo.m_actions |= Proxy_undo::SendUndoNext;
-      }
-
-      undo.m_table_id = page->m_table_id;
-      undo.m_fragment_id = page->m_fragment_id;
-      D("proxy: callback" << V(undo.m_table_id) <<
-                             V(undo.m_fragment_id) <<
-                             V(undo.m_create_table_version));
-      const Uint32 tableId = undo.m_table_id;
-      if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0) {
-        D("proxy: table dropped" << V(tableId));
-        undo.m_actions |= Proxy_undo::NoExecute;
-        undo.m_actions |= Proxy_undo::SendUndoNext;
-      }
+      D("proxy: page never written" << V(page_type));
+      disk_restart_undo_finish(signal);
+      return;
     }
-  }
+    jam();
+    undo.m_table_id = page->m_table_id;
+    undo.m_fragment_id = page->m_fragment_id;
+    D("proxy: callback" << V(undo.m_table_id) <<
+                           V(undo.m_fragment_id) <<
+                           V(undo.m_create_table_version));
+    const Uint32 tableId = undo.m_table_id;
+    if (tableId >= c_tableRecSize ||
+        c_tableRec[tableId] != page->m_create_table_version)
+    {
+      jam();
+      /**
+       * Also the table had invalid data, it have belonged to another
+       * table and have never been written by this table instance. So
+       * we can safely proceed.
+       */
+      D("proxy: page not written by this table" << V(tableId));
+      undo.m_actions |= Proxy_undo::NoExecute;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+      disk_restart_undo_finish(signal);
+      return;
+    }
+    ndbrequire(page_type == File_formats::PT_Tup_fixsize_page ||
+               page_type == File_formats::PT_Tup_varsize_page);
 
-  disk_restart_undo_finish(signal);
+    {
+      /**
+       * The page had a correct table id and fragment id. Since we
+       * came here the extent information haven't been written.
+       * Update the extent information now even if the UNDO log
+       * is not to be executed.
+       */
+      jam();
+      Tablespace_client tsman(signal,
+                              this,
+                              c_tsman,
+                              page->m_table_id,
+                              page->m_fragment_id,
+                              page->m_create_table_version,
+                              0); //Ignored for this call
+      tsman.write_extent_info(undo.m_key);
+    }
+    Uint64 page_lsn = (Uint64(header.m_page_lsn_hi) << 32)
+        + header.m_page_lsn_lo;
+    if (! (undo.m_lsn <= page_lsn))
+    {
+      /**
+       * Page lsn shows that this UNDO log record was never applied. So
+       * no need to execute UNDO log record.
+       */
+      jam();
+      undo.m_actions |= Proxy_undo::NoExecute;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+      disk_restart_undo_finish(signal);
+      return;
+    }
+    disk_restart_undo_finish(signal);
+  }
 }
 
 void
-DbtupProxy::disk_restart_undo_send_next(Signal *signal)
+DbtupProxy::disk_restart_undo_send_next(Signal *signal, Uint32 tup_instance)
 {
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
   signal->theData[1] = 0; /* Not applied flag */
-  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
+  signal->theData[2] = tup_instance;
+  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 3, JBB);
 }
 
 void
 DbtupProxy::disk_restart_undo_finish(Signal* signal)
 {
   Proxy_undo& undo = c_proxy_undo;
-
-  if (undo.m_actions & Proxy_undo::SendUndoNext) {
-    jam();
-    disk_restart_undo_send_next(signal);
-  }
-
-  if (undo.m_actions & Proxy_undo::NoExecute) {
-    jam();
-    goto finish;
-  }
+  /**
+   * The instance number of the tup instance the undo record is sent to.
+   * 0 means the undo record is not sent to any LDM or it was sent to all.
+   */
+  Uint32 tup_instance = 0;
 
   if (undo.m_actions & Proxy_undo::GetInstance) {
     jam();
@@ -470,22 +567,50 @@ DbtupProxy::disk_restart_undo_finish(Signal* signal)
        * Ignore this record since no table with this table id and
        * fragment id is currently existing.
        */
-      disk_restart_undo_send_next(signal);
+      disk_restart_undo_send_next(signal, tup_instance);
       goto finish;
     }
     Uint32 instanceNo = getInstanceFromKey(instanceKey);
-    undo.m_instance_no = instanceNo;
+    tup_instance = undo.m_instance_no = instanceNo;
+  }
+
+  if (undo.m_actions & Proxy_undo::NoExecute) {
+    jam();
+    tup_instance = 0;
+  }
+
+  if (undo.m_actions & Proxy_undo::SendUndoNext) {
+    jam();
+    disk_restart_undo_send_next(signal, tup_instance);
+  }
+
+  if (undo.m_actions & Proxy_undo::NoExecute) {
+    jam();
+    goto finish;
   }
 
   if (!(undo.m_actions & Proxy_undo::SendToAll)) {
     jam();
     ndbrequire(undo.m_instance_no != 0);
     Uint32 i = undo.m_instance_no - 1;
+    DEB_TUP_RESTART(("DBTUP(0) SENDING lsn:%llu type:%u len:%u LDM:%u",
+                            undo.m_lsn,
+                            undo.m_type,
+                            undo.m_len,
+                            undo.m_instance_no));
+
     disk_restart_undo_send(signal, i);
+    tup_instance = undo.m_instance_no;
   } else {
     jam();
     Uint32 i;
     for (i = 0; i < c_workers; i++) {
+      DEB_TUP_RESTART(("DBTUP(0) DbtupProxy SENDING lsn:%llu type:%u "
+          "len:%u LDM:%u",
+          undo.m_lsn,
+          undo.m_type,
+          undo.m_len,
+          i+1));
       disk_restart_undo_send(signal, i);
     }
   }
@@ -506,7 +631,7 @@ DbtupProxy::disk_restart_undo_send(Signal* signal, Uint32 i)
   Proxy_undo& undo = c_proxy_undo;
 
   LinearSectionPtr ptr[3];
-  ptr[0].p = undo.m_data;
+  ptr[0].p = (Uint32 *)undo.m_ptr;
   ptr[0].sz = undo.m_len;
 
   signal->theData[0] = ZDISK_RESTART_UNDO;

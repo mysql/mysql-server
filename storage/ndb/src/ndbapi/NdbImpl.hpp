@@ -266,6 +266,7 @@ public:
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
   bool   get_node_stopping(NodeId nodeId) const;
+  bool   get_node_available(NodeId nodeId) const;
   bool   getIsDbNode(NodeId nodeId) const;
   bool   getIsNodeSendable(NodeId nodeId) const;
   Uint32 getNodeGrp(NodeId nodeId) const;
@@ -616,6 +617,17 @@ inline
 bool
 NdbImpl::get_node_alive(NodeId n) const {
   return getNodeInfo(n).m_alive;
+}
+
+inline
+bool
+NdbImpl::get_node_available(NodeId n) const
+{
+  const trp_node & node = getNodeInfo(n);
+  assert(node.m_info.getType() == NodeInfo::DB);
+  return (node.m_alive &&
+          !node.m_state.getSingleUserMode() &&
+          node.m_state.startLevel == NodeState::SL_STARTED);
 }
 
 inline

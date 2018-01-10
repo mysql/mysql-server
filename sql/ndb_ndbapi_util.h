@@ -38,8 +38,20 @@ union NdbValue
   void *ptr;
 };
 
-char *ndb_pack_varchar(const NdbDictionary::Column *col,
-                       char *buf, const char *str, int sz);
+
+/**
+ * @brief ndb_pack_varchar, pack the given string using "MySQL Server varchar
+ *        format" into a buffer suitable for the given column of the NDB table
+ * @param ndbtab         NDB table
+ * @param column_index   index of column to pack for
+ * @param str            string to pack
+ * @param str_length     length of string to pack
+ *
+ * @note The hardcoded value 512 is the current size of FN_REFLEN, only buffers
+ *       of that size is currently supported by this function
+ */
+void ndb_pack_varchar(const NdbDictionary::Table* ndbtab, unsigned column_index,
+                      char (&buf)[512], const char* str, size_t str_length);
 
 /**
    @brief ndb_get_extra_metadata_version, returns the version of the
@@ -68,4 +80,3 @@ bool ndb_table_has_blobs(const NdbDictionary::Table* ndbtab);
 bool ndb_table_has_hidden_pk(const NdbDictionary::Table* ndbtab);
 
 #endif
-

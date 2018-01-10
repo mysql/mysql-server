@@ -1138,6 +1138,8 @@ public:
     LqhTransState lqhTransStatus;
     bool  inPackedList;
 
+    Uint32 m_location_domain_id;
+
     enum NodeFailBits
     {
       NF_TAKEOVER          = 0x1,
@@ -1169,6 +1171,7 @@ public:
     Uint64 time_track_transaction_histogram[TIME_TRACK_HISTOGRAM_RANGES];
     Uint64 time_track_transaction_error_histogram[TIME_TRACK_HISTOGRAM_RANGES];
   };
+  Uint32 m_my_location_domain_id;
   
   typedef Ptr<HostRecord> HostRecordPtr;
   
@@ -2088,6 +2091,7 @@ private:
    void time_track_complete_transaction(ApiConnectRecord *const apiConnectPtr);
    void time_track_complete_transaction_error(
      ApiConnectRecord * const apiConnectPtr);
+   Uint32 check_own_location_domain(Uint16*, Uint32);
 protected:
   virtual bool getParam(const char* name, Uint32* count);
   
@@ -2373,7 +2377,7 @@ private:
   
   void checkAbortAllTimeout(Signal* signal, Uint32 sleepTime);
   struct AbortAllRecord {
-    AbortAllRecord(){ clientRef = 0; }
+    AbortAllRecord() : clientRef(0), oldTimeOutValue(0) {}
     Uint32 clientData;
     BlockReference clientRef;
     
@@ -2493,6 +2497,8 @@ private:
   Uint32 c_gcp_data;
 
   Uint32 c_sttor_ref;
+
+  Uint32 m_load_balancer_location;
 
 #ifdef ERROR_INSERT
   // Used with ERROR_INSERT 8078 + 8079 to check API_FAILREQ handling

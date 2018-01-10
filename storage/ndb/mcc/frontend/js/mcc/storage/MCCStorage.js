@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *      mcc.storage.MCCStorage.processStorage: Get process storage
  *      mcc.storage.MCCStorage.processTreeStorage: Get process tree storage
  *      mcc.storage.MCCStorage.getHostResourceInfo: Fetch resource information
+ *      mcc.storage.MCCStorage.getHostDockerInfo: Fetch Docker information
  *      mcc.storage.MCCStorage.hostStorage: Get host storage
  *      mcc.storage.MCCStorage.hostTreeStorage: Get host tree storage
  *
@@ -99,6 +100,7 @@ mcc.storage.MCCStorage.processTypeStorage = getProcessTypeStorage;
 mcc.storage.MCCStorage.processStorage = getProcessStorage;
 mcc.storage.MCCStorage.processTreeStorage = getProcessTreeStorage;
 mcc.storage.MCCStorage.getHostResourceInfo = getHostResourceInfo;
+mcc.storage.MCCStorage.getHostDockerInfo = getHostDockerInfo;
 mcc.storage.MCCStorage.hostStorage = getHostStorage;
 mcc.storage.MCCStorage.hostTreeStorage = getHostTreeStorage;
 
@@ -362,6 +364,85 @@ function setDefaultHostDirsUnlessOverridden(hostId, platform, fetchStatus) {
                         platform, "datadir"));
             host.setValue("datadir_predef", true);
         }
+        var repodlurl = "";
+        var dockerdlurl = "";
+        var clusterStorage = mcc.storage.clusterStorage();
+        clusterStorage.getItem(0).then(function (cluster) {
+            var old_installcluster = cluster.getValue("installCluster");
+            if (host.getValue("installonhost") && host.getValue("installonhost") == true) {
+                mcc.util.dbg("Getting REPO/DOCKER details.");
+                //Get OS details
+                var flavor = host.getValue("osflavor")
+                var ver = host.getValue("osver")
+                mcc.util.dbg("OS details "+flavor + ", " +ver);
+                var array = ver.split('.');
+                ver = array[0]; //Take just MAJOR
+
+                mcc.util.dbg("Getting DOCKER details.");
+                //DOCKERurl. Once 7.6 is GA, remove the tag 7.6 as default tag is latest.
+                dockerdlurl = "mysql/mysql-cluster:7.6";
+
+                mcc.util.dbg("Getting REPO details.");
+                switch(platform) {
+                    case "WINDOWS":
+                        break;
+                    case "CYGWIN":
+                        break;
+                    case "DARWIN":
+                        break;
+                    case "SunOS":
+                        break;
+                    case "Linux":
+                        switch (flavor) {
+                            case "ol":
+                                //OS=el
+                                repodlurl = "http://repo.mysql.com/mysql-community-release-"+flavor+ver+".rpm";
+                                break;
+                            case "fedora":
+                                //OS=fc
+                                repodlurl = "http://repo.mysql.com/mysql-community-release-"+flavor+ver+".rpm";
+                                break;
+                            case "centos":
+                                //OS=el
+                                repodlurl = "http://repo.mysql.com/mysql-community-release-"+flavor+ver+".rpm";
+                                break;
+                            case "rhel":
+                                //OS=el
+                                repodlurl = "http://repo.mysql.com/mysql-community-release-"+flavor+ver+".rpm";
+                                break;
+                            case "opensuse":
+                                //OS=sles
+                                repodlurl = "http://repo.mysql.com/mysql-community-release-"+flavor+ver+".rpm";
+                                break;
+                            // There is no "latest" for APT repo. Also, there is no way to discover newest so hard-coding for now.
+                            case "ubuntu": //from APT
+                                //OS=ubuntu
+                                repodlurl = "http://repo.mysql.com/mysql-apt-config_0.8.7-1_all.deb";
+                                break;
+                            case "debian": //from APT
+                                //OS=debian
+                                repodlurl = "http://repo.mysql.com/mysql-apt-config_0.8.7-1_all.deb";
+                                break;
+                        }
+                        break;
+                    //default:
+                        //code block
+                }
+
+            }
+        });
+        if (host.getValue("installonhostrepourl") == "") {
+            host.setValue("installonhostrepourl", repodlurl);
+        }
+        if (host.getValue("installonhostdockerurl") == "") {
+            host.setValue("installonhostdockerurl", dockerdlurl);
+            //Just --net=host for now.
+            //if (host.getValue("installonhostdockernet") == "") {
+            //    host.setValue("installonhostdockernet", "mynet --subnet=192.168.0.0/16");
+            //}
+        }
+        mcc.util.dbg("REPO URL:"+repodlurl);
+        mcc.util.dbg("DOCKER URL:"+dockerdlurl);
         hostStorage.save();
     });
 }
@@ -385,7 +466,7 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
                 if (host.getValue("datadir_predef")) {
                     host.deleteAttribute("datadir");
                 }
-                hostStorage.save();
+                
                 mcc.util.dbg("Sending hostInfoReq for host " + nm);
                 mcc.server.hostInfoReq(nm, function (reply) {
                         mcc.util.dbg("Hardware resources for " + nm + ": " 
@@ -395,7 +476,10 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
                                 ", installdir = " + reply.body.hostRes.installdir +
                                 ", datadir = " + reply.body.hostRes.datadir +
                                 ", diskfree = " + reply.body.hostRes.diskfree +
-                                ", fqdn = " + reply.body.hostRes.fqdn);
+                                ", fqdn = " + reply.body.hostRes.fqdn +
+                                ", OS = " + reply.body.hostRes.osflavor +
+                                ", OS ver = " + reply.body.hostRes.osver + 
+                                ", Docker status: " + reply.body.hostRes.docker_info);
 
                         // Bail out if new request sent
                         if (reply.head.rSeq != host.getValue("hwResFetchSeq")) {
@@ -415,6 +499,15 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
                         }
                         if (!host.getValue("uname") || override) {
                             host.setValue("uname", reply.body.hostRes.uname);
+                        }
+                        if (!host.getValue("osver") || override) {
+                            host.setValue("osver", reply.body.hostRes.osver);
+                        }
+                        if (!host.getValue("osflavor") || override) {
+                            host.setValue("osflavor", reply.body.hostRes.osflavor);
+                        }
+                        if (!host.getValue("dockerinfo") || override) {
+                            host.setValue("dockerinfo", reply.body.hostRes.docker_info);
                         }
                         if (!host.getValue("installdir") && 
                                 reply.body.hostRes.installdir) {
@@ -444,13 +537,44 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
                             host.setValue("diskfree", reply.body.hostRes.diskfree);
                         }
                         if (!host.getValue("fqdn") || override) {
-                            host.setValue("fqdn", reply.body.hostRes.fqdn);
+                            // Not possible to mix local and remote hosts any more.
+                            // So, check if HOST is local and IF proper IP address is supplied.
+                            // Then decide on value for FQDN.
+                            if ((nm == "127.0.0.1") || (nm == "localhost")) {
+                                //Ignore FQDN for just localhost. Not important.
+                                host.setValue("fqdn", nm);
+                            } else {
+                                // Was proper IP address provided already?
+                                if (mcc.util.ValidateIPAddress(nm)) {
+                                    //Ignore FQDN for proper IP address.
+                                    host.setValue("fqdn", nm);
+                                } else {
+                                    // Use whatever web server provided.
+                                    host.setValue("fqdn", reply.body.hostRes.fqdn);
+                                }
+                            }
                         }
                         if (!host.getValue("internalIP")) {
                             // Use FQDN as default value for internal IP.
                             host.setValue("internalIP", host.getValue("fqdn"));
                         }
-                        hostStorage.save();
+                        if ((!host.getValue("openfwhost") || !host.getValue("installonhost")) || override) {
+                            // Get the (one and only) cluster item and fetch install defaults for openfw and installCluster
+                            var clusterStorage = mcc.storage.clusterStorage();
+                            clusterStorage.getItem(0).then(function (cluster) {
+                                var old_openfw = cluster.getValue("openfw");
+                                var old_installcluster = cluster.getValue("installCluster");
+                                host.setValue("openfwhost", old_openfw);
+                                host.setValue("installonhost", old_installcluster != "NONE");
+                            });
+                        }
+                        if ((!host.getValue("installonhostrepourl") || !host.getValue("installonhostdockerurl"))) {
+                                //Since this is NEW host, REPO/DOCKER details should be initialized.
+                                host.setValue("installonhostrepourl", "");
+                                host.setValue("installonhostdockerurl", "");
+                                host.setValue("installonhostdockernet", "");
+                        }
+                        host.setValue("hwResFetch", "OK");
 
                         // Set predefined OS specific install path and data dir
                         setDefaultHostDirsUnlessOverridden(hostId, 
@@ -458,11 +582,13 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
                     },
                     function (errMsg, reply) {
                         // Bail out if new request sent
-                        if (reply.head.rSeq != host.getValue("hwResFetchSeq")) {
-                            mcc.util.dbg("Cancel reply to previous request");
-                            return;
+                        if (reply) {
+                            if (reply.head.rSeq != host.getValue("hwResFetchSeq")) {
+                                mcc.util.dbg("Cancel reply to previous request");
+                                return;
+                            }
                         }
-
+                        
                         // Update status, set default values
                         setDefaultHostDirsUnlessOverridden(hostId, "unknown", 
                                 "Failed");
@@ -488,6 +614,33 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
     });
 }
 
+// Get host Docker information
+function getHostDockerInfo(hostName, hostId, showAlert, override) {
+    // First, get the host item and see if there are undefined values
+    hostStorage.getItem(hostId).then(function (host) {
+        var nm = host.getValue("name");
+        mcc.util.dbg("Running getHostDockerInfo for host " + nm);
+        mcc.server.hostDockerReq(nm, function (reply) {
+                mcc.util.dbg("Docker status for " + nm + ": " 
+                        + reply.body.hostRes.docker_info);
+                host.setValue("docker_info", reply.body.hostRes.docker_info);
+                hostStorage.save();
+
+            },
+            function (errMsg, reply) {
+                if (showAlert) {
+                    alert("Could not obtain Docker information for " + 
+                            "host '" + hostName + "': " + errMsg);
+                }
+                // Also save error message, can be viewed in the grid
+                host.setValue("errMsg", errMsg);                       
+                hostStorage.save();
+            }
+        );
+
+    });
+}
+
 // Special handling for new hosts: Get hw details and add to host tree storage
 function newHostItem(item, showAlert) {
     this.inherited(arguments);
@@ -501,7 +654,7 @@ function newHostItem(item, showAlert) {
     // Get hardware resources unless this is a wildcard host
     if (!item.anyHost && item.name != '') {
         mcc.util.dbg("getHostResourceInfo for " + item.name);
-        getHostResourceInfo(item.name, item.id, showAlert, true);
+        getHostResourceInfo(item.name, item.id, showAlert, true); //Only place where we have (..., TRUE, TRUE)
     } else {
         mcc.util.dbg("Skip obtaining hwresource information for wildcard host");
     }
@@ -712,7 +865,7 @@ function initializeProcessTypeStorage() {
                 familyLabel: "Management layer",
                 nodeLabel: "Management node",
                 minNodeId: 49, 
-                maxNodeId: 255,
+                maxNodeId: 52,
                 currSeq: 1
             }); 
             processTypeStorage.newItem({
@@ -738,8 +891,8 @@ function initializeProcessTypeStorage() {
                 family: "sql", 
                 familyLabel: "SQL layer", 
                 nodeLabel: "SQL node",
-                minNodeId: 49, 
-                maxNodeId: 255,
+                minNodeId: 53, 
+                maxNodeId: 230,
                 currSeq: 1
             }); 
             processTypeStorage.newItem({
@@ -747,7 +900,7 @@ function initializeProcessTypeStorage() {
                 family: "api", 
                 familyLabel: "API layer", 
                 nodeLabel: "API node",
-                minNodeId: 49, 
+                minNodeId: 231, 
                 maxNodeId: 255,
                 currSeq: 1
             }); 

@@ -324,13 +324,21 @@ Configuration::setupConfiguration(){
 	      "I'm wrong type of node");
   }
 
-  Uint32 total_send_buffer = 0;
-  iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
-  Uint64 extra_send_buffer = 0;
-  iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
-  globalTransporterRegistry.allocate_send_buffers(total_send_buffer,
-                                                  extra_send_buffer);
-  
+  /**
+   * Iff we use the 'default' (non-mt) send buffer implementation, the
+   * send buffers are allocated here.
+   */
+  if (getNonMTTransporterSendHandle() != NULL)
+  {
+    Uint32 total_send_buffer = 0;
+    iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
+    Uint64 extra_send_buffer = 0;
+    iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
+    getNonMTTransporterSendHandle()->
+      allocate_send_buffers(total_send_buffer,
+                            extra_send_buffer);
+  }
+
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "MaxNoOfSavedMessages missing");
@@ -1154,7 +1162,9 @@ Configuration::setLockCPU(NdbThread * pThread,
     {
       g_eventLogger->info("Failed to lock tid = %d to CPU, error_no = %d",
                           NdbThread_GetTid(pThread), (-res));
+#ifndef HAVE_MAC_OS_X_THREAD_INFO
       abort(); /* We fail when failing to lock to CPUs */
+#endif
       return 1;
     }
   }

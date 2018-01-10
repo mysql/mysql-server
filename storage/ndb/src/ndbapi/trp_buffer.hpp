@@ -98,22 +98,6 @@ struct TFPage
   char m_data[8];
 };
 
-/**
- * TFSentinel is used to link pages wo/ having to care about
- *   first page being null
- */
-struct TFSentinel
-{
-  Uint64 data[sizeof(TFPage) / 8];
-
-  TFSentinel() {
-    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(data); i++)
-      data[i] = 0;
-  }
-
-  TFPage* getPtr() { return new (&data[0]) TFPage;}
-};
-
 struct TFBuffer
 {
   TFBuffer() : m_head(NULL), m_tail(NULL), m_bytes_in_buffer(0) {}
@@ -175,8 +159,8 @@ public:
 
   Uint64 get_total_send_buffer_size() const
   {
-    /* TODO : Should we ignore the reserved space? */
-    return Uint64(m_tot_send_buffer_pages) * m_pagesize;
+    /* We ignore the reserved space which is for 'emergency' use only */
+    return Uint64(m_tot_send_buffer_pages - m_reserved_send_buffer_pages) * m_pagesize;
   }
   Uint64 get_total_used_send_buffer_size() const
   {
