@@ -60,6 +60,7 @@
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"   // DEBUG_SYNC
 #include "sql/derror.h"       // ER_THD
 #include "sql/item.h"
 #include "sql/log.h"
@@ -346,7 +347,8 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
   tmp_var.value= var_value;
 
   /* modification to in-memory must be thread safe */
-  mysql_mutex_lock(&m_LOCK_persist_variables);
+  lock();
+  DEBUG_SYNC(thd, "in_set_persist_variables");
   /* if present update variable with new value else insert into hash */
   if ((setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly()) ||
     setvar->var->is_plugin_var_read_only())
@@ -364,7 +366,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
       m_persist_variables.erase(it);
     m_persist_variables.push_back(tmp_var);
   }
-  mysql_mutex_unlock(&m_LOCK_persist_variables);
+  unlock();
 }
 
 /**
@@ -510,7 +512,7 @@ String* Persisted_variables_cache::construct_json_string(std::string name,
 */
 bool Persisted_variables_cache::flush_to_file()
 {
-  mysql_mutex_lock(&m_LOCK_persist_variables);
+  lock();
   mysql_mutex_lock(&m_LOCK_persist_file);
 
   string tmp_str(open_brace + version + colon + std::to_string(file_version) +
@@ -574,7 +576,7 @@ bool Persisted_variables_cache::flush_to_file()
 
   close_persist_file();
   mysql_mutex_unlock(&m_LOCK_persist_file);
-  mysql_mutex_unlock(&m_LOCK_persist_variables);
+  unlock();
   return ret;
 }
 
@@ -679,7 +681,12 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     thd->real_id= my_thread_self();
     new_thd= 1;
   }
-
+  /*
+   locking is not needed as this function is executed only during server
+   bootstrap, but we take the lock to be on safer side.
+  */
+  lock();
+  assert_lock_owner();
   /*
     Based on plugin_options, we decide on what options to be set. If
     plugin_options is false we set all non plugin variables and then
@@ -807,6 +814,7 @@ err:
   {
     thd->lex= sav_lex;
   }
+  unlock();
   return result;
 }
 
@@ -951,10 +959,13 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
       }
       st_persist_var persist_var(var_name, var_value, timestamp, var_user,
         var_host);
+      lock();
+      assert_lock_owner();
       if (is_read_only)
         m_persist_ro_variables[var_name]= persist_var;
       else
         m_persist_variables.push_back(persist_var);
+      unlock();
     }
     var_iter.next();
   }
@@ -1161,6 +1172,8 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
   string var_name;
   bool reset_all= (name ? 0 : 1);
   var_name= (name ? name : string());
+  /* update on m_persist_variables/m_persist_ro_variables must be thread safe */
+  lock();
   auto it_ro= m_persist_ro_variables.find(var_name);
 
   if (reset_all)
@@ -1214,6 +1227,7 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
       }
     }
   }
+  unlock();
   if (flush)
     flush_to_file();
 
