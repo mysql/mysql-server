@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -353,10 +353,15 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   DBUG_RETURN(false);
 }
 
-bool roles_init_from_tables(THD *thd)
+bool roles_init_from_tables(THD *thd, bool locked)
 {
   DBUG_ENTER("roles_init_from_tables");
   int ret= 0;
+
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
+  if (!locked && !acl_cache_lock.lock())
+    DBUG_RETURN(true);
 
   // open table
   TABLE_LIST tablelst[2];
@@ -377,13 +382,6 @@ bool roles_init_from_tables(THD *thd)
   {
     DBUG_PRINT("error",("En error occurred while trying to open the "
                         "mysql.roles_edges table"));
-    DBUG_RETURN(true);
-  }
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    close_all_role_tables(thd);
     DBUG_RETURN(true);
   }
 

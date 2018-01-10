@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@
 #include "sql/sql_prepare.h"  // mysql_stmt_execute
 #include "sql/sql_profile.h"
 #include "sql/sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
-#include "sql/sql_reload.h"   // reload_acl_and_cache
+#include "sql/sql_reload.h"   // handle_reload_request
 #include "sql/sql_rename.h"   // mysql_rename_tables
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/sql_select.h"   // handle_query
@@ -1979,15 +1979,15 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       */
       bool res;
       current_thd= nullptr;
-      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
-                                NULL, &not_used);
+      res= handle_reload_request(NULL, options | REFRESH_FAST,
+                                 NULL, &not_used);
       current_thd= thd;
       if (res)
         break;
     }
     else
 #endif
-    if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+    if (handle_reload_request(thd, options, (TABLE_LIST*) 0, &not_used))
       break;
     if (trans_commit_implicit(thd))
       break;
@@ -4112,10 +4112,10 @@ mysql_execute_command(THD *thd, bool first_level)
     }
 
     /*
-      reload_acl_and_cache() will tell us if we are allowed to write to the
+      handle_reload_request() will tell us if we are allowed to write to the
       binlog or not.
     */
-    if (!reload_acl_and_cache(thd, lex->type, first_table, &write_to_binlog))
+    if (!handle_reload_request(thd, lex->type, first_table, &write_to_binlog))
     {
       /*
         We WANT to write and we CAN write.
@@ -4133,7 +4133,7 @@ mysql_execute_command(THD *thd, bool first_level)
       {
         /* 
            We should not write, but rather report error because 
-           reload_acl_and_cache binlog interactions failed 
+           handle_reload_request binlog interactions failed 
          */
         res= 1;
       } 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -1358,6 +1358,12 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user))
     DBUG_RETURN(true);
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -1370,13 +1376,6 @@ bool change_password(THD *thd, const char *host, const char *user,
     DBUG_RETURN(ret != 1);
 
   table= tables[ACL_TABLES::TABLE_USER].table;
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   if (table_intact.check(table, ACL_TABLES::TABLE_USER))
   {
@@ -2022,6 +2021,12 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   std::set<LEX_USER *> extra_users;
   DBUG_ENTER("mysql_create_user");
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2033,13 +2038,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   /* CREATE USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   while ((tmp_user_name= user_list++))
   {
@@ -2250,6 +2248,12 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   LEX_USER *user;
   std::vector<Role_id > mandatory_roles;
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2261,13 +2265,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   /* DROP USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   get_mandatory_roles(&mandatory_roles);
   while((user= user_list++) != 0)
@@ -2415,7 +2412,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
         DBUG_RETURN(true);
       }
     }
-    acl_cache_lock.unlock();
   }
 
   /*
@@ -2430,11 +2426,6 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
 
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
   while ((tmp_user_from= user_list++))
   {
     if (!(user_from= get_current_user(thd, tmp_user_from)))
@@ -2568,6 +2559,12 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   DBUG_ENTER("mysql_alter_user");
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2578,13 +2575,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   if (table_intact.check(tables[ACL_TABLES::TABLE_USER].table,
                          ACL_TABLES::TABLE_USER))
