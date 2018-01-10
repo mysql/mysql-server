@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,6 +149,15 @@ void my_init_persist_psi_keys(void)
 }
 #endif
 
+/** A comparison operator to sort persistent variables entries by timestamp */
+struct sort_tv_by_timestamp {
+  bool operator() (const st_persist_var x, const st_persist_var y) const
+  {
+    return x.timestamp < y.timestamp;
+  }
+};
+
+
 Persisted_variables_cache* Persisted_variables_cache::m_instance= NULL;
 
 /* Standard Constructors for st_persist_var */
@@ -158,7 +167,7 @@ st_persist_var::st_persist_var()
   if (current_thd)
   {
     timeval tv= current_thd->query_start_timeval_trunc(0);
-    timestamp= tv.tv_sec * 1000000ULL;
+    timestamp= tv.tv_sec * 1000000ULL + tv.tv_usec;
   }
   else
     timestamp= my_micro_time();
@@ -167,7 +176,7 @@ st_persist_var::st_persist_var()
 st_persist_var::st_persist_var(THD *thd)
 {
   timeval tv= thd->query_start_timeval_trunc(0);
-  timestamp= tv.tv_sec * 1000000ULL;
+  timestamp= tv.tv_sec * 1000000ULL + tv.tv_usec;
   user= thd->security_context()->user().str;
   host= thd->security_context()->host().str;
 }
@@ -677,8 +686,12 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   persist_variables= (plugin_options ? &m_persist_plugin_variables:
                                        &m_persist_variables);
 
-  for (auto iter= persist_variables->begin();
-       iter != persist_variables->end(); iter++)
+  /* create a sorted set of values sorted by timestamp */
+  std::multiset <st_persist_var, sort_tv_by_timestamp>
+    sorted_vars(persist_variables->begin(), persist_variables->end());
+
+  for (auto iter= sorted_vars.begin();
+       iter != sorted_vars.end(); iter++)
   {
     Item *res= NULL;
     set_var *var= NULL;
@@ -1051,31 +1064,27 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   char ***argv, bool plugin_options)
 {
   Prealloced_array<char *, 100> my_args(key_memory_persisted_variables);
-  TYPELIB group;
   MEM_ROOT alloc;
-  const char *type_name= "mysqld";
+  char *ptr, **res;
 
   if (*argc < 2 || no_defaults || !persisted_globals_load)
     return 0;
 
   init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
-  group.count= 1;
-  group.name= "defaults";
-  group.type_names= &type_name;
 
-  for (auto iter= m_persist_ro_variables.begin();
-       iter != m_persist_ro_variables.end(); iter++)
+  /* create a set of values sorted by timestamp */
+  std::multiset <st_persist_var, sort_tv_by_timestamp> sorted_vars;
+  for (auto iter : m_persist_ro_variables)
+    sorted_vars.insert(iter.second);
+
+  for (auto iter: sorted_vars)
   {
-    string persist_option= "--loose_" + iter->first + "=" + iter->second.value;
-    if (find_type((char *) type_name, &group, FIND_TYPE_NO_PREFIX))
-    {
-      char *tmp;
-      if ((!(tmp= (char *)
-          alloc_root(&alloc, strlen(persist_option.c_str()) + 1))) ||
-          my_args.push_back(tmp))
+    string persist_option= "--loose_" + iter.key + "=" + iter.value;
+    char *tmp;
+
+    if (NULL == (tmp= strdup_root(&alloc, persist_option.c_str()))
+        || my_args.push_back(tmp))
         return 1;
-      my_stpcpy(tmp, (const char *) persist_option.c_str());
-    }
   }
   /*
    Update existing command line options if there are any persisted
