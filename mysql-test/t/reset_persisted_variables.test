@@ -2,6 +2,8 @@
 --echo # WL#9763: Support option to RESET PERSIST
 --echo #
 
+--source include/have_debug_sync.inc
+
 --echo # Syntax check for RESET PERSIST
 RESET PERSIST;
 --error ER_VAR_DOES_NOT_EXIST
