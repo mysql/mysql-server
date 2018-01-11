@@ -1803,7 +1803,8 @@ bool check_readonly(THD *thd, bool err_if_readonly)
 void err_readonly(THD *thd)
 {
   my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-    thd->security_context()->check_access(SUPER_ACL) ?
+    thd->security_context()->check_access(SUPER_ACL) ||
+    thd->security_context()->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ?
     "--super-read-only" : "--read-only");
 
 }
