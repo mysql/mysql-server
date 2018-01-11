@@ -2897,7 +2897,8 @@ static bool grant_reload_procs_priv(TABLE_LIST *table)
 /**
   @brief Reload information about table and column level privileges if possible
 
-  @param thd Current thread
+  @param thd    Current thread
+  @param locked Status of ACL_CACHE MDL lock
 
   Locked tables are checked by acl_reload() and doesn't have to be checked
   in this call.
