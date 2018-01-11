@@ -3807,6 +3807,13 @@ int handler::update_auto_increment()
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO))
   {
     /*
+      First test if the query was aborted due to strict mode constraints.
+    */
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_TRUNCATED_WRONG_VALUE)
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
+
+    /*
       Update next_insert_id if we had already generated a value in this
       statement (case of INSERT VALUES(null),(3763),(null):
       the last NULL needs to insert 3764, not the value of the first NULL plus
