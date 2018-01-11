@@ -52,6 +52,8 @@
 #include "sql/table.h"
 #include "template_utils.h"                  // delete_container_pointers
 
+bool has_external_data_or_index_dir(partition_info &pi);
+
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
  :drop_list(mem_root, rhs.drop_list.begin(), rhs.drop_list.end()),
   alter_list(mem_root, rhs.alter_list.begin(), rhs.alter_list.end()),
@@ -224,6 +226,14 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(true);
+
+  {
+    partition_info *part_info= thd->lex->part_info;
+    if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, false, false))
+
+      DBUG_RETURN(true);
+  }
   /*
     We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
     as for RENAME TO, as being done by SQLCOM_RENAME_TABLE
