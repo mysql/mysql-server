@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,7 +417,11 @@ x_putbytes (XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)), u_int len)
 
 
 static u_int
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(HAVE_TIRPC)
+x_getpostn(XDR *xdrs)
+#else
 x_getpostn (const XDR *xdrs)
+#endif
 {
 #ifdef OLD_XDR
   return (u_int)(xdrs->x_handy);
