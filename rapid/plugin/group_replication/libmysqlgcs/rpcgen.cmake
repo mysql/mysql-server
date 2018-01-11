@@ -100,6 +100,24 @@ FOREACH(X xcom_vp)
       MESSAGE(FATAL_ERROR "Could not find rpcgen")
     ENDIF()
 
+    # First look for tirpc, then the old Sun RPC
+    FIND_PATH(RPC_INCLUDE_DIR
+      NAMES rpc/rpc.h
+      HINTS /usr/include/tirpc
+      NO_DEFAULT_PATH
+      )
+    FIND_PATH(RPC_INCLUDE_DIR NAMES rpc/rpc.h)
+    IF(NOT RPC_INCLUDE_DIR)
+      MESSAGE(FATAL_ERROR
+        "Could not find rpc/rpc.h in /usr/include or /usr/include/tirpc")
+    ENDIF()
+    MESSAGE(STATUS "RPC_INCLUDE_DIR ${RPC_INCLUDE_DIR}")
+    IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
+      INCLUDE_DIRECTORIES(SYSTEM /usr/include/tirpc)
+      ADD_DEFINITIONS(-DHAVE_TIRPC)
+      SET(TIRPC_LIBRARY tirpc)
+    ENDIF()
+
     # on unix systems try to generate them if needed
     ADD_CUSTOM_COMMAND(OUTPUT ${x_gen_h} ${x_gen_c} ${x_tmp_plat_h}
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
