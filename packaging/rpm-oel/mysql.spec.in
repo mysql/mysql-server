@@ -766,10 +766,6 @@ rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
-rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
-rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -1377,7 +1373,7 @@ fi
 %endif
 
 %changelog
-* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+* Wed Jan 10 2018 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'
@@ -1387,6 +1383,7 @@ fi
 - Include udf_example.so in test package
 - Add component_validate_password component
 - Add License Book, remove COPYING
+- No longer need to remove obsoleted mysqltest man pages
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin

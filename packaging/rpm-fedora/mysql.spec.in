@@ -500,10 +500,6 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
-rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
-rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -919,7 +915,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Thu Dec 07 2017 Bjorn Munch <bjorn.munch@oracle.com> - 9.0.0-0.1
+* Wed Jan 10 2018 Bjorn Munch <bjorn.munch@oracle.com> - 9.0.0-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'
@@ -928,6 +924,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 - Remove obsoleted mysqltest man pages
 - Do not pass SSL option to 5.6 compat build, just use bundled
 - Add License Book, remove COPYING
+- No longer need to remove obsoleted mysqltest man pages
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin
