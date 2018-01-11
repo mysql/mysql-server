@@ -4877,6 +4877,7 @@ int mysqld_main(int argc, char **argv)
 
     delete_pid_file(MYF(MY_WME));
 
+    sql_print_error("Fatal error: Failed to initialize grants, acl's, temp tables or timezones");
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
