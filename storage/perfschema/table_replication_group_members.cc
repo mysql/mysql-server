@@ -151,7 +151,7 @@ PFS_engine_table_share table_replication_group_members::m_share = {
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_group_members::get_row_count,
-  sizeof(PFS_simple_index), /* ref length */
+  sizeof(pos_t), /* ref length */
   &m_table_lock,
   &m_table_def,
   true, /* perpetual */
@@ -206,7 +206,7 @@ table_replication_group_members::rnd_next(void)
 }
 
 int
-table_replication_group_members::rnd_pos(const void* pos MY_ATTRIBUTE((unused)))
+table_replication_group_members::rnd_pos(const void* pos)
 {
   if (!is_group_replication_plugin_loaded())
   {
@@ -257,10 +257,10 @@ table_replication_group_members::make_row(uint index)
 
 int
 table_replication_group_members::read_row_values(
-  TABLE* table MY_ATTRIBUTE((unused)),
-  unsigned char* buf MY_ATTRIBUTE((unused)),
-  Field** fields MY_ATTRIBUTE((unused)),
-  bool read_all MY_ATTRIBUTE((unused)))
+  TABLE* table,
+  unsigned char* buf,
+  Field** fields,
+  bool read_all)
 {
   Field* f;
 

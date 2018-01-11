@@ -73,6 +73,8 @@ struct st_row_applier_global_filters
 /** Table PERFORMANCE_SCHEMA.replication_applier_global_filters */
 class table_replication_applier_global_filters : public PFS_engine_table
 {
+  typedef PFS_simple_index pos_t;
+
 private:
   /**
     Make a row by an object of Rpl_pfs_filter.
@@ -91,9 +93,9 @@ private:
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
-  PFS_simple_index m_pos;
+  pos_t m_pos;
   /** Next position. */
-  PFS_simple_index m_next_pos;
+  pos_t m_next_pos;
 
 protected:
   /**

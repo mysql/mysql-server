@@ -1402,6 +1402,20 @@ public:
   bool match(const PFS_prepared_stmt *pfs);
 };
 
+class PFS_key_worker_id : public PFS_key_ulonglong
+{
+public:
+  PFS_key_worker_id(const char *name) : PFS_key_ulonglong(name)
+  {
+  }
+
+  ~PFS_key_worker_id()
+  {
+  }
+
+  bool match_not_null(ulonglong worker_id);
+};
+
 class PFS_key_socket_id : public PFS_key_long
 {
 public:
@@ -1681,6 +1695,8 @@ public:
 
   bool match(const LEX_STRING *name);
   bool match(const char *name, uint name_length);
+  bool match_not_null(const LEX_STRING *name);
+  bool match_not_null(const char *name, uint name_length);
 };
 
 class PFS_key_group_name : public PFS_key_string<NAME_CHAR_LEN>
