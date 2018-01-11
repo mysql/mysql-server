@@ -16,6 +16,34 @@ select * from t1_is where id=0 lock in share mode;
 
 --connection con2
 
+#
+# One one hand, for the innodb storage engine,
+# the server returns the LOCK_DATA column using
+# 'best effort', without guarantees.
+# See in innodb:
+# - Innodb_data_lock_iterator::scan_trx()
+# - p_s_fill_lock_data()
+# - buf_page_try_get()
+#
+# In short, if the page is in the buffer pool,
+# LOCK_DATA for the record is returned.
+# However, if the page is not in the buffer pool,
+# the code just returns LOCK_DATA = NULL
+# instead of re-loading the page from disk just
+# to read LOCK_DATA.
+#
+# On the other hand, the point of this test
+# is to inspect LOCK_DATA returned in the
+# performance schema, to make sure the proper
+# record lock is printed.
+
+# Attempt to reload the buffer pool,
+# to avoid spurious failures with LOCK_DATA = NULL
+# in the test result file
+# Note that a NULL is a valid result, not a failure.
+
+select * from test.t1_is;
+
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   from performance_schema.data_locks
   where object_name="t1_is"

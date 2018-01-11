@@ -7,6 +7,10 @@ SET autocommit=0;
 select * from t1_is where id=0 lock in share mode;
 id	x
 0	0
+select * from test.t1_is;
+id	x
+0	0
+1	1
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
 from performance_schema.data_locks
 where object_name="t1_is"
