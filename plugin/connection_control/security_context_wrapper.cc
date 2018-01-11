@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_acl.h"               /* SUPER_ACL */
 #include "sql/sql_class.h"                  /* THD, Security context */
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
 
 namespace connection_control
 {
@@ -172,4 +174,28 @@ namespace connection_control
 
     return has_super;
   }
-}
+
+  /** Check whether user has the connection admin privilege or not */
+
+  bool
+    Security_context_wrapper::is_connection_admin()
+  {
+    if (!m_valid)
+      return false;
+    SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
+    bool access_granted= false;
+    {
+      my_service<SERVICE_TYPE(global_grants_check)>
+        service("global_grants_check.mysql_server", r);
+      if (service.is_valid())
+      {
+        access_granted=
+          service->has_global_grant(reinterpret_cast<Security_context_handle>(m_sctx),
+                                    STRING_WITH_LEN("CONNECTION_ADMIN"));
+      }
+    } // scope exit destroys my_service
+    mysql_plugin_registry_release(r);
+    return access_granted;
+  }
+} // namespace connection_control
+
