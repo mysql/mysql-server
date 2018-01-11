@@ -27,4 +27,3 @@ do st_symdifference(
 st_makeenvelope(point(16781,8388611),point(-15032,-2251799813685244)),
 st_makeenvelope(point(-21087,31851),point(18514,20243))
 );
-ERROR HY000: Inconsistent intersection points.
