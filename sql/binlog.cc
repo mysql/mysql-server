@@ -8822,9 +8822,11 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   {
     /* The Commit phase of the XA two phase logging. */
 
+#ifndef DBUG_OFF
     bool one_phase= get_xa_opt(thd) == XA_ONE_PHASE;
     DBUG_ASSERT(all || (thd->slave_thread && one_phase));
     DBUG_ASSERT(!skip_commit || one_phase);
+#endif
 
     XID_STATE *xs= thd->get_transaction()->xid_state();
     if (DBUG_EVALUATE_IF("simulate_xa_commit_log_failure", true,
