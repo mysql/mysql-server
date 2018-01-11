@@ -182,7 +182,7 @@ table_data_locks::rnd_next(void)
 
       m_container.shrink();
       /*
-        TODO: avoid requesting column LOCK_DATA is not used.
+        TODO: avoid requesting column LOCK_DATA if not used.
       */
       iterator_done = it->scan(&m_container, true);
     }
@@ -226,7 +226,7 @@ table_data_locks::rnd_pos(const void *pos)
 
   m_container.clear();
   /*
-    TODO: avoid requesting column LOCK_DATA is not used.
+    TODO: avoid requesting column LOCK_DATA if not used.
   */
   it->fetch(&m_container,
             m_pk_pos.m_engine_lock_id,
