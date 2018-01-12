@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,20 +60,14 @@ Delayed_initialization_thread::~Delayed_initialization_thread()
 
 void Delayed_initialization_thread::signal_thread_ready()
 {
-  DBUG_ENTER("Delayed_initialization_thread::signal_thread_ready");
-
   mysql_mutex_lock(&server_ready_lock);
   is_server_ready= true;
   mysql_cond_broadcast(&server_ready_cond);
   mysql_mutex_unlock(&server_ready_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 void Delayed_initialization_thread::wait_for_thread_end()
 {
-  DBUG_ENTER("Delayed_initialization_thread::wait_for_thread_end");
-
   mysql_mutex_lock(&run_lock);
   while (delayed_thd_state.is_thread_alive())
   {
@@ -84,26 +78,18 @@ void Delayed_initialization_thread::wait_for_thread_end()
 
   //give extra time for the thread to terminate
   my_sleep(1);
-
-  DBUG_VOID_RETURN;
 }
 
 void Delayed_initialization_thread::signal_read_mode_ready()
 {
-  DBUG_ENTER("Delayed_initialization_thread::signal_read_mode_ready");
-
   mysql_mutex_lock(&run_lock);
   is_super_read_only_set= true;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 void Delayed_initialization_thread::wait_for_read_mode()
 {
-  DBUG_ENTER("Delayed_initialization_thread::wait_for_read_mode");
-
   mysql_mutex_lock(&run_lock);
   while (!is_super_read_only_set)
   {
@@ -111,20 +97,16 @@ void Delayed_initialization_thread::wait_for_read_mode()
     mysql_cond_wait(&run_cond, &run_lock);
   }
   mysql_mutex_unlock(&run_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 int Delayed_initialization_thread::launch_initialization_thread()
 {
-  DBUG_ENTER("Delayed_initialization_thread::launch_initialization_thread");
-
   mysql_mutex_lock(&run_lock);
 
   if(delayed_thd_state.is_thread_alive())
   {
     mysql_mutex_unlock(&run_lock); /* purecov: inspected */
-    DBUG_RETURN(0);                /* purecov: inspected */
+    return 0;                      /* purecov: inspected */
   }
 
   if (mysql_thread_create(key_GR_THD_delayed_init,
@@ -134,7 +116,7 @@ int Delayed_initialization_thread::launch_initialization_thread()
                           (void*)this))
   {
     mysql_mutex_unlock(&run_lock); /* purecov: inspected */
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1;                      /* purecov: inspected */
   }
 
   while (delayed_thd_state.is_alive_not_running())
@@ -144,12 +126,11 @@ int Delayed_initialization_thread::launch_initialization_thread()
   }
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Delayed_initialization_thread::initialization_thread_handler()
 {
-  DBUG_ENTER("initialize_thread_handler");
   int error= 0;
 
   THD *thd= NULL;
@@ -197,5 +178,5 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
   delete thd;
 
-  DBUG_RETURN(error);
+  return error;
 }
