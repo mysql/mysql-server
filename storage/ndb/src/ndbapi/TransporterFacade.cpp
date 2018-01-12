@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1910,8 +1910,6 @@ TransporterFacade::sendSignal(trp_client* clnt,
     {
       assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
              aSignal->readSignalNumber() == GSN_API_REGREQ ||
-             (aSignal->readSignalNumber() == GSN_CONNECT_REP &&
-              aNode == ownId()) ||
              (aSignal->readSignalNumber() == GSN_CLOSE_COMREQ &&
               aNode == ownId()));
     }
@@ -2489,43 +2487,19 @@ TransporterFacade::doDisconnect(int aNodeId)
 }
 
 /**
- * As ClusterMgr maintains shared global data, updating
- * its connection state needs locking. Depending on
- * whether ClusterMgr already is the poll owner, we
- * should conditionally take that lock now.
+ * ClusterMgr maintains the shared global data.
+ * Notify it about the changed connection state.
  */
 void
 TransporterFacade::reportConnected(int aNodeId)
 {
-  assert(m_poll_owner != NULL);
-  if (m_poll_owner != theClusterMgr)
-  {
-    theClusterMgr->lock();
-    theClusterMgr->reportConnected(aNodeId);
-    theClusterMgr->unlock();
-  }
-  else
-  {
-    theClusterMgr->reportConnected(aNodeId);
-  }
-  return;
+  theClusterMgr->reportConnected(aNodeId);
 }
 
 void
 TransporterFacade::reportDisconnected(int aNodeId)
 {
-  assert(m_poll_owner != NULL);
-  if (m_poll_owner != theClusterMgr)
-  {
-    theClusterMgr->lock();
-    theClusterMgr->reportDisconnected(aNodeId);
-    theClusterMgr->unlock();
-  }
-  else
-  {
-    theClusterMgr->reportDisconnected(aNodeId);
-  }
-  return;
+  theClusterMgr->reportDisconnected(aNodeId);
 }
 
 NodeId
