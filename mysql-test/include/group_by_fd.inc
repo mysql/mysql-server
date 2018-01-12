@@ -1043,4 +1043,28 @@ SELECT je+(1+count(*)) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
 
 DROP TABLE coll;
 
+--echo #
+--echo # Bug#27114719 FUNCTIONAL DEPENDENCY CHECK FAILS ON FIRST CALL, SUCCEEDS ON NEXT
+--echo #
+
+CREATE TABLE t ( a INT, c INT GENERATED ALWAYS AS (a+2), d INT GENERATED
+ALWAYS AS (c+2) );
+# Was wrongly accepted, on first run, in 8.0
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT t1.d FROM t as t1, t as t2 WHERE t2.d>t1.c GROUP BY t2.a;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT t1.d FROM t as t1, t as t2 WHERE t2.d>t1.c GROUP BY t2.a;
+FLUSH TABLES;
+# Was wrongly accepted, on all runs, in 8.0 and 5.7
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT (SELECT t1.c FROM t as t1 GROUP BY -3) FROM t as t2;
+
+# Verify the DISTINCT check works on generated columns too (doesn't
+# have the above bug, because check doesn't need to dive into gcols).
+--error ER_FIELD_IN_ORDER_NOT_SELECT
+SELECT DISTINCT t1.a FROM t as t1 ORDER BY t1.d LIMIT 1;
+--error ER_FIELD_IN_ORDER_NOT_SELECT
+SELECT (SELECT DISTINCT t1.a FROM t as t1 ORDER BY t1.d LIMIT 1) FROM t as t2;
+DROP TABLE t;
+
 DROP FUNCTION show_json_object;

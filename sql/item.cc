@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10859,6 +10859,16 @@ Bool3 Item_ident::local_column(const SELECT_LEX *sl) const
     {
       if (depended_from == sl)
         return Bool3::true3();                    // qualifying query is 'sl'
+    }
+    else if (context == nullptr)
+    {
+      /*
+        Must be an underlying column of a generated column
+        as we've dove so deep, we know the gcol is local to 'sl', and so is
+        this column.
+      */
+      DBUG_ASSERT(t == FIELD_ITEM);
+      return Bool3::true3();
     }
     else if (context->select_lex == sl)
       return Bool3::true3();                           // qualifying query is 'sl'

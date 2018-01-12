@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3052,6 +3052,18 @@ protected:
   bool m_alias_of_expr; ///< if this Item's name is alias of SELECT expression
 
 public:
+  /**
+    For regularly resolved column references, 'context' points to a name
+    resolution context object belonging to the query block which simply
+    contains the reference. To further clarify, in
+    SELECT (SELECT t.a) FROM t;
+    t.a is an Item_ident whose 'context' belongs to the subquery
+    (context->select_lex == that of the subquery).
+    For column references that are part of a generated column expression,
+    'context' points to a temporary name resolution context object during
+    resolving, but is set to nullptr after resolving is done. Note that
+    Item_ident::local_column() depends on that.
+  */
   Name_resolution_context *context;
   const char *db_name;
   const char *table_name;
