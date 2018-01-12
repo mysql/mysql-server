@@ -494,6 +494,11 @@ loop:
       // We have grandparents, 'parents[0]' is real parent
       options.setParent(parents[0].m_op);
     }
+    if ((rand() % 2) == 0)
+    {
+      // Set INNER-join options (no NULL extended rows returned)
+      options.setMatchType(NdbQueryOptions::MatchNonNull);
+    }
     switch(oi.m_type){
     case NdbQueryOperationDef::PrimaryKeyAccess:{
       int opNo = 0;
