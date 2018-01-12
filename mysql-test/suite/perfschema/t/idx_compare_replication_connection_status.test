@@ -8,6 +8,7 @@
 --connection slave
 
 --source include/stop_slave.inc
+SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
 SET GLOBAL slave_parallel_workers= 4;
 --source include/start_slave.inc
 
@@ -52,7 +53,7 @@ SET @target_id = @worker_thread_id;
 
 --connection slave
 --source include/stop_slave.inc
-SET GLOBAL slave_parallel_workers= 0;
+SET GLOBAL slave_parallel_workers= @old_slave_parallel_workers;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc
