@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -472,20 +472,6 @@ public:
     return tmp;
   }
 
-  void release(Ndbd_mem_manager *mm, Uint32 rg, T *t) {
-    unsigned free = m_free;
-    if (free < m_max_free)
-    {
-      m_free = free + 1;
-      t->m_next = m_freelist;
-      m_freelist = t;
-    }
-    else
-      m_global_pool->release(mm, rg, t);
-
-    validate();
-  }
-
   /**
    * Release to local pool even if it get's "too" full
    *   (wrt to m_max_free)
@@ -517,16 +503,15 @@ public:
    */
   void release_global(Ndbd_mem_manager *mm, Uint32 rg) {
     validate();
-    unsigned cnt = 0;
     unsigned free = m_free;
     Uint32 maxfree = m_max_free;
     assert(maxfree > 0);
 
-    T* head = m_freelist;
-    T* tail = m_freelist;
-    if (free > maxfree)
+    if (unlikely(free > maxfree))
     {
-      cnt++;
+      T* head = m_freelist;
+      T* tail = m_freelist;
+      unsigned cnt = 1;
       free--;
 
       while (free > maxfree)
@@ -1507,8 +1492,7 @@ public:
                         Uint32 thr_no,
                         NDB_TICKS & now,
                         NDB_TICKS *spin_ticks,
-                        Uint32 & watchdog_counter,
-               class thread_local_pool<thr_send_page>  & send_buffer_pool);
+                        Uint32 & watchdog_counter);
 
   /* A block thread has flushed data for a node and wants it sent */
   Uint32 alert_send_thread(NodeId node, NDB_TICKS now, bool wakeup_flag);
@@ -2437,8 +2421,7 @@ thr_send_threads::assist_send_thread(Uint32 min_num_nodes,
                           thr_no,
                           now,
                           &spin_ticks_dummy,
-                          watchdog_counter,
-                          send_buffer_pool))
+                          watchdog_counter))
     {
       /**
        * Neighbour nodes are locked through setting
@@ -2452,6 +2435,11 @@ thr_send_threads::assist_send_thread(Uint32 min_num_nodes,
       insert_node(node);
       break;
     }
+
+    watchdog_counter = 3;
+    send_buffer_pool.release_global(g_thr_repository->m_mm,
+                                    RG_TRANSPORTER_BUFFERS);
+
     loop++;
   }
   if (node == 0)
@@ -2500,8 +2488,7 @@ thr_send_threads::handle_send_node(NodeId node,
                                    Uint32 thr_no,
                                    NDB_TICKS & now,
                                    NDB_TICKS *spin_ticks,
-                                   Uint32 & watchdog_counter,
-                   class thread_local_pool<thr_send_page>  & send_buffer_pool)
+                                   Uint32 & watchdog_counter)
 
 {
   assert(m_node_state[node].m_thr_no_sender == NO_OWNER_THREAD);
@@ -2581,14 +2568,17 @@ thr_send_threads::handle_send_node(NodeId node,
     more = perform_send(node, thr_no, bytes_sent);
     /* We return with no locks or mutexes held */
 
-    /* Release chunk-wise to decrease pressure on lock */
-    watchdog_counter = 3;
-    send_buffer_pool.release_chunk(g_thr_repository->m_mm,
-                                   RG_TRANSPORTER_BUFFERS);
     NdbTick_Invalidate(spin_ticks);
   }
 
   /**
+   * Note that we do not yet return any send_buffers to the
+   * global pool: handle_send_node() may be called from either
+   * a send-thread, or a worker-thread doing 'assist send'.
+   * These has different policies for releasing send_buffers,
+   * which should be handled by the respective callers.
+   * (release_chunk() or release_global())
+   *
    * Either own perform_send() processing, or external 'alert'
    * could have signaled that there are more sends pending.
    * If we had no progress in perform_send, we conclude that
@@ -2849,8 +2839,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
                             thr_no,
                             now,
                             &start_spin_ticks,
-                            this_send_thread->m_watchdog_counter,
-                            this_send_thread->m_send_buffer_pool))
+                            this_send_thread->m_watchdog_counter))
       {
         /**
          * Neighbour nodes are not locked by get_node and insert_node.
@@ -2866,6 +2855,12 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
         m_node_state[node].m_thr_no_sender = thr_no;
         break;
       }
+      
+      /* Release chunk-wise to decrease pressure on lock */
+      this_send_thread->m_watchdog_counter = 3;
+      this_send_thread->m_send_buffer_pool.release_chunk(g_thr_repository->m_mm,
+                                     RG_TRANSPORTER_BUFFERS);
+
       /**
        * We set node = 0 for the very rare case where theRestartFlag is set
        * to perform_stop, we should never need this, but add it in just in
@@ -4945,9 +4940,6 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
       NDB_TICKS after = NdbTick_getCurrentTicks();
       selfptr->m_micros_send += NdbTick_Elapsed(now, after).microSec();
     }
-    struct thr_repository* rep = g_thr_repository;
-    selfptr->m_send_buffer_pool.release_global(rep->m_mm,
-                                               RG_TRANSPORTER_BUFFERS);
     return pending_send;
   }
 
