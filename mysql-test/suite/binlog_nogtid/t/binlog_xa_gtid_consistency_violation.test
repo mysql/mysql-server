@@ -35,6 +35,7 @@
 #
 # Bug#27041402 ASSERTION `NEW_VALUE >= 0' FAILED.
 
+--source include/have_debug.inc
 --let $rpl_gtid_mode= OFF
 --source include/rpl_set_gtid_mode.inc
 
