@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +103,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_server_hooks.cc
   ../../sql/ndb_binlog_client.cc
   ../../sql/ndb_metadata.cc
+  ../../sql/ndb_dd_disk_data.cc
 )
 
 # Include directories used when building ha_ndbcluster

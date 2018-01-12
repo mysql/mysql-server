@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,7 @@
 #include "sql/sql_table.h"  // build_table_filename,
 #include "sql/ndb_dd.h"
 #include "sql/ndb_dd_client.h"
+#include "sql/ndb_dd_disk_data.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_dummy_ts.h"
 #include "sql/ndb_server_hooks.h"
@@ -389,6 +390,12 @@ static int ndbcluster_alter_tablespace(handlerton*, THD* thd,
                                        st_alter_tablespace* info,
                                        const dd::Tablespace*,
                                        dd::Tablespace*);
+static bool
+ndbcluster_get_tablespace_statistics(const char *tablespace_name,
+                                     const char *file_name,
+                                     const dd::Properties &ts_se_private_data,
+                                     ha_tablespace_statistics *stats);
+
 
 static handler *ndbcluster_create_handler(handlerton *hton, TABLE_SHARE *table,
                                           bool /* partitioned */,
@@ -13630,6 +13637,8 @@ int ndbcluster_init(void* handlerton_ptr)
   hton->get_tablespace=   ndbcluster_get_tablespace; /* Get ts for old ver */
   hton->alter_tablespace=
       ndbcluster_alter_tablespace; /* Tablespace and logfile group */
+  hton->get_tablespace_statistics=
+      ndbcluster_get_tablespace_statistics; /* Provide data to I_S */
   hton->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
   ndbcluster_binlog_init(hton);
   hton->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
@@ -17794,7 +17803,7 @@ static
 int ndbcluster_alter_tablespace(handlerton*,
                                 THD* thd, st_alter_tablespace *alter_info,
                                 const dd::Tablespace*,
-                                dd::Tablespace*)
+                                dd::Tablespace* new_ts_def)
 {
   int is_tablespace= 0;
   NdbError err;
@@ -17875,6 +17884,15 @@ int ndbcluster_alter_tablespace(handlerton*,
                           "Datafile size rounded down to extent size");
     }
     is_tablespace= 1;
+
+    /*
+     * Set se_private_data for the tablespace. This is required later
+     * in order to populate the I_S.FILES table
+     */
+
+    ndb_dd_disk_data_set_object_type(new_ts_def->se_private_data(),
+                                     object_type::TABLESPACE);
+
     break;
   }
   case (ALTER_TABLESPACE):
@@ -18000,6 +18018,7 @@ int ndbcluster_alter_tablespace(handlerton*,
       }
       goto ndberror2;
     }
+
     if (dict->getWarningFlags() &
         NdbDictionary::Dictionary::WarnUndofileRoundDown)
     {
@@ -18007,6 +18026,48 @@ int ndbcluster_alter_tablespace(handlerton*,
                           dict->getWarningFlags(),
                           "Undofile size rounded down to kernel page size");
     }
+
+    /*
+     * Add Logfile Group entry to the DD as a tablespace. This
+     * is to ensure that it is propagated to INFORMATION_SCHEMA
+     * since I_S is now a database view over the DD tables.
+     *
+     * NOTE: The information stored will only be used by I_S
+     * subsystem and not by NDB. Thus, any failure in adding
+     * the entry to DD is not treated as an error. Instead, a
+     * warning is returned and we continue as if nothing
+     * went wrong. Problem with this of course is the fact that
+     * I_S will have missing entries.
+     */
+
+    Ndb_dd_client dd_client(thd);
+    const char* logfile_group_name= alter_info->logfile_group_name;
+    const char* undo_file_name= alter_info->undo_file_name;
+
+    // Acquire MDL locks on logfile group and add entry to DD
+    const bool lock_logfile_group_result=
+        dd_client.mdl_lock_logfile_group(logfile_group_name);
+    if (!lock_logfile_group_result)
+    {
+      DBUG_PRINT("warning",("MDL lock could not be acquired for "
+                            "logfile_group %s", logfile_group_name));
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    const bool install_logfile_group_result=
+        dd_client.install_logfile_group(logfile_group_name,
+                                        undo_file_name);
+    if (!install_logfile_group_result)
+    {
+      DBUG_PRINT("warning",("Logfile Group %s could not be stored in DD",
+                            logfile_group_name));
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    // All okay, commit to DD
+    dd_client.commit();
     break;
   }
   case (ALTER_LOGFILE_GROUP):
@@ -18039,6 +18100,47 @@ int ndbcluster_alter_tablespace(handlerton*,
                           dict->getWarningFlags(),
                           "Undofile size rounded down to kernel page size");
     }
+
+    /*
+     * Update Logfile Group entry in the DD.
+     *
+     * NOTE: The information stored will only be used by I_S
+     * subsystem and not by NDB. Thus, any failure in adding
+     * the entry to DD is not treated as an error. Instead, a
+     * warning is returned and we continue as if nothing
+     * went wrong. Problem with this of course is the fact that
+     * I_S will have missing entries.
+     */
+
+    Ndb_dd_client dd_client(thd);
+    const char* logfile_group_name= alter_info->logfile_group_name;
+    const char* undo_file_name= alter_info->undo_file_name;
+
+    // Acquire MDL locks on logfile group and modify DD entry
+    const bool lock_logfile_group_result=
+        dd_client.mdl_lock_logfile_group(logfile_group_name);
+    if (!lock_logfile_group_result)
+    {
+      DBUG_PRINT("warning",("MDL lock could not be acquired for "
+                            "logfile_group %s", logfile_group_name));
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    const bool install_undo_file_result=
+        dd_client.install_undo_file(logfile_group_name,
+                                    undo_file_name);
+    if (!install_undo_file_result)
+    {
+      DBUG_PRINT("warning",("Undo file %s could not be added to logfile "
+                            "group %s", logfile_group_name,
+                            undo_file_name));
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    // All okay, commit to DD
+    dd_client.commit();
     break;
   }
   case (DROP_TABLESPACE):
@@ -18068,6 +18170,45 @@ int ndbcluster_alter_tablespace(handlerton*,
     {
       goto ndberror;
     }
+
+    /*
+     * Drop Logfile Group entry from the DD.
+     *
+     * NOTE: The information stored will only be used by I_S
+     * subsystem and not by NDB. Thus, any failure in adding
+     * the entry to DD is not treated as an error. Instead, a
+     * warning is returned and we continue as if nothing
+     * went wrong. Problem with this of course is the fact that
+     * I_S will have missing entries.
+     */
+
+    Ndb_dd_client dd_client(thd);
+    const char* logfile_group_name= alter_info->logfile_group_name;
+
+    // Acquire MDL locks on logfile group and modify DD entry
+    const bool lock_logfile_group_result=
+        dd_client.mdl_lock_logfile_group(logfile_group_name);
+    if (!lock_logfile_group_result)
+    {
+      DBUG_PRINT("warning",("MDL lock could not be acquired for "
+                            "logfile_group %s", logfile_group_name));
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    const bool drop_logfile_group_result=
+        dd_client.drop_logfile_group(logfile_group_name);
+
+    if (!drop_logfile_group_result)
+    {
+      DBUG_PRINT("warning",("Logfile group %s could not be dropped from DD",
+                            logfile_group_name));
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    // All okay, commit to DD
+    dd_client.commit();
     break;
   }
   case (CHANGE_FILE_TABLESPACE):
@@ -18105,6 +18246,161 @@ ndberror2:
   my_error(error, MYF(0), errmsg);
   DBUG_RETURN(1); // Error, my_error called
 }
+
+/**
+  Retrieve ha_tablespace_statistics for tablespace or logfile group
+
+  @param        tablespace_name       Name of the tablespace/logfile group
+  @param        file_name             Name of the datafile/undo log file
+  @param        ts_se_private_data    Tablespace/logfile group SE private data
+  @param [out]  stats                 Contains tablespace/logfile group
+                                      statistics read from SE
+
+  @returns false on success, true on failure
+*/
+
+static
+bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
+                                          const char *file_name,
+                                          const dd::Properties &ts_se_private_data,
+                                          ha_tablespace_statistics *stats)
+{
+  DBUG_ENTER("ndbcluster_get_tablespace_statistics");
+
+  // Find out type of object. The type is stored in se_private_data
+  enum object_type type;
+
+  ndb_dd_disk_data_get_object_type(ts_se_private_data, type);
+
+  if (type == object_type::LOGFILE_GROUP)
+  {
+    THD *thd= current_thd;
+
+    Ndb *ndb= check_ndb_in_thd(thd);
+    if (!ndb)
+    {
+      // No connection to NDB
+      my_error(HA_ERR_NO_CONNECTION, MYF(0));
+      DBUG_RETURN(true);
+    }
+
+    NdbDictionary::Dictionary* dict= ndb->getDictionary();
+
+    /* Find a node which is alive. NDB's view of an undo file
+     * is actually a composite of the stats found across all
+     * data nodes. However this does not fit well with the
+     * server's view which thinks of it as a single file.
+     * Since the stats of interest don't vary across the data
+     * nodes, using the first available data node is acceptable.
+     */
+    NdbDictionary::Undofile uf= dict->getUndofile(-1, file_name);
+    if (dict->getNdbError().classification != NdbError::NoError)
+    {
+      ndb_my_error(&dict->getNdbError());
+      DBUG_RETURN(true);
+    }
+
+    NdbDictionary::LogfileGroup lfg=
+      dict->getLogfileGroup(uf.getLogfileGroup());
+    if (dict->getNdbError().classification != NdbError::NoError)
+    {
+      ndb_my_error(&dict->getNdbError());
+      DBUG_RETURN(true);
+    }
+
+    /* Check if logfile group name matches tablespace name.
+     * Failure means that the NDB dictionary has gone out
+     * of sync with the DD
+     */
+    if (strcmp(lfg.getName(), tablespace_name) != 0)
+    {
+      my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
+      DBUG_ASSERT(false);
+      DBUG_RETURN(true);
+    }
+
+    // Populate statistics
+    stats->m_id= uf.getObjectId();
+    stats->m_type= "UNDO LOG";
+    stats->m_logfile_group_name= lfg.getName();
+    stats->m_logfile_group_number= lfg.getObjectId();
+    stats->m_total_extents= uf.getSize() / 4;
+    stats->m_extent_size= 4;
+    stats->m_initial_size= uf.getSize();
+    stats->m_maximum_size= uf.getSize();
+    stats->m_version= uf.getObjectVersion();
+
+    DBUG_RETURN(false);
+  }
+
+  if (type == object_type::TABLESPACE)
+  {
+    THD *thd= current_thd;
+
+    Ndb *ndb= check_ndb_in_thd(thd);
+    if (!ndb)
+    {
+      // No connection to NDB
+      my_error(HA_ERR_NO_CONNECTION, MYF(0));
+      DBUG_RETURN(true);
+    }
+
+    NdbDictionary::Dictionary* dict= ndb->getDictionary();
+
+    /* Find a node which is alive. NDB's view of a data file
+     * is actually a composite of the stats found across all
+     * data nodes. However this does not fit well with the
+     * server's view which thinks of it as a single file.
+     * Since the stats of interest don't vary across the data
+     * nodes, using the first available data node is acceptable.
+     */
+    NdbDictionary::Datafile df= dict->getDatafile(-1, file_name);
+    if (dict->getNdbError().classification != NdbError::NoError)
+    {
+      ndb_my_error(&dict->getNdbError());
+      DBUG_RETURN(true);
+    }
+
+    NdbDictionary::Tablespace ts=
+      dict->getTablespace(df.getTablespace());
+    if (dict->getNdbError().classification != NdbError::NoError)
+    {
+      ndb_my_error(&dict->getNdbError());
+      DBUG_RETURN(true);
+    }
+
+    /* Check if tablespace name from NDB matches tablespace name
+     * from DD. Failure means that the NDB dictionary has gone out
+     * of sync with the DD
+     */
+    if (strcmp(ts.getName(), tablespace_name) != 0)
+    {
+      my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
+      DBUG_ASSERT(false);
+      DBUG_RETURN(true);
+    }
+
+    // Populate statistics
+    stats->m_id= df.getObjectId();
+    stats->m_type= "DATAFILE";
+    stats->m_logfile_group_name= ts.getDefaultLogfileGroup();
+    stats->m_logfile_group_number= ts.getDefaultLogfileGroupId();
+    stats->m_free_extents= df.getFree() / ts.getExtentSize();
+    stats->m_total_extents= df.getSize()/ ts.getExtentSize();
+    stats->m_extent_size= ts.getExtentSize();
+    stats->m_initial_size= df.getSize();
+    stats->m_maximum_size= df.getSize();
+    stats->m_version= df.getObjectVersion();
+    stats->m_row_format= "FIXED";
+
+    DBUG_RETURN(false);
+  }
+
+  // Should never reach here
+  DBUG_ASSERT(false);
+  DBUG_RETURN(true);
+}
+
 
 
 /**

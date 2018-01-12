@@ -11,19 +11,15 @@ ENGINE NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile2.dat'
   INITIAL_SIZE = 4M;
-SELECT logfile_group_name, extra FROM information_schema.files
-WHERE file_name IS NULL AND file_type = 'UNDO LOG';
-logfile_group_name extra
-lg1  UNDO_BUFFER_SIZE=1048576
-SELECT DISTINCT file_name, file_type FROM information_schema.files
-WHERE file_name LIKE 'lg1_%' AND file_type = 'UNDO LOG';
-file_name  file_type
-lg1_undofile.dat UNDO LOG
-SELECT DISTINCT file_name, file_type FROM information_schema.files
-WHERE file_type = 'DATAFILE';
-file_name  file_type
-ts1_datafile.dat DATAFILE
-ts1_datafile2.dat  DATAFILE
+SELECT file_name, file_type FROM information_schema.files
+WHERE engine='ndbcluster' AND file_type = 'UNDO LOG';
+FILE_NAME	FILE_TYPE
+./lg1_undofile.dat	UNDO LOG
+SELECT file_name, file_type FROM information_schema.files
+WHERE engine='ndbcluster' AND file_type = 'DATAFILE';
+FILE_NAME	FILE_TYPE
+./ts1_datafile.dat	DATAFILE
+./ts1_datafile2.dat	DATAFILE
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 ALTER TABLESPACE ts1

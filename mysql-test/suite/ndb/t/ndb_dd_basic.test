@@ -575,18 +575,16 @@ initial_size 2M
 extent_size 2M
 engine ndb;
 
-select distinct tablespace_name, file_type, file_name
+select tablespace_name, file_type, file_name
 from information_schema.files
-where engine = 'ndbcluster' and tablespace_name is not null
-order by file_type, file_name;
+where engine = 'ndbcluster' and file_type = 'DATAFILE';
 
 alter tablespace ts1
 drop datafile 'datafile.dat';
 
-select distinct tablespace_name, file_type, file_name
+select tablespace_name, file_type, file_name
 from information_schema.files
-where engine = 'ndbcluster' and tablespace_name is not null
-order by file_type, file_name;
+where engine = 'ndbcluster' and file_type = 'DATAFILE';
 
 drop tablespace ts1;
 
@@ -630,24 +628,14 @@ alter tablespace ts1
 add datafile 'datafile02.dat'
 initial_size 3342335;
 
-# check logfile group
-select logfile_group_name, extra
-from information_schema.files
-where file_type = 'UNDO LOG' and file_name is null;
-
 # check undofiles
-select distinct file_name, initial_size
+select file_name, initial_size
 from information_schema.files
 where file_type = 'UNDO LOG' and file_name like '%dat'
 order by file_name;
 
-# check tablespace
-select tablespace_name, logfile_group_name, extent_size
-from information_schema.files
-where engine = 'ndbcluster' and file_type = 'TABLESPACE';
-
 # check datafiles
-select distinct file_name, initial_size, extent_size, total_extents, free_extents
+select file_name, initial_size, extent_size, total_extents, free_extents
 from information_schema.files
 where file_type = 'DATAFILE'
 order by file_name;
