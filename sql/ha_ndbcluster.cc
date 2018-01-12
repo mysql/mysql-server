@@ -68,6 +68,7 @@
 #include "sql/ndb_schema_dist.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
+#include "sql/ndb_metadata.h"
 #include "sql/ndb_tdc.h"
 #include "sql/ndb_thd.h"
 #include "sql/partition_info.h"
@@ -1742,12 +1743,13 @@ int findBlobError(NdbError& error, NdbBlob* pBlob)
 
 
 /* 
- This routine calculates the length of the blob/text after applying mysql limits
+ Calculate the length of the blob/text after applying mysql limits
  on blob/text sizes. If the blob contains multi-byte characters, the length is 
  reduced till the end of the last well-formed char, so that data is not truncated 
  in the middle of a multi-byte char.
- */
-uint64 calc_ndb_blob_len(const CHARSET_INFO *cs, uchar *blob_ptr, uint64 maxlen)
+*/
+static uint64 calc_ndb_blob_len(const CHARSET_INFO *cs, uchar *blob_ptr,
+                                uint64 maxlen)
 {
   int errors = 0;
   
@@ -1762,6 +1764,7 @@ uint64 calc_ndb_blob_len(const CHARSET_INFO *cs, uchar *blob_ptr, uint64 maxlen)
 
   return len64; 
 }
+
 
 int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
@@ -2252,7 +2255,6 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
 {
   Ndb *ndb= get_thd_ndb(thd)->ndb;
   NDBDICT *dict= ndb->getDictionary();
-  const NDBTAB *tab;
   DBUG_ENTER("ha_ndbcluster::get_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
@@ -2270,7 +2272,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
 
   ndb->setDatabaseName(m_dbname);
   Ndb_table_guard ndbtab_g(dict, m_tabname);
-  if (!(tab= ndbtab_g.get_table()))
+  const NDBTAB *tab = ndbtab_g.get_table();
+  if (tab == nullptr)
   {
     ERR_RETURN(dict->getNdbError());
   }
@@ -2304,6 +2307,9 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
     // the table definition will be correct
     DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
   }
+
+  // Check that NDB and DD metadata matches
+  DBUG_ASSERT(Ndb_metadata::compare(thd, tab, table_def));
 
   if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false))
   {
@@ -10865,10 +10871,20 @@ int ha_ndbcluster::create(const char *name,
     }
     tab.setLogging(true);
     tab.setTemporary(false);
+
     if (create_info->tablespace)
+    {
       tab.setTablespaceName(create_info->tablespace);
+    }
     else
-      tab.setTablespaceName("DEFAULT-TS");
+    {
+      // It's not possible to create a table which uses disk without
+      // also specifying a tablespace name
+      my_error(ER_MISSING_HA_CREATE_OPTION, MYF(0),
+               ndbcluster_hton_name);
+      result = HA_MISSING_CREATE_OPTION;
+      goto abort_return;
+    }
   }
 
   // Save the table level storage media setting
@@ -11087,6 +11103,8 @@ int ha_ndbcluster::create(const char *name,
     goto abort;
   }
 
+
+
   DBUG_PRINT("info", ("Table '%s/%s' created in NDB, id: %d, version: %d",
                       m_dbname, m_tabname,
                       tab.getObjectId(),
@@ -11136,6 +11154,9 @@ int ha_ndbcluster::create(const char *name,
 
   if (create_result == 0)
   {
+    // Check that NDB and DD metadata matches
+    DBUG_ASSERT(Ndb_metadata::compare(thd, &tab, table_def));
+
     /*
      * All steps have succeeded, try and commit schema transaction
      */
@@ -17391,6 +17412,7 @@ inplace__set_sdi_and_alter_in_ndb(THD *thd,
     my_error(ER_GET_ERRMSG, MYF(0), error, ndberr.message, "NDBCLUSTER");
     DBUG_RETURN(error);
   }
+
 
   DBUG_RETURN(0);
 }
