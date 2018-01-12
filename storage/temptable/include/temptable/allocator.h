@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -731,6 +731,10 @@ inline void* Allocator<T>::mem_fetch_from_disk(size_t bytes) {
   /* Save the file descriptor at the beginning, we will need it in
    * mem_drop_from_disk(). */
   DBUG_ASSERT(bytes <= std::numeric_limits<decltype(bytes)>::max() - ALIGN_TO);
+
+  DBUG_EXECUTE_IF("temptable_fetch_from_disk_return_null",
+      return nullptr;);
+
   bytes += ALIGN_TO;
 
   static_assert(sizeof(File) <= ALIGN_TO, "The type 'File' is too large.");

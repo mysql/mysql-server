@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2856,9 +2856,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   bool table_on_disk= false;
   DBUG_ENTER("create_ondisk_from_heap");
 
-  if ((wtable->s->db_type() != temptable_hton &&
-       wtable->s->db_type() != heap_hton) ||
-      error != HA_ERR_RECORD_FILE_FULL)
+  if ((wtable->s->db_type() != heap_hton) ||
+      (error != HA_ERR_RECORD_FILE_FULL))
   {
     /*
       We don't want this error to be converted to a warning, e.g. in case of

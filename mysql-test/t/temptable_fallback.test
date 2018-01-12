@@ -1,0 +1,160 @@
+--source include/have_debug.inc
+
+#============
+# Temporary table fallback on lack of memory test
+#============
+
+# ---------------------------------------------------------------------
+# Prepare
+#
+
+CREATE TABLE t (c VARCHAR(128));
+
+INSERT INTO t VALUES
+    (REPEAT('a', 128)),
+    (REPEAT('b', 128)),
+    (REPEAT('c', 128)),
+    (REPEAT('d', 128));
+
+ANALYZE TABLE t;
+
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+--echo # ---------------------------------------------------------------------
+--echo # Scenario 1: (ENGINE=MEMORY, LIMIT=default, CASE=basic, RESULT=success)
+--echo #
+
+SET @@internal_tmp_mem_storage_engine = MEMORY;
+
+--disable_result_log
+SELECT * FROM
+    t AS t1,
+    t AS t2,
+    t AS t3,
+    t AS t4,
+    t AS t5,
+    t AS t6
+    ORDER BY 1
+    LIMIT 2;
+--enable_result_log
+
+SELECT @@internal_tmp_mem_storage_engine;
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+SET @@internal_tmp_mem_storage_engine = default;
+
+--echo # ---------------------------------------------------------------------
+--echo # Scenario 2: (ENGINE=MEMORY, LIMIT=default, CASE=no-std-memory, RESULT=ondisk_fallback)
+--echo #
+
+SET @@internal_tmp_mem_storage_engine = MEMORY;
+SET @@max_heap_table_size = 16384;
+
+--disable_result_log
+SELECT * FROM
+    t AS t1,
+    t AS t2,
+    t AS t3,
+    t AS t4,
+    t AS t5,
+    t AS t6
+    ORDER BY 1
+    LIMIT 2;
+--enable_result_log
+
+SELECT @@internal_tmp_mem_storage_engine;
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+SET @@internal_tmp_mem_storage_engine = default;
+SET @@max_heap_table_size = default;
+
+--echo # ---------------------------------------------------------------------
+--echo # Scenario 3: (ENGINE=TempTable, LIMIT=default, CASE=basic, RESULT=success)
+--echo #
+
+SET @@internal_tmp_mem_storage_engine = TempTable;
+
+--disable_result_log
+SELECT * FROM
+    t AS t1,
+    t AS t2,
+    t AS t3,
+    t AS t4,
+    t AS t5,
+    t AS t6
+    ORDER BY 1
+    LIMIT 2;
+--enable_result_log
+
+SELECT @@internal_tmp_mem_storage_engine;
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+SELECT count_alloc > 0
+    FROM performance_schema.memory_summary_global_by_event_name
+    WHERE event_name = 'memory/temptable/physical_disk';
+
+--echo # ---------------------------------------------------------------------
+--echo # Scenario 4: (ENGINE=TempTable, LIMIT=default, CASE=no-std-memory, RESULT=use_tempfiles)
+--echo #
+
+SET @@internal_tmp_mem_storage_engine = TempTable;
+SET GLOBAL temptable_max_ram = 2097152;
+
+--disable_result_log
+SELECT * FROM
+    t AS t1,
+    t AS t2,
+    t AS t3,
+    t AS t4,
+    t AS t5,
+    t AS t6
+    ORDER BY 1
+    LIMIT 2;
+--enable_result_log
+
+SELECT @@internal_tmp_mem_storage_engine;
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+SELECT count_alloc > 0
+    FROM performance_schema.memory_summary_global_by_event_name
+    WHERE event_name = 'memory/temptable/physical_disk';
+
+SET @@internal_tmp_mem_storage_engine = default;
+SET GLOBAL temptable_max_ram = default;
+
+--echo # ---------------------------------------------------------------------
+--echo # Scenario 5: (ENGINE=TempTable, LIMIT=default, CASE=no-disk-memory, RESULT=error)
+--echo #
+
+SET @@internal_tmp_mem_storage_engine = TempTable;
+SET GLOBAL temptable_max_ram = 2097152;
+SET debug = '+d,temptable_fetch_from_disk_return_null';
+
+call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
+--error ER_RECORD_FILE_FULL,ER_RECORD_FILE_FULL
+SELECT * FROM
+    t AS t1,
+    t AS t2,
+    t AS t3,
+    t AS t4,
+    t AS t5,
+    t AS t6
+    ORDER BY 1
+    LIMIT 2;
+
+SELECT @@internal_tmp_mem_storage_engine;
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+SET @@internal_tmp_mem_storage_engine = default;
+SET GLOBAL temptable_max_ram = default;
+SET debug = '-d,temptable_fetch_from_disk_return_null';
+
+# ---------------------------------------------------------------------
+# Cleanup
+#
+
+DROP TABLE t;
