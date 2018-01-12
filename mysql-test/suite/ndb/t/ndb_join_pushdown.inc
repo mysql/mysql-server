@@ -3599,6 +3599,123 @@ set global debug=@save_debug;
 #Undo update
 update t1 set u=u-100;
 
+#############
+# Additional testcase added as part of WL introducing equi-join
+# non-matching row elimination optimizations into the SPJ block
+# Test query topology which lacked coverage. (Found to fail
+# in manual or RQG testing)
+
+# Modify rows to force null rows from outer joined lookup below
+update t1 set a=a+pk;
+
+set ndb_join_pushdown=on;
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join (t1 as y join t1 as yy on yy.pk=y.u) on y.pk = x.a
+  join t1 as z on z.b = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join (t1 as y join t1 as yy on yy.pk=y.u) on y.pk = x.a
+  join t1 as z on z.b = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  join t1 as z on z.b = x.b
+  left join t1 as y on y.pk = x.a;
+--sorted_result
+select straight_join count(*) from t1 as x
+  join t1 as z on z.b = x.b
+  left join t1 as y on y.pk = x.a;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  left join t1 as y3 on y3.pk = x.a;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  left join t1 as y2 on y2.pk = x.a
+  left join t1 as y3 on y3.pk = x.a;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  left join t1 as z on z.pk = x.a
+    left join t1 as y1 on y1.pk = y.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y on y.pk = x.a
+  left join t1 as z on z.pk = x.a
+    left join t1 as y1 on y1.pk = y.b;
+
+explain
+select straight_join count(*) from t1 as x
+  join t1 as y on y.pk = x.a
+    left join t1 as y1 on y1.pk = y.b
+  left join t1 as z on z.pk = x.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  join t1 as y on y.pk = x.a
+    left join t1 as y1 on y1.pk = y.b
+  left join t1 as z on z.pk = x.b;
+
+explain
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.b
+    join t1 as z on z.b = y2.b;
+--sorted_result
+select straight_join count(*) from t1 as x
+  left join t1 as y1 on y1.pk = x.a
+  join t1 as y2 on y2.pk = x.b
+    join t1 as z on z.b = y2.b;
+
+#undo update
+update t1 set a=a-pk;
+
 ##############
 
 connection ddl;
@@ -3620,6 +3737,7 @@ t1 as table1 join
  (t1 as table2 join t1 as table3 on table3.a = table2.a)
  on table3.u = table1.u
  where table2.pk = 3;
+
 
 ##############
 connection ddl;

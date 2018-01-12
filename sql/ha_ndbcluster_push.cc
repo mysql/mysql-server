@@ -1282,7 +1282,6 @@ ndb_pushed_builder_ctx::optimize_query_plan()
      * Select set to choose parent from, prefer a 'common'
      * parent if available.
      */
-    uint parent_no;
     ndb_table_access_map const &parents=
        table.m_common_parents.is_clear_all()
        ? table.m_extend_parents
@@ -1292,34 +1291,16 @@ ndb_pushed_builder_ctx::optimize_query_plan()
     DBUG_ASSERT(!parents.contain(tab_no)); // No circular dependency!
 
     /**
-     * In order to take advantage of the parallelism in the SPJ block;
-     * Initial parent candidate is the first possible among 'parents'.
-     * Will result in the most 'bushy' query plan (aka: star-join)
-     */
-    parent_no= parents.first_table(root_no);
-
-    /**
-     * Push optimization for execution of child operations:
+     * In order to possibly take advantage of the parallelism in the
+     * SPJ block; Choose parent to be the first possible among 'parents'.
+     * Will result in the most 'bushy' query plan (aka: star-join).
      *
-     * To take advantage of the selectivity of parent operations we 
-     * execute any parent operations with fanout <= 1 before this
-     * child operation. By making them depending on parent 
-     * operations with high selectivity, child will be eliminated when
-     * the parent returns no matching rows.
-     *
-     * -> Execute child operation after any such parents
+     * The SPJ block may on its own choose to sequentialize the
+     * execution order of the star-joined children. Thereby eliminating
+     * some operations on its sibling, where INNER_JOIN'ed results could
+     * never be produced.
      */
-    for (uint candidate= parent_no+1; candidate<tab_no; candidate++)
-    {
-      if (parents.contain(candidate))
-      {
-        if (m_tables[candidate].m_fanout > 1.0)
-          break;
-
-        parent_no= candidate;     // Parent candidate is selective, eval after
-      }
-    }
-
+    const uint parent_no= parents.first_table(root_no);
     DBUG_ASSERT(parent_no < tab_no);
     table.m_parent= parent_no;
     m_tables[parent_no].m_child_fanout*= table.m_fanout*table.m_child_fanout;
