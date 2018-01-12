@@ -2,7 +2,6 @@ call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_RESULT' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_STATUS' cannot be aborted.");
-call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
 INSTALL PLUGIN null_audit SONAME 'adt_null.<expected_extension>';
 ################
@@ -40,39 +39,6 @@ SET @@GLOBAL.null_audit_event_order_check = NULL;
 #############
 ## GENERAL ##
 #############
-#######################
-## ABORT GENERAL LOG ##
-#######################
-SET @@null_audit_event_order_check_exact = <expected_check_exact>;
-SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
-                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
-                                          'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
-SELECT 1;
-ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GENERAL_LOG';1).
-SELECT @@null_audit_event_order_check;
-@@null_audit_event_order_check
-EVENT-ORDER-ABORT
-SELECT 1;
-1
-1
-#######################################
-## ABORT GENERAL LOG WITH MY_MESSAGE ##
-#######################################
-SET @@null_audit_abort_message = "Abort with my_message.";
-SET @@null_audit_event_order_check_exact = <expected_check_exact>;
-SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
-                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
-                                          'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
-SELECT 1;
-ERROR HY000: Abort with my_message.
-SELECT @@null_audit_event_order_check;
-@@null_audit_event_order_check
-EVENT-ORDER-ABORT
-SELECT 1;
-1
-1
 ##########################
 ## ABORT GENERAL RESULT ##
 ##########################
@@ -142,37 +108,6 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
 SELECT 1;
 1
 1
-SELECT @@null_audit_event_order_check;
-@@null_audit_event_order_check
-EVENT-ORDER-ABORT
-#########################
-## ABORT GENERAL ERROR ##
-#########################
-SET @@null_audit_event_order_check_exact = <expected_check_exact>;
-SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
-                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
-                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
-                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
-                                          'MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET';
-SELECT * FROM mysql.non_existing_table;
-ERROR 42S02: Table 'mysql.non_existing_table' doesn't exist
-SELECT @@null_audit_event_order_check;
-@@null_audit_event_order_check
-EVENT-ORDER-ABORT
-#########################################
-## ABORT GENERAL ERROR WITH MY_MESSAGE ##
-#########################################
-SET @@null_audit_abort_message = "Abort with my_message.";
-SET @@null_audit_event_order_check_exact = <expected_check_exact>;
-SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
-                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
-                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
-                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
-                                          'MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET';
-SELECT * FROM mysql.non_existing_table;
-ERROR 42S02: Table 'mysql.non_existing_table' doesn't exist
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-ABORT
