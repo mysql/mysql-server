@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -68,6 +68,7 @@ ADD_EXECUTABLE(testLimits testLimits.cpp)
 ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp)
 ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
 ADD_EXECUTABLE(testRedo testRedo.cpp)
+ADD_EXECUTABLE(testDowngrade testUpgrade.cpp)
 ADD_EXECUTABLE(testUpgrade testUpgrade.cpp)
 ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp)
 ADD_EXECUTABLE(testDebugger testDebugger.cpp)
@@ -86,7 +87,7 @@ SET(BINS create_all_tabs create_tab
   testNativeDefault testLimits testSpj
   testSingleUserMode
   testIndexStat testRedo
-  testUpgrade
+  testDowngrade testUpgrade
   testAsynchMultiwait
   testDebugger)
 
@@ -105,6 +106,7 @@ ENDFOREACH()
 TARGET_LINK_LIBRARIES(testBitfield ndbNDBT ndbclient_static)
 SET(BINS ${BINS} testBitfield)
 
+TARGET_LINK_LIBRARIES(testDowngrade mysqlclient)
 TARGET_LINK_LIBRARIES(testUpgrade mysqlclient)
 
 INSTALL(TARGETS ${BINS} DESTINATION bin)
