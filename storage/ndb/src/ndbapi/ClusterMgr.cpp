@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -581,16 +581,6 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
     theFacade.for_each(this, sig, ptr);
     return;
   }
-  case GSN_CONNECT_REP:
-  {
-    execCONNECT_REP(sig, ptr);
-    return;
-  }
-  case GSN_DISCONNECT_REP:
-  {
-    execDISCONNECT_REP(sig, ptr);
-    return;
-  }
   case GSN_CLOSE_COMREQ:
   {
     theFacade.perform_close_clnt(this);
@@ -958,19 +948,26 @@ ClusterMgr::execNF_COMPLETEREP(const NdbApiSignal* signal,
 }
 
 /**
- * This is called as a callback when executing update_connections which
- * is always called with ownership of trp_client lock.
+ * ::reportConnected() and ::reportDisconnected()
+ *
+ * Should be called from the client thread being the poll owner,
+ * which could either be ClusterMgr itself, or another API client.
+ *
+ * As ClusterMgr maintains shared global data, updating
+ * its connection state needs m_mutex being locked.
+ * If ClusterMgr is the poll owner, it already owns that
+ * lock, else it has to be locked now.
  */
 void
 ClusterMgr::reportConnected(NodeId nodeId)
 {
   DBUG_ENTER("ClusterMgr::reportConnected");
   DBUG_PRINT("info", ("nodeId: %u", nodeId));
-  /**
-   * Ensure that we are sending heartbeat every 100 ms
-   * until we have got the first reply from NDB providing
-   * us with the real time-out period to use.
-   */
+  assert(theFacade.is_poll_owner_thread());
+
+  if (theFacade.m_poll_owner != this)
+    lock();
+
   assert(nodeId > 0 && nodeId < MAX_NODES);
   if (nodeId != getOwnNodeId())
   {
@@ -990,6 +987,11 @@ ClusterMgr::reportConnected(NodeId nodeId)
     }
   }
 
+  /**
+   * Ensure that we are sending heartbeat every 100 ms
+   * until we have got the first reply from NDB providing
+   * us with the real time-out period to use.
+   */
   cm_node.hbMissed = 0;
   cm_node.hbCounter = 0;
   cm_node.hbFrequency = 0;
@@ -1009,13 +1011,17 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.m_node_fail_rep = false;
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.minDbVersion = 0;
+
+  /**
+   * End of protected ClusterMgr updates of shared global data.
+   * Informing other API client does not need a global protection
+   */ 
+  if (theFacade.m_poll_owner != this)
+    unlock();
   
   /**
-   * We know that we have clusterMgrThreadMutex and trp_client::mutex
-   *   but we don't know if we are polling...and for_each can
-   *   only be used by a poller...
-   *
-   * Send signal to self, so that we can do this when receiving a signal
+   * We are called by the poll owner (asserted above), so we can
+   * tell each API client about the CONNECT_REP ourself.
    */
   NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
   signal.theVerId_signalNumber = GSN_CONNECT_REP;
@@ -1023,65 +1029,24 @@ ClusterMgr::reportConnected(NodeId nodeId)
   signal.theTrace  = 0;
   signal.theLength = 1;
   signal.getDataPtrSend()[0] = nodeId;
-  safe_sendSignal(&signal, getOwnNodeId());
+  theFacade.for_each(this, &signal, NULL);
   DBUG_VOID_RETURN;
-}
-
-void
-ClusterMgr::execCONNECT_REP(const NdbApiSignal* sig,
-                            const LinearSectionPtr ptr[])
-{
-  theFacade.for_each(this, sig, 0);
-}
-
-void
-ClusterMgr::set_node_dead(trp_node& theNode)
-{
-  set_node_alive(theNode, false);
-  theNode.set_confirmed(false);
-  theNode.m_state.m_connected_nodes.clear();
-  theNode.m_state.startLevel = NodeState::SL_NOTHING;
-  theNode.m_info.m_connectCount ++;
-  theNode.nfCompleteRep = false;
 }
 
 void
 ClusterMgr::reportDisconnected(NodeId nodeId)
 {
+  assert(theFacade.is_poll_owner_thread());
   assert(nodeId > 0 && nodeId < MAX_NODES);
 
-  /**
-   * We know that we have trp_client lock
-   *   but we don't know if we are polling...and for_each can
-   *   only be used by a poller...
-   *
-   * Send signal to self, so that we can do this when receiving a signal
-   */
-  NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
-  signal.theVerId_signalNumber = GSN_DISCONNECT_REP;
-  signal.theReceiversBlockNumber = API_CLUSTERMGR;
-  signal.theTrace  = 0;
-  signal.theLength = DisconnectRep::SignalLength;
+  if (theFacade.m_poll_owner != this)
+    lock();
 
-  DisconnectRep * rep = CAST_PTR(DisconnectRep, signal.getDataPtrSend());
-  rep->nodeId = nodeId;
-  rep->err = 0;
-  safe_sendSignal(&signal, getOwnNodeId());
-}
-
-void
-ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
-                               const LinearSectionPtr ptr[])
-{
-  const DisconnectRep * rep = CAST_CONSTPTR(DisconnectRep, sig->getDataPtr());
-  Uint32 nodeId = rep->nodeId;
-
-  assert(nodeId > 0 && nodeId < MAX_NODES);
   Node & cm_node = theNodes[nodeId];
   trp_node & theNode = cm_node;
 
-  bool node_failrep = theNode.m_node_fail_rep;
-  bool node_connected = theNode.is_connected();
+  const bool node_failrep = theNode.m_node_fail_rep;
+  const bool node_connected = theNode.is_connected();
   set_node_dead(theNode);
   theNode.set_connected(false);
 
@@ -1089,8 +1054,11 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
    * Remaining processing should only be done if the node
    * actually completed connecting...
    */
-  if (!node_connected)
+  if (unlikely(!node_connected))
   {
+    assert(node_connected);
+    if (theFacade.m_poll_owner != this)
+      unlock();
     return;
   }
 
@@ -1126,10 +1094,20 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
     }
   }
 
+  /**
+   * End of protected ClusterMgr updates of shared global data.
+   * Informing other API client does not need a global protection
+   */
+  if (theFacade.m_poll_owner != this)
+    unlock();
+
   if (node_failrep == false)
   {
     /**
      * Inform API
+     *
+     * We are called by the poll owner (asserted above), so we can
+     * tell each API client about the NODE_FAILREP ourself.
      */
     NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
     signal.theVerId_signalNumber = GSN_NODE_FAILREP;
@@ -1227,6 +1205,17 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
       }
     }
   }
+}
+
+void
+ClusterMgr::set_node_dead(trp_node& theNode)
+{
+  set_node_alive(theNode, false);
+  theNode.set_confirmed(false);
+  theNode.m_state.m_connected_nodes.clear();
+  theNode.m_state.startLevel = NodeState::SL_NOTHING;
+  theNode.m_info.m_connectCount ++;
+  theNode.nfCompleteRep = false;
 }
 
 bool
