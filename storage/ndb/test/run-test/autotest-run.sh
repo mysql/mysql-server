@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.12"
+VERSION="autotest-run.sh version 1.13"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -170,14 +170,24 @@ then
     echo "$DATE $RUN" > $LOCK
 fi
 
+on_exit() {
+####################################
+# Revert copy of test programs
+####################################
+  if [ -f "${run_dir}/revert_copy_missing_ndbclient_test_programs" ]
+  then
+    source "${run_dir}/revert_copy_missing_ndbclient_test_programs"
+  fi
 ####################################
 # Remove the lock file before exit #
 ####################################
-if [ -z "${nolock}" ]
-then
-    trap "rm -f $LOCK" EXIT
-fi
-
+  if [ -z "${nolock}" ] &&
+     [ -f "${LOCK}" ]
+  then
+    rm -f "${LOCK}"
+  fi
+}
+trap on_exit EXIT
 
 ###############################################
 # Check that all interesting files are present#
@@ -318,10 +328,37 @@ fi
 choose $conf $hosts > d.tmp.$$
 sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > my.cnf
 
+copy_missing_ndbclient_test_programs() {
+  (
+    export LD_LIBRARY_PATH="${1}/bin:${1}/lib"
+    for prog in testDowngrade testUpgrade
+    do
+      if [ -f "${1}/bin/${prog}" ] &&
+         [ ! -f "${2}/bin/${prog}" ] &&
+         ldd "${1}/bin/${prog}" | grep -c ndbclient
+      then
+        echo "rm -f '$(realpath ${2}/bin/${prog})'" &&
+          cp -p "${1}/bin/${prog}" "${2}/bin/${prog}"
+      fi
+    done
+    for file in "${1}"/mysql-test/ndb/*grade*
+    do
+      f=$(basename "${file}")
+      if [ -f "${file}" ] &&
+         [ ! -f "${2}/mysql-test/ndb/${f}" ]
+      then
+        echo "rm -f '$(realpath ${2}/mysql-test/ndb/${f})'" &&
+          cp -p "${file}" "${2}/mysql-test/ndb/${f}"
+      fi
+    done
+  ) > revert_copy_missing_ndbclient_test_programs
+}
 prefix="--prefix=$install_dir --prefix0=$install_dir0"
 if [ -n "$install_dir1" ]
 then
     prefix="$prefix --prefix1=$install_dir1"
+    copy_missing_ndbclient_test_programs ${install_dir0} ${install_dir1}
+    copy_missing_ndbclient_test_programs ${install_dir1} ${install_dir0}
 fi
 
 # If verbose level 0, use default verbose mode (1) for atrt anyway
