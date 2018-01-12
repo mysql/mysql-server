@@ -1333,7 +1333,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   result=0;
   if (!skip_check)
   {
-    result= ((mysql->packet_length= cli_safe_read_with_ok(mysql, 1, NULL)) ==
+    result= ((mysql->packet_length= cli_safe_read_with_ok(mysql, command == COM_PING ? 0 : 1, NULL)) ==
              packet_error ? 1 : 0);
 
 #if defined(CLIENT_PROTOCOL_TRACING)
