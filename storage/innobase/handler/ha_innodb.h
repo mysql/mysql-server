@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -942,25 +942,11 @@ public:
 	inline bool is_temp_table() const
 	{
 		return(((m_flags2 & DICT_TF2_TEMPORARY) != 0)
-		       && ((m_flags & DICT_TF2_INTRINSIC) == 0));
+		       && ((m_flags2 & DICT_TF2_INTRINSIC) == 0));
 	}
 
-	/** Prevent the created table to be evicted from cache, also all
-	auxiliary tables.
-	Call this if the DD would be updated after dict_sys mutex is released,
-	since all opening table functions require metadata updated to DD.
-	@return	True	The eviction of base table is changed,
-			so detach should handle it
-	@return	False	Already not evicted base table */
-	bool prevent_eviction();
-
-	/** Detach the just created table and its auxiliary tables.
-	@param[in]	force		True if caller wants this table to be
-					not evictable and ignore 'prevented'
-	@param[in]	prevented	True if the base table was prevented
-					to be evicted by prevent_eviction()
-	@param[in]	dict_locked	True if dict_sys mutex is held */
-	void detach(bool force, bool prevented, bool dict_locked);
+	/** Detach the just created table and its auxiliary tables if exist. */
+	void detach();
 
 	/** Normalizes a table name string.
 	A normalized name consists of the database name catenated to '/' and
@@ -1010,6 +996,11 @@ private:
 	char*		m_remote_path;
 	/** Tablespace name or zero length-string. */
 	char*		m_tablespace;
+
+	/** The newly created InnoDB table object. This is currently only
+	used in this class, since the new table is not evictable until
+	final success/failure, it can be accessed directly. */
+	dict_table_t*	m_table;
 
 	/** Local copy of srv_file_per_table. */
 	bool		m_innodb_file_per_table;

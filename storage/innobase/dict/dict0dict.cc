@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -572,16 +572,46 @@ dict_table_close(
 					index creation */
 {
 	ibool	drop_aborted;
-	if (!dict_locked && !table->is_intrinsic()) {
-		mutex_enter(&dict_sys->mutex);
+
+	ut_a(table->get_ref_count() > 0);
+
+#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
+	if (!table->is_intrinsic()) {
+		/* This is now only for validation in debug mode */
+		if (!dict_locked) {
+			mutex_enter(&dict_sys->mutex);
+		}
+
+		ut_ad(dict_lru_validate());
+
+		if (table->can_be_evicted) {
+			ut_ad(dict_lru_find_table(table));
+		} else {
+			ut_ad(dict_non_lru_find_table(table));
+		}
+
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
+	}
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
+
+	if (!table->is_intrinsic()) {
+		/* Ask for mutex to prevent concurrent ha_innobase::open(),
+		in case the race of n_ref_count and stat_initialized in
+		dict_stats_deinit(). As long as we protect change to
+		n_ref_count in ha_innobase:open() too, there should be no race.
+		We don't actually need dict_sys mutex any more here. */
+		table->lock();
 	}
 
-	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
-	ut_a(table->get_ref_count() > 0);
 	drop_aborted = try_drop
 		&& table->drop_aborted
 		&& table->get_ref_count() == 1
 		&& table->first_index();
+
 	table->release();
 
 #ifndef UNIV_HOTBACKUP
@@ -605,26 +635,19 @@ dict_table_close(
 
 	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
 
-	ut_ad(dict_lru_validate());
-
-#ifdef UNIV_DEBUG
-	if (table->can_be_evicted) {
-		ut_ad(dict_lru_find_table(table));
-	} else {
-		ut_ad(dict_non_lru_find_table(table));
-	}
-#endif /* UNIV_DEBUG */
-
 	if (!dict_locked) {
-		table_id_t	table_id	= table->id;
-
-		mutex_exit(&dict_sys->mutex);
+		table_id_t	table_id = table->id;
 
 		if (drop_aborted) {
+			ut_ad(0);
 			dict_table_try_drop_aborted(NULL, table_id, 0);
 		}
 	}
 #endif /* !UNIV_HOTBACKUP */
+
+	if (!table->is_intrinsic()) {
+		table->unlock();
+	}
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1418,7 +1441,7 @@ static
 ibool
 dict_table_can_be_evicted(
 /*======================*/
-	const dict_table_t*	table)		/*!< in: table to test */
+	dict_table_t*	table)		/*!< in: table to test */
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
@@ -1516,11 +1539,18 @@ dict_make_room_in_cache(
 
 		prev_table = UT_LIST_GET_PREV(table_LRU, table);
 
+		table->lock();
+
 		if (dict_table_can_be_evicted(table)) {
+
+			table->unlock();
 
 			dict_table_remove_from_cache_low(table, TRUE);
 
 			++n_evicted;
+		} else {
+
+			table->unlock();
 		}
 
 		table = prev_table;
@@ -2565,6 +2595,7 @@ dict_index_add_to_cache(
 	page_no_t	page_no,
 	ibool		strict)
 {
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	return(dict_index_add_to_cache_w_vcol(
 		table, index, NULL, page_no, strict));
 }
@@ -2594,7 +2625,7 @@ dict_index_add_to_cache_w_vcol(
 	ulint		i;
 
 	ut_ad(index);
-	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	ut_ad(index->n_def == index->n_fields);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -2701,9 +2732,6 @@ dict_index_add_to_cache_w_vcol(
 	new_index->stat_index_size = 1;
 	new_index->stat_n_leaf_pages = 1;
 
-	/* Add the new index as the last index for the table */
-
-	UT_LIST_ADD_LAST(table->indexes, new_index);
 	new_index->table = table;
 	new_index->table_name = table->name.m_name;
 	new_index->search_info = btr_search_info_create(new_index->heap);
@@ -2712,11 +2740,18 @@ dict_index_add_to_cache_w_vcol(
 	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
 		       SYNC_INDEX_TREE);
 
+	mutex_enter(&dict_sys->mutex);
+
+	/* Add the new index as the last index for the table */
+	UT_LIST_ADD_LAST(table->indexes, new_index);
+
 	/* Intrinsic table are not added to dictionary cache instead are
 	cached to session specific thread cache. */
 	if (!table->is_intrinsic()) {
 		dict_sys->size += mem_heap_get_size(new_index->heap);
 	}
+
+	mutex_exit(&dict_sys->mutex);
 
 	/* Check if key part of the index is unique. */
 	if (table->is_intrinsic()) {
@@ -2939,7 +2974,6 @@ dict_index_find_cols(
 
 	ut_ad(table != NULL && index != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 
 	for (ulint i = 0; i < index->n_fields; i++) {
 		ulint		j;
@@ -3175,7 +3209,7 @@ dict_index_build_internal_clust(
 	ut_ad(index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(index));
 
-	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index object with certainly enough fields */
@@ -3336,7 +3370,7 @@ dict_index_build_internal_non_clust(
 	ut_ad(table && index);
 	ut_ad(!index->is_clustered());
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* The clustered index should be the first in the list of indexes */
@@ -3435,7 +3469,7 @@ dict_index_build_internal_fts(
 
 	ut_ad(table && index);
 	ut_ad(index->type == DICT_FTS);
-	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index */
@@ -7108,8 +7142,6 @@ DDTableBuffer::open()
 		++root;
 	}
 
-	mutex_enter(&dict_sys->mutex);
-
 	table = dict_mem_table_create(
 		table_name, dict_sys_t::s_space_id, N_USER_COLS, 0, 0, 0);
 
@@ -7150,9 +7182,11 @@ DDTableBuffer::open()
 		ut_ad(0);
 	}
 
-	dict_table_add_to_cache(table, true, heap);
-
 	m_index = table->first_index();
+
+	mutex_enter(&dict_sys->mutex);
+
+	dict_table_add_to_cache(table, true, heap);
 
 	table->acquire();
 

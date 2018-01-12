@@ -202,7 +202,7 @@ dict_build_tablespace_for_table(
 	char*		filepath;
 	ut_d(static uint32_t    crash_injection_after_create_counter = 1;);
 
-	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	needs_file_per_table
 		= DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE);
@@ -261,7 +261,7 @@ dict_build_tablespace_for_table(
 		}
 
 		log_ddl->write_delete_space_log(
-			trx, table, space, filepath, false, true);
+			trx, table, space, filepath, false, false);
 
 		/* We create a new single-table tablespace for the table.
 		We initially let it be 4 pages:
@@ -304,7 +304,7 @@ dict_build_tablespace_for_table(
 			return(DB_ERROR);
 		}
 
-		err = btr_sdi_create_index(table->space, true);
+		err = btr_sdi_create_index(table->space, false);
 		return(err);
 
 	} else {
@@ -347,7 +347,7 @@ dict_build_index_def(
 	dict_index_t*		index,	/*!< in/out: index */
 	trx_t*			trx)	/*!< in/out: InnoDB transaction handle */
 {
-	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || index->is_clustered());
 
@@ -391,7 +391,7 @@ dict_create_index_tree_in_mem(
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
 
-	ut_ad(mutex_own(&dict_sys->mutex) || index->table->is_intrinsic());
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
 			return(DB_OUT_OF_MEMORY););
@@ -448,11 +448,6 @@ dict_create_index_tree_in_mem(
 		}
 	}
 
-#if 0
-	if (!index->table->is_intrinsic()) {
-		mutex_enter(&dict_sys->mutex);
-	}
-#endif
 	return(err);
 }
 
@@ -765,7 +760,6 @@ dict_sdi_create_idx_in_mem(
 	dict_stats_set_persistent(table, false, true);
 
 	dict_table_add_system_columns(table, heap);
-	dict_table_add_to_cache(table, TRUE, heap);
 
 	const char*	index_name = "CLUST_IND_SDI";
 
@@ -802,10 +796,16 @@ dict_sdi_create_idx_in_mem(
 
 	temp_index->id = dict_sdi_get_index_id();
 
+	mutex_exit(&dict_sys->mutex);
+
 	dberr_t	error = dict_index_add_to_cache(table, temp_index,
 						index_root_page_num, false);
 
+	mutex_enter(&dict_sys->mutex);
+
 	ut_a(error == DB_SUCCESS);
+
+	dict_table_add_to_cache(table, TRUE, heap);
 
 	mem_heap_free(heap);
 	return(table->first_index());

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -369,9 +369,8 @@ void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/*!< in/out: transaction */
-/*********************************************************************//**
-Creates a table for MySQL. On failure the transaction will be rolled back
-and the 'table' object will be freed.
+/** Creates a table for MySQL. On success the in-memory table could be
+kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	table		table definition(will be freed, or on
 				DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr

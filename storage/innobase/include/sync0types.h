@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -303,6 +303,7 @@ enum latch_level_t {
 	SYNC_IBUF_PESS_INSERT_MUTEX,
 	SYNC_IBUF_HEADER,
 	SYNC_DICT_HEADER,
+	SYNC_TABLE,
 	SYNC_STATS_AUTO_RECALC,
 	SYNC_DICT_AUTOINC_MUTEX,
 	SYNC_DICT,
@@ -345,6 +346,7 @@ enum latch_id_t {
 	LATCH_ID_CACHE_LAST_READ,
 	LATCH_ID_DICT_FOREIGN_ERR,
 	LATCH_ID_DICT_SYS,
+	LATCH_ID_DICT_TABLE,
 	LATCH_ID_FIL_SHARD,
 	LATCH_ID_FLUSH_LIST,
 	LATCH_ID_FTS_BG_THREADS,

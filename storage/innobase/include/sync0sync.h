@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -104,6 +104,7 @@ extern mysql_pfs_key_t	cache_last_read_mutex_key;
 extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
 extern mysql_pfs_key_t  dict_persist_dirty_tables_mutex_key;
 extern mysql_pfs_key_t	dict_sys_mutex_key;
+extern mysql_pfs_key_t	dict_table_mutex_key;
 extern mysql_pfs_key_t	parser_mutex_key;
 extern mysql_pfs_key_t	fil_system_mutex_key;
 extern mysql_pfs_key_t	flush_list_mutex_key;

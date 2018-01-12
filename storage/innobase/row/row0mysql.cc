@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2932,9 +2932,8 @@ row_mysql_unlock_data_dictionary(
 	trx->dict_operation_lock_mode = 0;
 }
 
-/*********************************************************************//**
-Creates a table for MySQL. On failure the transaction will be rolled back
-and the 'table' object will be freed.
+/** Creates a table for MySQL. On success the in-memory table could be
+kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in]	table		table definition(will be freed, or on
 				DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
@@ -2949,9 +2948,7 @@ row_create_table_for_mysql(
 	mem_heap_t*	heap;
 	dberr_t		err;
 
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_at_start_of_row_create_table_for_mysql", {
@@ -2987,7 +2984,10 @@ row_create_table_for_mysql(
 		heap = mem_heap_create(512);
 
 		dict_table_add_system_columns(table, heap);
-		dict_table_add_to_cache(table, TRUE, heap);
+
+		mutex_enter(&dict_sys->mutex);
+		dict_table_add_to_cache(table, false, heap);
+		mutex_exit(&dict_sys->mutex);
 
 		/* During upgrade, etc., the log_ddl may haven't been
 		initialized and we don't need to write DDL logs too.
@@ -2998,6 +2998,7 @@ row_create_table_for_mysql(
 
 		mem_heap_free(heap);
 	}
+
 	if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
 
 		ut_ad(dict_table_is_file_per_table(table));
@@ -3050,11 +3051,15 @@ error_handling:
 			<< " because tablespace full";
 
 		/* Still do it here so that the table can always be freed */
-		if (dd_table_open_on_name_in_mem(table->name.m_name, true)) {
+		if (dd_table_open_on_name_in_mem(table->name.m_name, false)) {
+
+			mutex_enter(&dict_sys->mutex);
 
 			dd_table_close(table, nullptr, nullptr, true);
 
 			dict_table_remove_from_cache(table);
+
+			mutex_exit(&dict_sys->mutex);
 		} else {
 			dict_mem_table_free(table);
 		}
@@ -3120,12 +3125,8 @@ row_create_index_for_mysql(
 	}
 
 	if (table == NULL) {
-		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-		ut_ad(mutex_own(&dict_sys->mutex));
-
 		table = dd_table_open_on_name(thd, NULL, table_name,
-					      true, DICT_ERR_IGNORE_NONE);
-
+					      false, DICT_ERR_IGNORE_NONE);
 	} else {
 		table->acquire();
 		ut_ad(table->is_intrinsic());
@@ -3216,7 +3217,9 @@ row_create_index_for_mysql(
 		err = dict_create_index_tree_in_mem(index, trx);
 
 		if (err != DB_SUCCESS && !table->is_intrinsic()) {
+			mutex_enter(&dict_sys->mutex);
 			dict_index_remove_from_cache(table, index);
+			mutex_exit(&dict_sys->mutex);
 		}
 	}
 
@@ -3232,7 +3235,7 @@ row_create_index_for_mysql(
 	}
 
 error_handling:
-	dd_table_close(table, thd, NULL, true);
+	dd_table_close(table, thd, NULL, false);
 
 	trx->op_info = "";
 	trx->dict_operation = TRX_DICT_OP_NONE;
@@ -3279,7 +3282,6 @@ row_table_add_foreign_constraints(
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_a(sql_string);
 
 	trx->op_info = "adding foreign keys";
@@ -4467,11 +4469,13 @@ row_drop_table_for_mysql(
 	}
 
 	if (!table->is_temporary() && !file_per_table) {
+		mutex_exit(&dict_sys->mutex);
 		for (dict_index_t* index = table->first_index();
 		     index != NULL;
 		     index = index->next()) {
 			log_ddl->write_free_tree_log(trx, index, true);
 		}
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	/* Mark all indexes unavailable in the data dictionary cache

@@ -4674,8 +4674,12 @@ prepare_inplace_alter_table_dict(
 			}
 		}
 
+		mutex_exit(&dict_sys->mutex);
+
 		error = row_create_table_for_mysql(
 			ctx->new_table, compression, ctx->trx);
+
+		mutex_enter(&dict_sys->mutex);
 
 		punch_hole_warning =
 			(error == DB_IO_NO_PUNCH_HOLE_FS)
@@ -4700,12 +4704,18 @@ prepare_inplace_alter_table_dict(
 			// Fall through.
 
 		case DB_SUCCESS:
-			/* We need to bump up the table ref count and
-			before we can use it we need to open the
-			table. The new_table must be in the data
-			dictionary cache, because we are still holding
-			the dict_sys->mutex. */
+			/* To bump up the table ref count and move it
+			to LRU list if it's not temporary table */
 			ut_ad(mutex_own(&dict_sys->mutex));
+			if (!ctx->new_table->is_temporary()
+			    && !ctx->new_table->explicitly_non_lru) {
+				dict_table_allow_eviction(ctx->new_table);
+			}
+			if ((ctx->new_table->flags2
+			     & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID))
+			    || ctx->new_table->fts != nullptr) {
+				fts_freeze_aux_tables(ctx->new_table);
+			}
 			temp_table = dd_table_open_on_name_in_mem(
 				ctx->new_table->name.m_name, true);
 			ut_a(ctx->new_table == temp_table);
@@ -4918,7 +4928,9 @@ new_clustered_failed:
 		/* This function will commit the transaction and reset
 		the trx_t::dict_operation flag on success. */
 
+		mutex_exit(&dict_sys->mutex);
 		error = fts_create_index_tables(ctx->trx, fts_index);
+		mutex_enter(&dict_sys->mutex);
 
 		DBUG_EXECUTE_IF("innodb_test_fail_after_fts_index_table",
 				error = DB_LOCK_WAIT_TIMEOUT;
@@ -4931,6 +4943,8 @@ new_clustered_failed:
 		if (!ctx->new_table->fts
 		    || ib_vector_size(ctx->new_table->fts->indexes) == 0) {
 			bool	exist_fts_common;
+
+			mutex_exit(&dict_sys->mutex);
 			exist_fts_common = fts_check_common_tables_exist(
 				ctx->new_table);
 
@@ -4944,14 +4958,12 @@ new_clustered_failed:
 					error = DB_LOCK_WAIT_TIMEOUT;);
 
 				if (error != DB_SUCCESS) {
+					mutex_enter(&dict_sys->mutex);
 					goto error_handling;
 				}
 
 				build_fts_common = true;
 			}
-
-			ut_ad(mutex_own(&dict_sys->mutex));
-			mutex_exit(&dict_sys->mutex);
 
 			error = innobase_fts_load_stopword(
 				ctx->new_table, nullptr,
@@ -7347,7 +7359,9 @@ commit_cache_norebuild(
 			/* It is a single table tablespace and the .ibd file is
 			missing if root is FIL_NULL, do nothing. */
 			if (index->page != FIL_NULL) {
+				mutex_exit(&dict_sys->mutex);
 				log_ddl->write_free_tree_log(trx, index, true);
+				mutex_enter(&dict_sys->mutex);
 			}
 
 			btr_drop_ahi_for_index(index);
