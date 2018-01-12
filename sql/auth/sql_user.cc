@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -1463,7 +1463,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
       my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
   }
 
-  if (some_users_created || if_not_exists)
+  if (some_users_created || (if_not_exists && !thd->is_error()))
   {
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
@@ -1947,7 +1947,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
   }
 
-  if (some_user_altered || if_exists)
+  if (some_user_altered || (if_exists && !thd->is_error()))
   {
     /* do query rewrite for ALTER USER */
     String *rlb= &thd->rewritten_query;
