@@ -89,6 +89,8 @@ private:
 /** Table PERFORMANCE_SCHEMA.replication_applier_status */
 class table_replication_applier_status : public PFS_engine_table
 {
+  typedef PFS_simple_index pos_t;
+
 private:
   int make_row(Master_info *mi);
 
@@ -100,9 +102,9 @@ private:
   /** Current row */
   st_row_applier_status m_row;
   /** Current position. */
-  PFS_simple_index m_pos;
+  pos_t m_pos;
   /** Next position. */
-  PFS_simple_index m_next_pos;
+  pos_t m_next_pos;
 
 protected:
   /**

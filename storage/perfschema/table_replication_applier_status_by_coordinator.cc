@@ -86,7 +86,7 @@ PFS_engine_table_share
     NULL, /* write_row */
     NULL, /* delete_all_rows */
     table_replication_applier_status_by_coordinator::get_row_count,
-    sizeof(PFS_simple_index), /* ref length */
+    sizeof(pos_t), /* ref length */
     &m_table_lock,
     &m_table_def,
     true, /* perpetual */
@@ -107,7 +107,7 @@ PFS_index_rpl_applier_status_by_coord_by_channel::match(Master_info *mi)
       mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
-    if (!m_key.match(row.channel_name, row.channel_name_length))
+    if (!m_key.match_not_null(row.channel_name, row.channel_name_length))
     {
       return false;
     }
@@ -122,7 +122,8 @@ PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi)
   if (m_fields >= 1)
   {
     st_row_coordinator row;
-    row.thread_id_is_null = true;
+    /* NULL THREAD_ID is represented by 0 */
+    row.thread_id = 0;
 
     mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -133,16 +134,10 @@ PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi)
       if (pfs)
       {
         row.thread_id = pfs->m_thread_internal_id;
-        row.thread_id_is_null = false;
       }
     }
 
     mysql_mutex_unlock(&mi->rli->data_lock);
-
-    if (row.thread_id_is_null)
-    {
-      return false;
-    }
 
     if (!m_key.match(row.thread_id))
     {
@@ -221,7 +216,7 @@ table_replication_applier_status_by_coordinator::rnd_next(void)
 
 int
 table_replication_applier_status_by_coordinator::rnd_pos(
-  const void *pos MY_ATTRIBUTE((unused)))
+  const void *pos)
 {
   int res = HA_ERR_RECORD_DELETED;
 
@@ -243,7 +238,7 @@ table_replication_applier_status_by_coordinator::rnd_pos(
 
 int
 table_replication_applier_status_by_coordinator::index_init(
-  uint idx MY_ATTRIBUTE((unused)), bool)
+  uint idx, bool)
 {
   PFS_index_rpl_applier_status_by_coord *result = NULL;
 
@@ -314,6 +309,9 @@ table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
   memcpy(
     m_row.channel_name, (char *)mi->get_channel(), m_row.channel_name_length);
 
+  m_row.thread_id = 0;
+  m_row.thread_id_is_null = true;
+
   if (mi->rli->slave_running)
   {
     PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
@@ -323,14 +321,6 @@ table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
       m_row.thread_id = pfs->m_thread_internal_id;
       m_row.thread_id_is_null = false;
     }
-    else
-    {
-      m_row.thread_id_is_null = true;
-    }
-  }
-  else
-  {
-    m_row.thread_id_is_null = true;
   }
 
   if (mi->rli->slave_running)
@@ -392,10 +382,10 @@ table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
 
 int
 table_replication_applier_status_by_coordinator::read_row_values(
-  TABLE *table MY_ATTRIBUTE((unused)),
-  unsigned char *buf MY_ATTRIBUTE((unused)),
-  Field **fields MY_ATTRIBUTE((unused)),
-  bool read_all MY_ATTRIBUTE((unused)))
+  TABLE *table,
+  unsigned char *buf,
+  Field **fields,
+  bool read_all)
 {
   Field *f;
 

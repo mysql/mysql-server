@@ -132,7 +132,7 @@ PFS_engine_table_share table_replication_connection_status::m_share = {
   NULL,                                               /* write_row */
   NULL,                                               /* delete_all_rows */
   table_replication_connection_status::get_row_count, /* records */
-  sizeof(PFS_simple_index),                           /* ref length */
+  sizeof(pos_t),                           /* ref length */
   &m_table_lock,
   &m_table_def,
   true, /* perpetual */
@@ -153,7 +153,7 @@ PFS_index_rpl_connection_status_by_channel::match(Master_info *mi)
       mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
-    if (!m_key.match(row.channel_name, row.channel_name_length))
+    if (!m_key.match_not_null(row.channel_name, row.channel_name_length))
     {
       return false;
     }
@@ -168,27 +168,17 @@ PFS_index_rpl_connection_status_by_thread::match(Master_info *mi)
   if (m_fields >= 1)
   {
     st_row_connect_status row;
-    row.thread_id_is_null = true;
+    /* NULL THREAD_ID is represented by 0 */
+    row.thread_id = 0;
 
-    /* See mutex comments in rpl_slave.h */
-    mysql_mutex_lock(&mi->rli->run_lock);
-
-    if (mi->rli->slave_running)
+    if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
     {
-      PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
+      PSI_thread *psi = thd_get_psi(mi->info_thd);
       PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
       if (pfs)
       {
         row.thread_id = pfs->m_thread_internal_id;
-        row.thread_id_is_null = false;
       }
-    }
-
-    mysql_mutex_unlock(&mi->rli->run_lock);
-
-    if (row.thread_id_is_null)
-    {
-      return false;
     }
 
     if (!m_key.match(row.thread_id))
@@ -232,33 +222,35 @@ table_replication_connection_status::get_row_count()
 int
 table_replication_connection_status::rnd_next(void)
 {
-  int res = HA_ERR_END_OF_FILE;
-
   Master_info *mi = NULL;
 
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < channel_map.get_max_channels() && res != 0;
+       m_pos.m_index < channel_map.get_max_channels();
        m_pos.next())
   {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
     if (mi && mi->host[0])
     {
-      res = make_row(mi);
-      m_next_pos.set_after(&m_pos);
+      if (!make_row(mi))
+      {
+        m_next_pos.set_after(&m_pos);
+        channel_map.unlock();
+        return 0;
+      }
     }
   }
 
   channel_map.unlock();
 
-  return res;
+  return HA_ERR_END_OF_FILE;
 }
 
 int
 table_replication_connection_status::rnd_pos(
-  const void *pos MY_ATTRIBUTE((unused)))
+  const void *pos)
 {
   int res = HA_ERR_RECORD_DELETED;
 
@@ -279,7 +271,7 @@ table_replication_connection_status::rnd_pos(
 }
 
 int
-table_replication_connection_status::index_init(uint idx MY_ATTRIBUTE((unused)),
+table_replication_connection_status::index_init(uint idx,
                                                 bool)
 {
   PFS_index_rpl_connection_status *result = NULL;
@@ -304,14 +296,12 @@ table_replication_connection_status::index_init(uint idx MY_ATTRIBUTE((unused)),
 int
 table_replication_connection_status::index_next(void)
 {
-  int res = HA_ERR_END_OF_FILE;
-
   Master_info *mi = NULL;
 
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < channel_map.get_max_channels() && res != 0;
+       m_pos.m_index < channel_map.get_max_channels();
        m_pos.next())
   {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
@@ -320,15 +310,19 @@ table_replication_connection_status::index_next(void)
     {
       if (m_opened_index->match(mi))
       {
-        res = make_row(mi);
-        m_next_pos.set_after(&m_pos);
+        if (!make_row(mi))
+        {
+          m_next_pos.set_after(&m_pos);
+          channel_map.unlock();
+          return 0;
+        }
       }
     }
   }
 
   channel_map.unlock();
 
-  return res;
+  return HA_ERR_END_OF_FILE;
 }
 
 int
@@ -484,10 +478,10 @@ end:
 
 int
 table_replication_connection_status::read_row_values(
-  TABLE *table MY_ATTRIBUTE((unused)),
-  unsigned char *buf MY_ATTRIBUTE((unused)),
-  Field **fields MY_ATTRIBUTE((unused)),
-  bool read_all MY_ATTRIBUTE((unused)))
+  TABLE *table,
+  unsigned char *buf,
+  Field **fields,
+  bool read_all)
 {
   Field *f;
 

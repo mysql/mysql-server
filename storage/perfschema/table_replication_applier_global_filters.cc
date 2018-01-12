@@ -68,7 +68,7 @@ PFS_engine_table_share table_replication_applier_global_filters::m_share = {
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_applier_global_filters::get_row_count,
-  sizeof(PFS_simple_index), /* ref length */
+  sizeof(pos_t), /* ref length */
   &m_table_lock,
   &m_table_def,
   false, /* perpetual */

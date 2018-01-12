@@ -76,6 +76,7 @@ select SERVICE_STATE
 from performance_schema.replication_connection_status
 where THREAD_ID = @tid;
 SERVICE_STATE
+#
 OK: handler_read_key incremented
 include/stop_slave.inc
 RESET SLAVE ALL;
