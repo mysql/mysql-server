@@ -96,9 +96,6 @@ ndb_dd_sql_features: Bug #26484275 FAILURE OF NDB_DD_SQL_FEATURES TEST ON WINDOW
 ndb_bushy_joins: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
 ndb_many_fragments: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
 
-# Problem with missing information in information_schema
-ndb_dd_basic: Bug #26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
-
 # Problem with incorrect information about partitions in information_schema
 ndb_add_partition: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
 ndb_fragment_count_addnode: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
@@ -110,7 +107,7 @@ ndb_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMA
 # is incomplete and tables in tablespaces cant be restored by running
 # the dumped sql file. This problem probably need both bug#26794727 as
 # well as WL#9185
-ndb_dd_dump: Bug#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+ndb_dd_dump: Needs WL#9185 MySQL Cluster support for new DD
 
 # Problem with table present in DD and not in SE
 ndb_restore_schema_rewrites: Need WL#9185 MySQL Cluster support for new DD
@@ -120,3 +117,10 @@ clusterj: Bug#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
 
 # Test fails with varying failures in all versions
 ndb_truncate_nologging: Bug#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES: Could not acquire global schema lock
+
+# Test fails when the initial logfile group is attempted to be dropped.
+# This is due to the fact that the initial logfile group is created
+# when the data node starts and is not written to the DD causing a
+# mismatch between the NDB Dictionary and DD. This can be solved by
+# installing the initial logfile group into the DD during synchronization
+ndb_dd_initial_lg: Needs WL#9185 MySQL Cluster support for new DD

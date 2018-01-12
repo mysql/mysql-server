@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,7 @@ public:
   bool mdl_lock_table(const char* schema_name, const char* table_name);
   bool mdl_locks_acquire_exclusive(const char* schema_name,
                                    const char* table_name);
+  bool mdl_lock_logfile_group(const char* logfile_group_name);
   void mdl_locks_release();
 
   // Transaction handling functions
@@ -122,6 +123,11 @@ public:
   */
   bool lookup_tablespace_id(const char* tablespace_name,
                             dd::Object_id* tablespace_id);
+  bool install_logfile_group(const char* logfile_group_name,
+                             const char* undo_file_name);
+  bool install_undo_file(const char* logfile_group_name,
+                         const char* undo_file_name);
+  bool drop_logfile_group(const char* logfile_group_name);
 };
 
 

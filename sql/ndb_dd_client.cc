@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/schema.h"
 #include "sql/mdl.h"            // MDL_*
+#include "sql/ndb_dd_disk_data.h"
 #include "sql/ndb_dd_sdi.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/query_options.h"  // OPTION_AUTOCOMMIT
@@ -128,6 +129,28 @@ Ndb_dd_client::mdl_lock_schema(const char* schema_name)
 
   // Remember ticket of the acquired mdl lock
   m_acquired_mdl_tickets.push_back(schema_request.ticket);
+
+  return true;
+}
+
+bool
+Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
+{
+  MDL_request_list mdl_requests;
+  MDL_request logfile_group_request;
+  MDL_REQUEST_INIT(&logfile_group_request,
+                   MDL_key::TABLESPACE, "", logfile_group_name,
+                   MDL_EXCLUSIVE, MDL_EXPLICIT);
+  mdl_requests.push_front(&logfile_group_request);
+
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
+                                       m_thd->variables.lock_wait_timeout))
+  {
+    return false;
+  }
+
+  // Remember ticket of the acquired mdl lock
+  m_acquired_mdl_tickets.push_back(logfile_group_request.ticket);
 
   return true;
 }
@@ -696,6 +719,109 @@ bool Ndb_dd_client::lookup_tablespace_id(const char* tablespace_name,
 
   *tablespace_id = ts_obj->id();
   DBUG_PRINT("exit", ("tablespace_id: %llu", *tablespace_id));
+
+  DBUG_RETURN(true);
+}
+
+bool
+Ndb_dd_client::install_logfile_group(const char* logfile_group_name,
+                                     const char* undo_file_name)
+{
+  DBUG_ENTER("Ndb_dd_client::install_logfile_group");
+
+  /*
+   * Logfile groups are stored as tablespaces in the DD.
+   * This is acceptable since the only reason for storing
+   * them in the DD is to ensure that INFORMATION_SCHEMA
+   * is aware of their presence. Thus, rather than
+   * extending DD, we use tablespaces since they resemble
+   * logfile groups in terms of metadata structure
+   */
+
+  std::unique_ptr<dd::Tablespace>
+         logfile_group(dd::create_object<dd::Tablespace>());
+
+  // Set name
+  logfile_group->set_name(logfile_group_name);
+
+  // Engine type
+  logfile_group->set_engine("ndbcluster");
+
+  // Add undofile
+  ndb_dd_disk_data_add_undo_file(logfile_group.get(), undo_file_name);
+
+  // Assign object type as logfile group
+  ndb_dd_disk_data_set_object_type(logfile_group.get()->se_private_data(),
+                                   object_type::LOGFILE_GROUP);
+
+  // Write changes to dictionary.
+  if (m_client->store(logfile_group.get()))
+  {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+
+}
+
+bool
+Ndb_dd_client::install_undo_file(const char* logfile_group_name,
+                                 const char* undo_file_name)
+{
+  DBUG_ENTER("Ndb_dd_client::install_undo_file");
+
+  // Read logfile group from DD
+  dd::Tablespace *new_logfile_group_def= nullptr;
+  if (m_client->acquire_for_modification(logfile_group_name,
+                                         &new_logfile_group_def))
+    DBUG_RETURN(false);
+
+  if (!new_logfile_group_def)
+    DBUG_RETURN(false);
+
+  ndb_dd_disk_data_add_undo_file(new_logfile_group_def, undo_file_name);
+
+  // Write changes to dictionary.
+  if (m_client->update(new_logfile_group_def))
+  {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+
+}
+
+bool
+Ndb_dd_client::drop_logfile_group(const char* logfile_group_name)
+
+{
+  DBUG_ENTER("Ndb_dd_client::drop_logfile_group");
+
+  /*
+   * Logfile groups are stored as tablespaces in the DD.
+   * This is acceptable since the only reason for storing
+   * them in the DD is to ensure that INFORMATION_SCHEMA
+   * is aware of their presence. Thus, rather than
+   * extending DD, we use tablespaces since they resemble
+   * logfile groups in terms of metadata structure
+   */
+
+  const dd::Tablespace *existing= nullptr;
+  if (m_client->acquire(logfile_group_name, &existing))
+  {
+    DBUG_RETURN(false);
+  }
+
+  if (existing == nullptr)
+  {
+    // Logfile group does not exist
+    DBUG_RETURN(false);
+  }
+
+  if (m_client->drop(existing))
+  {
+    DBUG_RETURN(false);
+  }
 
   DBUG_RETURN(true);
 }
