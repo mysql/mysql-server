@@ -132,6 +132,112 @@ DROP USER u1@localhost;
 --echo [On Slave]
 --source include/show_binlog_events.inc
 
+################################################################################
+# Bug#26680035  CREATE/ALTER USER ERRORS OUT BUT GETS RECORDED IN THE BINARY LOG
+#
+# Problem: create/alter user when used with invalid plugin errors out,
+#          but still gets recorded in binary log.
+#
+# Steps to reproduce:
+#   1) Scenario 1:
+#       1.1) Create user with invalid plugin.
+#       1.2) Create user having 'if not exists' clause with invalid plugin.
+#   2) Scenario 2:
+#       2.1) Alter user with invalid plugin.
+#       2.2) Alter user having 'if exists' clause with invalid plugin.
+#   3) Create/Alter user having multiple users with invalid plugin.
+#   4) Cleanup
+################################################################################
+--echo #
+--echo # Bug26680035:  CREATE/ALTER USER ERRORS OUT BUT GETS RECORDED IN
+--echo #               THE BINARY LOG
+--echo #
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS but they already exist. *");
+
+# Scenario 1: Create user with invalid plugin
+--echo # ------
+--echo "Scenario 1: CREATE USER WITH INVALID PLUGIN"
+--echo # ------
+
+--let $master_pos_before_create_user= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $binlog_start= $master_pos_before_create_user
+--echo #
+--echo # Step 1.1) Create user with invalid plugin.
+--echo #
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER u1@localhost IDENTIFIED WITH 'plugin1';
+
+--echo #
+--echo # Step 1.2) Create user having 'if not exists' clause with invalid
+--echo #           plugin.
+--echo #
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH 'plugin2';
+
+# Assert that the above statements are not written to binlog.
+--let $master_pos_after_create_user= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $assert_text= assert that the above events are not written to binlog
+--let $assert_cond= $master_pos_before_create_user = $master_pos_after_create_user
+--source include/assert.inc
+
+
+# Scenario 2: Alter user with invalid plugin
+--echo # ------
+--echo "Scenario 2: ALTER USER WITH INVALID PLUGIN"
+--echo # ------
+
+CREATE USER u2@localhost;
+--let $master_pos_before_alter_user= query_get_value(SHOW MASTER STATUS,Position,1)
+--echo #
+--echo # Step 2.1) Alter user with invalid plugin.
+--echo #
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER u2@localhost IDENTIFIED WITH 'plugin3';
+
+--echo #
+--echo # Step 2.2) Alter user having 'if exists' clause with invalid plugin.
+--echo #
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER IF EXISTS u2@localhost IDENTIFIED WITH 'plugin4';
+
+# Assert that the above statements are not written to binlog.
+--let $master_pos_after_alter_user= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $assert_text= assert that the above events are not written to binlog
+--let $assert_cond= $master_pos_before_alter_user = $master_pos_after_alter_user
+--source include/assert.inc
+
+
+# Scenario 3: Create/Alter user with invalid plugin with multiple users
+--echo # ------
+--echo "Scenario 3: CREATE/ALTER USER INVALID PLUGIN WITH MULTIPLE USERS"
+--echo # ------
+
+--echo #
+--echo # Step 3) Create/Alter user having multiple users with invalid plugin.
+--echo #
+
+# CREATE throws ERROR since shsh auth_plugin does not exist
+# but will be written to binlog as,u2 already exists and u3 will be created.
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH 'shsh',
+                          u2@localhost IDENTIFIED BY 'pass',
+                          u3@localhost IDENTIFIED WITH 'sha256_password';
+
+# ALTER throws ERROR since shsh auth_plugin does not exist
+# but will be written to binlog as, u2 is altered.
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER IF EXISTS u1@localhost IDENTIFIED WITH 'shsh',
+                     u2@localhost IDENTIFIED BY 'xyz',
+                     u3@localhost IDENTIFIED WITH 'sha256_password';
+
+# Check whether the above statements are written to binlog or not.
+--source include/show_binlog_events.inc
+
+--echo #
+--echo # Step 4) Cleanup
+--echo #
+DROP USER u2@localhost,u3@localhost;
+
 # Search for the warnings in the server log
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
