@@ -201,9 +201,18 @@ public:
    */
   struct RowPtr
   {
-    Uint32 m_type;
-    Uint32 m_src_node_ptrI;
-    Uint32 m_src_correlation;
+    enum RowType
+    {
+      RT_SECTION = 1,
+      RT_LINEAR = 2,
+      RT_END = 0
+    };
+
+    RowType m_type;
+    Uint32  m_src_node_ptrI;
+    Uint32  m_src_correlation;
+
+    TreeNodeBitMask *m_matched;  //If 'T_BUFFER_MATCH' is specified, else NULL
 
     struct Header
     {
@@ -228,13 +237,6 @@ public:
       struct Section m_section;
       struct Linear m_linear;
     } m_row_data;
-
-    enum RowType
-    {
-      RT_SECTION = 1,
-      RT_LINEAR = 2,
-      RT_END = 0
-    };
   };
 
   struct RowBuffer;  // forward decl.
@@ -839,8 +841,9 @@ public:
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),
       m_parentPtrI(RNIL), m_requestPtrI(RNIL),
-      m_ancestors(),
-      m_resumeEvents(0), m_resumePtrI(RNIL)
+      m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
+      m_resumeEvents(0), m_resumePtrI(RNIL),
+      m_scanAncestorPtrI(RNIL)
     {
     }
 
@@ -848,8 +851,9 @@ public:
     : m_magic(MAGIC),
       m_info(0), m_bits(T_LEAF), m_state(TN_BUILDING),
       m_parentPtrI(RNIL), m_requestPtrI(request),
-      m_ancestors(),
+      m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
       m_resumeEvents(0), m_resumePtrI(RNIL),
+      m_scanAncestorPtrI(RNIL),
       nextList(RNIL), prevList(RNIL)
     {
 //    m_send.m_ref = 0;
@@ -857,6 +861,10 @@ public:
       m_send.m_keyInfoPtrI = RNIL;
       m_send.m_attrInfoPtrI = RNIL;
     }
+
+    // TreeNode represent either a 'lookup' or 'scan' operation
+    bool isLookup() const { return (m_info == &g_LookupOpInfo); }
+    bool isScan()   const { return (m_info != &g_LookupOpInfo); }
 
     const Uint32 m_magic;
     const struct OpInfo* m_info;
@@ -935,22 +943,23 @@ public:
       T_UNIQUE_INDEX_LOOKUP = 0x40,
 
       /*
-       * Should this node buffers its rows
+       * Should this node buffers its rows or 'm_matched' bitmask?
+       *  We could request the buffer to store either the 'ROW',
+       *  as received by TRANSID_AI, and/or a 'MATCH' bitMask.
+       *  If 'ROW' is not specified, the correlationId of the 
+       *  row is stored nevertheless. 
        */
-      T_ROW_BUFFER = 0x80,
+      T_BUFFER_ROW   = 0x80,
+      T_BUFFER_MATCH = 0x100,
+      T_BUFFER_ANY   = (T_BUFFER_ROW | T_BUFFER_MATCH),
 
       /**
-       * Should rows have dictionary (i.e random access capability)
+       * Should row/match buffers have dictionary (i.e random access capability)
        *  This is typically used when having nodes depending on multiple parents
-       *  so that when row gets availble from "last" parent, a key can be
+       *  so that when row gets available from "last" parent, a key can be
        *  constructed using correlation value from parents
        */
-      T_ROW_BUFFER_MAP = 0x100,
-
-      /**
-       * Does any child need to know when all its ancestors are complete
-       */
-      T_REPORT_BATCH_COMPLETE  = 0x200,
+      T_BUFFER_MAP = 0x200,
 
       /**
        * Do *I need* to know when all ancestors has completed this batch
@@ -977,11 +986,7 @@ public:
        */
       T_SCAN_REPEATABLE = 0x4000,
 
-      /**
-       * Exec of a previous REQ must complete before we can proceed.
-       * A ResumeEvent will later resume exec. of this operation
-       */
-      T_EXEC_SEQUENTIAL = 0x8000,
+      // 0x8000, Deprecated, available for reuse
 
       /**
        * Does this node need the m_prepare() method to be called.
@@ -996,6 +1001,17 @@ public:
        */
       T_NEED_COMPLETE = 0x20000,
 
+      /**
+       * Allow inner-join optimizations for this treeNode.
+       * (No outer-join semantics required)
+       */
+      T_INNER_JOIN = 0x40000,
+
+      /**
+       * A TRANSID_AI signal is returned for each row found by the datanodes.
+       */
+      T_EXPECT_TRANSID_AI = 0x80000,
+
       // End marker...
       T_END = 0
     };
@@ -1007,8 +1023,12 @@ public:
      */
     enum TreeNodeResumeEvents
     {
-      TN_RESUME_REF   = 0x01,
-      TN_RESUME_CONF  = 0x02
+      TN_ENQUEUE_OP   = 0x01,   // Enqueue and wait for RESUME_REF / _CONF
+      TN_RESUME_REF   = 0x02,
+      TN_RESUME_CONF  = 0x04,
+
+      TN_EXEC_WAIT    = 0x08,
+      TN_RESUME_NODE  = 0x10
     };
 
     bool isLeaf() const { return (m_bits & T_LEAF) != 0;}
@@ -1026,8 +1046,54 @@ public:
     Uint32 m_batch_size;
     Uint32 m_parentPtrI;
     const Uint32 m_requestPtrI;
+
+    /**
+     * The TreeNode organize its descendant nodes in two different lists:
+     *
+     * m_child_nodes: (The dependent nodes)
+     *   Are the list of descendant nodes as organized by the request sent
+     *   from the SPJ API. All child-TreeNodes will have their 'm_parentPtrI'
+     *   referring 'this' TreeNode.
+     *
+     * m_next_nodes: (The execution order)
+     *   The list of TreeNodes having operations to be started after
+     *   this TreeNode, either when a single operation completes, or
+     *   after completion of entire 'batch' from this TreeNode.
+     *   All 'm_child_nodes' will either be directly included in
+     *   the 'next' list, or be included in the 'next' list of some
+     *   'next' TreeNodes.
+     *   Usage is to set up a more sequential execution plan than what
+     *   is available through the 'child' list.
+     */
+    Dependency_map::Head m_child_nodes;
+    Dependency_map::Head m_next_nodes;
+
+    /**
+     * We provide some TreeNodeBitMap's. Usefull to check how
+     * a specific node relates to other TreeNodes:
+     *
+     * - 'ancestors' are the set of TreeNodes reachable through
+     *    this node's (grand-)parentPtr(s)
+     * - 'coverage' is the set of (grand-)children reachable through
+     *    a 'm_child_nodes' dive. Also include this TreeNode itself.
+     * - 'predecessors' are the TreeNodes which will be executed prior
+     *    to this TreeNode. This include all 'ancestors', as well as
+     *    other TreeNodes which the SPJ 'query planner' may decide
+     *    to execute prior to this TreeNode.
+     * - 'dependencies' are the sub set of 'predecessors' where 
+     *    there are an inner-join relation specified between the
+     *    TreeNodes.
+     *
+     * 'ancestors' and 'coverage' relates to the topology of the query
+     * as represented by parentPtrI and m_child_nodes. 'predecessors' and
+     * 'dependencies' relates to the order of execution, as represented by
+     * 'm_next_nodes'.
+     */
     TreeNodeBitMask m_ancestors;
-    Dependency_map::Head m_dependent_nodes;
+    TreeNodeBitMask m_coverage;
+    TreeNodeBitMask m_predecessors;
+    TreeNodeBitMask m_dependencies;
+
     PatternStore::Head m_keyPattern;
     PatternStore::Head m_attrParamPattern;
 
@@ -1051,6 +1117,12 @@ public:
      */
     Uint32 m_resumeEvents;
     Uint32 m_resumePtrI;
+
+    /**
+     * The Scan-TreeNode being the head of the inner-joined-branch
+     * this node is a member of.
+     */
+    Uint32 m_scanAncestorPtrI;
 
     union
     {
@@ -1095,7 +1167,7 @@ public:
     enum RequestBits
     {
       RT_SCAN                = 0x1  // unbounded result set, scan interface
-      ,RT_ROW_BUFFERS        = 0x2  // Do any of the node use row-buffering
+      ,RT_BUFFERS            = 0x2  // Do any of nodes use row/match-buffering
       ,RT_MULTI_SCAN         = 0x4  // Is there several scans in request
 //    ,RT_VAR_ALLOC          = 0x8  // DEPRECATED
       ,RT_NEED_PREPARE       = 0x10 // Does any node need m_prepare hook
@@ -1151,7 +1223,8 @@ public:
     NDB_TICKS m_save_time;
 #endif
 
-    bool isScan() const { return (m_bits & RT_SCAN) != 0;}
+    // Entire query may be either a 'scan' or 'lookup' type
+    bool isScan()   const { return (m_bits & RT_SCAN) != 0;}
     bool isLookup() const { return (m_bits & RT_SCAN) == 0;}
 
     bool equal(const Request & key) const {
@@ -1333,7 +1406,27 @@ private:
   const OpInfo* getOpInfo(Uint32 op);
   Uint32 build(Build_context&,Ptr<Request>,SectionReader&,SectionReader&);
   Uint32 initRowBuffers(Ptr<Request>);
-  void buildExecPlan(Ptr<Request>, Ptr<TreeNode> node, Ptr<TreeNode> next);
+
+  void setupAncestors(Ptr<Request>  requestPtr,
+                      Ptr<TreeNode> treeNodePtr,
+                      Uint32 scanAncestorPtrI);
+  
+  Uint32 buildExecPlan(Ptr<Request> requestPtr);
+  Uint32 planParallelExec(Ptr<Request> requestPtr,
+			  Ptr<TreeNode> treeNodePtr);
+
+  Uint32 planSequentialExec(Ptr<Request>  requestPtr,
+                            const Ptr<TreeNode> branchPtr,
+                            Ptr<TreeNode> prevExecPtr,
+                            const Ptr<TreeNode> outerBranchPtr);
+
+  Uint32 appendTreeNode(Ptr<Request>  requestPtr,
+                        Ptr<TreeNode> treeNodePtr,
+                        Ptr<TreeNode> prevExecPtr,
+                        const Ptr<TreeNode> outerBranchPtr);
+
+  void dumpExecPlan(Ptr<Request>, Ptr<TreeNode> node);
+
   void prepare(Signal*, Ptr<Request>);
   void checkPrepareComplete(Signal*, Ptr<Request>);
   void checkBatchComplete(Signal*, Ptr<Request>);
@@ -1359,8 +1452,8 @@ private:
   /**
    * Row buffering
    */
-  Uint32 storeRow(RowCollection& collection, RowPtr &row);
-  void releaseRow(RowCollection& collection, RowRef ref);
+  Uint32 storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row);
+  void releaseRow(Ptr<TreeNode> treeNodePtr, RowRef ref);
   Uint32* stackAlloc(RowBuffer& dst, RowRef&, Uint32 len);
   Uint32* varAlloc(RowBuffer& dst, RowRef&, Uint32 len);
   Uint32* rowAlloc(RowBuffer& dst, RowRef&, Uint32 len);
@@ -1368,9 +1461,14 @@ private:
   void add_to_list(SLFifoRowList & list, RowRef);
   Uint32 add_to_map(RowMap& map, Uint32, RowRef);
 
-  void setupRowPtr(const RowCollection& collection,
+  void setupRowPtr(Ptr<TreeNode> treeNodePtr,
                    RowPtr& dst, RowRef, const Uint32 * src);
   Uint32 * get_row_ptr(RowRef pos);
+
+  void getBufferedRow(const Ptr<TreeNode>, Uint32 rowId,
+                      RowPtr *row);
+
+  void resumeBufferedNode(Signal*, Ptr<Request>, Ptr<TreeNode>);
 
   /**
    * SLFifoRowListIterator
@@ -1425,8 +1523,9 @@ private:
       return expandS(ptrI, p, r, hasNull);
     case RowPtr::RT_LINEAR:
       return expandL(ptrI, p, r, hasNull);
+    default:
+      return DbspjErr::InternalError;
     }
-    return DbspjErr::InternalError;
   }
   Uint32 expandS(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
   Uint32 expandL(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
