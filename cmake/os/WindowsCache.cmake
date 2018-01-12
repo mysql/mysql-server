@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -249,11 +249,6 @@ SET(HAVE_GETGRNAM_R CACHE  INTERNAL "")
 # Thread pool
 #
 SET(HAVE_EPOLL_WAIT CACHE INTERNAL "")
-
-#
-# YaSSL
-#
-SET(HAVE_UNUSED_CONST_VAR CACHE INTERNAL "")
 
 #
 # Compiler options

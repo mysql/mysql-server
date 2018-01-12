@@ -1,5 +1,5 @@
-call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([0-9]*\\)'");
-call mtr.add_suppression("Plugin mysqlx reported: '[0-9]*: Error during SSL handshake'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Error during SSL handshake for client connection \\([-0-9]*\\)'");
+call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL handshake'");
 SET GLOBAL mysqlx_connect_timeout = 300;
 CREATE USER user5_mysqlx@localhost
 IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'

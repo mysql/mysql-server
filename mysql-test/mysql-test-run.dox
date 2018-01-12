@@ -3318,9 +3318,7 @@
 
       The protocols permitted by the client for encrypted connections.
       The value is a comma-separated list containing one or more of
-      these protocols: TLSv1, TLSv1.1, TLSv1.2. (TLSv1.2 is supported
-      only if MySQL was compiled using OpenSSL 1.0.1 or higher. It is
-      not supported if MySQL was compiled using yaSSL).
+      these protocols: TLSv1, TLSv1.1, TLSv1.2.
     </li>
 
     <li>

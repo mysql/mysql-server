@@ -318,22 +318,40 @@ String *Item_func_sha2::val_str_ascii(String *str)
 #ifndef OPENSSL_NO_SHA512
   case 512:
     digest_length= SHA512_DIGEST_LENGTH;
+#ifdef HAVE_WOLFSSL
+    (void) SHA_HASH512(input_ptr, input_len, digest_buf);
+#else
     (void) SHA512(input_ptr, input_len, digest_buf);
+#endif
     break;
   case 384:
     digest_length= SHA384_DIGEST_LENGTH;
+#ifdef HAVE_WOLFSSL
+    (void) SHA_HASH384(input_ptr, input_len, digest_buf);
+#else
     (void) SHA384(input_ptr, input_len, digest_buf);
+#endif
     break;
 #endif
 #ifndef OPENSSL_NO_SHA256
   case 224:
+#ifdef HAVE_WOLFSSL
+    /* sha224 not supported in wolfSSL */
+    digest_length= SHA224_DIGEST_LENGTH;
+    (void) SHA_HASH224(input_ptr, input_len, digest_buf);
+#else
     digest_length= SHA224_DIGEST_LENGTH;
     (void) SHA224(input_ptr, input_len, digest_buf);
+#endif
     break;
   case 256:
   case 0: // SHA-256 is the default
     digest_length= SHA256_DIGEST_LENGTH;
+#ifdef HAVE_WOLFSSL
+    (void) SHA_HASH256(input_ptr, input_len, digest_buf);
+#else
     (void) SHA256(input_ptr, input_len, digest_buf);
+#endif
     break;
 #endif
   default:
@@ -406,10 +424,10 @@ bool Item_func_sha2::resolve_type(THD *thd)
   case 0: // SHA-256 is the default
     set_data_type_string(SHA256_DIGEST_LENGTH * 2, default_charset());
     break;
+#endif
   case 224:
     set_data_type_string(SHA224_DIGEST_LENGTH * 2, default_charset());
     break;
-#endif
   default:
     set_data_type_string(SHA256_DIGEST_LENGTH * 2, default_charset());
     push_warning_printf(thd,

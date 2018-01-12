@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4488,13 +4488,9 @@ static Sys_var_charptr Sys_ssl_capath(
 
 static Sys_var_charptr Sys_tls_version(
        "tls_version",
-       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2(Only for openssl)",
+       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2",
        READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
-#ifdef HAVE_YASSL
-       IN_FS_CHARSET, "TLSv1,TLSv1.1");
-#else
        IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
-#endif
 
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
@@ -4523,7 +4519,7 @@ static Sys_var_charptr Sys_ssl_crlpath(
        READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
 static Sys_var_bool Sys_auto_generate_certs(
        "auto_generate_certs",
        "Auto generate SSL certificates at server startup if --ssl is set to "
@@ -4537,7 +4533,7 @@ static Sys_var_bool Sys_auto_generate_certs(
        ON_CHECK(NULL),
        ON_UPDATE(NULL),
        NULL);
-#endif /* HAVE_OPENSSL && !HAVE_YASSL */
+#endif /* HAVE_OPENSSL && !HAVE_WOLFSSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
   try
   {
     SSL_library_init(); //always returns 1
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
     ERR_load_BIO_strings();
 #endif
     SSL_load_error_strings();
@@ -172,14 +172,14 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   //not taking a lock here as the calls to keyring_deinit are serialized by
   //the plugin framework
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif
   ERR_free_strings();
   EVP_cleanup();
-#ifndef HAVE_YASSL
   CRYPTO_cleanup_all_ex_data();
-#endif
   keys.reset();
   logger.reset();
   keyring_file_data.reset();

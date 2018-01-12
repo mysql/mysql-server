@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,7 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-#ifndef HAVE_YASSL
 #include <openssl/evp.h>
-#endif
 #include <string.h>
 #include <sys/types.h>
 #include <string>
@@ -89,11 +87,7 @@ namespace sha2_password
                           "source is emptry string"));
       DBUG_RETURN(true);
     }
-#ifndef HAVE_YASSL
     m_ok= EVP_DigestUpdate(md_context, src, length);
-#else
-    md_context->Update((const TaoCrypt::byte *)src, length);
-#endif // !HAVE_YASSL
     DBUG_RETURN(!m_ok);
   }
 
@@ -120,16 +114,12 @@ namespace sha2_password
                           "digest length is not as expected."));
       DBUG_RETURN(true);
     }
-#ifndef HAVE_YASSL
     m_ok= EVP_DigestFinal_ex(md_context, m_digest, NULL);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     EVP_MD_CTX_cleanup(md_context);
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     EVP_MD_CTX_reset(md_context);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#else
-    md_context->Final((TaoCrypt::byte *)m_digest);
-#endif // !HAVE_YASSL
     memcpy(digest, m_digest, length);
     DBUG_RETURN(!m_ok);
   }
@@ -157,7 +147,6 @@ namespace sha2_password
   {
     DBUG_ENTER("SHA256_digest::init");
     m_ok= false;
-#ifndef HAVE_YASSL
     md_context= EVP_MD_CTX_create();
     if (!md_context)
     {
@@ -173,18 +162,6 @@ namespace sha2_password
       md_context= NULL;
       DBUG_PRINT("info", ("Failed to initialize digest context"));
     }
-#else
-    md_context= new TaoCrypt::SHA256();
-    if (!md_context)
-    {
-      DBUG_PRINT("info", ("Failed to create digest context"));
-      DBUG_VOID_RETURN;
-    }
-
-    md_context->Init();
-    m_ok= true;
-
-#endif // !HAVE_YASSL
     DBUG_VOID_RETURN;
   }
 
@@ -196,11 +173,7 @@ namespace sha2_password
   void SHA256_digest::deinit()
   {
     if (md_context)
-#ifndef HAVE_YASSL
       EVP_MD_CTX_destroy(md_context);
-#else
-      delete md_context;
-#endif // !HAVE_YASSL
     md_context= NULL;
     m_ok= false;
   }

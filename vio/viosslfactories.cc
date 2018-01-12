@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,26 +29,18 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#if !defined(HAVE_YASSL) && !defined(HAVE_PSI_INTERFACE)
+#if !defined(HAVE_WOLFSSL) && !defined(HAVE_PSI_INTERFACE)
 #include "mysql/psi/mysql_rwlock.h"
 #endif
 #include "mysql/service_mysql_alloc.h"
 #include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
+#include <openssl/dh.h>
 
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
 
-#ifdef HAVE_YASSL
-static const char tls_ciphers_list[]="DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:"
-                                     "AES128-RMD:DES-CBC3-RMD:DHE-RSA-AES256-RMD:"
-                                     "DHE-RSA-AES128-RMD:DHE-RSA-DES-CBC3-RMD:"
-                                     "AES256-SHA:RC4-SHA:RC4-MD5:DES-CBC3-SHA:"
-                                     "DES-CBC-SHA:EDH-RSA-DES-CBC3-SHA:"
-                                     "EDH-RSA-DES-CBC-SHA:AES128-SHA:AES256-RMD";
-static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:";
-#else
 static const char tls_ciphers_list[]="ECDHE-ECDSA-AES128-GCM-SHA256:"
                                      "ECDHE-ECDSA-AES256-GCM-SHA384:"
                                      "ECDHE-RSA-AES128-GCM-SHA256:"
@@ -89,7 +81,6 @@ static const char tls_cipher_blocked[]= "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!R
                                         "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
                                         "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
                                         "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
-#endif
 
 static bool     ssl_initialized         = false;
 
@@ -256,7 +247,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
   DBUG_RETURN(0);
 }
 
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
 
 /*
   OpenSSL 1.1 supports native platform threads,
@@ -461,7 +452,7 @@ void ssl_start()
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     init_ssl_locks();
     init_lock_callback_functions();
@@ -474,19 +465,11 @@ long process_tls_version(const char *tls_version)
 {
   const char *separator= ",";
   char *token, *lasts= NULL;
-#ifndef HAVE_YASSL
   unsigned int tls_versions_count= 3;
   const char *tls_version_name_list[3]= {"TLSv1", "TLSv1.1", "TLSv1.2"};
   const char ctx_flag_default[]= "TLSv1,TLSv1.1,TLSv1.2";
   const long tls_ctx_list[3]= {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
   long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
-#else
-  unsigned int tls_versions_count= 2;
-  const char *tls_version_name_list[2]= {"TLSv1", "TLSv1.1"};
-  const long tls_ctx_list[2]= {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1};
-  const char ctx_flag_default[]= "TLSv1,TLSv1.1";
-  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1;
-#endif
   unsigned int index= 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE]= "";
   int tls_found= 0;
@@ -518,6 +501,29 @@ long process_tls_version(const char *tls_version)
   else
     return tls_ctx_flag;
 }
+
+#ifdef HAVE_WOLFSSL
+static int wolfssl_recv(WOLFSSL* ssl, char* buf, int sz, void* vio)
+{
+    size_t ret;
+
+    (void) ssl;
+    ret = vio_read(static_cast<Vio *>(vio), (uchar *)buf, sz);
+
+    /* check if connection was closed */
+    if (ret == 0) {
+        return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+    }
+    return static_cast<int>(ret);
+}
+
+static int wolfssl_send(WOLFSSL* ssl, char* buf, int sz, void* vio)
+{
+    (void) ssl;
+    return (int) vio_write(static_cast<Vio *>(vio), (unsigned char*) buf, sz);
+}
+#endif /* HAVE_WOLFSSL */
+
 
 /************************ VioSSLFd **********************************/
 static struct st_VioSSLFd *
@@ -554,15 +560,11 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   }
 
   ssl_ctx_options= (ssl_ctx_options | ssl_ctx_flags) &
-                   (SSL_OP_NO_SSLv2 |
-                    SSL_OP_NO_SSLv3 |
-                    SSL_OP_NO_TLSv1 |
-                    SSL_OP_NO_TLSv1_1
-#ifndef HAVE_YASSL
+                   (SSL_OP_NO_SSLv2
+                    | SSL_OP_NO_SSLv3
+                    | SSL_OP_NO_TLSv1
+                    | SSL_OP_NO_TLSv1_1
                     | SSL_OP_NO_TLSv1_2
-
-
-#endif
                    );
   if (!(ssl_fd= ((struct st_VioSSLFd*)
                  my_malloc(key_memory_vio_ssl_fd,
@@ -641,8 +643,8 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
 
   if (crl_file || crl_path)
   {
-#ifdef HAVE_YASSL
-    DBUG_PRINT("warning", ("yaSSL doesn't support CRL"));
+#ifdef HAVE_WOLFSSL
+    DBUG_PRINT("warning", ("wolfSSL MYSQL doesn't support CRL"));
     DBUG_ASSERT(0);
 #else
     X509_STORE *store= SSL_CTX_get_cert_store(ssl_fd->ssl_context);
@@ -696,6 +698,12 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     DBUG_RETURN(0);
   }
   DH_free(dh);
+
+  /* set IO functions used by wolfSSL */
+#ifdef HAVE_WOLFSSL
+  wolfSSL_SetIORecv(ssl_fd->ssl_context, wolfssl_recv);
+  wolfSSL_SetIOSend(ssl_fd->ssl_context, wolfssl_send);
+#endif
 
   DBUG_PRINT("exit", ("OK 1"));
 

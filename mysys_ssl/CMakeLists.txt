@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@ IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-IF(WITH_SSL STREQUAL "bundled")
-  SET(MYSYS_AES_IMPLEMENTATION my_aes_yassl.cc)
+IF(WITH_SSL STREQUAL "wolfssl")
+  SET(MYSYS_AES_IMPLEMENTATION my_aes_wolfssl.cc)
 ELSE()
   SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
 ENDIF()
@@ -45,6 +45,6 @@ SET(MYSYS_SSL_SOURCES
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})
 TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES} ${ZLIB_LIBRARY})
 # Needed to resolve OpenSSL dependency on Windows
-IF(WIN32 AND NOT WITH_SSL STREQUAL "bundled")
+IF(WIN32 AND NOT WITH_SSL STREQUAL "wolfssl")
   TARGET_LINK_LIBRARIES(mysys_ssl crypt32)
 ENDIF()

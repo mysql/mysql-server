@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,20 +91,18 @@
 #include "sql_common.h"                 // mpvio_info
 #include "sql_string.h"
 #include "violite.h"
+#include <mysql/components/my_service.h>
 
 struct MEM_ROOT;
 
 #if defined(HAVE_OPENSSL)
-#ifndef HAVE_YASSL
-#include <mysql/components/my_service.h>
+#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
-#else
-#include <openssl/ssl.h>
-#endif /* HAVE_YASSL */
+#include <wolfssl_fix_namespace_pollution.h>
 #endif /* HAVE_OPENSSL */
 
 
@@ -226,7 +224,7 @@ extern bool initialized;
 #define MAX_CIPHER_LENGTH 1024
 #define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
 
@@ -241,7 +239,7 @@ static bool do_auto_rsa_keys_generation();
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
 Rsa_authentication_keys * g_sha256_rsa_keys= 0;
-#endif /* HAVE_YASSL */
+#endif /* HAVE_WOLFSSL */
 #endif /* HAVE_OPENSSL */
 
 bool
@@ -291,7 +289,6 @@ Rsa_authentication_keys::get_key_file_path(char *key, String *key_file_path)
     key_file_path->append(key);
   }
 }
-
 
 /**
   @brief Read a key file and store its value in RSA structure
@@ -348,7 +345,7 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
         Call ERR_clear_error() just in case there are more than 1 entry in the
         OpenSSL thread's error queue.
       */
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
       ERR_clear_error();
 #endif
 
@@ -1193,12 +1190,12 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
 */
 bool sha256_rsa_auth_status()
 {
-#if !defined(HAVE_OPENSSL) || defined(HAVE_YASSL)
+#if !defined(HAVE_OPENSSL) || defined(HAVE_WOLFSSL)
   return false;
 #else
   return (!g_sha256_rsa_keys->get_private_key() ||
           !g_sha256_rsa_keys->get_public_key());
-#endif /* !HAVE_OPENSSL || HAVE_YASSL */
+#endif /* !HAVE_OPENSSL || HAVE_WOLFSSL */
 }
 
 
@@ -3072,7 +3069,7 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 */
 int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *)
 {
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
   var->type= SHOW_CHAR;
   var->value=
     const_cast<char *>(g_sha256_rsa_keys->get_public_key_as_pem());
@@ -3082,7 +3079,7 @@ int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *)
 
 void deinit_rsa_keys(void)
 {
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
   if (g_sha256_rsa_keys)
   {
     g_sha256_rsa_keys->free_memory();
@@ -3123,7 +3120,7 @@ public:
 
 bool init_rsa_keys(void)
 {
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
   if (!do_auto_rsa_keys_generation())
     return true;
 
@@ -3136,7 +3133,7 @@ bool init_rsa_keys(void)
         new Rsa_authentication_keys(&caching_sha2_rsa_private_key_path,
                                     &caching_sha2_rsa_public_key_path)))
   {
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
     delete g_sha256_rsa_keys;
     g_sha256_rsa_keys= 0;
 #endif
@@ -3144,7 +3141,7 @@ bool init_rsa_keys(void)
   }
 
   return (
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
   g_sha256_rsa_keys->read_rsa_keys() ||
 #endif
   g_caching_sha2_rsa_keys->read_rsa_keys());
@@ -3262,12 +3259,12 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   uchar *pkt;
   int pkt_len;
   String scramble_response_packet;
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
   int cipher_length= 0;
   unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
   RSA *private_key= NULL;
   RSA *public_key= NULL;
-#endif /* HAVE_YASSL */
+#endif /* HAVE_WOLFSSL */
 
   DBUG_ENTER("sha256_password_authenticate");
 
@@ -3329,7 +3326,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
   if (!my_vio_is_encrypted(vio))
   {
- #if !defined(HAVE_YASSL)
+ #if !defined(HAVE_WOLFSSL)
     /*
       Since a password is being used it must be encrypted by RSA since no
       other encryption is being active.
@@ -3397,7 +3394,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
       DBUG_RETURN(CR_ERROR);
 #else
     DBUG_RETURN(CR_ERROR);
-#endif /* HAVE_YASSL */
+#endif /* HAVE_WOLFSSL */
   } // if(!my_vio_is_encrypter())
 
   /* Don't process the password if it is longer than maximum limit */
@@ -3437,7 +3434,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 }
 
 
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
         PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
         "A fully qualified path to the private RSA key used for authentication",
@@ -4533,7 +4530,7 @@ static bool do_auto_rsa_keys_generation()
                             caching_sha2_rsa_public_key_path,
                             "--caching_sha2_password_auto_generate_rsa_keys"));
 }
-#endif /* HAVE_YASSL */
+#endif /* HAVE_WOLFSSL */
 #endif /* HAVE_OPENSSL */
 
 bool MPVIO_EXT::can_authenticate()
@@ -4599,11 +4596,11 @@ mysql_declare_plugin(mysql_password)
   NULL,                                         /* Deinit function  */
   0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
   sha256_password_sysvars,                      /* system variables */
 #else
   NULL,
-#endif /* HAVE_YASSL */
+#endif /* HAVE_WOLFSSL */
   NULL,                                         /* config options   */
   0                                             /* flags            */
 }

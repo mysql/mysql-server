@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ int vio_getnameinfo(const struct sockaddr *sa,
                     char *port, size_t port_size,
                     int flags);
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL)
 extern "C" {
 #include <openssl/opensslv.h>
 }
@@ -220,17 +220,16 @@ extern "C" {
 #endif
 
 #define HEADER_DES_LOCL_H dummy_something
-#define YASSL_MYSQL_COMPATIBLE
-#ifndef YASSL_PREFIX
-#define YASSL_PREFIX
+#ifndef WOLFSSL_MYSQL_COMPATIBLE
+#define WOLFSSL_MYSQL_COMPATIBLE
 #endif
-/* Set yaSSL to use same type as MySQL do for socket handles */
-typedef my_socket YASSL_SOCKET_T;
-#define YASSL_SOCKET_T_DEFINED
-extern "C" {
+/* Set wolfSSL to use same type as MySQL do for socket handles */
+typedef my_socket WOLFSSL_SOCKET_T;
+#define WOLFSSL_SOCKET_T_DEFINED
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-}
+#include <wolfssl_fix_namespace_pollution.h>
 
 enum enum_ssl_init_error
 {

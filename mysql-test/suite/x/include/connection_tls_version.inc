@@ -25,8 +25,12 @@ EOF
 --exec $MYSQLXTEST -ux_root --file=$xtest_file 2>&1
 
 --let $XTESTPARAMS= -u user5_mysqlx --password='auth_string' --file=$xtest_file --ssl-cipher='DHE-RSA-AES256-SHA'
---let $ERROR1= /in main, line 0:ERROR: error:00000001:lib\(0\):func\(0\):reason\(1\)/Application terminated with expected error: protocol version mismatch/
---let $ERROR5= /in main, line 0:ERROR: error:00000005:lib\(0\):func\(0\):DH lib/Application terminated with expected error: socket layer receive error/ /in main, line 0:ERROR: error:00000001:lib\(0\):func\(0\):reason\(1\)/Application terminated with expected error: socket layer receive error/
+# each of the below regexps has 3 replaces
+# 1: for openssl 1.0
+# 2: for openssl 1.1
+# 3: for wolfSSL 
+--let $ERROR1= /in main, line 0:ERROR: error:00000001:lib\(0\):func\(0\):reason\(1\)/Application terminated with expected error: protocol version mismatch/ /in main, line 0:ERROR: record layer version error/Application terminated with expected error: protocol version mismatch/
+--let $ERROR5= /in main, line 0:ERROR: error:00000005:lib\(0\):func\(0\):DH lib/Application terminated with expected error: socket layer receive error/ /in main, line 0:ERROR: error:00000001:lib\(0\):func\(0\):reason\(1\)/Application terminated with expected error: socket layer receive error/ /in main, line 0:ERROR: error state on socket/Application terminated with expected error: socket layer receive error/
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1

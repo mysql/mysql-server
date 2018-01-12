@@ -1271,8 +1271,7 @@ The following options may be given as the first argument:
  Define threads usage for handling queries, one of
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
- --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
- TLSv1.2(Only for openssl)
+ --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
  storage engine exceeds this size, MySQL will
  automatically convert it to an on-disk table
