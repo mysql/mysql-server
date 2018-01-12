@@ -700,7 +700,7 @@ SET(SYSTEM_LIBRARIES
   ICU
   LIBEVENT
   LZ4
-  LZMA
+# LZMA     use bundled by default here
   PROTOBUF
   RE2
   SSL
