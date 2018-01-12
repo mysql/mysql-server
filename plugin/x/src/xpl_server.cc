@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -55,9 +55,7 @@
 #include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/udf/registrator.h"
 
-#if !defined(HAVE_YASSL)
 #include <openssl/err.h>
-#endif
 
 std::atomic<bool> xpl::g_cache_plugin_started{false};
 
@@ -630,9 +628,9 @@ bool xpl::Server::on_net_startup()
                                    ssl_config,
                                    xpl::Plugin_system_variables::ssl_config);
 
-    // YaSSL doesn't support CRL according to vio
-    const char *crl = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crl);
-    const char *crlpath = IS_YASSL_OR_OPENSSL(NULL, ssl_config.ssl_crlpath);
+    // wolfSSL doesn't support CRL according to vio
+    const char *crl = IS_WOLFSSL_OR_OPENSSL(NULL, ssl_config.ssl_crl);
+    const char *crlpath = IS_WOLFSSL_OR_OPENSSL(NULL, ssl_config.ssl_crlpath);
 
     const bool ssl_setup_result = ssl_ctx->setup(tls_version, ssl_config.ssl_key,
                                                  ssl_config.ssl_ca,
@@ -644,7 +642,7 @@ bool xpl::Server::on_net_startup()
     if (ssl_setup_result)
     {
       LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION,
-                   IS_YASSL_OR_OPENSSL("YaSSL", "OpenSSL"));
+                   IS_WOLFSSL_OR_OPENSSL("WolfSSL", "OpenSSL"));
     }
     else
     {

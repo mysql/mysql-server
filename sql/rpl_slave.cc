@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6080,9 +6080,11 @@ err:
   mysql_mutex_unlock(&mi->run_lock);
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif /* HAVE_WOLFSSL */
   my_thread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
@@ -6321,9 +6323,11 @@ err:
   }
 
   my_thread_end();
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif /* HAVE_WOLFSSL */
   my_thread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -7630,9 +7634,11 @@ extern "C" void *handle_slave_sql(void *arg)
 
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif /* HAVE_WOLFSSL */
   my_thread_exit(0);
   return 0;                             // Avoid compiler warnings
 }
@@ -8507,7 +8513,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->ssl_ca[0]?mi->ssl_ca:0,
                   mi->ssl_capath[0]?mi->ssl_capath:0,
                   mi->ssl_cipher[0]?mi->ssl_cipher:0);
-#ifdef HAVE_YASSL
+#ifdef HAVE_WOLFSSL
     mi->ssl_crl[0]= '\0';
     mi->ssl_crlpath[0]= '\0';
 #endif

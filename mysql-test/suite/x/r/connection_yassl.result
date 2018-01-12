@@ -582,20 +582,20 @@ not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
-Mysqlx_ssl_ctx_verify_depth	0
-Mysqlx_ssl_ctx_verify_mode	0
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
-Mysqlx_ssl_ctx_verify_depth	0
-Mysqlx_ssl_ctx_verify_mode	0
+Mysqlx_ssl_cipher_list	AES256-SHA
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
-Mysqlx_ssl_verify_depth	0
+Mysqlx_ssl_verify_depth	9
 Mysqlx_ssl_verify_mode	0
 0 rows affected
 Mysqlx.Ok {
@@ -1222,20 +1222,20 @@ not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
-Mysqlx_ssl_ctx_verify_depth	0
-Mysqlx_ssl_ctx_verify_mode	0
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
-Mysqlx_ssl_ctx_verify_depth	0
-Mysqlx_ssl_ctx_verify_mode	0
+Mysqlx_ssl_cipher_list	AES256-SHA
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
-Mysqlx_ssl_verify_depth	0
+Mysqlx_ssl_verify_depth	9
 Mysqlx_ssl_verify_mode	0
 0 rows affected
 Mysqlx.Ok {
@@ -1862,20 +1862,20 @@ not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
-Mysqlx_ssl_ctx_verify_depth	0
-Mysqlx_ssl_ctx_verify_mode	0
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
-Mysqlx_ssl_ctx_verify_depth	0
-Mysqlx_ssl_ctx_verify_mode	0
+Mysqlx_ssl_cipher_list	AES256-SHA
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
-Mysqlx_ssl_verify_depth	0
+Mysqlx_ssl_verify_depth	9
 Mysqlx_ssl_verify_mode	0
 0 rows affected
 Mysqlx.Ok {

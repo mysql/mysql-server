@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "sha2.h"                   // SHA256
+#include "sha2.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -177,9 +177,15 @@ void compute_digest_hash(const sql_digest_storage *digest_storage, unsigned char
   static_assert(DIGEST_HASH_SIZE == SHA256_DIGEST_LENGTH,
                 "DIGEST is no longer SHA256, fix compute_digest_hash()");
 
-  SHA256(digest_storage->m_token_array,
-         digest_storage->m_byte_count,
-         hash);
+#ifdef HAVE_WOLFSSL
+  (void) SHA_HASH256(digest_storage->m_token_array,
+                     digest_storage->m_byte_count,
+                     hash);
+#else
+  (void) SHA256(digest_storage->m_token_array,
+                digest_storage->m_byte_count,
+                hash);
+#endif
 }
 
 /*

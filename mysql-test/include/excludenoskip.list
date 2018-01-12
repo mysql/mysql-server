@@ -84,7 +84,7 @@ have_mecab.inc
 fix_priv_tables.test
 
 # 4.4
-# Test with yassl is supported only on community build.
+# Test with wolfssl is supported only on community build.
 # Test will openssl is supported only on commercial build.
 have_yassl.inc
 have_openssl.inc

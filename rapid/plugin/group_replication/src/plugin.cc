@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1520,8 +1520,8 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
       gcs_module_parameters.add_parameter("cipher", ssl_cipher);
       gcs_module_parameters.add_parameter("tls_version", tls_version);
 
-#if !defined(HAVE_YASSL)
-      // YaSSL does not support CRL.
+#if !defined(HAVE_WOLFSSL)
+      // wolfSSL does not support CRL.
       if (!ssl_crl.empty())
         gcs_module_parameters.add_parameter("crl_file", ssl_crl); /* purecov: inspected */
       if (!ssl_crlpath.empty())

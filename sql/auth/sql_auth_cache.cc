@@ -1506,7 +1506,7 @@ validate_user_plugin_records()
       if (acl_user->plugin.str == sha256_password_plugin_name.str &&
           sha256_rsa_auth_status() && !ssl_acceptor_fd)
       {
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
         const char *missing= "but neither SSL nor RSA keys are";
 #else
         const char *missing= "but no SSL is";

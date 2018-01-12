@@ -4,6 +4,10 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
+# suppres since wolf checks the CA expiration real early
+call mtr.add_suppression("SSL_CTX_set_default_verify_paths failed");
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key");
+
 # Tests
 --write_file $MYSQL_TMP_DIR/expired_ssl_certs.tmp
 -->quiet

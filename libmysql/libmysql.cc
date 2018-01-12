@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ int STDCALL mysql_server_init(int argc MY_ATTRIBUTE((unused)),
     init_client_errs();
     if (mysql_client_plugin_init())
       return 1;
-#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined (HAVE_OPENSSL)
     ssl_start();
 #endif
 

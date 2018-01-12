@@ -1,7 +1,7 @@
 #ifndef SSL_WRAPPER_INCLUDED
 #define SSL_WRAPPER_INCLUDED
 
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ void ssl_wrapper_cipher(Vio *vio, char *cipher, const size_t cipher_size);
   @param maximun_num_of_elements   Size of the pointer array
 */
 extern "C"
-long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t maximun_num_of_elements);
+long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const long maximun_num_of_elements);
 
 /**
   Return the verification depth limit set in SSL

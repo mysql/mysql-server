@@ -4092,9 +4092,11 @@ static ssl_artifacts_status auto_detect_ssl()
 
 static int warn_one(const char *file_name)
 {
-  FILE *fp;
   char *issuer= NULL;
   char *subject= NULL;
+  X509 *ca_cert;
+  BIO *bio;
+  FILE *fp;
 
   if (!(fp= my_fopen(file_name, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
   {
@@ -4102,7 +4104,16 @@ static int warn_one(const char *file_name)
     return 1;
   }
 
-  X509 *ca_cert= PEM_read_X509(fp, 0, 0, 0);
+  bio= BIO_new(BIO_s_file());
+  if (!bio)
+  {
+    sql_print_error("Error allocating SSL BIO");
+    my_fclose(fp, MYF(0));
+    return 1;
+  }
+  BIO_set_fp(bio, fp, BIO_NOCLOSE);
+  ca_cert= PEM_read_bio_X509(bio, 0, 0, 0);
+  BIO_free(bio);
 
   if (!ca_cert)
   {
@@ -4135,7 +4146,6 @@ static int warn_self_signed_ca()
     if (warn_one(opt_ssl_ca))
       return 1;
   }
-#ifndef HAVE_YASSL
   if (opt_ssl_capath && opt_ssl_capath[0])
   {
     /* We have ssl-capath. So search all files in the dir */
@@ -4173,7 +4183,6 @@ static int warn_self_signed_ca()
     ca_dir= 0;
     memset(&file_path, 0, sizeof(file_path));
   }
-#endif /* HAVE_YASSL */
   return ret_val;
 }
 
@@ -4181,7 +4190,7 @@ static int warn_self_signed_ca()
 static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_malloc_init();
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
@@ -4202,7 +4211,7 @@ static int init_ssl_communication()
       LogErr(INFORMATION_LEVEL, ER_SSL_TRYING_DATADIR_DEFAULTS,
              DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
              DEFAULT_SSL_SERVER_KEY);
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
     if (do_auto_cert_generation(auto_detection_status) == false)
       return 1;
 #endif
@@ -4215,9 +4224,11 @@ static int init_ssl_communication()
 					  opt_ssl_cipher, &error,
                                           opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: %p", ssl_acceptor_fd));
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif
     if (!ssl_acceptor_fd)
     {
       /*
@@ -4225,7 +4236,7 @@ static int init_ssl_communication()
         but we want the SSL materal generation and/or validation (if supplied).
         So we keep it on.
 
-        For yaSSL (since it can't auto-generate the certs from inside the
+        For wolfSSL (since it can't auto-generate the certs from inside the
         server) we need to hush the warning if in bootstrap mode, as in
         that mode the server won't be listening for connections and thus
         the lack of SSL material makes no real difference.
@@ -4236,7 +4247,7 @@ static int init_ssl_communication()
         in auto-generation, bad key material explicitly specified or
         auto-generation disabled explcitly while SSL is still on.
       */
-#ifdef HAVE_YASSL
+#ifdef HAVE_WOLFSSL
       if (!opt_initialize || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
 #endif
       {
@@ -8026,18 +8037,9 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 
-#ifdef HAVE_YASSL
 
 static char *
-my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
-{
-  return yaSSL_ASN1_TIME_to_string(time, buf, len);
-}
-
-#else /* openssl */
-
-static char *
-my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
+my_asn1_time_to_string(ASN1_TIME *time, char *buf, int len)
 {
   int n_read;
   char *res= NULL;
@@ -8049,7 +8051,7 @@ my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
   if (!ASN1_TIME_print(bio, time))
     goto end;
 
-  n_read= BIO_read(bio, buf, (int) (len - 1));
+  n_read= BIO_read(bio, buf, len - 1);
 
   if (n_read > 0)
   {
@@ -8061,8 +8063,6 @@ end:
   BIO_free(bio);
   return res;
 }
-
-#endif
 
 
 /**
@@ -8280,7 +8280,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_version",              (char*) &show_ssl_get_version,                          SHOW_FUNC,              SHOW_SCOPE_ALL},
   {"Ssl_server_not_before",    (char*) &show_ssl_get_server_not_before,                SHOW_FUNC,              SHOW_SCOPE_ALL},
   {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,                 SHOW_FUNC,              SHOW_SCOPE_ALL},
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
   {"Rsa_public_key",           (char*) &show_rsa_public_key,                           SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
 #endif
 #endif /* HAVE_OPENSSL */
@@ -8788,11 +8788,11 @@ mysqld_get_one_option(int optid,
       One can disable SSL later by using --skip-ssl or --ssl=0.
     */
     opt_use_ssl= true;
-#ifdef HAVE_YASSL
-    /* crl has no effect in yaSSL. */
+#ifdef HAVE_WOLFSSL
+    /* crl has no effect in wolfSSL. */
     opt_ssl_crl= NULL;
     opt_ssl_crlpath= NULL;
-#endif /* HAVE_YASSL */   
+#endif /* HAVE_WOLFSSL */
     break;
 #endif /* HAVE_OPENSSL */
   case 'V':
