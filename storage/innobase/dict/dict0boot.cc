@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -238,8 +238,6 @@ dict_boot(void)
 	/* Create the hash tables etc. */
 	dict_init();
 
-	mutex_enter(&dict_sys->mutex);
-
 	/* Get the dictionary header */
 	dict_hdr = dict_hdr_get(&mtr);
 
@@ -308,7 +306,9 @@ dict_boot(void)
 		table->id = DICT_TABLES_ID;
 
 		dict_table_add_system_columns(table, heap);
+		mutex_enter(&dict_sys->mutex);
 		dict_table_add_to_cache(table, FALSE, heap);
+		mutex_exit(&dict_sys->mutex);
 		dict_sys->sys_tables = table;
 		mem_heap_empty(heap);
 
@@ -333,6 +333,7 @@ dict_boot(void)
 		index->add_field("ID", 0, true);
 
 		index->id = DICT_TABLE_IDS_ID;
+
 		err = dict_index_add_to_cache(table, index,
 					      mtr_read_ulint(dict_hdr
 							     + DICT_HDR_TABLE_IDS,
@@ -355,7 +356,9 @@ dict_boot(void)
 		table->id = DICT_COLUMNS_ID;
 
 		dict_table_add_system_columns(table, heap);
+		mutex_enter(&dict_sys->mutex);
 		dict_table_add_to_cache(table, FALSE, heap);
+		mutex_exit(&dict_sys->mutex);
 		dict_sys->sys_columns = table;
 		mem_heap_empty(heap);
 
@@ -367,6 +370,7 @@ dict_boot(void)
 		index->add_field("POS", 0, true);
 
 		index->id = DICT_COLUMNS_ID;
+
 		err = dict_index_add_to_cache(table, index,
 					      mtr_read_ulint(dict_hdr
 							     + DICT_HDR_COLUMNS,
@@ -390,7 +394,9 @@ dict_boot(void)
 		table->id = DICT_INDEXES_ID;
 
 		dict_table_add_system_columns(table, heap);
+		mutex_enter(&dict_sys->mutex);
 		dict_table_add_to_cache(table, FALSE, heap);
+		mutex_exit(&dict_sys->mutex);
 		dict_sys->sys_indexes = table;
 		mem_heap_empty(heap);
 
@@ -402,6 +408,7 @@ dict_boot(void)
 		index->add_field("ID", 0, true);
 
 		index->id = DICT_INDEXES_ID;
+
 		err = dict_index_add_to_cache(table, index,
 					      mtr_read_ulint(dict_hdr
 							     + DICT_HDR_INDEXES,
@@ -419,7 +426,9 @@ dict_boot(void)
 		table->id = DICT_FIELDS_ID;
 
 		dict_table_add_system_columns(table, heap);
+		mutex_enter(&dict_sys->mutex);
 		dict_table_add_to_cache(table, FALSE, heap);
+		mutex_exit(&dict_sys->mutex);
 		dict_sys->sys_fields = table;
 		mem_heap_free(heap);
 
@@ -431,6 +440,7 @@ dict_boot(void)
 		index->add_field("POS", 0, true);
 
 		index->id = DICT_FIELDS_ID;
+
 		err = dict_index_add_to_cache(table, index,
 					      mtr_read_ulint(dict_hdr
 							     + DICT_HDR_FIELDS,
@@ -438,10 +448,12 @@ dict_boot(void)
 					      FALSE);
 		ut_a(err == DB_SUCCESS);
 
+		mutex_enter(&dict_sys->mutex);
 		dict_load_sys_table(dict_sys->sys_tables);
 		dict_load_sys_table(dict_sys->sys_columns);
 		dict_load_sys_table(dict_sys->sys_indexes);
 		dict_load_sys_table(dict_sys->sys_fields);
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	mtr_commit(&mtr);
@@ -460,8 +472,6 @@ dict_boot(void)
 
 		err = DB_ERROR;
 	}
-
-	mutex_exit(&dict_sys->mutex);
 
 	return(err);
 }

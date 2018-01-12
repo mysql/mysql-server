@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1782,9 +1782,7 @@ fts_init_config_table(
 	dberr_t		error = DB_SUCCESS;
 	trx_t*		trx;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	mutex_exit(&dict_sys->mutex);
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	info = pars_info_create();
 
@@ -1807,8 +1805,6 @@ fts_init_config_table(
 	}
 
 	trx_free_for_background(trx);
-
-	mutex_enter(&dict_sys->mutex);
 
 	return(error);
 }
@@ -2219,13 +2215,13 @@ fts_check_common_tables_exist(
 
 	/* Check that the table exists in our data dictionary */
 	config_table = dd_table_open_on_name(
-		thd, &mdl, fts_name, true,
+		thd, &mdl, fts_name, false,
 		static_cast<dict_err_ignore_t>(
                         DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
 
 	bool	exist = false;
 	if (config_table != nullptr) {
-		dd_table_close(config_table, thd, &mdl, true);
+		dd_table_close(config_table, thd, &mdl, false);
 		exist = true;
 	}
 
@@ -2265,6 +2261,7 @@ fts_create_common_tables(
 	dict_index_t*	index = NULL;
 	trx_dict_op_t	op;
 
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	ut_ad(!fts_check_common_tables_exist(table));
 
 	mem_heap_t*	heap = mem_heap_create(1024);
@@ -2733,14 +2730,18 @@ fts_create_index_tables(
 	dberr_t		err;
 	dict_table_t*	table;
 
-	table = dd_table_open_on_name_in_mem(index->table_name, true);
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	table = dd_table_open_on_name_in_mem(index->table_name, false);
 	ut_a(table != NULL);
+	ut_d(mutex_enter(&dict_sys->mutex));
 	ut_ad(table->get_ref_count() > 1);
+	ut_d(mutex_exit(&dict_sys->mutex));
 
 	err = fts_create_index_tables_low(
 		trx, index, table->name.m_name, table->id);
 
-	dd_table_close(table, nullptr, nullptr, true);
+	dd_table_close(table, nullptr, nullptr, false);
 
 	return(err);
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1867,6 +1867,7 @@ dd_fill_one_dict_index(
 	unsigned		n_uniq		= n_fields;
 	std::bitset<REC_MAX_N_FIELDS>	indexed;
 
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	/* This name cannot be used for a non-primary index */
 	ut_ad(key_num == form->primary_key
 	      || my_strcasecmp(system_charset_info,
@@ -2163,6 +2164,8 @@ dd_fill_dict_index(
 	THD*			m_thd)
 {
 	int		error = 0;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* Create the keys */
 	if (m_form->s->keys == 0 || m_form->s->primary_key == MAX_KEY) {
@@ -3766,12 +3769,10 @@ dd_open_table_one(
 	}
 
 	/* Create dict_index_t for the table */
-	mutex_enter(&dict_sys->mutex);
 	int	ret;
 	ret = dd_fill_dict_index(
 		dd_table->table(), table, m_table, NULL, zip_allowed,
 		strict, thd);
-	mutex_exit(&dict_sys->mutex);
 
 	if (ret != 0) {
 		return(nullptr);
