@@ -42,6 +42,10 @@ if (!$_sss_slave_timeout)
   --let $_sss_slave_timeout= 300
 }
 
+if ($VALGRIND_TEST) {
+  let $_sss_slave_timeout= `select $_sss_slave_timeout * 6`;
+}
+
 --let $_sss_channel_param=
 if ($_saved_channel_name)
 {
