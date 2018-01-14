@@ -1,0 +1,13 @@
+CREATE TEMPORARY TABLE bug_89224 (
+id int(10)unsigned NOT NULL AUTO_INCREMENT,
+problem_column SET('','(Some Text)') DEFAULT NULL,
+regular_column SET('','Some Text') DEFAULT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY id (id)
+);
+DESCRIBE `bug_89224` 'problem_column';
+Field	Type	Null	Key	Default	Extra
+problem_column	set('','(Some Text)')	YES		NULL	
+DESCRIBE `bug_89224` 'regular_column';
+Field	Type	Null	Key	Default	Extra
+regular_column	set('','Some Text')	YES		NULL	
