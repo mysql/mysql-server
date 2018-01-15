@@ -54,7 +54,7 @@
 #ifdef ACC_SAFE_QUEUE
 #define vlqrequire(x) do { if (unlikely(!(x))) {\
    dump_lock_queue(loPtr); \
-   ndbrequire(false); } } while(0)
+   ndbabort(); } } while(0)
 #else
 #define vlqrequire(x) ndbrequire(x)
 #define dump_lock_queue(x)
@@ -118,7 +118,7 @@ void Dbacc::execCONTINUEB(Signal* signal)
       break;
     }
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   return;
@@ -248,7 +248,7 @@ void Dbacc::initialiseRecordsLab(Signal* signal,
     return;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
 
@@ -1080,7 +1080,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       return;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }//switch
   } else if (found == ZFALSE) {
@@ -1107,7 +1107,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       return;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }//switch
   } else {
@@ -1146,7 +1146,7 @@ Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
   }
 
   ndbout_c("bits: %.8x state: %.8x", opbits, opstate);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1464,7 +1464,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
       acckeyref1Lab(signal, return_result);
       return;
     }//if
-    ndbrequire(false);
+    ndbabort();
   } 
   else 
   {
@@ -2251,7 +2251,7 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
     ulkPageidptr.p->word32[tulkLocalPtr] = localkey.m_page_no;
     return;
   }//if
-  ndbrequire(false);
+  ndbabort();
 }//Dbacc::execACCMINUPDATE()
 
 void
@@ -2544,7 +2544,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     *sig = *req;
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /* --------------------------------------------------------------------------------- */
@@ -2898,7 +2898,7 @@ void Dbacc::insertElement(const Element   elem,
         jam();
         isforward = false;
       } else {
-        ndbrequire(false);
+        ndbabort();
         return;
       }//if
       if (!containerhead.isNextOnSamePage()) {
@@ -3111,7 +3111,7 @@ void Dbacc::insertContainer(const Element          elem,
     tidrNextConLen = conhead.getLength();
     tidrConfreelen = tidrConfreelen - tidrNextConLen;
     if (tidrConfreelen > ZBUF_SIZE) {
-      ndbrequire(false);
+      ndbabort();
       /* --------------------------------------------------------------------------------- */
       /*       THE BUFFERS ARE PLACED ON TOP OF EACH OTHER. THIS SHOULD NEVER OCCUR.       */
       /* --------------------------------------------------------------------------------- */
@@ -6586,7 +6586,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
     {
       jam();
       jamLine(tgeNextptrtype);
-      ndbrequire(false);
+      ndbabort();
     }//if
     if (tgeRemLen >= Container::HEADER_SIZE + TelemLen)
     {
@@ -6942,7 +6942,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     releaseScanLab(signal);
     return;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   scanPtr.p->scan_lastSeen = __LINE__;

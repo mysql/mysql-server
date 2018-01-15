@@ -348,7 +348,7 @@ Pgman::execCONTINUEB(Signal* signal)
     return;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -569,11 +569,11 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf,
 {
   if (m_extra_pgman && tableId != RNIL)
   {
-    ndbrequire(false);
+    ndbabort();
   }
   else if (!m_extra_pgman && isNdbMtLqh() && tableId == RNIL)
   {
-    ndbrequire(false);
+    ndbabort();
   }
 
   if (find_page_entry(ptr, file_no, page_no))
@@ -693,7 +693,7 @@ Pgman::get_page_entry(EmulatedJamBuffer* jamBuf,
     return true;
   }
 
-  ndbrequire(false);
+  ndbabort();
   
   return false;
 }
@@ -1791,7 +1791,7 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
         (! (state & Page_entry::BOUND)))
     {
       ndbout << ptr << endl;
-      ndbrequire(false);
+      ndbabort();
     }
 
     if (state & Page_entry::PAGEOUT)
@@ -2328,7 +2328,7 @@ Pgman::execFSREADREF(Signal* signal)
 {
   jamEntry();
   SimulatedBlock::execFSREADREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2381,7 +2381,7 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
 
@@ -2422,7 +2422,7 @@ Pgman::execFSWRITEREF(Signal* signal)
 {
   jamEntry();
   SimulatedBlock::execFSWRITEREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 // client methods
@@ -2900,7 +2900,7 @@ Pgman::execDATA_FILE_ORD(Signal* signal)
     free_data_file(ord->file_no, ord->fd);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -2999,7 +2999,7 @@ Pgman::drop_page(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
     return 1;
   }
   
-  ndbrequire(false);
+  ndbabort();
   return -1;
 }
 
@@ -4084,7 +4084,7 @@ Pgman::remove_fragment_dirty_list(Signal *signal,
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
     return; /* Silence compiler warning */
   }
   ptr.p->m_dirty_state = Pgman::IN_NO_DIRTY_LIST;

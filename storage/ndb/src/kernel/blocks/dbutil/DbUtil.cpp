@@ -467,7 +467,7 @@ DbUtil::execCONTINUEB(Signal* signal){
   jamEntry();
   //const Uint32 Tdata0 = signal->theData[0];
 
-  ndbrequire(0);
+  ndbabort();
 }
 
 void
@@ -708,7 +708,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
 	     << "216 : PREPARE_REQ UPDATE SYSTAB_0 SYSKEY_0 NEXTID using id" << endl
 	     << "217 : PREPARE_REQ READ   SYSTAB_0 SYSKEY_0 using id" << endl
 	     << "220 : EXECUTE_REQ <PrepId> <Len> <Val1> <Val2a> <Val2b>" <<endl
-	     << "299 : Crash system (using ndbrequire(0))" 
+	     << "299 : Crash system (using ndbabort())" 
 	     << endl
 	     << "Ex. \"dump 220 3 5 1 0 17 \" prints Prepare record no 2." 
 	     << endl;
@@ -1927,7 +1927,7 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
     prepOp = 0; // remove warning
   }
   
@@ -2839,7 +2839,7 @@ DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
     } 
     break;
   default:
-    ndbrequire(0);
+    ndbabort();
     break;
   }
   releaseTransaction(transPtr);

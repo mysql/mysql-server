@@ -252,7 +252,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     releaseScanOp(scanPtr);
   }
   // LQH does not handle REF
-  ndbrequire(false);
+  ndbabort();
   signal->theData[8] = 1; /* Failure */
   /* Return ACC_SCANREF */
 }
@@ -332,9 +332,9 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     scanClose(signal, scanPtr);
     return;
   case NextScanReq::ZSCAN_NEXT_ABORT:
-    ndbrequire(false);
+    ndbabort();
   default:
-    ndbrequire(false);
+    ndbabort();
   }
   // start looking for next scan result
   AccCheckScan* checkReq = (AccCheckScan*)signal->getDataPtrSend();
@@ -506,7 +506,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         return;
         break;
       default:
-        ndbrequire(false);
+        ndbabort();
         break;
       }
     } else {
@@ -572,7 +572,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     jamEntry();
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /*
@@ -999,7 +999,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
              * We keep the code as comments to be activated when we implement
              * the possibility to release pages in the directory.
              */
-            ndbrequire(false);
+            ndbabort();
             /* We will not scan this page, so reset flag immediately */
             // reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
             // scan.m_last_seen = __LINE__;
@@ -1546,7 +1546,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                   key.m_page_no,
                                   key.m_page_idx,
                                   thbits);
-              ndbrequire(false);
+              ndbabort();
             }
 	    if (! ((thbits & Tuple_header::FREE) ||
                    ((bits & ScanOp::SCAN_LCP) &&
@@ -1960,7 +1960,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       scan.m_last_seen = __LINE__;
       break; // incr loop count
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }
     if (++loop_count >= 32)
@@ -2682,7 +2682,7 @@ Dbtup::lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragId)
     jam();
     g_eventLogger->info("No LCP scan ongoing in TUP tab(%u,%u)",
                         tableId, fragId);
-    ndbrequire(false);
+    ndbabort();
   }
   else if (frag.m_lcp_scan_op == RNIL)
   {
@@ -2695,7 +2695,7 @@ Dbtup::lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragId)
     jam();
     g_eventLogger->info("Corrupt internal, LCP scan not on correct tab(%u,%u)",
                         tableId, fragId);
-    ndbrequire(false);
+    ndbabort();
   }
   else
   {

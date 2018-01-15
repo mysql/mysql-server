@@ -441,7 +441,7 @@ int Dbtup::TUPKEY_abort(KeyReqStruct * req_struct, int error_type)
       jam();
       terrorCode = ZSEIZE_ATTRINBUFREC_ERROR;
     } else {
-      ndbrequire(false);
+      ndbabort();
     }//if
     break;
   case 40:
@@ -449,7 +449,7 @@ int Dbtup::TUPKEY_abort(KeyReqStruct * req_struct, int error_type)
     terrorCode = ZUNSUPPORTED_BRANCH;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   tupkeyErrorLab(req_struct);

@@ -1472,7 +1472,7 @@ public:
       case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
         return "NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4";
       default:
-        ndbrequire(false);
+        ndbabort();
     }
     return NULL;
   }
@@ -1611,7 +1611,7 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
 inline
 void SimulatedBlock::block_require(void)
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 inline

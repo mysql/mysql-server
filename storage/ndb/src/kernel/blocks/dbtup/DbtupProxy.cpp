@@ -353,7 +353,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 

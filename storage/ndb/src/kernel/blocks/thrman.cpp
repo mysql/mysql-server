@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -324,7 +324,7 @@ Thrman::execSTTOR(Signal *signal)
     sendNextCONTINUEB(signal);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
   sendSTTORRY(signal);
 }
@@ -1710,7 +1710,7 @@ Thrman::change_warning_level(Int32 diff_status, Uint32 factor)
       dec_warning(3 * factor);
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
   }
 }
@@ -1891,7 +1891,7 @@ Thrman::handle_state_change(Signal *signal)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
     jam();
 #ifdef DEBUG_CPU_USAGE
@@ -1913,7 +1913,7 @@ Thrman::handle_state_change(Signal *signal)
      */
     if (m_current_overload_status == (OverloadStatus)LIGHT_LOAD_CONST)
     {
-      ndbrequire(false);
+      ndbabort();
     }
     else if (m_current_overload_status == (OverloadStatus)MEDIUM_LOAD_CONST)
     {
@@ -1927,7 +1927,7 @@ Thrman::handle_state_change(Signal *signal)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
     jam();
 #ifdef DEBUG_CPU_USAGE
@@ -2310,7 +2310,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false);
+          ndbabort();
           return;
         }
         /* Start at index 0, thread 0, measurePtr.i */
@@ -2447,7 +2447,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false);
+          ndbabort();
           return;
         }
         
@@ -2497,7 +2497,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false);
+          ndbabort();
           return;
         }
         pos = (measurePtr.i << 16) +
@@ -2548,7 +2548,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false);
+          ndbabort();
           return;
         }
         pos = (sendThreadMeasurementPtr.i << 16) +

@@ -452,7 +452,7 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
   default:
     jam();
     jamLine(state);
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -596,7 +596,7 @@ Suma::createSequenceReply(Signal* signal,
         progError(__LINE__, NDBD_EXIT_RESOURCE_ALLOC_ERROR, buf);
       }
     }
-    ndbrequire(false);
+    ndbabort();
   }
 
   sendSTTORRY(signal);
@@ -735,7 +735,7 @@ Suma::fix_nodegroup()
     case 4:
       tot = 256; // 4^4
       break;
-      ndbrequire(false);
+      ndbabort();
     }
     Uint32 cnt = 0;
     for (i = 0; i<tot; i++)
@@ -947,7 +947,7 @@ Suma::check_wait_handover_timeout(Signal* signal)
         /* Why are we waiting if there are no disconnected subscribers? */
         g_eventLogger->critical("Subscriber nodes : %s", BaseString::getPrettyTextShort(c_subscriber_nodes).c_str());
         g_eventLogger->critical("Connected nodes  : %s", BaseString::getPrettyTextShort(c_connected_nodes).c_str());
-        ndbrequire(false);
+        ndbabort();
       }
     }
     else
@@ -1112,7 +1112,7 @@ Suma::execCONTINUEB(Signal* signal){
   }
   default:
   {
-    ndbrequire(false);
+    ndbabort();
   }
   }
 }
@@ -1606,7 +1606,7 @@ Suma::execINCL_NODEREQ(Signal* signal){
 void
 Suma::execSIGNAL_DROPPED_REP(Signal* signal){
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 /********************************************************************
@@ -2550,7 +2550,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   }
   }
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2746,7 +2746,7 @@ Suma::execDIH_SCAN_TAB_REF(Signal* signal)
     }
     ndbabort();
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   DBUG_VOID_RETURN;
@@ -2915,10 +2915,10 @@ Suma::execGET_TABINFOREF(Signal* signal){
     break;
   case GetTabInfoRef::NoFetchByName:
     jam();
-    ndbrequire(false);
+    ndbabort();
   case GetTabInfoRef::TableNameTooLong:
     jam();
-    ndbrequire(false);
+    ndbabort();
   }
   if (tabPtr.p->m_state == Table::DROPPED)
   {
@@ -3239,7 +3239,7 @@ Suma::execSCAN_FRAGREF(Signal* signal){
   jamEntry();
 
 //  ScanFragRef * const ref = (ScanFragRef*)signal->getDataPtr();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -3589,7 +3589,7 @@ Suma::execSUB_START_REQ(Signal* signal){
   }
   case Subscription::T_ERROR:
     jam();
-    ndbrequire(false); // Checked above
+    ndbabort(); // Checked above
     break;
   }
 }
@@ -4353,7 +4353,7 @@ Suma::send_sub_start_stop_event(Signal *signal,
   else
   {
     jamLine(event);
-    ndbrequire(false);
+    ndbabort();
   }
   
   data->gci_hi         = Uint32(gci >> 32);
@@ -5849,7 +5849,7 @@ Suma::check_release_subscription(Signal* signal, Ptr<Subscription> subPtr)
      */
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 
 do_release:
   TablePtr tabPtr;
@@ -6393,7 +6393,7 @@ ref:
 void
 Suma::execSUMA_HANDOVER_REF(Signal* signal) 
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 void

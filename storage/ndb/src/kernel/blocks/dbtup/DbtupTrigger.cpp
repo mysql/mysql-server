@@ -911,7 +911,7 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     constraint_list = &regTablePtr->afterUpdateTriggers;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -1065,11 +1065,11 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
                            diskPagePtrI);
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -1170,7 +1170,7 @@ Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
         jam();
         break;
       default:
-        ndbrequire(false);
+        ndbabort();
         break;
       }
     }//if
@@ -1297,12 +1297,12 @@ Dbtup::check_fire_fully_replicated(const KeyReqStruct *req_struct,
        * trigger firing from the main fragment from here and
        * onwards.
        */
-      ndbrequire(false);
+      ndbabort();
       return true;
     default:
       break;
   }
-  ndbrequire(false);
+  ndbabort();
   return false;
 }
 
@@ -1393,7 +1393,7 @@ Dbtup::getOldTriggerId(const TupTriggerData* trigPtrP,
   case ZDELETE:
     return trigPtrP->oldTriggerIds[2];
   }
-  ndbrequire(false);
+  ndbabort();
   return RNIL;
 }
 
@@ -1559,7 +1559,7 @@ out:
     // XXX should return status and abort the rest
     return;
   default:
-    ndbrequire(false);
+    ndbabort();
     executeDirect= false; // remove warning
   }//switch
 
@@ -1589,7 +1589,7 @@ out:
       case ZDELETE:
         break;
       default:
-        ndbrequire(false);
+        ndbabort();
       }
     }
     else if (req_struct->m_when == KRS_UK_PRE_COMMIT1)
@@ -1603,7 +1603,7 @@ out:
       case ZDELETE:
         return;
       default:
-        ndbrequire(false);
+        ndbabort();
       }
     }
     else
@@ -1678,7 +1678,7 @@ out:
         ndbabort();
       }
     default:
-      ndbrequire(false);
+      ndbabort();
     }
   }
 
@@ -1723,11 +1723,11 @@ out:
       fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -1846,7 +1846,7 @@ out:
     }
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -1998,7 +1998,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
                                   &readBuffer[0]);
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       return false; // Never reached
     }
   }
@@ -2250,7 +2250,7 @@ Dbtup::executeTuxCommitTriggers(Signal* signal,
     /* Refresh should not affect TUX */
     return;
   } else {
-    ndbrequire(false);
+    ndbabort();
     tupVersion= 0; // remove warning
   }
   // fill in constant part
@@ -2286,7 +2286,7 @@ Dbtup::executeTuxAbortTriggers(Signal* signal,
     /* Refresh should not affect TUX */
     return;
   } else {
-    ndbrequire(false);
+    ndbabort();
     tupVersion= 0; // remove warning
   }
   // fill in constant part

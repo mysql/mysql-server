@@ -251,7 +251,7 @@ void Dbdih::sendGCP_PREPARE(Signal* signal, Uint32 nodeId, Uint32 extra)
   }
   else
   {
-    ndbrequire(false); // should be dead code #ifndef ERROR_INSERT
+    ndbabort(); // should be dead code #ifndef ERROR_INSERT
   }
 
   ndbassert(m_micro_gcp.m_enabled || Uint32(m_micro_gcp.m_new_gci) == 0);
@@ -715,7 +715,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   }
   }
 
-  ndbrequire(false);
+  ndbabort();
   return;
 }//Dbdih::execCONTINUEB()
 
@@ -1005,7 +1005,7 @@ void Dbdih::execFSCLOSECONF(Signal* signal)
     tableDeleteLab(signal, filePtr);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   return;
@@ -1093,7 +1093,7 @@ void Dbdih::execFSOPENCONF(Signal* signal)
     tableOpenLab(signal, filePtr);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   return;
@@ -1167,7 +1167,7 @@ void Dbdih::execFSREADCONF(Signal* signal)
     readingTableLab(signal, filePtr);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   return;
@@ -1230,7 +1230,7 @@ void Dbdih::execFSWRITECONF(Signal* signal)
     tableWriteLab(signal, filePtr);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   return;
@@ -1413,7 +1413,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 void Dbdih::execSTART_COPYREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }//Dbdih::execSTART_COPYREF()
 
 void Dbdih::execSTART_FRAGCONF(Signal* signal) 
@@ -1451,7 +1451,7 @@ void Dbdih::execSTART_FRAGREF(Signal* signal)
 void Dbdih::execSTART_MEREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }//Dbdih::execSTART_MEREF()
 
 void Dbdih::execTAB_COMMITREQ(Signal* signal) 
@@ -1710,7 +1710,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       nodeRestartPh2Lab(signal);
       return;
     } else {
-      ndbrequire(false);
+      ndbabort();
     }//if
     ndbsttorry10Lab(signal, __LINE__);
     return;
@@ -2334,7 +2334,7 @@ void Dbdih::execSTART_PERMREF(Signal* signal)
   // This is controlled restart using the
   // already existing features of node crashes. It is not a bug getting here.
   /*-------------------------------------------------------------------------*/
-  ndbrequire(false);
+  ndbabort();
   return;
 }//Dbdih::execSTART_PERMREF()
 
@@ -3081,7 +3081,7 @@ void Dbdih::sendPAUSE_LCP_REQ(Signal *signal, bool pause)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
   /**
@@ -3207,7 +3207,7 @@ void Dbdih::execPAUSE_LCP_CONF(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   dihCopyCompletedLab(signal);
 }
@@ -4244,7 +4244,7 @@ void Dbdih::execSTART_COPYREQ(Signal* signal)
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
 }//Dbdih::execSTART_COPYREQ()
@@ -4689,7 +4689,7 @@ Dbdih::updateToReq_fragmentMutex_locked(Signal * signal,
   }
   default:
     jamLine(takeOverPtr.p->toMasterStatus);
-    ndbrequire(false);
+    ndbabort();
   }
   
   {
@@ -5200,7 +5200,7 @@ void Dbdih::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
     setNodeRecoveryStatus(nodeId, NodeRecord::EXECUTE_REDO_LOG_COMPLETED);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -5704,7 +5704,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
       nodePtr.p->nodeActiveTime = current_time;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
   }
 
   infoEvent("NR Status: node=%u,OLD=%s,NEW=%s",
@@ -6332,7 +6332,7 @@ bool Dbdih::check_stall_lcp_start(void)
       {
         jamLine(nodePtr.p->nodeRecoveryStatus);
         /* The states only used on non-masters should never occur here */
-        ndbrequire(false);
+        ndbabort();
       }
     }
   }
@@ -6515,7 +6515,7 @@ bool Dbdih::check_stall_lcp_start(void)
     default:
     {
       jamLine(max_status);
-      ndbrequire(false);
+      ndbabort();
       return true; /* Will never reach here, silence compiler warnings */
     }
   }
@@ -6655,7 +6655,7 @@ Dbdih::get_status_str(NodeRecord::NodeRecoveryStatus status)
     break;
   default:
     jamLine(status);
-    ndbrequire(false);
+    ndbabort();
     return NULL; /* Will never reach here, silence compiler warnings */
   }
   return status_str;
@@ -8023,7 +8023,7 @@ Dbdih::start_next_takeover_thread(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   return;
 }
@@ -8208,7 +8208,7 @@ void Dbdih::startNextCopyFragment(Signal* signal, Uint32 takeOverPtrI)
       takeOverPtr.p->toCurrentTabref++;
       if (ERROR_INSERTED(7135)) {
         if (takeOverPtr.p->toCurrentTabref == 1) {
-          ndbrequire(false);
+          ndbabort();
         }//if
       }//if
       continue;
@@ -8429,7 +8429,7 @@ Dbdih::sendUpdateTo(Signal* signal, TakeOverRecordPtr takeOverPtr)
     break;
   default:
     jamLine(takeOverPtr.p->toSlaveStatus);
-    ndbrequire(false);
+    ndbabort();
   }
   sendSignal(cmasterdihref, GSN_UPDATE_TOREQ, 
              signal, UpdateToReq::SignalLength, JBB);
@@ -8528,7 +8528,7 @@ Dbdih::execUPDATE_TOCONF(Signal* signal)
     startNextCopyFragment(signal, takeOverPtr.i);
     return;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -8653,7 +8653,7 @@ void Dbdih::execUPDATE_FRAG_STATECONF(Signal* signal)
     return;
   default:
     jamLine(takeOverPtr.p->toSlaveStatus);
-    ndbrequire(false);
+    ndbabort();
   }
   sendUpdateTo(signal, takeOverPtr);
 }//Dbdih::execUPDATE_FRAG_STATECONF()
@@ -9027,7 +9027,7 @@ Dbdih::execEND_TOREF(Signal* signal)
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, ref->senderData);
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -9662,7 +9662,7 @@ void Dbdih::checkCopyTab(Signal* signal, NodeRecordPtr failedNodePtr)
     g_eventLogger->error("outstanding gsn: %s(%d)",
                          getSignalName(c_nodeStartMaster.m_outstandingGsn),
                          c_nodeStartMaster.m_outstandingGsn);
-    ndbrequire(false);
+    ndbabort();
   }
   
   if (!c_nodeStartMaster.m_fragmentInfoMutex.isNull())
@@ -9800,7 +9800,7 @@ Dbdih::handleTakeOver(Signal* signal, TakeOverRecordPtr takeOverPtr)
   }
   default:
     jamLine(takeOverPtr.p->toMasterStatus);
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -9940,7 +9940,7 @@ void Dbdih::failedNodeLcpHandling(Signal* signal,
                            "at failure after NODE_FAILREP of node = %u",
                            (Uint32) failedNodePtr.p->activeStatus,
                            failedNodePtr.i);
-      ndbrequire(false);
+      ndbabort();
       break;
     }//switch
     jam();
@@ -10200,7 +10200,7 @@ bool Dbdih::check_if_empty_lcp_needed(void)
       break;
     default:
       jamLine(specNodePtr.p->nodeStatus);
-      ndbrequire(false);
+      ndbabort();
     }
     specNodePtr.i = specNodePtr.p->nextNode;
   } while (specNodePtr.i != RNIL);
@@ -10530,7 +10530,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
      * This is a master only state...
      */
     gcpState = MasterGCPConf::GCP_READY; //Compiler keep quiet
-    ndbrequire(false);
+    ndbabort();
   }
 
   MasterGCPConf::SaveState saveState;
@@ -10670,7 +10670,7 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
 #ifndef VM_TRACE
   default:
     jamLine(gcpState);
-    ndbrequire(false);
+    ndbabort();
 #endif
   }
   ndbassert(ok); // Unhandled case...
@@ -10718,7 +10718,7 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
 #ifndef VM_TRACE
   default:
     jamLine(saveState);
-    ndbrequire(false);
+    ndbabort();
 #endif
   }
   //ndbassert(ok); // Unhandled case
@@ -10802,7 +10802,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
 #ifndef VM_TRACE
   default:
     jamLine(m_micro_gcp.m_master.m_state);
-    ndbrequire(false);
+    ndbabort();
 #endif
   }
   ndbassert(ok);
@@ -10843,7 +10843,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
 #ifndef VM_TRACE
     default:
       jamLine(m_gcp_save.m_master.m_state);
-      ndbrequire(false);
+      ndbabort();
 #endif
     }
     ndbrequire(ok);
@@ -11249,7 +11249,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
      * checks the tabCopyStatus
      */
     ndbrequire(lcpOngoingFlag);
-    ndbrequire(false);
+    ndbabort();
     break;
   }    
   ndbrequire(ok);
@@ -11557,7 +11557,7 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   
   if(newMasterBlockref != cmasterdihref){
     jam();
-    ndbrequire(0);
+    ndbabort();
   }
 
   if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
@@ -11692,7 +11692,7 @@ err7230:
      *   but since this is master take over
      *   it not allowed
      */
-    ndbrequire(false);
+    ndbabort();
     lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
     break;
   case LCP_COPY_GCI:
@@ -11700,11 +11700,11 @@ err7230:
     /**
      * These two states are handled by if statements above
      */
-    ndbrequire(false);
+    ndbabort();
     lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     lcpState= MasterLCPConf::LCP_STATUS_IDLE; // remove warning
   }//switch
 
@@ -12106,7 +12106,7 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       return;
     }
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   signal->theData[0] = NDB_LE_LCP_TakeoverCompleted;
@@ -12225,7 +12225,7 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     return;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     return;
     break;
   }//switch
@@ -12736,7 +12736,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
           default:
           {
-            ndbrequire(false);
+            ndbabort();
             break;
           }
         }
@@ -13108,7 +13108,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
           default:
           {
-            ndbrequire(false);
+            ndbabort();
             break;
           }
         }
@@ -13582,7 +13582,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     tabPtr.p->method = TabRecord::USER_DEFINED;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   union {
@@ -14407,7 +14407,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     return;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -14721,7 +14721,7 @@ Dbdih::alter_table_writeTable_conf(Signal* signal, Uint32 ptrI, Uint32 err)
   }
   default:
     jamLine(connectPtr.p->connectState);
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -14764,7 +14764,7 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
     }
     default:
       jamLine(connectPtr.p->connectState);
-      ndbrequire(false);
+      ndbabort();
     }
     return;
   }
@@ -14783,7 +14783,7 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
 void
 Dbdih::execDROP_FRAG_REF(Signal* signal)
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -16118,7 +16118,7 @@ Dbdih::make_table_use_new_replica(TabRecordPtr tabPtr,
     jam();
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   DIH_TAB_WRITE_UNLOCK(tabPtr.p);
@@ -16207,7 +16207,7 @@ Dbdih::getFragstore(const TabRecord * tab,      //In parameter
     fragptr = fragPtr;
     return;
   }//if
-  ndbrequire(false);
+  ndbabort();
 }//Dbdih::getFragstore()
 
 void 
@@ -17462,7 +17462,7 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
     }//if
     break;
   case 3:
-    ndbrequire(false);
+    ndbabort();
     return;
     break;
   case 4:
@@ -17526,7 +17526,7 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
     break;
 #endif
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   return;
@@ -17558,7 +17558,7 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
      * Code should *not* request more than WAIT_CNT copy-gci's
      *   so this is an internal error
      */
-    ndbrequire(false);
+    ndbabort();
     return;
   }
   c_copyGCIMaster.m_copyReason = reason;
@@ -19226,7 +19226,7 @@ void Dbdih::readPagesIntoFragLab(Signal* signal, RWFragment* rf)
       return;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       return;
       break;
     }//switch
@@ -19370,7 +19370,7 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
     default:
-      ndbrequire(false);
+      ndbabort();
       return;
       break;
     }//switch
@@ -19980,7 +19980,7 @@ void Dbdih::copyTableNode(Signal* signal,
         return;
         break;
       default:
-        ndbrequire(false);
+        ndbabort();
         break;
       }//switch
     } else {
@@ -20118,7 +20118,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
                          "lcpStatusUpdatedPlace = %d",
                          (Uint32) c_lcpState.lcpStatus,
                          c_lcpState.lcpStatusUpdatedPlace);
-    ndbrequire(false);
+    ndbabort();
     return;
   }//if
   add_lcp_counter(&c_lcpState.ctimer, 32);
@@ -21426,7 +21426,7 @@ void Dbdih::findReplica(ReplicaRecordPtr& replicaPtr,
     g_eventLogger->info("...And wasn't found in oldStoredReplicas");
   }
 #endif
-  ndbrequire(false);
+  ndbabort();
 }//Dbdih::findReplica()
 
 
@@ -21458,7 +21458,7 @@ Dbdih::handle_invalid_lcp_no(const LcpFragRep* rep,
 	replicaPtr.p->lcpId[i] >= lcpId)
     {
       ndbout_c("i: %d lcpId: %d", i, replicaPtr.p->lcpId[i]);
-      ndbrequire(false);
+      ndbabort();
     }
   }
 
@@ -21504,7 +21504,7 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
     {
       g_eventLogger->error("lcpNo = %d replicaPtr.p->nextLcp = %d",
                            lcpNo, replicaPtr.p->nextLcp);
-      ndbrequire(false);
+      ndbabort();
     }
   }
   ndbrequire(lcpNo == replicaPtr.p->nextLcp);
@@ -21987,7 +21987,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
                    lcpId));
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
   ndbrequire(lcpId == SYSFILE->latestLCP_ID);
   
@@ -22304,7 +22304,7 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
                              c_lcpTabDefWritesControl.inUse,
                              c_lcpTabDefWritesControl.queuedRequests,
                              c_lcpTabDefWritesControl.totalResources);
-      ndbrequire(false);
+      ndbabort();
     }
     jam();
     signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
@@ -22382,7 +22382,7 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     return;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
     return;
     break;
   }//switch
@@ -22894,7 +22894,7 @@ dolocal:
   sysErr->data[2] = m_micro_gcp.m_master.m_state;
   EXECUTE_DIRECT(NDBCNTR, GSN_SYSTEM_ERROR, 
                  signal, SystemError::SignalLength);
-  ndbrequire(false);
+  ndbabort();
   return;
 }//Dbdih::crashSystemAtGcpStop()
 
@@ -24121,7 +24121,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       break;
     }
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }//switch
   jam();
@@ -24362,7 +24362,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
     }
     else if (NGPtr.p->nodeCount != cnoReplicas)
     {
-      ndbrequire(false);
+      ndbabort();
     }
     else
     {
@@ -24587,7 +24587,7 @@ Dbdih::getFragmentCount(Uint32 partitionBalance,
 
   case NDB_PARTITION_BALANCE_SPECIFIC:
   default:
-    ndbrequire(false);
+    ndbabort();
     return 0;
   }
 }
@@ -25625,7 +25625,7 @@ void Dbdih::setNodeActiveStatus()
       snaNodeptr.p->activeStatus = Sysfile::NS_Configured;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }//switch
   }//for
@@ -25672,7 +25672,7 @@ void Dbdih::setNodeGroups()
       sngNodeptr.p->nodeGroup = ZNIL;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       return;
       break;
     }//switch
@@ -25770,7 +25770,7 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
       tsnrNodeActiveStatus = Sysfile::NS_Configured;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       tsnrNodeActiveStatus = Sysfile::NS_NotDefined; // remove warning
       break;
     }//switch
@@ -26718,7 +26718,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
         This dump code is *not* intended for interactive usage, as the node
         is likely to crash.
       */
-      ndbrequire(false);
+      ndbabort();
     }
   }
   if (arg == DumpStateOrd::DihDisplayPauseState)
@@ -27358,7 +27358,7 @@ void Dbdih::execSTOP_ME_REQ(Signal* signal)
 
 void Dbdih::execSTOP_ME_REF(Signal* signal)
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 void Dbdih::execSTOP_ME_CONF(Signal* signal)
@@ -27827,7 +27827,7 @@ void
 Dbdih::execDICT_LOCK_REF(Signal* signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -28198,7 +28198,7 @@ error:
   }
 
   jamLine(err);
-  ndbrequire(false);
+  ndbabort();
 }
 
 /**

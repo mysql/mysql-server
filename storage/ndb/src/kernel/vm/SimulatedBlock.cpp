@@ -404,7 +404,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
   case SEND_DISCONNECTED:
     break;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 static void
@@ -2303,7 +2303,7 @@ SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -2346,7 +2346,7 @@ SimulatedBlock::handle_execute_error(GlobalSignalNumber gsn)
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
     ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 // MT LQH callback CONF via signal
@@ -2517,7 +2517,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
      */
     Ptr<FragmentInfo> fragPtr;
     if(!c_fragmentInfoHash.seize(fragPtr)){
-      ndbrequire(false);
+      ndbabort();
       return false;
     }
     
@@ -2640,7 +2640,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
   /**
    * Unable to find fragment
    */
-  ndbrequire(false);
+  ndbabort();
   return false;
 }
 
@@ -2694,7 +2694,7 @@ SimulatedBlock::assembleDroppedFragments(Signal* signal)
      */
     Ptr<FragmentInfo> fragPtr;
     if(!c_fragmentInfoHash.seize(fragPtr)){
-      ndbrequire(false);
+      ndbabort();
       return false;
     }
     
@@ -2762,7 +2762,7 @@ SimulatedBlock::assembleDroppedFragments(Signal* signal)
   /**
    * Unable to find fragment
    */
-  ndbrequire(false);
+  ndbabort();
   return false;
 }
 
@@ -2947,7 +2947,7 @@ SimulatedBlock::doNodeFailureCleanup(Signal* signal,
       return elementsCleaned;
     }
     default:
-      ndbrequire(false);
+      ndbabort();
     }
 
     /* Did we complete cleaning up this resource? */
@@ -4474,7 +4474,7 @@ SimulatedBlock::synchronize_path(Signal * signal,
   if (blocks[0] == 0)
   {
     jam();
-    ndbrequire(false); // TODO
+    ndbabort(); // TODO
   }
   else
   {

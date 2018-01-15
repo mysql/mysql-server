@@ -1621,7 +1621,7 @@ Dbtup::readDiskVarSizeNotNULL(Uint8* out_buffer,
 			      AttributeHeader* ah_out,
 			      Uint32  attr_des2)
 {
-  ndbrequire(false);
+  ndbabort();
   return 0;
 }
 
@@ -2921,7 +2921,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
           break;
 #ifdef VM_TRACE
         default:
-          ndbrequire(false);
+          ndbabort();
 #endif
         }
         
@@ -2961,7 +2961,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
   }
   
 error:  
-  ndbrequire(false);
+  ndbabort();
   return 0;
 }
 

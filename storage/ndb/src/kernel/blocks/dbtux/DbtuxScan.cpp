@@ -433,7 +433,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     ndbabort();
   default:
     jam();
-    ndbrequire(false);
+    ndbabort();
     break;
   }
   // start looking for next scan result
@@ -595,7 +595,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         return;  // stop
         break;
       default:
-        ndbrequire(false);
+        ndbabort();
         break;
       }
     } else {
@@ -653,7 +653,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
                    NextScanConf::SignalLengthNoTuple);
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /*
@@ -1043,7 +1043,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
       pos.m_dir = node.getSide();
       continue;
     }
-    ndbrequire(false);
+    ndbabort();
   }
   // copy back position
   scan.m_scanPos = pos;

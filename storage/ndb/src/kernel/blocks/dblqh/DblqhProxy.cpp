@@ -1282,7 +1282,7 @@ DblqhProxy::execLOCAL_RECOVERY_COMP_REP(Signal *signal)
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
   /* All LDM workers have completed this phase */
   ndbrequire(Uint32(ss.phaseToSend) == Uint32(phaseId));
@@ -1358,7 +1358,7 @@ DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
     sendSignal(ss.m_req.senderRef, GSN_START_RECCONF,
                signal, StartRecConf::SignalLength, JBB);
   } else {
-    ndbrequire(false);
+    ndbabort();
   }
 
   {
@@ -1631,7 +1631,7 @@ DblqhProxy::sendLQH_TRANSCONF(Signal* signal, Uint32 ssId)
     sendSignal(ss.m_req.senderRef, GSN_LQH_TRANSCONF,
                signal, LqhTransConf::SignalLength, JBB);
   } else {
-    ndbrequire(false);
+    ndbabort();
   }
 
   ssRelease<Ss_LQH_TRANSREQ>(ssId);

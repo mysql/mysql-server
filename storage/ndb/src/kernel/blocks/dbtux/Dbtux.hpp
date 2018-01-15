@@ -1190,7 +1190,7 @@ Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1203,7 +1203,7 @@ Dbtux::NodeHandle::setSide(unsigned i)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 

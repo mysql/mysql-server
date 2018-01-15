@@ -742,7 +742,7 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
     subRec->errorCode = BuildIndxRef::BadRequestType;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -982,7 +982,7 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
     executeBuildFKTransaction(signal, subRecPtr);
     break;
   case STAT_UTIL:
-    ndbrequire(false);
+    ndbabort();
     break;
   case STAT_CLEAN:
     {
@@ -1364,7 +1364,7 @@ void
 Trix::execSUB_REMOVE_REF(Signal* signal){
   jamEntry();
   //@todo
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1398,7 +1398,7 @@ Trix::execSUB_REMOVE_CONF(Signal* signal){
 void
 Trix::execUTIL_RELEASE_REF(Signal* signal){
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1602,7 +1602,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     break;
   default:
     jamLine(req->requestType);
-    ndbrequire(false);
+    ndbabort();
   }
 
   if (req->requestInfo & CopyDataReq::TupOrder)
@@ -1956,7 +1956,7 @@ Trix::execINDEX_STAT_IMPL_REQ(Signal* signal)
     stat.m_requestName = "drop head";
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -2383,7 +2383,7 @@ Trix::statUtilPrepareRef(Signal* signal, Uint32 statPtrI)
     break;
   case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
   statOpError(signal, stat, errorCode, __LINE__);
@@ -2472,7 +2472,7 @@ Trix::statUtilExecuteRef(Signal* signal, Uint32 statPtrI)
     errorCode = IndexStatRef::BusyUtilExecute;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -2538,7 +2538,7 @@ Trix::statReadHeadDone(Signal* signal, StatOp& stat)
     break;
 
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -2554,7 +2554,7 @@ Trix::statInsertHeadDone(Signal* signal, StatOp& stat)
     statScanEnd(signal, stat);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -2570,7 +2570,7 @@ Trix::statUpdateHeadDone(Signal* signal, StatOp& stat)
     statScanEnd(signal, stat);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -2586,7 +2586,7 @@ Trix::statDeleteHeadDone(Signal* signal, StatOp& stat)
     statDropEnd(signal, stat);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -2703,7 +2703,7 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
     break;
   default:
     boundCount = 0; /* Silence compiler warning */
-    ndbrequire(false);
+    ndbabort();
     return; /* Silence compiler warning */
     break;
   }
@@ -3096,7 +3096,7 @@ Trix::statSendPrepare(Signal* signal, StatOp& stat)
         w.add(UtilPrepareReq::AttributeId, i);
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }
   }
@@ -3147,7 +3147,7 @@ Trix::statSendExecute(Signal* signal, StatOp& stat)
         statDataOut(stat, i);
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }
   }
@@ -3228,7 +3228,7 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
       bytes = 4;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }
     return;
@@ -3266,13 +3266,13 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
       }
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }
     return;
   }
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void

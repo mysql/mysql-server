@@ -1835,7 +1835,7 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   sendSttorry(signal);
 }
@@ -1893,7 +1893,7 @@ Ndbcntr::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   return;
 }
@@ -2026,7 +2026,7 @@ Ndbcntr::execCNTR_START_REF(Signal * signal)
     jam();
     progError(__LINE__, NDBD_EXIT_RESTART_DURING_SHUTDOWN);
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2097,7 +2097,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
     }
     default:
     {
-      ndbrequire(false);
+      ndbabort();
       break;
     }
   }
@@ -2272,7 +2272,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
   case NodeState::ST_NODE_RESTART:
   case NodeState::ST_INITIAL_NODE_RESTART:
   case NodeState::ST_ILLEGAL_TYPE:
-    ndbrequire(false);
+    ndbabort();
   }
 
   const bool startInProgress = !c_start.m_starting.isclear();
@@ -2539,14 +2539,14 @@ Ndbcntr::trySystemRestart(Signal* signal){
         }
         default:
         {
-          ndbrequire(false);
+          ndbabort();
         }
       }
       break;
     }
     default:
     {
-      ndbrequire(false);
+      ndbabort();
     }
     }
     
@@ -2907,7 +2907,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
       jam();
       break;
     }
-    ndbrequire(false);
+    ndbabort();
   }
   
   /**
@@ -2957,7 +2957,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
 	       GSN_CNTR_WAITREP, signal, 2, JBB);
     return;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }//Ndbcntr::ph5ALab()
 
@@ -3626,7 +3626,7 @@ void Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
 void Ndbcntr::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -3649,7 +3649,7 @@ Ndbcntr::execCREATE_HASH_MAP_REF(Signal* signal)
 {
   jamEntry();
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -3698,7 +3698,7 @@ void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
                        "Failed to commit schema trans, err: %u",
                        ref->errorCode);
   progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -4542,7 +4542,7 @@ Ndbcntr::StopRecord::checkTimeout(Signal* signal){
   case NodeState::SL_SINGLEUSER:
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -4812,7 +4812,7 @@ Ndbcntr::execCHANGE_NODE_STATE_CONF(Signal* signal)
 void Ndbcntr::execSTOP_ME_REF(Signal* signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 
@@ -5070,7 +5070,7 @@ Ndbcntr::clearFilesystem(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 
   sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
@@ -5559,7 +5559,7 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
      * same thing at the same time.
      */
     jam();
-    ndbrequire(false);
+    ndbabort();
     sendSignalWithDelay(reference(),
                         GSN_READ_LOCAL_SYSFILE_REQ,
                         signal,
@@ -5741,7 +5741,7 @@ Ndbcntr::execFSOPENREF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5784,7 +5784,7 @@ Ndbcntr::execFSOPENCONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 #define ZLIST_OF_PAIRS 0
@@ -5829,7 +5829,7 @@ Ndbcntr::execFSREADREF(Signal *signal)
     handle_read_refuse(signal);
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 const char*
@@ -5877,7 +5877,7 @@ Ndbcntr::execFSREADCONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5885,7 +5885,7 @@ Ndbcntr::execFSWRITEREF(Signal *signal)
 {
   jamEntry();
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5909,7 +5909,7 @@ Ndbcntr::execFSWRITECONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -5927,7 +5927,7 @@ Ndbcntr::handle_read_refuse(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   close_local_sysfile(signal);
 }
@@ -5947,7 +5947,7 @@ void
 Ndbcntr::execFSCLOSEREF(Signal *signal)
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -6058,7 +6058,7 @@ Ndbcntr::execFSCLOSECONF(Signal *signal)
     return;
   }
   jamLine(c_local_sysfile.m_state);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -6284,7 +6284,7 @@ void Ndbcntr::execSET_LOCAL_LCP_ID_REQ(Signal *signal)
     send_to_all_lqh(signal, GSN_SET_LOCAL_LCP_ID_CONF, 2);
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void Ndbcntr::write_local_sysfile_start_lcp_done(Signal *signal)

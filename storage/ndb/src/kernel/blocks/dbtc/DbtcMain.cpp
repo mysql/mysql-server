@@ -242,7 +242,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   case TcContinueB::ZRETURN_FROM_QUEUED_DELIVERY:
     jam();
-    ndbrequire(false);
+    ndbabort();
     return;
   case TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER:
     jam();
@@ -350,7 +350,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
        */
       if (++transPtr.p->continueBCount > 100000)
       {
-        ndbrequire(false);
+        ndbabort();
       }
     }
 #endif
@@ -458,7 +458,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
   }
 #endif
   default:
-    ndbrequire(false);
+    ndbabort();
   }//switch
 }
 
@@ -511,7 +511,7 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
 void Dbtc::execREAD_NODESREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }
 
 // create table prepare
@@ -887,7 +887,7 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     tabPtr.p->currentSchemaVersion = newTableVersion;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 
@@ -1808,7 +1808,7 @@ void Dbtc::sendSignalErrorRefuseLab(Signal* signal)
     jam();
     /* Force state print */
     printState(signal, 12, true);
-    ndbrequire(false);
+    ndbabort();
     signal->theData[0] = apiConnectptr.p->ndbapiConnect;
     signal->theData[1] = signal->theData[ttransid_ptr];
     signal->theData[2] = signal->theData[ttransid_ptr + 1];
@@ -1904,7 +1904,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
     signal->theData[1] = t1;
     signal->theData[2] = t2;
     signal->theData[3] = ZABORT_ERROR;
-    ndbrequire(false);
+    ndbabort();
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKREP, 
 	       signal, 4, JBB);
     return;
@@ -3072,7 +3072,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (refToNode(sendersBlockRef) == c_lastFailedApi)
     {
       /* Signal from API node received *after* API_FAILREQ */
-      ndbrequire(false);
+      ndbabort();
     }
   }
 #endif
@@ -4078,7 +4078,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
 #ifdef ERROR_INSERT
     else if (ERROR_INSERTED(8083))
     {
-      ndbrequire(false);  // Only node-local reads
+      ndbabort();  // Only node-local reads
     }
 #endif
   }
@@ -6273,7 +6273,7 @@ Dbtc::crash_gcp(Uint32 line)
     localGcpPointer.i = localGcpPointer.p->nextGcp;
   }
   progError(line, NDBD_EXIT_NDBREQUIRE);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
@@ -9279,7 +9279,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	     transP->firstTcConnect,
 	     c_apiConTimer[apiConnectptr.i]
 	     );
-    ndbrequire(false);
+    ndbabort();
     setApiConTimer(apiConnectptr.i, 0, __LINE__);
     return;
   }
@@ -9335,7 +9335,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	}
 	warningEvent("%s", buf);
 	ndbout_c("%s", buf);
-	ndbrequire(false);
+	ndbabort();
 	releaseAbortResources(signal);
 	return;
       }
@@ -10640,7 +10640,7 @@ void Dbtc::remove_from_transid_fail_hash(Signal *signal, Uint32 transid1)
       locApiConnectptr.i = locApiConnectptr.p->nextApiConnect;
     }
   } while (locApiConnectptr.i != RNIL);
-  ndbrequire(false);
+  ndbabort();
 }
 
 Uint32
@@ -13584,7 +13584,7 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
   if (ERROR_INSERTED(8083) &&
       nodeId != ownNodeId)
   {
-    ndbrequire(false);  // Only node-local reads 
+    ndbabort();  // Only node-local reads 
   }
 
   /* Send SCANFRAGREQ directly to LQH block, or 'viaSPJ'
@@ -14106,13 +14106,13 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
        *********************************************************************/
       DEBUG("scanTabRefLab: ZSCANTIME_OUT_ERROR2");
       ndbout_c("apiConnectptr(%d) -> abort", apiConnectptr.i);
-      ndbrequire(false); //B2 indication of strange things going on
+      ndbabort(); //B2 indication of strange things going on
       scanTabRefLab(signal, ZSCANTIME_OUT_ERROR2);
       return;
     }
     DEBUG("scanTabRefLab: ZSTATE_ERROR");
     DEBUG("  apiConnectstate="<<apiConnectptr.p->apiConnectstate);
-    ndbrequire(false); //B2 indication of strange things going on
+    ndbabort(); //B2 indication of strange things going on
     scanTabRefLab(signal, ZSTATE_ERROR);
     return;
   }//if
@@ -14293,7 +14293,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	break;
       default:
 	jamLine(curr.p->scanFragState);
-	ndbrequire(false);
+	ndbabort();
       }
       
       curr.p->startFragTimer(ctcTimer);
@@ -17238,7 +17238,7 @@ void Dbtc::execCREATE_INDX_IMPL_REQ(Signal* signal)
   r0.reset(); // undo implicit first()
   if (!r0.getWord(&indexData->attributeList.sz) ||
       !r0.getWords(indexData->attributeList.id, indexData->attributeList.sz)) {
-    ndbrequire(false);
+    ndbabort();
   }
   indexData->primaryKeyPos = indexData->attributeList.sz;
 
@@ -17290,7 +17290,7 @@ void Dbtc::execALTER_INDX_IMPL_REQ(Signal* signal)
     indexData->indexState = IS_BUILDING; // wl3600_todo ??
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
   AlterIndxImplConf * const conf =  
@@ -17390,7 +17390,7 @@ Dbtc::execCREATE_FK_IMPL_REQ(Signal* signal)
   }
   else
   {
-    ndbrequire(false); // No other request should reach TC
+    ndbabort(); // No other request should reach TC
   }
 
   releaseSections(handle);
@@ -17718,7 +17718,7 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
     }
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -19341,7 +19341,7 @@ bool Dbtc::executeTrigger(Signal* signal,
                                            transPtr, opPtr);
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
   }
   return true;
@@ -19375,7 +19375,7 @@ void Dbtc::executeIndexTrigger(Signal* signal,
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -19536,7 +19536,7 @@ Dbtc::executeFKParentTrigger(Signal* signal,
     }
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   setnull:
   {
     op = ZUPDATE;
@@ -20477,7 +20477,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   if (opPtr.p->apiConnect != orgApiConnectPtr.i)
   {
     jam();
-    ndbrequire(false);
+    ndbabort();
     /**
      * this should not happen :-)
      *
@@ -20660,7 +20660,7 @@ Dbtc::executeFKChildTrigger(Signal* signal,
     fk_readFromParentTable(signal, firedTriggerData, transPtr, opPtr, fkPtr.p);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -21248,7 +21248,7 @@ void Dbtc::executeReorgTrigger(Signal* signal,
     sendAttrInfo= false;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   Ptr<TableRecord> tablePtr;
@@ -21436,7 +21436,7 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
     sendAttrInfo = false;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   Ptr<TableRecord> tablePtr;

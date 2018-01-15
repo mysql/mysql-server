@@ -1098,7 +1098,7 @@ Backup::execCONTINUEB(Signal* signal)
     return;
   }
   default:
-    ndbrequire(0);
+    ndbabort();
   }//switch
 }
 
@@ -1153,7 +1153,7 @@ Backup::execBACKUP_LOCK_TAB_CONF(Signal *signal)
     return;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1161,7 +1161,7 @@ void
 Backup::execBACKUP_LOCK_TAB_REF(Signal *signal)
 {
   jamEntry();
-  ndbrequire(false /* Not currently possible. */);
+  ndbabort(); /* Not currently possible. */
 }
 
 Uint64 Backup::get_new_speed_val64(Signal *signal)
@@ -2077,7 +2077,7 @@ Backup::removeTableMap(TablePtr &tabPtr,
     prevTabPtr = locTabPtr;
     locTabPtr.i = locTabPtr.p->nextMapTable;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 static Uint32 xps(Uint64 x, Uint64 ms)
@@ -2529,7 +2529,7 @@ Backup::checkNodeFail(Signal* signal,
     case GSN_UTIL_LOCK_REQ:
       return;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
     
     for(Uint32 i = 0; (i = mask.find(i+1)) != NdbNodeBitmask::NotFound; )
@@ -2727,7 +2727,7 @@ Backup::execUTIL_SEQUENCE_REF(Signal* signal)
                utilRef->errorCode,
                utilRef->TCErrorCode);
 
-  ndbrequire(false); //Temporary to get crash to analyse problem
+  ndbabort(); //Temporary to get crash to analyse problem
   sendBackupRef(signal, ptr, BackupRef::SequenceFailure);
 }//execUTIL_SEQUENCE_REF()
 
@@ -2935,7 +2935,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   /**
    * Not implemented
    */
-  ndbrequire(0);
+  ndbabort();
 }
 
 void
@@ -4135,7 +4135,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
     return;
   case GSN_UTIL_SEQUENCE_REQ:
   case GSN_UTIL_LOCK_REQ:
-    ndbrequire(false);
+    ndbabort();
     return;
   case GSN_DROP_TRIG_IMPL_REQ:
   case GSN_STOP_BACKUP_REQ:
@@ -4311,7 +4311,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
 #endif
     if (!c_backups.getPool().seizeId(ptr, ptrI)) {
       jam();
-      ndbrequire(false); // If master has succeeded slave should succed
+      ndbabort(); // If master has succeeded slave should succed
     }//if
     c_backups.addFirst(ptr);
   }//if
@@ -4511,7 +4511,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
       if (msg != 0)
       {
         ndbout_c("setup msg = %s, i = %u", msg, i);
-        ndbrequire(false);
+        ndbabort();
       }
       files[i].p->operation.m_bytes_total = 0;
       files[i].p->operation.m_records_total = 0;
@@ -4607,7 +4607,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   /**
    * Not implemented
    */
-  ndbrequire(0);
+  ndbabort();
 }
 
 void
@@ -5098,7 +5098,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     Uint32 dstLen = len + 3;
     if(!buf.getWritePtr(&dst, dstLen)) {
       jam();
-      ndbrequire(false);
+      ndbabort();
       ptr.p->setErrorCode(DefineBackupRef::FailedAllocateTableMem);
       releaseSections(handle);
       defineBackupRef(signal, ptr);
@@ -6427,7 +6427,7 @@ Backup::execTRANSID_AI(Signal* signal)
                           dataLen, op.maxRecordSize, header);
       jamLine(dataLen);
       jamLine(op.maxRecordSize);
-      ndbrequire(false);
+      ndbabort();
     }
     filePtr.p->m_sent_words_in_scan_batch += dataLen;
     op.finished(dataLen);
@@ -7605,7 +7605,7 @@ Backup::execFSAPPENDREF(Signal* signal)
   CRASH_INSERTION(10045);
   g_eventLogger->info("Crashing after FSAPPENDREF: error code: %u",
                       errCode);
-  ndbrequire(false);
+  ndbabort();
   checkFile(signal, filePtr);
 }
 
@@ -7947,7 +7947,7 @@ Backup::get_log_buffer(Signal* signal,
     logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
   else {
     ndbout << "Bad Event: " << trigPtr.p->event << endl;
-    ndbrequire(false);
+    ndbabort();
   }
 
   return logEntry;
@@ -8353,7 +8353,7 @@ Backup::execFSCLOSEREF(Signal* signal)
       file_type_str = "ctl";
     else
     {
-      ndbrequire(false);
+      ndbabort();
       file_type_str = NULL;
     }
   }
@@ -8368,7 +8368,7 @@ Backup::execFSCLOSEREF(Signal* signal)
       file_type_str = "log";
     else
     {
-      ndbrequire(false);
+      ndbabort();
       file_type_str = NULL;
     }
   }
@@ -8491,7 +8491,7 @@ Backup::execFSCLOSECONF(Signal* signal)
     }
     else
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
   /* Backup closing files */
@@ -10589,7 +10589,7 @@ Backup::execFSREADREF(Signal *signal)
    * Since we create the file if it doesn't exist, this should not occur
    * unless something is completely wrong with the file system.
    */
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -12520,7 +12520,7 @@ Backup::execSYNC_PAGE_WAIT_REP(Signal *signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -12830,7 +12830,7 @@ Backup::lcp_write_ctl_file_to_disk(Signal *signal,
 void
 Backup::execFSWRITEREF(Signal *signal)
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -12859,7 +12859,7 @@ Backup::execFSWRITECONF(Signal *signal)
     lcp_update_ctl_file_for_rewrite_done(signal, ptr, filePtr);
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -12906,7 +12906,7 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
       backupFragmentRef(signal, filePtr);
       return;
     }
-    ndbrequire(false);
+    ndbabort();
     return;
   }
 
@@ -13227,7 +13227,7 @@ Backup::sync_log_lcp_lsn(Signal *signal,
     case -1:
     {
       g_eventLogger->info("(%u)Failed to Sync LCP lsn", instance());
-      ndbrequire(false);
+      ndbabort();
      return; //Will never reach here
     }
     default:
@@ -13664,7 +13664,7 @@ Backup::openFilesReplyLCP(Signal* signal,
                                 " errCode: %u",
                                 i,
                                 ptr.p->errorCode);
-        ndbrequire(false);
+        ndbabort();
         return;
       }
     }
@@ -13674,7 +13674,7 @@ Backup::openFilesReplyLCP(Signal* signal,
       g_eventLogger->critical("Fatal: Reopen LCP control file failed,"
                               " errCode: %u",
                               ptr.p->errorCode);
-      ndbrequire(false);
+      ndbabort();
       return;
     }
     defineBackupRef(signal, ptr);
@@ -14182,7 +14182,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         }
         else
         {
-          ndbrequire(false); // Impossible state
+          ndbabort(); // Impossible state
         }
       }
       else if (state == LcpStatusConf::LCP_WAIT_END_LCP)

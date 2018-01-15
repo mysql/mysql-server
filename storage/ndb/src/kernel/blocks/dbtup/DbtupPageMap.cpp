@@ -203,7 +203,7 @@ Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId)
     ndbrequire((*ptr) != RNIL)
     return ((*ptr) & PAGE_BIT_MASK);
   }
-  ndbrequire(false);
+  ndbabort();
   return RNIL;
 }
 
@@ -1253,7 +1253,7 @@ void Dbtup::errorHandler(Uint32 errorCode)
   default:
     jam();
   }
-  ndbrequire(false);
+  ndbabort();
 }//Dbtup::errorHandler()
 
 void

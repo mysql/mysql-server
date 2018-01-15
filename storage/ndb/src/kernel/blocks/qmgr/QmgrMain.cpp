@@ -569,7 +569,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     ndbrequire(getNodeInfo(connectedNodeId).m_type == NodeInfo::MGM);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   if (connectedNodeInfo.getType() != NodeInfo::DB)
@@ -1405,7 +1405,7 @@ retry:
 	    NDBD_EXIT_PARTITIONED_SHUTDOWN,
 	    buf);
   
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1854,7 +1854,7 @@ Qmgr::check_startup(Signal* signal)
       goto check_log;
     }
   }
-  ndbrequire(false);
+  ndbabort();
 
 check_log:
   jam();
@@ -1892,7 +1892,7 @@ check_log:
 	  goto incomplete_log;
 	}
       }
-      ndbrequire(false);
+      ndbabort();
     }
   }
   goto start_report;
@@ -2299,7 +2299,7 @@ void Qmgr::execCM_ADD(Signal* signal)
       joinedCluster(signal, addNodePtr);
       return;
     case CmAdd::AddCommit:
-      ndbrequire(false);
+      ndbabort();
     }
   }
 
@@ -2337,7 +2337,7 @@ void Qmgr::execCM_ADD(Signal* signal)
   }
   case CmAdd::CommitNew:
     jam();
-    ndbrequire(false);
+    ndbabort();
   }
 
 }//Qmgr::execCM_ADD()
@@ -2389,7 +2389,7 @@ Qmgr::execENABLE_COMCONF(Signal *signal)
 
     default:
       jam();
-      ndbrequire(false);
+      ndbabort();
   }
 }
 
@@ -2568,7 +2568,7 @@ void Qmgr::execCM_ACKADD(Signal* signal)
     }
     return;
   }//switch
-  ndbrequire(false);
+  ndbabort();
 }//Qmgr::execCM_ACKADD()
 
 /**-------------------------------------------------------------------------
@@ -3342,7 +3342,7 @@ Qmgr::add_failconf_block(NodeRecPtr nodePtr, Uint32 block)
      * Already in list!!
      */
 #ifdef ERROR_INSERT
-    ndbrequire(false);
+    ndbabort();
 #endif
     return;
   }
@@ -3545,7 +3545,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     CRASH_INSERTION(946);
     BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
-    ndbrequire(false);
+    ndbabort();
   }
   
   if (getNodeInfo(nodeId).getType() != NodeInfo::DB)
@@ -3658,7 +3658,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
   case ZAPI_ACTIVATION_ONGOING:
     ndbabort();
   default:
-    ndbrequire(false);  // Unhandled state
+    ndbabort();  // Unhandled state
   }//switch
 
   return;
@@ -4543,7 +4543,7 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
     }
   }
   /* Never get here */
-  ndbrequire(false);
+  ndbabort();
 }
 
 /**---------------------------------------------------------------------------
@@ -5379,7 +5379,7 @@ Uint32 Qmgr::getArbitDelay()
     jam();
     return 100;
   }
-  ndbrequire(false);
+  ndbabort();
   return (Uint32)-1;
 }
 
@@ -5421,7 +5421,7 @@ Uint32 Qmgr::getArbitTimeout()
     jam();
     return 100;
   }
-  ndbrequire(false);
+  ndbabort();
   return (Uint32)-1;
 }
 
@@ -5494,7 +5494,7 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     jam();
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -5542,7 +5542,7 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
     jam();
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -5643,7 +5643,7 @@ Qmgr::handleArbitCheck(Signal* signal)
       }
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       break;
     }
   }
@@ -5795,7 +5795,7 @@ Qmgr::runArbitThread(Signal* signal)
     stateArbitCrash(signal);
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
   signal->theData[0] = ZARBIT_HANDLING;
@@ -5908,7 +5908,7 @@ Qmgr::stateArbitFind(Signal* signal)
   }
 
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -6053,7 +6053,7 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     break;
   default:
     jam();
-    ndbrequire(false);
+    ndbabort();
   }
   sd->sender = getOwnNodeId();
   sd->code = 0;
@@ -6165,7 +6165,7 @@ Qmgr::stateArbitStart(Signal* signal)
     break;
 
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -6340,7 +6340,7 @@ Qmgr::stateArbitChoose(Signal* signal)
   }
 
   default:
-    ndbrequire(false);
+    ndbabort();
     break;
   }
 }
@@ -7629,7 +7629,7 @@ Qmgr::handleFailFromSuspect(Signal* signal,
     reasonText = "ZLINK_FAILURE";
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   g_eventLogger->warning("QMGR : Received Connectivity failure notification about "
@@ -7957,5 +7957,5 @@ Qmgr::execISOLATE_ORD(Signal* signal)
   }
   }
 
-  ndbrequire(false);
+  ndbabort();
 }

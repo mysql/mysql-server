@@ -228,7 +228,7 @@ Restore::execCONTINUEB(Signal* signal){
     return;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -903,7 +903,7 @@ Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -1046,7 +1046,7 @@ Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
     }
     default:
     {
-      ndbrequire(false);
+      ndbabort();
       return;
     }
   }
@@ -2189,7 +2189,7 @@ Restore::execFSOPENREF(Signal* signal)
   }
   else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
   {
-    ndbrequire(false);
+    ndbabort();
   }
   ndbrequire(file_ptr.p->m_status == File::FIRST_READ);
 
@@ -2566,7 +2566,7 @@ Restore::execFSREADREF(Signal * signal)
     return;
   }
   SimulatedBlock::execFSREADREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2626,7 +2626,7 @@ Restore::execFSCLOSEREF(Signal * signal)
 {
   jamEntry();
   SimulatedBlock::execFSCLOSEREF(signal);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2808,7 +2808,7 @@ Restore::get_header_string(Uint32 header_type)
     case BackupFormat::DELETE_BY_ROWID_TYPE:
       return "DELETE_BY_ROWID_TYPE";
     default:
-      ndbrequire(false);
+      ndbabort();
       return NULL;
   }
 }
@@ -2884,7 +2884,7 @@ Restore::parse_record(Signal* signal,
     default:
     {
       jam();
-      ndbrequire(false);
+      ndbabort();
       return; /* Silence compiler warnings */
     }
   }
@@ -3353,7 +3353,7 @@ Restore::execute_operation(Signal *signal,
     {
       jam();
       crash_during_restore(file_ptr, __LINE__, ZGET_DATAREC_ERROR);
-      ndbrequire(false);
+      ndbabort();
     }
     sections.m_cnt++;
 
@@ -3369,7 +3369,7 @@ Restore::execute_operation(Signal *signal,
       {
         jam();
         crash_during_restore(file_ptr, __LINE__, ZGET_ATTRINBUF_ERROR);
-        ndbrequire(false);
+        ndbabort();
       }
       sections.m_cnt++;
     }
@@ -3522,7 +3522,7 @@ Restore::execLQHKEYCONF(Signal* signal)
       file_ptr.p->m_row_operations++;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
   }
   check_restore_ready(signal, file_ptr);
 }
@@ -3681,7 +3681,7 @@ Restore::parse_error(Signal* signal,
 		       name, extra);
   
   progError(line, NDBD_EXIT_INVALID_LCP_FILE, buf);  
-  ndbrequire(false);
+  ndbabort();
 }
 
 NdbOut& 
