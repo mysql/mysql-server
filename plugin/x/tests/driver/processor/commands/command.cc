@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -467,14 +467,25 @@ Command::Result Command::cmd_recvresult(std::istream &input,
     if (print_colinfo) context->print(result.column_metadata());
 
     context->m_variables->clear_unreplace();
-    int64_t x = result.affected_rows();
     if (!force_quiet) {
+      int64_t x = result.affected_rows();
       if (x >= 0)
         context->print(x, " rows affected\n");
       else
         context->print("command ok\n");
       if (result.last_insert_id() > 0)
         context->print("last insert id: ", result.last_insert_id(), "\n");
+
+      std::vector<std::string> document_ids = result.generated_document_ids();
+      if (!document_ids.empty()) {
+        context->print("auto-generated id(s): ");
+        std::vector<std::string>::const_iterator i = document_ids.begin();
+        context->print(*i++);
+        for (; i != document_ids.end(); ++i)
+          context->print(",", *i);
+        context->print("\n");
+      }
+
       if (!result.info_message().empty())
         context->print(result.info_message(), "\n");
       {

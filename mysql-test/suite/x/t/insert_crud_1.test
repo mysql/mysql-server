@@ -6,19 +6,19 @@
 ## This test runs aims to run insert statementwith mysqlxtest client #
 ## Test covers                                                       #
 ##  - Insert with crud calls                                         #
-##  - Insert in normal and document table                            #  
+##  - Insert in normal and document table                            #
 ##  - Insert NULL values                                             #
 ##  - Insert into parent-child(PK-FK) table                          #
 ##  - Insert with transaction                                        #
 ##  - Insert with lock table                                         #
 ##  - Insert not allowed for user having read permission             #
 ##  - Try insert when table lock is acquired by other session(wait)  #
-##  - Two session run insert in parallel                             # 
+##  - Two session run insert in parallel                             #
 ##  - Error case                                                     #
 ##    - Try to Insert doc which do not have _id member               #
 ##    - Try to insert null for doc column                            #
 ##    - Try non unique value for _id member                          #
-##    - Try projection for DOCUMENT TABLE                            #  
+##    - Try projection for DOCUMENT TABLE                            #
 ## ===================================================================
 
 # Insert xmessage
@@ -30,10 +30,10 @@
 #    rows - 1 or more rows with the data to be inserted
 # Results
 #    rows_affected - number of rows that were affected by the operation
-#    last_insert_id - last value used for the auto-increment field in 
+#    last_insert_id - last value used for the auto-increment field in
 #               a TABLE INSERT operation (not set for DOCUMENT inserts)
 # Mapping
-# When inserting into a document collection, the generated INSERT 
+# When inserting into a document collection, the generated INSERT
 # statement will look like:
 # INSERT INTO schema.table (doc, _id) VALUES (?, JSN_UNQUOTE(JSN_EXTRACT(doc, '$._id')));
 # When inserting into a relational table, the generated INSERT will be as:
@@ -64,7 +64,7 @@ grant select on *.* to readuser@localhost;
   );
 -->endsql
 
--->echo Insert multiple rows 
+-->echo Insert multiple rows
 Mysqlx.Crud.Insert {
   collection {
 		name: "categories"
@@ -125,7 +125,7 @@ Mysqlx.Crud.Insert {
       v_double: 235.15
     }}
     field {
-    type : LITERAL 
+    type : LITERAL
     literal {
       type: V_BOOL
       v_bool: false
@@ -272,7 +272,7 @@ SELECT * FROM categories;
 -->endsql
 
 -->sql
-CREATE TABLE categories_child( col1 INT , col2 JSON ,  
+CREATE TABLE categories_child( col1 INT , col2 JSON ,
        FOREIGN KEY (col1) REFERENCES categories(categoryid));
 -->endsql
 Mysqlx.Crud.Insert {
@@ -287,7 +287,7 @@ Mysqlx.Crud.Insert {
   row {
     field {
     type: LITERAL
-    literal { 
+    literal {
       type: V_SINT
       v_signed_int: 18
     }}
@@ -314,7 +314,8 @@ Mysqlx.Crud.Insert {
   }
 }
 -->echo "Insert fails as referencing value not present in parent"
--->recv
+-->expecterror ER_NO_REFERENCED_ROW_2
+-->recvresult
 -->sql
 SELECT * FROM categories_child;
 -->endsql
@@ -434,7 +435,8 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->recv
+-->expecterror ER_X_DOC_ID_DUPLICATE
+-->recvresult
 -->echo "Error expected as non unique value for _id provided for member of JSON doc "
 -->sql
 SELECT * FROM maincollection;
@@ -458,7 +460,7 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->recv
+-->recvresult
 -->echo "Error expected as _id member is not provided for JSON doc "
 -->sql
 SELECT * FROM maincollection;
@@ -486,7 +488,8 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->recv
+-->expecterror ER_X_BAD_PROJECTION
+-->recvresult
 -->echo "Error expected as projection given for DOCUMENT table "
 -->sql
 SELECT * FROM maincollection;
@@ -507,7 +510,7 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->expecterror ER_X_DOC_ID_MISSING
+-->expecterror ER_X_BAD_PROJECTION,ER_X_DOC_ID_MISSING
 -->recvresult
 -->sql
 SELECT * FROM maincollection;
@@ -632,7 +635,8 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->recv
+-->expecterror ER_TABLE_NOT_LOCKED_FOR_WRITE
+-->recvresult
 -->echo "Error as table is locked with read lock"
 -->sql
 SELECT * FROM maincollection;
@@ -667,6 +671,7 @@ UNLOCK TABLES;
 
 EOF
 
+--replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
 
@@ -707,7 +712,7 @@ EOF
 
 --exec $MYSQLXTEST -u readuser --password='readuser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
 
-# Acquire lock on categories table from mysqltest client 
+# Acquire lock on categories table from mysqltest client
 # and try to run insert from mysqlxtest (Error : timeout expected from mysqlxtest)
 LOCK TABLES xplugintest.categories WRITE;
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1

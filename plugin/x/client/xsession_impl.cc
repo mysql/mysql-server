@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -749,11 +749,11 @@ Handler_result Session_impl::handle_notices(
 
     if (session_changed.ParseFromArray(payload, payload_size) &&
         session_changed.IsInitialized() &&
-        session_changed.has_value()) {
+        session_changed.value_size() == 1) {
       if (Mysqlx::Notice::SessionStateChanged::CLIENT_ID_ASSIGNED ==
           session_changed.param()) {
         return details::scalar_get_v_uint(
-            session_changed.value(),
+            session_changed.value(0),
             &context->m_client_id) ?
                 Handler_result::Consumed :
                 Handler_result::Error;

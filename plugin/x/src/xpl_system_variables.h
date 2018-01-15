@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,7 @@ public:
   static unsigned int port_open_timeout;
   static char        *bind_address;
   static uint32_t     m_interactive_timeout;
+  static uint32_t     m_document_id_unique_prefix;
 
   static Ssl_config ssl_config;
 

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,6 +27,8 @@
 #include <time.h>
 
 #include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs/document_id_generator.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/connection_acceptor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
@@ -36,7 +38,6 @@
 #include "plugin/x/ngs/include/ngs/server_acceptors.h"
 #include "plugin/x/ngs/include/ngs/server_client_timeout.h"
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/src/xpl_log.h"
 
 
@@ -54,6 +55,7 @@ Server::Server(ngs::shared_ptr<Server_acceptors>  acceptors,
   m_accept_scheduler(accept_scheduler),
   m_worker_scheduler(work_scheduler),
   m_config(config),
+  m_id_generator(new Document_id_generator()),
   m_state(State_initializing),
   m_delegate(delegate)
 {
@@ -399,6 +401,8 @@ bool Server::reset_globals()
   m_state.wait_for(allowed_values);
 
   m_ssl_context->reset();
+  m_id_generator.reset(new Document_id_generator());
 
   return true;
 }
+

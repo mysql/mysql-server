@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -176,6 +176,13 @@ bool Query_result::try_get_info_message(std::string *out_value) const {
   return m_producted_message.get_value(out_value);
 }
 
+bool Query_result::try_get_generated_document_ids(
+    std::vector<std::string> *out_ids) const {
+  if (m_generated_document_ids.empty()) return false;
+  *out_ids = m_generated_document_ids;
+  return true;
+}
+
 bool Query_result::next_resultset(XError *out_error) {
   m_metadata.clear();
 
@@ -264,18 +271,29 @@ Handler_result Query_result::handle_notice(
 
       switch (change.param()) {
         case Mysqlx::Notice::SessionStateChanged::GENERATED_INSERT_ID:
-          if (change.value().type() == Mysqlx::Datatypes::Scalar::V_UINT)
-            m_last_insert_id = change.value().v_unsigned_int();
+          if (change.value_size() != 1) return Handler_result::Error;
+          if (change.value(0).type() == Mysqlx::Datatypes::Scalar::V_UINT)
+            m_last_insert_id = change.value(0).v_unsigned_int();
           break;
 
         case Mysqlx::Notice::SessionStateChanged::ROWS_AFFECTED:
-          if (change.value().type() == Mysqlx::Datatypes::Scalar::V_UINT)
-            m_affected_rows = change.value().v_unsigned_int();
+          if (change.value_size() != 1) return Handler_result::Error;
+          if (change.value(0).type() == Mysqlx::Datatypes::Scalar::V_UINT)
+            m_affected_rows = change.value(0).v_unsigned_int();
           break;
 
         case Mysqlx::Notice::SessionStateChanged::PRODUCED_MESSAGE:
-          if (change.value().type() == Mysqlx::Datatypes::Scalar::V_STRING)
-            m_producted_message = change.value().v_string().value();
+          if (change.value_size() != 1) return Handler_result::Error;
+          if (change.value(0).type() == Mysqlx::Datatypes::Scalar::V_STRING)
+            m_producted_message = change.value(0).v_string().value();
+          break;
+
+        case Mysqlx::Notice::SessionStateChanged::GENERATED_DOCUMENT_IDS:
+          m_generated_document_ids.clear();
+          m_generated_document_ids.reserve(change.value_size());
+          for(const auto &value: change.value())
+            if (value.type() == Mysqlx::Datatypes::Scalar::V_OCTETS)
+              m_generated_document_ids.push_back(value.v_octets().value());
           break;
 
         default:

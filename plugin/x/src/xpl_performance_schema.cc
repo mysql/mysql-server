@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +40,13 @@ static PSI_thread_info all_x_threads[] = {
 PSI_mutex_key KEY_mutex_x_lock_list_access = PSI_NOT_INSTRUMENTED;
 PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
 PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
+PSI_mutex_key KEY_mutex_x_document_id_generate = PSI_NOT_INSTRUMENTED;
 
 static PSI_mutex_info all_x_mutexes[] = {
   { &KEY_mutex_x_lock_list_access, "lock_list_access", 0, 0, PSI_DOCUMENT_ME},
   { &KEY_mutex_x_scheduler_dynamic_worker_pending, "scheduler_dynamic_worker_pending", 0, 0, PSI_DOCUMENT_ME},
   { &KEY_mutex_x_scheduler_dynamic_thread_exit, "scheduler_dynamic_thread_exit", 0, 0, PSI_DOCUMENT_ME},
+  { &KEY_mutex_x_document_id_generate, "document_id_generate", 0, 0, PSI_DOCUMENT_ME},
 };
 
 PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;

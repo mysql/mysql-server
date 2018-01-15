@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -36,6 +36,11 @@
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_resultset.h"
 #include "plugin/x/src/xpl_session.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
+
 
 namespace xpl {
 
@@ -59,15 +64,15 @@ ngs::Error_code Crud_command_handler::execute(
   ngs::Error_code error = session.data_context().execute(
       m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) return error_handling(error, msg);
-  notice_handling(session, resultset.get_info(), msg);
+  notice_handling(session, resultset.get_info(), builder, msg);
   (session.proto().*send_ok)();
   return ngs::Success();
 }
 
-template <typename M>
+template <typename B, typename M>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const M & /*msg*/) const {
+    const B & /*builder*/, const M & /*msg*/) const {
   notice_handling_common(session, info);
 }
 
@@ -90,10 +95,19 @@ inline bool check_message(const std::string &msg, const char *pattern,
 // -- Insert
 ngs::Error_code Crud_command_handler::execute_crud_insert(
     Session &session, const Mysqlx::Crud::Insert &msg) {
+  const auto &server = session.client().server();
+  Insert_statement_builder::Document_id_list id_list;
+  Insert_statement_builder::Document_id_aggregator id_agg(
+      &server.get_document_id_generator(),
+      &id_list);
+  ngs::Error_code error = id_agg.configue(&session.data_context());
+  if (error)
+    return error;
+
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
   Empty_resultset rset;
-  return execute(session, Insert_statement_builder(gen), msg, rset,
+  return execute(session, Insert_statement_builder(gen, &id_agg), msg, rset,
                  &ngs::Common_status_variables::m_crud_insert,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
@@ -130,11 +144,15 @@ ngs::Error_code Crud_command_handler::error_handling(
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
+    const Insert_statement_builder &builder,
     const Mysqlx::Crud::Insert &msg) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
   if (is_table_data_model(msg))
     notices::send_generated_insert_id(session.proto(), info.last_insert_id);
+  else
+    notices::send_generated_document_ids(session.proto(),
+                                         builder.get_document_ids());
 }
 
 // -- Update
@@ -169,7 +187,8 @@ ngs::Error_code Crud_command_handler::error_handling(
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const Mysqlx::Crud::Update&) const {
+    const Update_statement_builder & /*builder*/,
+    const Mysqlx::Crud::Update & /*msg*/) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
 }
@@ -188,7 +207,8 @@ ngs::Error_code Crud_command_handler::execute_crud_delete(
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const Mysqlx::Crud::Delete&) const {
+    const Delete_statement_builder & /*builder*/,
+    const Mysqlx::Crud::Delete & /*msg*/) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
 }

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,6 +27,7 @@
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
@@ -142,6 +143,10 @@ public:
     get_authentication_mechanisms_void(auth_mech, client);
   }
   MOCK_METHOD0(reset_globals, bool ());
+  MOCK_CONST_METHOD0(get_document_id_generator, Document_id_generator_interface &());
+  MOCK_CONST_METHOD2(get_document_id_generator_variables,
+                     Error_code(Sql_session_interface *,
+                                Document_id_generator_interface::Variables *));
 };
 
 class Mock_authentication_interface : public ngs::Authentication_interface
@@ -251,6 +256,12 @@ public:
   MOCK_METHOD1(on_receive, void (long));
   MOCK_METHOD0(on_error_send, void());
   MOCK_METHOD0(on_error_unknown_msg_type, void());
+};
+
+class Mock_id_generator : public Document_id_generator_interface {
+ public:
+  MOCK_METHOD1(generate,
+               std::string(const Document_id_generator_interface::Variables &));
 };
 
 }  // namespace test

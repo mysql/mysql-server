@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -271,7 +271,7 @@ ngs::Error_code create_collection_impl(ngs::Sql_session_interface *da,
   if (!schema.empty()) qb.quote_identifier(schema).dot();
   qb.quote_identifier(name)
       .put(" (doc JSON,"
-           "_id VARCHAR(32) GENERATED ALWAYS AS "
+           "_id VARBINARY(32) GENERATED ALWAYS AS "
            "(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY"
            ") CHARSET utf8mb4 ENGINE=InnoDB;");
 

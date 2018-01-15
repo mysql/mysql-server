@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -249,8 +249,8 @@ TEST(message_builder, encode_notice_rows_affected)
   change.ParseFromString(msg->payload());
 
   ASSERT_EQ(Mysqlx::Notice::SessionStateChanged::ROWS_AFFECTED, change.param());
-  ASSERT_EQ(Mysqlx::Datatypes::Scalar::V_UINT, change.value().type());
-  ASSERT_EQ(ROWS_AFFECTED, change.value().v_unsigned_int());
+  ASSERT_EQ(Mysqlx::Datatypes::Scalar::V_UINT, change.value(0).type());
+  ASSERT_EQ(ROWS_AFFECTED, change.value(0).v_unsigned_int());
 }
 
 } // namespace test

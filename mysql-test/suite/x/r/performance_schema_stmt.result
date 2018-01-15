@@ -14,19 +14,21 @@ null	SELECT ? 	1
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Query
-CREATE TABLE `xtest`.`test` (doc JSON,_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+CREATE TABLE `xtest`.`test` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
 0 rows affected
 ######### Crud.Insert #########
 
 1 rows affected
 Query
+SELECT @@mysqlx_document_id_unique_prefix,@@auto_increment_offset,@@auto_increment_increment
 INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"one\"}')
 0 rows affected
 ######### Crud.Insert (upsert) #########
 
 1 rows affected
 Query
-INSERT INTO `xtest`.`test` (doc) VALUES (CAST('{\"_id\": \"two\"}' AS JSON)) ON DUPLICATE KEY UPDATE doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc), '$._id'), VALUES(doc), MYSQLX_ERROR(5018))
+SELECT @@mysqlx_document_id_unique_prefix,@@auto_increment_offset,@@auto_increment_increment
+INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"two\"}') ON DUPLICATE KEY UPDATE doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc), '$._id'), VALUES(doc), MYSQLX_ERROR(5018))
 0 rows affected
 ######### Crud.Update #########
 
@@ -90,13 +92,13 @@ DELETE FROM `xtest`.`test` WHERE (`_id` = 'one')
 
 command ok
 Query
-CREATE TABLE `xtest`.`test2` (doc JSON,_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
 0 rows affected
 ######### ensure_collection #########
 
 command ok
 Query
-CREATE TABLE `xtest`.`test2` (doc JSON,_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
 SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
 0 rows affected
 ######### create_collection_index #########

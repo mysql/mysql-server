@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -48,6 +48,14 @@ class Sql_data_result {
   void get_next_field(const char *&value);
   void get_next_field(char *&value);
 
+  template<typename T>
+  void get_next_field(T *value) {
+    static_assert(std::is_integral<T>::value, "Integral required.");
+    Field_value &field_value =
+        validate_field_index_no_null({MYSQL_TYPE_LONGLONG});
+    *value = static_cast<T>(field_value.value.v_long);
+  }
+
   bool next_row();
   long statement_warn_count() { return m_resultset.get_info().num_warnings; }
   Collect_resultset::Row_list::size_type size() const {
@@ -56,6 +64,12 @@ class Sql_data_result {
 
   template <typename T>
   Sql_data_result &get(T &value) {
+    get_next_field(value);
+    return *this;
+  }
+
+  template <typename T>
+  Sql_data_result &get(T *value) {
     get_next_field(value);
     return *this;
   }

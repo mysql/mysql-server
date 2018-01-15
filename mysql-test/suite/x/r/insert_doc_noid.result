@@ -7,7 +7,7 @@ RUN create schema xtest default charset='utf8mb4'
 RUN use xtest
 
 0 rows affected
-RUN create table mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
+RUN create table mycoll (doc JSON, _id VARBINARY(32) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
 
 0 rows affected
 RUN create table mytable (i int NOT NULL, ui int unsigned, vc varchar(100), f float, d double, dt datetime, ts timestamp(5), j json)
@@ -36,13 +36,9 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5115
-  msg: "Document is missing a required field"
-  sql_state: "HY000"
-}
 
+1 rows affected
+auto-generated id(s): 0000XXXXXXXX0000000000000001
 RUN drop schema if exists xtest
 
 3 rows affected

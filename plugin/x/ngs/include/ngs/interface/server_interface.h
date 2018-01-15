@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -26,6 +26,7 @@
 #define NGS_SERVER_INTERFACE_H_
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 
@@ -39,6 +40,7 @@ class Scheduler_dynamic;
 class Protocol_encoder;
 class Protocol_config;
 class Mutex;
+class Sql_session_interface;
 
 class Server_interface {
 public:
@@ -49,6 +51,9 @@ public:
   virtual ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
   virtual Authentication_interface_ptr       get_auth_handler(const std::string &name, Session_interface *session) = 0;
   virtual ngs::shared_ptr<Protocol_config>   get_config() const = 0;
+
+  virtual Document_id_generator_interface &get_document_id_generator() const = 0;
+
   virtual Mutex &get_client_exit_mutex() = 0;
 
   virtual Ssl_context *ssl_context() const = 0;

@@ -822,7 +822,7 @@ RUN CREATE SCHEMA mysqlxcoll
 RUN USE mysqlxcoll
 
 0 rows affected
-RUN CREATE TABLE maincoll (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY)
+RUN CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
 
 0 rows affected
 RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')))

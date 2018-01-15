@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -54,6 +54,8 @@ class Query_result: public XQuery_result {
   bool try_get_last_insert_id(uint64_t *out_last_id) const override;
   bool try_get_affected_rows(uint64_t *out_affected_number) const override;
   bool try_get_info_message(std::string *out_message) const override;
+  bool try_get_generated_document_ids(std::vector<std::string> *out_ids) const
+      override;
 
   const Metadata &get_metadata(XError *out_error) override;
   const Warnings &get_warnings() override;
@@ -132,6 +134,7 @@ class Query_result: public XQuery_result {
   Optional_value<uint64_t>     m_last_insert_id;
   Optional_value<uint64_t>     m_affected_rows;
   Optional_value<std::string>  m_producted_message;
+  std::vector<std::string>     m_generated_document_ids;
   Message_holder               m_holder;
   Warnings                     m_warnings;
   XRow_impl                    m_row;

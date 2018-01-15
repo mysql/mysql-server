@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,6 +31,7 @@
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/expect/expect_condition.h"
 #include "plugin/x/src/expect/expect_condition_field.h"
+#include "plugin/x/src/expect/expect_condition_docid.h"
 #include "plugin/x/src/xpl_error.h"
 
 
@@ -205,6 +206,10 @@ ngs::Error_code Expectation::set(
 
     case Mysqlx::Expect::Open_Condition_Key_EXPECT_FIELD_EXIST:
       add_condition(Expect_condition_ptr{new Expect_condition_field(value)});
+      break;
+
+    case Mysqlx::Expect::Open_Condition_Key_EXPECT_DOCID_GENERATED:
+      add_condition(Expect_condition_ptr{new Expect_condition_docid()});
       break;
 
     default:

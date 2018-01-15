@@ -1,0 +1,110 @@
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/expect_docid.xpl
+-->import expect.macro
+
+#
+## Test
+#
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+docid_generated]) / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:3}	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+docid_generated]) / query() / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:3}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+docid_generated, +docid_generated]) / query() / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:3} cond {condition_key:3}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+docid_generated]) / query():NOK / query() / close()
+-->echo #
+-->callmacro Expect_open	cond {condition_key:3}	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Expectation block
+-->echo ## open([+docid_generated,  +no_error]):OK/
+-->echo ##  query():OK / query(error):NOK / query():NOK
+-->echo ## close():NOK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:3} cond {condition_key:1}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+
+-->echo #
+-->echo ## Nested expectation block
+-->echo ## open([+docid_generated]):OK/
+-->echo ##  open([+no_error]):OK/
+-->echo ##   query():OK / query(error):NOK / query():NOK
+-->echo ##  close():NOK
+-->echo ##  query():OK
+-->echo ## close():OK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:3}	ER_SUCCESS
+-->callmacro Expect_open	cond {condition_key:1}	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+
+-->echo #
+-->echo ## Nested expectation block
+-->echo ## open([+no_error]):OK/
+-->echo ##  open([+docid_generated]):OK/
+-->echo ##   query(error):NOK
+-->echo ##  close():NOK
+-->echo ##  query():NOK
+-->echo ## close():NOK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:1}	ER_SUCCESS
+-->callmacro Expect_open	cond {condition_key:3}	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Execute_sql select "No" as 'Is_ok';	ER_X_EXPECT_NO_ERROR_FAILED
+-->callmacro Expect_close	ER_X_EXPECT_NO_ERROR_FAILED
+
+-->echo #
+-->echo ## Nested expectation block
+-->echo ## open([+no_error]):OK/
+-->echo ##  open([+docid_generated], new_context):OK/
+-->echo ##   query():NOK
+-->echo ##  close():OK
+-->echo ##  query():OK
+-->echo ## close():OK
+-->echo #
+-->callmacro Expect_open	cond {condition_key:1}	ER_SUCCESS
+-->callmacro Expect_open	cond {condition_key:3} op:EXPECT_CTX_EMPTY	ER_SUCCESS
+-->callmacro Execute_sql select `invalid_column_name`;	ER_BAD_FIELD_ERROR
+-->callmacro Expect_close	ER_SUCCESS
+-->callmacro Execute_sql select "Yes" as 'Is_ok';	ER_SUCCESS
+-->callmacro Expect_close	ER_SUCCESS
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/expect_docid.xpl 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/expect_docid.xpl
+--source include/xplugin_drop_user.inc

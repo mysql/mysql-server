@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,20 +31,20 @@
 #include <vector>
 
 #include "my_inttypes.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/ngs/include/ngs/client_list.h"
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_delegate.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/socket_events.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
-
 
 namespace ngs
 {
@@ -102,6 +102,9 @@ public:
 
   void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
   bool reset_globals();
+  Document_id_generator_interface &get_document_id_generator() const override {
+    return *m_id_generator;
+  }
 
 private:
   Server(const Server&);
@@ -157,6 +160,7 @@ private:
   ngs::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
   ngs::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
   ngs::shared_ptr<Protocol_config> m_config;
+  ngs::unique_ptr<Document_id_generator_interface> m_id_generator;
 
   Ssl_context_unique_ptr m_ssl_context;
   Sync_variable<State> m_state;

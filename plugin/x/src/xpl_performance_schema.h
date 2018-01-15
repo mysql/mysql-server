@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@ extern PSI_mutex_key KEY_mutex_x_lock_list_access;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_post;
+extern PSI_mutex_key KEY_mutex_x_document_id_generate;
 
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending;
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit;

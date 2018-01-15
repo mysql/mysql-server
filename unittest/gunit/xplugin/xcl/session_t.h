@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -114,7 +114,7 @@ class Xcl_session_impl_tests : public Test {
 
     session_state_changed.set_param(param);
 
-    auto v = session_state_changed.mutable_value();
+    auto v = session_state_changed.mutable_value()->Add();
     v->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
     v->set_v_unsigned_int(value);
 

@@ -124,7 +124,7 @@ Mysqlx.Ok {
 switched to session default
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
-_id	varchar(32)	NO	PRI	null	STORED GENERATED
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
 0 rows affected
 
 0 rows affected

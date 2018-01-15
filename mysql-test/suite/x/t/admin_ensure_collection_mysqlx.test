@@ -82,11 +82,11 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 
 -->callmacro Drop_table
--->callmacro Make_table	(doc JSON, _id VARCHAR(32))	 
+-->callmacro Make_table	(doc JSON, _id VARBINARY(32))	 
 -->callmacro Make_collection	ensure_collection	5156
 
 -->callmacro Drop_table
--->callmacro Make_table	(doc INT, _id VARCHAR(32))	 
+-->callmacro Make_table	(doc INT, _id VARBINARY(32))	 
 -->callmacro Make_collection	ensure_collection	5156
 
 -->callmacro Drop_table

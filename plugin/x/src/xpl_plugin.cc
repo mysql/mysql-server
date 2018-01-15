@@ -230,6 +230,15 @@ static MYSQL_THDVAR_UINT(write_timeout, PLUGIN_VAR_OPCMDARG,
       (&xpl::Server::thd_variable<uint32_t, &ngs::Client_interface::set_write_timeout>),
       Global_timeouts::Default::k_write_timeout, 1, 2147483, 0);
 
+static MYSQL_SYSVAR_UINT(document_id_unique_prefix,
+      xpl::Plugin_system_variables::m_document_id_unique_prefix,
+      PLUGIN_VAR_OPCMDARG,
+      "Unique prefix is a value assigned by InnoDB cluster to the instance, "
+      "which is meant to make document id unique across all replicasets from "
+      "the same cluster",
+      NULL, &xpl::Plugin_system_variables::update_func<uint32_t>,
+      0, 0, std::numeric_limits<uint16_t>::max(), 0);
+
 static struct SYS_VAR* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(port),
   MYSQL_SYSVAR(max_connections),
@@ -251,6 +260,7 @@ static struct SYS_VAR* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(interactive_timeout),
   MYSQL_SYSVAR(read_timeout),
   MYSQL_SYSVAR(write_timeout),
+  MYSQL_SYSVAR(document_id_unique_prefix),
   NULL
 };
 
