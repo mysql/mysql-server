@@ -10327,7 +10327,13 @@ int ha_ndbcluster::create(const char *name,
 
   set_dbname(name);
   set_tabname(name);
-  
+
+  ndb_log_verbose(1,
+                  "Creating table, name: '%s', m_dbname: '%s', "
+                  "m_tabname: '%s', name in DD: '%s'",
+                  name, m_dbname, m_tabname,
+                  ndb_dd_table_get_name(table_def).c_str());
+
   /*
     Check that database name and table name will fit within limits
   */

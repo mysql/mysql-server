@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5241,6 +5241,8 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb,
                build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
     end+= tablename_to_filename(table_name, end,
                                 (uint)(sizeof(key)-(end-key)));
+
+    ndb_log_verbose(1, "Using key '%s'", key);
   }
 
   mysql_mutex_lock(&ndbcluster_mutex);
