@@ -7,9 +7,6 @@ if (!$TABLE)
   --echo # SQL statements, but allow DD initialization to execute
   --echo # such statements.
   --echo #
-  --echo # TODO: Add test of DD tablespace. This depends on
-  --echo #       WL#7141, where this functionality is implemented.
-  --echo #
 
   --source include/have_debug.inc
 
@@ -20,6 +17,18 @@ if (!$TABLE)
   CREATE SCHEMA mysql;
   --error ER_NO_SYSTEM_SCHEMA_ACCESS
   ALTER SCHEMA mysql DEFAULT COLLATE utf8_general_ci;
+
+  --echo # DD tablespace DDL
+  --error ER_WRONG_TABLESPACE_NAME
+  DROP TABLESPACE mysql;
+  --error ER_WRONG_TABLESPACE_NAME
+  CREATE TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+  --error ER_WRONG_TABLESPACE_NAME
+  ALTER TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+
+  --echo # Create a non- white listed table in the DD tablespace
+  --error ER_RESERVED_TABLESPACE_NAME
+  CREATE TABLE table_not_white_listed (pk INTEGER PRIMARY KEY) TABLESPACE mysql;
 
   USE mysql;
   CREATE TABLE t (pk BIGINT UNSIGNED PRIMARY KEY);
