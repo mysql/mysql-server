@@ -730,7 +730,6 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
-  bool skip_flag = false;
 
   if (bits & ScanOp::SCAN_NR)
   { 
@@ -773,7 +772,6 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
       return;
     }
     c_backup->init_lcp_scan(scan.m_scanGCI,
-                            skip_flag,
                             pos.m_lcp_scan_changed_rows_page);
     scan.m_last_seen = __LINE__;
   }
@@ -781,16 +779,7 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   if (! (bits & ScanOp::SCAN_DD)) {
     key.m_file_no = ZNIL;
     key.m_page_no = 0;
-    if (!skip_flag)
-    {
-      jam();
-      pos.m_get = ScanPos::Get_page_mm;
-    }
-    else
-    {
-      jam();
-      pos.m_get = ScanPos::Get_next_page_mm;
-    }
+    pos.m_get = ScanPos::Get_page_mm;
 
     // for MM scan real page id is cached for efficiency
     pos.m_realpid_mm = RNIL;
@@ -936,121 +925,116 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       // move to next logical TUP page
       jam();
       {
-        bool skip_flag;
-        bool break_flag;
-        do
+        /**
+         * Code for future activation, see  below for more details.
+         * bool break_flag;
+         * break_flag = false;
+         */
+        key.m_page_no++;
+        if (likely(bits & ScanOp::SCAN_LCP))
         {
-          skip_flag = false;
-          break_flag = false;
-          key.m_page_no++;
-          if (likely(bits & ScanOp::SCAN_LCP))
+          jam();
+          /* Coverage tested path */
+          /**
+           * We could be scanning for a long time and only finding LCP_SKIP
+           * records, we need to keep the LCP watchdog aware that we are
+           * progressing, so we report each change to a new page by reporting
+           * the id of the next page to scan.
+           */
+          c_backup->update_lcp_pages_scanned(signal,
+                      c_lqh->get_scan_api_op_ptr(scan.m_userPtr),
+                      key.m_page_no,
+                      scan.m_scanGCI,
+                      pos.m_lcp_scan_changed_rows_page);
+          scan.m_last_seen = __LINE__;
+        }
+        if (unlikely(key.m_page_no >= frag.m_max_page_cnt))
+        {
+          if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL))
           {
-            jam();
-            /* Coverage tested path */
-            /**
-             * We could be scanning for a long time and only finding LCP_SKIP
-             * records, we need to keep the LCP watchdog aware that we are
-             * progressing, so we report each change to a new page by reporting
-             * the id of the next page to scan.
-             */
-            c_backup->update_lcp_pages_scanned(signal,
-                        c_lqh->get_scan_api_op_ptr(scan.m_userPtr),
-                        key.m_page_no,
-                        scan.m_scanGCI,
-                        skip_flag,
-                        pos.m_lcp_scan_changed_rows_page);
-            scan.m_last_seen = __LINE__;
-          }
-          if (unlikely(key.m_page_no >= frag.m_max_page_cnt))
-          {
-            if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL))
+            if (key.m_page_no < scan.m_endPage)
             {
-              if (key.m_page_no < scan.m_endPage)
-              {
-                jam();
-                DEB_NR_SCAN(("scanning page %u", key.m_page_no));
-                goto cont;
-              }
               jam();
-              // no more pages, scan ends
-              pos.m_get = ScanPos::Get_undef;
-              scan.m_state = ScanOp::Last;
-              return true;
+              DEB_NR_SCAN(("scanning page %u", key.m_page_no));
+              goto cont;
             }
-            else if (bits & ScanOp::SCAN_LCP &&
-                     key.m_page_no < scan.m_endPage)
-            {
-              /**
-               * We come here with ScanOp::SCAN_LCP set AND
-               * frag.m_max_page_cnt < scan.m_endPage. In this case
-               * it is still ok to finish the LCP scan. The missing
-               * pages are handled when they are dropped, so before
-               * we drop a page we record all entries that needs
-               * recording for the LCP. These have been sent to the
-               * LCP keep list. Since when we come here the LCP keep
-               * list is empty we are done with the scan.
-               *
-               * We will however continue the scan for LCP scans. The
-               * reason is that we might have set the LCP_SCANNED_BIT
-               * on pages already dropped. So we need to continue scanning
-               * to ensure that all the lcp scanned bits are reset.
-               *
-               * For the moment this code is unreachable since m_max_page_cnt
-               * cannot decrease. Thus m_max_page_cnt cannot be smaller
-               * than scan.m_endPage since scan.m_endPage is initialised to
-               * m_max_page_cnt at start of scan.
-               *
-               * This is currently not implemented. So we
-               * will make this code path using an ndbrequire instead.
-               */
-              jam();
-              //ndbassert(false); //COVERAGE_TEST
-              /* We will not scan this page, so reset flag immediately */
-              reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
-              scan.m_last_seen = __LINE__;
-              break_flag = true;
-            }
-            else
-            {
-              // no more pages, scan ends
-              pos.m_get = ScanPos::Get_undef;
-              scan.m_last_seen = __LINE__;
-              scan.m_state = ScanOp::Last;
-              return true;
-            }
-          }
-          if (unlikely((bits & ScanOp::SCAN_LCP) &&
-                       (key.m_page_no >= scan.m_endPage)))
-          {
             jam();
+            // no more pages, scan ends
+            pos.m_get = ScanPos::Get_undef;
+            scan.m_state = ScanOp::Last;
+            return true;
+          }
+          else if (bits & ScanOp::SCAN_LCP &&
+                   key.m_page_no < scan.m_endPage)
+          {
             /**
-             * We have arrived at a page number that didn't exist at start of
-             * LCP, we can quit the LCP scan since we cannot find any more
-             * pages that are containing rows to be saved in LCP.
+             * We come here with ScanOp::SCAN_LCP set AND
+             * frag.m_max_page_cnt < scan.m_endPage. In this case
+             * it is still ok to finish the LCP scan. The missing
+             * pages are handled when they are dropped, so before
+             * we drop a page we record all entries that needs
+             * recording for the LCP. These have been sent to the
+             * LCP keep list. Since when we come here the LCP keep
+             * list is empty we are done with the scan.
+             *
+             * We will however continue the scan for LCP scans. The
+             * reason is that we might have set the LCP_SCANNED_BIT
+             * on pages already dropped. So we need to continue scanning
+             * to ensure that all the lcp scanned bits are reset.
+             *
+             * For the moment this code is unreachable since m_max_page_cnt
+             * cannot decrease. Thus m_max_page_cnt cannot be smaller
+             * than scan.m_endPage since scan.m_endPage is initialised to
+             * m_max_page_cnt at start of scan.
+             *
+             * This is currently not implemented. So we
+             * will make this code path using an ndbrequire instead.
+             * 
+             * We keep the code as comments to be activated when we implement
+             * the possibility to release pages in the directory.
              */
+            ndbrequire(false);
+            /* We will not scan this page, so reset flag immediately */
+            // reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
+            // scan.m_last_seen = __LINE__;
+            // break_flag = true;
+          }
+          else
+          {
             // no more pages, scan ends
             pos.m_get = ScanPos::Get_undef;
             scan.m_last_seen = __LINE__;
             scan.m_state = ScanOp::Last;
             return true;
           }
-          /**
-           * Skip this page and continue with next page if LCP
-           * scan and skip_flag for page is set. This happens when the page
-           * will not need neither all rows or even changed rows to be recorded.
-           *
-           * We know that this loop should never be longer
-           * than the max number of parts in LCP, at least
-           * one part should exist for scan to run.
-           */
-        } while (skip_flag);
-        if (break_flag)
+        }
+        if (unlikely((bits & ScanOp::SCAN_LCP) &&
+                     (key.m_page_no >= scan.m_endPage)))
         {
           jam();
-          pos.m_get = ScanPos::Get_next_page_mm;
+          /**
+           * We have arrived at a page number that didn't exist at start of
+           * LCP, we can quit the LCP scan since we cannot find any more
+           * pages that are containing rows to be saved in LCP.
+           */
+          // no more pages, scan ends
+          pos.m_get = ScanPos::Get_undef;
           scan.m_last_seen = __LINE__;
-          break; // incr loop count
+          scan.m_state = ScanOp::Last;
+          return true;
         }
+        /**
+         * Activate this code if we implement support for decreasing
+         * frag.m_max_page_cnt
+         *
+         * if (break_flag)
+         * {
+         * jam();
+         * pos.m_get = ScanPos::Get_next_page_mm;
+         * scan.m_last_seen = __LINE__;
+         * break; // incr loop count
+         * }
+         */
     cont:
         key.m_page_idx = first;
         pos.m_get = ScanPos::Get_page_mm;

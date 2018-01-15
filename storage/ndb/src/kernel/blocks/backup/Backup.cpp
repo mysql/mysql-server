@@ -6576,7 +6576,6 @@ void
 Backup::get_page_info(BackupRecordPtr ptr,
                       Uint32 part_id,
                       Uint32 & scanGCI,
-                      bool & skip_flag,
                       bool & changed_row_page_flag)
 {
   if (is_all_rows_page(ptr, part_id))
@@ -6588,7 +6587,6 @@ Backup::get_page_info(BackupRecordPtr ptr,
      */
     jam();
     scanGCI = 0;
-    skip_flag = false;
     changed_row_page_flag = false;
   }
   else
@@ -6600,7 +6598,6 @@ Backup::get_page_info(BackupRecordPtr ptr,
     ndbassert(is_partial_lcp_enabled());
     scanGCI = ptr.p->m_scan_change_gci;
     ndbrequire(scanGCI != 0);
-    skip_flag = false;
     changed_row_page_flag = true;
   }
 }
@@ -6636,7 +6633,6 @@ Backup::restore_current_page(BackupRecordPtr ptr)
 
 void
 Backup::init_lcp_scan(Uint32 & scanGCI,
-                      bool & skip_page,
                       bool & changed_row_page_flag)
 {
   /**
@@ -6673,7 +6669,6 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
   get_page_info(ptr,
                 part_id,
                 scanGCI,
-                skip_page,
                 changed_row_page_flag);
   set_working_file(ptr, part_id, !changed_row_page_flag);
   ptr.p->m_current_data_file_ptr = ptr.p->m_working_data_file_ptr;
@@ -6693,8 +6688,7 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
           0,
           part_id,
           0,
-          skip_page ? "SKIP page" :
-            changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
+          changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
 #endif
 }
 
@@ -6752,7 +6746,6 @@ Backup::update_lcp_pages_scanned(Signal *signal,
                                  Uint32 filePtrI,
                                  Uint32 scanned_pages,
                                  Uint32 & scanGCI,
-                                 bool & skip_page,
                                  bool & changed_row_page_flag)
 {
   BackupFilePtr filePtr;
@@ -6775,7 +6768,6 @@ Backup::update_lcp_pages_scanned(Signal *signal,
   get_page_info(ptr,
                 part_id,
                 scanGCI,
-                skip_page,
                 changed_row_page_flag);
   set_working_file(ptr, part_id, !changed_row_page_flag);
   ptr.p->m_current_data_file_ptr = ptr.p->m_working_data_file_ptr;
@@ -6793,8 +6785,7 @@ Backup::update_lcp_pages_scanned(Signal *signal,
                  scanned_pages,
                  part_id,
                  0,
-                 skip_page ? "SKIP page" :
-                   changed_row_page_flag ?
+                 changed_row_page_flag ?
                      "CHANGED ROWS page" : " ALL ROWS page"));
 #endif
 }
