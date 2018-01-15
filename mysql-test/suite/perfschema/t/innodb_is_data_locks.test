@@ -2,6 +2,7 @@
 
 -- connect (con1,localhost,root,,)
 -- connect (con2,localhost,root,,)
+-- connect (con3,localhost,root,,)
 
 --disable_warnings
 drop table if exists t1_is;
@@ -12,10 +13,22 @@ use test;
 create table t1_is (id integer, x integer, PRIMARY KEY (id)) engine=INNODB;
 insert into t1_is values (0,0),(1,1);
 SET autocommit=0;
-select * from t1_is where id=0 lock in share mode;
+begin;
+select * from t1_is where id=0 FOR SHARE;
 
 --connection con2
+begin;
+select * from t1_is;
+--send
+update t1_is set x = 2 where id = 0;
 
+--connection con3
+
+#
+# WARNING
+# =======
+#
+# Spurious failures possible on column LOCK_DATA
 #
 # One one hand, for the innodb storage engine,
 # the server returns the LOCK_DATA column using
@@ -36,23 +49,30 @@ select * from t1_is where id=0 lock in share mode;
 # is to inspect LOCK_DATA returned in the
 # performance schema, to make sure the proper
 # record lock is printed.
-
-# Attempt to reload the buffer pool,
-# to avoid spurious failures with LOCK_DATA = NULL
-# in the test result file
+#
 # Note that a NULL is a valid result, not a failure.
+#
+# Due to connection con2 doing a select,
+# the hope is that this test produces predictable results.
 
-select * from test.t1_is;
-
+begin;
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   from performance_schema.data_locks
   where object_name="t1_is"
   order by lock_type, lock_mode, lock_status, lock_data;
+commit;
 
 --connection con1
-unlock tables;
+commit;
+
+--connection con2
+--reap
+commit;
+
+--connection default
 drop table t1_is;
 
 --disconnect con1
 --disconnect con2
+--disconnect con3
 
