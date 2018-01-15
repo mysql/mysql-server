@@ -1407,20 +1407,28 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     break;
   case CS_RESTART:
     jam();
+    // Fall through
   case CS_COMPLETING:
     jam();
+    // Fall through
   case CS_COMPLETE_SENT:
     jam();
+    // Fall through
   case CS_WAIT_COMPLETE_CONF:
     jam();
+    // Fall through
   case CS_FAIL_ABORTING:
     jam();
+    // Fall through
   case CS_FAIL_ABORTED:
     jam();
+    // Fall through
   case CS_FAIL_PREPARED:
     jam();
+    // Fall through
   case CS_FAIL_COMMITTING:
     jam();
+    // Fall through
   case CS_FAIL_COMMITTED:
     /*********************************************************************/
     // These states are only valid on copy and fail API connections.
@@ -1658,9 +1666,10 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	    case NodeState::SL_STOPPING_2:
               if (getNodeState().getSingleUserMode())
                 break;
-	    case NodeState::SL_STOPPING_3:
-	    case NodeState::SL_STOPPING_4:
-	      if(getNodeState().stopping.systemShutdown)
+              // Fall through
+            case NodeState::SL_STOPPING_3:
+            case NodeState::SL_STOPPING_4:
+              if(getNodeState().stopping.systemShutdown)
 		errCode = ZCLUSTER_SHUTDOWN_IN_PROGRESS;
 	      else
 		errCode = ZNODE_SHUTDOWN_IN_PROGRESS;
@@ -2218,6 +2227,7 @@ start_failure:
         terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
         break;
       }
+      // Fall through
     case NodeState::SL_STOPPING_3:
     case NodeState::SL_STOPPING_4:
       if(getNodeState().stopping.systemShutdown)
@@ -2234,6 +2244,7 @@ start_failure:
         terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
         break;
       }
+      // Fall through
     default:
       terrorCode = ZWRONG_STATE;
       break;
@@ -3238,6 +3249,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if(isIndexOpReturn || isExecutingTrigger){
       break;
     }
+    // Fall through
   default:
     jam();
     jamLine(regApiPtr->apiConnectstate);
@@ -5082,6 +5094,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
   }
   case GSN_TRANSID_AI_R:  //TODO
     jam();
+    // Fall through
   default:
     jam();
     /* Don't expect dropped signals for other GSNs,
@@ -8630,8 +8643,10 @@ ABORT020:
     break;
   case OS_PREPARED:
     jam();
+    // Fall through
   case OS_OPERATING:
     jam();
+    // Fall through
   case OS_FIRE_TRIG_REQ:
     jam();
     /*----------------------------------------------------------------------
@@ -9073,12 +9088,14 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     // We are simply waiting for a signal in the job buffer. Only extreme
     // conditions should get us here. We ignore it.
     /*------------------------------------------------------------------*/
+    // Fall through
   case CS_COMPLETING:
     jam();
     /*------------------------------------------------------------------*/
     // We are simply waiting for a signal in the job buffer. Only extreme
     // conditions should get us here. We ignore it.
     /*------------------------------------------------------------------*/
+    // Fall through
   case CS_PREPARE_TO_COMMIT:
   {
     jam();
@@ -9241,16 +9258,22 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     return;
   case CS_FAIL_PREPARED:
     jam();
+    // Fall through
   case CS_FAIL_COMMITTING:
     jam();
+    // Fall through
   case CS_FAIL_COMMITTED:
     jam();
+    // Fall through
   case CS_RESTART:
     jam();
+    // Fall through
   case CS_FAIL_ABORTED:
     jam();
+    // Fall through
   case CS_DISCONNECTED:
     jam();
+    // Fall through
   default:
     jam();
     /*------------------------------------------------------------------*/
@@ -9708,8 +9731,10 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   }
   case ScanFragRec::DELIVERED:
     jam();
+    // Fall through
   case ScanFragRec::IDLE:
     jam();
+    // Fall through
   case ScanFragRec::QUEUED_FOR_DELIVERY:
     jam();
     /*-----------------------------------------------------------------------
@@ -18289,9 +18314,9 @@ Uint32 Dbtc::saveTRANSID_AI(Signal* signal,
         ndbout_c("Dbtc::saveTRANSID_AI: Failed to seize buffer for TRANSID_AI\n");
 #endif
         indexOp->transIdAIState= ITAS_WAIT_KEY_FAIL;
-        /* Fall through to ITAS_WAIT_KEY_FAIL state handling */
       }
     }
+      // Fall through to ITAS_WAIT_KEY_FAIL state handling
 
     case ITAS_WAIT_KEY_FAIL:
     {

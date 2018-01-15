@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -363,6 +363,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jam();
+    // Fall through
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
     if (! scan.m_readCommitted) {

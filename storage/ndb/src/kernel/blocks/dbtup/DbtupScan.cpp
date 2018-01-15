@@ -272,6 +272,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jam();
+    // Fall through
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
     if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0) {
@@ -332,6 +333,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     return;
   case NextScanReq::ZSCAN_NEXT_ABORT:
     jam();
+    // Fall through
   default:
     jam();
     ndbrequire(false);

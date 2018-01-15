@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3120,6 +3120,7 @@ int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
         expectedError = 920; /* Row operation defined after refreshTuple() */
         expectedEvents.push_back(Delete);
       }
+      // Fall through - done with last optype
       default:
         done = true;
         break;
@@ -3350,6 +3351,7 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
 
       if (scenario.preRefreshOps == PR_INSERT)
         break;
+      // Fall through
     case PR_DELETE:
       if (hugoTrans.pkDeleteRecord(ndb, 0) != 0)
       {

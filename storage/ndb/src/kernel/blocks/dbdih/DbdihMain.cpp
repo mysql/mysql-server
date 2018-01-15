@@ -3024,6 +3024,7 @@ bool Dbdih::check_if_lcp_idle(void)
     return false;
   case LCP_TAB_COMPLETED:
     jam();
+    // Fall through
   case LCP_TAB_SAVED:
     jam();
   /**
@@ -5369,6 +5370,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
       {
         case NodeRecord::ALLOCATED_NODE_ID:
           jam();
+          // Fall through
         case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
           jam();
           /**
@@ -10190,6 +10192,7 @@ bool Dbdih::check_if_empty_lcp_needed(void)
     {
     case NodeRecord::DIED_NOW:
       jam();
+      // Fall through
     case NodeRecord::DYING:
       jam();
       if (getNodeInfo(specNodePtr.i).m_version < NDBD_EMPTY_LCP_NOT_NEEDED)
@@ -10659,6 +10662,7 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     break;
   case MasterGCPConf::GCP_COMMIT_RECEIVED:
     jam();
+    // Fall through
   case MasterGCPConf::GCP_COMMITTED:
     jam();
     ok = true;
@@ -10835,6 +10839,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     }
     case GcpSave::GCP_SAVE_CONF:
       jam();
+      // Fall through
     case GcpSave::GCP_SAVE_COPY_GCI:
       jam();
       ok = true;
@@ -12613,6 +12618,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         break;
       case DictTabInfo::DistrKeyHash:
         jam();
+        // Fall through
       case DictTabInfo::DistrKeyLin:
         jam();
         if (noOfFragments == 0)
@@ -12657,6 +12663,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       }
       case DictTabInfo::DistrKeyOrderedIndex:
         jam();
+        // Fall through
       default:
         jam();
         err = CreateFragmentationRef::InvalidFragmentationType;
@@ -13559,6 +13566,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   case DictTabInfo::AllNodesLargeTable:
   case DictTabInfo::SingleFragment:
     jam();
+    // Fall through
   case DictTabInfo::DistrKeyLin:
     jam();
     tabPtr.p->method = TabRecord::LINEAR_HASH;

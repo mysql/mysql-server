@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2915,6 +2915,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
     break;
   case GetTabInfoRef::NoFetchByName:
     jam();
+    // Fall through
   case GetTabInfoRef::TableNameTooLong:
     jam();
     ndbrequire(false);
@@ -3497,6 +3498,7 @@ Suma::execSUB_START_REQ(Signal* signal){
   case NodeInfo::MGM:
     if (!ERROR_INSERTED_CLEAR(13047))
       break;
+    // Fall through - if error inserted
   default:
     /**
      * This can happen if we start...with a new config

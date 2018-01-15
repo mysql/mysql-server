@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2073,8 +2073,10 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
       break;
     }
     case UtilSequenceReq::SetVal:
-      ok = true;
+      jam();
+      // Fall through
     case UtilSequenceReq::Create:
+      jam();
       ok = true;
       ret->sequenceValue[0] = 0;
       ret->sequenceValue[1] = 0;
@@ -2915,6 +2917,7 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
   switch(res){
   case UtilUnlockRef::OK:
     jam();
+    // Fall through
   case UtilUnlockRef::NotLockOwner: {
     jam();
     UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtrSend();
@@ -2927,6 +2930,7 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
   }
   case UtilUnlockRef::NotInLockQueue:
     jam();
+    // Fall through
   default:
     jam();
     ndbassert(false);

@@ -5317,6 +5317,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
               break;
             case NodeState::ST_INITIAL_START:
               g_eventLogger->info("Phase 5 Created the System Table");
+              // Fall through
             case NodeState::ST_SYSTEM_RESTART:
               g_eventLogger->info("Phase 5 waited for local checkpoint to"
                                   " complete");

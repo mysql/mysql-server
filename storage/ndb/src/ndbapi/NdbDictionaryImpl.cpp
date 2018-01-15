@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1582,8 +1582,10 @@ static Uint32 Hash( const char* str ){
   switch(len){
   case 3:
     h = (h << 5) + h + *str++;
+    // Fall through
   case 2:
     h = (h << 5) + h + *str++;
+    // Fall through
   case 1:
     h = (h << 5) + h + *str++;
   }

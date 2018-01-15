@@ -2468,6 +2468,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 	{
 	  break;
 	}
+        // Fall through - on bad version
       default:
 	parse_error(signal, file_ptr, __LINE__, ntohl(* data));
       }

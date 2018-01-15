@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 #define DBTUP_C
 #define DBTUP_TRIGGER_CPP
@@ -1289,7 +1288,6 @@ Dbtup::check_fire_fully_replicated(const KeyReqStruct *req_struct,
        * for fully replicated tables.
        */
       return true;
-      jam();
     case Fragrecord::FS_REORG_COMMIT_NEW:
     case Fragrecord::FS_REORG_COMPLETE_NEW:
       jam();
@@ -1532,8 +1530,8 @@ out:
       triggerId = getOldTriggerId(trigPtr, regOperPtr->op_type);
       trigAttrInfo->setTriggerId(triggerId);
     }
-    // fall-through
   }
+  // Fall through
   case (TriggerType::REORG_TRIGGER):
   case (TriggerType::FK_PARENT):
   case (TriggerType::FK_CHILD):
@@ -1666,11 +1664,13 @@ out:
       switch(regOperPtr->m_copy_tuple_location.m_file_no){
       case Operationrec::RF_SINGLE_NOT_EXIST:
         jam();
+        // Fall through
       case Operationrec::RF_MULTI_NOT_EXIST:
         jam();
         goto is_delete;
       case Operationrec::RF_SINGLE_EXIST:
         jam();
+        // Fall through
       case Operationrec::RF_MULTI_EXIST:
         jam();
         goto is_insert;
@@ -1710,12 +1710,14 @@ out:
     switch(regOperPtr->m_copy_tuple_location.m_file_no){
     case Operationrec::RF_SINGLE_NOT_EXIST:
       jam();
+      // Fall through
     case Operationrec::RF_MULTI_NOT_EXIST:
       jam();
       fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
       break;
     case Operationrec::RF_SINGLE_EXIST:
       jam();
+      // Fall through
     case Operationrec::RF_MULTI_EXIST:
       jam();
       fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;

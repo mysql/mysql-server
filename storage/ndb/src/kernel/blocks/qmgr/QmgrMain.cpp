@@ -550,6 +550,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     {
       ndbrequire(!c_clusterNodes.get(connectedNodeId));
     }
+    // Fall through
   case ZSTARTING:
     jam();
     break;
@@ -5358,12 +5359,16 @@ Uint32 Qmgr::getArbitDelay()
     break;
   case ARBIT_INIT:
     jam();
+    // Fall through
   case ARBIT_FIND:
     jam();
+    // Fall through
   case ARBIT_PREP1:
     jam();
+    // Fall through
   case ARBIT_PREP2:
     jam();
+    // Fall through
   case ARBIT_START:
     jam();
     return 100;
@@ -5393,6 +5398,7 @@ Uint32 Qmgr::getArbitTimeout()
     break;
   case ARBIT_INIT:              // not used
     jam();
+    // Fall through
   case ARBIT_FIND:
     jam();
     /* This timeout will be used only to print out a warning
@@ -5401,6 +5407,7 @@ Uint32 Qmgr::getArbitTimeout()
     return 60000;
   case ARBIT_PREP1:
     jam();
+    // Fall through
   case ARBIT_PREP2:
     jam();
     return 1000 + cnoOfNodes * Uint32(hb_send_timer.getDelay());
@@ -5456,17 +5463,22 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
   switch (arbitRec.state) {
   case ARBIT_NULL:              // should not happen
     jam();
+    // Fall through
   case ARBIT_INIT:
     jam();
+    // Fall through
   case ARBIT_FIND:
     jam();
     break;
   case ARBIT_PREP1:		// start from beginning
     jam();
+    // Fall through
   case ARBIT_PREP2:
     jam();
+    // Fall through
   case ARBIT_START:
     jam();
+    // Fall through
   case ARBIT_RUN:
     if (cpresident == getOwnNodeId()) {
       jam();
@@ -5480,6 +5492,7 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_CHOOSE:		// XXX too late
     jam();
+    // Fall through
   case ARBIT_CRASH:
     jam();
     break;
@@ -5506,10 +5519,13 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_INIT:		// start from beginning
     jam();
+    // Fall through
   case ARBIT_FIND:
     jam();
+    // Fall through
   case ARBIT_PREP1:
     jam();
+    // Fall through
   case ARBIT_PREP2:
     jam();
     arbitRec.state = ARBIT_INIT;
@@ -5518,12 +5534,14 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_START:		// process in RUN state
     jam();
+    // Fall through
   case ARBIT_RUN:
     jam();
     arbitRec.newMask.set(nodeId);
     break;
   case ARBIT_CHOOSE:            // XXX too late
     jam();
+    // Fall through
   case ARBIT_CRASH:
     jam();
     break;
@@ -5636,11 +5654,13 @@ Qmgr::handleArbitCheck(Signal* signal)
   switch (arbitRec.code) {
   case ArbitCode::LoseNodes:
     jam();
+    // Fall through
   case ArbitCode::LoseGroups:
     jam();
     goto crashme;
   case ArbitCode::WinNodes:
     jam();
+    // Fall through
   case ArbitCode::WinGroups:
     jam();
     if (arbitRec.state == ARBIT_RUN)
@@ -5687,6 +5707,7 @@ Qmgr::handleArbitCheck(Signal* signal)
     break;
   case ARBIT_CHOOSE:
     jam();
+    // Fall through
   case ARBIT_CRASH:
     jam();
     break;
@@ -5751,6 +5772,7 @@ Qmgr::runArbitThread(Signal* signal)
     break;
   case ARBIT_PREP1:
     jam();
+    // Fall through
   case ARBIT_PREP2:
     jam();
     stateArbitPrep(signal);
@@ -5990,6 +6012,7 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     break;
   case ArbitCode::PrepPart2:    // non-president enters RUN state
     jam();
+    // Fall through
   case ArbitCode::PrepAtrun:
     jam();
     arbitRec.node = sd->node;
@@ -7896,8 +7919,8 @@ Qmgr::execISOLATE_ORD(Signal* signal)
                           IsolateOrd::SignalLength);
       return;
     }
-    /* Fall through... */
   }
+  // Fall through
   case IsolateOrd::IS_DELAY:
   {
     jam();

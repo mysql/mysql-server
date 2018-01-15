@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1088,6 +1088,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
     case ZWRITE:
       opbits &= ~(Uint32)Operationrec::OP_MASK;
       opbits |= (op = ZINSERT);
+      // Fall through
     case ZINSERT:
       jam();
       opbits |= Operationrec::OP_INSERT_IS_DONE;
@@ -2412,6 +2413,7 @@ void Dbacc::execACC_ABORTREQ(Signal* signal)
     {
       return;
     }
+    // Fall through
   case 1:
     sendSignal(operationRecPtr.p->userblockref, GSN_ACC_ABORTCONF, 
 	       signal, 1, JBB);

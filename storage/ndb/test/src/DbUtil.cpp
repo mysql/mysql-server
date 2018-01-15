@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -500,6 +500,7 @@ DbUtil::runQuery(const char* sql,
         switch(fields[i].type){
         case MYSQL_TYPE_STRING:
 	  ((char*)bind_result[i].buffer)[fields[i].max_length] = 0;
+          // Fall through
         case MYSQL_TYPE_VARCHAR:
         case MYSQL_TYPE_VAR_STRING:
           curr.put(fields[i].name, (char*)bind_result[i].buffer);

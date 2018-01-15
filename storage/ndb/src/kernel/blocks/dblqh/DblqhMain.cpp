@@ -3037,6 +3037,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     case Tablerec::ADD_TABLE_ONGOING:
       jam();
       ndbassert(false);
+      // Fall through
     case Tablerec::PREP_DROP_TABLE_DONE:
       jam();
       tabPtr.p->m_informed_backup_drop_tab = false;
@@ -3736,16 +3737,22 @@ Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
     break;
   case Tablerec::ADD_TABLE_ONGOING:
     jam();
+    // Fall through
   case Tablerec::PREP_DROP_TABLE_DONE:
     jam();
+    // Fall through
   case Tablerec::DROP_TABLE_WAIT_USAGE:
     jam();
+    // Fall through
   case Tablerec::DROP_TABLE_WAIT_DONE:
     jam();
+    // Fall through
   case Tablerec::DROP_TABLE_ACC:
     jam();
+    // Fall through
   case Tablerec::DROP_TABLE_TUP:
     jam();
+    // Fall through
   case Tablerec::DROP_TABLE_TUX:
     jam();
     return ZDROP_TABLE_IN_PROGRESS;

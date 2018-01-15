@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1357,6 +1357,7 @@ void Dbdict::execFSREADCONF(Signal* signal)
       execFSREADREF(signal);
       return;
     }//Testing how DICT behave if read of file 1 fails (Bug#28770)
+    // Fall through
   case FsConnectRecord::READ_TAB_FILE2:
     jam();
     readTableConf(signal ,fsPtr);
@@ -5667,6 +5668,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   case DictTabInfo::CreateTableFromAPI: {
     jam();
   }
+  // Fall through
   case DictTabInfo::AlterTableFromAPI:{
     jam();
     schemaFileId = RNIL;
@@ -14668,7 +14670,7 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
       }
       break;
     }
-    // else invalid request type
+    // Fall through - invalid request type
   default:
     ndbassert(false);
     setError(error, AlterIndxRef::BadRequestType, __LINE__);
@@ -20338,6 +20340,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     break;
   case CreateTrigImplReq::CreateTriggerOffline:
     jam();
+    // Fall through
   default:
     ndbassert(false);
     setError(error, CreateTrigRef::BadRequestType, __LINE__);
@@ -20370,6 +20373,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     break;
   case CreateTrigReq::TriggerDst:
     jam();
+    // Fall through
   case CreateTrigReq::TriggerSrc:
     jam();
     if (handle.m_cnt)
@@ -20545,6 +20549,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     case TriggerType::REORG_TRIGGER:
       jam();
       createTrigger_create_drop_trigger_operation(signal, op_ptr, error);
+      // Fall through
     case TriggerType::SECONDARY_INDEX:
     case TriggerType::FK_PARENT:
     case TriggerType::FK_CHILD:
@@ -32013,8 +32018,10 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
   switch(trans_ptr.p->m_state) {
   case SchemaTrans::TS_INITIAL:
     jam();
+    // Fall through
   case SchemaTrans::TS_STARTING:
     jam();
+    // Fall through
   case SchemaTrans::TS_STARTED:
     jam();
     if (trans_ptr.p->m_rollback_op == 0)
@@ -32030,6 +32037,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
       trans_end_start(signal, trans_ptr);
       return;
     }
+    // Fall through
   case SchemaTrans::TS_PARSING:
     jam();
     setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
@@ -32150,6 +32158,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
       return;
     }
   }
+  // Fall through
   case SchemaTrans::TS_ENDING:
     /*
       End any pending slaves
