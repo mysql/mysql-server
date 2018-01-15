@@ -1678,8 +1678,8 @@ dd_set_table_options(
 	const dict_table_t*	table)
 {
 	dd::Table*			dd_table_def = &(dd_table->table());
-	enum row_type			type;
-	dd::Table::enum_row_format	format;
+	enum row_type			type = ROW_TYPE_DEFAULT;
+	dd::Table::enum_row_format	format = dd::Table::RF_DYNAMIC;
 	dd::Properties& options = dd_table_def->options();
 
 	switch (dict_tf_get_rec_format(table->flags)) {
@@ -1700,7 +1700,7 @@ dd_set_table_options(
 		type = ROW_TYPE_DYNAMIC;
 		break;
 	default:
-		ut_ad(0);
+		ut_a(0);
 	}
 
 	if (!dd_table_is_partitioned(*dd_table_def)) {
@@ -4979,7 +4979,7 @@ dd_set_fts_table_options(
 	dd_table->set_hidden(dd::Abstract_table::HT_HIDDEN_SE);
 	dd_table->set_collation_id(my_charset_bin.number);
 
-	dd::Table::enum_row_format row_format;
+	dd::Table::enum_row_format row_format = dd::Table::RF_DYNAMIC;
 	switch (dict_tf_get_rec_format(table->flags)) {
 	case REC_FORMAT_REDUNDANT:
 		row_format = dd::Table::RF_REDUNDANT;
@@ -4994,7 +4994,7 @@ dd_set_fts_table_options(
 		row_format = dd::Table::RF_DYNAMIC;
 		break;
 	default:
-		ut_ad(0);
+		ut_a(0);
 	}
 
 	dd_table->set_row_format(row_format);
