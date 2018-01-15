@@ -1218,6 +1218,10 @@ TransporterFacade::external_poll(Uint32 wait_time)
     {
       m_check_connections = false;
       theTransporterRegistry->update_connections();
+
+      // ::reportDisconnect() may have WOKEN the poll owner
+      if (m_poll_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN)
+        break;
     }
 
     if (res > 0)
