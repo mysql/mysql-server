@@ -2605,9 +2605,10 @@ ha_innopart::create(
 	char		table_name[FN_REFLEN];
 	/** absolute path of table */
 	char		remote_path[FN_REFLEN];
+	char		partition_name[FN_REFLEN];
 	char		tablespace_name[NAME_LEN + 1];
-	char*		table_name_end;
 	size_t		table_name_len;
+	char*		partition_name_start;
 	char		table_data_file_name[FN_REFLEN];
 	char		table_level_tablespace_name[NAME_LEN + 1];
 	const char*	table_index_file_name;
@@ -2655,8 +2656,9 @@ ha_innopart::create(
 		DBUG_RETURN(error);
 	}
 
+	strcpy(partition_name, table_name);
 	table_name_len = strlen(table_name);
-	table_name_end = table_name + table_name_len;
+	partition_name_start = partition_name + table_name_len;
 
 	if (create_info->data_file_name != NULL) {
 		/* Strip the tablename from the path. */
@@ -2711,12 +2713,12 @@ ha_innopart::create(
 	for (const auto dd_part : *table_def->leaf_partitions()) {
 
 		size_t	len = Ha_innopart_share::create_partition_postfix(
-			table_name_end, FN_REFLEN - table_name_len,
+			partition_name_start, FN_REFLEN - table_name_len,
 			dd_part);
 
 		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
 			error = HA_ERR_INTERNAL_ERROR;
-			my_error(ER_PATH_LENGTH, MYF(0), table_name);
+			my_error(ER_PATH_LENGTH, MYF(0), partition_name);
 			break;
 		}
 
@@ -2750,7 +2752,7 @@ ha_innopart::create(
 		info.flags_reset();
 		info.flags2_reset();
 
-		if ((error = info.prepare_create_table(table_name)) != 0) {
+		if ((error = info.prepare_create_table(partition_name)) != 0) {
 			break;
 		}
 
