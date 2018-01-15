@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3180,7 +3180,7 @@ private:
   bool get_last_lcp_state(Uint32 *prev_ptr);
   bool get_lcp_scanned_bit(Fragrecord*, Uint32);
   bool get_lcp_scanned_bit(Uint32 *next_ptr);
-  void reset_lcp_scanned_bit(Fragrecord*, Uint32);
+  //void reset_lcp_scanned_bit(Fragrecord*, Uint32);
   void reset_lcp_scanned_bit(Uint32 *next_ptr);
 
   Uint32 getNoOfPages(Fragrecord* regFragPtr);
