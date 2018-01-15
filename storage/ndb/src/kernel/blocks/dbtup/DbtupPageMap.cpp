@@ -424,26 +424,31 @@ Dbtup::get_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
   return get_lcp_scanned_bit(ptr);
 }
 
-void
-Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
-{
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
-  Uint32 *ptr = map.set(2 * logicalPageId);
-  ndbassert(ptr != 0);
-  ndbassert((*ptr) != RNIL);
-#ifdef DEBUG_LCP_SCANNED_BIT
-  if ((*ptr) & LCP_SCANNED_BIT)
-  {
-    g_eventLogger->info("(%u)tab(%u,%u):%u reset_lcp_scanned_bit",
-      instance(),
-      regFragPtr->fragTableId,
-      regFragPtr->fragmentId,
-      logicalPageId);
-  }
-#endif
-  *ptr = (*ptr) & (Uint32)~LCP_SCANNED_BIT;
-  do_check_page_map(regFragPtr);
-}
+/**
+ * Currently not used code, can be activated when we can decrease
+ * m_max_page_cnt.
+ *
+ *void
+ *Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
+ *{
+ *  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+ *  Uint32 *ptr = map.set(2 * logicalPageId);
+ *  ndbassert(ptr != 0);
+ *  ndbassert((*ptr) != RNIL);
+ *#ifdef DEBUG_LCP_SCANNED_BIT
+ *  if ((*ptr) & LCP_SCANNED_BIT)
+ *  {
+ *    g_eventLogger->info("(%u)tab(%u,%u):%u reset_lcp_scanned_bit",
+ *      instance(),
+ *      regFragPtr->fragTableId,
+ *      regFragPtr->fragmentId,
+ *      logicalPageId);
+ *  }
+ *#endif
+ *  *ptr = (*ptr) & (Uint32)~LCP_SCANNED_BIT;
+ *  do_check_page_map(regFragPtr);
+ *}
+ */
 
 void
 Dbtup::reset_lcp_scanned_bit(Uint32 *next_ptr)

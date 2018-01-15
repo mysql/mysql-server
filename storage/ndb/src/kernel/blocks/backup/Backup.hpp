@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,7 +217,6 @@ public:
                                 Uint32 filePtrI,
                                 Uint32 scanned_pages,
                                 Uint32 & scanGCI,
-                                bool & skip_flag,
                                 bool & changed_row_page_flag);
 
   bool is_partial_lcp_enabled()
@@ -231,7 +230,6 @@ public:
   }
 
   void init_lcp_scan(Uint32 & scanGCI,
-                     bool & skip_page,
                      bool & changed_row_page_flag);
   void end_lcp_scan(Uint32 number_of_pages);
 
@@ -1240,7 +1238,6 @@ public:
   void get_page_info(BackupRecordPtr,
                      Uint32 part_id,
                      Uint32 & scanGCI,
-                     bool & skip_flag,
                      bool & changed_row_page_flag);
   void set_working_file(BackupRecordPtr,
                         Uint32 part_id,
