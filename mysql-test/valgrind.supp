@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1857,4 +1857,28 @@
    fun:okimem_nat_malloc
    fun:OKIMemAlloc
    fun:OKITTLVAddChildObject
+}
+
+# Bug#27209265 Suppress all issues relating to communication with AWS KMS server.
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:by_file_ctrl
+   fun:X509_STORE_load_locations
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
 }
