@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,4 +116,9 @@ size_t ndb_dd_table_get_num_columns(const dd::Table* table_def)
 bool ndb_dd_table_is_using_fixed_row_format(const dd::Table* table_def)
 {
   return table_def->row_format() == dd::Table::RF_FIXED;
+}
+
+dd::String_type ndb_dd_table_get_name(const dd::Table* table_def)
+{
+  return table_def->name();
 }
