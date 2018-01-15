@@ -72,6 +72,7 @@ DELETE FROM parent WHERE a=3;
 # Stop slave and cleanup the blocking
 #
 --disable_warnings
+--let $slave_sql_errno= convert_error(ER_LOCK_WAIT_TIMEOUT)
 --source include/stop_slave_sql.inc
 --enable_warnings
 --source include/rpl_connection_slave1.inc

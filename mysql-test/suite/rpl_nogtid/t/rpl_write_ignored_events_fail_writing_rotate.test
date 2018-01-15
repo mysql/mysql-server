@@ -35,6 +35,7 @@ DROP TABLE t1;
 
 --source include/sync_slave_io_with_master.inc
 SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
+--let $slave_io_errno= convert_error(ER_SLAVE_CREATE_EVENT_FAILURE)
 --source include/stop_slave_io.inc
 SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
 
@@ -70,6 +71,7 @@ DROP TABLE t1;
 
 --source include/sync_slave_io_with_master.inc
 SET @@GLOBAL.debug="+d,fail_to_write_ignored_event_to_relay_log";
+--let $slave_io_errno= convert_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE)
 --source include/stop_slave_io.inc
 SET @@GLOBAL.debug="-d,fail_to_write_ignored_event_to_relay_log";
 
