@@ -26278,10 +26278,13 @@ Dbdict::createNodegroup_fromWaitGCP(Signal* signal,
   switch(ret){
   case WaitGCPRef::NoWaitGCPRecords:
     jam();
+    break;
   case WaitGCPRef::NF_CausedAbortOfProcedure:
     jam();
+    break;
   case WaitGCPRef::NF_MasterTakeOverInProgress:
     jam();
+    break;
   }
 
 retry:
@@ -26780,10 +26783,13 @@ Dbdict::dropNodegroup_fromWaitGCP(Signal* signal,
   switch(ret){
   case WaitGCPRef::NoWaitGCPRecords:
     jam();
+    break;
   case WaitGCPRef::NF_CausedAbortOfProcedure:
     jam();
+    break;
   case WaitGCPRef::NF_MasterTakeOverInProgress:
     jam();
+    break;
   }
 
 retry:

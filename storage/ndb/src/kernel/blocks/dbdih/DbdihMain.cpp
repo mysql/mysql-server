@@ -14289,10 +14289,13 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
                           signal->getLength(), &handle);
       return;
     }
+    break;
   case AlterTabReq::AlterTableCommit:
     jam();
+    break;
   case AlterTabReq::AlterTableComplete:
     jam();
+    break;
   case AlterTabReq::AlterTableWaitScan:
     jam();
     break;
