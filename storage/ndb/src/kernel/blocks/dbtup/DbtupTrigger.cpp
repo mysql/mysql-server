@@ -1675,7 +1675,7 @@ out:
         jam();
         goto is_insert;
       default:
-        ndbrequire(false);
+        ndbabort();
       }
     default:
       ndbrequire(false);

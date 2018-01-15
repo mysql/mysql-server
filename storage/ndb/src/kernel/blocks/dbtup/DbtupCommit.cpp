@@ -268,7 +268,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   case Dbtup::ScanOp::Current:
   {
     /* Impossible state for LCP scans */
-    ndbrequire(false);
+    ndbabort();
   }
   case Dbtup::ScanOp::Next:
   {

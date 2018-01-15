@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,6 +287,12 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 
 #define ndbrequire(check) \
   ndbrequireErr(check, NDBD_EXIT_NDBREQUIRE)
+
+#define ndbabort() \
+  do { \
+    jamNoBlock(); \
+    progError(__LINE__, NDBD_EXIT_PRGERR, __FILE__, ""); \
+  } while (false)
 
 #define CRASH_INSERTION(errorType) \
   if (!ERROR_INSERTED((errorType))) { \

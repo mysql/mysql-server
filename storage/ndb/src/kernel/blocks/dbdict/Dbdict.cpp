@@ -844,8 +844,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
 
   switch (c_packTable.m_state) {
   case PackTable::PTS_IDLE:
-    ndbrequire(false);
-    break;
+    ndbabort();
   case PackTable::PTS_GET_TAB:
     jam();
     c_retrieveRecord.retrievedNoOfPages = pagesUsed;
@@ -1582,8 +1581,7 @@ void Dbdict::closeWriteTableConf(Signal* signal,
   case WriteTableRecord::WRITE_ADD_TABLE_SLAVE :
   case WriteTableRecord::WRITE_RESTART_FROM_MASTER :
   case WriteTableRecord::WRITE_RESTART_FROM_OWN :
-    ndbrequire(false);
-    break;
+    ndbabort();
   case WriteTableRecord::TWR_CALLBACK:
     jam();
     execute(signal, c_writeTableRecord.m_callback, 0);
@@ -4994,7 +4992,7 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal)
   case DictTabInfo::SubscriptionTrigger:
   case DictTabInfo::ReadOnlyConstraint:
   case DictTabInfo::IndexTrigger:
-    ndbrequire(false);
+    ndbabort();
   case DictTabInfo::SystemTable:
   case DictTabInfo::UserTable:
   case DictTabInfo::UniqueHashIndex:
@@ -5249,8 +5247,7 @@ Dbdict::restartDropObj(Signal* signal,
   {
     DropTableRecPtr opRecPtr;
     seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
   case DictTabInfo::Undofile:
   case DictTabInfo::Datafile:
@@ -30314,7 +30311,7 @@ Dbdict::trans_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 {
   switch(trans_ptr.p->m_state){
   case SchemaTrans::TS_INITIAL:
-    ndbrequire(false);
+    ndbabort();
   case SchemaTrans::TS_STARTING:
     jam();
     trans_start_recv_reply(signal, trans_ptr);
@@ -30324,7 +30321,7 @@ Dbdict::trans_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
     trans_parse_recv_reply(signal, trans_ptr);
     return;
   case SchemaTrans::TS_SUBOP:
-    ndbrequire(false);
+    ndbabort();
   case SchemaTrans::TS_ROLLBACK_SP:
     jam();
     trans_rollback_sp_recv_reply(signal, trans_ptr);
@@ -32297,7 +32294,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     case SchemaTransImplReq::RT_FLUSH_PREPARE:
     case SchemaTransImplReq::RT_FLUSH_COMMIT:
     case SchemaTransImplReq::RT_FLUSH_COMPLETE:
-      ndbrequire(false); // handled above
+      ndbabort(); // handled above
     case SchemaTransImplReq::RT_PREPARE:
       jam();
       op_ptr.p->m_state = SchemaOp::OS_PREPARING;
@@ -32694,19 +32691,19 @@ Dbdict::update_op_state(SchemaOpPtr op_ptr)
     op_ptr.p->m_state = SchemaOp::OS_PARSED;
     break;
   case SchemaOp::OS_PARSED:
-    ndbrequire(false);
+    ndbabort();
   case SchemaOp::OS_PREPARING:
     jam();
     op_ptr.p->m_state = SchemaOp::OS_PREPARED;
     break;
   case SchemaOp::OS_PREPARED:
-    ndbrequire(false);
+    ndbabort();
   case SchemaOp::OS_ABORTING_PREPARE:
     jam();
     op_ptr.p->m_state = SchemaOp::OS_ABORTED_PREPARE;
     break;
   case SchemaOp::OS_ABORTED_PREPARE:
-    ndbrequire(false);
+    ndbabort();
   case SchemaOp::OS_ABORTING_PARSE:
     jam();
     break;
@@ -32716,13 +32713,13 @@ Dbdict::update_op_state(SchemaOpPtr op_ptr)
     op_ptr.p->m_state = SchemaOp::OS_COMMITTED;
     break;
   case SchemaOp::OS_COMMITTED:
-    ndbrequire(false);
+    ndbabort();
   case SchemaOp::OS_COMPLETING:
     jam();
     op_ptr.p->m_state = SchemaOp::OS_COMPLETED;
     break;
   case SchemaOp::OS_COMPLETED:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 

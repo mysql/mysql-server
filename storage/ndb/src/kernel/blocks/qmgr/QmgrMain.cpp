@@ -560,11 +560,11 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     jam();
     return;
   case ZAPI_ACTIVATION_ONGOING:
-    ndbrequire(false);
+    ndbabort();
   case ZAPI_ACTIVE:
-    ndbrequire(false);
+    ndbabort();
   case ZAPI_INACTIVE:
-    ndbrequire(false);
+    ndbabort();
   case ZINIT:
     ndbrequire(getNodeInfo(connectedNodeId).m_type == NodeInfo::MGM);
     break;
@@ -2174,15 +2174,15 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   case ZSTARTING:
     break;
   case ZRUNNING:
-    jam();
+    ndbabort();
   case ZPREPARE_FAIL:
-    jam();
+    ndbabort();
   case ZAPI_ACTIVATION_ONGOING:
-    jam();
+    ndbabort();
   case ZAPI_ACTIVE:
-    jam();
+    ndbabort();
   case ZAPI_INACTIVE:
-    ndbrequire(false);
+    ndbabort();
   }
   
   sendCmAckAdd(signal, nodePtr.i, CmAdd::Prepare);
@@ -3560,24 +3560,22 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     jam();
     break;
   case ZINIT:
-    ndbrequire(false);
+    ndbabort();
   case ZSTARTING:
     progError(__LINE__, NDBD_EXIT_CONNECTION_SETUP_FAILED,
 	      lookupConnectionError(err));
-    ndbrequire(false);
   case ZPREPARE_FAIL:
-    ndbrequire(false);
+    ndbabort();
   case ZFAIL_CLOSING:
-    ndbrequire(false);
+    ndbabort();
   case ZAPI_ACTIVATION_ONGOING:
-    ndbrequire(false);
+    ndbabort();
   case ZAPI_ACTIVE:
-    ndbrequire(false);
+    ndbabort();
   case ZAPI_INACTIVE:
   {
     BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
-    ndbrequire(false);
   }
   }
 
@@ -3654,11 +3652,11 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     return;
   }
   case ZAPI_ACTIVE:     // Unexpected states handled in ::api_failed()
-    ndbrequire(false);
+    ndbabort();
   case ZAPI_INACTIVE:
-    ndbrequire(false);
+    ndbabort();
   case ZAPI_ACTIVATION_ONGOING:
-    ndbrequire(false);
+    ndbabort();
   default:
     ndbrequire(false);  // Unhandled state
   }//switch
@@ -4316,7 +4314,6 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
                              failedNodePtr.i);
     }
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
-    ndbrequire(false);
   }
 
   const NdbNodeBitmask TfailedNodes(cfailedNodes);
@@ -4457,7 +4454,6 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     char buf[100];
     BaseString::snprintf(buf, 100, "Node failure during restart");
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
-    ndbrequire(false);
   }
 
   for (unsigned nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)

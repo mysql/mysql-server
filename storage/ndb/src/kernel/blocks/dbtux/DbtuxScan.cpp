@@ -430,7 +430,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     scanClose(signal, scanPtr);
     return;
   case NextScanReq::ZSCAN_NEXT_ABORT:
-    jam();
+    ndbabort();
   default:
     jam();
     ndbrequire(false);

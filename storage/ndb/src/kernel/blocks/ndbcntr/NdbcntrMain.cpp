@@ -2187,7 +2187,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
   case NodeState::SL_NOTHING:
   case NodeState::SL_CMVMI:
     jam();
-    ndbrequire(false);
+    ndbabort();
   case NodeState::SL_STARTING:
   case NodeState::SL_STARTED:
     jam();
@@ -2510,7 +2510,7 @@ Ndbcntr::trySystemRestart(Signal* signal){
         }
         case CheckNodeGroups::Lose:
         {
-          ndbrequire(false); //Cannot happen
+          ndbabort(); //Cannot happen
         }
         case CheckNodeGroups::Partitioning:
         {

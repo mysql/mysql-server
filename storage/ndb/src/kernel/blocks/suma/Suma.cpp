@@ -586,7 +586,7 @@ Suma::createSequenceReply(Signal* signal,
     switch ((UtilSequenceRef::ErrorCode)ref->errorCode)
     {
       case UtilSequenceRef::NoSuchSequence:
-        ndbrequire(false);
+        ndbabort();
       case UtilSequenceRef::TCError:
       {
         char buf[128];
@@ -2744,7 +2744,7 @@ Suma::execDIH_SCAN_TAB_REF(Signal* signal)
                           4);
       DBUG_VOID_RETURN;
     }
-    ndbrequire(false);
+    ndbabort();
   default:
     ndbrequire(false);
   }
@@ -3457,7 +3457,7 @@ Suma::execSUB_START_REQ(Signal* signal){
   switch(subPtr.p->m_state){
   case Subscription::UNDEFINED:
     jam();
-    ndbrequire(false);
+    ndbabort();
   case Subscription::DEFINING:
     jam();
     sendSubStartRef(signal,
@@ -4004,7 +4004,7 @@ Suma::drop_triggers_complete(Signal* signal, Ptr<Subscription> subPtr)
   case Subscription::T_CREATING:
   case Subscription::T_DEFINED:
     jam();
-    ndbrequire(false);
+    ndbabort();
     break;
   case Subscription::T_DROPPING:
     jam();
@@ -4080,7 +4080,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
   switch(subPtr.p->m_state){
   case Subscription::UNDEFINED:
     jam();
-    ndbrequire(false);
+    ndbabort();
   case Subscription::DEFINING:
     jam();
     sendSubStopRef(signal,
@@ -5768,7 +5768,7 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
   switch(subPtr.p->m_state){
   case Subscription::UNDEFINED:
     jam();
-    ndbrequire(false);
+    ndbabort();
   case Subscription::DEFINING:
     jam();
     sendSubRemoveRef(signal, req, SubRemoveRef::Defining);
@@ -5878,7 +5878,7 @@ do_release:
     jam();
     switch(tabPtr.p->m_state){
     case Table::UNDEFINED:
-      ndbrequire(false);
+      ndbabort();
     case Table::DEFINING:
       break;
     case Table::DEFINED:
@@ -6512,7 +6512,6 @@ Suma::execSTOP_ME_REQ(Signal* signal)
       progError(__LINE__,
 		NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR,
 		buf);
-      ndbrequire(false);
     }
   }
   send_handover_req(signal, SumaHandoverReq::RT_STOP_NODE);

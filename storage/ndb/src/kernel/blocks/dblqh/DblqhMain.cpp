@@ -3054,7 +3054,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     case Tablerec::DROP_TABLE_ACC:
     case Tablerec::DROP_TABLE_TUP:
     case Tablerec::DROP_TABLE_TUX:
-      ndbrequire(false);
+      ndbabort();
     case Tablerec::DROP_TABLE_WAIT_DONE:
       jam();
       break;
@@ -6172,11 +6172,11 @@ void Dblqh::endgettupkeyLab(Signal* signal,
     return;
     break;
   case Fragrecord::FREE:
-    jam();
+    ndbabort();
   case Fragrecord::DEFINED:
-    jam();
+    ndbabort();
   case Fragrecord::REMOVING:
-    jam();
+    ndbabort();
   default:
     ndbrequire(false);
     break;
@@ -9471,11 +9471,11 @@ void Dblqh::localCommitLab(Signal* signal,
     commitContinueAfterBlockedLab(signal, tcConnectptr);
     return;
   case Fragrecord::FREE:
-    jam();
+    ndbabort();
   case Fragrecord::DEFINED:
-    jam();
+    ndbabort();
   case Fragrecord::REMOVING:
-    jam();
+    ndbabort();
   default:
     ndbrequire(false);
     break;
@@ -10366,11 +10366,11 @@ void Dblqh::abortCommonLab(Signal* signal,
       return;
       break;
     case Fragrecord::FREE:
-      jam();
+      ndbabort();
     case Fragrecord::DEFINED:
-      jam();
+      ndbabort();
     case Fragrecord::REMOVING:
-      jam();
+      ndbabort();
     default:
       ndbrequire(false);
       break;

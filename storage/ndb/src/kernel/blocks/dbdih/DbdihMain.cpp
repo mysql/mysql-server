@@ -547,8 +547,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
     }
   case DihContinueB::ZDIH_ADD_TABLE_SLAVE:
     {
-      ndbrequire(false);
-      return;
+      ndbabort();
     }
   case DihContinueB::ZSTART_GCP:
     jam();
@@ -832,8 +831,7 @@ done:
   case CopyGCIReq::IDLE:
     ok = true;
     jam();
-    ndbrequire(false);
-    break;
+    ndbabort();
   case CopyGCIReq::LOCAL_CHECKPOINT: {
     ok = true;
     jam();
@@ -1793,8 +1791,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
                  StartMeReq::SignalLength, JBB);
       return;
     }
-    ndbrequire(false);
-    break;
+    ndbabort();
   case ZNDB_SPH5:
     jam();
     switch(typestart){
@@ -1851,7 +1848,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       }
       return;
     }
-    ndbrequire(false);
+    ndbabort();
   case ZNDB_SPH6:
     jam();
     switch(typestart){
@@ -1882,8 +1879,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       ndbsttorry10Lab(signal, __LINE__);
       return;
     }
-    ndbrequire(false);
-    break;
+    ndbabort();
   default:
     jam();
     ndbsttorry10Lab(signal, __LINE__);
@@ -2033,7 +2029,6 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
       progError(__LINE__, 
 		NDBD_EXIT_SR_RESTARTCONFLICT,
 		buf);
-      ndbrequire(false);
     }
   }
 
@@ -2331,7 +2326,6 @@ void Dbdih::execSTART_PERMREF(Signal* signal)
     progError(__LINE__, 
 	      NDBD_EXIT_SR_RESTARTCONFLICT,
 	      buf);
-    ndbrequire(false);
   }
 
   /*------------------------------------------------------------------------*/
@@ -10801,10 +10795,10 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
   }
   case MicroGcp::M_GCP_COMMITTED:
     jam();
-    ndbrequire(false);
+    ndbabort();
   case MicroGcp::M_GCP_COMPLETE:
     jam();
-    ndbrequire(false);
+    ndbabort();
 #ifndef VM_TRACE
   default:
     jamLine(m_micro_gcp.m_master.m_state);
@@ -19561,7 +19555,6 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     dump_replica_info();
     
     progError(__LINE__, NDBD_EXIT_NO_RESTORABLE_REPLICA, buf);
-    ndbrequire(false);
     return;
   }//if
   
