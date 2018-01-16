@@ -1836,35 +1836,6 @@ String *Item_func_substr_index::val_str(String *str)
   return (&tmp_value);
 }
 
-void Item_func_roles_graphml::print(String *str, enum_query_type)
-{
-  str->append(func_name());
-  str->append("()");
-}
-
-bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
-{
-  Item_str_func::fix_fields(thd, ref);
-  Security_context *sctx= thd->security_context();
-  if (sctx && (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
-      sctx->check_access(SUPER_ACL, false)))
-    roles_graphml(thd, &m_str);
-  else
-    m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                              "<graphml />"), system_charset_info);
-  return false;  
-}
-
-String *Item_func_roles_graphml::val_str(String *str)
-{
-  if (str != 0)
-  {
-    str->copy(m_str);
-    return str;
-  }
-  return &m_str;
-}
-
 /*
 ** The trim functions are extension to ANSI SQL because they trim substrings
 ** They ltrim() and rtrim() functions are optimized for 1 byte strings
@@ -2271,18 +2242,6 @@ bool Item_func_user::fix_fields(THD *thd, Item **ref)
   return (Item_func_sysconst::fix_fields(thd, ref) ||
           init(thd->m_main_security_ctx.user().str,
                thd->m_main_security_ctx.host_or_ip().str));
-}
-
-bool Item_func_current_role::fix_fields(THD *thd, Item **ref)
-{
-  Item_str_func::fix_fields(thd, ref);
-  return false;
-}
-
-String *Item_func_current_role::val_str(String* str)
-{
-  THD *thd= current_thd;
-  return func_current_role(thd, str, &m_active_role);
 }
 
 bool Item_func_current_user::itemize(Parse_context *pc, Item **res)
@@ -5550,3 +5509,66 @@ String *Item_func_convert_cpu_id_mask::val_str(String *str)
   DBUG_RETURN(str);
 }
 
+void Item_func_current_role::cleanup()
+{
+  if (value_cache_set)
+  {
+    value_cache.set((char *)NULL, 0, system_charset_info);
+    value_cache_set= false;
+  }
+}
+
+String * Item_func_current_role::val_str(String *)
+{
+  set_current_role(current_thd);
+  return &value_cache;
+}
+
+void Item_func_current_role::set_current_role(THD * thd)
+{
+  if (!value_cache_set)
+  {
+    func_current_role(thd, &value_cache);
+    value_cache_set= true;
+  }
+}
+
+/**
+ @brief Constructs and caches the graphml string
+
+ Called once per query and the result cached inside value_cache
+
+ @param         thd     The current session
+
+ @retval false success
+ @retval true failure
+ */
+
+bool Item_func_roles_graphml::calculate_graphml(THD * thd)
+{
+  Security_context *sctx = thd->security_context();
+  if (sctx && (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
+    sctx->check_access(SUPER_ACL, false)))
+    roles_graphml(thd, &value_cache);
+  else
+    value_cache.set_ascii(
+      STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+      "<graphml />"));
+  value_cache_set= true;
+  return false;
+}
+
+String * Item_func_roles_graphml::val_str(String *)
+{
+  calculate_graphml(current_thd);
+  return &value_cache;
+}
+
+void Item_func_roles_graphml::cleanup()
+{
+  if (value_cache_set)
+  {
+    value_cache.set((char *)NULL, 0, system_charset_info);
+    value_cache_set= false;
+  }
+}
