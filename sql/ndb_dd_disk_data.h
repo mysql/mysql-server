@@ -47,6 +47,10 @@ enum object_type
 */
 void ndb_dd_disk_data_set_object_type(dd::Properties &se_private_data,
                                       const enum object_type type);
+
+void ndb_dd_disk_data_set_object_type(dd::Tablespace* tablespace_def,
+                                      const enum object_type type);
+
 /*
   Return the disk data object type
 */

@@ -40,7 +40,6 @@
 #include "mysql/psi/mysql_thread.h"
 #include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
-#include "sql/dd/types/tablespace.h"
 #include "sql/derror.h"     // ER_THD
 #include "sql/ha_ndb_index_stat.h"
 #include "sql/ha_ndbcluster_binlog.h"
@@ -17897,8 +17896,7 @@ int ndbcluster_alter_tablespace(handlerton*,
      * in order to populate the I_S.FILES table
      */
 
-    ndb_dd_disk_data_set_object_type(new_ts_def->se_private_data(),
-                                     object_type::TABLESPACE);
+    ndb_dd_disk_data_set_object_type(new_ts_def, object_type::TABLESPACE);
 
     break;
   }
