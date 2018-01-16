@@ -42,7 +42,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 include/stop_slave_sql.inc [FOR CHANNEL 'ch3_2']
 
 # 5. Verify occurrence of error message
-Occurrences of 'Can't start group replication on secondary member with single primary-mode while asynchronous replication channels are running' in the input file: 3
+Occurrences of 'Can't start group replication on secondary member with single-primary mode while asynchronous replication channels are running' in the input file: 3
 
 # 6. Verify GR on server2 is OFFLINE
 include/assert.inc [Verify server2 MEMBER_STATE is OFFLINE]

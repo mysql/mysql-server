@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,19 @@ struct st_mysql_sys_var
 };
 typedef st_mysql_sys_var SYS_VAR;
 
+
 //Plugin variables
+
+/**
+  Position of channel observation manager's in channel_observation_manager_list
+*/
+enum enum_channel_observation_manager_position
+{
+  GROUP_CHANNEL_OBSERVATION_MANAGER_POS=0,
+  ASYNC_CHANNEL_OBSERVATION_MANAGER_POS,
+  END_CHANNEL_OBSERVATION_MANAGER_POS
+};
+
 extern const char *group_replication_plugin_name;
 extern char *group_name_var;
 extern rpl_sidno group_sidno;
@@ -75,7 +87,7 @@ extern Applier_module *applier_module;
 extern Recovery_module *recovery_module;
 extern Registry_module_interface *registry_module;
 extern Group_member_info_manager_interface *group_member_mgr;
-extern Channel_observation_manager *channel_observation_manager;
+extern Channel_observation_manager_list *channel_observation_manager_list;
 extern Asynchronous_channels_state_observer
         *asynchronous_channels_state_observer;
 //Lock for the applier and recovery module to prevent the race between STOP
@@ -95,6 +107,7 @@ extern Blocked_transaction_handler* blocked_transaction_handler;
 bool server_engine_initialized();
 void *get_plugin_pointer();
 mysql_mutex_t* get_plugin_running_lock();
+Plugin_waitlock* get_plugin_online_lock();
 int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
                                Delayed_initialization_thread *delayed_init_thd);
 void register_server_reset_master();
@@ -109,6 +122,11 @@ int plugin_group_replication_deinit(void *p);
 int plugin_group_replication_start(char **error_message= NULL);
 int plugin_group_replication_stop(char **error_message= NULL);
 bool plugin_is_group_replication_running();
+bool is_plugin_auto_starting_on_non_bootstrap_member();
+bool is_plugin_configured_and_starting();
+void initiate_wait_on_start_process();
+void terminate_wait_on_start_process();
+void set_wait_on_start_process(bool cond);
 bool plugin_get_connection_status(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks);
 bool plugin_get_group_members(
