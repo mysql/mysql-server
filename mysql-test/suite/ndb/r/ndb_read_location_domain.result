@@ -99,17 +99,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	1
-1	READS	20
-2	LOCAL_READS	11
-2	READS	12
+1	READS	18
+2	LOCAL_READS	9
+2	READS	10
 3	LOCAL_READS	0
-3	READS	8
+3	READS	6
 4	LOCAL_READS	0
-4	READS	10
+4	READS	8
 5	LOCAL_READS	0
-5	READS	9
+5	READS	7
 6	LOCAL_READS	0
-6	READS	12
+6	READS	10
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
 from ndbinfo.operations_per_fragment
 where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
@@ -123,17 +123,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	1
-1	READS	20
-2	LOCAL_READS	51
-2	READS	52
+1	READS	18
+2	LOCAL_READS	49
+2	READS	50
 3	LOCAL_READS	0
-3	READS	8
+3	READS	6
 4	LOCAL_READS	0
-4	READS	10
+4	READS	8
 5	LOCAL_READS	0
-5	READS	9
+5	READS	7
 6	LOCAL_READS	0
-6	READS	12
+6	READS	10
 UI lookups
 explain select * from test.t1 where t1.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -154,17 +154,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	1
-1	READS	20
-2	LOCAL_READS	131
-2	READS	132
+1	READS	18
+2	LOCAL_READS	129
+2	READS	130
 3	LOCAL_READS	0
-3	READS	8
+3	READS	6
 4	LOCAL_READS	0
-4	READS	10
+4	READS	8
 5	LOCAL_READS	0
-5	READS	9
+5	READS	7
 6	LOCAL_READS	0
-6	READS	12
+6	READS	10
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -410,17 +410,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	1
-1	READS	20
-2	LOCAL_READS	291
-2	READS	292
+1	READS	18
+2	LOCAL_READS	289
+2	READS	290
 3	LOCAL_READS	0
-3	READS	8
+3	READS	6
 4	LOCAL_READS	0
-4	READS	10
+4	READS	8
 5	LOCAL_READS	0
-5	READS	9
+5	READS	7
 6	LOCAL_READS	0
-6	READS	12
+6	READS	10
 Test some basic NdbApi
 explain select * from test.t2 where t2.a=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -441,17 +441,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	1
-1	READS	20
-2	LOCAL_READS	372
-2	READS	374
+1	READS	18
+2	LOCAL_READS	370
+2	READS	372
 3	LOCAL_READS	0
-3	READS	8
+3	READS	6
 4	LOCAL_READS	0
-4	READS	10
+4	READS	8
 5	LOCAL_READS	0
-5	READS	9
+5	READS	7
 6	LOCAL_READS	0
-6	READS	12
+6	READS	10
 UI lookups
 explain select * from test.t2 where t2.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -473,17 +473,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	1
-1	READS	20
-2	LOCAL_READS	572
-2	READS	574
+1	READS	18
+2	LOCAL_READS	570
+2	READS	572
 3	LOCAL_READS	0
-3	READS	8
+3	READS	6
 4	LOCAL_READS	0
-4	READS	10
+4	READS	8
 5	LOCAL_READS	0
-5	READS	9
+5	READS	7
 6	LOCAL_READS	0
-6	READS	12
+6	READS	10
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -623,17 +623,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	11
-1	READS	42
-2	LOCAL_READS	579
-2	READS	587
+1	READS	40
+2	LOCAL_READS	577
+2	READS	585
 3	LOCAL_READS	0
-3	READS	16
+3	READS	14
 4	LOCAL_READS	0
-4	READS	63
+4	READS	61
 5	LOCAL_READS	0
-5	READS	17
+5	READS	15
 6	LOCAL_READS	0
-6	READS	102
+6	READS	100
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
 from ndbinfo.operations_per_fragment
 where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
@@ -647,17 +647,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	11
-1	READS	42
-2	LOCAL_READS	619
-2	READS	627
+1	READS	40
+2	LOCAL_READS	617
+2	READS	625
 3	LOCAL_READS	0
-3	READS	16
+3	READS	14
 4	LOCAL_READS	0
-4	READS	63
+4	READS	61
 5	LOCAL_READS	0
-5	READS	17
+5	READS	15
 6	LOCAL_READS	0
-6	READS	102
+6	READS	100
 UI lookups
 explain select * from test.t1 where t1.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -678,17 +678,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	11
-1	READS	42
-2	LOCAL_READS	699
-2	READS	707
+1	READS	40
+2	LOCAL_READS	697
+2	READS	705
 3	LOCAL_READS	0
-3	READS	16
+3	READS	14
 4	LOCAL_READS	0
-4	READS	63
+4	READS	61
 5	LOCAL_READS	0
-5	READS	17
+5	READS	15
 6	LOCAL_READS	0
-6	READS	102
+6	READS	100
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -934,17 +934,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	11
-1	READS	42
-2	LOCAL_READS	859
-2	READS	867
+1	READS	40
+2	LOCAL_READS	857
+2	READS	865
 3	LOCAL_READS	0
-3	READS	16
+3	READS	14
 4	LOCAL_READS	0
-4	READS	63
+4	READS	61
 5	LOCAL_READS	0
-5	READS	17
+5	READS	15
 6	LOCAL_READS	0
-6	READS	102
+6	READS	100
 Test some basic NdbApi
 explain select * from test.t2 where t2.a=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -965,17 +965,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	11
-1	READS	42
-2	LOCAL_READS	939
-2	READS	949
+1	READS	40
+2	LOCAL_READS	937
+2	READS	947
 3	LOCAL_READS	0
-3	READS	16
+3	READS	14
 4	LOCAL_READS	0
-4	READS	63
+4	READS	61
 5	LOCAL_READS	0
-5	READS	17
+5	READS	15
 6	LOCAL_READS	0
-6	READS	102
+6	READS	100
 UI lookups
 explain select * from test.t2 where t2.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -997,17 +997,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	11
-1	READS	42
-2	LOCAL_READS	1139
-2	READS	1149
+1	READS	40
+2	LOCAL_READS	1137
+2	READS	1147
 3	LOCAL_READS	0
-3	READS	16
+3	READS	14
 4	LOCAL_READS	0
-4	READS	63
+4	READS	61
 5	LOCAL_READS	0
-5	READS	17
+5	READS	15
 6	LOCAL_READS	0
-6	READS	102
+6	READS	100
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1133,17 +1133,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	16
-1	READS	49
-2	LOCAL_READS	1261
-2	READS	1277
+1	READS	47
+2	LOCAL_READS	1259
+2	READS	1275
 3	LOCAL_READS	0
-3	READS	19
+3	READS	17
 4	LOCAL_READS	0
-4	READS	66
+4	READS	64
 5	LOCAL_READS	0
-5	READS	20
+5	READS	18
 6	LOCAL_READS	0
-6	READS	105
+6	READS	103
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
 from ndbinfo.operations_per_fragment
 where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
@@ -1161,17 +1161,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	16
-1	READS	49
-2	LOCAL_READS	1301
-2	READS	1317
+1	READS	47
+2	LOCAL_READS	1299
+2	READS	1315
 3	LOCAL_READS	0
-3	READS	19
+3	READS	17
 4	LOCAL_READS	0
-4	READS	66
+4	READS	64
 5	LOCAL_READS	0
-5	READS	20
+5	READS	18
 6	LOCAL_READS	0
-6	READS	105
+6	READS	103
 UI lookups
 explain select * from test.t1 where t1.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1195,17 +1195,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	16
-1	READS	49
-2	LOCAL_READS	1381
-2	READS	1397
+1	READS	47
+2	LOCAL_READS	1379
+2	READS	1395
 3	LOCAL_READS	0
-3	READS	19
+3	READS	17
 4	LOCAL_READS	0
-4	READS	66
+4	READS	64
 5	LOCAL_READS	0
-5	READS	20
+5	READS	18
 6	LOCAL_READS	0
-6	READS	105
+6	READS	103
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1473,17 +1473,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	16
-1	READS	49
-2	LOCAL_READS	1541
-2	READS	1557
+1	READS	47
+2	LOCAL_READS	1539
+2	READS	1555
 3	LOCAL_READS	0
-3	READS	19
+3	READS	17
 4	LOCAL_READS	0
-4	READS	66
+4	READS	64
 5	LOCAL_READS	0
-5	READS	20
+5	READS	18
 6	LOCAL_READS	0
-6	READS	105
+6	READS	103
 Test some basic NdbApi
 explain select * from test.t2 where t2.a=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1510,17 +1510,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	16
-1	READS	49
-2	LOCAL_READS	1585
-2	READS	1601
+1	READS	47
+2	LOCAL_READS	1583
+2	READS	1599
 3	LOCAL_READS	0
-3	READS	19
+3	READS	17
 4	LOCAL_READS	36
-4	READS	102
+4	READS	100
 5	LOCAL_READS	0
-5	READS	20
+5	READS	18
 6	LOCAL_READS	0
-6	READS	105
+6	READS	103
 UI lookups
 explain select * from test.t2 where t2.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1548,17 +1548,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	16
-1	READS	49
-2	LOCAL_READS	1685
-2	READS	1701
+1	READS	47
+2	LOCAL_READS	1683
+2	READS	1699
 3	LOCAL_READS	0
-3	READS	19
+3	READS	17
 4	LOCAL_READS	136
-4	READS	202
+4	READS	200
 5	LOCAL_READS	0
-5	READS	20
+5	READS	18
 6	LOCAL_READS	0
-6	READS	105
+6	READS	103
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1717,17 +1717,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	33
-1	READS	70
-2	LOCAL_READS	1723
-2	READS	1749
+1	READS	68
+2	LOCAL_READS	1721
+2	READS	1747
 3	LOCAL_READS	0
-3	READS	28
+3	READS	26
 4	LOCAL_READS	216
-4	READS	290
+4	READS	288
 5	LOCAL_READS	0
-5	READS	28
+5	READS	26
 6	LOCAL_READS	0
-6	READS	125
+6	READS	123
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
 from ndbinfo.operations_per_fragment
 where (parent_fq_name='test/def/t1' OR fq_name='test/def/t1') and
@@ -1745,17 +1745,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	33
-1	READS	70
-2	LOCAL_READS	1734
-2	READS	1760
+1	READS	68
+2	LOCAL_READS	1732
+2	READS	1758
 3	LOCAL_READS	0
-3	READS	28
+3	READS	26
 4	LOCAL_READS	232
-4	READS	306
+4	READS	304
 5	LOCAL_READS	0
-5	READS	28
+5	READS	26
 6	LOCAL_READS	13
-6	READS	138
+6	READS	136
 UI lookups
 explain select * from test.t1 where t1.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1782,17 +1782,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	33
-1	READS	70
-2	LOCAL_READS	1756
-2	READS	1782
+1	READS	68
+2	LOCAL_READS	1754
+2	READS	1780
 3	LOCAL_READS	0
-3	READS	28
+3	READS	26
 4	LOCAL_READS	264
-4	READS	338
+4	READS	336
 5	LOCAL_READS	0
-5	READS	28
+5	READS	26
 6	LOCAL_READS	39
-6	READS	164
+6	READS	162
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2116,17 +2116,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	33
-1	READS	70
-2	LOCAL_READS	1800
-2	READS	1826
+1	READS	68
+2	LOCAL_READS	1798
+2	READS	1824
 3	LOCAL_READS	0
-3	READS	28
+3	READS	26
 4	LOCAL_READS	328
-4	READS	402
+4	READS	400
 5	LOCAL_READS	0
-5	READS	28
+5	READS	26
 6	LOCAL_READS	91
-6	READS	216
+6	READS	214
 Test some basic NdbApi
 explain select * from test.t2 where t2.a=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2153,17 +2153,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	33
-1	READS	70
-2	LOCAL_READS	1823
-2	READS	1850
+1	READS	68
+2	LOCAL_READS	1821
+2	READS	1848
 3	LOCAL_READS	0
-3	READS	28
+3	READS	26
 4	LOCAL_READS	360
-4	READS	434
+4	READS	432
 5	LOCAL_READS	0
-5	READS	28
+5	READS	26
 6	LOCAL_READS	117
-6	READS	242
+6	READS	240
 UI lookups
 explain select * from test.t2 where t2.b=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2193,17 +2193,17 @@ where counter_name = 'READS' or counter_name = 'LOCAL_READS'
   group by node_id, counter_name;
 node_id	counter_name	sum(val)
 1	LOCAL_READS	33
-1	READS	70
-2	LOCAL_READS	1878
-2	READS	1905
+1	READS	68
+2	LOCAL_READS	1876
+2	READS	1903
 3	LOCAL_READS	0
-3	READS	28
+3	READS	26
 4	LOCAL_READS	440
-4	READS	514
+4	READS	512
 5	LOCAL_READS	0
-5	READS	28
+5	READS	26
 6	LOCAL_READS	182
-6	READS	307
+6	READS	305
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
