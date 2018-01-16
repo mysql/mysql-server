@@ -38,6 +38,8 @@ wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_transactions_waiting_apply	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_plugin_online	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_channel_observation_removal	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_plugin_stop	YES	YES	singleton	0	NULL
@@ -63,6 +65,7 @@ wait/synch/cond/group_rpl/COND_session_thread_method_exec	YES	YES	singleton	0	NU
 wait/synch/cond/group_rpl/COND_session_thread_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_write_lock_protection	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_plugin_online	YES	YES	singleton	0	NULL
 
 ############################################################
 # 2. Start the GR

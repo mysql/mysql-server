@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,19 +29,85 @@
 
 Channel_state_observer::~Channel_state_observer() {}
 
-Channel_observation_manager::
-Channel_observation_manager(MYSQL_PLUGIN plugin_info)
+
+Channel_observation_manager_list::
+Channel_observation_manager_list(MYSQL_PLUGIN plugin_info,
+                                 uint num_managers)
   :group_replication_plugin_info(plugin_info)
+{
+  for (uint i= 0; i < num_managers; ++i)
+  {
+    Channel_observation_manager *channel_manager=
+      new Channel_observation_manager();
+    add_channel_observation_manager(channel_manager);
+  }
+
+  server_channel_state_observers= binlog_IO_observer;
+  register_binlog_relay_io_observer(&server_channel_state_observers,
+                                    group_replication_plugin_info);
+}
+
+Channel_observation_manager_list::~Channel_observation_manager_list()
+{
+  unregister_binlog_relay_io_observer(&server_channel_state_observers,
+                                      group_replication_plugin_info);
+
+  if(!channel_observation_manager.empty())
+  {
+    /* purecov: begin inspected */
+    std::list<Channel_observation_manager*>::const_iterator obm_iterator;
+    for (obm_iterator = channel_observation_manager.begin();
+         obm_iterator != channel_observation_manager.end();
+         ++obm_iterator)
+    {
+      delete (*obm_iterator);
+    }
+    channel_observation_manager.clear();
+    /* purecov: end */
+  }
+}
+
+void
+Channel_observation_manager_list::
+add_channel_observation_manager(Channel_observation_manager* manager)
+{
+  channel_observation_manager.push_back(manager);
+}
+
+void
+Channel_observation_manager_list::
+remove_channel_observation_manager(Channel_observation_manager* manager)
+{
+  channel_observation_manager.remove(manager);
+}
+
+std::list<Channel_observation_manager*>&
+Channel_observation_manager_list::get_channel_observation_manager_list()
+{
+  DBUG_ENTER("Channel_observation_manager_list::get_channel_observation_manager_list");
+  DBUG_RETURN(channel_observation_manager);
+}
+
+Channel_observation_manager*
+Channel_observation_manager_list::get_channel_observation_manager(uint position)
+{
+  DBUG_ENTER("Channel_observation_manager_list::get_channel_observation_manager(pos)");
+  DBUG_ASSERT(position < channel_observation_manager.size());
+  std::list<Channel_observation_manager*>::const_iterator
+    cit= channel_observation_manager.begin();
+  std::advance (cit, position);
+
+  DBUG_RETURN(*cit);
+}
+
+
+Channel_observation_manager::Channel_observation_manager()
 {
   channel_list_lock= new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
                                           key_GR_LOCK_channel_observation_list
 #endif
                                          );
-
-  server_channel_state_observers= binlog_IO_observer;
-  register_binlog_relay_io_observer(&server_channel_state_observers,
-                                    group_replication_plugin_info);
 }
 
 Channel_observation_manager::~Channel_observation_manager()
@@ -59,20 +125,18 @@ Channel_observation_manager::~Channel_observation_manager()
     channel_observers.clear();
     /* purecov: end */
   }
-  unregister_binlog_relay_io_observer(&server_channel_state_observers,
-                                      group_replication_plugin_info);
 
   delete channel_list_lock;
 }
 
-std::list<Channel_state_observer*>*
+std::list<Channel_state_observer*>&
 Channel_observation_manager::get_channel_state_observers()
 {
   DBUG_ENTER("Channel_observation_manager::get_channel_state_observers");
 #ifndef DBUG_OFF
   channel_list_lock->assert_some_lock();
 #endif
-  DBUG_RETURN(&channel_observers);
+  DBUG_RETURN(channel_observers);
 }
 
 void
@@ -111,4 +175,3 @@ void Channel_observation_manager::unlock_channel_list()
 {
   channel_list_lock->unlock();
 }
-

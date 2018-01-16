@@ -49,10 +49,14 @@ unsigned int plugin_version= 0;
 
 //The plugin running flag and lock
 static mysql_mutex_t plugin_running_mutex;
+static mysql_mutex_t plugin_online_mutex;
+static mysql_cond_t plugin_online_condition;
 static bool group_replication_running;
 bool wait_on_engine_initialization= false;
 bool server_shutdown_status= false;
-bool plugin_is_auto_starting= false;
+bool plugin_is_auto_starting_on_install= false;
+bool plugin_is_auto_starting_on_boot= false;
+static bool group_member_mgr_configured;
 static bool plugin_is_waiting_to_set_server_read_mode= false;
 static bool plugin_is_being_uninstalled= false;
 bool plugin_is_setting_read_mode = false;
@@ -70,8 +74,8 @@ Recovery_module *recovery_module= NULL;
 Gcs_operations *gcs_module= NULL;
 // The registry module
 Registry_module_interface *registry_module= NULL;
-//The channel observation module
-Channel_observation_manager *channel_observation_manager= NULL;
+//The channel observation modules
+Channel_observation_manager_list *channel_observation_manager_list= NULL;
 //The Single primary channel observation module
 Asynchronous_channels_state_observer *asynchronous_channels_state_observer= NULL;
 //Lock to check if the plugin is running or not.
@@ -84,6 +88,9 @@ Delayed_initialization_thread *delayed_initialization_thread= NULL;
 Group_partition_handling *group_partition_handler= NULL;
 //The handler for transaction killing when an error or partition happens
 Blocked_transaction_handler *blocked_transaction_handler= NULL;
+//The handler to wait till member becomes online
+Plugin_waitlock *online_wait_mutex= NULL;
+
 
 /* Group communication options */
 char *local_address_var= NULL;
@@ -308,9 +315,57 @@ bool plugin_is_group_replication_running()
   return group_replication_running;
 }
 
+bool is_plugin_auto_starting_on_non_bootstrap_member()
+{
+  return !bootstrap_group_var && plugin_is_auto_starting_on_boot;
+}
+
+bool is_plugin_configured_and_starting()
+{
+  return group_member_mgr_configured;
+}
+
 int plugin_group_replication_set_retrieved_certification_info(void* info)
 {
   return recovery_module->set_retrieved_cert_info(info);
+}
+
+/**
+  Set condition to block or unblock the calling threads
+
+  @param[in] status  if the threads should be blocked or not
+*/
+void set_wait_on_start_process(bool cond)
+{
+  online_wait_mutex->set_wait_lock(cond);
+}
+
+/**
+  Blocks the calling thread
+*/
+void initiate_wait_on_start_process()
+{
+  //block the thread
+  online_wait_mutex->start_waitlock();
+
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("group_replication_wait_thread_for_server_online",
+                 {
+                   const char act[]= "now wait_for signal.continue_applier_thread NO_CLEAR_EVENT";
+                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                 });
+#endif
+}
+
+/**
+  Release all the blocked threads
+*/
+void terminate_wait_on_start_process()
+{
+  plugin_is_auto_starting_on_boot= false;
+
+  // unblocked waiting threads
+  online_wait_mutex->end_wait_lock();
 }
 
 int log_message(enum plugin_log_level level, const char *format, ...)
@@ -493,7 +548,7 @@ int plugin_group_replication_start(char **)
   if (!server_engine_initialized())
   {
     wait_on_engine_initialization= true;
-    plugin_is_auto_starting= false;
+    plugin_is_auto_starting_on_install= false;
 
     delayed_initialization_thread= new Delayed_initialization_thread();
     if (delayed_initialization_thread->launch_initialization_thread())
@@ -562,7 +617,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
    This can only be done on START command though, on installs there are
    deadlock issues.
   */
-  if (!plugin_is_auto_starting)
+  if (!plugin_is_auto_starting_on_install)
   {
     if (enable_super_read_only_mode(sql_command_interface))
     {
@@ -620,7 +675,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   {
     error= 1;
     log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-      " member with single primary-mode while"
+      " member with single-primary mode while"
       " asynchronous replication channels are"
       " running.");
     goto err; /* purecov: inspected */
@@ -666,7 +721,6 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
     goto err;
   }
 
-  initialize_asynchronous_channels_observer();
   initialize_group_partition_handler();
   set_auto_increment_handler();
 
@@ -703,6 +757,7 @@ err:
   if (error)
   {
     plugin_is_setting_read_mode = false;
+    group_member_mgr_configured= false;
 
     //Unblock the possible stuck delayed thread
     if (delayed_init_thd)
@@ -724,7 +779,7 @@ err:
   }
 
   delete sql_command_interface;
-  plugin_is_auto_starting= false;
+  plugin_is_auto_starting_on_install= false;
 
   DBUG_RETURN(error);
 }
@@ -794,6 +849,7 @@ int configure_group_member_manager(char *hostname, char *uuid,
   //Create the membership info visible for the group
   delete group_member_mgr;
   group_member_mgr= new Group_member_info_manager(local_member_info);
+  group_member_mgr_configured= true;
 
   log_message(MY_INFORMATION_LEVEL,
               "Member configuration: "
@@ -971,6 +1027,7 @@ int plugin_group_replication_stop(char **error_message)
   int error= terminate_plugin_modules(true, error_message);
 
   group_replication_running= false;
+  group_member_mgr_configured= false;
 
   DBUG_EXECUTE_IF("register_gms_listener_example",
   {
@@ -1002,6 +1059,9 @@ int plugin_group_replication_stop(char **error_message)
 int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
 {
 
+  // end wait for thread waiting for server to start
+  terminate_wait_on_start_process();
+
   if(terminate_recovery_module())
   {
     //Do not throw an error since recovery is not vital, but warn either way
@@ -1027,8 +1087,6 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
                 "On shutdown there was a timeout on the Group Replication"
                 " applier termination.");
   }
-
-  terminate_asynchronous_channels_observer();
 
   if (flag_stop_async_channel)
   {
@@ -1141,6 +1199,16 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
                    &force_members_running_mutex,
                    MY_MUTEX_INIT_FAST);
 
+  online_wait_mutex= new Plugin_waitlock(&plugin_online_mutex,
+                                         &plugin_online_condition,
+#ifdef HAVE_PSI_INTERFACE
+                                         key_GR_LOCK_plugin_online,
+                                         key_GR_COND_plugin_online
+#else
+                                         0, 0
+#endif /* HAVE_PSI_INTERFACE */
+                                        );
+
   plugin_stop_lock= new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
                                          key_GR_RWLOCK_plugin_stop
@@ -1201,13 +1269,26 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 
   //Initialize channel observation and auto increment handlers before start
   auto_increment_handler= new Plugin_group_replication_auto_increment();
-  channel_observation_manager= new Channel_observation_manager(plugin_info);
+  channel_observation_manager_list=
+    new Channel_observation_manager_list(plugin_info,
+        END_CHANNEL_OBSERVATION_MANAGER_POS);
+
   gcs_module= new Gcs_operations();
+
+  initialize_asynchronous_channels_observer();
 
   //Initialize the compatibility module before starting
   init_compatibility_manager();
 
-  plugin_is_auto_starting= start_group_replication_at_boot_var;
+  plugin_is_auto_starting_on_install= start_group_replication_at_boot_var;
+  plugin_is_auto_starting_on_boot= start_group_replication_at_boot_var;
+
+  /*
+    if the member is auto starting make asynchronous slave threads
+    to wait till member comes ONLINE
+  */
+  set_wait_on_start_process(start_group_replication_at_boot_var);
+
   if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
     log_message(MY_ERROR_LEVEL,
@@ -1248,6 +1329,8 @@ int plugin_group_replication_deinit(void *p)
     compatibility_mgr= NULL;
   }
 
+  terminate_asynchronous_channels_observer();
+
   if (unregister_server_state_observer(&server_state_observer, p))
   {
     log_message(MY_ERROR_LEVEL,
@@ -1274,10 +1357,10 @@ int plugin_group_replication_deinit(void *p)
                 "All Group Replication server observers"
                 " have been successfully unregistered");
 
-  if (channel_observation_manager != NULL)
+  if (channel_observation_manager_list != NULL)
   {
-    delete channel_observation_manager;
-    channel_observation_manager= NULL;
+    delete channel_observation_manager_list;
+    channel_observation_manager_list= NULL;
   }
 
   delete gcs_module;
@@ -1296,6 +1379,9 @@ int plugin_group_replication_deinit(void *p)
   shared_plugin_stop_lock= NULL;
   delete plugin_stop_lock;
   plugin_stop_lock= NULL;
+
+  delete online_wait_mutex;
+  online_wait_mutex= NULL;
 
   //Terminate transactions observer structures
   observer_trans_terminate();
@@ -1654,7 +1740,8 @@ bool check_async_channel_running_on_secondary()
     bootstrapping. As only when the member is bootstrapping, it can be the
     primary leader on a single primary member context.
   */
-  if (single_primary_mode_var && !bootstrap_group_var)
+  if (single_primary_mode_var && !bootstrap_group_var
+      && !plugin_is_auto_starting_on_boot)
   {
     if (is_any_slave_channel_running(
         CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
@@ -1669,7 +1756,8 @@ bool check_async_channel_running_on_secondary()
 void initialize_asynchronous_channels_observer()
 {
   asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
-  channel_observation_manager
+  channel_observation_manager_list
+    ->get_channel_observation_manager(ASYNC_CHANNEL_OBSERVATION_MANAGER_POS)
       ->register_channel_observer(asynchronous_channels_state_observer);
 }
 
@@ -1677,7 +1765,9 @@ void terminate_asynchronous_channels_observer()
 {
   if (asynchronous_channels_state_observer != NULL)
   {
-    channel_observation_manager->unregister_channel_observer(asynchronous_channels_state_observer);
+    channel_observation_manager_list
+      ->get_channel_observation_manager(ASYNC_CHANNEL_OBSERVATION_MANAGER_POS)
+        ->unregister_channel_observer(asynchronous_channels_state_observer);
     delete asynchronous_channels_state_observer;
     asynchronous_channels_state_observer= NULL;
   }
@@ -1685,8 +1775,10 @@ void terminate_asynchronous_channels_observer()
 
 int initialize_recovery_module()
 {
-  recovery_module = new Recovery_module(applier_module,
-                                        channel_observation_manager,
+  recovery_module= new Recovery_module(applier_module,
+                                       channel_observation_manager_list
+                                       ->get_channel_observation_manager(
+                                         GROUP_CHANNEL_OBSERVATION_MANAGER_POS),
                                         components_stop_timeout_var);
 
   recovery_module->set_recovery_ssl_options(recovery_use_ssl_var,
@@ -1774,7 +1866,7 @@ static int check_if_server_properly_configured()
   //Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
 
-  get_server_startup_prerequirements(startup_pre_reqs, !plugin_is_auto_starting);
+  get_server_startup_prerequirements(startup_pre_reqs, !plugin_is_auto_starting_on_install);
 
   if(!startup_pre_reqs.binlog_enabled)
   {

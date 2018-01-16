@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,8 @@
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 
+class Channel_observation_manager;
+
 /**
   A interface class to code channel state response methods
 */
@@ -56,33 +58,105 @@ public:
                                 int& out)= 0;
 };
 
-/*
+
+/**
+  A class to hold different channel observation manager.
+
+  @note Slave channels observation and group replication channel observation
+        serves different purposes and can interfere with one another.
+        For that reason they are separated here.
+*/
+class Channel_observation_manager_list
+{
+public:
+  /**
+    Constructor.
+    Initializes the given number of channel observation manager
+    and register an observer in the server.
+
+    @param plugin_info  The plugin info to register the hooks
+    @param num_managers The number of channel observation manager instantiated
+  */
+  Channel_observation_manager_list(MYSQL_PLUGIN plugin_info,
+                                   uint num_managers);
+
+  /**
+    Destructor.
+    Unregister the server observer
+    and deletes all the channel observation manager.
+  */
+  ~Channel_observation_manager_list();
+
+  /**
+    A method to add channel observation manager to the
+    channel_observation_manager list.
+
+    @param manager A channel observation manager implementation.
+  */
+  void add_channel_observation_manager(Channel_observation_manager* manager);
+
+  /**
+    A method to remove a channel observation manager from
+    channel_observation_manager list.
+
+    @param manager A channel observation manager implementation.
+  */
+  void remove_channel_observation_manager(Channel_observation_manager* manager);
+
+  /**
+    Get all the channel observation manager
+
+    @return The list of all channel observation manager
+  */
+  std::list<Channel_observation_manager*>&
+    get_channel_observation_manager_list();
+
+  /**
+    Get particular channel observation manager
+
+    @param  position get iterator value at position
+    @return The channel observation manager
+  */
+  Channel_observation_manager*
+    get_channel_observation_manager(uint position= 0);
+
+private:
+  /** Server relay log observer struct */
+  Binlog_relay_IO_observer server_channel_state_observers;
+
+  /** server plugin handle */
+  MYSQL_PLUGIN group_replication_plugin_info;
+
+  /** list of channel observation manager */
+  std::list<Channel_observation_manager*> channel_observation_manager;
+};
+
+
+/**
   A class to register observers for channel state events.
 */
 class Channel_observation_manager
 {
 public:
-  /*
-    Initialize the class and register an observer.
-
-    @param plugin_info The plugin info to register the hooks
+  /**
+    Initialize the class.
   */
-  Channel_observation_manager(MYSQL_PLUGIN plugin_info);
+  Channel_observation_manager();
 
-  /*
+  /**
     Destructor.
-    Deletes all observers and unregisters the observer
+    Deletes all the channel state observers.
   */
   ~Channel_observation_manager();
 
-  /*
+  /**
     A method to register observers to the events that come from the server.
 
     @param observer A channel state observer implementation.
   */
   void register_channel_observer(Channel_state_observer* observer);
 
-  /*
+  /**
     A method to remove a channel state observer.
 
     @param observer A channel state observer implementation.
@@ -97,7 +171,7 @@ public:
 
     @return The list of all registered observers
   */
-  std::list<Channel_state_observer*>* get_channel_state_observers();
+  std::list<Channel_state_observer*>& get_channel_state_observers();
 
   /** Locks the observer list for reads */
   void read_lock_channel_list();
@@ -107,9 +181,8 @@ public:
   void unlock_channel_list();
 
 private:
-  Binlog_relay_IO_observer server_channel_state_observers;
+  /** list of channel state observer */
   std::list<Channel_state_observer*> channel_observers;
-  MYSQL_PLUGIN group_replication_plugin_info;
 
   //run conditions and locks
   Checkable_rwlock *channel_list_lock;
