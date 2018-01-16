@@ -61,6 +61,12 @@ void ndb_dd_disk_data_set_object_type(dd::Properties &se_private_data,
 }
 
 
+void ndb_dd_disk_data_set_object_type(dd::Tablespace *tablespace_def,
+                                      enum object_type type)
+{
+  ndb_dd_disk_data_set_object_type(tablespace_def->se_private_data(), type);
+}
+
 bool
 ndb_dd_disk_data_get_object_type(const dd::Properties &se_private_data,
                                  enum object_type &type)
