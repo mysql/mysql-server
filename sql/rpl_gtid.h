@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -530,6 +530,28 @@ public:
 #else
     return is_write_lock;
 #endif
+  }
+
+  /**
+    Return 0 if the write lock is held, otherwise an error will be returned.
+  */
+  inline int trywrlock()
+  {
+    int ret= mysql_rwlock_trywrlock(&rwlock);
+
+    if (ret == 0)
+    {
+      assert_no_lock();
+#ifndef DBUG_OFF
+      if (dbug_trace)
+        DBUG_PRINT("info", ("%p.wrlock()", this));
+      lock_state.store(-1);
+#else
+      is_write_lock= true;
+#endif
+    }
+
+    return ret;
   }
 
   /// Assert that some thread holds either the read or the write lock.
