@@ -91,7 +91,7 @@ while($mysql_errno)
   UPDATE dt_1 SET member_id = 6 WHERE member_id = 5;
 }
 # UNDO_TUP_DROP
---exec $NDB_DROP_TABLE -d test dt_2 >> $NDB_TOOLS_OUTPUT
+DROP TABLE dt_2;
 let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
 
 
@@ -140,14 +140,10 @@ DELETE FROM dt_1 WHERE member_id = 1;
 # cluster has been restored or timeout occurs
 #
 --echo "Wait reconnect"
---disable_result_log
 --source include/ndb_not_readonly.inc
---enable_result_log
 
 # Cleanup
 DROP TABLE dt_1;
-# Drop dt_2 in mysqld as well
-DROP TABLE IF EXISTS dt_2;
 
 ALTER TABLESPACE ts_1
 DROP DATAFILE 'data_2.dat'
