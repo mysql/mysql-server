@@ -333,7 +333,7 @@ int plugin_group_replication_set_retrieved_certification_info(void* info)
 /**
   Set condition to block or unblock the calling threads
 
-  @param[in] status  if the threads should be blocked or not
+  @param[in] cond  if the threads should be blocked or not
 */
 void set_wait_on_start_process(bool cond)
 {
