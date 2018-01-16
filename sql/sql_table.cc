@@ -8079,6 +8079,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   DEBUG_SYNC(thd, "create_table_like_after_open");
 
+  /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
+  memset(&local_create_info, 0, sizeof(local_create_info));
+  local_create_info.db_type= src_table->table->s->db_type();
+  local_create_info.row_type= src_table->table->s->row_type;
+  if (mysql_prepare_alter_table(thd, src_table_obj,
+                                src_table->table, &local_create_info,
+                                &local_alter_info, &local_alter_ctx))
+    DBUG_RETURN(true);
+
   /*
     During open_tables(), the target tablespace name(s) for a table being
     created or altered should be locked. However, for 'CREATE TABLE ... LIKE',
@@ -8095,6 +8104,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     the tablespace name from the table share instead of reading it from the
     .FRM file.
   */
+
+  /* Partition info is not handled by mysql_prepare_alter_table() call. */
+  if (src_table->table->part_info)
+    thd->work_part_info= src_table->table->part_info->get_clone(thd);
 
   // Add the tablespace name, if used.
   if (src_table->table->s->tablespace &&
@@ -8122,18 +8135,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   {
     DBUG_RETURN(true);
   }
-
-  /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  memset(&local_create_info, 0, sizeof(local_create_info));
-  local_create_info.db_type= src_table->table->s->db_type();
-  local_create_info.row_type= src_table->table->s->row_type;
-  if (mysql_prepare_alter_table(thd, src_table_obj,
-                                src_table->table, &local_create_info,
-                                &local_alter_info, &local_alter_ctx))
-    DBUG_RETURN(true);
-  /* Partition info is not handled by mysql_prepare_alter_table() call. */
-  if (src_table->table->part_info)
-    thd->work_part_info= src_table->table->part_info->get_clone(thd);
 
   /*
     Adjust description of source table before using it for creation of
