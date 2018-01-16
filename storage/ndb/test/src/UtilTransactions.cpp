@@ -1307,7 +1307,7 @@ UtilTransactions::getOperation(NdbConnection* pTrans,
         abort();
       }
     }
-    // Fall through
+    return pTrans->getNdbOperation(tab.getName());
   case NdbOperation::InsertRequest:
   case NdbOperation::WriteRequest:
     return pTrans->getNdbOperation(tab.getName());

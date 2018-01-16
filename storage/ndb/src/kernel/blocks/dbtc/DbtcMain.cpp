@@ -1406,29 +1406,13 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     (*TloopCount) = 256;
     break;
   case CS_RESTART:
-    jam();
-    // Fall through
   case CS_COMPLETING:
-    jam();
-    // Fall through
   case CS_COMPLETE_SENT:
-    jam();
-    // Fall through
   case CS_WAIT_COMPLETE_CONF:
-    jam();
-    // Fall through
   case CS_FAIL_ABORTING:
-    jam();
-    // Fall through
   case CS_FAIL_ABORTED:
-    jam();
-    // Fall through
   case CS_FAIL_PREPARED:
-    jam();
-    // Fall through
   case CS_FAIL_COMMITTING:
-    jam();
-    // Fall through
   case CS_FAIL_COMMITTED:
     /*********************************************************************/
     // These states are only valid on copy and fail API connections.
@@ -1437,7 +1421,6 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     jam();
     jamLine(apiConnectptr.p->apiConnectstate);
     return false;
-    break;
   }//switch
   return true;
 }
@@ -9257,25 +9240,14 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     toCompleteHandlingLab(signal);
     return;
   case CS_FAIL_PREPARED:
-    jam();
-    // Fall through
   case CS_FAIL_COMMITTING:
-    jam();
-    // Fall through
   case CS_FAIL_COMMITTED:
-    jam();
-    // Fall through
   case CS_RESTART:
-    jam();
-    // Fall through
   case CS_FAIL_ABORTED:
-    jam();
-    // Fall through
   case CS_DISCONNECTED:
-    jam();
-    // Fall through
   default:
     jam();
+    jamLine(apiConnectptr.p->apiConnectstate);
     /*------------------------------------------------------------------*/
     /*       AN IMPOSSIBLE STATE IS SET. CRASH THE SYSTEM.              */
     /*------------------------------------------------------------------*/

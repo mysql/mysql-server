@@ -2915,7 +2915,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
     break;
   case GetTabInfoRef::NoFetchByName:
     jam();
-    // Fall through
+    ndbrequire(false);
   case GetTabInfoRef::TableNameTooLong:
     jam();
     ndbrequire(false);

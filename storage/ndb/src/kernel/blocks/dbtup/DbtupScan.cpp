@@ -332,12 +332,9 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     scanClose(signal, scanPtr);
     return;
   case NextScanReq::ZSCAN_NEXT_ABORT:
-    jam();
-    // Fall through
-  default:
-    jam();
     ndbrequire(false);
-    break;
+  default:
+    ndbrequire(false);
   }
   // start looking for next scan result
   AccCheckScan* checkReq = (AccCheckScan*)signal->getDataPtrSend();

@@ -546,11 +546,12 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   NodeInfo connectedNodeInfo = getNodeInfo(connectedNodeId);
   switch(myNodePtr.p->phase){
   case ZRUNNING:
+    jam();
     if (connectedNodeInfo.getType() == NodeInfo::DB)
     {
       ndbrequire(!c_clusterNodes.get(connectedNodeId));
     }
-    // Fall through
+    break;
   case ZSTARTING:
     jam();
     break;
@@ -5359,16 +5360,16 @@ Uint32 Qmgr::getArbitDelay()
     break;
   case ARBIT_INIT:
     jam();
-    // Fall through
+    return 100;
   case ARBIT_FIND:
     jam();
-    // Fall through
+    return 100;
   case ARBIT_PREP1:
     jam();
-    // Fall through
+    return 100;
   case ARBIT_PREP2:
     jam();
-    // Fall through
+    return 100;
   case ARBIT_START:
     jam();
     return 100;
@@ -5463,10 +5464,10 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
   switch (arbitRec.state) {
   case ARBIT_NULL:              // should not happen
     jam();
-    // Fall through
+    break;
   case ARBIT_INIT:
     jam();
-    // Fall through
+    break;
   case ARBIT_FIND:
     jam();
     break;
@@ -5492,13 +5493,12 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_CHOOSE:		// XXX too late
     jam();
-    // Fall through
+    break;
   case ARBIT_CRASH:
     jam();
     break;
   default:
     ndbrequire(false);
-    break;
   }
 }
 
@@ -5541,7 +5541,7 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
     break;
   case ARBIT_CHOOSE:            // XXX too late
     jam();
-    // Fall through
+    break;
   case ARBIT_CRASH:
     jam();
     break;
@@ -5654,7 +5654,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   switch (arbitRec.code) {
   case ArbitCode::LoseNodes:
     jam();
-    // Fall through
+    goto crashme;
   case ArbitCode::LoseGroups:
     jam();
     goto crashme;
@@ -5707,7 +5707,7 @@ Qmgr::handleArbitCheck(Signal* signal)
     break;
   case ARBIT_CHOOSE:
     jam();
-    // Fall through
+    break;
   case ARBIT_CRASH:
     jam();
     break;

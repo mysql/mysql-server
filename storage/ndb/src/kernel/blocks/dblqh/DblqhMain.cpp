@@ -2793,7 +2793,8 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
     break;
   case Tablerec::NOT_DEFINED:
     jam();
-    // Fall through
+    errCode = PrepDropTabRef::NoSuchTable;
+    break;
   case Tablerec::ADD_TABLE_ONGOING:
     jam();
     errCode = PrepDropTabRef::NoSuchTable;
@@ -3737,31 +3738,29 @@ Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
     break;
   case Tablerec::ADD_TABLE_ONGOING:
     jam();
-    // Fall through
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::PREP_DROP_TABLE_DONE:
     jam();
-    // Fall through
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_WAIT_USAGE:
     jam();
-    // Fall through
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_WAIT_DONE:
     jam();
-    // Fall through
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_ACC:
     jam();
-    // Fall through
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_TUP:
     jam();
-    // Fall through
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_TUX:
     jam();
     return ZDROP_TABLE_IN_PROGRESS;
-    break;
   case Tablerec::TABLE_DEFINED:
   case Tablerec::TABLE_READ_ONLY:
     ndbrequire(0);
     return ZTABLE_NOT_DEFINED;
-    break;
   }
   ndbrequire(0);
   return ~Uint32(0);

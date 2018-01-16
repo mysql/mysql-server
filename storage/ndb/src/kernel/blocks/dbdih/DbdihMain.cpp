@@ -3027,12 +3027,12 @@ bool Dbdih::check_if_lcp_idle(void)
     // Fall through
   case LCP_TAB_SAVED:
     jam();
-  /**
-   * For LCP_TAB_COMPLETED and LCP_TAB_COMPLETED we have already received
-   * all the table information and thus there is no need to get the new
-   * node into the LCP, there won't be any updates to the LCP data until
-   * the next LCP happens.
-   */
+    /**
+     * For LCP_TAB_COMPLETED and LCP_TAB_SAVED we have already received
+     * all the table information and thus there is no need to get the new
+     * node into the LCP, there won't be any updates to the LCP data until
+     * the next LCP happens.
+     */
     return true;
   default:
     jam();
@@ -11246,7 +11246,6 @@ void Dbdih::removeNodeFromTable(Signal* signal,
     /**
      * The table is participating in an LCP currently
      */
-    // Fall through
     break;
   case TabRecord::TLS_WRITING_TO_FILE:
     ok = true;
@@ -21212,9 +21211,6 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
   case LMTOS_IDLE:
     ok = true;
     jam();
-    /**
-     * Fall through
-     */
     break;
   case LMTOS_WAIT_EMPTY_LCP: // LCP Take over waiting for EMPTY_LCPCONF
     jam();
