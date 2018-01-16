@@ -3813,10 +3813,16 @@ bool Sys_var_charptr::global_update(THD*, set_var *var)
 }
 
 
-bool Sys_var_enum_binlog_checksum::global_update(THD*, set_var *var)
+bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
   bool check_purge= false;
 
+  /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
@@ -3983,6 +3989,12 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
   DBUG_ENTER("Sys_var_gtid_mode::global_update");
   bool ret= true;
 
+  /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   /*
     Hold lock_log so that:
     - other transactions are not flushed while gtid_mode is changed;
