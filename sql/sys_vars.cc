@@ -4011,14 +4011,23 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
     any of the other locks, but want to read gtid_mode, don't need
     to take the other locks.
   */
-  gtid_mode_lock->wrlock();
+
+  enum_gtid_mode new_gtid_mode=
+    (enum_gtid_mode)var->save_result.ulonglong_value;
+
+  if (gtid_mode_lock->trywrlock())
+  {
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0),
+             get_gtid_mode_string(new_gtid_mode),
+             "there is a concurrent operation that disallows changes to @@GLOBAL.GTID_MODE");
+    DBUG_RETURN(ret);
+  }
+
   channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   global_sid_lock->wrlock();
   int lock_count= 4;
 
-  enum_gtid_mode new_gtid_mode=
-    (enum_gtid_mode)var->save_result.ulonglong_value;
   enum_gtid_mode old_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
   DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
 
