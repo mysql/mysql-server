@@ -17,5 +17,5 @@
 # perfschema.stage_mdl_table                  : Bug#24688694 2017-01-06 Erlend Frequent failures on PB2
 # perfschema.idx_metadata_locks               : Bug#24688694 2017-02-10 Anitha Frequent failures on PB2
 # perfschema.innodb_is_data_locks             : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
+# perfschema.statement_digest_query_sample    : Bug#24688694 2017-08-18 Marc Unstable under load
 # The following tests have known failures:
-perfschema.statement_digest_query_sample    : Bug#24688694 2017-08-18 Marc Unstable under load
