@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27128,7 +27128,7 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
     m_curr_written_bytes += m_sample_completed_bytes;
     m_curr_elapsed_millis += elapsed;
 
-    Uint32 bps = (1000 * m_sample_completed_bytes) / elapsed;
+    Uint32 bps = (1000 * m_sample_completed_bytes) / (elapsed)?elapsed:1;
     Uint32 lag = bps ? m_sum_outstanding_bytes / bps : 30;
     if (false && lag >= 30)
     {
@@ -27164,7 +27164,7 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
        *   increase m_lag_cnt and check if it has reached maxlag_cnt
        */
       Uint32 tmp = m_lag_cnt;
-      m_lag_cnt += (lag / maxlag);
+      m_lag_cnt += (lag / (maxlag)?maxlag:1);
       if (tmp < maxlag_cnt && m_lag_cnt >= maxlag_cnt)
       {
         retVal = -1; // start aborting transactions
