@@ -68,6 +68,20 @@ select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   order by lock_type, lock_mode, lock_status, lock_data;
 commit;
 
+#
+# Somehow Intention Shared / Shared locks
+# are not always reported, causing spurious test failures.
+# Dumping debug data to help diagnosis.
+#
+
+if (`select count(*) != 4 from performance_schema.data_locks where
+       object_name="t1_is"`)
+{
+  --echo "TEST FAILED, DUMPING DATA TO DEBUG"
+  select * from performance_schema.data_locks;
+  select * from performance_schema.data_lock_waits;
+}
+
 --connection con1
 commit;
 
