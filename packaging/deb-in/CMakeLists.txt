@@ -240,6 +240,10 @@ ELSEIF(DEB_CODENAME STREQUAL "artful")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  IF (DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
+    # Cluster code triggers a lot of new warnings with GCC 7.2
+    SET (DEB_DEBUG_MAINTAINER "-DMYSQL_MAINTAINER_MODE=0")
+  ENDIF()
 ELSE()
   MESSAGE(STATUS
     "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")
