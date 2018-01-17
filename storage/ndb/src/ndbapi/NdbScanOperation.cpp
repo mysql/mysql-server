@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,22 +97,10 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   if (NdbOperation::init(tab, myConnection) != 0)
     return -1;
 
-  theNdb->theRemainingStartTransactions++; // will be checked in hupp...
-  NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
-  if (!aScanConnection){
-    theNdb->theRemainingStartTransactions--;
-    setErrorCodeAbort(theNdb->getNdbError().code);
-    return -1;
-  }
-
-  // NOTE! The hupped trans becomes the owner of the operation
-  theNdbCon= aScanConnection;
-
   initInterpreter();
   
   theStatus = GetValue;
   theOperationType = OpenScanRequest;
-  theNdbCon->theMagicNumber = 0xFE11DF;
   theNoOfTupKeyLeft = tab->m_noOfDistributionKeys;
   m_ordered= false;
   m_descending= false;
@@ -129,6 +117,20 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_sent_receivers_count = 0;
   m_conf_receivers_count = 0;
   assert(m_scan_buffer==NULL);
+  
+  theNdb->theRemainingStartTransactions++; // will be checked in hupp...
+  NdbTransaction* aScanConnection = theNdb->hupp(myConnection);
+  if (!aScanConnection){
+    assert(theNdb->theRemainingStartTransactions > 0);
+    theNdb->theRemainingStartTransactions--;
+    setErrorCodeAbort(theNdb->getNdbError().code);
+    theNdbCon = NULL;
+    return -1;
+  }
+
+  // NOTE! The hupped trans becomes the owner of the operation
+  theNdbCon= aScanConnection;
+  theNdbCon->theMagicNumber = 0xFE11DF;
   return 0;
 }
 
@@ -2070,7 +2072,8 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
                        (long) m_transConnection, (long) theNdbCon,
                        forceSend, releaseOp));
 
-  if(m_transConnection){
+  if (theNdbCon != NULL)
+  {
     if(DEBUG_NEXT_RESULT)
       ndbout_c("close() theError.code = %d "
                "m_api_receivers_count = %d "
@@ -2134,6 +2137,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   // Close Txn and release all NdbOps owner by it
   tNdb->closeTransaction(tCon);
   tNdb->theImpl->decClientStat(Ndb::TransCloseCount, 1); /* Correct stats */
+  assert(tNdb->theRemainingStartTransactions > 0);
   tNdb->theRemainingStartTransactions--;
   DBUG_VOID_RETURN;
 }

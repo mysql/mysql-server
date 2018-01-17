@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -986,6 +986,7 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
   }
 
   if (tSignal->setSignal(GSN_TC_HBREP, refToBlock(m_tcRef)) == -1) {
+    tNdb->releaseSignal(tSignal);
     return -1;
   }
 
@@ -1759,6 +1760,7 @@ NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
     tOp->m_type = NdbOperation::TableScan; 
     return tOp;
   } else {
+    tOp->release();
     theNdb->releaseScanOperation(tOp);
   }//if
   return NULL;
