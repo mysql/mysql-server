@@ -250,7 +250,7 @@ select node_id from disk_write_speed_base group by node_id, thr_no;
 select count(*) from disk_write_speed_aggregate_node;
 
 desc restart_info;
-select * from restart_info;
+select * from restart_info where node_restart_status <> 'Restart completed';
 
 desc tc_time_track_stats;
 select distinct node_id from tc_time_track_stats;
