@@ -581,7 +581,7 @@ secs_to_synchronize_starting_node	int(10) unsigned	YES		NULL
 secs_wait_lcp_for_restart	int(10) unsigned	YES		NULL	
 secs_wait_subscription_handover	int(10) unsigned	YES		NULL	
 total_restart_secs	int(10) unsigned	YES		NULL	
-select * from restart_info;
+select * from restart_info where node_restart_status <> 'Restart completed';
 node_id	node_restart_status	node_restart_status_int	secs_to_complete_node_failure	secs_to_allocate_node_id	secs_to_include_in_heartbeat_protocol	secs_until_wait_for_ndbcntr_master	secs_wait_for_ndbcntr_master	secs_to_get_start_permitted	secs_to_wait_for_lcp_for_copy_meta_data	secs_to_copy_meta_data	secs_to_include_node	secs_starting_node_to_request_local_recovery	secs_for_local_recovery	secs_restore_fragments	secs_undo_disk_data	secs_exec_redo_log	secs_index_rebuild	secs_to_synchronize_starting_node	secs_wait_lcp_for_restart	secs_wait_subscription_handover	total_restart_secs
 
 desc tc_time_track_stats;
