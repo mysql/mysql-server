@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,9 +66,9 @@ private:
   bool seize_new_page(Ptr<T>&);
   void release_not_current(Ptr<T>);
 
-  void handle_invalid_release(Ptr<T>) ATTRIBUTE_NORETURN;
-  void handle_invalid_get_ptr(Uint32 i) const ATTRIBUTE_NORETURN;
-  void handle_inconsistent_release(Ptr<T>) ATTRIBUTE_NORETURN;
+  [[noreturn]] void handle_invalid_release(Ptr<T>);
+  [[noreturn]] void handle_invalid_get_ptr(Uint32 i) const;
+  [[noreturn]] void handle_inconsistent_release(Ptr<T>);
 };
 
 template<typename T>

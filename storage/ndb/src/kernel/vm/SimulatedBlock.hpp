@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1060,11 +1060,16 @@ protected:
    * If the cause of the shutdown is known use extradata to add an 
    * errormessage describing the problem
    */
-  void progError(int line, int err_code, const char* extradata=NULL, const char* check="") const
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] void progError(int line,
+                              int err_code,
+                              const char* extradata=NULL,
+                              const char* check="") const;
 private:
-  void  signal_error(Uint32, Uint32, Uint32, const char*, int) const
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] void signal_error(Uint32,
+                                 Uint32,
+                                 Uint32,
+                                 const char*,
+                                 int) const;
   const NodeId         theNodeId;
   const BlockNumber    theNumber;
   const Uint32 theInstance;
@@ -1338,10 +1343,10 @@ public:
     ActiveMutex_list m_activeMutexes;
     
     BlockReference reference() const;
-    void progError(int line,
-                   int err_code,
-                   const char* extra = 0,
-                   const char* check = "") ATTRIBUTE_NORETURN;
+    [[noreturn]] void progError(int line,
+                                int err_code,
+                                const char* extra = 0,
+                                const char* check = "");
   };
   
   friend class MutexManager;

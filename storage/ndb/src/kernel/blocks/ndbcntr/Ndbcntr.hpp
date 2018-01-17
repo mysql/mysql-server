@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@
 */
 /*
 2.2 LOCAL SYMBOLS
------------------ 
+-----------------
 */
 #define ZNO_NDB_BLOCKS 6           /* ACC, DICT, DIH, LQH, TC, TUP         */
 
@@ -288,7 +288,7 @@ private:
   CheckNodeGroups::Output checkNodeGroups(Signal*, const NdbNodeBitmask &);
   
   // Generated statement blocks
-  void systemErrorLab(Signal* signal, int line);
+  [[noreturn]] void systemErrorLab(Signal* signal, int line);
 
   void createHashMap(Signal*, Uint32 index);
   void createSystableLab(Signal* signal, unsigned index);
@@ -448,7 +448,11 @@ public:
     
     BlockNumber number() const { return cntr.number(); }
     EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check) {
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
+    {
       cntr.progError(line, cause, extra, check);
     }
 
@@ -481,7 +485,10 @@ private:
     
     BlockNumber number() const { return cntr.number(); }
     EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check)
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
     {
       cntr.progError(line, cause, extra, check);
     }

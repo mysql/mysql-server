@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
 
 #include <NdbOut.hpp>
@@ -33,7 +32,7 @@
 
 static int g_all = 0;
 
-inline void ndb_end_and_exit(int exitcode)
+[[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {
   ndb_end(0);
   exit(exitcode);
