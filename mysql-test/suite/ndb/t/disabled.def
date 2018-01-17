@@ -124,3 +124,11 @@ ndb_truncate_nologging: Bug#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WH
 # mismatch between the NDB Dictionary and DD. This can be solved by
 # installing the initial logfile group into the DD during synchronization
 ndb_dd_initial_lg: Needs WL#9185 MySQL Cluster support for new DD
+ndb_addnode_restart @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+ndb_addnode_restart2 @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+ndb_charset @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+ndb_condition_pushdown @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+ndb_dd_basic @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+ndb_fk_locase @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+ndb_multi @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
+ndb_show_tables @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
