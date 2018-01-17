@@ -11,3 +11,4 @@
 ##############################################################################
 
 ndb_binlog_restore: Need WL#10167 On the fly frm translation
+ndb_binlog_restore @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
