@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -134,6 +134,10 @@ IF(UNIX)
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} pthread)
   ENDIF()
 
+  IF(WITH_ASAN)
+    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -fsanitize=address")
+  ENDIF()
+
   LIST(LENGTH CMAKE_REQUIRED_LIBRARIES required_libs_length)
   IF(${required_libs_length} GREATER 0)
     LIST(REMOVE_DUPLICATES CMAKE_REQUIRED_LIBRARIES)
@@ -198,6 +202,9 @@ CHECK_INCLUDE_FILES (malloc.h HAVE_MALLOC_H)
 CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
 CHECK_INCLUDE_FILES (poll.h HAVE_POLL_H)
 CHECK_INCLUDE_FILES (pwd.h HAVE_PWD_H)
+IF(WITH_ASAN)
+  CHECK_INCLUDE_FILES (sanitizer/lsan_interface.h HAVE_LSAN_INTERFACE_H)
+ENDIF()
 CHECK_INCLUDE_FILES (strings.h HAVE_STRINGS_H) # Used by NDB
 CHECK_INCLUDE_FILES (sys/cdefs.h HAVE_SYS_CDEFS_H) # Used by libedit
 CHECK_INCLUDE_FILES (sys/ioctl.h HAVE_SYS_IOCTL_H)
@@ -228,6 +235,10 @@ CHECK_SYMBOL_EXISTS (TAILQ_FOREACH "sys/queue.h" HAVE_TAILQFOREACH)
 #
 # Tests for functions
 #
+IF(WITH_ASAN)
+  CHECK_SYMBOL_EXISTS (__lsan_do_recoverable_leak_check
+    "sanitizer/lsan_interface.h" HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK)
+ENDIF()
 CHECK_FUNCTION_EXISTS (_aligned_malloc HAVE_ALIGNED_MALLOC)
 CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
 CHECK_FUNCTION_EXISTS (printstack HAVE_PRINTSTACK)

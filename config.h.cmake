@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@
 #cmakedefine HAVE_GRP_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_LANGINFO_H 1
+#cmakedefine HAVE_LSAN_INTERFACE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_POLL_H 1
@@ -105,6 +106,7 @@
 #cmakedefine HAVE_GETEUID 1
 #cmakedefine HAVE_GETGID 1
 #cmakedefine HAVE_GETEGID 1
+#cmakedefine HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK 1
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_MALLOC_INFO 1
 #cmakedefine HAVE_MEMRCHR 1

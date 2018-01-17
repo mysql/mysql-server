@@ -36,6 +36,10 @@
 #include <atomic>
 #include <utility>
 
+#ifdef HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK
+#include <sanitizer/lsan_interface.h>
+#endif
+
 #include "binary_log_types.h"
 #include "dur_prop.h"
 #include "m_ctype.h"
@@ -4887,6 +4891,22 @@ finish:
      thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
       ->add_trx_state_from_thd(thd);
   }
+
+#ifdef HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK
+  // Get incremental leak reports, for easier leak hunting.
+  // ./mtr --mem --mysqld='-T 4096' --sanitize main.1st
+  // Don't waste time calling leak sanitizer during bootstrap.
+  if (!opt_initialize && (test_flags & TEST_DO_QUICK_LEAK_CHECK))
+  {
+    int have_leaks= __lsan_do_recoverable_leak_check();
+    if (have_leaks > 0)
+    {
+      fprintf(stderr, "LSAN found leaks for Query: %*s\n",
+              static_cast<int>(thd->query().length), thd->query().str);
+      fflush(stderr);
+    }
+  }
+#endif
 
 #if defined(VALGRIND_DO_QUICK_LEAK_CHECK)
   // Get incremental leak reports, for easier leak hunting.
