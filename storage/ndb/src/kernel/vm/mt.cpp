@@ -7038,7 +7038,6 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   thr_job_queue *q = &(dstptr->m_jba);
   thr_job_queue_head *h = &(dstptr->m_jba_head);
   thr_jb_write_state w;
-  w.m_pending_signals = 0;
 
   if (selfptr == dstptr)
   {
@@ -7048,6 +7047,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
     selfptr->m_sent_local_prioa_signal = true;
   }
 
+  w.init_pending_signals();
   lock(&dstptr->m_jba_write_lock);
 
   Uint32 index = h->m_write_index;
@@ -7148,7 +7148,6 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   thr_job_queue *q = &(dstptr->m_jba);
   thr_job_queue_head *h = &(dstptr->m_jba_head);
   thr_jb_write_state w;
-  w.m_pending_signals = 0;
 
   /**
    * Ensure that a crash while holding m_jba_write_lock won't block
@@ -7170,6 +7169,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
     }
   }
 
+  w.init_pending_signals();
   Uint32 index = h->m_write_index;
   w.m_write_index = index;
   thr_job_buffer *buffer = q->m_buffers[index];
