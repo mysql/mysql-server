@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5831,6 +5831,7 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
     selfptr->m_sent_local_prioa_signal = true;
   }
 
+  w.init_pending_signals();
   lock(&dstptr->m_jba_write_lock);
 
   Uint32 index = h->m_write_index;
@@ -5952,6 +5953,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
     }
   }
 
+  w.init_pending_signals();
   Uint32 index = h->m_write_index;
   w.m_write_index = index;
   thr_job_buffer *buffer = q->m_buffers[index];
