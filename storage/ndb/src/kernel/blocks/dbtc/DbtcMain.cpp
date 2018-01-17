@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12574,6 +12574,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     return;
   }
 
+  const BlockReference apiBlockRef = signal->getSendersBlockRef();
   const ScanTabReq * const scanTabReq = (ScanTabReq *)&signal->theData[0];
   const Uint32 ri = scanTabReq->requestInfo;
   const Uint32 schemaVersion = scanTabReq->tableSchemaVersion;
@@ -12658,6 +12659,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
       goto SCAN_TAB_error_no_state_change;
     }
   }
+  ndbassert(transP->ndbapiBlockref == apiBlockRef);
 
   if(tabptr.i >= ctabrecFilesize)
   {
@@ -12846,7 +12848,7 @@ SCAN_TAB_error_no_state_change:
   ref->transId2 = transid2;
   ref->errorCode  = errCode;
   ref->closeNeeded = 0;
-  sendSignal(transP->ndbapiBlockref, GSN_SCAN_TABREF, 
+  sendSignal(apiBlockRef, GSN_SCAN_TABREF, 
 	     signal, ScanTabRef::SignalLength, JBB);
   return;
 }//Dbtc::execSCAN_TABREQ()
@@ -19889,6 +19891,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   seizeTcConnect(0);
   TcConnectRecordPtr tcPtr = tcConnectptr;
 
+  // Reuse the ApiConnectRecordPtr, set this TC as (internal) 'API-client' 
   ApiConnectRecordPtr scanApiConnectPtr = apiConnectptr;
   scanApiConnectPtr.p->ndbapiBlockref = reference();
   scanApiConnectPtr.p->ndbapiConnect = tcPtr.i;
@@ -20003,6 +20006,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   signal->m_sectionPtrI[0] = ptr[0].i;
   signal->m_sectionPtrI[1] = ptr[1].i;
   signal->m_sectionPtrI[2] = ptr[2].i;
+
+  signal->header.theSendersBlockRef = reference();
   execSCAN_TABREQ(signal);
 
   transPtr->p->lqhkeyreqrec++; // Make sure that execution is stalled
