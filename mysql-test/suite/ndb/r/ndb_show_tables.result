@@ -70,7 +70,7 @@ a int primary key,
 b int
 )engine=ndbcluster;
 id    type                 state    logging database     schema   name
-XX    OrderedIndex         Online   No      sys          def      sys/defXX/PRIMARY
+XX    OrderedIndex         Online   No      sys          def      sys/def/YY/PRIMARY
 
 NDBT_ProgramExit: 0 - OK
 
