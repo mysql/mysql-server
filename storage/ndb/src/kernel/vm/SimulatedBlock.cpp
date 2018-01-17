@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -404,7 +404,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
   case SEND_DISCONNECTED:
     break;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 static void
@@ -450,14 +450,17 @@ getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
     p = g_sectionSegmentPool.getPtr(tSec2);
     ptr[2].p = p;
     ptr[2].sz = p->m_sz;
+    // Fall through
   case 2:
     p = g_sectionSegmentPool.getPtr(tSec1);
     ptr[1].p = p;
     ptr[1].sz = p->m_sz;
+    // Fall through
   case 1:
     p = g_sectionSegmentPool.getPtr(tSec0);
     ptr[0].p = p;
     ptr[0].sz = p->m_sz;
+    // Fall through
   case 0:
     return;
   }
@@ -509,14 +512,17 @@ releaseSections(SPC_ARG Uint32 secCount, SegmentedSectionPtr ptr[3]){
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz2), tSec2,
 				     ptr[2].p->m_lastSegment);
+    // Fall through
   case 2:
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz1), tSec1,
 				     ptr[1].p->m_lastSegment);
+    // Fall through
   case 1:
     g_sectionSegmentPool.releaseList(SPC_SEIZE_ARG
                                      relSz(tSz0), tSec0,
 				     ptr[0].p->m_lastSegment);
+    // Fall through
   case 0:
     return;
   }
@@ -2297,7 +2303,7 @@ SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -2340,7 +2346,7 @@ SimulatedBlock::handle_execute_error(GlobalSignalNumber gsn)
     BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
     ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 // MT LQH callback CONF via signal
@@ -2511,7 +2517,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
      */
     Ptr<FragmentInfo> fragPtr;
     if(!c_fragmentInfoHash.seize(fragPtr)){
-      ndbrequire(false);
+      ndbabort();
       return false;
     }
     
@@ -2634,7 +2640,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
   /**
    * Unable to find fragment
    */
-  ndbrequire(false);
+  ndbabort();
   return false;
 }
 
@@ -2688,7 +2694,7 @@ SimulatedBlock::assembleDroppedFragments(Signal* signal)
      */
     Ptr<FragmentInfo> fragPtr;
     if(!c_fragmentInfoHash.seize(fragPtr)){
-      ndbrequire(false);
+      ndbabort();
       return false;
     }
     
@@ -2756,7 +2762,7 @@ SimulatedBlock::assembleDroppedFragments(Signal* signal)
   /**
    * Unable to find fragment
    */
-  ndbrequire(false);
+  ndbabort();
   return false;
 }
 
@@ -2941,7 +2947,7 @@ SimulatedBlock::doNodeFailureCleanup(Signal* signal,
       return elementsCleaned;
     }
     default:
-      ndbrequire(false);
+      ndbabort();
     }
 
     /* Did we complete cleaning up this resource? */
@@ -3065,10 +3071,12 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
     info.m_sectionPtr[2].m_segmented.i = ptr[2].i;
     info.m_sectionPtr[2].m_segmented.p = ptr[2].p;
     totalSize += ptr[2].sz;
+    // Fall through
   case 2:
     info.m_sectionPtr[1].m_segmented.i = ptr[1].i;
     info.m_sectionPtr[1].m_segmented.p = ptr[1].p;
     totalSize += ptr[1].sz;
+    // Fall through
   case 1:
     info.m_sectionPtr[0].m_segmented.i = ptr[0].i;
     info.m_sectionPtr[0].m_segmented.p = ptr[0].p;
@@ -3422,9 +3430,11 @@ SimulatedBlock::sendFirstFragment(FragmentSendInfo & info,
   case 3:
     info.m_sectionPtr[2].m_linear = ptr[2];
     totalSize += ptr[2].sz;
+    // Fall through
   case 2:
     info.m_sectionPtr[1].m_linear = ptr[1];
     totalSize += ptr[1].sz;
+    // Fall through
   case 1:
     info.m_sectionPtr[0].m_linear = ptr[0];
     totalSize += ptr[0].sz;
@@ -4464,7 +4474,7 @@ SimulatedBlock::synchronize_path(Signal * signal,
   if (blocks[0] == 0)
   {
     jam();
-    ndbrequire(false); // TODO
+    ndbabort(); // TODO
   }
   else
   {

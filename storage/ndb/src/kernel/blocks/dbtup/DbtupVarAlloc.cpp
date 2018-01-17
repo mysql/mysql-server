@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -546,7 +546,7 @@ Uint32 Dbtup::calculate_free_list_impl(Uint32 free_space_size) const
       return i;
     }
   }
-  ndbrequire(false);
+  ndbabort();
   return 0;
 }
 

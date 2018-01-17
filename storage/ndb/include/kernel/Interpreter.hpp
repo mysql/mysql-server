@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -396,7 +396,7 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
     processing= LABEL_ADDRESS_REPLACEMENT;
     Uint32 byteLength= getBranchCol_Len(*(op+1));
     Uint32 wordLength= (byteLength + 3) >> 2;
-    return op+2+wordLength;
+    return op + 2 + wordLength;
   }
   case BRANCH_ATTR_OP_ARG_2:
   {
@@ -405,20 +405,21 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
      * comparison data.
      */
     processing= LABEL_ADDRESS_REPLACEMENT;
-    return op+2;
+    return op + 2;
   }
   case BRANCH_ATTR_EQ_NULL:
   case BRANCH_ATTR_NE_NULL:
     processing= LABEL_ADDRESS_REPLACEMENT;
-    return op+2;
+    return op + 2;
   case EXIT_OK:
   case EXIT_OK_LAST:
   case EXIT_REFUSE:
-    return op+1;
+    return op + 1;
   case CALL:
     processing= SUB_ADDRESS_REPLACEMENT;
+    return op + 1;
   case RETURN:
-    return op+1;
+    return op + 1;
 
   default:
     return NULL;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,12 +161,12 @@ Dbtux::treeAddRebalance(TuxCtx & ctx, Frag& frag, NodeHandle node, unsigned i)
         treeRotateDouble(ctx, frag, node, i);
       } else {
         // height of subtree increased so it cannot be perfectly balanced
-        ndbrequire(false);
+        ndbabort();
       }
       // height of tree did not increase - done
       break;
     } else {
-      ndbrequire(false);
+      ndbabort();
     }
     TupLoc parentLoc = node.getLink(2);
     if (parentLoc == NullTupLoc) {
@@ -382,7 +382,7 @@ Dbtux::treeRemoveRebalance(Frag& frag, NodeHandle node, unsigned i)
         return;
       }
     } else {
-      ndbrequire(false);
+      ndbabort();
     }
     TupLoc parentLoc = node.getLink(2);
     if (parentLoc == NullTupLoc) {
@@ -510,7 +510,7 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
     node3.setBalance(-bal5);
     node5.setBalance(bal5);
   } else {
-    ndbrequire(false);
+    ndbabort();
   }//if
   /*
   Set node to 3 as return parameter for enabling caller to continue
@@ -721,7 +721,7 @@ Dbtux::treeRotateDouble(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
     node2.setBalance(-bal2);
     node6.setBalance(0);
   } else {
-    ndbrequire(false);
+    ndbabort();
   }
   // new top node
   node = node4;

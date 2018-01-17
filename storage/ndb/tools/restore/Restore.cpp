@@ -94,8 +94,7 @@ public:
         m_twiddle_array_size = 1;
         break;
       }
-      // Fallthrough for blob/text with ArrayTypeVar
-
+      // Fall through - for blob/text with ArrayTypeVar
     default:
       // Default twiddling parameters
       m_twiddle_size = attr_desc->size;

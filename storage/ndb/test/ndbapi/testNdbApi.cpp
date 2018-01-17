@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,7 +268,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
 
       default:
         result = NDBT_FAILED;
-        // Fallthrough to '233' which also terminate test, but not 'FAILED'
+        // Fall through - to '233' which also terminate test, but not 'FAILED'
       case 233:  // Out of operation records in transaction coordinator  
         // OK - end test
         endTest = true;

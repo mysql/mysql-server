@@ -4015,6 +4015,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case -1:
       ndbout << "3:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
+      // Fall through
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;
@@ -4085,6 +4086,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case -1:
       ndbout << "4:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
+      // Fall through
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;

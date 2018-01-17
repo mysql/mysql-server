@@ -272,8 +272,7 @@ Tsman::execCONTINUEB(Signal* signal)
     break;
   }
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
   client_unlock(number(), __LINE__);
 }
@@ -574,7 +573,7 @@ Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
       ptr.p->m_state = Tablespace::TS_ONLINE;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
   } while(0);
 
@@ -878,7 +877,7 @@ Tsman::execFSCLOSECONF(Signal* signal)
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
   }
   
   {
@@ -978,7 +977,7 @@ Tsman::open_file(Signal* signal,
     req->fileFlags |= FsOpenReq::OM_READ_SIZE;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   req->page_size = File_formats::NDB_PAGE_SIZE;
@@ -1512,7 +1511,7 @@ Tsman::load_extent_pages(Signal* signal, Ptr<Datafile> ptr)
   
   if(page_id < 0)
   {
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -2600,7 +2599,7 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
              << " fragment: " << *ext_fragment_id << " "
              << "trying to unmap page: " << *key 
              << " " << *ext_data << endl;
-      ndbrequire(false);
+      ndbabort();
     }
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
     /**
@@ -2989,7 +2988,7 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
   
   nextFile = file.p->nextList;
@@ -3170,7 +3169,7 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
   Datafile_hash::Iterator iter;
   if (!m_file_hash.first(iter))
   {
-    ndbrequire(false);
+    ndbabort();
     return;                                     // Silence compiler warning
   }
 

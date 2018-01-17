@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@
 #ifdef ACC_SAFE_QUEUE
 #define vlqrequire(x) do { if (unlikely(!(x))) {\
    dump_lock_queue(loPtr); \
-   ndbrequire(false); } } while(0)
+   ndbabort(); } } while(0)
 #else
 #define vlqrequire(x) ndbrequire(x)
 #define dump_lock_queue(x)
@@ -118,8 +118,7 @@ void Dbacc::execCONTINUEB(Signal* signal)
       break;
     }
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   return;
 }//Dbacc::execCONTINUEB()
@@ -248,8 +247,7 @@ void Dbacc::initialiseRecordsLab(Signal* signal,
     return;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
 
   signal->theData[0] = ZINITIALISE_RECORDS;
@@ -1080,14 +1078,14 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       return;
       break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }//switch
   } else if (found == ZFALSE) {
     switch (op){
     case ZWRITE:
       opbits &= ~(Uint32)Operationrec::OP_MASK;
       opbits |= (op = ZINSERT);
+      // Fall through
     case ZINSERT:
       jam();
       opbits |= Operationrec::OP_INSERT_IS_DONE;
@@ -1104,10 +1102,8 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       jam();
       acckeyref1Lab(signal, ZREAD_ERROR);
       return;
-      break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }//switch
   } else {
     jam();
@@ -1145,7 +1141,7 @@ Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
   }
 
   ndbout_c("bits: %.8x state: %.8x", opbits, opstate);
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -1463,7 +1459,7 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
       acckeyref1Lab(signal, return_result);
       return;
     }//if
-    ndbrequire(false);
+    ndbabort();
   } 
   else 
   {
@@ -2250,7 +2246,7 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
     ulkPageidptr.p->word32[tulkLocalPtr] = localkey.m_page_no;
     return;
   }//if
-  ndbrequire(false);
+  ndbabort();
 }//Dbacc::execACCMINUPDATE()
 
 void
@@ -2412,6 +2408,7 @@ void Dbacc::execACC_ABORTREQ(Signal* signal)
     {
       return;
     }
+    // Fall through
   case 1:
     sendSignal(operationRecPtr.p->userblockref, GSN_ACC_ABORTCONF, 
 	       signal, 1, JBB);
@@ -2542,7 +2539,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     *sig = *req;
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /* --------------------------------------------------------------------------------- */
@@ -2896,7 +2893,7 @@ void Dbacc::insertElement(const Element   elem,
         jam();
         isforward = false;
       } else {
-        ndbrequire(false);
+        ndbabort();
         return;
       }//if
       if (!containerhead.isNextOnSamePage()) {
@@ -3109,7 +3106,7 @@ void Dbacc::insertContainer(const Element          elem,
     tidrNextConLen = conhead.getLength();
     tidrConfreelen = tidrConfreelen - tidrNextConLen;
     if (tidrConfreelen > ZBUF_SIZE) {
-      ndbrequire(false);
+      ndbabort();
       /* --------------------------------------------------------------------------------- */
       /*       THE BUFFERS ARE PLACED ON TOP OF EACH OTHER. THIS SHOULD NEVER OCCUR.       */
       /* --------------------------------------------------------------------------------- */
@@ -6584,7 +6581,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
     {
       jam();
       jamLine(tgeNextptrtype);
-      ndbrequire(false);
+      ndbabort();
     }//if
     if (tgeRemLen >= Container::HEADER_SIZE + TelemLen)
     {
@@ -6940,8 +6937,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     releaseScanLab(signal);
     return;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   scanPtr.p->scan_lastSeen = __LINE__;
   signal->theData[0] = scanPtr.i;

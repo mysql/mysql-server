@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -363,6 +363,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jam();
+    // Fall through
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
     if (! scan.m_readCommitted) {
@@ -429,11 +430,10 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     scanClose(signal, scanPtr);
     return;
   case NextScanReq::ZSCAN_NEXT_ABORT:
-    jam();
+    ndbabort();
   default:
     jam();
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
   // start looking for next scan result
   AccCheckScan* checkReq = (AccCheckScan*)signal->getDataPtrSend();
@@ -594,8 +594,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         return;  // stop
         break;
       default:
-        ndbrequire(false);
-        break;
+        ndbabort();
       }
     } else {
       scan.m_state = ScanOp::Locked;
@@ -652,7 +651,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
                    NextScanConf::SignalLengthNoTuple);
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 /*
@@ -1042,7 +1041,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
       pos.m_dir = node.getSide();
       continue;
     }
-    ndbrequire(false);
+    ndbabort();
   }
   // copy back position
   scan.m_scanPos = pos;

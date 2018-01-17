@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
     case NodeInfo::MGM:
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
     }
     setNodeInfo(nodeId).m_type = nodeType;
   }
@@ -199,13 +199,13 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   }
 
   if(ERROR_INSERTED(9997)){
-    ndbrequire(false);
+    ndbabort();
   }
 
 #ifndef _WIN32
   if(ERROR_INSERTED(9996)){
     simulate_error_during_shutdown= SIGSEGV;
-    ndbrequire(false);
+    ndbabort();
   }
 
   if(ERROR_INSERTED(9995)){
@@ -1586,7 +1586,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    ndbrequire(false);
+    ndbabort();
 #endif
   }
 
@@ -1617,7 +1617,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     if (curr_used > 2 * orig_used)
     {
       ndbout_c("  ERROR : in-use has grown by more than a factor of 2");
-      ndbrequire(false);
+      ndbabort();
     }
     else
     {
@@ -2048,7 +2048,7 @@ Cmvmi::execALLOC_MEM_REF(Signal* signal)
   if (ref->senderData == 0)
   {
     jam();
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -3069,7 +3069,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   }
 
   default:
-    ndbrequire(false);
+    ndbabort();
   }
   return;
 }

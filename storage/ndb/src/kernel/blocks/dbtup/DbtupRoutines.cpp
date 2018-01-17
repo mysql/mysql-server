@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
 
 #define DBTUP_C
 #define DBTUP_ROUTINES_CPP
@@ -519,8 +518,10 @@ zero32(Uint8* dstPtr, const Uint32 len)
     switch(odd){     /* odd is: {1..3} */
     case 1:
       dst[1] = 0;
+      // Fall through
     case 2:
       dst[2] = 0;
+      // Fall through
     default:         /* Known to be odd==3 */
       dst[3] = 0;
     }
@@ -1620,7 +1621,7 @@ Dbtup::readDiskVarSizeNotNULL(Uint8* out_buffer,
 			      AttributeHeader* ah_out,
 			      Uint32  attr_des2)
 {
-  ndbrequire(false);
+  ndbabort();
   return 0;
 }
 
@@ -2920,7 +2921,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
           break;
 #ifdef VM_TRACE
         default:
-          ndbrequire(false);
+          ndbabort();
 #endif
         }
         
@@ -2960,7 +2961,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
   }
   
 error:  
-  ndbrequire(false);
+  ndbabort();
   return 0;
 }
 

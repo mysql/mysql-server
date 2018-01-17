@@ -254,7 +254,7 @@ Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct, Tablerec *regTabPtr)
   if (c_crashOnCorruptedTuple && !ERROR_INSERTED(4036))
   {
     ndbout_c(" Exiting."); 
-    ndbrequire(false);
+    ndbabort();
   }
   (void)ERROR_INSERTED_CLEAR(4036);
   terrorCode= ZTUPLE_CORRUPTED_ERROR;
@@ -1190,7 +1190,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      }
      else
      {
-       ndbrequire(false); // Invalid op type
+       ndbabort(); // Invalid op type
      }
    }
 
@@ -3183,7 +3183,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    // Any other return value from the read attribute here is not 
 	    // allowed and will lead to a system crash.
 	    /* ------------------------------------------------------------- */
-	    ndbrequire(false);
+	    ndbabort();
 	  }
 	  break;
 	}

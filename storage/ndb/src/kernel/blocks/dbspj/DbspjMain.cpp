@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -452,8 +452,7 @@ Dbspj::execALTER_TAB_REQ(Signal* signal)
     }
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
@@ -782,7 +781,7 @@ Dbspj::execCONTINUEB(Signal* signal)
   }
   }
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -806,7 +805,7 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
     break;
   default:
     hash = NULL; //Silence compiler warning
-    ndbrequire(false); //Impossible, avoid warning
+    ndbabort(); //Impossible, avoid warning
   }
   hash->next(bucket, iter);
 
@@ -2886,7 +2885,7 @@ Dbspj::getResultRef(Ptr<Request> requestPtr)
       return nodePtr.p->m_lookup_data.m_api_resultRef;
     }
   }
-  ndbrequire(false);
+  ndbabort();
   return 0;
 }
 
@@ -3495,7 +3494,7 @@ Dbspj::checkRequest(const Ptr<Request> requestPtr)
    * Dumping is done last to avoid problems with iterating
    * lists concurrently + IntrusiveList.
    * So checks should record the problem type etc, but not
-   * ndbrequire(false) immediately.  See spjCheck() above.
+   * ndbabort() immediately.  See spjCheck() above.
    */
   
   bool result = true;
@@ -3522,7 +3521,7 @@ Dbspj::checkRequest(const Ptr<Request> requestPtr)
   {
     dumpRequest("failed checkRequest()",
                 requestPtr);
-    ndbrequire(false);
+    ndbabort();
   }
 
   return result;
@@ -4362,7 +4361,7 @@ Dbspj::rowAlloc(RowBuffer& rowBuffer, RowRef& dst, Uint32 sz)
   else
   {
     jam();
-    ndbrequire(false);
+    ndbabort();
     return NULL;
   }
 }
@@ -6634,7 +6633,7 @@ Dbspj::parseScanFrag(Build_context& ctx,
           releaseSection(prunePtrI);
 //        treeNodePtr.p->m_bits |= TreeNode::T_NULL_PRUNE;
 //        break;
-          ndbrequire(false);
+          ndbabort();
         }
         ndbrequire(prunePtrI != RNIL);  /* todo: can we allow / take advantage of NULLs in range scan? */
         data.m_constPrunePtrI = prunePtrI;
@@ -7240,7 +7239,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
     {
       jam();
       // Fixed key...fix later...
-      ndbrequire(false);
+      ndbabort();
     }
 //  ndbrequire(!hasNull);  // FIXME, can't ignore request as we already added it to keyPattern
     scanFrag_fixupBound(fragPtr, fragPtr.p->m_rangePtrI, rowRef.m_src_correlation);
@@ -9739,7 +9738,7 @@ Dbspj::parseDA(Build_context& ctx,
           releaseSection(keyInfoPtrI);
 //        treeNodePtr.p->m_bits |= TreeNode::T_NULL_PRUNE;
 //        break;
-          ndbrequire(false);
+          ndbabort();
         }
         treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfoPtrI;
       }

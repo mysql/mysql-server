@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -590,8 +590,7 @@ LocalProxy::execREAD_NODESCONF(Signal* signal)
     backNDB_STTOR(signal);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   ss.m_gsn = 0;
@@ -602,7 +601,7 @@ LocalProxy::execREAD_NODESREF(Signal* signal)
 {
   Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
   ndbrequire(ss.m_gsn != 0);
-  ndbrequire(false);
+  ndbabort();
 }
 
 // GSN_NODE_FAILREP

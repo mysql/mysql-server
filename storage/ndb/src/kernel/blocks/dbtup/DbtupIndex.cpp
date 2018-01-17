@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -751,8 +751,7 @@ next_tuple:
         buildPtr.p->m_errorCode= BuildIndxImplRef::AllocationFailure;
         break;
       default:
-        ndbrequire(false);
-        break;
+        ndbabort();
       }
       buildIndexReply(signal, buildPtr.p);
       c_buildIndexList.release(buildPtr);

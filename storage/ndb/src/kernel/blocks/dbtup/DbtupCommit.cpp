@@ -268,7 +268,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   case Dbtup::ScanOp::Current:
   {
     /* Impossible state for LCP scans */
-    ndbrequire(false);
+    ndbabort();
   }
   case Dbtup::ScanOp::Next:
   {
@@ -321,7 +321,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
   }
   /* Will never arrive here */
   jamLine(Uint16(op.m_state));
-  ndbrequire(false);
+  ndbabort();
   return true;
 }
 
@@ -1600,7 +1600,7 @@ Dbtup::commit_refresh(Signal* signal,
     return;
 
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   Local_key key = regOperPtr->m_tuple_location;

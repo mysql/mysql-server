@@ -351,7 +351,7 @@ void Dblqh::systemError(Signal* signal, int line)
 void Dblqh::execACCSEIZEREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }//Dblqh::execACCSEIZEREF()
 
 /* ******************************************************>> */
@@ -509,8 +509,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
       abortCommonLab(signal, tcConnectptr);
       break;
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }//switch
     /**
      * LogFile/LogPage could have altered due to above
@@ -729,8 +728,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
     }
 #endif
 
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
 }//Dblqh::execCONTINUEB()
 
@@ -770,7 +768,7 @@ void Dblqh::execINCL_NODEREQ(Signal* signal)
 void Dblqh::execTUPSEIZEREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }//Dblqh::execTUPSEIZEREF()
 
 bool
@@ -1468,7 +1466,7 @@ void Dblqh::sendsttorryLab(Signal* signal)
 void Dblqh::execREAD_NODESREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }//Dblqh::execREAD_NODESREF()
 
 /* ****************** */
@@ -1659,7 +1657,7 @@ else
     {
       ndbout << ": max allowed is " << cmaxLogFilesInPageZero << endl;
       // do not continue with useless test
-      ndbrequire(false);
+      ndbabort();
     }
     cmaxLogFilesInPageZero = cmaxLogFilesInPageZero_DUMP;
     ndbout << endl;
@@ -1831,7 +1829,7 @@ Dblqh::sendCreateTabReq(Signal* signal, AddFragRecordPtr addfragptr)
     break;
   default:
     jamLine(addfragptr.p->addfragStatus);
-    ndbrequire(false);
+    ndbabort();
   }
 
   sendSignal(ref, GSN_CREATE_TAB_REQ, signal,
@@ -1887,7 +1885,7 @@ Dblqh::execCREATE_TAB_CONF(Signal* signal)
     break;
   default:
     jamLine(addfragptr.p->addfragStatus);
-    ndbrequire(false);
+    ndbabort();
   }
 
   addfragptr.p->addfragStatus = AddFragRecord::WAIT_ADD_ATTR;
@@ -2026,8 +2024,7 @@ void Dblqh::execTUP_ADD_ATTCONF(Signal* signal)
     }
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }
 
@@ -2061,8 +2058,7 @@ void Dblqh::execTUP_ADD_ATTRREF(Signal* signal)
     jam();
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   if (addfragptr.p->defValSectionI != RNIL)
@@ -2204,7 +2200,7 @@ Dblqh::sendAddAttrReq(Signal* signal)
       return;
     }
   }
-  ndbrequire(false);
+  ndbabort();
 }//Dblqh::sendAddAttrReq
 
 /**
@@ -2237,7 +2233,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     if (signal->length() == LqhFragReq::OldestSignalLength)
     {
       jam();
-      ndbrequire(false); /* Not supported to upgrade from < 7.2 */
+      ndbabort(); /* Not supported to upgrade from < 7.2 */
       /**
        * Upgrade support to specify partitionId
        */
@@ -2250,7 +2246,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     if (signal->length() == LqhFragReq::OldSignalLength)
     {
       jam();
-      ndbrequire(false); /* Not supported to upgrade from < 7.2 */
+      ndbabort(); /* Not supported to upgrade from < 7.2 */
       /**
        * Upgrade support to specify createGci
        */
@@ -2398,7 +2394,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     sendAddFragReq(signal);
     return;
   }
-  ndbrequire(false);
+  ndbabort();
 }//Dblqh::execLQHFRAGREQ()
 
 /* *************** */
@@ -2477,8 +2473,7 @@ void Dblqh::execTUPFRAGCONF(Signal* signal)
     releaseAddfragrec(signal);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 }//Dblqh::execTUPFRAGCONF()
 
@@ -2576,7 +2571,7 @@ void Dblqh::execTAB_COMMITREQ(Signal* signal)
     signal->theData[3] = terrorCode;
     signal->theData[4] = tabptr.p->tableStatus;
     sendSignal(dihBlockref, GSN_TAB_COMMITREF, signal, 5, JBB);
-    ndbrequire(false);
+    ndbabort();
     return;
   }//if
   tabptr.p->usageCountR = 0;
@@ -2668,8 +2663,7 @@ void Dblqh::execTUPFRAGREF(Signal* signal)
     jam();
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   fragrefLab(signal, errorCode, &addfragptr.p->m_lqhFragReq);
@@ -2710,7 +2704,7 @@ Dblqh::execDROP_FRAG_REQ(Signal* signal)
 void
 Dblqh::execDROP_FRAG_REF(Signal* signal)
 {
-  ndbrequire(false);
+  ndbabort();
 }
 
 void
@@ -2740,7 +2734,7 @@ Dblqh::execDROP_FRAG_CONF(Signal* signal)
   case DBTUX:
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   if (ref != RNIL)
@@ -2793,7 +2787,8 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
     break;
   case Tablerec::NOT_DEFINED:
     jam();
-    // Fall through
+    errCode = PrepDropTabRef::NoSuchTable;
+    break;
   case Tablerec::ADD_TABLE_ONGOING:
     jam();
     errCode = PrepDropTabRef::NoSuchTable;
@@ -3037,6 +3032,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     case Tablerec::ADD_TABLE_ONGOING:
       jam();
       ndbassert(false);
+      // Fall through
     case Tablerec::PREP_DROP_TABLE_DONE:
       jam();
       tabPtr.p->m_informed_backup_drop_tab = false;
@@ -3052,7 +3048,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     case Tablerec::DROP_TABLE_ACC:
     case Tablerec::DROP_TABLE_TUP:
     case Tablerec::DROP_TABLE_TUX:
-      ndbrequire(false);
+      ndbabort();
     case Tablerec::DROP_TABLE_WAIT_DONE:
       jam();
       break;
@@ -3090,7 +3086,7 @@ Dblqh::execDROP_TAB_REF(Signal* signal)
 
 #if defined ERROR_INSERT || defined VM_TRACE
   jamLine(ref->errorCode);
-  ndbrequire(false);
+  ndbabort();
 #endif
 
   Ptr<AddFragRecord> addFragPtr;
@@ -3357,8 +3353,7 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
     tablePtr.p->tableStatus = Tablerec::TABLE_DEFINED;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }
 
   EXECUTE_DIRECT(DBTUP, GSN_ALTER_TAB_REQ, signal, len);
@@ -3736,27 +3731,31 @@ Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
     break;
   case Tablerec::ADD_TABLE_ONGOING:
     jam();
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::PREP_DROP_TABLE_DONE:
     jam();
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_WAIT_USAGE:
     jam();
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_WAIT_DONE:
     jam();
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_ACC:
     jam();
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_TUP:
     jam();
+    return ZDROP_TABLE_IN_PROGRESS;
   case Tablerec::DROP_TABLE_TUX:
     jam();
     return ZDROP_TABLE_IN_PROGRESS;
-    break;
   case Tablerec::TABLE_DEFINED:
   case Tablerec::TABLE_READ_ONLY:
-    ndbrequire(0);
+    ndbabort();
     return ZTABLE_NOT_DEFINED;
-    break;
   }
-  ndbrequire(0);
+  ndbabort();
   return ~Uint32(0);
 }
 
@@ -3817,8 +3816,7 @@ void Dblqh::LQHKEY_abort(Signal* signal,
     terrorCode = ZINVALID_SCHEMA_VERSION;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   abortErrorLab(signal, tcConnectptr);
 }//Dblqh::LQHKEY_abort()
@@ -3851,7 +3849,7 @@ void Dblqh::LQHKEY_error(Signal* signal, int errortype)
     jam();
     break;
   }//switch
-  ndbrequire(false);
+  ndbabort();
 }//Dblqh::LQHKEY_error()
 
 void Dblqh::execLQHKEYREF(Signal* signal) 
@@ -4071,7 +4069,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       Tstep += FireTrigReq::SignalLength;
       break;
     default:
-      ndbrequire(false);
+      ndbabort();
       return;
     }//switch
 #ifdef ERROR_INSERT
@@ -4264,7 +4262,7 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
     break;
   }
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -4351,8 +4349,7 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
 /* ------------------------------------------------------------------------- */
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
 }//Dblqh::execTUPKEYCONF()
 
@@ -4421,8 +4418,7 @@ void Dblqh::execTUPKEYREF(Signal* signal)
     break;
   default:
     jamLine(tcConnectptr.p->transactionState);
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
 }//Dblqh::execTUPKEYREF()
 
@@ -4928,8 +4924,7 @@ void Dblqh::execATTRINFO(Signal* signal)
       break;
     default:
       ndbout_c("%d", regTcPtr->transactionState);
-      ndbrequire(false);
-      break;
+      ndbabort();
     }//switch
   }//if
   return;
@@ -6166,14 +6161,13 @@ void Dblqh::endgettupkeyLab(Signal* signal,
     return;
     break;
   case Fragrecord::FREE:
-    jam();
+    ndbabort();
   case Fragrecord::DEFINED:
-    jam();
+    ndbabort();
   case Fragrecord::REMOVING:
-    jam();
+    ndbabort();
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   return;
 }//Dblqh::endgettupkeyLab()
@@ -6884,7 +6878,7 @@ Dblqh::get_nr_op_info(Nr_op_info* op, Uint32 page_id)
       }
     }
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void 
@@ -7762,7 +7756,7 @@ queueop:
   }
   else
   {
-    ndbrequire(false);
+    ndbabort();
     return;
   }//if
 
@@ -9295,8 +9289,7 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
     break;
   default:
     jamLine(tcConnectptr.p->connectState);
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   return;
 }//Dblqh::execLQHKEYCONF()
@@ -9465,14 +9458,13 @@ void Dblqh::localCommitLab(Signal* signal,
     commitContinueAfterBlockedLab(signal, tcConnectptr);
     return;
   case Fragrecord::FREE:
-    jam();
+    ndbabort();
   case Fragrecord::DEFINED:
-    jam();
+    ndbabort();
   case Fragrecord::REMOVING:
-    jam();
+    ndbabort();
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
 }//Dblqh::localCommitLab()
 
@@ -9885,7 +9877,7 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
              tmp.p->transid2,
              tmp.p->reference_count);
     ndbrequire(tmp.p->reference_count == 0);
-    ndbrequire(false);
+    ndbabort();
     return;
   }
   ndbrequire(tmp.p->reference_count > 0);
@@ -9907,7 +9899,7 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
              tmp.p->transid1,
              tmp.p->transid2,
              tmp.p->reference_count);
-    ndbrequire(false);
+    ndbabort();
     return;
   }
   tmp.p->reference_count--;
@@ -10100,8 +10092,7 @@ void Dblqh::execACCKEYREF(Signal* signal)
     return;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   const Uint32 errCode = terrorCode; 
   tcPtr->errorCode = errCode;
@@ -10293,12 +10284,11 @@ void Dblqh::abortStateHandlerLab(Signal* signal,
     return;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
 /* ------------------------------------------------------------------------- */
 /*THE STATE WAS NOT AN ALLOWED STATE ON A NORMAL OPERATION. SCANS AND COPY   */
 /*FRAGMENT OPERATIONS SHOULD HAVE EXECUTED IN ANOTHER PATH.                  */
 /* ------------------------------------------------------------------------- */
-    break;
   }//switch
   abortCommonLab(signal, tcConnectptr);
   return;
@@ -10360,14 +10350,13 @@ void Dblqh::abortCommonLab(Signal* signal,
       return;
       break;
     case Fragrecord::FREE:
-      jam();
+      ndbabort();
     case Fragrecord::DEFINED:
-      jam();
+      ndbabort();
     case Fragrecord::REMOVING:
-      jam();
+      ndbabort();
     default:
-      ndbrequire(false);
-      break;
+      ndbabort();
     }//switch
   } else {
     jam();
@@ -10975,7 +10964,7 @@ void Dblqh::lqhTransNextLab(Signal* signal,
             ndbout_c("scanptr.p->scanType: %u", scanptr.p->scanType);
             ndbout_c("tcConnectptr.p->transactionState: %u",
                      tcConnectptr.p->transactionState);
-	    ndbrequire(false);
+	    ndbabort();
 	  }
         }
       }
@@ -11218,7 +11207,7 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
     break;
   default:
     ndbout_c("%d", scanptr.p->scanState);
-    ndbrequire(false);
+    ndbabort();
   }//switch
 }//Dblqh::execNEXT_SCANCONF()
 
@@ -11695,7 +11684,7 @@ void Dblqh::closeScanRequestLab(Signal* signal,
       closeScanLab(signal, tcConnectptr.p);
       return;
     default:
-      ndbrequire(false);
+      ndbabort();
     }//switch
     return;
   case TcConnectionrec::WAIT_SCAN_AI:
@@ -11714,7 +11703,7 @@ void Dblqh::closeScanRequestLab(Signal* signal,
     scanPtr->scanCompletedStatus = ZTRUE;
     return;
   default:
-    ndbrequire(false);
+    ndbabort();
   }//switch
 }//Dblqh::closeScanRequestLab()
 
@@ -12509,7 +12498,7 @@ Dblqh::check_send_scan_hb_rep(Signal* signal,
     return;
 #else
   case ScanRecord::ST_IDLE:
-    ndbrequire(false);
+    ndbabort();
 #endif
   }
 
@@ -12790,7 +12779,7 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
     ndbout_c("fragptr.p->fragStatus: %u",
              fragptr.p->fragStatus);
     // wl4391_todo SR 2-node CRASH_RECOVERING from BACKUP
-    ndbrequire(false);
+    ndbabort();
     return;
   }
 }//Dblqh::storedProcConfScanLab()
@@ -15151,7 +15140,7 @@ void Dblqh::copyTupkeyRefLab(Signal* signal,
   if (scanP->readCommitted == 0)
   {
     jam();
-    ndbrequire(false); // Should not be possibe...we read with lock
+    ndbabort(); // Should not be possibe...we read with lock
   }
   else
   {
@@ -15704,8 +15693,7 @@ void Dblqh::closeCopyRequestLab(Signal* signal,
     closeCopyLab(signal, tcConnectptr.p);
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
   return;
 }//Dblqh::closeCopyRequestLab()
@@ -15745,7 +15733,7 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
   if (unlikely(signal->getLength() < CopyActiveReq::SignalLength))
   {
     jam();
-    ndbrequire(false); /* Don't support upgrade from 7.0 */
+    ndbabort(); /* Don't support upgrade from 7.0 */
     flags = 0;
   }
 
@@ -16797,7 +16785,7 @@ Dblqh::send_resume_copy_frag(Signal *signal)
     else
     {
       jamLine(Uint16(c_copy_frag_halt_state));
-      ndbrequire(false);
+      ndbabort();
       return; //Compiler silencer
     }
   }
@@ -16818,8 +16806,7 @@ Dblqh::send_resume_copy_frag(Signal *signal)
   else
   {
     jamLine(c_copy_frag_halt_state);
-    ndbrequire(false);
-    return; //Compiler silencer
+    ndbabort();
   }
 }
 
@@ -17464,7 +17451,7 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
                             ref->tableId,
                             ref->fragmentId,
                             ref->errorCode);
-    ndbrequire(false);
+    ndbabort();
     return;
   };
   ndbrequire(c_localLcpId == 0);
@@ -21533,7 +21520,7 @@ void Dblqh::startFragRefLab(Signal* signal)
 void Dblqh::execRESTORE_LCP_REF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
   return;
 }
 
@@ -21794,7 +21781,7 @@ Dblqh::write_local_sysfile(Signal *signal, Uint32 type, Uint32 gci)
     }
     default:
     {
-      ndbrequire(false);
+      ndbabort();
       return; // Keep compiler quiet
     }
   }
@@ -21837,7 +21824,7 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
     }
     default:
     {
-      ndbrequire(false);
+      ndbabort();
     }
   }
 }
@@ -22016,7 +22003,7 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     return;
     break;
   default:
-    ndbrequire(false);
+    ndbabort();
   }
 
   jam();
@@ -22094,7 +22081,7 @@ void Dblqh::sendLOCAL_RECOVERY_COMPLETE_REP(Signal *signal,
 void Dblqh::execSTART_RECREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbabort();
 }//Dblqh::execSTART_RECREF()
 
 void
@@ -22193,7 +22180,7 @@ void
 Dblqh::execBUILD_INDX_IMPL_REF(Signal * signal)
 {
   jamEntry();
-  ndbrequire(false); // TODO error message
+  ndbabort(); // TODO error message
 }
 
 void
@@ -22422,7 +22409,7 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
     jam();
     m_sr_exec_sr_conf.clear(nodeId);
     ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
-    ndbrequire(false);
+    ndbabort();
     sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
                         signal, 10, signal->getLength());
     return;
@@ -23091,8 +23078,7 @@ void Dblqh::execSr(Signal* signal)
         }//if
         break;
       default:
-        ndbrequire(false);
-        break;
+        ndbabort();
       }//switch
     }//if
     if (logFilePtr.p->currentLogpage != logPartPtr.p->prevLogpage) {
@@ -23849,7 +23835,7 @@ Dblqh::invalidateLogAfterLastGCI(Signal* signal)
     return;
   default:
     jamLine(lfoPtr.p->lfoState);
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -24194,7 +24180,7 @@ stepNext_2:
 
     goto stepNext_2;
   }
-  ndbrequire(false);
+  ndbabort();
 }
 
 void Dblqh::exitFromInvalidate(Signal* signal)
@@ -24794,7 +24780,7 @@ void Dblqh::srFourthComp(Signal* signal)
     rebuildOrderedIndexes(signal, 0);
     return;
   } else {
-    ndbrequire(false);
+    ndbabort();
   }//if
   return;
 }//Dblqh::srFourthComp()
@@ -25862,8 +25848,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     return;
     break;
   default:
-    ndbrequire(false);
-    break;
+    ndbabort();
   }//switch
 
   signal->theData[0] = ZINITIALISE_RECORDS;
@@ -28454,7 +28439,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
         infoEvent("End of operation dump");
         if (ERROR_INSERTED(4002))
         {
-          ndbrequire(false);
+          ndbabort();
         }
       }
 
@@ -28499,7 +28484,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
         infoEvent("End of operation dump");
         if (ERROR_INSERTED(4002))
         {
-          ndbrequire(false);
+          ndbabort();
         }
       }
       
@@ -29482,7 +29467,7 @@ Dblqh::execLCP_STATUS_REF(Signal* signal)
   ndbout_c("Received LCP_STATUS_REF from %x, senderData = %u with error code %u",
            ref->senderRef, ref->senderData, ref->error);
 
-  ndbrequire(false);
+  ndbabort();
 }
 
 void

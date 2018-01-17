@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3381,6 +3381,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
       case 0:
       case 1:
         res.dumpStateAllNodes(&val, 1);
+        // Fall through
       case 2:
       case 3:
       case 4:
@@ -3401,6 +3402,7 @@ runBug48436(NDBT_Context* ctx, NDBT_Step* step)
         break;
       case 7:
         res.dumpStateAllNodes(&val, 1);
+        // Fall through
       case 8:
         res.restartOneDbNode(nodes[1], false, true, true);
         res.waitNodesNoStart(nodes+1,1);

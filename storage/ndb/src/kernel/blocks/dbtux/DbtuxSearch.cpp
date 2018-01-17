@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,7 +287,7 @@ Dbtux::findNodeToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, N
       break;
     }
     // ret == 0 never
-    ndbrequire(false);
+    ndbabort();
   }
 }
 
@@ -324,7 +324,7 @@ Dbtux::findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, No
       lo = j;
     } else {
       // ret == 0 never
-      ndbrequire(false);
+      ndbabort();
     }
   }
   // return hi pos, caller handles ascending vs descending
