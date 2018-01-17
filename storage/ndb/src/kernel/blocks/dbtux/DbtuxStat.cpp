@@ -65,7 +65,6 @@ Dbtux::execREAD_PSEUDO_REQ(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -457,7 +456,6 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
   switch (rep->requestType) {
   case IndexStatRep::RT_UPDATE_REQ:
     ndbabort();
-    break;
   case IndexStatRep::RT_UPDATE_CONF:
     {
       Index& index = *c_indexPool.getPtr(rep->indexId);
@@ -471,7 +469,6 @@ Dbtux::execINDEX_STAT_REP(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -496,7 +493,6 @@ Dbtux::execINDEX_STAT_IMPL_REQ(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 

@@ -349,7 +349,6 @@ Pgman::execCONTINUEB(Signal* signal)
   }
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -2901,7 +2900,6 @@ Pgman::execDATA_FILE_ORD(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 

@@ -273,7 +273,6 @@ Tsman::execCONTINUEB(Signal* signal)
   }
   default:
     ndbabort();
-    break;
   }
   client_unlock(number(), __LINE__);
 }

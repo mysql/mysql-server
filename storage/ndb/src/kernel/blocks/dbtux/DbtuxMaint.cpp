@@ -167,7 +167,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 #ifdef VM_TRACE
   if (debugFlags & DebugTree) {

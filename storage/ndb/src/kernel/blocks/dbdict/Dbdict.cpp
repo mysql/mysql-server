@@ -681,7 +681,6 @@ void Dbdict::execCONTINUEB(Signal* signal)
     break;
   default :
     ndbabort();
-    break;
   }//switch
   return;
 }//execCONTINUEB()
@@ -854,7 +853,6 @@ void Dbdict::packTableIntoPages(Signal* signal)
     break;
   }//switch
   ndbabort();
-  return;
 }//packTableIntoPages()
 
 void
@@ -1247,7 +1245,6 @@ void Dbdict::execFSCLOSECONF(Signal* signal)
   default:
     jamLine((fsPtr.p->fsState & 0xFFF));
     ndbabort();
-    break;
   }//switch
 }//execFSCLOSECONF()
 
@@ -1298,7 +1295,6 @@ void Dbdict::execFSOPENCONF(Signal* signal)
   default:
     jamLine((fsPtr.p->fsState & 0xFFF));
     ndbabort();
-    break;
   }//switch
 }//execFSOPENCONF()
 
@@ -1364,7 +1360,6 @@ void Dbdict::execFSREADCONF(Signal* signal)
   default:
     jamLine((fsPtr.p->fsState & 0xFFF));
     ndbabort();
-    break;
   }//switch
 }//execFSREADCONF()
 
@@ -1416,7 +1411,6 @@ void Dbdict::execFSWRITECONF(Signal* signal)
   default:
     jamLine((fsPtr.p->fsState & 0xFFF));
     ndbabort();
-    break;
   }//switch
 }//execFSWRITECONF()
 
@@ -2120,8 +2114,6 @@ void Dbdict::closeReadSchemaConf(Signal* signal,
 
   default :
     ndbabort();
-    break;
-
   }//switch
 }//Dbdict::closeReadSchemaConf()
 
@@ -3367,7 +3359,6 @@ Dbdict::activateIndexes(Signal* signal, Uint32 id)
     break;
   default:
     ndbabort();
-    break;
   }
 
   for (; id < c_noOfMetaTables; id++)
@@ -5700,7 +5691,6 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   }
   default:
     ndbabort();
-    break;
   }//switch
 
   {
@@ -14811,7 +14801,6 @@ Dbdict::alterIndex_subOps(Signal* signal, SchemaOpPtr op_ptr)
       return false;
     default:
       ndbabort();
-      break;
     }
     return true;
   }
@@ -15108,7 +15097,6 @@ Dbdict::alterIndex_toIndexStat(Signal* signal, SchemaOpPtr op_ptr)
     break;
   default:
     ndbabort();
-    break;
   }
 
   Uint32 requestInfo = 0;
@@ -15251,7 +15239,6 @@ Dbdict::alterIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
         break;
       default:
         ndbabort();
-        break;
       }
     }
     break;
@@ -15271,7 +15258,6 @@ Dbdict::alterIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -15596,7 +15582,6 @@ Dbdict::alterIndex_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -15901,7 +15886,6 @@ Dbdict::buildIndex_subOps(Signal* signal, SchemaOpPtr op_ptr)
       break;
     default:
       ndbabort();
-      break;
     }
   }
 
@@ -16272,7 +16256,6 @@ Dbdict:: buildIndex_toLocalBuild(Signal* signal, SchemaOpPtr op_ptr)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -16357,7 +16340,6 @@ Dbdict::buildIndex_toLocalOnline(Signal* signal, SchemaOpPtr op_ptr)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -16922,7 +16904,6 @@ Dbdict::indexStat_toLocalStat(Signal* signal, SchemaOpPtr op_ptr)
 
   default:
     ndbabort(); // only sub-ops seen here
-    break;
   }
 
   sendSignal(ref, GSN_INDEX_STAT_IMPL_REQ,
@@ -20603,7 +20584,6 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
         break;
       default:
         ndbabort();
-        break;
       }
     }
   }
@@ -33428,7 +33408,6 @@ Dbdict::runTransClientTakeOver(Signal* signal,
     break;
   default:
     ndbabort();
-    break;
   }
 
   D("set" << V(oldState) << " -> " << V(newState));
@@ -34494,7 +34473,6 @@ Dbdict::check_consistency_entry(TableRecordPtr tablePtr)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -34515,7 +34493,6 @@ Dbdict::check_consistency_table(TableRecordPtr tablePtr)
     break;
   default:
     ndbabort();
-    break;
   }
 
   DictObjectPtr obj_ptr;
@@ -34542,7 +34519,6 @@ Dbdict::check_consistency_index(TableRecordPtr indexPtr)
     break;
   default:
     ndbabort();
-    break;
   }
 
   TableRecordPtr tablePtr;
@@ -34561,7 +34537,6 @@ Dbdict::check_consistency_index(TableRecordPtr indexPtr)
     break;
   default:
     ndbabort();
-    break;
   }
 
   TriggerRecordPtr triggerPtr;
@@ -34633,7 +34608,6 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
         break;
       default:
         ndbabort();
-        break;
       }
     }
   }

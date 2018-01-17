@@ -510,7 +510,6 @@ void Dblqh::execCONTINUEB(Signal* signal)
       break;
     default:
       ndbabort();
-      break;
     }//switch
     /**
      * LogFile/LogPage could have altered due to above
@@ -730,7 +729,6 @@ void Dblqh::execCONTINUEB(Signal* signal)
 #endif
 
     ndbabort();
-    break;
   }//switch
 }//Dblqh::execCONTINUEB()
 
@@ -2027,7 +2025,6 @@ void Dblqh::execTUP_ADD_ATTCONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -2062,7 +2059,6 @@ void Dblqh::execTUP_ADD_ATTRREF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   if (addfragptr.p->defValSectionI != RNIL)
@@ -2478,7 +2474,6 @@ void Dblqh::execTUPFRAGCONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 }//Dblqh::execTUPFRAGCONF()
 
@@ -2669,7 +2664,6 @@ void Dblqh::execTUPFRAGREF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   fragrefLab(signal, errorCode, &addfragptr.p->m_lqhFragReq);
@@ -3360,7 +3354,6 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   EXECUTE_DIRECT(DBTUP, GSN_ALTER_TAB_REQ, signal, len);
@@ -3824,7 +3817,6 @@ void Dblqh::LQHKEY_abort(Signal* signal,
     break;
   default:
     ndbabort();
-    break;
   }//switch
   abortErrorLab(signal, tcConnectptr);
 }//Dblqh::LQHKEY_abort()
@@ -4358,7 +4350,6 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }//switch
 }//Dblqh::execTUPKEYCONF()
 
@@ -4428,7 +4419,6 @@ void Dblqh::execTUPKEYREF(Signal* signal)
   default:
     jamLine(tcConnectptr.p->transactionState);
     ndbabort();
-    break;
   }//switch
 }//Dblqh::execTUPKEYREF()
 
@@ -4935,7 +4925,6 @@ void Dblqh::execATTRINFO(Signal* signal)
     default:
       ndbout_c("%d", regTcPtr->transactionState);
       ndbabort();
-      break;
     }//switch
   }//if
   return;
@@ -6179,7 +6168,6 @@ void Dblqh::endgettupkeyLab(Signal* signal,
     ndbabort();
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dblqh::endgettupkeyLab()
@@ -9302,7 +9290,6 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
   default:
     jamLine(tcConnectptr.p->connectState);
     ndbabort();
-    break;
   }//switch
   return;
 }//Dblqh::execLQHKEYCONF()
@@ -9478,7 +9465,6 @@ void Dblqh::localCommitLab(Signal* signal,
     ndbabort();
   default:
     ndbabort();
-    break;
   }//switch
 }//Dblqh::localCommitLab()
 
@@ -10107,7 +10093,6 @@ void Dblqh::execACCKEYREF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }//switch
   const Uint32 errCode = terrorCode; 
   tcPtr->errorCode = errCode;
@@ -10304,7 +10289,6 @@ void Dblqh::abortStateHandlerLab(Signal* signal,
 /*THE STATE WAS NOT AN ALLOWED STATE ON A NORMAL OPERATION. SCANS AND COPY   */
 /*FRAGMENT OPERATIONS SHOULD HAVE EXECUTED IN ANOTHER PATH.                  */
 /* ------------------------------------------------------------------------- */
-    break;
   }//switch
   abortCommonLab(signal, tcConnectptr);
   return;
@@ -10373,7 +10357,6 @@ void Dblqh::abortCommonLab(Signal* signal,
       ndbabort();
     default:
       ndbabort();
-      break;
     }//switch
   } else {
     jam();
@@ -15711,7 +15694,6 @@ void Dblqh::closeCopyRequestLab(Signal* signal,
     break;
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dblqh::closeCopyRequestLab()
@@ -16825,7 +16807,6 @@ Dblqh::send_resume_copy_frag(Signal *signal)
   {
     jamLine(c_copy_frag_halt_state);
     ndbabort();
-    return; //Compiler silencer
   }
 }
 
@@ -23098,7 +23079,6 @@ void Dblqh::execSr(Signal* signal)
         break;
       default:
         ndbabort();
-        break;
       }//switch
     }//if
     if (logFilePtr.p->currentLogpage != logPartPtr.p->prevLogpage) {
@@ -25869,7 +25849,6 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     break;
   default:
     ndbabort();
-    break;
   }//switch
 
   signal->theData[0] = ZINITIALISE_RECORDS;

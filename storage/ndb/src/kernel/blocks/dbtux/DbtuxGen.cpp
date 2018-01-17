@@ -130,7 +130,6 @@ Dbtux::execCONTINUEB(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 

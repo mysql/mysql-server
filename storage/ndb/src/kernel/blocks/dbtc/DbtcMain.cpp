@@ -888,7 +888,6 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   // Request handled successfully 
@@ -17291,7 +17290,6 @@ void Dbtc::execALTER_INDX_IMPL_REQ(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
   AlterIndxImplConf * const conf =  
     (AlterIndxImplConf *)signal->getDataPtrSend();

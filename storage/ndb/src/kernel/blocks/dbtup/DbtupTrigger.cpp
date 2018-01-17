@@ -912,7 +912,6 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     break;
   default:
     ndbabort();
-    break;
   }
 
   if (deferred_list->isEmpty() &&
@@ -1070,7 +1069,6 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     break;
   default:
     ndbabort();
-    break;
   }
 
 end:
@@ -1171,7 +1169,6 @@ Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
         break;
       default:
         ndbabort();
-        break;
       }
     }//if
     triggerList.next(trigPtr);
@@ -1728,7 +1725,6 @@ out:
     break;
   default:
     ndbabort();
-    break;
   }
 
   fireTrigOrd->setNoOfPrimaryKeyWords(noPrimKey);
@@ -1847,7 +1843,6 @@ out:
     break;
   default:
     ndbabort();
-    break;
   }
 }
 

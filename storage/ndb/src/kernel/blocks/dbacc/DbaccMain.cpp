@@ -119,7 +119,6 @@ void Dbacc::execCONTINUEB(Signal* signal)
     }
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dbacc::execCONTINUEB()
@@ -249,7 +248,6 @@ void Dbacc::initialiseRecordsLab(Signal* signal,
     break;
   default:
     ndbabort();
-    break;
   }//switch
 
   signal->theData[0] = ZINITIALISE_RECORDS;
@@ -1081,7 +1079,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       break;
     default:
       ndbabort();
-      break;
     }//switch
   } else if (found == ZFALSE) {
     switch (op){
@@ -1105,10 +1102,8 @@ void Dbacc::execACCKEYREQ(Signal* signal)
       jam();
       acckeyref1Lab(signal, ZREAD_ERROR);
       return;
-      break;
     default:
       ndbabort();
-      break;
     }//switch
   } else {
     jam();
@@ -6943,7 +6938,6 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     return;
   default:
     ndbabort();
-    break;
   }//switch
   scanPtr.p->scan_lastSeen = __LINE__;
   signal->theData[0] = scanPtr.i;

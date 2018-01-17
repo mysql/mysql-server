@@ -3081,7 +3081,6 @@ Lgman::execCALLBACK_ACK(Signal* signal)
   // no PROCESS_LOG_SYNC_WAITERS yet (or ever)
   default:
     ndbabort();
-    break;
   }
 
   signal->theData[0] = callbackInfo;

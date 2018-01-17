@@ -591,7 +591,6 @@ LocalProxy::execREAD_NODESCONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   ss.m_gsn = 0;

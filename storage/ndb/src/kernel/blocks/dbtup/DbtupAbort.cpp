@@ -450,7 +450,6 @@ int Dbtup::TUPKEY_abort(KeyReqStruct * req_struct, int error_type)
     break;
   default:
     ndbabort();
-    break;
   }//switch
   tupkeyErrorLab(req_struct);
   return -1;

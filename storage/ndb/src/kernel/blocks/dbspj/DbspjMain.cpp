@@ -453,7 +453,6 @@ Dbspj::execALTER_TAB_REQ(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();

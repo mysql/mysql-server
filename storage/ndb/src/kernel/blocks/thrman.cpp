@@ -1711,7 +1711,6 @@ Thrman::change_warning_level(Int32 diff_status, Uint32 factor)
       break;
     default:
       ndbabort();
-      break;
   }
 }
 

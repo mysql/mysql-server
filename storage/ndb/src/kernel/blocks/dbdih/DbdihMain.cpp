@@ -716,7 +716,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
   }
 
   ndbabort();
-  return;
 }//Dbdih::execCONTINUEB()
 
 void Dbdih::execCOPY_GCIREQ(Signal* signal) 
@@ -1006,7 +1005,6 @@ void Dbdih::execFSCLOSECONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dbdih::execFSCLOSECONF()
@@ -1094,7 +1092,6 @@ void Dbdih::execFSOPENCONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dbdih::execFSOPENCONF()
@@ -1168,7 +1165,6 @@ void Dbdih::execFSREADCONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dbdih::execFSREADCONF()
@@ -1231,7 +1227,6 @@ void Dbdih::execFSWRITECONF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dbdih::execFSWRITECONF()
@@ -2335,7 +2330,6 @@ void Dbdih::execSTART_PERMREF(Signal* signal)
   // already existing features of node crashes. It is not a bug getting here.
   /*-------------------------------------------------------------------------*/
   ndbabort();
-  return;
 }//Dbdih::execSTART_PERMREF()
 
 /*---------------------------------------------------------------------------*/
@@ -4245,7 +4239,6 @@ void Dbdih::execSTART_COPYREQ(Signal* signal)
   }
   default:
     ndbabort();
-    break;
   }//switch
 }//Dbdih::execSTART_COPYREQ()
 
@@ -9941,7 +9934,6 @@ void Dbdih::failedNodeLcpHandling(Signal* signal,
                            (Uint32) failedNodePtr.p->activeStatus,
                            failedNodePtr.i);
       ndbabort();
-      break;
     }//switch
     jam();
     /**
@@ -11250,7 +11242,6 @@ void Dbdih::removeNodeFromTable(Signal* signal,
      */
     ndbrequire(lcpOngoingFlag);
     ndbabort();
-    break;
   }    
   ndbrequire(ok);
 
@@ -12107,7 +12098,6 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
     }
   default:
     ndbabort();
-    break;
   }//switch
   signal->theData[0] = NDB_LE_LCP_TakeoverCompleted;
   signal->theData[1] = c_lcpMasterTakeOverState.state;
@@ -12226,8 +12216,6 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     break;
   default:
     ndbabort();
-    return;
-    break;
   }//switch
   if (failedNodePtr.p->dbtcFailCompleted == ZFALSE) {
     jam();
@@ -12737,7 +12725,6 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           default:
           {
             ndbabort();
-            break;
           }
         }
       }
@@ -13109,7 +13096,6 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           default:
           {
             ndbabort();
-            break;
           }
         }
         Uint32 node;
@@ -14408,7 +14394,6 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   }
   default:
     ndbabort();
-    break;
   }
 
   if (AlterTableReq::getAddFragFlag(req->changeMask))
@@ -16119,7 +16104,6 @@ Dbdih::make_table_use_new_replica(TabRecordPtr tabPtr,
     break;
   default:
     ndbabort();
-    break;
   }//switch
   DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 }
@@ -17464,7 +17448,6 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
   case 3:
     ndbabort();
     return;
-    break;
   case 4:
     jam();
     signal->theData[0] = tuserpointer;
@@ -17527,7 +17510,6 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
 #endif
   default:
     ndbabort();
-    break;
   }//switch
   return;
 }//Dbdih::execDIHNDBTAMPER()
@@ -17559,7 +17541,6 @@ void Dbdih::copyGciLab(Signal* signal, CopyGCIReq::CopyReason reason)
      *   so this is an internal error
      */
     ndbabort();
-    return;
   }
   c_copyGCIMaster.m_copyReason = reason;
 
@@ -19228,7 +19209,6 @@ void Dbdih::readPagesIntoFragLab(Signal* signal, RWFragment* rf)
     default:
       ndbabort();
       return;
-      break;
     }//switch
   } else {
     jam();
@@ -19372,7 +19352,6 @@ void Dbdih::packFragIntoPagesLab(Signal* signal, RWFragment* wf)
     default:
       ndbabort();
       return;
-      break;
     }//switch
   } else {
     jam();
@@ -19981,7 +19960,6 @@ void Dbdih::copyTableNode(Signal* signal,
         break;
       default:
         ndbabort();
-        break;
       }//switch
     } else {
       jam();
@@ -22384,7 +22362,6 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
   default:
     ndbabort();
     return;
-    break;
   }//switch
 }//Dbdih::tableCloseLab()
 
@@ -22895,7 +22872,6 @@ dolocal:
   EXECUTE_DIRECT(NDBCNTR, GSN_SYSTEM_ERROR, 
                  signal, SystemError::SignalLength);
   ndbabort();
-  return;
 }//Dbdih::crashSystemAtGcpStop()
 
 /*************************************************************************/
@@ -24122,7 +24098,6 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     }
   default:
     ndbabort();
-    break;
   }//switch
   jam();
   /* ---------------------------------------------------------------------- */
@@ -25626,7 +25601,6 @@ void Dbdih::setNodeActiveStatus()
       break;
     default:
       ndbabort();
-      break;
     }//switch
   }//for
 }//Dbdih::setNodeActiveStatus()
@@ -25674,7 +25648,6 @@ void Dbdih::setNodeGroups()
     default:
       ndbabort();
       return;
-      break;
     }//switch
   }//for
   sngNodeptr.i = getOwnNodeId();
@@ -25772,7 +25745,6 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
     default:
       ndbabort();
       tsnrNodeActiveStatus = Sysfile::NS_NotDefined; // remove warning
-      break;
     }//switch
     Sysfile::setNodeStatus(nodePtr.i, SYSFILE->nodeStatus, 
                            tsnrNodeActiveStatus);

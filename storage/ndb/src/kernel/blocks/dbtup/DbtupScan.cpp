@@ -507,7 +507,6 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         break;
       default:
         ndbabort();
-        break;
       }
     } else {
       scan.m_state = ScanOp::Locked;
@@ -1961,7 +1960,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       break; // incr loop count
     default:
       ndbabort();
-      break;
     }
     if (++loop_count >= 32)
       break;

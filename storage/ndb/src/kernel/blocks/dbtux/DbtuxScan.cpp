@@ -434,7 +434,6 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
   default:
     jam();
     ndbabort();
-    break;
   }
   // start looking for next scan result
   AccCheckScan* checkReq = (AccCheckScan*)signal->getDataPtrSend();
@@ -596,7 +595,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         break;
       default:
         ndbabort();
-        break;
       }
     } else {
       scan.m_state = ScanOp::Locked;

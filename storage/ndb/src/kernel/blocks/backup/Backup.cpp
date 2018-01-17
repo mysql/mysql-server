@@ -4136,7 +4136,6 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   case GSN_UTIL_SEQUENCE_REQ:
   case GSN_UTIL_LOCK_REQ:
     ndbabort();
-    return;
   case GSN_DROP_TRIG_IMPL_REQ:
   case GSN_STOP_BACKUP_REQ:
     return;
@@ -12907,7 +12906,6 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
       return;
     }
     ndbabort();
-    return;
   }
 
   /**
@@ -13228,7 +13226,6 @@ Backup::sync_log_lcp_lsn(Signal *signal,
     {
       g_eventLogger->info("(%u)Failed to Sync LCP lsn", instance());
       ndbabort();
-     return; //Will never reach here
     }
     default:
     {
@@ -13665,7 +13662,6 @@ Backup::openFilesReplyLCP(Signal* signal,
                                 i,
                                 ptr.p->errorCode);
         ndbabort();
-        return;
       }
     }
     if (ptr.p->deleteFilePtr == filePtr.i)
@@ -13675,7 +13671,6 @@ Backup::openFilesReplyLCP(Signal* signal,
                               " errCode: %u",
                               ptr.p->errorCode);
       ndbabort();
-      return;
     }
     defineBackupRef(signal, ptr);
     return;

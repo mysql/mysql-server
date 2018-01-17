@@ -735,7 +735,6 @@ Suma::fix_nodegroup()
     case 4:
       tot = 256; // 4^4
       break;
-      ndbabort();
     }
     Uint32 cnt = 0;
     for (i = 0; i<tot; i++)
@@ -3590,7 +3589,6 @@ Suma::execSUB_START_REQ(Signal* signal){
   case Subscription::T_ERROR:
     jam();
     ndbabort(); // Checked above
-    break;
   }
 }
 
@@ -4005,7 +4003,6 @@ Suma::drop_triggers_complete(Signal* signal, Ptr<Subscription> subPtr)
   case Subscription::T_DEFINED:
     jam();
     ndbabort();
-    break;
   case Subscription::T_DROPPING:
     jam();
     /**

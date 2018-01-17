@@ -5543,7 +5543,6 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -5644,7 +5643,6 @@ Qmgr::handleArbitCheck(Signal* signal)
       break;
     default:
       ndbabort();
-      break;
     }
   }
   switch (arbitRec.code) {
@@ -5796,7 +5794,6 @@ Qmgr::runArbitThread(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
   signal->theData[0] = ZARBIT_HANDLING;
   signal->theData[1] = arbitRec.thread;
@@ -6166,7 +6163,6 @@ Qmgr::stateArbitStart(Signal* signal)
 
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -6341,7 +6337,6 @@ Qmgr::stateArbitChoose(Signal* signal)
 
   default:
     ndbabort();
-    break;
   }
 }
 

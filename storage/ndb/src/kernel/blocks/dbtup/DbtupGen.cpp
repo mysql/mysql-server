@@ -346,7 +346,6 @@ void Dbtup::execCONTINUEB(Signal* signal)
 
   default:
     ndbabort();
-    break;
   }//switch
 }//Dbtup::execTUP_CONTINUEB()
 
@@ -647,7 +646,6 @@ void Dbtup::initialiseRecordsLab(Signal* signal, Uint32 switchData,
     return;
   default:
     ndbabort();
-    break;
   }//switch
   signal->theData[0] = ZINITIALISE_RECORDS;
   signal->theData[1] = switchData + 1;

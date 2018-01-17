@@ -354,7 +354,6 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   }
   default:
     ndbabort();
-    break;
   }
 
   if (undo.m_actions & Proxy_undo::ReadTupPage) {

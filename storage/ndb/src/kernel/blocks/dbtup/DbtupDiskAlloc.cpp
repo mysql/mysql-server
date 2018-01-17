@@ -1620,7 +1620,6 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
     break;
   case -1:
     ndbabort();
-    break;
   default:
     jam();
     Ptr<GlobalPage> gpage;
@@ -2117,7 +2116,6 @@ Dbtup::disk_restart_undo(Signal* signal,
     break; // Wait for callback
   case -1:
     ndbabort();
-    break;
   default:
     DEB_UNDO(("LDM(%u) DIRECT_EXECUTE Page:%u lsn:%llu",
                         instance(),

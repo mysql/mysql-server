@@ -752,7 +752,6 @@ next_tuple:
         break;
       default:
         ndbabort();
-        break;
       }
       buildIndexReply(signal, buildPtr.p);
       c_buildIndexList.release(buildPtr);

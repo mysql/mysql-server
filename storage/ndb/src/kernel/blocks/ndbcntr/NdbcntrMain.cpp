@@ -2098,7 +2098,6 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
     default:
     {
       ndbabort();
-      break;
     }
   }
   ph2GLab(signal);
@@ -3698,7 +3697,6 @@ void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
                        "Failed to commit schema trans, err: %u",
                        ref->errorCode);
   progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
-  ndbabort();
 }
 
 void

@@ -743,7 +743,6 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   UtilReleaseConf* conf = (UtilReleaseConf*)signal->getDataPtrSend();
@@ -983,7 +982,6 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
     break;
   case STAT_UTIL:
     ndbabort();
-    break;
   case STAT_CLEAN:
     {
       StatOp& stat = statOpGetPtr(subRecPtr.p->m_statPtrI);
@@ -1957,7 +1955,6 @@ Trix::execINDEX_STAT_IMPL_REQ(Signal* signal)
     break;
   default:
     ndbabort();
-    break;
   }
 
   SubscriptionRecord* subRec = c_theSubscriptions.getPtr(stat.m_subRecPtrI);
@@ -2384,7 +2381,6 @@ Trix::statUtilPrepareRef(Signal* signal, Uint32 statPtrI)
   case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
   default:
     ndbabort();
-    break;
   }
   statOpError(signal, stat, errorCode, __LINE__);
 }
@@ -2473,7 +2469,6 @@ Trix::statUtilExecuteRef(Signal* signal, Uint32 statPtrI)
     break;
   default:
     ndbabort();
-    break;
   }
 
   if (errorCode != 0)
@@ -2539,7 +2534,6 @@ Trix::statReadHeadDone(Signal* signal, StatOp& stat)
 
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -2555,7 +2549,6 @@ Trix::statInsertHeadDone(Signal* signal, StatOp& stat)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -2571,7 +2564,6 @@ Trix::statUpdateHeadDone(Signal* signal, StatOp& stat)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -2587,7 +2579,6 @@ Trix::statDeleteHeadDone(Signal* signal, StatOp& stat)
     break;
   default:
     ndbabort();
-    break;
   }
 }
 
@@ -2704,8 +2695,6 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
   default:
     boundCount = 0; /* Silence compiler warning */
     ndbabort();
-    return; /* Silence compiler warning */
-    break;
   }
   clean.m_boundSize = 3 * boundCount;
 
@@ -3097,7 +3086,6 @@ Trix::statSendPrepare(Signal* signal, StatOp& stat)
       break;
     default:
       ndbabort();
-      break;
     }
   }
 
@@ -3148,7 +3136,6 @@ Trix::statSendExecute(Signal* signal, StatOp& stat)
       break;
     default:
       ndbabort();
-      break;
     }
   }
 
@@ -3229,7 +3216,6 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
       break;
     default:
       ndbabort();
-      break;
     }
     return;
   }
@@ -3267,7 +3253,6 @@ Trix::statDataPtr(StatOp& stat, Uint32 i, Uint32*& dptr, Uint32& bytes)
       break;
     default:
       ndbabort();
-      break;
     }
     return;
   }

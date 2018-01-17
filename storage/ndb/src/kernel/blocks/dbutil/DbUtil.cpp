@@ -2840,7 +2840,6 @@ DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
     break;
   default:
     ndbabort();
-    break;
   }
   releaseTransaction(transPtr);
 }
