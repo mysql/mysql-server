@@ -845,6 +845,16 @@ dd_table_discard_tablespace(
 			index = index->next();
 		}
 
+		/* Set new table id for dd columns when it's importing
+		tablespace. */
+		if (!discard) {
+			for (auto dd_column : *table_def->columns()) {
+				dd_column->se_private_data().set_uint64(
+					dd_index_key_strings[DD_TABLE_ID],
+					table->id);
+			}
+		}
+
 		/* Set discard flag. */
 		dd::Properties& p = table_def->se_private_data();
 		p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
@@ -4374,7 +4384,10 @@ dd_process_dd_columns_rec(
 	const byte*	field;
 	dict_col_t*	t_col;
 	ulint		pos;
+	ulint		v_pos = 0;
 	bool		is_hidden;
+	bool		is_virtual;
+	dict_v_col_t*	vcol = nullptr;
 
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
@@ -4396,6 +4409,10 @@ dd_process_dd_columns_rec(
 	/* Get the position. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
 	pos = mach_read_from_4(field) - 1;
+
+	/* Get the is_virtual attribute. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 21, &len);
+	is_virtual = mach_read_from_1(field) & 0x01;
 
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 27, &len);
@@ -4428,16 +4445,47 @@ dd_process_dd_columns_rec(
 		table = dd_table_open_on_id(*table_id, thd, &mdl, true, true);
 
 		if (!table) {
+			delete p;
 			return(false);
 		}
 
-		t_col = table->get_col(pos);
+		if (is_virtual) {
+			vcol = dict_table_get_nth_v_col_mysql(table, pos);
 
-		/* Copy info. */
-		col->ind = t_col->ind;
-		col->mtype = t_col->mtype;
-		col->prtype = t_col->prtype;
-		col->len = t_col->len;
+			if (vcol == nullptr) {
+				dd_table_close(table, thd, &mdl, true);
+				delete p;
+				return(false);
+			}
+
+			/* Copy info. */
+			col->ind = vcol->m_col.ind;
+			col->mtype = vcol->m_col.mtype;
+			col->prtype = vcol->m_col.prtype;
+			col->len = vcol->m_col.len;
+
+			v_pos = dict_create_v_col_pos(vcol->v_pos,
+						      vcol->m_col.ind);
+		} else {
+			if (table->n_v_cols == 0) {
+				t_col = table->get_col(pos);
+			} else {
+				ulint	col_nr;
+
+				col_nr = dict_table_has_column(table,
+							       *col_name,
+							       pos);
+				t_col = table->get_col(col_nr);
+				ut_ad(t_col);
+			}
+
+			/* Copy info. */
+			col->ind = t_col->ind;
+			col->mtype = t_col->mtype;
+			col->prtype = t_col->prtype;
+			col->len = t_col->len;
+
+		}
 
 		dd_table_close(table, thd, &mdl, true);
 		delete p;
@@ -4449,7 +4497,13 @@ dd_process_dd_columns_rec(
 
 	/* Report the virtual column number */
 	if (col->prtype & DATA_VIRTUAL) {
-		*nth_v_col = dict_get_v_col_pos(col->ind);
+		ut_ad(vcol != nullptr);
+		ut_ad(v_pos != 0);
+		ut_ad(is_virtual);
+
+		*nth_v_col = dict_get_v_col_pos(v_pos);
+	} else {
+		*nth_v_col = ULINT_UNDEFINED;
 	}
 
 	return(true);

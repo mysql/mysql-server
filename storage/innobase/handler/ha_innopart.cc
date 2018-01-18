@@ -2954,20 +2954,25 @@ ha_innopart::set_dd_discard_attribute(
 		/* Get Tablespace object */
 		dd::Tablespace*		dd_space = nullptr;
 		THD*			thd = ha_thd();
-		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+		dd::cache::Dictionary_client*	client =
+			dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser
+			releaser(client);
 
-		dd::Object_id   dd_space_id = (*dd_part->indexes()->begin())->tablespace_id();
+		dd::Object_id   dd_space_id =
+			(*dd_part->indexes()->begin())->tablespace_id();
 		std::string	space_name;
 
 		dd_filename_to_spacename(table->name.m_name, &space_name);
 
-		if (dd::acquire_exclusive_tablespace_mdl(thd, space_name.c_str(),
+		if (dd::acquire_exclusive_tablespace_mdl(thd,
+							 space_name.c_str(),
 							 false)) {
 			ut_a(false);
 		}
 
-		if (client->acquire_for_modification(dd_space_id, &dd_space)) {
+		if (client->acquire_for_modification(dd_space_id,
+						     &dd_space)) {
 			ut_a(false);
 		}
 
@@ -2993,6 +2998,19 @@ ha_innopart::set_dd_discard_attribute(
 	/* Set discard flag. */
 	dd::Properties& p = table_def->table().se_private_data();
 	p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
+
+	/* Set new table id of latest partition for dd columns when
+	it's importing tablespace. */
+	if (!discard) {
+		table = m_part_share->get_table_part(m_tot_parts - 1);
+		dd::Partition* dd_part = table_def->leaf_partitions()->back();
+
+		for (auto dd_column : *dd_part->table().columns()) {
+			dd_column->se_private_data().set_uint64(
+				dd_index_key_strings[DD_TABLE_ID],
+				table->id);
+		}
+	}
 
 	DBUG_RETURN(error);
 }
