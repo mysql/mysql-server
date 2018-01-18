@@ -827,7 +827,8 @@ int tcp_server(task_arg arg) {
   do {
     TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
     /* Callback to check that the file descriptor is accepted. */
-    if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd)) {
+    if (xcom_socket_accept_callback &&
+        !xcom_socket_accept_callback(ep->cfd, get_site_def())) {
       shut_close_socket(&ep->cfd);
       ep->cfd = -1;
     }
