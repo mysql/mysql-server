@@ -31,7 +31,8 @@ extern EventLogger *g_eventLogger;
 
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
-//#define DEBUG_ROW_COUNT 1
+//#define DEBUG_ROW_COUNT_DEL 1
+//#define DEBUG_ROW_COUNT_INS 1
 //#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
 //#define DEBUG_DELETE_EXTRA 1
 //#define DEBUG_INSERT_EXTRA 1
@@ -467,7 +468,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   {
     ndbrequire(regFragPtr->m_row_count > 0);
     regFragPtr->m_row_count--;
-#ifdef DEBUG_ROW_COUNT
+#ifdef DEBUG_ROW_COUNT_DEL
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Deleted row(%u,%u)"
@@ -1028,7 +1029,7 @@ Dbtup::commit_operation(Signal* signal,
   if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
     regFragPtr->m_row_count++;
-#ifdef DEBUG_ROW_COUNT
+#ifdef DEBUG_ROW_COUNT_INS
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Inserted row(%u,%u)"
