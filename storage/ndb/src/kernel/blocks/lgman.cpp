@@ -1145,7 +1145,7 @@ Lgman::execDBINFO_SCANREQ(Signal *signal)
 
       Ndbinfo::Row row(signal, req);
       row.write_uint32(getOwnNodeId());
-      row.write_uint32(1); // log type, 1 = DD-UNDO
+      row.write_uint32(Ndbinfo::DD_UNDO); // log type = DD-UNDO
       row.write_uint32(ptr.p->m_logfile_group_id); // log id
       row.write_uint32(0); // log part
 

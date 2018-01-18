@@ -1988,6 +1988,69 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
+  case Ndbinfo::LOGBUFFERS_TABLEID:
+  {
+    jam();
+    BackupRecordPtr ptr;
+    ndbrequire(c_backups.first(ptr));
+
+    jam();
+
+    if (isNdbMtLqh() && instance() != UserBackupInstanceKey)
+    {
+      // only LDM1 participates in backup, so other threads
+      // always have buffer usage = 0
+      break;
+    }
+    Uint32 files[2] = { ptr.p->dataFilePtr[0], ptr.p->logFilePtr };
+    for (Uint32 i=0; i<NDB_ARRAY_SIZE(files); i++)
+    {
+      jam();
+      Uint32 usableBytes, freeLwmBytes, freeSizeBytes;
+      usableBytes = freeLwmBytes = freeSizeBytes = 0;
+      Uint32 logtype = Ndbinfo::BACKUP_DATA;
+
+      switch(i){
+      case 0:
+        logtype = Ndbinfo::BACKUP_DATA;
+        usableBytes = c_defaults.m_dataBufferSize;
+        break;
+      case 1:
+        logtype = Ndbinfo::BACKUP_LOG;
+        usableBytes = c_defaults.m_logBufferSize;
+        break;
+      default:
+        ndbrequire(false);
+        break;
+      };
+
+      BackupFilePtr filePtr;
+      ptr.p->files.getPtr(filePtr, files[i]);
+      if (ptr.p->logFilePtr != RNIL)
+      {
+        freeSizeBytes = filePtr.p->operation.dataBuffer.getFreeSize() << 2;
+        freeLwmBytes = filePtr.p->operation.dataBuffer.getFreeLwm() << 2;
+      }
+      else
+      {
+        freeSizeBytes = usableBytes;
+        freeLwmBytes = usableBytes;
+      }
+
+      Ndbinfo::Row data_row(signal, req);
+      data_row.write_uint32(getOwnNodeId());
+      data_row.write_uint32(logtype);
+      data_row.write_uint32(0);   // log id, always 0
+      data_row.write_uint32(instance());     // log part, instance for ndbmtd
+
+      data_row.write_uint64(usableBytes);        // total allocated
+      data_row.write_uint64(usableBytes - freeSizeBytes); // currently in use
+      data_row.write_uint64(usableBytes - freeLwmBytes);  // high water mark
+      // only 2 rows to send in total, so ignore ratelimit
+      ndbinfo_send_row(signal, req, data_row, rl);
+    }
+    break;
+  }
   default:
     break;
   }
