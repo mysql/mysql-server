@@ -1785,3 +1785,21 @@ t1	0	PRIMARY	5	c3	A	NULL	NULL	NULL	YES	BTREE			YES
 t1	1	c2d	1	c2	A	0	NULL	NULL	YES	BTREE			YES
 t1	1	c2d	2	c1	A	NULL	NULL	NULL		BTREE			YES
 DROP TABLE t1;
+#
+# Bug#27387773 COLUMN OPTION FOR DESCRIBE IS IGNORED
+#
+CREATE TEMPORARY TABLE t1 (f1 INT, f2 INT);
+# These DESCRIBEs would show just single column after the fix.
+DESCRIBE t1 f1;
+Field	Type	Null	Key	Default	Extra
+f1	int(11)	YES		NULL	NULL
+DESCRIBE t1 f2;
+Field	Type	Null	Key	Default	Extra
+f2	int(11)	YES		NULL	NULL
+SHOW COLUMNS FROM t1 LIKE 'f1';
+Field	Type	Null	Key	Default	Extra
+f1	int(11)	YES		NULL	NULL
+SHOW COLUMNS FROM t1 LIKE 'f2';
+Field	Type	Null	Key	Default	Extra
+f2	int(11)	YES		NULL	NULL
+DROP TABLE t1;
