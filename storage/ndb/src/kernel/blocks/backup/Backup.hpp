@@ -643,6 +643,9 @@ public:
     Uint32 m_current_data_file_ptr;
     Uint32 m_working_data_file_ptr;
     Uint64 m_current_lcp_lsn;
+
+    Uint32 m_save_error_code;
+
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
 

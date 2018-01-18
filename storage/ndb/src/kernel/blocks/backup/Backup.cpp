@@ -7244,12 +7244,6 @@ Backup::fragmentCompleted(Signal* signal,
   OperationRecord & op = filePtr.p->operation;
   if (ptr.p->is_lcp())
   {
-    /**
-     * Check if we completed last part or if there are still
-     * parts to be done. If more parts are needed to be done
-     * then wait for file to be closed before starting up
-     * the next file part.
-     */
     jam();
     ptr.p->m_is_lcp_scan_active = false;
     for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
@@ -7281,47 +7275,8 @@ Backup::fragmentCompleted(Signal* signal,
                ptr.p->m_first_data_file_number));
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
-    /**
-     * Ensure that we didn't find more rows in LCP than what was
-     * in fragment at start of LCP.
-     *
-     * If we run a full LCP we should always find as many rows as was
-     * present in the row count at the start of the LCP.
-     * If we run a partial LCP we should never find more rows in this
-     * LCP file than was present at the start of the LCP, this is the
-     * sum of rows from ALL pages and changed rows in CHANGE pages.
-     *
-     * This check is important such that we find inconsistencies as
-     * soon as they occur, rather than at the time when we recover
-     * when it is very difficult to trace back the source of the
-     * problem.
-     *
-     * Error means that the table was dropped during LCP and in this
-     * case these numbers are not consistent, we're simply closing
-     * the LCP scan in an orderly manner with no rows read. So we
-     * should not crash in this case.
-     */
-    if (!(errCode != 0 ||
-          ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-          ((ptr.p->m_num_parts_in_this_lcp !=
-            BackupFormat::NDB_MAX_LCP_PARTS) &&
-           (ptr.p->m_row_count >=
-            (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes)))))
-    {
-      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
-                          ", writes: %llu, parts: %u",
-                          errCode,
-                          ptr.p->m_row_count,
-                          filePtr.p->m_lcp_inserts,
-                          filePtr.p->m_lcp_writes,
-                          ptr.p->m_num_parts_in_this_lcp);
-      ndbrequire(errCode != 0 ||
-                 ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
-         (ptr.p->m_row_count >=
-          (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
-    }
-
+    /* Save errCode for later checks */
+    ptr.p->m_save_error_code = errCode;
     ptr.p->slaveState.setState(STOPPING);
 
     /**
@@ -12670,6 +12625,57 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   {
     jam();
     return;
+  }
+
+  /**
+   * Ensure that we didn't find more rows in LCP than what was
+   * in fragment at start of LCP.
+   *
+   * If we run a full LCP we should always find as many rows as was
+   * present in the row count at the start of the LCP.
+   * If we run a partial LCP we should never find more rows in this
+   * LCP file than was present at the start of the LCP, this is the
+   * sum of rows from ALL pages and changed rows in CHANGE pages.
+   *
+   * This check is important such that we find inconsistencies as
+   * soon as they occur, rather than at the time when we recover
+   * when it is very difficult to trace back the source of the
+   * problem.
+   *
+   * Error means that the table was dropped during LCP and in this
+   * case these numbers are not consistent, we're simply closing
+   * the LCP scan in an orderly manner with no rows read. So we
+   * should not crash in this case.
+   *
+   * We wait until we come here to check the numbers, this means
+   * that the data file exists when we crash and can be used for
+   * analysis.
+   */
+  {
+    BackupFilePtr dataFilePtr;
+    c_backupFilePool.getPtr(dataFilePtr,
+                            ptr.p->dataFilePtr[0]);
+    if (!(ptr.p->m_save_error_code != 0 ||
+          ptr.p->m_row_count == dataFilePtr.p->m_lcp_inserts ||
+          ((ptr.p->m_num_parts_in_this_lcp !=
+             BackupFormat::NDB_MAX_LCP_PARTS) &&
+           (ptr.p->m_row_count >=
+            (dataFilePtr.p->m_lcp_inserts +
+             dataFilePtr.p->m_lcp_writes)))))
+    {
+      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
+                          ", writes: %llu, parts: %u",
+                          ptr.p->m_save_error_code,
+                          ptr.p->m_row_count,
+                          dataFilePtr.p->m_lcp_inserts,
+                          dataFilePtr.p->m_lcp_writes,
+                          ptr.p->m_num_parts_in_this_lcp);
+      ndbrequire(ptr.p->m_save_error_code != 0 ||
+                 ptr.p->m_row_count == dataFilePtr.p->m_lcp_inserts ||
+        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
+         (ptr.p->m_row_count >=
+          (dataFilePtr.p->m_lcp_inserts + dataFilePtr.p->m_lcp_writes))));
+    }
   }
 
   Uint32 valid_flag = lcp_pre_sync_lsn(ptr);
