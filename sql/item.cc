@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5877,6 +5877,12 @@ static bool is_null_on_empty_table(const LEX *lex)
   return
     lex->in_sum_func == nullptr &&                                       // 1
     current_select->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST &&  // 2
+    /*
+      It maybe be over-cautious to check for "with_sum_func" here, as it
+      denotes that the query block contains an aggregate function even
+      though this function may later be found to aggregate in an outer
+      query block.
+    */
     current_select->with_sum_func &&                                     // 3
     current_select->group_list.elements == 0;                            // 4
 }
