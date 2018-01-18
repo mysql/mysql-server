@@ -40,6 +40,7 @@
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
 //#define DEBUG_DELETE 1
+//#define DEBUG_DELETE_NR 1
 //#define DEBUG_LCP_LGMAN 1
 #endif
 #ifdef DEBUG_LCP
@@ -52,6 +53,12 @@
 #define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DELETE(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_DELETE_NR
+#define DEB_DELETE_NR(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE_NR(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP_LGMAN
@@ -4784,16 +4791,18 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
 
-  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) row(%u,%u), gci: %u",
-               instance(),
-               fragPtr.p->fragTableId,
-               fragPtr.p->fragmentId,
-               key->m_page_no,
-               key->m_page_idx,
-               *ptr->get_mm_gci(tablePtr.p)));
-
   /* A row is deleted as part of Copy fragment or Restore */
   fragPtr.p->m_row_count--;
+
+  DEB_DELETE_NR(("(%u)nr_delete, tab(%u,%u) row(%u,%u), gci: %u"
+                 ", row_count: %llu",
+                 instance(),
+                 fragPtr.p->fragTableId,
+                 fragPtr.p->fragmentId,
+                 key->m_page_no,
+                 key->m_page_idx,
+                 *ptr->get_mm_gci(tablePtr.p),
+                 fragPtr.p->m_row_count));
 
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)
