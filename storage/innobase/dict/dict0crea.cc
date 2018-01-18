@@ -715,6 +715,8 @@ dict_sdi_create_idx_in_mem(
 
 	ut_ad(fsp_flags_is_valid(flags));
 
+	mutex_exit(&dict_sys->mutex);
+
 	rec_format_t rec_format;
 
 	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
@@ -796,16 +798,23 @@ dict_sdi_create_idx_in_mem(
 
 	temp_index->id = dict_sdi_get_index_id();
 
-	mutex_exit(&dict_sys->mutex);
-
 	dberr_t	error = dict_index_add_to_cache(table, temp_index,
 						index_root_page_num, false);
+	ut_a(error == DB_SUCCESS);
 
 	mutex_enter(&dict_sys->mutex);
 
-	ut_a(error == DB_SUCCESS);
-
-	dict_table_add_to_cache(table, TRUE, heap);
+	/* After re-acquiring dict_sys mutex, check if there is already
+	a table created by other threads. Just keep one copy in memory */
+	dict_table_t*	exist = dict_table_check_if_in_cache_low(
+		table->name.m_name);
+	if (exist != nullptr) {
+		dict_index_remove_from_cache(table, table->first_index());
+		dict_mem_table_free(table);
+		table = exist;
+	} else {
+		dict_table_add_to_cache(table, TRUE, heap);
+	}
 
 	mem_heap_free(heap);
 	return(table->first_index());
