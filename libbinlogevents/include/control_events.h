@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1244,6 +1244,7 @@ public:
     </pre>
 
     @param buffer             Contains the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -1253,7 +1254,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Transaction_context_event(const char *buffer,
+  Transaction_context_event(const char *buffer, unsigned int event_len,
                             const Format_description_event *description_event);
 
   Transaction_context_event(unsigned int thread_id_arg,
@@ -1265,7 +1266,8 @@ public:
   virtual ~Transaction_context_event();
 
   static const char *read_data_set(const char *pos, uint32_t set_len,
-                                   std::list<const char*> *set);
+                                   std::list<const char*> *set,
+                                   uint32_t remaining_buffer);
 
   static void clear_set(std::list<const char*> *set);
 
@@ -1352,6 +1354,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
+    @param event_len          Length of the serialized event.
     @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
@@ -1361,7 +1364,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  View_change_event(const char *buf,
+  View_change_event(const char *buf, unsigned int event_len,
                     const Format_description_event *descr_event);
 
   explicit View_change_event(char* raw_view_id);
@@ -1369,7 +1372,8 @@ public:
   virtual ~View_change_event();
 
   static char *read_data_map(char *pos, uint32_t map_len,
-                             std::map<std::string, std::string> *map);
+                             std::map<std::string, std::string> *map,
+                             uint32_t consumable);
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream&) { }
