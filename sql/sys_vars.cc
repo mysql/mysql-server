@@ -5710,6 +5710,16 @@ static Sys_var_bool Sys_relay_log_recovery(
        "processed",
         READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(false));
 
+static Sys_var_ulong Sys_rpl_read_size(
+       "rpl_read_size",
+       "The size for reads done from the binlog and relay log. "
+       "It must be a multiple of 4kb. Making it larger might help with IO "
+       "stalls while reading these files when they are not in the OS buffer "
+       "cache",
+       GLOBAL_VAR(rpl_read_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE * 2, ULONG_MAX), DEFAULT(IO_SIZE * 2),
+       BLOCK_SIZE(IO_SIZE));
+
 static Sys_var_bool Sys_slave_allow_batching(
        "slave_allow_batching", "Allow slave to batch requests",
        GLOBAL_VAR(opt_slave_allow_batching),

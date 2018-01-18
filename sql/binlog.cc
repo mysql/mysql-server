@@ -157,6 +157,9 @@ bool opt_binlog_order_commits= true;
 const char *log_bin_index= 0;
 const char *log_bin_basename= 0;
 
+/* Size for IO_CACHE buffer for binlog & relay log */
+ulong rpl_read_size;
+
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period, WRITE_CACHE);
 
 static int binlog_init(void *p);
@@ -3082,7 +3085,7 @@ File open_binlog_file(IO_CACHE *log, const char *log_file_name, const char **err
     *errmsg = "Could not open log file";
     goto err;
   }
-  if (init_io_cache_ext(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
+  if (init_io_cache_ext(log, file, rpl_read_size, READ_CACHE, 0, 0,
                         MYF(MY_WME|MY_DONT_CHECK_FILESIZE), key_file_binlog_cache))
   {
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_CREATE_CACHE_FOR_LOG, log_file_name);

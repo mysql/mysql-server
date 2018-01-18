@@ -1057,6 +1057,10 @@ The following options may be given as the first argument:
  When this option is enabled, connections attempted using
  insecure transport will be rejected.  Secure transports
  are SSL/TLS, Unix socket or Shared Memory (on Windows).
+ --rpl-read-size=#   The size for reads done from the binlog and relay log. It
+ must be a multiple of 4kb. Making it larger might help
+ with IO stalls while reading these files when they are
+ not in the OS buffer cache
  --rpl-stop-slave-timeout=# 
  Timeout in seconds to wait for slave to stop before
  returning a warning.
@@ -1597,6 +1601,7 @@ report-password (No default value)
 report-port 0
 report-user (No default value)
 require-secure-transport FALSE
+rpl-read-size 8192
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
