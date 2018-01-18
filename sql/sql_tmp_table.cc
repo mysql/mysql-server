@@ -2844,9 +2844,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   bool table_on_disk= false;
   DBUG_ENTER("create_ondisk_from_heap");
 
-  if ((wtable->s->db_type() != temptable_hton &&
-       wtable->s->db_type() != heap_hton) ||
-      error != HA_ERR_RECORD_FILE_FULL)
+  if ((wtable->s->db_type() != heap_hton) ||
+      (error != HA_ERR_RECORD_FILE_FULL))
   {
     /*
       We don't want this error to be converted to a warning, e.g. in case of
