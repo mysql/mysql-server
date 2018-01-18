@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld]
+loose-group_replication_bootstrap_group= OFF
+loose-group_replication_start_on_boot=OFF
+
+[mysqld.1]
