@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
  Registers a callback that is called right after
  the accept routine returns.
  */
-typedef int (*xcom_socket_accept_cb)(int fd);
+typedef int (*xcom_socket_accept_cb)(int fd, site_def const *config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
 connection_descriptor *xcom_open_client_connection(char *server,
