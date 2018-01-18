@@ -29006,7 +29006,7 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
 
     Ndbinfo::Row row(signal, req);
     row.write_uint32(getOwnNodeId());
-    row.write_uint32(0);              // log type, 0 = REDO
+    row.write_uint32(Ndbinfo::REDO);  // log type = REDO
     row.write_uint32(0);              // log id, always 0 in LQH
     row.write_uint32(instance());     // log part, instance for ndbmtd
 

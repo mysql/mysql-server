@@ -1,0 +1,16 @@
+create table t1(id int primary key, val blob) engine=ndb;
+"Backup not started, ndbinfo should show zero backup buffer usage"
+select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%" and used > 0;
+count(*)
+0
+"Backup started, ndbinfo should show backup buffer usage"
+select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%";
+count(*)
+4
+"Backup data buffer and backup log buffer should not be empty"
+update t1 set val = REPEAT('x', 1000) where id < 25;
+"Backup log buffer usage should increase due to UPDATE ops during backup"
+"Backup complete, backup buffer usage should return to zero"
+select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%" and used > 0;
+count(*)
+0
