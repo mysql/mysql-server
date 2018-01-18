@@ -62,10 +62,21 @@ let $wait_condition= SELECT COUNT(*) = 1  FROM performance_schema.data_locks
 --source include/wait_condition.inc
 
 begin;
+
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   from performance_schema.data_locks
   where object_name="t1_is"
   order by lock_type, lock_mode, lock_status, lock_data;
+
+# Repeat
+select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
+  from performance_schema.data_locks
+  where object_name="t1_is"
+  order by lock_type, lock_mode, lock_status, lock_data;
+
+select count(*) into @health_check
+  from performance_schema.data_locks where object_name="t1_is";
+
 commit;
 
 #
@@ -74,10 +85,10 @@ commit;
 # Dumping debug data to help diagnosis.
 #
 
-if (`select count(*) != 4 from performance_schema.data_locks where
-       object_name="t1_is"`)
+if (`select @health_check != 4`)
 {
   --echo "TEST FAILED, DUMPING DATA TO DEBUG"
+  select @health_check;
   select * from performance_schema.data_locks;
   select * from performance_schema.data_lock_waits;
 }
