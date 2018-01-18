@@ -43,6 +43,7 @@ let $count= 0;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
+--let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
 source include/wait_for_slave_sql_to_stop.inc;
 
 #
@@ -109,6 +110,7 @@ let $count= 0;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
 source include/wait_for_slave_sql_to_stop.inc;
 delete from t1 where a=3;
 

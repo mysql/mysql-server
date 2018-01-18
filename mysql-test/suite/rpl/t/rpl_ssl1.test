@@ -20,17 +20,11 @@ change master to master_user='replssl',master_password='';
 start slave;
 
 #showing that replication don't work
-connection master;
-insert into t1 values (1);
-#reasonable timeout for changes to propagate to slave
-let $wait_condition= SELECT COUNT(*) = 1 FROM t1;
-source include/wait_condition.inc;
-connection slave;
-select * from t1;
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 
 #showing that replication could work with ssl params
-stop slave;
---source include/wait_for_slave_to_stop.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --replace_column 2 ####
 eval change master to master_ssl=1 , master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
@@ -39,6 +33,7 @@ start slave;
 
 #avoiding unneeded sleeps
 connection master;
+insert into t1 values (1);
 --source include/sync_slave_sql_with_master.inc
 
 #checking that replication is ok

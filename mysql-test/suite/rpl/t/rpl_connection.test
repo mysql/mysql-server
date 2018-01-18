@@ -17,7 +17,7 @@ CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '';
 START SLAVE;
 --let $slave_io_errno= 1045, 1593
 --source include/wait_for_slave_io_error.inc
---source include/stop_slave.inc
+--source include/stop_slave_sql.inc
 
 --replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD= '';
