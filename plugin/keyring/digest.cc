@@ -91,7 +91,7 @@ namespace keyring
     (void) SHA_HASH256(memory, memory_size, value);
 #else
     (void)::SHA256(memory, memory_size, value);
-    is_empty= false;
 #endif
+    is_empty = false;
   }
 }//namespace keyring
