@@ -5430,15 +5430,15 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
 
-  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(result != 1);
-
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if (!acl_cache_lock.lock())
   {
-    commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
+
+  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
+    DBUG_RETURN(result != 1);
+
   /* Be sure to pop this before exiting this scope! */
   thd->push_internal_handler(&error_handler);
 
