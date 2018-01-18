@@ -980,6 +980,11 @@ struct MY_ALIGNED(NDB_CL) thr_data
   unsigned m_spintime;
 
   /**
+   * nosend option on a thread means that it will never assist with sending.
+   */
+  unsigned m_nosend;
+
+  /**
    * Realtime scheduler activated for this thread. This means this
    * thread will run at a very high priority even beyond the priority
    * of the OS.
@@ -4780,7 +4785,8 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
   if (count == 0)
   {
     if (must_send && assist_send && g_send_threads &&
-        selfptr->m_overload_status <= (OverloadStatus)MEDIUM_LOAD_CONST)
+        selfptr->m_overload_status <= (OverloadStatus)MEDIUM_LOAD_CONST &&
+        (selfptr->m_nosend == 0))
     {
       /**
        * For some overload states we will here provide some
@@ -4851,7 +4857,8 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
   selfptr->m_watchdog_counter = 6;
   if (g_send_threads)
   {
-    if (selfptr->m_overload_status == (OverloadStatus)OVERLOAD_CONST)
+    if (selfptr->m_overload_status == (OverloadStatus)OVERLOAD_CONST ||
+        selfptr->m_nosend != 0)
     {
       /**
        * We are in an overloaded state, we move the nodes to send to
@@ -4862,6 +4869,9 @@ do_send(struct thr_data* selfptr, bool must_send, bool assist_send)
        * We don't record any send time here since it would be
        * an unnecessary extra load, we only grab a mutex and
        * ensure that someone else takes over our send work.
+       *
+       * When the user have set nosend=1 on this thread we will
+       * never assist with the sending.
        */
       for (Uint32 i = 0; i < count; i++)
       {
@@ -6058,6 +6068,8 @@ init_thread(thr_data *selfptr)
                                              selfptr->m_instance_count);
   selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
                                              selfptr->m_instance_count);
+  selfptr->m_nosend = conf.do_get_nosend(selfptr->m_instance_list,
+                                         selfptr->m_instance_count);
 
   selfptr->m_sched_responsiveness =
     globalEmulatorData.theConfiguration->schedulerResponsiveness();
