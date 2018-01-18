@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2273,6 +2273,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
+  my_getopt_use_args_separator= TRUE;
   if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups,
                        &argc, &argv, NULL))
   {
@@ -2282,6 +2283,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     goto err;
   }
   default_argv= argv;
+  my_getopt_use_args_separator= FALSE;
   /*
    Append static variables present in mysqld-auto.cnf file for the
    newly installed plugin to process those options which are specific
