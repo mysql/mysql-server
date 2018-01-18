@@ -54,6 +54,14 @@ static int opt_delay;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
+/* FIXME  Temporary  */
+extern "C" void
+  ndb_usage(void (*)(void), const char *[], struct my_option *);
+
+extern "C" void
+  ndb_load_defaults(const char*, const char**, int *, char***);
+
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbd"),
