@@ -4183,6 +4183,7 @@ Pgman::verify_page_entry(Ptr<Page_entry> ptr)
 void
 Pgman::verify_page_lists()
 {
+#ifdef VERIFY_PAGE_LISTS
   EmulatedJamBuffer *jamBuf = getThrJamBuf();
   const Stats& stats = m_stats;
   const Param& param = m_param;
@@ -4291,7 +4292,6 @@ Pgman::verify_page_lists()
             " %s:%u", get_sublist_name(k), pl.getCount());
   }
   ndbrequire(entry_count == pl_hash.getCount() || dump_page_lists());
-
   Uint32 hit_pct = 0;
   char hit_pct_str[20];
   if (stats.m_page_hits + stats.m_page_faults != 0)
@@ -4319,6 +4319,7 @@ Pgman::verify_page_lists()
     << " to queue:" << to_queue);
 
   D(sublist_info);
+#endif
 }
 
 void

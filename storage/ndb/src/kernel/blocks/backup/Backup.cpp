@@ -94,6 +94,7 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
 #define DEBUG_LCP_STAT 1
+#define DEBUG_EXTENDED_LCP_STAT 1
 #endif
 
 #ifdef DEBUG_LCP
@@ -6760,6 +6761,259 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
 #endif
 }
 
+void
+Backup::alloc_page_after_lcp_start(Uint32 page_no)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (is_change_part_state(page_no))
+    ptr.p->m_change_page_alloc_after_start++;
+  else
+    ptr.p->m_all_page_alloc_after_start++;
+}
+
+void
+Backup::alloc_dropped_page_after_lcp_start(bool is_change_page)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (is_change_page)
+  {
+    ptr.p->m_change_page_alloc_dropped_after_start++;
+  }
+  else
+  {
+    ptr.p->m_all_page_alloc_dropped_after_start++;
+  }
+}
+
+void
+Backup::dropped_page_after_lcp_start(bool is_change_page,
+                                     bool is_last_lcp_state_A)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (is_last_lcp_state_A)
+  {
+    if (is_change_page)
+      ptr.p->m_change_page_dropped_A_after_start++;
+    else
+      ptr.p->m_all_page_dropped_A_after_start++;
+  }
+  else
+  {
+    if (is_change_page)
+      ptr.p->m_change_page_dropped_D_after_start++;
+    else
+      ptr.p->m_all_page_dropped_D_after_start++;
+  }
+}
+
+void
+Backup::skip_page_lcp_scanned_bit()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_skip_change_page_lcp_scanned_bit++;
+  else
+    ptr.p->m_skip_all_page_lcp_scanned_bit++;
+}
+
+void
+Backup::skip_empty_page_lcp()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_skip_empty_change_page++;
+  else
+    ptr.p->m_skip_empty_all_page++;
+}
+
+void
+Backup::record_dropped_empty_page_lcp()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ndbrequire(ptr.p->m_working_changed_row_page_flag)
+  ptr.p->m_any_lcp_page_ops = true;
+  ptr.p->m_record_empty_change_page_A++;
+}
+
+void
+Backup::record_late_alloc_page_lcp()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ndbrequire(ptr.p->m_working_changed_row_page_flag)
+  ptr.p->m_any_lcp_page_ops = true;
+  ptr.p->m_record_late_alloc_change_page_A++;
+}
+
+void
+Backup::page_to_skip_lcp(bool is_last_lcp_state_A)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+  {
+    ndbrequire(!is_last_lcp_state_A);
+    ptr.p->m_skip_late_alloc_change_page_D++;
+  }
+  else
+  {
+    if (is_last_lcp_state_A)
+      ptr.p->m_skip_late_alloc_all_page_A++;
+    else
+      ptr.p->m_skip_late_alloc_all_page_D++;
+  }
+}
+
+void
+Backup::lcp_keep_delete_by_page_id()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_lcp_keep_delete_change_pages++;
+  else
+    ptr.p->m_lcp_keep_delete_all_pages++;
+}
+
+void
+Backup::lcp_keep_delete_row()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_lcp_keep_delete_row_change_pages++;
+  else
+    ptr.p->m_lcp_keep_delete_row_all_pages++;
+}
+
+void
+Backup::lcp_keep_row()
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  if (ptr.p->m_working_changed_row_page_flag)
+    ptr.p->m_lcp_keep_row_change_pages++;
+  else
+    ptr.p->m_lcp_keep_row_all_pages++;
+}
+
+void
+Backup::print_extended_lcp_stat()
+{
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  if (!ptr.p->m_any_lcp_page_ops)
+    return;
+  g_eventLogger->info("(%u)change_page_alloc_after_start: %u, "
+                      "all_page_alloc_after_start: %u, "
+                      "change_page_alloc_dropped_after_start: %u, "
+                      "all_page_alloc_dropped_after_start: %u",
+                      instance(),
+                      ptr.p->m_change_page_alloc_after_start,
+                      ptr.p->m_all_page_alloc_after_start,
+                      ptr.p->m_change_page_alloc_dropped_after_start,
+                      ptr.p->m_all_page_alloc_dropped_after_start);
+  g_eventLogger->info("(%u)change_page_dropped_A_after_start: %u, "
+                      "all_page_dropped_A_after_start: %u, "
+                      "change_page_dropped_D_after_start: %u, "
+                      "all_page_dropped_D_after_start: %u",
+                      instance(),
+                      ptr.p->m_change_page_dropped_A_after_start,
+                      ptr.p->m_all_page_dropped_A_after_start,
+                      ptr.p->m_change_page_dropped_D_after_start,
+                      ptr.p->m_all_page_dropped_D_after_start);
+  g_eventLogger->info("(%u)skip_change_page_lcp_scanned_bit: %u, "
+                      "skip_all_page_lcp_scanned_bit: %u, "
+                      "skip_empty_change_page: %u, "
+                      "skip_empty_all_page: %u",
+                      instance(),
+                      ptr.p->m_skip_change_page_lcp_scanned_bit,
+                      ptr.p->m_skip_all_page_lcp_scanned_bit,
+                      ptr.p->m_skip_empty_change_page,
+                      ptr.p->m_skip_empty_all_page);
+  g_eventLogger->info("(%u)record_empty_change_page_A: %u, "
+                      "record_late_alloc_change_page_A: %u, "
+                      "skip_late_alloc_change_page_D: %u, "
+                      "skip_late_alloc_all_page_A: %u, "
+                      "skip_late_alloc_all_page_D: %u",
+                      instance(),
+                      ptr.p->m_record_empty_change_page_A,
+                      ptr.p->m_record_late_alloc_change_page_A,
+                      ptr.p->m_skip_late_alloc_change_page_D,
+                      ptr.p->m_skip_late_alloc_all_page_A,
+                      ptr.p->m_skip_late_alloc_all_page_D);
+  g_eventLogger->info("(%u)lcp_keep_row_change_pages: %llu, "
+                      "lcp_keep_row_all_pages: %llu, "
+                      "lcp_keep_delete_row_change_pages: %llu, "
+                      "lcp_keep_delete_row_all_pages: %llu, "
+                      "lcp_keep_delete_change_pages: %u, "
+                      "lcp_keep_delete_all_pages: %u",
+                      instance(),
+                      ptr.p->m_lcp_keep_row_change_pages,
+                      ptr.p->m_lcp_keep_row_all_pages,
+                      ptr.p->m_lcp_keep_delete_row_change_pages,
+                      ptr.p->m_lcp_keep_delete_row_all_pages,
+                      ptr.p->m_lcp_keep_delete_change_pages,
+                      ptr.p->m_lcp_keep_delete_all_pages);
+}
+
+void
+Backup::init_extended_lcp_stat()
+{
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_change_page_alloc_after_start = 0;
+  ptr.p->m_all_page_alloc_after_start = 0;
+  ptr.p->m_change_page_alloc_dropped_after_start = 0;
+  ptr.p->m_all_page_alloc_dropped_after_start = 0;
+  ptr.p->m_change_page_dropped_A_after_start = 0;
+  ptr.p->m_all_page_dropped_A_after_start = 0;
+  ptr.p->m_change_page_dropped_D_after_start = 0;
+  ptr.p->m_all_page_dropped_D_after_start = 0;
+  ptr.p->m_skip_change_page_lcp_scanned_bit = 0;
+  ptr.p->m_skip_all_page_lcp_scanned_bit = 0;
+  ptr.p->m_skip_empty_change_page = 0;
+  ptr.p->m_skip_empty_all_page = 0;
+  ptr.p->m_record_empty_change_page_A = 0;
+  ptr.p->m_record_late_alloc_change_page_A = 0;
+  ptr.p->m_skip_late_alloc_change_page_D = 0;
+  ptr.p->m_skip_late_alloc_all_page_A = 0;
+  ptr.p->m_skip_late_alloc_all_page_D = 0;
+  ptr.p->m_lcp_keep_delete_row_change_pages = 0;
+  ptr.p->m_lcp_keep_delete_row_all_pages = 0;
+  ptr.p->m_lcp_keep_delete_change_pages = 0;
+  ptr.p->m_lcp_keep_delete_all_pages = 0;
+  ptr.p->m_lcp_keep_row_change_pages = 0;
+  ptr.p->m_lcp_keep_row_all_pages = 0;
+  ptr.p->m_any_lcp_page_ops = false;
+}
+
 /**
  * Return values:
  * +1 Page have been scanned
@@ -7303,12 +7557,6 @@ Backup::fragmentCompleted(Signal* signal,
   OperationRecord & op = filePtr.p->operation;
   if (ptr.p->is_lcp())
   {
-    /**
-     * Check if we completed last part or if there are still
-     * parts to be done. If more parts are needed to be done
-     * then wait for file to be closed before starting up
-     * the next file part.
-     */
     jam();
     ptr.p->m_is_lcp_scan_active = false;
     for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
@@ -7338,49 +7586,13 @@ Backup::fragmentCompleted(Signal* signal,
                ptr.p->noOfBytes,
                ptr.p->m_num_lcp_files,
                ptr.p->m_first_data_file_number));
+#ifdef DEBUG_LCP_EXTENDED_STAT
+      print_extended_lcp_stat();
+#endif
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
-    /**
-     * Ensure that we didn't find more rows in LCP than what was
-     * in fragment at start of LCP.
-     *
-     * If we run a full LCP we should always find as many rows as was
-     * present in the row count at the start of the LCP.
-     * If we run a partial LCP we should never find more rows in this
-     * LCP file than was present at the start of the LCP, this is the
-     * sum of rows from ALL pages and changed rows in CHANGE pages.
-     *
-     * This check is important such that we find inconsistencies as
-     * soon as they occur, rather than at the time when we recover
-     * when it is very difficult to trace back the source of the
-     * problem.
-     *
-     * Error means that the table was dropped during LCP and in this
-     * case these numbers are not consistent, we're simply closing
-     * the LCP scan in an orderly manner with no rows read. So we
-     * should not crash in this case.
-     */
-    if (!(errCode != 0 ||
-          ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-          ((ptr.p->m_num_parts_in_this_lcp !=
-            BackupFormat::NDB_MAX_LCP_PARTS) &&
-           (ptr.p->m_row_count >=
-            (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes)))))
-    {
-      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
-                          ", writes: %llu, parts: %u",
-                          errCode,
-                          ptr.p->m_row_count,
-                          filePtr.p->m_lcp_inserts,
-                          filePtr.p->m_lcp_writes,
-                          ptr.p->m_num_parts_in_this_lcp);
-      ndbrequire(errCode != 0 ||
-                 ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
-        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
-         (ptr.p->m_row_count >=
-          (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
-    }
-
+    /* Save errCode for later checks */
+    ptr.p->m_save_error_code = errCode;
     ptr.p->slaveState.setState(STOPPING);
 
     /**
@@ -12338,6 +12550,7 @@ Backup::start_execute_lcp(Signal *signal,
                           TablePtr & tabPtr,
                           Uint32 tableId)
 {
+  init_extended_lcp_stat();
   ptr.p->slaveState.setState(STARTED);
   ndbrequire(ptr.p->prepareState == PREPARED);
   ptr.p->prepareState = NOT_ACTIVE;
@@ -12729,6 +12942,58 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   {
     jam();
     return;
+  }
+
+  /**
+   * Ensure that we didn't find more rows in LCP than what was
+   * in fragment at start of LCP.
+   *
+   * If we run a full LCP we should always find as many rows as was
+   * present in the row count at the start of the LCP.
+   * If we run a partial LCP we should never find more rows in this
+   * LCP file than was present at the start of the LCP, this is the
+   * sum of rows from ALL pages and changed rows in CHANGE pages.
+   *
+   * This check is important such that we find inconsistencies as
+   * soon as they occur, rather than at the time when we recover
+   * when it is very difficult to trace back the source of the
+   * problem.
+   *
+   * Error means that the table was dropped during LCP and in this
+   * case these numbers are not consistent, we're simply closing
+   * the LCP scan in an orderly manner with no rows read. So we
+   * should not crash in this case.
+   *
+   * We wait until we come here to check the numbers, this means
+   * that the data file exists when we crash and can be used for
+   * analysis.
+   */
+  {
+    BackupFilePtr dataFilePtr;
+    c_backupFilePool.getPtr(dataFilePtr,
+                            ptr.p->dataFilePtr[0]);
+    if (!(ptr.p->m_save_error_code != 0 ||
+          ptr.p->m_row_count == dataFilePtr.p->m_lcp_inserts ||
+          ((ptr.p->m_num_parts_in_this_lcp !=
+             BackupFormat::NDB_MAX_LCP_PARTS) &&
+           (ptr.p->m_row_count >=
+            (dataFilePtr.p->m_lcp_inserts +
+             dataFilePtr.p->m_lcp_writes)))))
+    {
+      g_eventLogger->info("errCode = %u, row_count = %llu, inserts: %llu"
+                          ", writes: %llu, parts: %u",
+                          ptr.p->m_save_error_code,
+                          ptr.p->m_row_count,
+                          dataFilePtr.p->m_lcp_inserts,
+                          dataFilePtr.p->m_lcp_writes,
+                          ptr.p->m_num_parts_in_this_lcp);
+      print_extended_lcp_stat();
+      ndbrequire(ptr.p->m_save_error_code != 0 ||
+                 ptr.p->m_row_count == dataFilePtr.p->m_lcp_inserts ||
+        ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
+         (ptr.p->m_row_count >=
+          (dataFilePtr.p->m_lcp_inserts + dataFilePtr.p->m_lcp_writes))));
+    }
   }
 
   Uint32 valid_flag = lcp_pre_sync_lsn(ptr);

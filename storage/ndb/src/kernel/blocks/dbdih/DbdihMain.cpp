@@ -8752,6 +8752,10 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   signal->theData[6] = bytes_lo;
   signal->theData[7] = 0;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
+  g_eventLogger->debug("DIH:tab(%u,%u), COPY_FRAGCONF: %u rows inserted",
+                       takeOverPtr.p->toCurrentTabref,
+                       takeOverPtr.p->toCurrentFragid,
+                       rows_lo);
 }//Dbdih::execCOPY_FRAGCONF()
 
 void Dbdih::execCOPY_ACTIVECONF(Signal* signal) 

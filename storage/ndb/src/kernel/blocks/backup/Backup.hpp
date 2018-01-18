@@ -229,6 +229,21 @@ public:
     return m_recovery_work;
   }
 
+  void init_extended_lcp_stat();
+  void print_extended_lcp_stat();
+  void alloc_page_after_lcp_start(Uint32 page_no);
+  void alloc_dropped_page_after_lcp_start(bool is_change_page);
+  void dropped_page_after_lcp_start(bool is_change_page,
+                                    bool is_last_lcp_state_A);
+  void skip_page_lcp_scanned_bit();
+  void skip_empty_page_lcp();
+  void record_dropped_empty_page_lcp();
+  void record_late_alloc_page_lcp();
+  void page_to_skip_lcp(bool is_last_lcp_state_A);
+  void lcp_keep_row();
+  void lcp_keep_delete_row();
+  void lcp_keep_delete_by_page_id();
+
   void init_lcp_scan(Uint32 & scanGCI,
                      bool & changed_row_page_flag);
   void end_lcp_scan(Uint32 number_of_pages);
@@ -656,6 +671,33 @@ public:
     Uint32 m_current_data_file_ptr;
     Uint32 m_working_data_file_ptr;
     Uint64 m_current_lcp_lsn;
+
+    Uint32 m_save_error_code;
+    Uint32 m_change_page_alloc_after_start;
+    Uint32 m_all_page_alloc_after_start;
+    Uint32 m_change_page_alloc_dropped_after_start;
+    Uint32 m_all_page_alloc_dropped_after_start;
+    Uint32 m_change_page_dropped_A_after_start;
+    Uint32 m_all_page_dropped_A_after_start;
+    Uint32 m_change_page_dropped_D_after_start;
+    Uint32 m_all_page_dropped_D_after_start;
+    Uint32 m_skip_change_page_lcp_scanned_bit;
+    Uint32 m_skip_all_page_lcp_scanned_bit;
+    Uint32 m_skip_empty_change_page;
+    Uint32 m_skip_empty_all_page;
+    Uint32 m_record_empty_change_page_A;
+    Uint32 m_record_late_alloc_change_page_A;
+    Uint32 m_skip_late_alloc_change_page_D;
+    Uint32 m_skip_late_alloc_all_page_A;
+    Uint32 m_skip_late_alloc_all_page_D;
+    Uint64 m_lcp_keep_row_change_pages;
+    Uint64 m_lcp_keep_row_all_pages;
+    Uint64 m_lcp_keep_delete_row_change_pages;
+    Uint64 m_lcp_keep_delete_row_all_pages;
+    Uint32 m_lcp_keep_delete_change_pages;
+    Uint32 m_lcp_keep_delete_all_pages;
+    bool m_any_lcp_page_ops;
+
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
 

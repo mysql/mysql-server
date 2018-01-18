@@ -47,7 +47,9 @@
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
 //#define DEBUG_DELETE 1
+//#define DEBUG_DELETE_NR 1
 //#define DEBUG_LCP_LGMAN 1
+//#define DEBUG_LCP_SKIP_DELETE 1
 #endif
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -59,6 +61,18 @@
 #define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DELETE(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_LCP_SKIP_DELETE
+#define DEB_LCP_SKIP_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP_DELETE(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_DELETE_NR
+#define DEB_DELETE_NR(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE_NR(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP_LGMAN
@@ -4791,16 +4805,86 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
 
-  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) row(%u,%u), gci: %u",
-               instance(),
-               fragPtr.p->fragTableId,
-               fragPtr.p->fragmentId,
-               key->m_page_no,
-               key->m_page_idx,
-               *ptr->get_mm_gci(tablePtr.p)));
+  Uint32 lcpScan_ptr_i= fragPtr.p->m_lcp_scan_op;
+  Uint32 bits = ptr->m_header_bits;
+  if (lcpScan_ptr_i != RNIL &&
+      ! (bits & (Tuple_header::LCP_SKIP |
+                 Tuple_header::LCP_DELETE |
+                 Tuple_header::ALLOC)))
+  {
+    /**
+     * We are performing a node restart currently, at the same time we
+     * are also running a LCP on the fragment. This can happen when the
+     * UNDO log level becomes too high. In this case we can start a full
+     * local LCP during the copy fragment process.
+     *
+     * Since we are about to delete a row now, we have to ensure that the
+     * lcp keep list gets this row before we delete it. This will ensure
+     * that the LCP becomes a consistent LCP based on what was there at the
+     * start of the LCP.
+     */
+    jam();
+    ScanOpPtr scanOp;
+    c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      fragPtr.p,
+                                      *key,
+                                      *scanOp.p,
+                                      0))
+    {
+      KeyReqStruct req_struct(jamBuffer());
+      Operationrec oprec;
+      Tuple_header *copy;
+      if ((copy = alloc_copy_tuple(tablePtr.p,
+                                   &oprec.m_copy_tuple_location)) == 0)
+      {
+        /**
+         * We failed to allocate the copy record, this is a critical error,
+         * we will fail with an error message instruction to increase
+         * SharedGlobalMemory.
+         */
+        char buf[256];
+        BaseString::snprintf(buf, sizeof(buf),
+                             "Out of memory when allocating copy tuple for"
+                             " LCP keep list, increase SharedGlobalMemory");
+        progError(__LINE__,
+                  NDBD_EXIT_RESOURCE_ALLOC_ERROR,
+                  buf);
+      }
+      req_struct.m_tuple_ptr = ptr;
+      oprec.m_tuple_location = tmp;
+      oprec.op_type = ZDELETE;
+      DEB_LCP_SKIP_DELETE(("(%u)nr_delete: tab(%u,%u), row(%u,%u),"
+                           " handle_lcp_keep_commit"
+                           ", set LCP_SKIP, bits: %x",
+                           instance(),
+                           fragPtr.p->fragTableId,
+                           fragPtr.p->fragmentId,
+                           key->m_page_no,
+                           key->m_page_idx,
+                           bits));
+      handle_lcp_keep_commit(key,
+                             &req_struct,
+                             &oprec,
+                             fragPtr.p,
+                             tablePtr.p);
+      ptr->m_header_bits |= Tuple_header::LCP_SKIP;
+      updateChecksum(ptr, tablePtr.p, bits, ptr->m_header_bits);
+    }
+  }
 
   /* A row is deleted as part of Copy fragment or Restore */
   fragPtr.p->m_row_count--;
+
+  DEB_DELETE_NR(("(%u)nr_delete, tab(%u,%u) row(%u,%u), gci: %u"
+                 ", row_count: %llu",
+                 instance(),
+                 fragPtr.p->fragTableId,
+                 fragPtr.p->fragmentId,
+                 key->m_page_no,
+                 key->m_page_idx,
+                 *ptr->get_mm_gci(tablePtr.p),
+                 fragPtr.p->m_row_count));
 
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)
