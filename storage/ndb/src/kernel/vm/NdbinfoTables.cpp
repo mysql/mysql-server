@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ DECLARE_NDBINFO_TABLE(LOGBUFFERS, 7) =
 { { "logbuffers", 7, 0, "logbuffer usage" },
   {
     {"node_id",            Ndbinfo::Number, ""},
-    {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO"},
+    {"log_type",           Ndbinfo::Number, "0 = REDO, 1 = DD-UNDO, 2 = BACKUP-DATA, 3 = BACKUP-LOG"},
     {"log_id",             Ndbinfo::Number, ""},
     {"log_part",           Ndbinfo::Number, ""},
 
