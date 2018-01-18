@@ -21498,6 +21498,11 @@ Dblqh::execCOPY_FRAGCONF(Signal* signal)
     signal->theData[6] = bytes_lo;
     signal->theData[7] = 0;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
+    g_eventLogger->debug("(%u)tab(%u,%u), COPY_FRAGCONF: %u rows inserted",
+                         instance(),
+                         fragptr.p->tabRef,
+                         fragptr.p->fragId,
+                         rows_lo);
   }
 
   {
