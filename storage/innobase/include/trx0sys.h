@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,6 +49,7 @@ Created 3/26/1996 Heikki Tuuri
 # include "ut0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "trx0trx.h"
+#include <atomic>
 
 #ifndef UNIV_HOTBACKUP
 typedef UT_LIST_BASE_NODE_T(trx_t) trx_ut_list_t;
@@ -487,6 +488,10 @@ struct trx_sys_t {
 					volatile because it can be accessed
 					without holding any mutex during
 					AC-NL-RO view creation. */
+	std::atomic<trx_id_t>
+			min_active_id;
+					/*!< Minimal transaction id which is
+					still in active state. */
 	trx_ut_list_t	serialisation_list;
 					/*!< Ordered on trx_t::no of all the
 					currenrtly active RW transactions */

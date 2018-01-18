@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -369,6 +369,12 @@ trx_rw_is_active(
 					trx_t::n_ref_count */
 {
 	trx_t*		trx;
+
+	/* Fast checking. If it's smaller than minimal active trx id, just
+	return NULL. */
+	if (trx_sys->min_active_id.load() > trx_id) {
+		return(NULL);
+	}
 
 	trx_sys_mutex_enter();
 
