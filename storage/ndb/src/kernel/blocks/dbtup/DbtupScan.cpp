@@ -1133,6 +1133,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               }
 #endif
               reset_lcp_scanned_bit(next_ptr);
+              c_backup->skip_page_lcp_scanned_bit();
               /* Either 2) or 3) as described above */
               /**
                * No state in page map to update, the page hasn't been
@@ -1171,6 +1172,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 /* LCP case 1b) and 1c) above goes this way */
                 scan.m_last_seen = __LINE__;
                 pos.m_get = ScanPos::Get_next_page_mm;
+                c_backup->skip_empty_page_lcp();
                 break; // incr loop count
               }
               else
@@ -1180,6 +1182,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 /* 1a) as described above */
                 scan.m_last_seen = __LINE__;
                 pos.m_get = ScanPos::Get_next_page_mm;
+                c_backup->record_dropped_empty_page_lcp();
                 goto record_dropped_change_page;
               }
             }
@@ -1278,6 +1281,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
              */
             scan.m_last_seen = __LINE__;
             pos.m_get = ScanPos::Get_next_page_mm;
+            c_backup->record_late_alloc_page_lcp();
             goto record_dropped_change_page;
           }
           else
@@ -1297,6 +1301,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
              */
             scan.m_last_seen = __LINE__;
             pos.m_get = ScanPos::Get_next_page_mm;
+            c_backup->page_to_skip_lcp(!pos.m_is_last_lcp_state_D);
             break; // incr loop count
           }
         }
@@ -2134,6 +2139,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
                     fragPtr.p->fragmentId,
                     page_id));
       remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
+      c_backup->lcp_keep_delete_by_page_id();
       record_delete_by_pageid(signal,
                               fragPtr.p->fragTableId,
                               fragPtr.p->fragmentId,
@@ -2154,6 +2160,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
       key.m_page_no = page_id;
       key.m_page_idx = page_index_array[num_entries];
       copytuple[4] = num_entries;
+      c_backup->lcp_keep_delete_row();
       DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u,%u): "
                     "Handle LCP keep DELETE by ROWID",
                     instance(),
@@ -2189,6 +2196,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
      * where handle_lcp_keep_commit puts it.
      */
     c_backup->change_current_page_temp(copytuple[0]);
+    c_backup->lcp_keep_row();
     remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
     DEB_LCP_KEEP(("(%u)tab(%u,%u) row(%u,%u) page(%u,%u): Handle LCP keep"
                   " insert entry",

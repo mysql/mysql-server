@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8722,6 +8722,187 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int i = 0;
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  int nodeId = restarter.getRandomNotMasterNodeId(rand());
+  HugoTransactions hugoTrans(*ctx->getTab());
+  g_err << "Will restart node " << nodeId << endl;
+
+  if (nodeCount < 2)
+  {
+    return NDBT_OK; /* Requires at least 2 nodes to run */
+  }
+  g_err << "Executing " << loops << " loops" << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    g_err << "Start loop " << i << endl;
+    g_err << "Loading " << records << " records..." << endl;
+    if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+    {
+      g_err << "Failed to load table" << endl;
+      return NDBT_FAILED;
+    }
+    if (restarter.restartOneDbNode(nodeId,
+                                   true, /* initial */
+                                   true,  /* nostart  */
+                                   false, /* abort */
+                                   false  /* force */) != 0)
+    {
+      g_err << "Restart failed" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Wait for NoStart state" << endl;
+    restarter.waitNodesNoStart(&nodeId, 1);
+    if (restarter.insertErrorInNode(nodeId, 1011))
+    {
+      g_err << "Failed to insert error 1011" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Start node" << endl;
+    if (restarter.startNodes(&nodeId, 1) != 0)
+    {
+      g_err << "Start failed" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Delete records" << endl;
+
+    Uint32 row_step = 10;
+    Uint32 num_deleted_records = records / 10;
+    Uint32 batch = 1;
+
+    for (Uint32 start = 0; start < 10; start++)
+    {
+      CHECK((hugoTrans.pkDelRecords(pNdb,
+                                    num_deleted_records,
+                                    batch,
+                                    true,
+                                    0,
+                                    start,
+                                    row_step) == 0), "");
+      if (result == NDBT_FAILED)
+        return result;
+      NdbSleep_SecSleep(1);
+    }
+    ndbout << "Wait for initial node restart to complete" << endl;
+    if (restarter.waitNodesStarted(&nodeId, 1) != 0)
+    {
+      g_err << "Wait node start failed" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
+int run_PLCP_I2(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int i = 0;
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  int nodeId = restarter.getRandomNotMasterNodeId(rand());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  if (nodeCount < 2)
+  {
+    return NDBT_OK; /* Requires at least 2 nodes to run */
+  }
+  g_err << "Executing " << loops << " loops" << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    g_err << "Start loop " << i << endl;
+    g_err << "Loading " << records << " records..." << endl;
+    if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+    {
+      g_err << "Failed to load table" << endl;
+      return NDBT_FAILED;
+    }
+    if (restarter.restartOneDbNode(nodeId,
+                                   true, /* initial */
+                                   true,  /* nostart  */
+                                   false, /* abort */
+                                   false  /* force */) != 0)
+    {
+      g_err << "Restart failed" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Wait for NoStart state" << endl;
+    restarter.waitNodesNoStart(&nodeId, 1);
+    ndbout << "Start node" << endl;
+    if (restarter.startNodes(&nodeId, 1) != 0)
+    {
+      g_err << "Start failed" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Delete 10% of records" << endl;
+
+    Uint32 row_step = 1;
+    Uint32 start = 0;
+    Uint32 num_deleted_records = records / 10;
+    Uint32 batch = 1;
+
+    CHECK((hugoTrans.pkDelRecords(pNdb,
+                                  num_deleted_records,
+                                  batch,
+                                  true,
+                                  0,
+                                  start,
+                                  row_step) == 0), "");
+    if (result == NDBT_FAILED)
+      return result;
+    ndbout << "Start an LCP" << endl;
+    {
+      int val = DumpStateOrd::DihStartLcpImmediately;
+      if(restarter.dumpStateAllNodes(&val, 1) != 0)
+      {
+        g_err << "ERR: "<< step->getName()
+              << " failed on line " << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
+    }
+    ndbout << "Delete 80% of the records" << endl;
+    for (Uint32 i = 2; i < 10; i++)
+    {
+      start += num_deleted_records;
+      CHECK((hugoTrans.pkDelRecords(pNdb,
+                                    num_deleted_records,
+                                    batch,
+                                    true,
+                                    0,
+                                    start,
+                                    row_step) == 0), "");
+      if (result == NDBT_FAILED)
+        return result;
+    }
+    ndbout << "Wait for initial node restart to complete" << endl;
+    if (restarter.waitNodesStarted(&nodeId, 1) != 0)
+    {
+      g_err << "Wait node start failed" << endl;
+      return NDBT_FAILED;
+    }
+    ndbout << "Delete remaining records" << endl;
+    start += num_deleted_records;
+    CHECK((hugoTrans.pkDelRecords(pNdb,
+                                  num_deleted_records,
+                                  batch,
+                                  true,
+                                  0,
+                                  start,
+                                  row_step) == 0), "");
+    if (result == NDBT_FAILED)
+      return result;
+  }
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -9417,6 +9598,16 @@ TESTCASE("MultiCrashTest",
   INITIALIZER(runLoadTable);
   STEP(runMultiCrashTest);
   FINALIZER(runClearTable);
+}
+TESTCASE("PLCP_I1",
+         "Initial node restart while deleting rows")
+{
+  INITIALIZER(run_PLCP_I1);
+}
+TESTCASE("PLCP_I2",
+         "Initial node restart while deleting rows")
+{
+  INITIALIZER(run_PLCP_I2);
 }
 TESTCASE("ArbitrationWithApiNodeFailure",
          "Check that arbitration do not fail with non arbitrator api node "
