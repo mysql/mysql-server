@@ -516,7 +516,6 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
   Uint32 * copytuple = get_copy_tuple_raw(&opPtrP->m_copy_tuple_location);
   Tuple_header * dst = get_copy_tuple(copytuple);
   Tuple_header * org = req_struct->m_tuple_ptr;
-  Uint32 old_header_bits = org->m_header_bits;
   if (regTabPtr->need_expand(disk))
   {
     jam();
@@ -536,8 +535,7 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
   }
   dst->m_header_bits |= Tuple_header::COPY_TUPLE;
 
-  updateChecksum(dst, regTabPtr, old_header_bits, dst->m_header_bits);
-
+  setChecksum(dst, regTabPtr);
   /**
    * Link it to list
    */
@@ -963,7 +961,6 @@ Dbtup::commit_operation(Signal* signal,
       }
     }
   }
-  
 
   /**
    * Here we are copying header bits from the copy row to the main row.
