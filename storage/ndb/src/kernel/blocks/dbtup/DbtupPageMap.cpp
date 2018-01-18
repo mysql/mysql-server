@@ -723,6 +723,7 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
                        fragPtrP->fragmentId,
                        page_no));
         pagePtr.p->set_page_to_skip_lcp();
+        c_backup->alloc_page_after_lcp_start(page_no);
       }
       else
       {
@@ -962,10 +963,6 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                        PagePtr pagePtr)
 {
   DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
-  /**
-   * We optimise on that DynArr256 always will have the pair on the
-   * same 256 byte page. Thus they lie consecutive to each other.
-   */
   DEB_LCP_REL(("(%u)releaseFragPage: tab(%u,%u) page(%u)",
                instance(),
                fragPtrP->fragTableId,
@@ -1071,8 +1068,19 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                              fragPtrP->fragmentId,
                              logicalPageId));
         lcp_scanned_bit = LCP_SCANNED_BIT;
-        Uint32 new_last_lcp_state = pagePtr.p->is_page_to_skip_lcp() ?
-                                    LAST_LCP_FREE_BIT : 0;
+        bool page_to_skip_lcp = pagePtr.p->is_page_to_skip_lcp();
+        Uint32 new_last_lcp_state;
+        if (page_to_skip_lcp)
+        {
+          new_last_lcp_state = LAST_LCP_FREE_BIT;
+          c_backup->alloc_dropped_page_after_lcp_start(is_change_part);
+        }
+        else
+        {
+          new_last_lcp_state = 0;
+          c_backup->dropped_page_after_lcp_start(is_change_part,
+                                                 (last_lcp_state == 0));
+        }
         if (is_change_part && (last_lcp_state == 0))
         {
           /**
@@ -1088,9 +1096,9 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
           jam();
           /* Coverage tested */
           c_page_pool.getPtr(pagePtr);
-          bool delete_by_pageid = pagePtr.p->is_page_to_skip_lcp();
+          bool delete_by_pageid = page_to_skip_lcp;
           page_freed = true;
-          ndbassert(c_backup->is_partial_lcp_enabled());
+          ndbrequire(c_backup->is_partial_lcp_enabled());
           handle_lcp_drop_change_page(fragPtrP,
                                       logicalPageId,
                                       pagePtr,
