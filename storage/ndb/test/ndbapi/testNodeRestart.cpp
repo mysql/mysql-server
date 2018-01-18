@@ -8725,6 +8725,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
   const Uint32 nodeCount = restarter.getNumDbNodes();
   int nodeId = restarter.getRandomNotMasterNodeId(rand());
   HugoTransactions hugoTrans(*ctx->getTab());
+  g_err << "Will restart node " << nodeId << endl;
 
   if (nodeCount < 2)
   {
@@ -8751,6 +8752,11 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
     }
     ndbout << "Wait for NoStart state" << endl;
     restarter.waitNodesNoStart(&nodeId, 1);
+    if (restarter.insertErrorInNode(nodeId, 1011))
+    {
+      g_err << "Failed to insert error 1011" << endl;
+      return NDBT_FAILED;
+    }
     ndbout << "Start node" << endl;
     if (restarter.startNodes(&nodeId, 1) != 0)
     {
