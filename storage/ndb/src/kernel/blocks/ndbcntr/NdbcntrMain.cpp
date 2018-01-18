@@ -6150,7 +6150,11 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
   DEB_UNDO(("UNDO log level = %u", levelUsed));
   if (m_copy_fragment_in_progress &&
       !c_local_sysfile.m_initial_write_local_sysfile_ongoing &&
-      levelUsed >= START_LCP_LEVEL)
+      (levelUsed >= START_LCP_LEVEL
+#ifdef ERROR_INSERT
+      || (ERROR_INSERTED(1011))
+#endif
+     ))
   {
     /**
      * If no local LCP is ongoing we need to start one.
@@ -6162,6 +6166,9 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
      * are right now spinning up the first local LCP. We will be back
      * here within 2 seconds to start a full local LCP later.
      */
+#ifdef ERROR_INSERT
+    CLEAR_ERROR_INSERT_VALUE;
+#endif
     if (m_full_local_lcp_started)
     {
       jam();
