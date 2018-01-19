@@ -4235,16 +4235,6 @@ sub do_before_run_mysqltest($)
     unlink("$base_file.log");
     unlink("$base_file.warnings");
   }
-
-  if ( $mysql_version_id < 50000 ) {
-    # Set environment variable NDB_STATUS_OK to 1
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "1";
-  } elsif ( $mysql_version_id < 50100 ) {
-    # Set environment variable NDB_STATUS_OK to YES
-    # if script decided to run mysqltest cluster _is_ installed ok
-    $ENV{'NDB_STATUS_OK'} = "YES";
-  }
 }
 
 
