@@ -154,6 +154,113 @@
 
   @section sect_protocol_connection_phase_initial_handshake Initial Handshake
 
+  The initial handshake starts with the server sending the
+  @ref sect_protocol_connection_phase_packets_protocol_handshake packet.
+  After this, optionally, the client can request an SSL connection to be
+  established with the @ref page_protocol_connection_phase_packets_protocol_ssl_request
+  packet and then the client sends the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response packet.
+
+  @subsection sect_protocol_connection_phase_initial_handshake_plain_handshake Plain Handshake
+
+  1. Server sending @ref sect_protocol_connection_phase_packets_protocol_handshake.
+  2. Client replying with @ref page_protocol_connection_phase_packets_protocol_handshake_response
+
+  @startuml
+  Server -> Client: Initial Handshake Packet
+  Client -> Server: Handshake Response Packet
+  Server -> Server: Check client capabilities and authentication method to use
+  @enduml
+
+  @subsection sect_protocol_connection_phase_initial_handshake_ssl_handshake SSL Handshake
+
+  1. Server sending @ref sect_protocol_connection_phase_packets_protocol_handshake
+  2. Client replying with @ref page_protocol_connection_phase_packets_protocol_ssl_request
+  3. The usual SSL exchange leading to establishing SSL connection
+  4. Client sends @ref page_protocol_connection_phase_packets_protocol_handshake_response
+
+  @startuml
+  Server -> Client: Initial Handshake Packet
+  Client -> Server: SSL Connection Request Packet
+  == SSL Exchange ==
+  Client -> Server: Handshake Response Packet
+  Server -> Server: Check client capabilities and authentication method to use
+  @enduml
+
+  @subsection sect_protocol_connection_phase_initial_handshake_capabilities Capability Negotiation
+
+  To permit an old client to connect to newer servers,
+  the @ref sect_protocol_connection_phase_packets_protocol_handshake contains
+
+  * the MySQL Server version
+  * the server's @ref group_cs_capabilities_flags
+
+  The client should only announce the capabilities in the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
+  that it has in common with the server.
+
+  They can agree on:
+  * use of @ref CLIENT_TRANSACTIONS "status flags"
+  * use of @ref CLIENT_PROTOCOL_41 "SQL states for error codes"
+  * @ref sect_protocol_connection_phase_initial_handshake_auth_method "authentication methods"
+  * @ref CLIENT_SSL "SSL Support"
+  * @ref CLIENT_COMPRESS "Compression"
+
+  @subsection sect_protocol_connection_phase_initial_handshake_auth_method Determining Authentication Method
+
+  Method used for authentication is tied to the user account and stored in
+  the plugin column of mysql.user table. Client informs about the user
+  account it wants to log into in the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response packet.
+  Only then server can look up the mysql.user table and find the authentication
+  method to be used.
+
+  However, to save round-trips, server and client start authentication exchange
+  already in the initial handshake using an optimistic guess of the
+  authentication method to be used.
+
+  Server uses its default authentication method @ref default_auth_plugin to
+  produce initial authentication data payload and sends it to the client inside
+  @ref sect_protocol_connection_phase_packets_protocol_handshake, together with
+  the name of the method used.
+
+  Client can include in the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response packet
+  its reply to the authentication data sent by the server.
+
+  When including authentication reply in the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response,
+  client is not obligated to use the same authentication method that was used
+  by the server in the
+  @ref sect_protocol_connection_phase_packets_protocol_handshake packet.
+  The name of the authentication method used by the client is stored in the
+  packet. If the guessed authentication method used either by the client or
+  the server in the initial handshake was not correct, server informs client
+  which authentication method should be used using
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request.
+
+  @sa sect_protocol_connection_phase_auth_method_mismatch
+
+  Up to MySQL 4.0 the MySQL protocol only supported the
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication.
+  In MySQL 4.1 the
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  method was added and in MySQL 5.5 arbitrtary authentication methods can be implemented
+  by means of authentication plugins.
+
+  If the client or server do no support pluggable authentication
+  (i.e. @ref CLIENT_PLUGIN_AUTH capability flag is not set) then
+  authentication method used is inherited from client and server
+  capabilities as follows:
+    * The method used is
+    @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
+    if @ref CLIENT_PROTOCOL_41 or @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION"
+    are not set.
+    * The method used is
+    @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+    if both @ref CLIENT_PROTOCOL_41 and @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION"
+    are set, but @ref CLIENT_PLUGIN_AUTH is not set.
+
   @section sect_protocol_connection_phase_fast_path Auth Phase Fast Path
 
   @section sect_protocol_connection_phase_auth_method_mismatch Authentication Method Mismatch
@@ -164,8 +271,51 @@
 
   @sa group_cs_capabilities_flags
   @subpage page_protocol_connection_phase_packets
-  @subpage page_caching_sha2_authentication_exchanges
+  @subpage page_protocol_connection_phase_authentication_methods
 */
+
+
+/**
+   @page page_protocol_connection_phase_authentication_methods Authenticatrion Methods
+
+   To authenticate a user against the server the client server protocol employs one of
+   several authentication methods.
+
+   As of MySQL 5.5 the authentication method to be used to authenticate
+   connections to a particular MySQL account is indicated in the mysql.user table.
+   For earlier servers it's always mysql native authentication or
+   old password authentication depending on
+   the @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION" flag.
+
+   Client and server negotiate what types of authentication they support as part of the
+   @ref page_protocol_connection_phase and
+   @ref sect_protocol_connection_phase_initial_handshake_auth_method.
+
+   Each authentication method consists of
+     * a client plugin name
+     * a server plugin name
+     * a specific exchange
+
+   The exchanged input and output data may either be sent as part of the
+   @ref sect_protocol_connection_phase_packets_protocol_handshake and the
+   @ref page_protocol_connection_phase_packets_protocol_handshake_response
+   or as a part of the
+   @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
+   and following packets. The structure is usually the same.
+
+   @section page_protocol_connection_phase_authentication_methods_limitations Limitations
+
+   @section page_protocol_connection_phase_authentication_methods_old_password_authentication Old Password Authentication
+
+   Authentication::Old:
+
+   @section page_protocol_connection_phase_authentication_methods_native_password_authentication Native Authentication
+
+   Authentication::Native41:
+
+   @subpage page_caching_sha2_authentication_exchanges
+*/
+
 
 /**
   @page page_protocol_connection_phase_packets Connection Phase Packets
@@ -187,6 +337,7 @@
   @subpage page_protocol_connection_phase_packets_protocol_handshake_v10
   @subpage page_protocol_connection_phase_packets_protocol_ssl_request
   @subpage page_protocol_connection_phase_packets_protocol_handshake_response
+  @subpage page_protocol_connection_phase_packets_protocol_auth_switch_request
 */
 
 
@@ -809,19 +960,42 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
 
 
 /**
-  sends a "change plugin" packet, requesting a client to restart authentication
-  using a different authentication plugin
+  @page page_protocol_connection_phase_packets_protocol_auth_switch_request Protocol::AuthSwitchRequest:
 
-  Packet format:
+  Authentication method Switch Request Packet
 
-    Bytes       Content
-    -----       ----
-    1           byte with the value 254
-    n           client plugin to use, \0-terminated
-    n           plugin provided data
+  If both server and the client support @ref CLIENT_PLUGIN_AUTH capability,
+  server can send this packet tp ask client to use another authentication method.
 
-  @retval 0 ok
-  @retval 1 error
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>0xFE (254)</td>
+    <td>status tag</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string[NUL]"</td>
+    <td>plugin name</td>
+    <td>name of the client authentication plugin to switch to</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string[EOF]"</td>
+    <td>plugin provided data</td>
+    <td>Initial authentication data for that client plugin</td></tr>
+  </table>
+
+  @sa send_plugin_request_packet()
+*/
+
+
+/**
+  Sends a @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
+  packet.
+
+  Used by the server to reequest that a client should restart authentication
+  using a different authentication plugin.
+
+  @sa page_protocol_connection_phase_packets_protocol_auth_switch_request
+
+  @retval false ok
+  @retval true error
 */
 static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
                                        const uchar *data, uint data_len)

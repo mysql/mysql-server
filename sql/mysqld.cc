@@ -230,6 +230,8 @@
 
   See #my_message, #my_error
 
+  @subpage PAGE_TXN
+
 */
 
 /**
