@@ -10,4 +10,3 @@
 #
 ##############################################################################
 json_ddl_ndb : Bug #26616564 FAILURE OF JSON_DDL_NDB TEST, Bug#26609059 2017-08-10 Bin, PB2 failures
-json_functions_ndb @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY

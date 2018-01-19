@@ -32,12 +32,3 @@ ndb_rpl_dd_advance: Need WL#9185 MySQL Cluster support for new DD
 
 # Problem with distributed privilege tables in combination with shadow
 ndb_rpl_dist_priv: Need WL#9185 MySQL Cluster support for new DD
-ndb_rpl_blob @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_conflict_basic @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_conflict_epoch2_extra @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_conflict_epoch_extended_exceptions_table @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_conflict_max @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_conflict_max_delete_win @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_conflict_old @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_conflict_read_tracking @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
-ndb_rpl_last_conflict_epoch_var @darwin : Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY
