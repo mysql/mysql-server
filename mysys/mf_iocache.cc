@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -297,7 +297,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   else
   {
     /* Clear mutex so that safe_mutex will notice that it's not initialized */
-    memset(&info->append_buffer_lock, 0, sizeof(info->append_buffer_lock));
+    new (&info->append_buffer_lock) mysql_mutex_t();
   }
 #endif
 

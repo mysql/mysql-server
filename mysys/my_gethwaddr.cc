@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ bool my_gethwaddr(uchar *to)
     {
       /* Reset struct, copy interface name */
       memset(&ifr, 0, sizeof(ifr));
-      strncpy(ifr.ifr_name, ifri->ifr_name, sizeof(ifr.ifr_name));
+      memcpy(ifr.ifr_name, ifri->ifr_name, sizeof(ifr.ifr_name));
 
       /* Get HW address, break if not 0 */
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) >= 0)
