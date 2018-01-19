@@ -249,9 +249,9 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
        * and to support a special memory structure when executing the
        * signals. Neither of those are interesting when receiving data
        * in the NDBAPI. The NDBAPI will thus read signal data directly as
-       * it was written by the sender (SCI sender is other node, Shared
-       * memory sender is other process and TCP/IP sender is the OS that
-       * writes the TCP/IP message into a message buffer).
+       * it was written by the sender (Shared memory sender is other
+       * process and TCP/IP sender is the OS that writes the TCP/IP
+       * message into a message buffer).
        */
       NdbApiSignal tmpSignal(*header);
       NdbApiSignal * tSignal = &tmpSignal;
@@ -835,6 +835,7 @@ class ReceiveThreadClient : public trp_client
 ReceiveThreadClient::ReceiveThreadClient(TransporterFacade * facade)
 {
   DBUG_ENTER("ReceiveThreadClient::ReceiveThreadClient");
+  m_is_receiver_thread = true;
   Uint32 ret = this->open(facade, -1);
   if (unlikely(ret == 0))
   {
@@ -1053,9 +1054,6 @@ void TransporterFacade::threadMainReceive(void)
     NdbSleep_MilliSleep(10);
   }
   theTransporterRegistry->startReceiving();
-#ifdef NDB_SHM_TRANSPORTER
-  NdbThread_set_shm_sigmask(TRUE);
-#endif
   recv_client = new ReceiveThreadClient(this);
   lock_recv_thread_cpu();
   const bool raised_thread_prio = raise_thread_prio();
@@ -1197,22 +1195,9 @@ TransporterFacade::external_poll(Uint32 wait_time)
 {
   do
   {
-#ifdef NDB_SHM_TRANSPORTER
-    /*
-      If shared memory transporters are used we need to set our sigmask
-      such that we wake up also on interrupts on the shared memory
-      interrupt signal.
-    */
-    NdbThread_set_shm_sigmask(FALSE);
-#endif
-
     /* Long waits are done in short 10ms chunks */
     const Uint32 wait = (wait_time > 10) ? 10 : wait_time;
     const int res = theTransporterRegistry->pollReceive(wait);
-
-#ifdef NDB_SHM_TRANSPORTER
-    NdbThread_set_shm_sigmask(TRUE);
-#endif
 
     if (m_check_connections)
     {
@@ -1514,7 +1499,7 @@ TransporterFacade::for_each(trp_client* sender,
   for (Uint32 i = 0; i < sz ; i ++) 
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
-    if (clnt != 0 && clnt != sender)
+    if (clnt != 0 && clnt != sender && !clnt->is_receiver_thread())
     {
       bool res = clnt->is_locked_for_poll();
       assert(clnt->check_if_locked() == res);
@@ -1578,7 +1563,7 @@ TransporterFacade::connected()
   for (Uint32 i = 0; i < sz ; i ++)
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
-    if (clnt != 0)
+    if (clnt != 0 && !clnt->is_receiver_thread())
     {
       NdbMutex_Lock(clnt->m_mutex);
       clnt->trp_deliver_signal(&signal, 0);

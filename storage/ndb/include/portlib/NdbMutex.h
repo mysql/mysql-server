@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@ NdbMutex* NdbMutex_CreateWithName(const char * name);
  * * p_mutex: pointer to the mutex structure
  * * returnvalue: 0 = succeeded, -1 = failed
  */
+int NdbMutex_Init_Shared(NdbMutex *p_mutex);
 int NdbMutex_Init(NdbMutex* p_mutex);
 int NdbMutex_InitWithName(NdbMutex* p_mutex, const char * name);
 

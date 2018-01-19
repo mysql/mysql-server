@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,16 +97,10 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      conf->signalId,
 	      conf->tcp.sendBufferSize,
 	      conf->preSendChecksum),
-  reportFreq(4096),
-  receiveCount(0), receiveSize(0),
-  sendCount(0), sendSize(0), 
   receiveBuffer()
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
-  // Initialize member variables
-  my_socket_invalidate(&theSocket);
-
   sockOptNodelay    = 1;
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 0);
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 0);
@@ -202,37 +196,6 @@ TCP_Transporter::initTransporter() {
   return true;
 }
 
-static
-void
-set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname, 
-	int val)
-{
-  int actual = 0, defval = 0;
-  socket_len_t len = sizeof(actual);
-
-  my_getsockopt(fd, level, optval, (char*)&defval, &len);
-
-  if (my_setsockopt(fd, level, optval,
-                    (char*)&val, sizeof(val)) < 0)
-  {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
-                         optname, val, errno, strerror(errno));
-#endif
-  }
-  
-  len = sizeof(actual);
-  if ((my_getsockopt(fd, level, optval,
-                     (char*)&actual, &len) == 0) &&
-      actual != val)
-  {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",
-                         optname, val, actual, defval);
-#endif
-  }
-}
-
 int
 TCP_Transporter::pre_connect_options(NDB_SOCKET_TYPE sockfd)
 {
@@ -297,12 +260,10 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
   return true;
 }
 
-#define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
-
-
 bool
-TCP_Transporter::doSend() {
+TCP_Transporter::doSend(bool need_wakeup)
+{
+  (void)need_wakeup;
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
   Uint32 init_cnt = cnt;

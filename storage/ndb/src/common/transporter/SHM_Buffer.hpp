@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +19,7 @@
 #define SHM_BUFFER_HPP
 
 #include <ndb_global.h>
+#include "../../kernel/vm/mt-asm.h"
 
 #include <NdbSleep.h>
 
@@ -68,12 +68,15 @@ public:
    *  returns ptr - where to start reading
    *           sz - how much can I read
    */
-  inline void getReadPtr(Uint32 * & ptr, Uint32 * & eod);
+  inline void getReadPtr(Uint32 * & ptr,
+                         Uint32 * & eod,
+                         Uint32 * & end);
 
   /**
    * Update read ptr
+   * Return number of bytes read
    */
-  inline void updateReadPtr(Uint32 *ptr);
+  inline Uint32 updateReadPtr(Uint32 *ptr);
   
 private:
   char * const m_startOfBuffer;
@@ -87,7 +90,9 @@ private:
 
 inline 
 bool
-SHM_Reader::empty() const{
+SHM_Reader::empty() const
+{
+  rmb();
   bool ret = (m_readIndex == * m_sharedWriteIndex);
   return ret;
 }
@@ -96,21 +101,25 @@ SHM_Reader::empty() const{
  * Get read pointer
  *
  *  returns ptr - where to start reading
- *           sz - how much can I read
  */
 inline 
 void
-SHM_Reader::getReadPtr(Uint32 * & ptr, Uint32 * & eod)
+SHM_Reader::getReadPtr(Uint32 * & ptr,
+                       Uint32 * & eod,
+                       Uint32 * & end)
 {
+  rmb();
   Uint32 tReadIndex  = m_readIndex;
   Uint32 tWriteIndex = * m_sharedWriteIndex;
-  
+
   ptr = (Uint32*)&m_startOfBuffer[tReadIndex];
   
   if(tReadIndex <= tWriteIndex){
     eod = (Uint32*)&m_startOfBuffer[tWriteIndex];
+    end = (Uint32*)&m_startOfBuffer[tWriteIndex];
   } else {
-    eod = (Uint32*)&m_startOfBuffer[m_bufferSize];
+    eod = (Uint32*)&m_startOfBuffer[m_totalBufferSize];
+    end = (Uint32*)&m_startOfBuffer[m_bufferSize];
   }
 }
 
@@ -118,10 +127,12 @@ SHM_Reader::getReadPtr(Uint32 * & ptr, Uint32 * & eod)
  * Update read ptr
  */
 inline
-void 
+Uint32
 SHM_Reader::updateReadPtr(Uint32 *ptr)
 {
+  Uint32 prevReadIndex = m_readIndex;
   Uint32 tReadIndex = ((char*)ptr) - m_startOfBuffer;
+  Uint32 size_read = 4 * (tReadIndex - prevReadIndex);
 
   assert(tReadIndex < m_totalBufferSize);
 
@@ -129,8 +140,10 @@ SHM_Reader::updateReadPtr(Uint32 *ptr)
     tReadIndex = 0;
   }
 
+  wmb();
   m_readIndex = tReadIndex;
   * m_sharedReadIndex = tReadIndex;
+  return size_read;
 }
 
 #define WRITER_SLACK 4
@@ -179,7 +192,9 @@ private:
 
 inline
 char *
-SHM_Writer::getWritePtr(Uint32 sz){
+SHM_Writer::getWritePtr(Uint32 sz)
+{
+  rmb();
   Uint32 tReadIndex  = * m_sharedReadIndex;
   Uint32 tWriteIndex = m_writeIndex;
   
@@ -215,6 +230,7 @@ SHM_Writer::updateWritePtr(Uint32 sz){
     tWriteIndex = 0;
   }
 
+  wmb();
   m_writeIndex = tWriteIndex;
   * m_sharedWriteIndex = tWriteIndex;
 }
@@ -223,6 +239,7 @@ inline
 Uint32
 SHM_Writer::get_free_buffer() const
 {
+  rmb();
   Uint32 tReadIndex  = * m_sharedReadIndex;
   Uint32 tWriteIndex = m_writeIndex;
   
@@ -239,6 +256,7 @@ inline
 Uint32
 SHM_Writer::writev(const struct iovec *vec, int count)
 {
+  rmb();
   Uint32 tReadIndex  = * m_sharedReadIndex;
   Uint32 tWriteIndex = m_writeIndex;
 
@@ -264,26 +282,40 @@ SHM_Writer::writev(const struct iovec *vec, int count)
     if (tReadIndex <= tWriteIndex)
     {
       /* Free buffer is split in two. */
+      bool extra = false;
       if (tWriteIndex + remain > m_bufferSize)
-        maxBytes = (m_bufferSize - tWriteIndex)/4;
+      {
+        maxBytes = (m_bufferSize - tWriteIndex);
+        extra = true;
+      }
       else
-        maxBytes = remain/4;
+      {
+        maxBytes = remain;
+      }
       segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
-                                                           maxBytes/4);
+                                                           maxBytes/4,
+                                                           extra);
       if (segment > 0)
         memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
+      require(remain >= segment);
       remain -= segment;
       total += segment;
       ptr += segment;
-      tWriteIndex = 0;
+      tWriteIndex += segment;
+      if (tWriteIndex >= m_bufferSize)
+      {
+        tWriteIndex = 0;
+      }
       if (remain > 0)
       {
+        require(tWriteIndex == 0);
         if (remain > tReadIndex)
           maxBytes = tReadIndex;
         else
           maxBytes = remain;
         segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
-                                                             maxBytes/4);
+                                                             maxBytes/4,
+                                                             false);
         if (segment > 0)
           memcpy(m_startOfBuffer, ptr, segment);
         total += segment;
@@ -299,7 +331,8 @@ SHM_Writer::writev(const struct iovec *vec, int count)
       else
         maxBytes = remain;
       segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
-                                                           maxBytes/4);
+                                                           maxBytes/4,
+                                                           false);
       if (segment > 0)
         memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
       total += segment;
@@ -308,7 +341,7 @@ SHM_Writer::writev(const struct iovec *vec, int count)
         break;                                  // No more room
     }
   }
-
+  wmb();
   m_writeIndex = tWriteIndex;
   *m_sharedWriteIndex = tWriteIndex;
 
