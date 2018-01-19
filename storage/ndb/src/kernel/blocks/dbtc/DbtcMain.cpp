@@ -12853,6 +12853,14 @@ SCAN_TAB_error_no_state_change:
   ref->closeNeeded = 0;
   sendSignal(apiBlockRef, GSN_SCAN_TABREF, 
 	     signal, ScanTabRef::SignalLength, JBB);
+
+  /**
+   * If we are DISCONNECTED, an API_FAILREQ signals had
+   * already arrived when we got the SCAN_TABREQ. Those
+   * are required to arrive as the last signal from a failed
+   * API-node. We want to detect that if it should happen.
+   */
+  ndbassert(transP->apiConnectstate != CS_DISCONNECTED);
   return;
 }//Dbtc::execSCAN_TABREQ()
 
