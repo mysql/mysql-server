@@ -145,8 +145,8 @@ THRConfig::add(T_Type t, unsigned realtime, unsigned spintime)
   tmp.m_realtime = realtime;
   tmp.m_thread_prio = NO_THREAD_PRIO_USED;
   tmp.m_nosend = 0;
-  if (spintime > 500)
-    spintime = 500;
+  if (spintime > 9000)
+    spintime = 9000;
   tmp.m_spintime = spintime;
   m_threads[t].push_back(tmp);
 }

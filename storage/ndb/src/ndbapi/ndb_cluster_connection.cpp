@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -985,9 +985,6 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 
     switch(type){
     case CONNECTION_TYPE_SHM:{
-      break;
-    }
-    case CONNECTION_TYPE_SCI:{
       break;
     }
     case CONNECTION_TYPE_TCP:{

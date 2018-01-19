@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,10 +74,6 @@ static my_bool get_prio_first = TRUE;
 static NdbMutex *ndb_thread_mutex = 0;
 static struct NdbCondition * ndb_thread_condition = 0;
 
-#ifdef NDB_SHM_TRANSPORTER
-int ndb_shm_signum= 0;
-#endif
-
 static int f_high_prio_set = 0;
 static int f_high_prio_policy;
 static int f_high_prio_prio;
@@ -137,23 +133,6 @@ struct NdbThread
   struct ndb_mutex_thr_state m_mutex_thr_state;
 #endif
 };
-
-#ifdef NDB_SHM_TRANSPORTER
-void NdbThread_set_shm_sigmask(my_bool block)
-{
-  if (ndb_shm_signum)
-  {
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, ndb_shm_signum);
-    if (block)
-      pthread_sigmask(SIG_BLOCK, &mask, 0);
-    else
-      pthread_sigmask(SIG_UNBLOCK, &mask, 0);
-  }
-  return;
-}
-#endif
 
 #if defined HAVE_LINUX_SCHEDULING
 #define THREAD_ID_TYPE pid_t
@@ -229,9 +208,6 @@ ndb_thread_wrapper(void* _ss){
   my_thread_init();
   {
     DBUG_ENTER("ndb_thread_wrapper");
-#ifdef NDB_SHM_TRANSPORTER
-    NdbThread_set_shm_sigmask(TRUE);
-#endif
 
 #ifdef HAVE_PTHREAD_SIGMASK
     {
