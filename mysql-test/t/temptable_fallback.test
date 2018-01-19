@@ -78,6 +78,11 @@ SET @@max_heap_table_size = default;
 SET @@internal_tmp_mem_storage_engine = TempTable;
 
 --disable_result_log
+SELECT count_alloc
+    FROM performance_schema.memory_summary_global_by_event_name
+    WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id1;
+
 SELECT * FROM
     t AS t1,
     t AS t2,
@@ -87,14 +92,17 @@ SELECT * FROM
     t AS t6
     ORDER BY 1
     LIMIT 2;
+
+SELECT count_alloc
+    FROM performance_schema.memory_summary_global_by_event_name
+    WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id2;
 --enable_result_log
 
 SELECT @@internal_tmp_mem_storage_engine;
 SHOW STATUS LIKE 'Created_tmp_tables';
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
-SELECT count_alloc > 0
-    FROM performance_schema.memory_summary_global_by_event_name
-    WHERE event_name = 'memory/temptable/physical_disk';
+SELECT (@id1=@id2);
 
 --echo # ---------------------------------------------------------------------
 --echo # Scenario 4: (ENGINE=TempTable, LIMIT=default, CASE=no-std-memory, RESULT=use_tempfiles)
@@ -104,6 +112,11 @@ SET @@internal_tmp_mem_storage_engine = TempTable;
 SET GLOBAL temptable_max_ram = 2097152;
 
 --disable_result_log
+SELECT count_alloc
+    FROM performance_schema.memory_summary_global_by_event_name
+    WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id1;
+
 SELECT * FROM
     t AS t1,
     t AS t2,
@@ -113,14 +126,17 @@ SELECT * FROM
     t AS t6
     ORDER BY 1
     LIMIT 2;
+
+SELECT count_alloc
+    FROM performance_schema.memory_summary_global_by_event_name
+    WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id2;
 --enable_result_log
 
 SELECT @@internal_tmp_mem_storage_engine;
 SHOW STATUS LIKE 'Created_tmp_tables';
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
-SELECT count_alloc > 0
-    FROM performance_schema.memory_summary_global_by_event_name
-    WHERE event_name = 'memory/temptable/physical_disk';
+SELECT (@id1<@id2);
 
 SET @@internal_tmp_mem_storage_engine = default;
 SET GLOBAL temptable_max_ram = default;
@@ -133,7 +149,11 @@ SET @@internal_tmp_mem_storage_engine = TempTable;
 SET GLOBAL temptable_max_ram = 2097152;
 SET debug = '+d,temptable_fetch_from_disk_return_null';
 
+--disable_query_log
 call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
+--enable_query_log
+
+# Two same errors passed to change per-run response to static one
 --error ER_RECORD_FILE_FULL,ER_RECORD_FILE_FULL
 SELECT * FROM
     t AS t1,
