@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,27 +36,6 @@ sub msg {
  # print "### unique($$) - ", join(" ", @_), "\n";
 }
 
-my $dir;
-
-if(!IS_WINDOWS)
-{
-  $dir= "/tmp/mysql-unique-ids";
-}
-else
-{
-  # Try to use machine-wide directory location for unique IDs,
-  # $ALLUSERSPROFILE . IF it is not available, fallback to $TEMP
-  # which is typically a per-user temporary directory
-  if (exists $ENV{'ALLUSERSPROFILE'} && -w $ENV{'ALLUSERSPROFILE'})
-  {
-    $dir= $ENV{'ALLUSERSPROFILE'}."/mysql-unique-ids";
-  }
-  else
-  {
-    $dir= $ENV{'TEMP'}."/mysql-unique-ids";
-  }
-}
-
 my @mtr_unique_fh;
 my @mtr_unique_ids;
 
@@ -81,33 +60,14 @@ sub mtr_get_unique_id($$$) {
     die "Can only get $build_threads_per_thread unique id(s) per process!";
   }
 
-  # Make sure our ID directory exists
-  if (! -d $dir)
-  {
-    # If there is a file with the reserved
-    # directory name, just delete the file.
-    if (-e $dir)
-    {
-      unlink($dir);
-    }
-
-    mkdir $dir;
-    chmod 0777, $dir;
-
-    if(! -d $dir)
-    {
-      die "can't make directory $dir";
-    }
-  }
-
   my $build_thread= 0;
   while ( $build_thread < $build_threads_per_thread )
   {
     for (my $id= $min; $id <= $max; $id++)
     {
       my $fh;
-      open( $fh, ">$dir/$id");
-      chmod 0666, "$dir/$id";
+      open($fh, ">$::build_thread_id_dir/$id");
+      chmod 0666, "$::build_thread_id_dir/$id";
 
       # Try to lock the file exclusively. If lock succeeds, we're done.
       if (flock($fh, LOCK_EX|LOCK_NB))
@@ -115,7 +75,7 @@ sub mtr_get_unique_id($$$) {
         # Store file handle - we would need it to release the
         # ID (i.e to unlock the file)
         $mtr_unique_fh[$build_thread]= $fh;
-        $mtr_unique_ids[$build_thread]= "$dir/$id";
+        $mtr_unique_ids[$build_thread]= "$::build_thread_id_dir/$id";
         $build_thread= $build_thread + 1;
       }
       else
@@ -161,13 +121,15 @@ sub mtr_release_unique_id()
 
   for (my $i= 0; $i <= $#mtr_unique_fh; $i++)
   {
+    open (FH, ">>", $::build_thread_id_file);
     if (defined $mtr_unique_fh[$i])
     {
       close $mtr_unique_fh[$i];
-      unlink $mtr_unique_ids[$i] or
-        warn "Could not unlink $mtr_unique_ids[$i]: $!";
+      print FH $mtr_unique_ids[$i] . "\n";
     }
+    close FH;
   }
+
   @mtr_unique_fh= ();
 }
 
