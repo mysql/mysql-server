@@ -686,11 +686,6 @@ enum_gcs_error Gcs_xcom_control::do_leave()
     MYSQL_GCS_LOG_WARN("The member has left the group but the new view" <<
                        " will not be installed, probably because it has not" <<
                        " been delivered yet.")
-    /*
-      If the node leaves and joins within a 5 second window, it may not
-      get a global view. See BUG#23718481.
-    */
-    My_xp_util::sleep_seconds(5);
 
     return GCS_OK;
   }
@@ -713,12 +708,6 @@ enum_gcs_error Gcs_xcom_control::do_leave()
   */
 
   m_view_control->set_current_view(NULL);
-
-  /*
-    If the node leaves and joins within a 5 second window, it may not
-    get a global view. See BUG#23718481.
-  */
-  My_xp_util::sleep_seconds(5);
 
   return GCS_OK;
 }

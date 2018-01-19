@@ -448,7 +448,8 @@ cleanup:
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  Gcs_interface_factory::cleanup(Gcs_operations::get_gcs_engine());
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+    Gcs_operations::get_gcs_engine());
 
   my_thread_end();
   my_thread_exit(0);

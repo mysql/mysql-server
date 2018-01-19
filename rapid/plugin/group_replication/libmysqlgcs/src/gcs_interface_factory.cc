@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,33 @@ void Gcs_interface_factory::cleanup(enum_available_interfaces binding)
   {
   case XCOM:
     Gcs_xcom_interface::cleanup();
+    break;
+  default:
+    break;
+  }
+}
+
+
+void
+Gcs_interface_factory::
+cleanup_thread_communication_resources(const std::string& binding)
+{
+  enum_available_interfaces binding_translation=
+    Gcs_interface_factory::from_string(binding);
+
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+    binding_translation);
+}
+
+
+void
+Gcs_interface_factory::
+cleanup_thread_communication_resources(enum_available_interfaces binding)
+{
+  switch(binding)
+  {
+  case XCOM:
+    Gcs_xcom_interface::cleanup_thread_ssl_resources();
     break;
   default:
     break;
