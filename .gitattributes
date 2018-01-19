@@ -1,2 +1,8 @@
 .gitattributes export-ignore
 .gitignore export-ignore
+/sql/gis/*.cc filter=codeformat
+/sql/gis/*.h filter=codeformat
+/sql/gis/srs/*.cc filter=codeformat
+/sql/gis/srs/*.h filter=codeformat
+/include/my_alloc.h filter=codeformat
+/mysys/my_alloc.cc filter=codeformat

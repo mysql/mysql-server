@@ -143,7 +143,8 @@ class not_implemented_exception : public std::exception {
 
   static not_implemented_exception for_non_projected(const Geometry &g) {
     switch (g.coordinate_system()) {
-      default: DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+      default:
+        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
       case Coordinate_system::kCartesian:
         return not_implemented_exception(kCartesian, g);
       case Coordinate_system::kGeographic:
@@ -154,7 +155,8 @@ class not_implemented_exception : public std::exception {
   static not_implemented_exception for_non_projected(const Geometry &g1,
                                                      const Geometry &g2) {
     switch (g1.coordinate_system()) {
-      default: DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+      default:
+        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
       case Coordinate_system::kCartesian:
         return not_implemented_exception(kCartesian, g1, g2);
       case Coordinate_system::kGeographic:
