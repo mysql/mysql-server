@@ -79,7 +79,7 @@ call mtr.add_suppression("unknown variable 'loose_group_replication");
 SET SESSION sql_log_bin= 1;
 
 --let $allow_rpl_inited= 1
---let $restart_parameters="restart: --plugin-load=''"
+--let $restart_parameters="restart: --plugin-load="
 --source include/restart_mysqld.inc
 --let $restart_parameters=
 --let $rpl_server_number= 1
