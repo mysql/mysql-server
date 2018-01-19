@@ -24,6 +24,8 @@
 #include "LocalProxy.hpp"
 #include <pgman.hpp>
 
+#include <signaldata/RouteOrd.hpp>
+
 //#define DBINFO_SCAN_TRACE
 #ifdef DBINFO_SCAN_TRACE
 #include <debugger/DebuggerNames.hpp>
@@ -1391,14 +1393,69 @@ LocalProxy::execAPI_FAILREQ(Signal* signal)
 }
 
 void
-LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 ssId, SectionHandle*)
+LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 nodeId, SectionHandle*)
 {
-  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(ssId);
+  Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(nodeId);
 
-  signal->theData[0] = ssId;
+  /*
+   * It is a requirement that the API_FAILREQ signal is
+   * received as the last signal from the failed 'nodeId'.
+   * It is produced by QMGR and ROUTEed via the TRPMAN(s)
+   * (in the recv-thread) with the intention that it will
+   * enter the job buffers after any signals received
+   * from the failed API node. (Note that the transporter
+   * *is* closed when API_FAILREQ is created, so any more
+   * signals should not arrive from this API node).
+   *
+   * However, sending the API_FAILREQ via the proxy
+   * will insert it in another job buffer queue than signals
+   * received from the API-node:
+   *
+   *  API-request :       recv/TRPMAN-thread  ---> Block-instance
+   *                                               ^
+   *  Routed-API_FAILREQ: recv/TRPMAN-thread      /
+   *                                     \       /
+   *                                       Proxy
+   *
+   * Depening on the order the queues are processed, the
+   * API_FAILREQ may then be processed by the Block-instance
+   * before a API-request from the failed node - Which is
+   * not what we want.
+   *
+   * Thus we let any proxies receiving a API_FAILREQ, route it
+   * back to the recv/TRPMAN. There it will be inserted in
+   * the same queue as the API-requests, and thus remove the
+   * posibilities for being overtaken:
+   *
+   *  Routed-API_FAILREQ: recv/TRPMAN-thread
+   *                                     \
+   *  re-route to TRPMAN:  -----------<-Proxy (we are here)
+   *                       |
+   *                       v
+   *  API-request+FAIL :   recv/TRPMAN-thread  ---> Block-instance
+   */
+
+  /* API_FAILREQ signal: */
+  signal->theData[0] = nodeId;
   signal->theData[1] = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_API_FAILREQ,
-             signal, 2, JBB);
+
+  Uint32 routedSignalSectionI = RNIL;
+  ndbrequire(appendToSection(routedSignalSectionI,
+                             &signal->theData[0],
+                             2));
+  SectionHandle handle(this, routedSignalSectionI);
+
+  /* RouteOrd data */
+  RouteOrd* routeOrd = (RouteOrd*) signal->getDataPtrSend();
+
+  routeOrd->srcRef = reference();
+  routeOrd->gsn = GSN_API_FAILREQ;
+  routeOrd->from = nodeId;
+  routeOrd->dstRef = workerRef(ss.m_worker);
+  /* ROUTE it through the TRPMAN */
+  sendSignal(TRPMAN_REF, GSN_ROUTE_ORD, signal,
+             RouteOrd::SignalLength,
+             JBB, &handle);
 }
 
 void
