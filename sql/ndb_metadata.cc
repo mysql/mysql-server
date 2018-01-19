@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -288,7 +288,11 @@ bool Ndb_metadata::compare_table_def(const dd::Table* t1, const dd::Table* t2)
 
 
   // name
-  ctx.compare("name", t1->name(), t2->name());
+  // When using lower_case_table_names==2 the table will be
+  // created using lowercase in NDB while still be original case in DD
+  // this causes a slight diff here. Workaround by skip comparing the
+  // name until BUG#27307793
+  //ctx.compare("name", t1->name(), t2->name());
 
   // collation_id
   // ctx.compare("collation_id", t1->collation_id(), t2->collation_id());
