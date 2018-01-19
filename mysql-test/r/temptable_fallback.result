@@ -65,6 +65,10 @@ SET @@max_heap_table_size = default;
 # Scenario 3: (ENGINE=TempTable, LIMIT=default, CASE=basic, RESULT=success)
 #
 SET @@internal_tmp_mem_storage_engine = TempTable;
+SELECT count_alloc
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id1;
 SELECT * FROM
 t AS t1,
 t AS t2,
@@ -74,6 +78,10 @@ t AS t5,
 t AS t6
 ORDER BY 1
 LIMIT 2;
+SELECT count_alloc
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id2;
 SELECT @@internal_tmp_mem_storage_engine;
 @@internal_tmp_mem_storage_engine
 TempTable
@@ -83,16 +91,18 @@ Created_tmp_tables	3
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
-SELECT count_alloc > 0
-FROM performance_schema.memory_summary_global_by_event_name
-WHERE event_name = 'memory/temptable/physical_disk';
-count_alloc > 0
-0
+SELECT (@id1=@id2);
+(@id1=@id2)
+1
 # ---------------------------------------------------------------------
 # Scenario 4: (ENGINE=TempTable, LIMIT=default, CASE=no-std-memory, RESULT=use_tempfiles)
 #
 SET @@internal_tmp_mem_storage_engine = TempTable;
 SET GLOBAL temptable_max_ram = 2097152;
+SELECT count_alloc
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id1;
 SELECT * FROM
 t AS t1,
 t AS t2,
@@ -102,6 +112,10 @@ t AS t5,
 t AS t6
 ORDER BY 1
 LIMIT 2;
+SELECT count_alloc
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/temptable/physical_disk'
+    INTO @id2;
 SELECT @@internal_tmp_mem_storage_engine;
 @@internal_tmp_mem_storage_engine
 TempTable
@@ -111,10 +125,8 @@ Created_tmp_tables	4
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
-SELECT count_alloc > 0
-FROM performance_schema.memory_summary_global_by_event_name
-WHERE event_name = 'memory/temptable/physical_disk';
-count_alloc > 0
+SELECT (@id1<@id2);
+(@id1<@id2)
 1
 SET @@internal_tmp_mem_storage_engine = default;
 SET GLOBAL temptable_max_ram = default;
@@ -124,7 +136,6 @@ SET GLOBAL temptable_max_ram = default;
 SET @@internal_tmp_mem_storage_engine = TempTable;
 SET GLOBAL temptable_max_ram = 2097152;
 SET debug = '+d,temptable_fetch_from_disk_return_null';
-call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
 SELECT * FROM
 t AS t1,
 t AS t2,
