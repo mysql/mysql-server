@@ -378,7 +378,7 @@ static bool_t x_putbytes(XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)),
 #endif
 
 static u_int
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(LINUX_ALPINE)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(HAVE_TIRPC)
 x_getpostn(XDR *xdrs)
 #else
 x_getpostn(const XDR *xdrs)
