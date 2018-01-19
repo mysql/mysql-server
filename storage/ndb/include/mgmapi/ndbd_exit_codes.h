@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,6 +121,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 /* NDBCNTR 6100-> */
 #define NDBD_EXIT_RESTART_TIMEOUT             6100
 #define NDBD_EXIT_RESTART_DURING_SHUTDOWN     6101
+#define NDBD_EXIT_UPGRADE_INITIAL_REQUIRED    6102
 
 /* TC  6200-> */
 /* DIH 6300-> */

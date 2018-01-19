@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,6 +133,9 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_RESTART_DURING_SHUTDOWN, XRE,
     "Node started while node shutdown in progress. "
     "Please wait until shutdown complete before starting node"},
+   {NDBD_EXIT_UPGRADE_INITIAL_REQUIRED, XRE,
+    "Node upgrade requires initial restart to rebuild filesystem. "
+    "Please retry with --initial or reconsider."},
 
    /* DIH */
    {NDBD_EXIT_MAX_CRASHED_REPLICAS, XFL,

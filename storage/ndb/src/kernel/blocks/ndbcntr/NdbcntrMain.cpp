@@ -1750,6 +1750,34 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
   c_start.m_lastGci = conf->latest_gci;
   c_start.m_lastLcpId = conf->latest_lcp_id;
 
+  /* Check for 'nothing read' values from local sysfile */
+  if (unlikely((c_local_sysfile.m_restorable_flag ==
+                ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN) &&
+               (c_local_sysfile.m_max_restorable_gci == 1)))
+  {
+    jam();
+    /**
+     * In this case, we were unable to read a local sysfile at all,
+     * but the distributed sysfile was readable.
+     * This looks like an upgrade scenario, and we require an
+     * explicit --initial for that.
+     * Tell user via a process exit code, they must decide
+     * themselves whether or not to use --initial.
+     */
+    if (!m_ctx.m_config.getInitialStart()) // TODO : Always?
+    {
+      jam();
+      g_eventLogger->error("Upgrading to a newer version with a newer "
+                           "LCP file format. Data node needs to be started "
+                           "with --initial");
+      // in debug mode crash rather than exit
+      CRASH_INSERTION(1007);
+      progError(__LINE__, NDBD_EXIT_UPGRADE_INITIAL_REQUIRED);
+      /* Never reach here */
+      return;
+    }
+  }
+
   if (unlikely(ctypeOfStart == NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE &&
                c_local_sysfile.m_max_restorable_gci < c_start.m_lastGci))
   {
