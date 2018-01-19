@@ -950,3 +950,26 @@ DROP TABLE t;
 }
 
 --echo #
+--echo # Bug#27403367: GENERATED COLUMN EXPRESSIONS IGNORED WITH PREFIX INDEX
+--echo #
+
+CREATE TABLE t (vc VARCHAR(100),
+                gc TEXT GENERATED ALWAYS AS (REVERSE(vc)) STORED,
+                KEY (gc(3)));
+
+INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
+
+ANALYZE TABLE t;
+
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+SELECT * FROM t WHERE REVERSE(vc) = 'cba';
+
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
+
+EXPLAIN SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
+
+DROP TABLE t;
+
+--echo #
