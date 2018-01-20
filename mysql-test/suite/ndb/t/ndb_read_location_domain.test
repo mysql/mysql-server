@@ -1,6 +1,8 @@
 -- source include/have_ndb.inc
 --source include/not_windows.inc
 --source suite/ndb/include/have_little_endian.inc
+--source include/have_query_cache_disabled.inc
+--source include/not_embedded.inc
 
 --let $KEYS=40
 
