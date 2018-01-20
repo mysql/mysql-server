@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -556,7 +556,20 @@ SimpleCpcClient::Parser_t::ParserStatus SimpleCpcClient::cpc_recv(
   ParserDummy session(cpc_sock);
   Parser_t parser(syntax, cpc_in);
   *reply = parser.parse(ctx, session);
-  if (user_value != NULL) *user_value = ctx.m_currentCmd->user_value;
+
+  if (user_value != NULL)
+  {
+    if (ctx.m_status == Parser_t::Ok ||
+      ctx.m_status == Parser_t::CommandWithoutFunction)
+    {
+      *user_value = ctx.m_currentCmd->user_value;
+    }
+    else
+    {
+      *user_value = NULL;
+    }
+  }
+
   return ctx.m_status;
 }
 
