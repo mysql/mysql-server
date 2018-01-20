@@ -5917,65 +5917,86 @@ bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
   nodePtr.i = nodeId;
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
 
+#if defined VM_TRACE || defined ERROR_INSERT
   switch (nodePtr.p->nodeRecoveryStatus)
   {
   case NodeRecord::RESTART_COMPLETED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->restartCompletedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->restartCompletedTime));
+    // Fallthrough
   case NodeRecord::WAIT_SUMA_HANDOVER:
-    ndbassert(NdbTick_IsValid(nodePtr.p->waitSumaHandoverTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->waitSumaHandoverTime));
+    // Fallthrough
   case NodeRecord::WAIT_LCP_FOR_RESTART:
-    ndbassert(NdbTick_IsValid(nodePtr.p->waitLCPForRestartTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->waitLCPForRestartTime));
+    // Fallthrough
   case NodeRecord::COPY_FRAGMENTS_STARTED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->copyFragmentsStartedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->copyFragmentsStartedTime));
+    // Fallthrough
   case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->startBuildIndexTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->startBuildIndexTime));
+    // Fallthrough
   case NodeRecord::UNDO_DD_COMPLETED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->startExecREDOLogTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->startExecREDOLogTime));
+    // Fallthrough
   case NodeRecord::RESTORE_FRAG_COMPLETED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->startUndoDDTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->startUndoDDTime));
+    // Fallthrough
   case NodeRecord::LOCAL_RECOVERY_STARTED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->startDatabaseRecoveryTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->startDatabaseRecoveryTime));
+    // Fallthrough
   case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
-    ndbassert(NdbTick_IsValid(nodePtr.p->includeNodeInLCPAndGCPTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->includeNodeInLCPAndGCPTime));
+    // Fallthrough
   case NodeRecord::COPY_DICT_TO_STARTING_NODE:
-    ndbassert(NdbTick_IsValid(nodePtr.p->copyDictToStartingNodeTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->copyDictToStartingNodeTime));
+    // Fallthrough
   case NodeRecord::WAIT_LCP_TO_COPY_DICT:
-    ndbassert(NdbTick_IsValid(nodePtr.p->waitLCPToCopyDictTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->waitLCPToCopyDictTime));
+    // Fallthrough
   case NodeRecord::START_PERMITTED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->startPermittedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->startPermittedTime));
+    // Fallthrough
   case NodeRecord::NDBCNTR_STARTED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->ndbcntrStartedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->ndbcntrStartedTime));
+    // Fallthrough
   case NodeRecord::NDBCNTR_START_WAIT:
-    ndbassert(NdbTick_IsValid(nodePtr.p->ndbcntrStartWaitTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->ndbcntrStartWaitTime));
+    // Fallthrough
   case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
-    ndbassert(NdbTick_IsValid(nodePtr.p->includedInHBProtocolTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->includedInHBProtocolTime));
+    // Fallthrough
   case NodeRecord::ALLOCATED_NODE_ID:
-    ndbassert(NdbTick_IsValid(nodePtr.p->allocatedNodeIdTime));
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->allocatedNodeIdTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailTime));
     break;
   case NodeRecord::NODE_ACTIVE:
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeActiveTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeActiveTime));
+    // Fallthrough
   case NodeRecord::NODE_IN_LCP_WAIT_STATE:
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeInLCPWaitStateTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeInLCPWaitStateTime));
+    // Fallthrough
   case NodeRecord::NODE_GETTING_SYNCHED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeGettingSynchedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingSynchedTime));
+    // Fallthrough
   case NodeRecord::NODE_GETTING_INCLUDED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeGettingIncludedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingIncludedTime));
+    // Fallthrough
   case NodeRecord::NODE_GETTING_PERMIT:
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeGettingPermitTime));
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingPermitTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailTime));
     break;
   case NodeRecord::NODE_FAILURE_COMPLETED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
+    // Fallthrough
   case NodeRecord::NODE_FAILED:
-    ndbassert(NdbTick_IsValid(nodePtr.p->nodeFailTime));
+    ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailTime));
     break;
   default:
     jam();
-    break;
   }
+#endif
   return true;
 }
  
