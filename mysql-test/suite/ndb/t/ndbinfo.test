@@ -445,7 +445,18 @@ set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info w
 # Test the dict_obj_info table. Replace table id of t1 in 'fq_name' values that
 # contain it (index and blob table names do), since the table id may vary 
 # between runs.
-select type, state, parent_obj_type, replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name, if(parent_obj_id=@t1_id, "child_of_t1", if(parent_obj_id=0, "root", "error!")) as  nesting from ndbinfo.ndb$dict_obj_info where id >= @t1_id and type <= 6 order by type, id;
+select type, state, parent_obj_type,
+  replace(replace(fq_name,
+                  concat("/", cast(@t1_id as char(10)), "/"), "/<t1 id>/"),
+          concat("_", cast(@t1_id as char(10)), "_"), "_<t1 id>_") as fq_name,
+  if(parent_obj_id=@t1_id, "child_of_t1",
+    if(parent_obj_id=0, "root", "error!")) as  nesting
+  from ndbinfo.ndb$dict_obj_info
+  where type <= 6
+  and (id = @t1_id or
+       instr(fq_name, concat("/", cast(@t1_id as char(10)), "/")) or
+       instr(fq_name, concat("_", cast(@t1_id as char(10)), "_")))
+  order by type, state, parent_obj_type;
 
 # Disable query log while defining the view below, since view definition
 # conatins the table id of t1, which may vary between runs.
@@ -474,10 +485,11 @@ sum(fixed_elem_free_bytes/fixed_elem_size_bytes) =
    sum(fixed_elem_free_count) as fixed_elem_free_bytes_ok,
 sum(var_elem_count) as var_elem_count,
 sum(var_elem_alloc_bytes) >= sum(var_elem_free_bytes) as var_bytes_ok
-from ndbinfo.memory_per_fragment
-where table_id >= $t1_id
-group by table_id, memory_per_fragment.fq_name, parent_fq_name, type
-order by table_id;
+from ndbinfo.memory_per_fragment mpf
+where not fq_name like "mysql/%" and
+      (parent_fq_name is null or not parent_fq_name like "mysql/%")
+group by table_id, mpf.fq_name, parent_fq_name, type
+order by ifnull(parent_fq_name, mpf.fq_name), mpf.fq_name, type;
 
 enable_query_log;
 
@@ -623,10 +635,10 @@ create view frag_ops as select
   #sum(conc_frag_scans) as conc_frag_scans,
   sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
   sum(tot_commits) as tot_commits
-  from ndbinfo.operations_per_fragment
+  from ndbinfo.operations_per_fragment opf
   where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
-  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
-  order by table_id;
+  group by table_id, type, opf.fq_name, parent_fq_name
+  order by ifnull(parent_fq_name, opf.fq_name), opf.fq_name;
 
 
 # Create and populate test tables.
