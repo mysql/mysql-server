@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,7 +195,8 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
   short_usage_fn(g_ndb_opt_short_usage)
 {
   NDB_INIT(argv_ref[0]);   // ndb_init() can safely be called more than once
-  ndb_load_defaults(NULL, mycnf_default_groups, main_argc_ptr, main_argv_ptr);
+  my_load_defaults(MYSQL_CONFIG_NAME,  mycnf_default_groups,
+                   main_argc_ptr, main_argv_ptr, NULL);
   Ndb_opts::registerUsage(this);
   defaults_argv = * main_argv_ptr;
 };
