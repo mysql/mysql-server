@@ -472,6 +472,8 @@ let $t1_id = query_get_value(select @t1_id as id, id, 1);
 # Observe that memory_per_fragment.fq_name, parent_fq_name, type are all
 # functionally dependent on 'table_id', but since this cannot be deduced from
 # the schema, they are all included in the 'group by' clause.
+# Exclude system tables and mysql schema since those may have different
+# contents depending on earlier test runs.
 eval create view sum_per_tab as 
 select replace(fq_name, cast($t1_id as char(10)), "<t1 id>") as fq_name, 
 parent_fq_name, type, 
@@ -487,7 +489,8 @@ sum(var_elem_count) as var_elem_count,
 sum(var_elem_alloc_bytes) >= sum(var_elem_free_bytes) as var_bytes_ok
 from ndbinfo.memory_per_fragment mpf
 where not fq_name like "mysql/%" and
-      (parent_fq_name is null or not parent_fq_name like "mysql/%")
+      (parent_fq_name is null or not parent_fq_name like "mysql/%") and
+      type <> 'System table'
 group by table_id, mpf.fq_name, parent_fq_name, type
 order by ifnull(parent_fq_name, mpf.fq_name), mpf.fq_name, type;
 
