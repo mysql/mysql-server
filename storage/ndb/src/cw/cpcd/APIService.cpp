@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -302,6 +302,30 @@ void CPCDAPISession::printProperty(Properties *prop, const char *key) {
   m_output->println("%s: %s", key, propToString(prop, key));
 }
 
+void CPCDAPISession::printLongString(const char *key, const char *value) {
+  size_t remaining = strlen(value);
+  bool append = false;
+
+  do {
+    const char *fmt = (append ? "+%s:\"%.*s\"\n" : "%s:\"%.*s\"\n");
+    const int reserved_bytes_for_format = 5;  // 2 x '"', ':', '\n', '\0'
+    const int reserved_byte_for_plus_sign = 1;
+    const size_t keylen = strlen(key);
+
+    size_t size =
+        Parser_t::Context::MaxParseBytes - keylen - reserved_bytes_for_format;
+    size -= append ? reserved_byte_for_plus_sign : 0;
+    if (size > remaining) {
+      size = remaining;
+    }
+    m_output->print(fmt, key, (int)size, value);
+
+    value += size;
+    remaining -= size;
+    append = true;
+  } while (remaining > 0);
+}
+
 void CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
                                    const class Properties & /* unused */) {
   m_cpcd.m_processes.lock();
@@ -318,16 +342,16 @@ void CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
     m_output->println("id: %d", p->m_id);
     m_output->println("name: %s", p->m_name.c_str());
     m_output->println("path: %s", p->m_path.c_str());
-    m_output->println("args: %s", p->m_args.c_str());
+    printLongString("args", p->m_args.c_str());
     m_output->println("type: %s", p->m_type.c_str());
     m_output->println("cwd: %s", p->m_cwd.c_str());
-    m_output->println("env: %s", p->m_env.c_str());
+    printLongString("env", p->m_env.c_str());
     m_output->println("owner: %s", p->m_owner.c_str());
     m_output->println("group: %s", p->m_group.c_str());
     m_output->println("runas: %s", p->m_runas.c_str());
 
     if (may_print_process_cpuset()) {
-      m_output->println("cpuset: %s", p->m_cpuset.c_str());
+      printLongString("cpuset", p->m_cpuset.c_str());
     }
 
     m_output->println("stdin: %s", p->m_stdin.c_str());
