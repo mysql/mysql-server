@@ -26,7 +26,9 @@
 #include "TCP_Transporter.hpp"
 #include "Loopback_Transporter.hpp"
 
+#ifndef WIN32
 #include "SHM_Transporter.hpp"
+#endif
 
 #include "NdbOut.hpp"
 #include <NdbSleep.h>
@@ -574,6 +576,7 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 bool
 TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
 {
+#ifndef WIN32
   DBUG_ENTER("TransporterRegistry::createTransporter SHM");
 
   SHM_Transporter * t = new SHM_Transporter(*this,
@@ -604,6 +607,9 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
   m_total_max_send_buffer += t->get_max_send_buffer();
 
   DBUG_RETURN(true);
+#else
+  DBUG_RETURN(false);
+#endif
 }
 
 
