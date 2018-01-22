@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -663,30 +663,6 @@ void getTextTransporterError(QQQQ) {
     {TE_SIGNAL_LOST,"Send failed for unknown reason(signal lost)"},
     //TE_SEND_BUFFER_FULL = 0x16
     {TE_SEND_BUFFER_FULL,"The send buffer was full, but sleeping for a while solved"},
-    //TE_SCI_LINK_ERROR = 0x0017
-    {TE_SCI_LINK_ERROR,"There is no link from this node to the switch"},
-    //TE_SCI_UNABLE_TO_START_SEQUENCE = 0x18 | TE_DO_DISCONNECT
-    {TE_SCI_UNABLE_TO_START_SEQUENCE,"Could not start a sequence, because system resources are exumed or no sequence has been created"},
-    //TE_SCI_UNABLE_TO_REMOVE_SEQUENCE = 0x19 | TE_DO_DISCONNECT
-    {TE_SCI_UNABLE_TO_REMOVE_SEQUENCE,"Could not remove a sequence"},
-    //TE_SCI_UNABLE_TO_CREATE_SEQUENCE = 0x1a | TE_DO_DISCONNECT
-    {TE_SCI_UNABLE_TO_CREATE_SEQUENCE,"Could not create a sequence, because system resources are exempted. Must reboot"},
-    //TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR = 0x1b | TE_DO_DISCONNECT
-    {TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR,"Tried to send data on redundant link but failed"},
-    //TE_SCI_CANNOT_INIT_LOCALSEGMENT = 0x1c | TE_DO_DISCONNECT
-    {TE_SCI_CANNOT_INIT_LOCALSEGMENT,"Cannot initialize local segment"},
-    //TE_SCI_CANNOT_MAP_REMOTESEGMENT = 0x1d | TE_DO_DISCONNEC
-    {TE_SCI_CANNOT_MAP_REMOTESEGMENT,"Cannot map remote segment"},
-    //TE_SCI_UNABLE_TO_UNMAP_SEGMENT = 0x1e | TE_DO_DISCONNECT
-    {TE_SCI_UNABLE_TO_UNMAP_SEGMENT,"Cannot free the resources used by this segment (step 1)"},
-    //TE_SCI_UNABLE_TO_REMOVE_SEGMENT = 0x1f  | TE_DO_DISCONNEC
-    {TE_SCI_UNABLE_TO_REMOVE_SEGMENT,"Cannot free the resources used by this segment (step 2)"},
-    //TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT = 0x20 | TE_DO_DISCONNECT
-    {TE_SCI_UNABLE_TO_DISCONNECT_SEGMENT,"Cannot disconnect from a remote segment"},
-    //TE_SHM_IPC_PERMANENT = 0x21
-    {TE_SHM_IPC_PERMANENT,"Shm ipc Permanent error"},
-    //TE_SCI_UNABLE_TO_CLOSE_CHANNEL = 0x22
-    {TE_SCI_UNABLE_TO_CLOSE_CHANNEL, "Unable to close the sci channel and the resources allocated"},
     //TE_UNSUPPORTED_BYTE_ORDER = 0x23 | TE_DO_DISCONNECT
     {TE_UNSUPPORTED_BYTE_ORDER, "Error found in message (unsupported byte order)"},
     //TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT

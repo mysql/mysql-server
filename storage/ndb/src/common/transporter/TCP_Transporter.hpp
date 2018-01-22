@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,18 +77,13 @@ private:
    * Retrieves the contents of the send buffers and writes it on
    * the external TCP/IP interface.
    */
-  bool doSend();
+  bool doSend(bool need_wakeup = true);
   
   /**
    * It reads the external TCP/IP interface once 
    * and puts the data in the receiveBuffer
    */
   int doReceive(TransporterReceiveHandle&);
-
-  /**
-   * Returns socket (used for select)
-   */
-  NDB_SOCKET_TYPE getSocket() const;
 
   /**
    * Get Receive Data
@@ -123,9 +118,6 @@ protected:
   virtual void disconnectImpl();
   
 private:
-  // Sending/Receiving socket used by both client and server
-  NDB_SOCKET_TYPE theSocket;   
-  
   Uint32 maxReceiveSize;
   
   /**
@@ -144,25 +136,10 @@ private:
   bool send_is_possible(int timeout_millisec) const;
   bool send_is_possible(NDB_SOCKET_TYPE fd, int timeout_millisec) const;
 
-  /**
-   * Statistics
-   */
-  Uint32 reportFreq;
-  Uint32 receiveCount;
-  Uint64 receiveSize;
-  Uint32 sendCount;
-  Uint64 sendSize;
-
   ReceiveBuffer receiveBuffer;
 
   bool send_limit_reached(int bufsize) { return bufsize > TCP_SEND_LIMIT; }
 };
-
-inline
-NDB_SOCKET_TYPE
-TCP_Transporter::getSocket() const {
-  return theSocket;
-}
 
 inline
 Uint32

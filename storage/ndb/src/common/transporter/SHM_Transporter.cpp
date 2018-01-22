@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,6 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
-extern int g_ndb_shm_signum;
-
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 const char *lHostName,
 				 const char *rHostName, 
@@ -48,13 +46,16 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 bool signalId,
 				 key_t _shmKey,
 				 Uint32 _shmSize,
-				 bool preSendChecksum) :
+				 bool preSendChecksum,
+                                 Uint32 _spintime,
+                                 Uint32 _send_buffer_size) :
   Transporter(t_reg, tt_SHM_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
-	      0, false, checksum, signalId, 
-              4096 + MAX_SEND_MESSAGE_BYTESIZE,
+	      0, false, checksum, signalId,
+              _send_buffer_size,
               preSendChecksum),
+  m_spintime(_spintime),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -68,11 +69,13 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   reader = 0;
   writer = 0;
   
-  setupBuffersDone=false;
+  setupBuffersDone = false;
+  m_server_locked = false;
+  m_client_locked = false;
 #ifdef DEBUG_TRANSPORTER
   printf("shm key (%d - %d) = %d\n", lNodeId, rNodeId, shmKey);
 #endif
-  m_signal_threshold = 4096;
+  m_signal_threshold = 262144;
 }
 
 
@@ -80,29 +83,29 @@ bool
 SHM_Transporter::configure_derived(const TransporterConfiguration* conf)
 {
   if ((key_t)conf->shm.shmKey == shmKey &&
-      (int)conf->shm.shmSize == shmSize &&
-      conf->shm.signum == g_ndb_shm_signum)
+      (int)conf->shm.shmSize == shmSize)
     return true; // No change
   return false; // Can't reconfigure
 }
 
 
-SHM_Transporter::~SHM_Transporter(){
+SHM_Transporter::~SHM_Transporter()
+{
   doDisconnect();
 }
 
 bool 
-SHM_Transporter::initTransporter(){
-  if (g_ndb_shm_signum)
-    return true;
-  return false;
+SHM_Transporter::initTransporter()
+{
+  return true;
 }
     
 void
-SHM_Transporter::setupBuffers(){
+SHM_Transporter::setupBuffers()
+{
   Uint32 sharedSize = 0;
-  sharedSize += 28; //SHM_Reader::getSharedSize();
-  sharedSize += 28; //SHM_Writer::getSharedSize();
+  sharedSize += 64;
+  sharedSize += sizeof(NdbMutex);
 
   const Uint32 slack = MAX(MAX_RECV_MESSAGE_BYTESIZE,
                            MAX_SEND_MESSAGE_BYTESIZE);
@@ -119,15 +122,28 @@ SHM_Transporter::setupBuffers(){
   Uint32 * sharedReadIndex1 = base1;
   Uint32 * sharedWriteIndex1 = base1 + 1;
   serverStatusFlag = base1 + 4;
+  serverAwakenedFlag = base1 + 5;
+  serverMutex = (NdbMutex*)(base1 + 16);
   char * startOfBuf1 = shmBuf+sharedSize;
 
   Uint32 * base2 = (Uint32*)(shmBuf + sizeOfBuffer + sharedSize);
   Uint32 * sharedReadIndex2 = base2;
   Uint32 * sharedWriteIndex2 = base2 + 1;
   clientStatusFlag = base2 + 4;
+  clientAwakenedFlag = base2 + 5;
+  clientMutex = (NdbMutex*)(base2 + 16);
   char * startOfBuf2 = ((char *)base2)+sharedSize;
-  
-  if(isServer){
+
+  if (isServer)
+  {
+    NdbMutex_Init_Shared(serverMutex);
+    NdbMutex_Init_Shared(clientMutex);
+    * serverAwakenedFlag = 0;
+    * clientAwakenedFlag = 0;
+  }
+
+  if(isServer)
+  {
     * serverStatusFlag = 0;
     reader = new SHM_Reader(startOfBuf1, 
 			    sizeOfBuffer,
@@ -172,7 +188,9 @@ SHM_Transporter::setupBuffers(){
 
     printf("sizeOfBuffer = %d\n", sizeOfBuffer);
 #endif
-  } else {
+  }
+  else
+  {
     * clientStatusFlag = 0;
     reader = new SHM_Reader(startOfBuf2, 
 			    sizeOfBuffer,
@@ -227,19 +245,22 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
   char buf[256];
 
   // Create
-  if(!_shmSegCreated){
-    if (!ndb_shm_create()) {
+  if (!_shmSegCreated)
+  {
+    if (!ndb_shm_create())
+    {
       make_error_info(buf, sizeof(buf));
       report_error(TE_SHM_UNABLE_TO_CREATE_SEGMENT, buf);
       NDB_CLOSE_SOCKET(sockfd);
       DBUG_RETURN(false);
     }
-    _shmSegCreated = true;
   }
 
   // Attach
-  if(!_attached){
-    if (!ndb_shm_attach()) {
+  if (!_attached)
+  {
+    if (!ndb_shm_attach())
+    {
       make_error_info(buf, sizeof(buf));
       report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT, buf);
       NDB_CLOSE_SOCKET(sockfd);
@@ -268,20 +289,33 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
 
   int r= connect_common(sockfd);
 
-  if (r) {
+  if (r)
+  {
     // Send ok to client
     s_output.println("shm server 2 ok");
     // Wait for ok from client
-    if (s_input.gets(buf, 256) == 0) {
+    if (s_input.gets(buf, 256) == 0)
+    {
       NDB_CLOSE_SOCKET(sockfd);
       DBUG_RETURN(false);
     }
     DBUG_PRINT("info", ("Successfully connected server to node %d",
                 remoteNodeId)); 
   }
-
-  NDB_CLOSE_SOCKET(sockfd);
+  set_socket(sockfd);
   DBUG_RETURN(r);
+}
+
+void
+SHM_Transporter::set_socket(NDB_SOCKET_TYPE sockfd)
+{
+  set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
+  set_get(sockfd, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
+  my_socket_nonblock(sockfd, true);
+  get_callback_obj()->lock_transporter(remoteNodeId);
+  theSocket = sockfd;
+  send_checksum_state.init();
+  get_callback_obj()->unlock_transporter(remoteNodeId);
 }
 
 bool
@@ -294,7 +328,8 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 
   // Wait for server to create and attach
   DBUG_PRINT("info", ("Wait for server to create and attach"));
-  if (s_input.gets(buf, 256) == 0) {
+  if (s_input.gets(buf, 256) == 0)
+  {
     NDB_CLOSE_SOCKET(sockfd);
     DBUG_PRINT("error", ("Server id %d did not attach",
                 remoteNodeId));
@@ -308,8 +343,10 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   }
   
   // Create
-  if(!_shmSegCreated){
-    if (!ndb_shm_get()) {
+  if(!_shmSegCreated)
+  {
+    if (!ndb_shm_get())
+    {
       NDB_CLOSE_SOCKET(sockfd);
       DBUG_PRINT("error", ("Failed create of shm seg to node %d",
                   remoteNodeId));
@@ -319,8 +356,10 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   }
 
   // Attach
-  if(!_attached){
-    if (!ndb_shm_attach()) {
+  if (!_attached)
+  {
+    if (!ndb_shm_attach())
+    {
       make_error_info(buf, sizeof(buf));
       report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT, buf);
       NDB_CLOSE_SOCKET(sockfd);
@@ -335,12 +374,14 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   s_output.println("shm client 1 ok: %d", 
 		   m_transporter_registry.m_shm_own_pid);
   
-  int r= connect_common(sockfd);
+  int r = connect_common(sockfd);
   
-  if (r) {
+  if (r)
+  {
     // Wait for ok from server
     DBUG_PRINT("info", ("Wait for ok from server"));
-    if (s_input.gets(buf, 256) == 0) {
+    if (s_input.gets(buf, 256) == 0)
+    {
       NDB_CLOSE_SOCKET(sockfd);
       DBUG_PRINT("error", ("No ok from server node %d",
                   remoteNodeId));
@@ -351,28 +392,31 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     DBUG_PRINT("info", ("Successfully connected client to node %d",
                 remoteNodeId)); 
   }
-
-  NDB_CLOSE_SOCKET(sockfd);
+  set_socket(sockfd);
   DBUG_RETURN(r);
 }
 
 bool
 SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 {
-  if (!checkConnected()) {
+  if (!checkConnected())
+  {
     return false;
   }
-  
-  if(!setupBuffersDone) 
+  if (isServer)
+  {
+    ndb_shm_destroy();
+  }
+  if (!setupBuffersDone) 
   {
     setupBuffers();
     setupBuffersDone=true;
   }
 
-  if(setupBuffersDone) 
+  if (setupBuffersDone) 
   {
     NdbSleep_MilliSleep(m_timeOutMillis);
-    if(*serverStatusFlag == 1 && *clientStatusFlag == 1)
+    if (*serverStatusFlag == 1 && *clientStatusFlag == 1)
       return true;
   }
 
@@ -381,14 +425,146 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   return false;
 }
 
+void
+SHM_Transporter::remove_mutexes()
+{
+  if (my_socket_valid(theSocket))
+  {
+    NdbMutex_Deinit(serverMutex);
+    NdbMutex_Deinit(clientMutex);
+  }
+}
+
+void SHM_Transporter::setupBuffersUndone()
+{
+  if (setupBuffersDone)
+  {
+    NdbMutex_Lock(serverMutex);
+    NdbMutex_Lock(clientMutex);
+    setupBuffersDone = false;
+    NdbMutex_Unlock(serverMutex);
+    NdbMutex_Unlock(clientMutex);
+  }
+}
+
+void
+SHM_Transporter::disconnect_socket()
+{
+  get_callback_obj()->lock_transporter(remoteNodeId);
+
+  NDB_SOCKET_TYPE sock = theSocket;
+  my_socket_invalidate(&theSocket);
+
+  get_callback_obj()->unlock_transporter(remoteNodeId);
+
+  if(my_socket_valid(sock))
+  {
+    if(my_socket_close(sock) < 0){
+      report_error(TE_ERROR_CLOSING_SOCKET);
+    }
+  }
+  setupBuffersDone = false;
+}
+
+/**
+ * This method is used when we need to wake up other side to
+ * ensure that the messages we transported in shared memory
+ * transporter is quickly handled.
+ *
+ * The first step is to grab a mutex from the shared memory segment,
+ * next we check the status of the transporter on the other side. If
+ * this transporter is asleep we will simply send 1 byte, it doesn't
+ * matter what the byte value is. We set it to 0 just to ensure it
+ * has defined value for potential future use.
+ *
+ * If we discover that the other side is awake there is no need to
+ * do anything, the other side will check the shared memory before
+ * it goes to sleep.
+ */
+void
+SHM_Transporter::wakeup()
+{
+  Uint32 one_more_try = 5;
+  char buf[1];
+  int iovcnt = 1;
+  struct iovec iov[1];
+
+  lock_reverse_mutex();
+  bool awake_state = handle_reverse_awake_state();
+  unlock_reverse_mutex();
+  if (awake_state)
+  {
+    return;
+  }
+  iov[0].iov_len = 1;
+  iov[0].iov_base = &buf[0];
+  buf[0] = 0;
+  do
+  {
+    one_more_try--;
+    int nBytesSent = (int)my_socket_writev(theSocket, iov, iovcnt);
+    if (nBytesSent != 1)
+    {
+      if (DISCONNECT_ERRNO(my_socket_errno(), nBytesSent))
+      {
+        do_disconnect(my_socket_errno());
+      }
+    }
+    else
+    {
+      return;
+    }
+  } while (one_more_try);
+}
+
+void
+SHM_Transporter::doReceive()
+{
+  bool one_more_try;
+  char buf[128];
+  do
+  {
+    one_more_try = false;
+    const int nBytesRead = (int)my_recv(theSocket, buf, sizeof(buf), 0);
+    if (unlikely(nBytesRead < 0))
+    {
+      if (DISCONNECT_ERRNO(my_socket_errno(), nBytesRead))
+      {
+        do_disconnect(my_socket_errno());
+      }
+      else
+      {
+        one_more_try = true;
+      }
+    }
+    else if (unlikely(nBytesRead == sizeof(buf)))
+    {
+      one_more_try = true;
+    }
+  } while (one_more_try);
+}
+
 bool
-SHM_Transporter::doSend()
+SHM_Transporter::doSend(bool need_wakeup)
 {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
   if (cnt == 0)
   {
+    /**
+     * Need to handle the wakeup flag, even when there is nothing to
+     * send. We can call doSend in an attempt to do an emergency send.
+     * In this case we could register a pending send even with an
+     * empty send buffer. So this could lead to a later doSend call
+     * that have no data to send. So the idea is to delay the wakeup
+     * until end of execution even if the send buffer is full in the
+     * middle of executing signals.
+     */
+    if (need_wakeup)
+    {
+      wakeup();
+    }
     return false;
   }
 
@@ -403,10 +579,24 @@ SHM_Transporter::doSend()
 
   if (nBytesSent > 0)
   {
-    kill(m_remote_pid, g_ndb_shm_signum);
     iovec_data_sent(nBytesSent);
+    m_bytes_sent += nBytesSent;
+    sendCount++;
+    sendSize += nBytesSent;
+    if (sendCount >= reportFreq)
+    {
+      get_callback_obj()->reportSendLen(remoteNodeId, sendCount, sendSize);
+      sendCount = 0;
+      sendSize  = 0;
+    }
 
-    if (Uint32(nBytesSent) == sum && (cnt != NDB_ARRAY_SIZE(iov)))
+    if (need_wakeup)
+    {
+      wakeup();
+    }
+    if (Uint32(nBytesSent) == sum &&
+        (cnt != NDB_ARRAY_SIZE(iov)) &&
+        need_wakeup)
     {
       return false;
     }
@@ -414,4 +604,180 @@ SHM_Transporter::doSend()
   }
 
   return true;
+}
+
+/*
+ * We need the extra m_client_locked and m_server_locked
+ * variables to ensure that we don't unlock something
+ * that was never locked. The timing of the setting up
+ * of buffers and locking of mutexes isn't perfect,
+ * therefore we protect those calls through these variables.
+ */
+void
+SHM_Transporter::lock_mutex()
+{
+  if (setupBuffersDone)
+  {
+    if (isServer)
+    {
+      NdbMutex_Lock(serverMutex);
+      m_server_locked = true;
+    }
+    else
+    {
+      NdbMutex_Lock(clientMutex);
+      m_client_locked = true;
+    }
+  }
+}
+
+void
+SHM_Transporter::unlock_mutex()
+{
+  if (setupBuffersDone)
+  {
+    if (isServer)
+    {
+      if (m_server_locked)
+        NdbMutex_Unlock(serverMutex);
+    }
+    else
+    {
+      if (m_client_locked)
+        NdbMutex_Unlock(clientMutex);
+    }
+  }
+}
+
+void
+SHM_Transporter::lock_reverse_mutex()
+{
+  if (setupBuffersDone)
+  {
+    if (isServer)
+    {
+      NdbMutex_Lock(clientMutex);
+      m_client_locked = true;
+    }
+    else
+    {
+      NdbMutex_Lock(serverMutex);
+      m_server_locked = true;
+    }
+  }
+}
+
+void
+SHM_Transporter::unlock_reverse_mutex()
+{
+  if (setupBuffersDone)
+  {
+    if (isServer)
+    {
+      if (m_client_locked)
+        NdbMutex_Unlock(clientMutex);
+    }
+    else
+    {
+      if (m_server_locked)
+        NdbMutex_Unlock(serverMutex);
+    }
+  }
+}
+
+void
+SHM_Transporter::set_awake_state(Uint32 awake_state)
+{
+  if (setupBuffersDone)
+  {
+    if (isServer)
+    {
+      *serverStatusFlag = awake_state;
+      *serverAwakenedFlag = 0;
+    }
+    else
+    {
+      *clientStatusFlag = awake_state;
+      *clientAwakenedFlag = 0;
+    }
+  }
+}
+
+bool
+SHM_Transporter::handle_reverse_awake_state()
+{
+  /**
+   * We are sending to the other side. We need to understand if we
+   * should send a wakeup byte to the other side. If we already did
+   * so and the other side still hasn't woke up, we need not do it
+   * again. If the other side is awake we also need not send any
+   * wakeup byte.
+   */
+  if (setupBuffersDone)
+  {
+    if (isServer)
+    {
+      if (*clientStatusFlag == 1 || *clientAwakenedFlag == 1)
+      {
+        return true;
+      }
+      else
+      {
+        *clientAwakenedFlag = 1;
+        return false;
+      }
+    }
+    else
+    {
+      if (*serverStatusFlag == 1 || *serverAwakenedFlag == 1)
+      {
+        return true;
+      }
+      else
+      {
+        *serverAwakenedFlag = 1;
+        return false;
+      }
+    }
+  }
+  else
+  {
+    return true;
+  }
+}
+
+void
+SHM_Transporter::updateReceivePtr(TransporterReceiveHandle& recvdata,
+                                  Uint32 *ptr)
+{
+  Uint32 size_read = reader->updateReadPtr(ptr);
+  receiveCount++;
+  receiveSize += size_read;
+  m_bytes_received += size_read;
+  if (receiveCount == reportFreq)
+  {
+    recvdata.reportReceiveLen(remoteNodeId,
+                              receiveCount,
+                              receiveSize);
+    receiveCount = 0;
+    receiveSize = 0;
+  }
+}
+
+bool
+SHM_Transporter::send_is_possible(int timeout_millisec) const
+{
+  if (writer->get_free_buffer() > MAX_SEND_MESSAGE_BYTESIZE)
+  {
+    return 1;
+  }
+  if (timeout_millisec > 0)
+  {
+    NdbSleep_MilliSleep(timeout_millisec);
+    if (writer->get_free_buffer() > MAX_SEND_MESSAGE_BYTESIZE)
+    {
+      return 1;
+    }
+  }
+  return 0;
 }

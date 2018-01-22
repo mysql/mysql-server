@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,18 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
+    reportFreq(4096),
+    receiveCount(0),
+    receiveSize(0),
+    sendCount(0),
+    sendSize(0),
     m_transporter_registry(t_reg)
 {
   DBUG_ENTER("Transporter::Transporter");
+
+  // Initialize member variables
+  my_socket_invalidate(&theSocket);
+
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
   }
@@ -389,5 +398,38 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       fprintf(stderr, "0x%08x\n", word);
     }
     fprintf(stderr, "\n\n");
+  }
+}
+
+void
+Transporter::set_get(NDB_SOCKET_TYPE fd,
+                     int level,
+                     int optval,
+                     const char *optname, 
+                     int val)
+{
+  int actual = 0, defval = 0;
+  socket_len_t len = sizeof(actual);
+
+  my_getsockopt(fd, level, optval, (char*)&defval, &len);
+
+  if (my_setsockopt(fd, level, optval,
+                    (char*)&val, sizeof(val)) < 0)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
+                         optname, val, errno, strerror(errno));
+#endif
+  }
+  
+  len = sizeof(actual);
+  if ((my_getsockopt(fd, level, optval,
+                     (char*)&actual, &len) == 0) &&
+      actual != val)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",
+                         optname, val, actual, defval);
+#endif
   }
 }
