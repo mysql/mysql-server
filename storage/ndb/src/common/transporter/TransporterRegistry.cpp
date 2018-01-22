@@ -616,7 +616,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
 
   DBUG_RETURN(true);
 #else
-  DBUG_RETURN(false);
+  return false;
 #endif
 }
 
@@ -645,6 +645,7 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
       theTCPTransporters[ind-1] = theTCPTransporters[ind];
     nTCPTransporters --;
     break;
+#ifndef WIN32
   case tt_SHM_TRANSPORTER:
     for(; ind < nSHMTransporters; ind++)
       if(theSHMTransporters[ind]->getRemoteNodeId() == nodeId)
@@ -654,6 +655,7 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
       theSHMTransporters[ind-1] = theSHMTransporters[ind];
     nSHMTransporters--;
     break;
+#endif
   }
 
   nTransporters--;
