@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -497,6 +497,22 @@ static void event_class_dispatch(THD *thd, unsigned int event_class,
 bool is_any_audit_plugin_active(THD *thd MY_ATTRIBUTE((unused)))
 {
   return (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK);
+}
+
+/**
+  @brief Checks presence of active audit plugin
+
+  @retval      TRUE             At least one audit plugin is present
+  @retval      FALSE            No audit plugin is present
+*/
+bool is_global_audit_mask_set()
+{
+  for (int i= MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
+  {
+    if (mysql_global_audit_mask[i] != 0)
+      return true;
+  }
+  return false;
 }
 
 #else /* EMBEDDED_LIBRARY */
