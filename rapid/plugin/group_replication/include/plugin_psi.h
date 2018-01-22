@@ -93,7 +93,6 @@ extern PSI_mutex_key
               key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
               key_GR_LOCK_plugin_online,
               key_GR_LOCK_plugin_running,
-              key_GR_LOCK_read_mode,
               key_GR_LOCK_recovery_module_run,
               key_GR_LOCK_recovery,
               key_GR_LOCK_recovery_donor_selection,
