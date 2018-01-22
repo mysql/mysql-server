@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -12248,6 +12248,9 @@ ER_UNABLE_TO_SET_OPTION
 
 ER_RESERVED_TABLESPACE_NAME
   eng "The table '%-.192s' may not be created in the reserved tablespace '%-.192s'."
+
+ER_CONN_INIT_CONNECT_IGNORED
+  eng "init_connect variable is ignored for user: %s host: %s due to expired password."
 
 #
 # End of 8.0 Server error messages.
