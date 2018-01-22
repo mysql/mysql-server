@@ -1001,7 +1001,10 @@ public:
     // Fourth 16 byte cache line. Only used in late phases.
     // Plus 4 bytes of error handling.
     //---------------------------------------------------
-    UintR nextApiConnect;
+union {
+    UintR nextApiConnect; // free, freeFail, ctransidFailHash, PREPARE_COMMIT
+Uint32 nextPool; // ArrayPool
+};
     BlockReference ndbapiBlockref;
     UintR apiCopyRecord;
     Uint64 globalcheckpointid;
@@ -1195,6 +1198,7 @@ public:
     };
   };
   
+  typedef ArrayPool<ApiConnectRecord> ApiConnectRecord_pool;
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
   void setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
@@ -2359,7 +2363,7 @@ private:
   // Transit signals
 
 
-  ApiConnectRecord *apiConnectRecord;
+  ApiConnectRecord_pool c_apiConnectRecordPool;
   ApiConnectRecordPtr apiConnectptr;
   UintR capiConnectFilesize;
 

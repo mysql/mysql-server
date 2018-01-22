@@ -75,12 +75,10 @@ void Dbtc::initRecords()
   }
 #endif
   // Records with dynamic sizes
-  apiConnectRecord = (ApiConnectRecord*)allocRecord("ApiConnectRecord",
-						    sizeof(ApiConnectRecord),
-						    capiConnectFilesize);
+  c_apiConnectRecordPool.setSize(capiConnectFilesize);
 
   for(unsigned i = 0; i<capiConnectFilesize; i++) {
-    p = &apiConnectRecord[i];
+    p = c_apiConnectRecordPool.getPtr(i);
     new (p) ApiConnectRecord();
   }
 
@@ -282,7 +280,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   addRecSignal(GSN_SCAN_TABCONF, &Dbtc::execSCAN_TABCONF);
   addRecSignal(GSN_KEYINFO20, &Dbtc::execKEYINFO20);
 
-  apiConnectRecord = 0;
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
@@ -290,7 +287,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
-  apiConnectRecord = 0;
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
@@ -302,9 +298,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
 Dbtc::~Dbtc() 
 {
   // Records with dynamic sizes
-  deallocRecord((void **)&apiConnectRecord, "ApiConnectRecord",
-		sizeof(ApiConnectRecord),
-		capiConnectFilesize);
   
   deallocRecord((void **)&hostRecord, "HostRecord",
 		sizeof(HostRecord),
