@@ -29,14 +29,12 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/transporter)
 
 IF(WIN32)
-  SET(EXTRA_SRC SHM_Transporter.win32.cpp)
 ELSE()
-  SET(EXTRA_SRC SHM_Transporter.unix.cpp)
+  SET(EXTRA_SRC SHM_Transporter.unix.cpp SHM_Transporter.cpp)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(ndbtransport
             Transporter.cpp TCP_Transporter.cpp Loopback_Transporter.cpp
             TransporterRegistry.cpp Packer.cpp
-            SHM_Transporter.cpp
             ${EXTRA_SRC})
 
