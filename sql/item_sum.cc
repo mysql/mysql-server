@@ -6922,8 +6922,8 @@ bool Item_func_grouping::aggregate_check_group(uchar *arg)
 
 
 /**
-  Resets the aggregation property which was set during creation
-  of references to GROUP BY fields in SELECT_LEX::change_group_ref.
+  Resets the aggregation property which was set during creation of
+  references to GROUP BY fields in SELECT_LEX::change_func_or_wf_group_ref.
   Calls Item_int_func::cleanup() to do the rest of the cleanup.
 */
 void Item_func_grouping::cleanup()
