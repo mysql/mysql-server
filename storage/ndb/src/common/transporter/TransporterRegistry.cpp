@@ -1044,7 +1044,7 @@ TransporterRegistry::spin_check_transporters(
       res = poll_SHM(recvdata, any_connected);
       if (res || !any_connected)
         break;
-      //cpu_pause();
+      cpu_pause();
     }
     if (res || !any_connected)
       break;
