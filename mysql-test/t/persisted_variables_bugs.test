@@ -16,6 +16,31 @@ SET PERSIST_ONLY event_scheduler=DISABLED;
 --echo # cleanup
 RESET PERSIST event_scheduler;
 
+--echo #
+--echo # Bug #27374791: RESET PERSIST DOES IMPLICIT COMMIT AND DOESN'T NEED
+--echo #                RELOAD PRIVILEGES
+--echo #
+
+CREATE DATABASE bug27374791;
+USE bug27374791;
+CREATE TABLE T( i int);
+# Get rid of previous tests binlog
+--disable_query_log
+RESET MASTER;
+--enable_query_log
+--source include/show_binlog_events.inc
+BEGIN;
+INSERT INTO T values (9);
+--source include/show_binlog_events.inc
+SET PERSIST max_connections=31;
+--source include/show_binlog_events.inc
+RESET PERSIST;
+# There should be no COMMIT event in binlog
+--source include/show_binlog_events.inc
+
+# cleanup
+SET GLOBAL max_connections=DEFAULT;
+DROP DATABASE bug27374791;
 
 --echo # End of the 8.0 tests
 
