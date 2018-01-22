@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,9 +59,11 @@
 
 #include <windows.h>
 #include <stdio.h>
-#include <tlhelp32.h>
 #include <signal.h>
 #include <stdlib.h>
+
+// Needs to be included after <windows.h>.
+#include <tlhelp32.h>
 
 static int verbose= 0;
 static char safe_process_name[32]= {0};
