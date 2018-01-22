@@ -1032,7 +1032,8 @@ Uint32
 TransporterRegistry::spin_check_transporters(
                           TransporterReceiveHandle& recvdata)
 {
-  Uint32 res;
+  Uint32 res = 0;
+#ifndef WIN32
   Uint64 micros_passed = 0;
   bool any_connected = false;
 
@@ -1056,6 +1057,7 @@ TransporterRegistry::spin_check_transporters(
       NdbTick_Elapsed(start, now).microSec();
   } while (micros_passed < Uint64(recvdata.m_spintime));
   recvdata.m_total_spintime += micros_passed;
+#endif
   return res;
 }
 
