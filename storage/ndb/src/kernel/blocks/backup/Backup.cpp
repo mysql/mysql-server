@@ -2015,15 +2015,15 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
       jam();
       Uint32 usableBytes, freeLwmBytes, freeSizeBytes;
       usableBytes = freeLwmBytes = freeSizeBytes = 0;
-      Uint32 logtype = Ndbinfo::BACKUP_DATA;
+      Uint32 logtype = Ndbinfo::BACKUP_DATA_BUFFER;
 
       switch(i){
       case 0:
-        logtype = Ndbinfo::BACKUP_DATA;
+        logtype = Ndbinfo::BACKUP_DATA_BUFFER;
         usableBytes = c_defaults.m_dataBufferSize;
         break;
       case 1:
-        logtype = Ndbinfo::BACKUP_LOG;
+        logtype = Ndbinfo::BACKUP_LOG_BUFFER;
         usableBytes = c_defaults.m_logBufferSize;
         break;
       default:
