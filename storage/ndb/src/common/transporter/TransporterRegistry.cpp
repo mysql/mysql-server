@@ -995,6 +995,7 @@ TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
 
   Uint32 retVal = 0;
   any_connected = false;
+#ifndef WIN32
   for (Uint32 i = 0; i < nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1013,6 +1014,7 @@ TransporterRegistry::poll_SHM(TransporterReceiveHandle& recvdata,
       }
     }
   }
+#endif
   return retVal;
 }
 
@@ -1066,7 +1068,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     timeOutMillis = 0;
     retVal = 1;
   }
-
+#ifndef WIN32
   if (nSHMTransporters > 0)
   {
     /**
@@ -1128,9 +1130,9 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
       }
     }
   }
-
+#endif
   retVal |= check_TCP(recvdata, timeOutMillis);
-
+#ifndef WIN32
   if (nSHMTransporters > 0)
   {
     if (sleep_state_set)
@@ -1141,6 +1143,7 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     int res = poll_SHM(recvdata, any_connected);
     retVal |= res;
   }
+#endif
   return retVal;
 }
 
@@ -1149,6 +1152,7 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
                                        bool& sleep_state_set)
 {
   int res = 0;
+#ifndef WIN32
   for (Uint32 i = 0; i < nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1174,12 +1178,14 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
     }
     t->unlock_mutex();
   }
+#endif
   return res;
 }
 
 void
 TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
 {
+#ifndef WIN32
   for (Uint32 i = 0; i < nSHMTransporters; i++)
   {
     SHM_Transporter * t = theSHMTransporters[i];
@@ -1191,6 +1197,7 @@ TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
     t->set_awake_state(1);
     t->unlock_mutex();
   }
+#endif
 }
 
 /**
@@ -1237,6 +1244,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     }
   }
 
+#ifndef WIN32
   for (Uint32 j = 0; j < nSHMTransporters; j++)
   {
     /**
@@ -1258,7 +1266,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     }
     i++;
   }
-
+#endif
   int tcpReadSelectReply = recvdata.m_socket_poller.poll_unsafe(timeOutMillis);
 
   if (tcpReadSelectReply > 0)
@@ -1282,6 +1290,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
           recvdata.m_recv_transporters.set(node_id);
       }
     }
+#ifndef WIN32
     for (Uint32 j = 0; j < nSHMTransporters; j++)
     {
       /**
@@ -1300,6 +1309,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
       }
       i++;
     }
+#endif
   }
 
   return tcpReadSelectReply;
@@ -1421,6 +1431,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     }
     else
     {
+#ifndef WIN32
       require(theTransporters[id]->getTransporterType() == tt_SHM_TRANSPORTER);
       SHM_Transporter * t = (SHM_Transporter*)theTransporters[id];
       assert(recvdata.m_transporters.get(id));
@@ -1434,6 +1445,9 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
          * for shared memory transporters.
          */
       }
+#else
+      require(false);
+#endif
     }
   }
   recvdata.m_recv_transporters.clear();
@@ -1488,6 +1502,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         }
         else
         {
+#ifndef WIN32
           require(t->getTransporterType() == tt_SHM_TRANSPORTER);
           SHM_Transporter *t_shm = (SHM_Transporter*)t;
           Uint32 * readPtr, * eodPtr, * endPtr;
@@ -1502,6 +1517,9 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 				  stopReceiving);
           t_shm->updateReceivePtr(recvdata, newPtr);
           hasdata = false;
+#else
+          require(false);
+#endif
         }
         // else, we didn't unpack anything:
         //   Avail ReceiveData to short to be useful, need to
@@ -1973,11 +1991,13 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
 
     switch(performStates[nodeId]){
     case CONNECTED:
+#ifndef WIN32
       if (t->getTransporterType() == tt_SHM_TRANSPORTER)
       {
         SHM_Transporter *shm_trp = (SHM_Transporter*)t;
         spintime = MAX(spintime, shm_trp->get_spintime());
       }
+#endif
       break;
     case DISCONNECTED:
       break;
