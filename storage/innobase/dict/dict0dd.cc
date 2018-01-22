@@ -2312,12 +2312,16 @@ dd_fill_dict_index(
 		}
 	} else {
 dd_error:
+		mutex_enter(&dict_sys->mutex);
+
 		for (dict_index_t* f_index = UT_LIST_GET_LAST(m_table->indexes);
 		     f_index != nullptr;
 		     f_index = UT_LIST_GET_LAST(m_table->indexes)) {
 
 			dict_index_remove_from_cache(m_table, f_index);
 		}
+
+		mutex_exit(&dict_sys->mutex);
 
 		dict_mem_table_free(m_table);
 	}
