@@ -100,13 +100,6 @@ FOREACH(X xcom_vp)
       MESSAGE(FATAL_ERROR "Could not find rpcgen")
     ENDIF()
 
-    # First look for tirpc, then the old Sun RPC
-    FIND_PATH(RPC_INCLUDE_DIR
-      NAMES rpc/rpc.h
-      HINTS /usr/include/tirpc
-      NO_DEFAULT_PATH
-      )
-    FIND_PATH(RPC_INCLUDE_DIR NAMES rpc/rpc.h)
     IF(NOT RPC_INCLUDE_DIR)
       MESSAGE(FATAL_ERROR
         "Could not find rpc/rpc.h in /usr/include or /usr/include/tirpc")
