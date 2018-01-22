@@ -251,7 +251,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
     {
       make_error_info(buf, sizeof(buf));
       report_error(TE_SHM_UNABLE_TO_CREATE_SEGMENT, buf);
-      NDB_CLOSE_SOCKET(sockfd);
+      ndb_close_socket(sockfd);
       DBUG_RETURN(false);
     }
   }
@@ -263,7 +263,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
     {
       make_error_info(buf, sizeof(buf));
       report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT, buf);
-      NDB_CLOSE_SOCKET(sockfd);
+      ndb_close_socket(sockfd);
       DBUG_RETURN(false);
     }
     _attached = true;
@@ -277,13 +277,13 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
   DBUG_PRINT("info", ("Wait for ok from client"));
   if (s_input.gets(buf, sizeof(buf)) == 0) 
   {
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_close_socket(sockfd);
     DBUG_RETURN(false);
   }
 
   if(sscanf(buf, "shm client 1 ok: %d", &m_remote_pid) != 1)
   {
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_close_socket(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -296,7 +296,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
     // Wait for ok from client
     if (s_input.gets(buf, 256) == 0)
     {
-      NDB_CLOSE_SOCKET(sockfd);
+      ndb_close_socket(sockfd);
       DBUG_RETURN(false);
     }
     DBUG_PRINT("info", ("Successfully connected server to node %d",
@@ -330,7 +330,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   DBUG_PRINT("info", ("Wait for server to create and attach"));
   if (s_input.gets(buf, 256) == 0)
   {
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_close_socket(sockfd);
     DBUG_PRINT("error", ("Server id %d did not attach",
                 remoteNodeId));
     DBUG_RETURN(false);
@@ -338,7 +338,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 
   if(sscanf(buf, "shm server 1 ok: %d", &m_remote_pid) != 1)
   {
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_close_socket(sockfd);
     DBUG_RETURN(false);
   }
   
@@ -347,7 +347,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   {
     if (!ndb_shm_get())
     {
-      NDB_CLOSE_SOCKET(sockfd);
+      ndb_close_socket(sockfd);
       DBUG_PRINT("error", ("Failed create of shm seg to node %d",
                   remoteNodeId));
       DBUG_RETURN(false);
@@ -362,7 +362,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     {
       make_error_info(buf, sizeof(buf));
       report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT, buf);
-      NDB_CLOSE_SOCKET(sockfd);
+      ndb_close_socket(sockfd);
       DBUG_PRINT("error", ("Failed attach of shm seg to node %d",
                   remoteNodeId));
       DBUG_RETURN(false);
@@ -382,7 +382,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     DBUG_PRINT("info", ("Wait for ok from server"));
     if (s_input.gets(buf, 256) == 0)
     {
-      NDB_CLOSE_SOCKET(sockfd);
+      ndb_close_socket(sockfd);
       DBUG_PRINT("error", ("No ok from server node %d",
                   remoteNodeId));
       DBUG_RETURN(false);
@@ -525,7 +525,7 @@ SHM_Transporter::doReceive()
   do
   {
     one_more_try = false;
-    const int nBytesRead = (int)my_recv(theSocket, buf, sizeof(buf), 0);
+    const int nBytesRead = (int)ndb_recv(theSocket, buf, sizeof(buf), 0);
     if (unlikely(nBytesRead < 0))
     {
       if (DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead))
