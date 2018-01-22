@@ -962,9 +962,12 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
   if (!acl_cache_lock.lock(false))
     DBUG_RETURN(true);
 
-  for (ACL_USER *acl_user_tmp= acl_users->begin();
-       acl_user_tmp != acl_users->end(); ++acl_user_tmp)
+  Acl_user_ptr_list *list;
+  list= cached_acl_users_for_name(mpvio->auth_info.user_name);
+  if (list)
+    for (auto it= list->begin(); it != list->end(); ++it)
   {
+    ACL_USER *acl_user_tmp= (*it);
     if ((!acl_user_tmp->user ||
          !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
         acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip))
