@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,13 @@
 #include "sha2.h"
 
 #include "item_strfunc.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
 
 #include "base64.h"                  // base64_encode_max_arg_length
 #include "my_aes.h"                  // MY_AES_IV_SIZE
