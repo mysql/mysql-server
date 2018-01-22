@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -823,7 +823,16 @@ static void prepare_new_connection_state(THD* thd)
 
   if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
   {
+    if (sctx->password_expired())
+    {
+      sql_print_warning("init_connect variable is ignored for user: %s "
+                        "host: %s due to expired password.", sctx->priv_user().str,
+                        sctx->priv_host().str);
+      return;
+    }
+
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
+
     if (thd->is_error())
     {
       Host_errors errors;
