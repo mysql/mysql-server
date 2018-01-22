@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,13 +36,14 @@
 
 #include <string.h>  // Boost expects ::memset to be already present.
 #include <string>  // Boost expects std::string to be already present.
+#include <stddef.h>
+#include <set>
+#include <vector>
+
 #include <boost/geometry/algorithms/crosses.hpp>
 #include <boost/geometry/algorithms/intersects.hpp>
 #include <boost/geometry/algorithms/touches.hpp>
 #include <boost/geometry/algorithms/within.hpp>
-#include <stddef.h>
-#include <set>
-#include <vector>
 
 #include "my_inttypes.h"
 #include "my_sys.h"
