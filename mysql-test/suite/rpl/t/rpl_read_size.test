@@ -60,7 +60,8 @@ while ($case < 2)
   # change the read size for the next run.
   eval SET @@GLOBAL.rpl_read_size= 1048576;
 
-  FLUSH RELAY LOGS;
+  --source include/stop_slave.inc
+  --source include/start_slave.inc
   --inc $case
 }
 
