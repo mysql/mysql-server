@@ -311,7 +311,7 @@ SHM_Transporter::set_socket(NDB_SOCKET_TYPE sockfd)
 {
   set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
   set_get(sockfd, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
-  my_socket_nonblock(sockfd, true);
+  ndb_socket_nonblock(sockfd, true);
   get_callback_obj()->lock_transporter(remoteNodeId);
   theSocket = sockfd;
   send_checksum_state.init();
@@ -428,7 +428,7 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 void
 SHM_Transporter::remove_mutexes()
 {
-  if (my_socket_valid(theSocket))
+  if (ndb_socket_valid(theSocket))
   {
     NdbMutex_Deinit(serverMutex);
     NdbMutex_Deinit(clientMutex);
@@ -453,13 +453,13 @@ SHM_Transporter::disconnect_socket()
   get_callback_obj()->lock_transporter(remoteNodeId);
 
   NDB_SOCKET_TYPE sock = theSocket;
-  my_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&theSocket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
-  if(my_socket_valid(sock))
+  if(ndb_socket_valid(sock))
   {
-    if(my_socket_close(sock) < 0){
+    if(ndb_socket_close(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }
@@ -502,12 +502,12 @@ SHM_Transporter::wakeup()
   do
   {
     one_more_try--;
-    int nBytesSent = (int)my_socket_writev(theSocket, iov, iovcnt);
+    int nBytesSent = (int)ndb_socket_writev(theSocket, iov, iovcnt);
     if (nBytesSent != 1)
     {
-      if (DISCONNECT_ERRNO(my_socket_errno(), nBytesSent))
+      if (DISCONNECT_ERRNO(ndb_socket_errno(), nBytesSent))
       {
-        do_disconnect(my_socket_errno());
+        do_disconnect(ndb_socket_errno());
       }
     }
     else
@@ -528,9 +528,9 @@ SHM_Transporter::doReceive()
     const int nBytesRead = (int)my_recv(theSocket, buf, sizeof(buf), 0);
     if (unlikely(nBytesRead < 0))
     {
-      if (DISCONNECT_ERRNO(my_socket_errno(), nBytesRead))
+      if (DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead))
       {
-        do_disconnect(my_socket_errno());
+        do_disconnect(ndb_socket_errno());
       }
       else
       {
