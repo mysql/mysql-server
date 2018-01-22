@@ -2366,6 +2366,7 @@ check_yield(NDB_TICKS *start_spin_ticks,
    * spinning when coming here. So no need to worry what we do with the
    * CPU while spinning.
    */
+  cpu_pause();
   NDB_TICKS now = NdbTick_getCurrentTicks();
   assert(min_spin_timer > 0);
 
@@ -4171,9 +4172,6 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers + node;
   sb->m_bytes_sent = 0;
 
-  if (unlikely(max == 0))
-    return 0;
-
   /**
    * Collect any available send pages from the thread queues
    * and 'm_buffers'. Append them to the end of m_sending buffers
@@ -4597,7 +4595,7 @@ mt_send_handle::forceSend(NodeId nodeId)
 
     lock(&sb->m_send_lock);
     sb->m_send_thread = selfptr->m_thr_no;
-    globalTransporterRegistry.performSend(nodeId);
+    bool more = globalTransporterRegistry.performSend(nodeId, false);
     sb->m_send_thread = NO_SEND_THREAD;
     unlock(&sb->m_send_lock);
 
@@ -4612,7 +4610,7 @@ mt_send_handle::forceSend(NodeId nodeId)
      *   CPU can reorder the load to before the clear of the lock
      */
     mb();
-    if (unlikely(sb->m_force_send))
+    if (unlikely(sb->m_force_send) || more)
     {
       register_pending_send(selfptr, nodeId);
     } 
@@ -6647,7 +6645,7 @@ mt_job_thread_main(void *thr_arg)
            * Sleep, either a short nap if send failed due to send overload,
            * or a longer sleep if there are no more work waiting.
            */
-          const Uint32 maxwait =
+          Uint32 maxwait =
             (selfptr->m_node_overload_status >=
              (OverloadStatus)MEDIUM_LOAD_CONST) ?
             1 * 1000 * 1000 :
@@ -6660,9 +6658,23 @@ mt_job_thread_main(void *thr_arg)
             selfptr->m_measured_spintime+=
               NdbTick_Elapsed(start_spin_ticks, before).microSec();
             NdbTick_Invalidate(&start_spin_ticks);
+            /**
+             * Ensure that we shorten sleep according to time of spinning
+             * we already done.
+             */
+            Uint32 spin_time_in_ns = min_spin_timer * 1000;
+            if (maxwait < spin_time_in_ns)
+            {
+              maxwait = 0;
+            }
+            else
+            { 
+              maxwait -= spin_time_in_ns;
+            }
           }
+          const Uint32 used_maxwait = maxwait;
           bool waited = yield(&selfptr->m_waiter,
-                              maxwait,
+                              used_maxwait,
                               check_queues_empty,
                               selfptr);
           if (waited)
@@ -7678,17 +7690,33 @@ assign_receiver_threads(void)
 {
   Uint32 num_recv_threads = globalData.ndbMtReceiveThreads;
   Uint32 recv_thread_idx = 0;
+  Uint32 recv_thread_idx_shm = 0;
   for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
   {
     Transporter *node_trp =
       globalTransporterRegistry.get_transporter(nodeId);
 
+    /**
+     * Ensure that shared memory transporters are well distributed
+     * over all receive threads, so distribute those independent of
+     * rest of transporters.
+     */
     if (node_trp)
     {
-      g_node_to_recv_thr_map[nodeId] = recv_thread_idx;
-      recv_thread_idx++;
-      if (recv_thread_idx == num_recv_threads)
-        recv_thread_idx = 0;
+      if (globalTransporterRegistry.is_shm_transporter(nodeId))
+      {
+        g_node_to_recv_thr_map[nodeId] = recv_thread_idx_shm;
+        recv_thread_idx_shm++;
+        if (recv_thread_idx_shm == num_recv_threads)
+          recv_thread_idx_shm = 0;
+      }
+      else
+      {
+        g_node_to_recv_thr_map[nodeId] = recv_thread_idx;
+        recv_thread_idx++;
+        if (recv_thread_idx == num_recv_threads)
+          recv_thread_idx = 0;
+      }
     }
     else
     {

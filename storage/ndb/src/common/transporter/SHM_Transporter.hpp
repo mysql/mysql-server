@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,9 @@ public:
 		  bool signalId,
 		  key_t shmKey,
 		  Uint32 shmSize,
-		  bool preSendChecksum);
+		  bool preSendChecksum,
+                  Uint32 spintime,
+                  Uint32 send_buffer_size);
   
   /**
    * SHM destructor
@@ -66,13 +68,14 @@ public:
    */
   bool initTransporter();
   
-  void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
-    reader->getReadPtr(* ptr, * eod);
+  void getReceivePtr(Uint32 ** ptr,
+                     Uint32 ** eod,
+                     Uint32 ** end)
+  {
+    reader->getReadPtr(* ptr, * eod, * end);
   }
   
-  void updateReceivePtr(Uint32 * ptr){
-    reader->updateReadPtr(ptr);
-  }
+  void updateReceivePtr(TransporterReceiveHandle&, Uint32 * ptr);
   
 protected:
   /**
@@ -81,6 +84,11 @@ protected:
    * -# marks the segment for removal
    */
   void disconnectImpl();
+
+  /**
+   * Disconnect socket that was used for wakeup services.
+   */
+  void disconnect_socket();
 
   /**
    * Blocking
@@ -115,6 +123,8 @@ protected:
   bool ndb_shm_create();
   bool ndb_shm_get();
   bool ndb_shm_attach();
+  void ndb_shm_destroy();
+  void set_socket(NDB_SOCKET_TYPE);
 
   /**
    * Check if there are two processes attached to the segment (a connection)
@@ -131,10 +141,36 @@ protected:
   /**
    * doSend (i.e signal receiver)
    */
-  bool doSend();
+  bool doSend(bool need_wakeup = true);
+  void doReceive();
+  void wakeup();
+
+  /**
+   * When sending as client I use the server mutex and server status
+   * flag to check for server awakeness, so sender always uses the
+   * reverse state.
+   *
+   * When receiving I change my own state, so client updates client
+   * status flag and locks client mutex.
+   */
+  void lock_mutex();
+  void unlock_mutex();
+  void lock_reverse_mutex();
+  void unlock_reverse_mutex();
+  void set_awake_state(Uint32 awake_state);
+  bool handle_reverse_awake_state();
+
+  void remove_mutexes();
+  void setupBuffersUndone();
+
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
+  Uint32 m_spintime;
+  Uint32 get_spintime()
+  {
+    return m_spintime;
+  }
 private:
   bool _shmSegCreated;
   bool _attached;
@@ -142,7 +178,17 @@ private:
   
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;
-  volatile Uint32 * clientStatusFlag;  
+  volatile Uint32 * clientStatusFlag;
+
+  bool m_server_locked;
+  bool m_client_locked;
+
+  Uint32 *serverAwakenedFlag;
+  Uint32 *clientAwakenedFlag;
+
+  NdbMutex *serverMutex;
+  NdbMutex *clientMutex;
+
   bool setupBuffersDone;
   
 #ifdef _WIN32
@@ -170,7 +216,7 @@ private:
   {
     return ((Uint32)bufsize >= m_signal_threshold);
   }
-  bool send_is_possible(int timeout_millisec) const { return 1; }
+  bool send_is_possible(int timeout_millisec) const;
 };
 
 #endif

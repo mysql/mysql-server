@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,5 +68,6 @@
 #cmakedefine HAVE__BITSCANREVERSE 1
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_INIT 1
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_SETTYPE 1
+#cmakedefine HAVE_PTHREAD_MUTEXATTR_SETPSHARED 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_BZERO 1

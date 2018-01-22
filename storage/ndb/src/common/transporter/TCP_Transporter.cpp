@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,9 +106,6 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      conf->signalId,
 	      conf->tcp.sendBufferSize,
 	      conf->preSendChecksum),
-  reportFreq(4096),
-  receiveCount(0), receiveSize(0),
-  sendCount(0), sendSize(0), 
   receiveBuffer()
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
@@ -306,12 +303,10 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
   return true;
 }
 
-#define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
-                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
-
-
 bool
-TCP_Transporter::doSend() {
+TCP_Transporter::doSend(bool need_wakeup)
+{
+  (void)need_wakeup;
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
   Uint32 init_cnt = cnt;

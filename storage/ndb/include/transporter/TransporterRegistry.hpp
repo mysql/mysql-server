@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,6 @@ static const char *performStateString[] =
 
 class Transporter;
 class TCP_Transporter;
-class SCI_Transporter;
 class SHM_Transporter;
 
 class TransporterRegistry;
@@ -107,7 +106,7 @@ struct TransporterReceiveData
    * Add a transporter to epoll_set
    *   does nothing if epoll not active
    */
-  bool epoll_add(TCP_Transporter*);
+  bool epoll_add(Transporter*);
 
   /**
    * Bitmask of transporters currently handled by this instance
@@ -148,6 +147,17 @@ struct TransporterReceiveData
    * resume from first transporter after this.
    */
   Uint32 m_last_nodeId;
+
+  /**
+   * Spintime calculated as maximum of currently connected transporters.
+   * Only applies to shared memory transporters.
+   */
+  Uint32 m_spintime;
+
+  /**
+   * Total spintime
+   */
+  Uint32 m_total_spintime;
 
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;
@@ -250,6 +260,17 @@ private:
    */
   void disconnectAll();
 
+  /**
+   * Reset awake state on shared memory transporters before sleep.
+   */
+  int reset_shm_awake_state(TransporterReceiveHandle& recvdata,
+                            bool& sleep_state_set);
+
+  /**
+   * Set awake state on shared memory transporters after sleep.
+   */
+  void set_shm_awake_state(TransporterReceiveHandle& recvdata);
+
 public:
 
   /**
@@ -332,7 +353,6 @@ private:
 private:
 
   bool createTCPTransporter(TransporterConfiguration * config);
-  bool createSCITransporter(TransporterConfiguration * config);
   bool createSHMTransporter(TransporterConfiguration * config);
 
 public:
@@ -440,7 +460,7 @@ public:
    */
   void external_IO(Uint32 timeOutMillis);
 
-  bool performSend(NodeId nodeId);
+  bool performSend(NodeId nodeId, bool need_wakeup = true);
   void performSend();
   
 #ifdef DEBUG_TRANSPORTER
@@ -459,6 +479,7 @@ public:
 
   int get_transporter_count() const;
   Transporter* get_transporter(NodeId nodeId) const;
+  bool is_shm_transporter(NodeId nodeId);
   struct in_addr get_connect_address(NodeId node_id) const;
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
@@ -476,10 +497,9 @@ private:
   int sendCounter;
   NodeId localNodeId;
   unsigned maxTransporters;
-  int nTransporters;
-  int nTCPTransporters;
-  int nSCITransporters;
-  int nSHMTransporters;
+  Uint32 nTransporters;
+  Uint32 nTCPTransporters;
+  Uint32 nSHMTransporters;
 
 #ifdef ERROR_INSERT
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked;
@@ -495,7 +515,6 @@ private:
    * Arrays holding all transporters in the order they are created
    */
   TCP_Transporter** theTCPTransporters;
-  SCI_Transporter** theSCITransporters;
   SHM_Transporter** theSHMTransporters;
   
   /**
@@ -558,11 +577,14 @@ private:
   Uint32 * unpack(TransporterReceiveHandle&,
                   Uint32 * readPtr,
                   Uint32 * eodPtr,
+                  Uint32 * endPtr,
                   NodeId remoteNodeId,
                   IOState state,
 		  bool & stopReceiving);
 
-  static Uint32 unpack_length_words(const Uint32 *readPtr, Uint32 maxWords);
+  static Uint32 unpack_length_words(const Uint32 *readPtr,
+                                    Uint32 maxWords,
+                                    bool extra_signal);
   /** 
    * Disconnect the transporter and remove it from 
    * theTransporters array. Do not allow any holes 
@@ -572,11 +594,15 @@ private:
   void removeTransporter(NodeId nodeId);
 
   Uint32 poll_TCP(Uint32 timeOutMillis, TransporterReceiveHandle&);
-  Uint32 poll_SCI(Uint32 timeOutMillis, TransporterReceiveHandle&);
-  Uint32 poll_SHM(Uint32 timeOutMillis, TransporterReceiveHandle&);
+  Uint32 poll_SHM(TransporterReceiveHandle&, bool &any_connected);
+  Uint32 poll_SHM(TransporterReceiveHandle&,
+                  NDB_TICKS start_time,
+                  Uint32 micros_to_poll);
+  Uint32 check_TCP(TransporterReceiveHandle&, Uint32 timeoutMillis);
+  Uint32 spin_check_transporters(TransporterReceiveHandle&);
 
   int m_shm_own_pid;
-  int m_transp_count;
+  Uint32 m_transp_count;
 
 public:
   bool setup_wakeup_socket(TransporterReceiveHandle&);
@@ -629,6 +655,16 @@ public:
   inline void update_connections() {
     assert(receiveHandle != 0);
     update_connections(* receiveHandle);
+  }
+  inline Uint32 get_total_spintime()
+  {
+    assert(receiveHandle != 0);
+    return receiveHandle->m_total_spintime;
+  }
+  inline void reset_total_spintime()
+  {
+    assert(receiveHandle != 0);
+    receiveHandle->m_total_spintime = 0;
   }
 
 #ifdef ERROR_INSERT

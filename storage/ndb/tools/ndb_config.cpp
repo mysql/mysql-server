@@ -1,5 +1,5 @@
- /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -386,7 +386,6 @@ print_diff(const Iter& iter)
   {
     if ((g_section == CFG_SECTION_CONNECTION &&
         (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-        strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
         strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
         ||
         (g_section == CFG_SECTION_NODE &&
@@ -523,7 +522,6 @@ helper(Vector<Apply*>& select, const char * str)
           ConfigInfo::m_ParamInfo[p]._fname);
       if ((g_section == CFG_SECTION_CONNECTION &&
         (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
-          strcmp(ConfigInfo::m_ParamInfo[p]._section, "SCI") == 0 ||
           strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
         ||
         (g_section == CFG_SECTION_NODE &&
@@ -760,9 +758,6 @@ ConnectionTypeApply::apply(const Iter& iter)
     {
     case CONNECTION_TYPE_TCP:
       printf("tcp");
-      break;
-    case CONNECTION_TYPE_SCI:
-      printf("sci");
       break;
     case CONNECTION_TYPE_SHM:
       printf("shm");
