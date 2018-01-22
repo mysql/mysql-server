@@ -128,6 +128,7 @@ MACRO (MYSQL_CHECK_SSL)
   # See if WITH_SSL is of the form </path/to/custom/installation>
   FILE(GLOB WITH_SSL_HEADER ${WITH_SSL}/include/openssl/ssl.h)
   IF (WITH_SSL_HEADER)
+    FILE(TO_CMAKE_PATH "${WITH_SSL}" WITH_SSL)
     SET(WITH_SSL_PATH ${WITH_SSL} CACHE PATH "path to custom SSL installation")
     SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
