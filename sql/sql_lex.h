@@ -1618,7 +1618,8 @@ private:
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
   bool resolve_rollup(THD *thd);
-  bool change_group_ref(THD *thd, Item_func *expr, bool *changed);
+  bool change_func_or_wf_group_ref(THD *thd, Item *func,
+                                   bool *changed);
 public:
   bool flatten_subqueries();
   void set_sj_candidates(Mem_root_array<Item_exists_subselect*> *sj_cand)

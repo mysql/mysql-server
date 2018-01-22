@@ -3788,6 +3788,15 @@ bool SELECT_LEX::setup_group(THD *thd)
     This substitution is needed GROUP BY queries with ROLLUP if
     SELECT list contains expressions over group by attributes.
 
+  Similarly, replace occurrences of group by fields in arguments of a
+  windowing function with ref items.
+
+  @b EXAMPLE
+    @code
+      SELECT LAG(f1+3/2,1,1) OVER (ORDER BY f1) FROM t GROUP BY f1
+      WITH ROLLUP
+  @endcode
+
   @param thd                  reference to the context
   @param expr                 expression to make replacement
   @param [out] changed  returns true if item contains a replaced field item
@@ -3799,24 +3808,27 @@ bool SELECT_LEX::setup_group(THD *thd)
   @returns false if success, true if error
 
 */
-
-bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
+bool SELECT_LEX::change_func_or_wf_group_ref(THD *thd, Item *func,
+                                             bool *changed)
 {
   bool arg_changed= false;
-  const bool is_grouping_func= expr->functype() == Item_func::GROUPING_FUNC;
+  bool wf= func->m_is_window_function;
+  Item_sum *window_func= wf ? down_cast<Item_sum*>(func) : nullptr;
+  Item_func *func_item= !wf ? down_cast<Item_func*>(func) : nullptr;
+  uint argcnt= wf ? window_func->get_arg_count() : func_item->arg_count;
+  Item **args= (wf ? window_func->get_arg_ptr(0) :
+                (argcnt > 0 ? func_item->arguments() : nullptr));
+  const bool is_grouping_func=
+    (!wf ? func_item->functype() == Item_func::GROUPING_FUNC : false);
 
-  for (uint i= 0; i < expr->arg_count; i++)
+  for (uint i= 0; i < argcnt; i++)
   {
-    Item **arg= expr->arguments() + i;
-    Item *const item= *arg;
+    Item *const item= args[i];
     Item *const real_item= item->real_item();
     bool found_in_group= false;
-    /*
-      Arguments to GROUPING function must be present in the GROUP BY list.
-      Check that they are.
-    */
-    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM ||
-        is_grouping_func)
+
+    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM  ||
+        (!wf && is_grouping_func))
     {
       for (ORDER *group= group_list.first; group; group= group->next)
       {
@@ -3827,28 +3839,41 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
                                        item->item_name.ptr())))
             return true;              /* purecov: inspected */
 
-          expr->replace_argument(thd, arg, new_item);
+          if (wf)
+          {
+            window_func->set_arg(i, thd, new_item);
+          }
+          else
+          {
+            func_item->replace_argument(thd, args + i, new_item);
+            found_in_group= true;
+          }
+
           arg_changed= true;
-          found_in_group= true;
           break;
         }
       }
-
-      if (is_grouping_func && !found_in_group)
+      if (!wf && is_grouping_func && !found_in_group)
       {
         my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i+1));
         return true;
       }
     }
-    else if (item->type() == Item::FUNC_ITEM)
+    if (real_item->type() == Item::FUNC_ITEM)
     {
-      if (change_group_ref(thd, (Item_func *) item, &arg_changed))
+      if (change_func_or_wf_group_ref(thd, real_item, &arg_changed))
+        return true;
+    }
+    else if (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)
+    {
+      DBUG_ASSERT(!wf); // wfs are not not nested
+      if (change_func_or_wf_group_ref(thd, item, &arg_changed))
         return true;
     }
   }
   if (arg_changed)
   {
-    expr->maybe_null= true;
+    func->maybe_null= true;
     *changed= true;
   }
   return false;
@@ -3897,15 +3922,21 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
     {
       bool changed= false;
-      if (change_group_ref(thd, (Item_func *) item, &changed))
+      if (change_func_or_wf_group_ref(thd, item, &changed))
         DBUG_RETURN(true);       /* purecov: inspected */
       /*
         We have to prevent creation of a field in a temporary table for
         an expression that contains GROUP BY attributes.
         Marking the expression item as 'aggregated' will ensure this.
-      */ 
+      */
       if (changed)
         item->set_aggregation();
+    }
+    if (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)
+    {
+      bool changed= false;
+      if (change_func_or_wf_group_ref(thd, item, &changed))
+        DBUG_RETURN(true);       /* purecov: inspected */
     }
   }
   DBUG_RETURN(false);
