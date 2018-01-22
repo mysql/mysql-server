@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,8 +50,17 @@ IF (WIN32)
 ENDIF()
 
 IF (NOT WIN32)
+  # First look for tirpc, then the old Sun RPC
+  FIND_PATH(RPC_INCLUDE_DIR
+    NAMES rpc/rpc.h
+    HINTS /usr/include/tirpc
+    NO_DEFAULT_PATH
+    )
+  FIND_PATH(RPC_INCLUDE_DIR NAMES rpc/rpc.h)
+
   SET (CMAKE_REQUIRED_FLAGS_BACKUP ${CMAKE_REQUIRED_FLAGS})
   SET (CMAKE_REQUIRED_FLAGS "-Wno-error")
+  SET (CMAKE_REQUIRED_INCLUDES ${RPC_INCLUDE_DIR})
 ENDIF()
 
 #
