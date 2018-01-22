@@ -434,7 +434,7 @@ select type, state, parent_obj_type,
   and (id = @t1_id or
        instr(fq_name, concat("/", cast(@t1_id as char(10)), "/")) or
        instr(fq_name, concat("_", cast(@t1_id as char(10)), "_")))
-  order by type, state, parent_obj_type;
+  order by type, state, parent_obj_type, fq_name;
 
 # Disable query log while defining the view below, since view definition
 # conatins the table id of t1, which may vary between runs.
