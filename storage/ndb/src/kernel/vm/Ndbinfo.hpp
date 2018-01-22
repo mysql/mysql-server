@@ -84,8 +84,8 @@ public:
   enum BufferId {
     REDO = 0,
     DD_UNDO = 1,
-    BACKUP_DATA = 2,
-    BACKUP_LOG = 3
+    BACKUP_DATA_BUFFER = 2,
+    BACKUP_LOG_BUFFER = 3
   };
 
   struct Table {
