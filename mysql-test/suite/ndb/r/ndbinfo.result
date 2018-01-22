@@ -806,13 +806,13 @@ select type, state, parent_obj_type,
   and (id = @t1_id or
        instr(fq_name, concat("/", cast(@t1_id as char(10)), "/")) or
        instr(fq_name, concat("_", cast(@t1_id as char(10)), "_")))
-  order by type, state, parent_obj_type;
+  order by type, state, parent_obj_type, fq_name;
 type	state	parent_obj_type	fq_name	nesting
 2	4	0	ndbinfo/def/t1	root
 2	4	2	ndbinfo/def/NDB$BLOB_<t1 id>_4	child_of_t1
 3	4	2	sys/def/<t1 id>/ix2$unique	child_of_t1
-6	4	2	sys/def/<t1 id>/PRIMARY	child_of_t1
 6	4	2	sys/def/<t1 id>/ix1	child_of_t1
+6	4	2	sys/def/<t1 id>/PRIMARY	child_of_t1
 
 
 create view frag_sum as 
