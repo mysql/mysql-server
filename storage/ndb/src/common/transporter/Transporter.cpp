@@ -70,7 +70,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_ENTER("Transporter::Transporter");
 
   // Initialize member variables
-  my_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&theSocket);
 
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
@@ -411,9 +411,9 @@ Transporter::set_get(NDB_SOCKET_TYPE fd,
   int actual = 0, defval = 0;
   socket_len_t len = sizeof(actual);
 
-  my_getsockopt(fd, level, optval, (char*)&defval, &len);
+  ndb_getsockopt(fd, level, optval, (char*)&defval, &len);
 
-  if (my_setsockopt(fd, level, optval,
+  if (ndb_setsockopt(fd, level, optval,
                     (char*)&val, sizeof(val)) < 0)
   {
 #ifdef DEBUG_TRANSPORTER
@@ -423,7 +423,7 @@ Transporter::set_get(NDB_SOCKET_TYPE fd,
   }
   
   len = sizeof(actual);
-  if ((my_getsockopt(fd, level, optval,
+  if ((ndb_getsockopt(fd, level, optval,
                      (char*)&actual, &len) == 0) &&
       actual != val)
   {

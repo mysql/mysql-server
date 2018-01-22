@@ -1272,7 +1272,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     idx[i] = MAX_NODES + 1;
     if (!recvdata.m_transporters.get(node_id))
       continue;
-    if (is_connected(node_id) && t->isConnected() && my_socket_valid(socket))
+    if (is_connected(node_id) && t->isConnected() && ndb_socket_valid(socket))
     {
       idx[i] = recvdata.m_socket_poller.add(socket, true, false, false);
     }
