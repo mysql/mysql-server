@@ -327,6 +327,8 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
   case SQLCOM_SET_OPTION:
     /* Implicitly commit a transaction started by a SET statement */
     DBUG_RETURN(lex->autocommit);
+  case SQLCOM_RESET:
+    DBUG_RETURN(lex->option_type != OPT_PERSIST);
   default:
     DBUG_RETURN(true);
   }
