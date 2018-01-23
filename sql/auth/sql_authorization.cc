@@ -2337,7 +2337,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
     DBUG_PRINT("info", ("table: %s derived: %d  view: %d", table_ref->table_name, table_ref->is_derived(),
                         table_ref->is_view()));
 
-    if (table_ref->is_derived())
+    if (table_ref->is_internal())
       continue;
 
     thd->set_security_context(sctx);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -715,6 +715,7 @@ bool TABLE_LIST::setup_table_function(THD *thd)
     DBUG_RETURN(true);
   }
   thd->mark_used_columns= saved_mark;
+  set_privileges(SELECT_ACL);
   /*
     Trace needs to be here as it'ss print the table, and columns have to be
     set up at the moment of printing.
