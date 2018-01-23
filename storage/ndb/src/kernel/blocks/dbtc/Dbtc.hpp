@@ -2021,7 +2021,7 @@ private:
   void checkGcp(Signal* signal);
   void commitGciHandling(Signal* signal, Uint64 Tgci);
   void copyApi(Ptr<ApiConnectRecord> dst, Ptr<ApiConnectRecord> src);
-  void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci);
+  void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr apiConnectptr);
   void gcpTcfinished(Signal* signal, Uint64 gci);
   void handleGcp(Signal* signal, Ptr<ApiConnectRecord>);
   void hash(Signal* signal, CacheRecord * regCachePtr);

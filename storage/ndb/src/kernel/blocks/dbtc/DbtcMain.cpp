@@ -6180,7 +6180,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   if (TApifailureNr != Tfailure_nr ||
       ERROR_INSERTED(8094)) {
     jam();
-    DIVER_node_fail_handling(signal, Tgci);
+    DIVER_node_fail_handling(signal, Tgci, apiConnectptr);
     return;
   }//if
   commitGciHandling(signal, Tgci);
@@ -6469,7 +6469,7 @@ Dbtc::sendCommitLqh(Signal* signal,
 }
 
 void
-Dbtc::DIVER_node_fail_handling(Signal* signal, Uint64 Tgci)
+Dbtc::DIVER_node_fail_handling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr const apiConnectptr)
 {
   /*------------------------------------------------------------------------
    * AT LEAST ONE NODE HAS FAILED DURING THE TRANSACTION. WE NEED TO CHECK IF  
