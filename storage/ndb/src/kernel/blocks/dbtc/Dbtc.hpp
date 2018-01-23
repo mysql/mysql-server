@@ -2264,7 +2264,7 @@ private:
                                 NodeId nodeId,
                                 Uint32 maxInstanceId);
   void ndbsttorry010Lab(Signal* signal);
-  void commit020Lab(Signal* signal);
+  void commit020Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void complete010Lab(Signal* signal);
   void releaseAtErrorLab(Signal* signal);
   void seizeDatabuferrorLab(Signal* signal);

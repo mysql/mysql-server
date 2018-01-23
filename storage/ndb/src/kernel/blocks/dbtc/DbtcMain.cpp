@@ -268,13 +268,16 @@ void Dbtc::execCONTINUEB(Signal* signal)
     initialiseRecordsLab(signal, Tdata0, Tdata2, Tdata3);
     return;
   case TcContinueB::ZSEND_COMMIT_LOOP:
+  {
     jam();
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     tcConnectptr.i = Tdata1;
     tcConnectRecord.getPtr(tcConnectptr);
-    commit020Lab(signal);
+    commit020Lab(signal, apiConnectptr);
     return;
+  }
   case TcContinueB::ZSEND_COMPLETE_LOOP:
     jam();
     apiConnectptr.i = Tdata0;
@@ -6217,7 +6220,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   tcConList.first(tcConnectptr);
 
-  commit020Lab(signal);
+  commit020Lab(signal, apiConnectptr);
 }//Dbtc::execDIVERIFYCONF()
 
 /*--------------------------------------------------------------------------*/
@@ -6331,7 +6334,7 @@ void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
 /*---------------------------------------------------------------------------*/
 // Send COMMIT messages to all LQH operations involved in the transaction.
 /*---------------------------------------------------------------------------*/
-void Dbtc::commit020Lab(Signal* signal) 
+void Dbtc::commit020Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
