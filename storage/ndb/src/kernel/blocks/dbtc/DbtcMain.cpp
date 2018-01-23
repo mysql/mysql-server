@@ -18837,13 +18837,12 @@ void Dbtc::readIndexTable(Signal* signal,
      * Abort the operation and release the resources. */
     jam();
     terrorCode = ZNO_SUCH_TABLE;
-    apiConnectptr = transPtr;
     /* If the signal is last in the batch, don't wait for more
      * and enable sending the reply signal in abortErrorLab */
     regApiPtr->m_flags |=
       TcKeyReq::getExecuteFlag(tcKeyRequestInfo) ?
       ApiConnectRecord::TF_EXEC_FLAG : 0;
-    abortErrorLab(signal, apiConnectptr);
+    abortErrorLab(signal, transPtr);
     return;
   }
   TcIndexData* indexData = indexDataPtr.p;
@@ -18894,6 +18893,7 @@ void Dbtc::readIndexTable(Signal* signal,
 #ifdef VM_TRACE
     ndbout_c("Dbtc::readIndexTable: Failed to create AttrInfo section");
 #endif
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = indexOp->connectionIndex;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     releaseIndexOperation(apiConnectptr.p, indexOp);
