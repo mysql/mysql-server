@@ -219,13 +219,10 @@ select * from t1;
 id	data	fk
 1	one	NULL
 2	two	NULL
-4	four	1
 select * from t2;
 event
 INSERT INTO t1 id=1 data='one'
 INSERT INTO t1 id=2 data='two'
-INSERT INTO t1 id=4 data='four' fk=1
-INSERT INTO t1 FAILED id=5 data='five' fk=2
 drop table t1, t2, t3;
 create table t1 (id int primary key, data varchar(10));
 create table t2 (seq int);
@@ -318,7 +315,7 @@ create trigger tx1 before insert on t1 for each row set new.x1col = 'x';
 insert into t1 values ('y');
 drop trigger tx1;
 drop table t1;
-create table t1 (i int) engine=myisam;
+create table t1 (i int);
 insert into t1 values (1), (2);
 create trigger trg1 before delete on t1 for each row set @del_before:= @del_before + old.i;
 create trigger trg2 after delete on t1 for each row set @del_after:= @del_after + old.i;
@@ -498,7 +495,7 @@ ERROR 42S22: Unknown column 'at' in 'OLD'
 select * from t1;
 i	k
 drop table t1, t2;
-create table t1 (i int, bt int, k int, key(k)) engine=myisam;
+create table t1 (i int, bt int, k int, key(k));
 create table t2 (i int);
 insert into t1 values (1, 1, 1), (2, 2, 2);
 insert into t2 values (1), (2), (3);
@@ -628,7 +625,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -754,14 +751,13 @@ ERROR HY000: Can't update table 't1' in stored function/trigger because it is al
 set @@max_sp_recursion_depth=@SAVE_SP_RECURSION_LEVELS;
 select * from t1;
 f1
-1
 select * from t2;
 f2
-2
 drop trigger t1_ai;
 drop trigger t2_ai;
 create trigger t1_bu before update on t1
 for each row insert into t1 values (2);
+insert into t1 values (1);
 update t1 set f1= 10;
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 select * from t1;
@@ -930,7 +926,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist
 drop trigger t1_bi;
@@ -1106,8 +1102,8 @@ i1
 35
 13
 23
-43
-51
+37
+47
 DROP TABLE t1;
 create trigger wont_work after update on mysql.user for each row
 begin
@@ -1203,7 +1199,7 @@ FLUSH STATUS;
 TRUNCATE t1;
 SHOW STATUS LIKE 'handler_delete';
 Variable_name	Value
-Handler_delete	0
+Handler_delete	3
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
@@ -1403,8 +1399,8 @@ isave
 1
 2
 drop table t1, t2, t3;
-CREATE TABLE t1 (id INTEGER);
-CREATE TABLE t2 (id INTEGER);
+CREATE TABLE t1 (id INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (id INTEGER) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1),(2);
 CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW 
 INSERT INTO t2 VALUES (new.id);
@@ -1941,7 +1937,6 @@ insert into table_25411_a values (1);
 ERROR 42S02: Unknown table 'new'
 select * from table_25411_a;
 a
-1
 drop table table_25411_a;
 drop table table_25411_b;
 DROP TRIGGER IF EXISTS trg;
@@ -2055,8 +2050,8 @@ SET @bug51650 = 1;
 INSERT IGNORE INTO t2 SET a = '777';
 DROP TRIGGER trg1;
 DROP TABLE t1, t2;
-CREATE TABLE t1 (id INT NOT NULL);
-CREATE TABLE t2 (id INT NOT NULL);
+CREATE TABLE t1 (id INT NOT NULL) ENGINE=MyISAM;
+CREATE TABLE t2 (id INT NOT NULL) ENGINE=MyISAM;
 INSERT t1 VALUES (1),(2),(3);
 UPDATE IGNORE t1 SET id=NULL;
 Warnings:
@@ -2828,7 +2823,6 @@ SELECT * FROM t1;
 num_value
 1
 2
-3
 SELECT * FROM t2;
 user_str
 mysqltest_dfn@localhost
@@ -2992,7 +2986,6 @@ INSERT INTO t1 VALUES('line1');
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't1'
 SELECT * FROM t1;
 col
-line1
 SELECT @mysqltest_var;
 @mysqltest_var
 NULL
@@ -3004,7 +2997,6 @@ INSERT INTO t3 VALUES('t3_line1');
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for column 'col' in table 't3'
 SELECT * FROM t3;
 col
-t3_line1
 SELECT @mysqltest_var;
 @mysqltest_var
 NULL
@@ -3026,7 +3018,6 @@ GRANT SELECT(col) ON mysqltest_db1.t4 TO mysqltest_u1@localhost;
 INSERT INTO t1 VALUES('line3');
 SELECT * FROM t1;
 col
-line1
 line3
 SELECT @mysqltest_var;
 @mysqltest_var
@@ -3039,7 +3030,6 @@ t2_trg_before_insert
 INSERT INTO t3 VALUES('t3_line2');
 SELECT * FROM t3;
 col
-t3_line1
 t3_line2
 SELECT @mysqltest_var;
 @mysqltest_var

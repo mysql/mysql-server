@@ -586,9 +586,9 @@ GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPL
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 SET GLOBAL event_scheduler = ON;
 CREATE TABLE events_test.event_log
-(id int KEY AUTO_INCREMENT, ev_nm char(40), ev_cnt int, ev_tm timestamp)
-ENGINE=MyISAM;
-SET autocommit=0;
+(id int KEY AUTO_INCREMENT, ev_nm char(40), ev_cnt int, ev_tm timestamp);
+SET @save_session_autocommit = @@session.autocommit;
+SET @@session.autocommit=0;
 CREATE USER evtest1@localhost;
 ALTER USER evtest1@localhost IDENTIFIED BY 'ev1';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM evtest1@localhost;
@@ -631,6 +631,7 @@ Expect 0
 DROP EVENT events_test.ev_sched_1823;
 DROP TABLE events_test.event_log;
 SET GLOBAL event_scheduler = OFF;
+SET @@session.autocommit = @save_session_autocommit;
 SET GLOBAL event_scheduler= ON;
 CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
 DO BEGIN

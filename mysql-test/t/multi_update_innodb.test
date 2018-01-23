@@ -5,7 +5,7 @@
 --echo #
 
 # Results differ between storage engines.
-# See multi_update.test for the MyISAM variant of this test
+# See multi_update_myisam.test for the MyISAM variant of this test
 CREATE TABLE t1(
   pk INT,
   a INT,
