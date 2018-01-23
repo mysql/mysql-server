@@ -21017,15 +21017,13 @@ void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head*
  * given error code
  */
 void Dbtc::abortTransFromTrigger(Signal* signal,
-                                 const ApiConnectRecordPtr& transPtr,
+                                 ApiConnectRecordPtr const transPtr,
                                  Uint32 error)
 {
   jam();
   terrorCode = error;
   
-  apiConnectptr = transPtr;
-  
-  abortErrorLab(signal, apiConnectptr);
+  abortErrorLab(signal, transPtr);
 }
 
 Uint32

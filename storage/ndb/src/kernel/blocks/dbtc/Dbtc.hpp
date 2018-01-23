@@ -2225,7 +2225,8 @@ private:
                                      TcConnectRecordPtr* opPtr);
 
   void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head* triggers);
-  void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
+  void abortTransFromTrigger(Signal* signal,
+                             ApiConnectRecordPtr transPtr,
                              Uint32 error);
   // Generated statement blocks
   void warningHandlerLab(Signal* signal, int line);
