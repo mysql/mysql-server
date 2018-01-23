@@ -6487,7 +6487,7 @@ Dbtc::DIVER_node_fail_handling(Signal* signal, Uint64 Tgci)
     jam();
     apiConnectptr.p->returnsignal = RS_TCROLLBACKREP;
     apiConnectptr.p->returncode = ZNODEFAIL_BEFORE_COMMIT;
-    toAbortHandlingLab(signal);
+    toAbortHandlingLab(signal, apiConnectptr);
   }//if
   return;
 }//Dbtc::DIVER_node_fail_handling()
@@ -9303,7 +9303,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
       apiConnectptr.p->currentReplicaNo++;
     }//if
     tcurrentReplicaNo = (Uint8)Z8NIL;
-    toAbortHandlingLab(signal);
+    toAbortHandlingLab(signal, apiConnectptr);
     return;
   case CS_WAIT_COMMIT_CONF:
     jam();
@@ -11412,7 +11412,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
-    toAbortHandlingLab(signal);
+    toAbortHandlingLab(signal, apiConnectptr);
     return;
   case CS_FAIL_ABORTED:
     jam();
@@ -11624,10 +11624,10 @@ void Dbtc::execABORTCONF(Signal* signal)
   }//if
   tcurrentReplicaNo = (Uint8)Z8NIL;
   tcConnectptr.p->tcConnectstate = OS_ABORTING;
-  toAbortHandlingLab(signal);
+  toAbortHandlingLab(signal, apiConnectptr);
 }//Dbtc::execABORTCONF()
 
-void Dbtc::toAbortHandlingLab(Signal* signal) 
+void Dbtc::toAbortHandlingLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   do {
     if (tcurrentReplicaNo != (Uint8)Z8NIL) {
