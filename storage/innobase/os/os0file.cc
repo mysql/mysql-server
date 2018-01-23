@@ -7005,7 +7005,7 @@ AIO::reserve_slot(
 #else
 		slot->len = static_cast<ulint>(compressed_len);
 #endif /* _WIN32 */
-		slot->skip_punch_hole = type.punch_hole();
+		slot->skip_punch_hole = !type.punch_hole();
 
 		acquire();
 	}
