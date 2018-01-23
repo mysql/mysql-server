@@ -11432,7 +11432,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
     signal->theData[2] = apiConnectptr.p->takeOverInd;
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
-    releaseApiConnectFail(signal);
+    releaseApiConnectFail(signal, apiConnectptr);
     break;
   default:
     jam();
@@ -12103,7 +12103,7 @@ void Dbtc::initApiConnectFail(Signal* signal,
              *   i.e both transaction + marker lingering...
              *   treat this as an updateApiStateFail and release already seize trans
              */
-            releaseApiConnectFail(signal);
+            releaseApiConnectFail(signal, apiConnectptr);
             apiConnectptr = transPtr;
             updateApiStateFail(signal,
                                transid1,
@@ -12184,7 +12184,7 @@ void Dbtc::releaseTakeOver(Signal* signal)
     jam();
     releaseTcConnectFail(signal);
   }
-  releaseApiConnectFail(signal);
+  releaseApiConnectFail(signal, apiConnectptr);
 }//Dbtc::releaseTakeOver()
 
 /*---------------------------------------------------------------------------*/
@@ -15484,7 +15484,7 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->transid[1] = 0;
 }//Dbtc::releaseApiCon()
 
-void Dbtc::releaseApiConnectFail(Signal* signal) 
+void Dbtc::releaseApiConnectFail(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   apiConnectptr.p->apiConnectstate = CS_RESTART;
   apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
