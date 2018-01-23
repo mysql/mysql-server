@@ -20064,6 +20064,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   }
   c_counters.cconcurrentOp++;
 
+  ApiConnectRecordPtr apiConnectptr;
   seizeApiConnect(signal, apiConnectptr);
   if (unlikely(terrorCode != ZOK))
   {
