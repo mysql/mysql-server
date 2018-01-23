@@ -1693,6 +1693,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
   };
 
+  ApiConnectRecordPtr apiConnectptr;
   seizeApiConnect(signal, apiConnectptr);
   if (terrorCode == ZOK) {
     jam();
