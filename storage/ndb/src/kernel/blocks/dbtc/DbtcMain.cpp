@@ -19197,7 +19197,7 @@ void Dbtc::saveTriggeringOpState(Signal* signal, TcConnectRecord* trigOp)
 
 void
 Dbtc::trigger_op_finished(Signal* signal,
-                          ApiConnectRecordPtr regApiPtr,
+                          ApiConnectRecordPtr apiConnectptr,
                           Uint32 trigPtrI,
                           TcConnectRecord* triggeringOp,
                           Uint32 errCode)
@@ -19225,7 +19225,7 @@ Dbtc::trigger_op_finished(Signal* signal,
         jam();
         // Only restrict
         terrorCode = ZFK_CHILD_ROW_EXISTS;
-        regApiPtr.p->errorData = trigPtr.p->fkId;
+        apiConnectptr.p->errorData = trigPtr.p->fkId;
       }
       else if (errCode == 0)
       {
@@ -19248,7 +19248,7 @@ Dbtc::trigger_op_finished(Signal* signal,
         }
         jam();
         terrorCode = ZFK_CHILD_ROW_EXISTS;
-        regApiPtr.p->errorData = trigPtr.p->fkId;
+        apiConnectptr.p->errorData = trigPtr.p->fkId;
       }
       else
       {
@@ -19256,7 +19256,6 @@ Dbtc::trigger_op_finished(Signal* signal,
         jamLine(errCode);
         terrorCode = errCode;
       }
-      apiConnectptr = regApiPtr;
       abortErrorLab(signal, apiConnectptr);
       return;
     }
@@ -19264,7 +19263,7 @@ Dbtc::trigger_op_finished(Signal* signal,
       (void)1;
     }
   }
-  if (!regApiPtr.p->isExecutingDeferredTriggers())
+  if (!apiConnectptr.p->isExecutingDeferredTriggers())
   {
     jam();
     if (unlikely((triggeringOp->triggerExecutionCount == 0)))
@@ -19283,13 +19282,13 @@ Dbtc::trigger_op_finished(Signal* signal,
        * Continue triggering operation
        */
       jam();
-      continueTriggeringOp(signal, triggeringOp, regApiPtr);
+      continueTriggeringOp(signal, triggeringOp, apiConnectptr);
     }
   }
   else
   {
     jam();
-    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+    lqhKeyConf_checkTransactionState(signal, apiConnectptr);
   }
 }
 
