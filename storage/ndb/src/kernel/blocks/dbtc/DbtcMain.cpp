@@ -307,13 +307,16 @@ void Dbtc::execCONTINUEB(Signal* signal)
     timeOutLoopStartFragLab(signal, Tdata0);
     return;
   case TcContinueB::ZABORT_BREAK:
+  {
     jam();
     tcConnectptr.i = Tdata0;
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata1;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     apiConnectptr.p->counter--;
-    abort015Lab(signal);
+    abort015Lab(signal, apiConnectptr);
     return;
+  }
   case TcContinueB::ZABORT_TIMEOUT_BREAK:
     jam();
     tcConnectptr.i = Tdata0;
@@ -433,12 +436,13 @@ void Dbtc::execCONTINUEB(Signal* signal)
     warningEvent("%s", buf);
 
     jam();
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     apiConnectptr.p->returncode = Tdata3;
     apiConnectptr.p->returnsignal = (Dbtc::ReturnSignal)Tdata4;
     SET_ERROR_INSERT_VALUE(Tdata5);
-    abort010Lab(signal);
+    abort010Lab(signal, apiConnectptr);
     break;
   }
   case TcContinueB::ZDEBUG_DELAY_TCROLLBACKREP:
@@ -1414,7 +1418,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     /*********************************************************************/
     jam();
     set_api_fail_state(TapiFailedNode, apiNodeFailed);
-    abort010Lab(signal);
+    abort010Lab(signal, apiConnectptr);
     (*TloopCount) = 256;
     break;
   case CS_RESTART:
@@ -8026,7 +8030,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
           /*******************************************************************/
           regApiPtr->returnsignal = RS_NO_RETURN;
           errorCode = ZTRANS_STATUS_ERROR;
-          abort010Lab(signal);
+          abort010Lab(signal, apiConnectptr);
         }//if
       } else {
         jam();
@@ -8055,7 +8059,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
       /***********************************************************************/
       regApiPtr->returnsignal = RS_NO_RETURN;
       errorCode = ZPREPAREINPROGRESS;
-      abort010Lab(signal);
+      abort010Lab(signal, apiConnectptr);
       break;
       
     case CS_START_COMMITTING:
@@ -8148,7 +8152,7 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
   case CS_RECEIVING:
     jam();
     apiConnectptr.p->returnsignal = RS_TCROLLBACKCONF;
-    abort010Lab(signal);
+    abort010Lab(signal, apiConnectptr);
     return;
   case CS_CONNECTED:
     jam();
@@ -8612,10 +8616,10 @@ void Dbtc::abortErrorLab(Signal* signal)
     jam();
     transP->returncode = terrorCode;
   }
-  abort010Lab(signal);
+  abort010Lab(signal, apiConnectptr);
 }//Dbtc::abortErrorLab()
 
-void Dbtc::abort010Lab(Signal* signal) 
+void Dbtc::abort010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * transP = apiConnectptr.p;
   if (transP->apiConnectstate == CS_ABORTING && transP->abortState != AS_IDLE){
@@ -8639,7 +8643,7 @@ void Dbtc::abort010Lab(Signal* signal)
     return;
   }//if
   tcConnectptr.i = transP->tcConnect.getFirst();
-  abort015Lab(signal);
+  abort015Lab(signal, apiConnectptr);
 }//Dbtc::abort010Lab()
 
 /*--------------------------------------------------------------------------*/
@@ -8651,7 +8655,7 @@ void Dbtc::abort010Lab(Signal* signal)
 /*       NOT MEAN THAT ALL NODES IN AN OPERATION IS ABORTED. FOR THIS REASON*/
 /*       WE SET THE TCONTINUE_ABORT TO TRUE WHEN A FAULTY NODE IS DETECTED. */
 /*--------------------------------------------------------------------------*/
-void Dbtc::abort015Lab(Signal* signal) 
+void Dbtc::abort015Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   Uint32 TloopCount = 0;
 ABORT020:
@@ -9162,7 +9166,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     }
     apiConnectptr.p->returnsignal = RS_TCROLLBACKREP;      
     apiConnectptr.p->returncode = errCode;
-    abort010Lab(signal);
+    abort010Lab(signal, apiConnectptr);
     return;
   case CS_RECEIVING:
   case CS_REC_COMMITTING:

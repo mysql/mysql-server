@@ -2240,8 +2240,8 @@ private:
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
 		    bool not_started = false);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
-  void abort010Lab(Signal* signal);
-  void abort015Lab(Signal* signal);
+  void abort010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void abort015Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void packLqhkeyreq(Signal* signal, 
                      BlockReference TBRef,
                      CacheRecordPtr,
