@@ -1819,7 +1819,8 @@ private:
   void execDIGETNODESREF(Signal* signal);
   void execDIVERIFYCONF(Signal* signal);
   void execDIH_SCAN_TAB_REF(Signal* signal,
-                            ScanRecordPtr scanptr);
+                            ScanRecordPtr scanptr,
+                            ApiConnectRecordPtr apiConnectptr);
   void execDIH_SCAN_TAB_CONF(Signal* signal,
                              ScanRecordPtr scanptr,
                              TableRecordPtr tabPtr,

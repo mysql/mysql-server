@@ -13275,7 +13275,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectRecor
   }
   else
   {
-    execDIH_SCAN_TAB_REF(signal, scanptr);
+    execDIH_SCAN_TAB_REF(signal, scanptr, apiConnectptr);
     return;
   }
 }//Dbtc::diFcountReqLab()
@@ -13502,7 +13502,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
 /******************************************************
  * execDIH_SCAN_TAB_REF
  ******************************************************/
-void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal, ScanRecordPtr scanptr)
+void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal, ScanRecordPtr scanptr, ApiConnectRecordPtr const apiConnectptr)
 {
   jamEntry();
   DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
