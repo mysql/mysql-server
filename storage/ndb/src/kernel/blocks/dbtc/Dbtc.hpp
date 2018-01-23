@@ -2040,11 +2040,11 @@ private:
   void linkApiToGcp(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
   void linkGciInGcilist(Ptr<GcpRecord>);
   void linkTcInConnectionlist(Signal* signal);
-  void releaseAbortResources(Signal* signal);
+  void releaseAbortResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseApiCon(Signal* signal, UintR aApiConnectPtr);
   void releaseApiConCopy(Signal* signal);
   void releaseApiConnectFail(Signal* signal);
-  void releaseAttrinfo(CacheRecordPtr cachePtr);
+  void releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* regApiPtr);
   void releaseKeys(CacheRecord* regCachePtr);
   void releaseDirtyRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
   void releaseDirtyWrite(Signal* signal);
@@ -2054,7 +2054,7 @@ private:
   void seizeApiConnect(Signal* signal);
   void seizeApiConnectCopy(Signal* signal);
   void seizeApiConnectFail(Signal* signal);
-  void crash_gcp(Uint32 line) ATTRIBUTE_NORETURN;
+  [[noreturn]] void crash_gcp(Uint32 line);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnectFail(Signal* signal);
   Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal);

@@ -4292,7 +4292,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr)
     Uint32 trigOp = regTcPtr->triggeringOperation;
     Uint32 TclientData = regTcPtr->clientData;
     releaseKeys(regCachePtr);
-    releaseAttrinfo(cachePtr);
+    releaseAttrinfo(cachePtr, apiConnectptr.p);
     regApiPtr->lqhkeyreqrec--;
     unlinkReadyTcCon(signal);
     clearCommitAckMarker(regApiPtr, regTcPtr);
@@ -4677,7 +4677,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
   } // useLongLqhKeyReq
 
   /* Release AttrInfo related storage, and the Cache Record */
-  releaseAttrinfo(cachePtr);
+  releaseAttrinfo(cachePtr, apiConnectptr.p);
 
   UintR TtcTimer = ctcTimer;
   UintR Tread = (regTcPtr->operation == ZREAD);
@@ -4700,7 +4700,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 /* ========================================================================= */
 /* -------      RELEASE ALL ATTRINFO RECORDS IN AN OPERATION RECORD  ------- */
 /* ========================================================================= */
-void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr)
+void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* const regApiPtr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   Uint32 attrInfoSectionI= cachePtr.p->attrInfoSectionI;
@@ -4713,7 +4713,6 @@ void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr)
   // Now we will release the cache record at the same
   // time as releasing the attrinfo records.
   //---------------------------------------------------
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   c_cacheRecordPool.release(cachePtr);
   regApiPtr->cachePtr = RNIL;
   return;
@@ -8038,7 +8037,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
 		   TcCommitConf::SignalLength, JBB);
         
         regApiPtr->returnsignal = RS_NO_RETURN;
-        releaseAbortResources(signal);
+        releaseAbortResources(signal, apiConnectptr);
         return;
       }//if
       break;
@@ -8503,6 +8502,7 @@ void Dbtc::execABORTED(Signal* signal)
     // ABORTED reported on an operation not expecting ABORT.
     /*-----------------------------------------------------------------------*/
   }//if
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   if (apiConnectptr.i >= capiConnectFilesize) {
     warningReport(signal, 0);
@@ -8573,7 +8573,7 @@ void Dbtc::execABORTED(Signal* signal)
   /*     FROM ALL PARTICIPANTS IN THE TRANSACTION. WE CAN NOW RELEASE ALL   */
   /*     RESOURCES CONNECTED TO THE TRANSACTION AND SEND THE ABORT RESPONSE */
   /*------------------------------------------------------------------------*/
-  releaseAbortResources(signal);
+  releaseAbortResources(signal, apiConnectptr);
 }//Dbtc::execABORTED()
 
 void Dbtc::clearTcNodeData(Signal* signal, 
@@ -8628,7 +8628,7 @@ void Dbtc::abort010Lab(Signal* signal)
     /*--------------------------------------------------------------------*/
     /* WE HAVE NO PARTICIPANTS IN THE TRANSACTION.                        */
     /*--------------------------------------------------------------------*/
-    releaseAbortResources(signal);
+    releaseAbortResources(signal, apiConnectptr);
     return;
   }//if
   tcConnectptr.i = transP->tcConnect.getFirst();
@@ -8753,7 +8753,7 @@ ABORT020:
    *    FROM ALL PARTICIPANTS IN THE TRANSACTION. WE CAN NOW RELEASE ALL  
    *    RESOURCES CONNECTED TO THE TRANSACTION AND SEND THE ABORT RESPONSE
    *------------------------------------------------------------------------*/
-  releaseAbortResources(signal);
+  releaseAbortResources(signal, apiConnectptr);
 }//Dbtc::abort015Lab()
 
 /*--------------------------------------------------------------------------*/
@@ -9419,7 +9419,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       if (Tcheck == 1)
       {
 	jam();
-	releaseAbortResources(signal);
+	releaseAbortResources(signal, apiConnectptr);
 	return;
       }
       
@@ -9444,7 +9444,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	warningEvent("%s", buf);
 	ndbout_c("%s", buf);
 	ndbabort();
-	releaseAbortResources(signal);
+	releaseAbortResources(signal, apiConnectptr);
 	return;
       }
       
@@ -11692,7 +11692,7 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
           releaseTakeOver(signal);
         } else {
           jam();
-          releaseAbortResources(signal);
+          releaseAbortResources(signal, apiConnectptr);
         }//if
         return;
       }//if
@@ -13524,7 +13524,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     cachePtr.i = apiConnectptr.p->cachePtr;
     c_cacheRecordPool.getPtr(cachePtr);
     releaseKeys(cachePtr.p);
-    releaseAttrinfo(cachePtr);
+    releaseAttrinfo(cachePtr, apiConnectptr.p);
   }//if
 
   if (not_started)
@@ -15309,7 +15309,7 @@ void Dbtc::linkTcInConnectionlist(Signal* signal)
 /* THIS CODE RELEASES ALL RESOURCES AFTER AN ABORT OF A TRANSACTION AND ALSO */
 /* SENDS THE ABORT DECISION TO THE APPLICATION.                              */
 /*---------------------------------------------------------------------------*/
-void Dbtc::releaseAbortResources(Signal* signal) 
+void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   TcConnectRecordPtr rarTcConnectptr;
 
@@ -15332,7 +15332,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
     CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
     c_cacheRecordPool.getPtr(cachePtr);
-    releaseAttrinfo(cachePtr);
+    releaseAttrinfo(cachePtr, apiConnectptr.p);
     releaseKeys(cachePtr.p);
   }//if
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
@@ -22104,11 +22104,11 @@ Dbtc::time_track_complete_transaction(
 
 void
 Dbtc::time_track_complete_transaction_error(
-  ApiConnectRecord * const apiConnectPtr)
+  ApiConnectRecord * const regApiPtr)
 {
   HostRecordPtr hostPtr;
   /* Transactions are recorded on the API node */
-  if (!NdbTick_IsValid(apiConnectPtr->m_start_ticks))
+  if (!NdbTick_IsValid(regApiPtr->m_start_ticks))
   {
     /**
      * As part of handling API node failure we might abort transactions that
@@ -22117,8 +22117,8 @@ Dbtc::time_track_complete_transaction_error(
     return;
   }
   Uint32 pos =
-    time_track_calculate_histogram_position(apiConnectPtr->m_start_ticks);
-  Uint32 apiNodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
+    time_track_calculate_histogram_position(regApiPtr->m_start_ticks);
+  Uint32 apiNodeId = refToNode(regApiPtr->ndbapiBlockref);
   hostPtr.i = apiNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_transaction_error_histogram[pos]++;
