@@ -155,7 +155,7 @@
   @section sect_protocol_connection_phase_initial_handshake Initial Handshake
 
   The initial handshake starts with the server sending the
-  @ref sect_protocol_connection_phase_packets_protocol_handshake packet.
+  @ref page_protocol_connection_phase_packets_protocol_handshake packet.
   After this, optionally, the client can request an SSL connection to be
   established with the @ref page_protocol_connection_phase_packets_protocol_ssl_request
   packet and then the client sends the
@@ -163,7 +163,7 @@
 
   @subsection sect_protocol_connection_phase_initial_handshake_plain_handshake Plain Handshake
 
-  1. Server sending @ref sect_protocol_connection_phase_packets_protocol_handshake.
+  1. Server sending @ref page_protocol_connection_phase_packets_protocol_handshake.
   2. Client replying with @ref page_protocol_connection_phase_packets_protocol_handshake_response
 
   @startuml
@@ -174,7 +174,7 @@
 
   @subsection sect_protocol_connection_phase_initial_handshake_ssl_handshake SSL Handshake
 
-  1. Server sending @ref sect_protocol_connection_phase_packets_protocol_handshake
+  1. Server sending @ref page_protocol_connection_phase_packets_protocol_handshake
   2. Client replying with @ref page_protocol_connection_phase_packets_protocol_ssl_request
   3. The usual SSL exchange leading to establishing SSL connection
   4. Client sends @ref page_protocol_connection_phase_packets_protocol_handshake_response
@@ -190,7 +190,7 @@
   @subsection sect_protocol_connection_phase_initial_handshake_capabilities Capability Negotiation
 
   To permit an old client to connect to newer servers,
-  the @ref sect_protocol_connection_phase_packets_protocol_handshake contains
+  the @ref page_protocol_connection_phase_packets_protocol_handshake contains
 
   * the MySQL Server version
   * the server's @ref group_cs_capabilities_flags
@@ -221,7 +221,7 @@
 
   Server uses its default authentication method @ref default_auth_plugin to
   produce initial authentication data payload and sends it to the client inside
-  @ref sect_protocol_connection_phase_packets_protocol_handshake, together with
+  @ref page_protocol_connection_phase_packets_protocol_handshake, together with
   the name of the method used.
 
   Client can include in the
@@ -232,7 +232,7 @@
   @ref page_protocol_connection_phase_packets_protocol_handshake_response,
   client is not obligated to use the same authentication method that was used
   by the server in the
-  @ref sect_protocol_connection_phase_packets_protocol_handshake packet.
+  @ref page_protocol_connection_phase_packets_protocol_handshake packet.
   The name of the authentication method used by the client is stored in the
   packet. If the guessed authentication method used either by the client or
   the server in the initial handshake was not correct, server informs client
@@ -268,7 +268,7 @@
   authentication path is used when:
   <ul>
   <li>the server used `server_method` to generate authentication data in the
-    @ref sect_protocol_connection_phase_packets_protocol_handshake packet.</li>
+    @ref page_protocol_connection_phase_packets_protocol_handshake packet.</li>
   <li>the client used a `client_authentication_method` in
     @ref page_protocol_connection_phase_packets_protocol_handshake_response
     that is compatible with the `server_method` used by the server.</li>
@@ -284,7 +284,7 @@
   A successful fast authentication path looks as follows:
 
   1. The client connects to the server
-  2. The server sends @ref sect_protocol_connection_phase_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
      @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. Client and server possibly exchange further packets as required by the server
@@ -324,7 +324,7 @@
   @ref page_protocol_basic_ok_packet.
 
   1. The client connects to the server
-  2. The server sends @ref sect_protocol_connection_phase_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
   @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. Client and server possibly exchange further packets as required by the server
@@ -354,7 +354,7 @@
   uthentication method M. If:
 
   1. Server's default method used to generate authentication payload for
-  @ref sect_protocol_connection_phase_packets_protocol_handshake was different
+  @ref page_protocol_connection_phase_packets_protocol_handshake was different
   from M or
   2. Method used by the client to generate authentication reply in
   @ref page_protocol_connection_phase_packets_protocol_handshake_response
@@ -375,7 +375,7 @@
   `--default-auth` option.
   5. A sensibe thing to do for a client would be to see the server's default
   authentication method announced in the
-  @ref sect_protocol_connection_phase_packets_protocol_handshake packet and infer the
+  @ref page_protocol_connection_phase_packets_protocol_handshake packet and infer the
   authentication method from it instead of using the client default authentication
   method when producing
   @ref page_protocol_connection_phase_packets_protocol_handshake_response.
@@ -395,7 +395,7 @@
   @subsection sect_protocol_connection_phase_auth_method_mismatch_method_change Authentication Method Change
 
   1. The client connects to the server
-  2. The server sends @ref sect_protocol_connection_phase_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
   @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. The server sends the
@@ -436,7 +436,7 @@
   to connect.
   </li>
   <li>Server's default authentication method used to generate authentication
-  data in @ref sect_protocol_connection_phase_packets_protocol_handshake is
+  data in @ref page_protocol_connection_phase_packets_protocol_handshake is
   incomaptible with
   @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   and client does not support pluggable authentication (@ref CLIENT_PLUGIN_AUTH
@@ -447,7 +447,7 @@
   In either of these cases authentication phase will look as follows:
 
   1. The client connects to the server
-  2. The server sends @ref sect_protocol_connection_phase_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
   @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. The server recognizes that the client does not have enough capabilities
@@ -471,7 +471,7 @@
   not be known to it. In that case the client simply disconnects.
 
   1. The client connects to the server
-  2. The server sends @ref sect_protocol_connection_phase_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
   @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. The server sends the
@@ -518,7 +518,7 @@
   Client replies with @ref sect_protocol_connection_phase_packets_protocol_handshake_response320.
   To generate a password hash the client should re-use the random bytes sent by
   the server in the
-  @ref sect_protocol_connection_phase_packets_protocol_handshake.
+  @ref page_protocol_connection_phase_packets_protocol_handshake.
 
   @startuml
   Client -> Server: Connect
@@ -533,8 +533,6 @@
   @section sect_protocol_connection_phase_com_change_user_auth Authentication After COM_CHANGE_USER Command
 
 
-
-  @subpage sect_protocol_connection_phase_packets_protocol_handshake
 
   @sa group_cs_capabilities_flags
   @subpage page_protocol_connection_phase_packets
@@ -564,7 +562,7 @@
      * a specific exchange
 
    The exchanged input and output data may either be sent as part of the
-   @ref sect_protocol_connection_phase_packets_protocol_handshake and the
+   @ref page_protocol_connection_phase_packets_protocol_handshake and the
    @ref page_protocol_connection_phase_packets_protocol_handshake_response
    or as a part of the
    @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
@@ -572,22 +570,64 @@
 
    @section page_protocol_connection_phase_authentication_methods_limitations Limitations
 
+   While the overall exchange of data is free-form there are some limitations
+   in the initial handshake of the amount of data that can be exchanged without
+   causing an extra round trip:
+
+   <ul>
+   <li>
+   The `auth_plugin_data` field in
+   @ref page_protocol_connection_phase_packets_protocol_handshake packet can
+   only carry 255 bytes max (see @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION").
+   </li><li>
+   The `auth_reponse_data` field in
+   @ref page_protocol_connection_phase_packets_protocol_handshake_response
+   packet can only carry 255 bytes max too if
+   @ref CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA is not set.
+   </li><li>
+   The client-side plugin may not receive its initial data in the initial handshake
+   </li>
+   </ul>
+
    @section page_protocol_connection_phase_authentication_methods_old_password_authentication Old Password Authentication
 
    Authentication::Old:
 
-   @section page_protocol_connection_phase_authentication_methods_native_password_authentication Native Authentication
+   <ul>
+   <li>
+   The server name is *mysql_old_password*
+   </li>
+   <li>
+   The client name is *mysql_old_password"
+   </li>
+   <li>
+   Client side requires an 8-byte random challenge from server
+   </li>
+   <li>
+   Client side sends a 8 byte response packet based on a proprietary algorithm.
+   </li>
+   </ul>
 
-   Authentication::Native41:
+   @note If the server announces
+   @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+   in the
+   @ref page_protocol_connection_phase_packets_protocol_handshake packet
+   the client may use the first 8 bytes of its 20-byte auth_plugin_data as input.
 
+   @startuml
+   Client->Server: 8 byte random data
+   Server->client: 8 byte scrambled password
+   @enduml
+
+   @warning The hashing algorithm used for this auth method is *broken* as
+   shown in CVE-2000-0981.
+
+   @subpage page_protocol_connection_phase_authentication_methods_native_password_authentication
    @subpage page_caching_sha2_authentication_exchanges
 */
 
-
 /**
-  @page page_protocol_connection_phase_packets Connection Phase Packets
-
-  @section sect_protocol_connection_phase_packets_protocol_handshake Protocol::Handshake
+  @page page_protocol_connection_phase_packets_protocol_handshake Protocol::Handshake
 
   Initial Handshake %Packet
 
@@ -601,7 +641,14 @@
   Since 3.21.0 the @ref page_protocol_connection_phase_packets_protocol_handshake_v10
   is sent.
 
-  @subpage page_protocol_connection_phase_packets_protocol_handshake_v10
+  * @subpage page_protocol_connection_phase_packets_protocol_handshake_v9
+  * @subpage page_protocol_connection_phase_packets_protocol_handshake_v10
+*/
+
+/**
+  @page page_protocol_connection_phase_packets Connection Phase Packets
+
+  @subpage page_protocol_connection_phase_packets_protocol_handshake
   @subpage page_protocol_connection_phase_packets_protocol_ssl_request
   @subpage page_protocol_connection_phase_packets_protocol_handshake_response
   @subpage page_protocol_connection_phase_packets_protocol_auth_switch_request
@@ -1049,6 +1096,33 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
            passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
   }
 }
+
+
+/**
+  @page page_protocol_connection_phase_packets_protocol_handshake_v9 Protocol::HandshakeV9:
+
+  Initial handshake packet for protocol version 9.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>protocol version</td>
+    <td>Always 9</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>server version</td>
+      <td>human readable status information</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>thread id</td>
+    <td>a.k.a. connection id</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+    <td>scramble</td>
+    <td>Authentication plugin data for @ref page_protocol_connection_phase_authentication_methods_old_password_authentication</td></tr>
+  </table>
+
+  @returns @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
+*/
+
 
 
 /**
@@ -3520,6 +3594,57 @@ compare_native_password_with_hash(const char *hash, unsigned long hash_length,
 
   DBUG_RETURN(result);
 }
+
+/**
+  @page page_protocol_connection_phase_authentication_methods_native_password_authentication Native Authentication
+
+  Authentication::Native41:
+
+  <ul>
+  <li>
+  The server name is *mysql_native_password*
+  </li>
+  <li>
+  The client name is *mysql_native_password"
+  </li>
+  <li>
+  Client side requires an 20-byte random challenge from server
+  </li>
+  <li>
+  Client side sends a 20-byte response packet based on the algorithm described
+  later.
+  </li>
+  </ul>
+
+  @par "Requires" @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION"
+
+  @startuml
+  Client<-Server: 20 byte random data
+  Client->Server: 20 byte scrambled password
+  @enduml
+
+  This method fixes a 2 short-comings of the
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
+
+  1. using a tested, crypto-graphic hashing function (SHA1)
+  2. knowning the content of the hash in the mysql.user table isn't enough
+     to authenticate against the MySQL Server.
+
+  The network packet content for the password is calculated by:
+  ~~~~~
+  SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
+  ~~~~~
+
+  The following is stored into mysql.user.authentication_string
+  ~~~~~
+  SHA1( SHA1( password ) )
+  ~~~~~
+
+  @sa native_password_authenticate, native_password_auth_client,
+  native_password_client_plugin, native_password_handler,
+  check_scramble_sha1, compute_two_stage_sha1_hash, make_password_from_salt
+*/
+
 
 /**
   MySQL Server Password Authentication Plugin

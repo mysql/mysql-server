@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3901,7 +3901,7 @@ error:
   Handshake Response Packet sent by 4.1+ clients supporting
   ::CLIENT_PROTOCOL_41 @ref group_cs_capabilities_flags flag,
   if the server announced it in its
-  @ref sect_protocol_connection_phase_packets_protocol_handshake.
+  @ref page_protocol_connection_phase_packets_protocol_handshake.
   Otherwise (talking to an old server) the
   @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
   packet must be used.
@@ -6748,8 +6748,15 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 }
 
 /**
-  client authentication plugin that does native MySQL authentication
-  using a 20-byte (4.1+) scramble
+  Client authentication plugin that does native MySQL authentication
+   using a 20-byte (4.1+) scramble
+
+   @param vio    the channel to operate on
+   @param mysql  the MYSQL structure to operate on
+
+   @retval -1    ::CR_OK : Success
+   @retval 1     ::CR_ERROR : error reading
+   @retval 2012  ::CR_SERVER_HANDSHAKE_ERR : malformed handshake data
 */
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 {
