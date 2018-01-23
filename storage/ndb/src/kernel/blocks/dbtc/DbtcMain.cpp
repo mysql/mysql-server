@@ -12865,7 +12865,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   ndbrequire(scanptr.p->scanApiRec == RNIL);
 
   errCode = initScanrec(scanptr, scanTabReq, scanParallel,
-                        apiPtr);
+                        apiPtr, apiConnectptr.i);
   if (unlikely(errCode))
   {
     jam();
@@ -13021,11 +13021,12 @@ Uint32
 Dbtc::initScanrec(ScanRecordPtr scanptr,
 		  const ScanTabReq * scanTabReq,
 		  UintR scanParallel,
-                  const Uint32 apiPtr[])
+                  const Uint32 apiPtr[],
+                  Uint32 apiConnectPtr)
 {
   const UintR ri = scanTabReq->requestInfo;
   const Uint32 batchSizeRows = ScanTabReq::getScanBatch(ri);
-  scanptr.p->scanApiRec = apiConnectptr.i;
+  scanptr.p->scanApiRec = apiConnectPtr;
   scanptr.p->scanTableref = tabptr.i;
   scanptr.p->scanSchemaVersion = scanTabReq->tableSchemaVersion;
   scanptr.p->scanNoFrag = 0;

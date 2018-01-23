@@ -2005,7 +2005,8 @@ private:
   void initScanTcrec(Signal* signal);
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
                      const UintR scanParallel,
-                     const Uint32 apiPtr[]);
+                     const Uint32 apiPtr[],
+                     Uint32 apiConnectPtr);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
