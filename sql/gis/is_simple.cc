@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -47,68 +47,68 @@ Is_simple::Is_simple(double semi_major, double semi_minor)
       m_semi_major{semi_major},
       m_semi_minor{semi_minor} {}
 
-bool Is_simple::operator()(const Geometry& g) const {
+bool Is_simple::operator()(const Geometry &g) const {
   DBUG_ASSERT(!g.is_empty() || g.type() == Geometry_type::kGeometrycollection);
 
   return apply(*this, g);
 }
 
-bool Is_simple::eval(const Cartesian_point& g) const {
+bool Is_simple::eval(const Cartesian_point &g) const {
   return bg::is_simple(g);
 }
 
-bool Is_simple::eval(const Cartesian_linestring& g) const {
+bool Is_simple::eval(const Cartesian_linestring &g) const {
   return bg::is_simple(g);
 }
 
-bool Is_simple::eval(const Cartesian_polygon& g) const {
+bool Is_simple::eval(const Cartesian_polygon &g) const {
   return bg::is_simple(g);
 }
 
-bool Is_simple::eval(const Cartesian_multipoint& g) const {
+bool Is_simple::eval(const Cartesian_multipoint &g) const {
   return bg::is_simple(g);
 }
 
-bool Is_simple::eval(const Cartesian_multipolygon& g) const {
+bool Is_simple::eval(const Cartesian_multipolygon &g) const {
   return bg::is_simple(g);
 }
 
-bool Is_simple::eval(const Cartesian_multilinestring& g) const {
+bool Is_simple::eval(const Cartesian_multilinestring &g) const {
   return bg::is_simple(g);
 }
 
-bool Is_simple::eval(const Geographic_point& g) const {
+bool Is_simple::eval(const Geographic_point &g) const {
   return bg::is_simple(g, m_geostrat);
 }
 
-bool Is_simple::eval(const Geographic_linestring& g) const {
+bool Is_simple::eval(const Geographic_linestring &g) const {
   return bg::is_simple(g, m_geostrat);
 }
 
-bool Is_simple::eval(const Geographic_polygon& g) const {
+bool Is_simple::eval(const Geographic_polygon &g) const {
   return bg::is_simple(g, m_geostrat);
 }
 
-bool Is_simple::eval(const Geographic_multipoint& g) const {
+bool Is_simple::eval(const Geographic_multipoint &g) const {
   return bg::is_simple(g, m_geostrat);
 }
 
-bool Is_simple::eval(const Geographic_multipolygon& g) const {
+bool Is_simple::eval(const Geographic_multipolygon &g) const {
   return bg::is_simple(g, m_geostrat);
 }
 
-bool Is_simple::eval(const Geographic_multilinestring& g) const {
+bool Is_simple::eval(const Geographic_multilinestring &g) const {
   return bg::is_simple(g, m_geostrat);
 }
 
-bool Is_simple::eval(const Geometrycollection& g) const {
+bool Is_simple::eval(const Geometrycollection &g) const {
   // Boost does not yet implement operations on geometrycollections. This
   // function implements the SQL/MM Spatial specification.
 
-  const Is_simple& is_simple = *this;
+  const Is_simple &is_simple = *this;
   Intersects intersects{m_semi_major, m_semi_minor};
   Touches touches{m_semi_major, m_semi_minor};
-  auto interiors_intersect = [&](const Geometry& g1, const Geometry& g2) {
+  auto interiors_intersect = [&](const Geometry &g1, const Geometry &g2) {
     // TODO: Express this function in terms of `boost::relate` when that gets a
     // functor.
 
@@ -120,7 +120,7 @@ bool Is_simple::eval(const Geometrycollection& g) const {
     // 'touch'.
 
     // Extend `touches` to give false for zero-dim geometries.
-    auto extension_of_touches = [&](const Geometry& g1, const Geometry& g2) {
+    auto extension_of_touches = [&](const Geometry &g1, const Geometry &g2) {
       try {
         return touches(&g1, &g2);
       } catch (null_value_exception) {
@@ -144,9 +144,9 @@ bool Is_simple::eval(const Geometrycollection& g) const {
   return true;
 }
 
-bool is_simple(const dd::Spatial_reference_system* srs, const Geometry* g,
-               const char* func_name, bool* result,
-               bool* result_null) noexcept {
+bool is_simple(const dd::Spatial_reference_system *srs, const Geometry *g,
+               const char *func_name, bool *result,
+               bool *result_null) noexcept {
   try {
     DBUG_ASSERT(!srs || srs->is_cartesian() || srs->is_geographic());
     DBUG_ASSERT(!srs ||

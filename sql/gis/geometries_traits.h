@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GEOMETRIES_TRAITS_H_INCLUDED
 #define SQL_GIS_GEOMETRIES_TRAITS_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -80,11 +80,11 @@ struct dimension<gis::Cartesian_point> : boost::mpl::int_<2> {};
 
 template <std::size_t Dimension>
 struct access<gis::Cartesian_point, Dimension> {
-  static inline double get(gis::Cartesian_point const& p) {
+  static inline double get(gis::Cartesian_point const &p) {
     return p.get<Dimension>();
   }
 
-  static inline void set(gis::Cartesian_point& p, double const& value) {
+  static inline void set(gis::Cartesian_point &p, double const &value) {
     p.set<Dimension>(value);
   }
 };
@@ -122,34 +122,34 @@ struct tag<gis::Cartesian_polygon> {
 
 template <>
 struct ring_const_type<gis::Cartesian_polygon> {
-  typedef gis::Cartesian_linearring const& type;
+  typedef gis::Cartesian_linearring const &type;
 };
 
 template <>
 struct ring_mutable_type<gis::Cartesian_polygon> {
-  typedef gis::Cartesian_linearring& type;
+  typedef gis::Cartesian_linearring &type;
 };
 
 template <>
 struct interior_const_type<gis::Cartesian_polygon> {
   typedef std::vector<gis::Cartesian_linearring,
-                      Malloc_allocator<gis::Cartesian_linearring>> const& type;
+                      Malloc_allocator<gis::Cartesian_linearring>> const &type;
 };
 
 template <>
 struct interior_mutable_type<gis::Cartesian_polygon> {
   typedef std::vector<gis::Cartesian_linearring,
-                      Malloc_allocator<gis::Cartesian_linearring>>& type;
+                      Malloc_allocator<gis::Cartesian_linearring>> &type;
 };
 
 template <>
 struct exterior_ring<gis::Cartesian_polygon> {
-  static inline gis::Cartesian_linearring& get(gis::Cartesian_polygon& py) {
+  static inline gis::Cartesian_linearring &get(gis::Cartesian_polygon &py) {
     return py.cartesian_exterior_ring();
   }
 
-  static inline gis::Cartesian_linearring const& get(
-      gis::Cartesian_polygon const& py) {
+  static inline gis::Cartesian_linearring const &get(
+      gis::Cartesian_polygon const &py) {
     return py.cartesian_exterior_ring();
   }
 };
@@ -157,14 +157,14 @@ struct exterior_ring<gis::Cartesian_polygon> {
 template <>
 struct interior_rings<gis::Cartesian_polygon> {
   static inline std::vector<gis::Cartesian_linearring,
-                            Malloc_allocator<gis::Cartesian_linearring>>&
-  get(gis::Cartesian_polygon& py) {
+                            Malloc_allocator<gis::Cartesian_linearring>>
+      &get(gis::Cartesian_polygon &py) {
     return py.interior_rings();
   }
 
   static inline std::vector<gis::Cartesian_linearring,
-                            Malloc_allocator<gis::Cartesian_linearring>> const&
-  get(gis::Cartesian_polygon const& py) {
+                            Malloc_allocator<gis::Cartesian_linearring>> const &
+  get(gis::Cartesian_polygon const &py) {
     return py.const_interior_rings();
   }
 };
@@ -216,11 +216,11 @@ struct dimension<gis::Geographic_point> : boost::mpl::int_<2> {};
 
 template <std::size_t Dimension>
 struct access<gis::Geographic_point, Dimension> {
-  static inline double get(gis::Geographic_point const& p) {
+  static inline double get(gis::Geographic_point const &p) {
     return p.get<Dimension>();
   }
 
-  static inline void set(gis::Geographic_point& p, double const& value) {
+  static inline void set(gis::Geographic_point &p, double const &value) {
     p.set<Dimension>(value);
   }
 };
@@ -258,34 +258,34 @@ struct tag<gis::Geographic_polygon> {
 
 template <>
 struct ring_const_type<gis::Geographic_polygon> {
-  typedef gis::Geographic_linearring const& type;
+  typedef gis::Geographic_linearring const &type;
 };
 
 template <>
 struct ring_mutable_type<gis::Geographic_polygon> {
-  typedef gis::Geographic_linearring& type;
+  typedef gis::Geographic_linearring &type;
 };
 
 template <>
 struct interior_const_type<gis::Geographic_polygon> {
   typedef std::vector<gis::Geographic_linearring,
-                      Malloc_allocator<gis::Geographic_linearring>> const& type;
+                      Malloc_allocator<gis::Geographic_linearring>> const &type;
 };
 
 template <>
 struct interior_mutable_type<gis::Geographic_polygon> {
   typedef std::vector<gis::Geographic_linearring,
-                      Malloc_allocator<gis::Geographic_linearring>>& type;
+                      Malloc_allocator<gis::Geographic_linearring>> &type;
 };
 
 template <>
 struct exterior_ring<gis::Geographic_polygon> {
-  static inline gis::Geographic_linearring& get(gis::Geographic_polygon& py) {
+  static inline gis::Geographic_linearring &get(gis::Geographic_polygon &py) {
     return py.geographic_exterior_ring();
   }
 
-  static inline gis::Geographic_linearring const& get(
-      gis::Geographic_polygon const& py) {
+  static inline gis::Geographic_linearring const &get(
+      gis::Geographic_polygon const &py) {
     return py.geographic_exterior_ring();
   }
 };
@@ -293,14 +293,15 @@ struct exterior_ring<gis::Geographic_polygon> {
 template <>
 struct interior_rings<gis::Geographic_polygon> {
   static inline std::vector<gis::Geographic_linearring,
-                            Malloc_allocator<gis::Geographic_linearring>>&
-  get(gis::Geographic_polygon& py) {
+                            Malloc_allocator<gis::Geographic_linearring>>
+      &get(gis::Geographic_polygon &py) {
     return py.interior_rings();
   }
 
   static inline std::vector<gis::Geographic_linearring,
-                            Malloc_allocator<gis::Geographic_linearring>> const&
-  get(gis::Geographic_polygon const& py) {
+                            Malloc_allocator<gis::Geographic_linearring>> const
+      &
+      get(gis::Geographic_polygon const &py) {
     return py.const_interior_rings();
   }
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -51,23 +51,23 @@ class Distance_sphere : public Functor<double> {
  public:
   Distance_sphere(double sphere_radius) : m_strategy{sphere_radius} {};
 
-  double operator()(const Geometry* g1, const Geometry* g2) const override;
+  double operator()(const Geometry *g1, const Geometry *g2) const override;
 
-  double eval(const Cartesian_point* g1, const Cartesian_point* g2) const;
-  double eval(const Cartesian_point* g1, const Cartesian_multipoint* g2) const;
-  double eval(const Cartesian_multipoint* g1, const Cartesian_point* g2) const;
-  double eval(const Cartesian_multipoint* g1,
-              const Cartesian_multipoint* g2) const;
+  double eval(const Cartesian_point *g1, const Cartesian_point *g2) const;
+  double eval(const Cartesian_point *g1, const Cartesian_multipoint *g2) const;
+  double eval(const Cartesian_multipoint *g1, const Cartesian_point *g2) const;
+  double eval(const Cartesian_multipoint *g1,
+              const Cartesian_multipoint *g2) const;
 
-  double eval(const Geographic_point* g1, const Geographic_point* g2) const;
-  double eval(const Geographic_point* g1,
-              const Geographic_multipoint* g2) const;
-  double eval(const Geographic_multipoint* g1,
-              const Geographic_point* g2) const;
-  double eval(const Geographic_multipoint* g1,
-              const Geographic_multipoint* g2) const;
+  double eval(const Geographic_point *g1, const Geographic_point *g2) const;
+  double eval(const Geographic_point *g1,
+              const Geographic_multipoint *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_point *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_multipoint *g2) const;
 
-  double eval(const Geometry* g1, const Geometry* g2) const;
+  double eval(const Geometry *g1, const Geometry *g2) const;
 };
 
 }  // namespace gis

@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -54,8 +54,8 @@
 
 namespace bg = boost::geometry;
 
-dd::Spatial_reference_system* fetch_srs(gis::srid_t srid) {
-  const dd::Spatial_reference_system* srs = nullptr;
+dd::Spatial_reference_system *fetch_srs(gis::srid_t srid) {
+  const dd::Spatial_reference_system *srs = nullptr;
   dd::cache::Dictionary_client::Auto_releaser m_releaser(
       current_thd->dd_client());
   Srs_fetcher fetcher(current_thd);
@@ -67,8 +67,8 @@ dd::Spatial_reference_system* fetch_srs(gis::srid_t srid) {
     return nullptr;
 }
 
-bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                     rtr_mbr_t* b) {
+bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                     rtr_mbr_t *b) {
   DBUG_ASSERT(a->xmin <= a->xmax && a->ymin <= a->ymax);
   DBUG_ASSERT(b->xmin <= b->xmax && b->ymin <= b->ymax);
 
@@ -103,8 +103,8 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
   return result;
 }
 
-bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                   rtr_mbr_t* b) {
+bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                   rtr_mbr_t *b) {
   DBUG_ASSERT(a->xmin <= a->xmax && a->ymin <= a->ymax);
   DBUG_ASSERT(b->xmin <= b->xmax && b->ymin <= b->ymax);
 
@@ -139,8 +139,8 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
   return result;
 }
 
-bool mbr_intersect_cmp(rtr_mbr_t* a MY_ATTRIBUTE((unused)),
-                       rtr_mbr_t* b MY_ATTRIBUTE((unused))) {
+bool mbr_intersect_cmp(rtr_mbr_t *a MY_ATTRIBUTE((unused)),
+                       rtr_mbr_t *b MY_ATTRIBUTE((unused))) {
   // This assertion contains the old return value of the function. Given a valid
   // box, it should always be true.
   DBUG_ASSERT((b->xmin <= a->xmax || b->xmax >= a->xmin) &&
@@ -148,12 +148,12 @@ bool mbr_intersect_cmp(rtr_mbr_t* a MY_ATTRIBUTE((unused)),
   return true;
 }
 
-bool mbr_disjoint_cmp(rtr_mbr_t* a, rtr_mbr_t* b) {
+bool mbr_disjoint_cmp(rtr_mbr_t *a, rtr_mbr_t *b) {
   return !mbr_intersect_cmp(a, b);
 }
 
-bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                    rtr_mbr_t* b) {
+bool mbr_within_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                    rtr_mbr_t *b) {
   bool result = false;
   try {
     // If min and max coordinates have been reversed, InnoDB expects the result
@@ -203,8 +203,8 @@ bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
   return result;
 }
 
-void mbr_join(const dd::Spatial_reference_system* srs, double* a,
-              const double* b, int n_dim MY_ATTRIBUTE((unused))) {
+void mbr_join(const dd::Spatial_reference_system *srs, double *a,
+              const double *b, int n_dim MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(n_dim == 2);
 
   try {
@@ -237,8 +237,8 @@ void mbr_join(const dd::Spatial_reference_system* srs, double* a,
   }
 }
 
-double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
-                     const double* b, int n_dim MY_ATTRIBUTE((unused))) {
+double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
+                     const double *b, int n_dim MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(n_dim == 2);
 
   double area = 0.0;
@@ -274,7 +274,7 @@ double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
   return area;
 }
 
-double compute_area(const dd::Spatial_reference_system* srs, const double* a,
+double compute_area(const dd::Spatial_reference_system *srs, const double *a,
                     int n_dim MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(n_dim == 2);
 
@@ -303,9 +303,9 @@ double compute_area(const dd::Spatial_reference_system* srs, const double* a,
   return area;
 }
 
-int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
+int get_mbr_from_store(const dd::Spatial_reference_system *srs, uchar *store,
                        uint size, uint n_dims MY_ATTRIBUTE((unused)),
-                       double* mbr, gis::srid_t* srid) {
+                       double *mbr, gis::srid_t *srid) {
   DBUG_ASSERT(n_dims == 2);
   // The SRS should match the SRID of the geometry, with one exception: For
   // backwards compatibility it is allowed to create indexes with mixed
@@ -319,7 +319,7 @@ int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
 
   try {
     std::unique_ptr<gis::Geometry> g =
-        gis::parse_wkb(srs, pointer_cast<char*>(store) + sizeof(gis::srid_t),
+        gis::parse_wkb(srs, pointer_cast<char *>(store) + sizeof(gis::srid_t),
                        size - sizeof(gis::srid_t), true);
     if (g.get() == nullptr) {
       return -1; /* purecov: inspected */
@@ -363,10 +363,10 @@ int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
   return 0;
 }
 
-double rtree_area_increase(const dd::Spatial_reference_system* srs,
-                           const uchar* mbr_a, const uchar* mbr_b,
+double rtree_area_increase(const dd::Spatial_reference_system *srs,
+                           const uchar *mbr_a, const uchar *mbr_b,
                            int mbr_len MY_ATTRIBUTE((unused)),
-                           double* ab_area) {
+                           double *ab_area) {
   DBUG_ASSERT(mbr_len == sizeof(double) * 4);
 
   double a_xmin;
@@ -435,8 +435,8 @@ double rtree_area_increase(const dd::Spatial_reference_system* srs,
   return *ab_area - a_area;
 }
 
-double rtree_area_overlapping(const dd::Spatial_reference_system* srs,
-                              const uchar* mbr_a, const uchar* mbr_b,
+double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
+                              const uchar *mbr_a, const uchar *mbr_b,
                               int mbr_len MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(mbr_len == sizeof(double) * 4);
 

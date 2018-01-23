@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,29 +20,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Language: Cpp
-BasedOnStyle: Google
-Standard: Cpp11
-
-AccessModifierOffset: -2
-AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: false
-AllowShortLoopsOnASingleLine: false
-BinPackArguments: false
-BinPackParameters: false
-BreakBeforeBraces: Allman
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
-ConstructorInitializerIndentWidth: 2
-ContinuationIndentWidth: 2
-IndentCaseLabels: false
-TabWidth: 2
-
-# clang-format version 3.7.0
+# To automatically add this to your git config so that “git add” and
+# “git merge” automatically run clang-format, use
 #
-# AlwaysBreakAfterDefinitionReturnType: true
-
-# clang-format version 4.0.0 (git)
+#   git config --local include.path ../.gitconfig
 #
-AlwaysBreakAfterReturnType: AllDefinitions
-SortIncludes: false
+[filter "codeformat"]
+	clean = clang-format --style=file
+[merge]
+	renormalize = true
 
