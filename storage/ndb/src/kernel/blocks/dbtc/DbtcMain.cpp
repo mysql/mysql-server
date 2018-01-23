@@ -6183,7 +6183,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
     DIVER_node_fail_handling(signal, Tgci, apiConnectptr);
     return;
   }//if
-  commitGciHandling(signal, Tgci);
+  commitGciHandling(signal, Tgci, apiConnectptr);
 
   /**************************************************************************
    *                                 C O M M I T                      
@@ -6224,7 +6224,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
 /*                             COMMIT_GCI_HANDLING                          */
 /*       SET UP GLOBAL CHECKPOINT DATA STRUCTURE AT THE COMMIT POINT.       */
 /*--------------------------------------------------------------------------*/
-void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci)
+void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr const apiConnectptr)
 {
   GcpRecordPtr localGcpPointer;
 
@@ -6481,7 +6481,7 @@ Dbtc::DIVER_node_fail_handling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr 
   setupFailData(signal, apiConnectptr.p);
   if (false && tabortInd == ZFALSE) {
     jam();
-    commitGciHandling(signal, Tgci);
+    commitGciHandling(signal, Tgci, apiConnectptr);
     toCommitHandlingLab(signal);
   } else {
     jam();
@@ -11375,7 +11375,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
-    commitGciHandling(signal, apiConnectptr.p->globalcheckpointid);
+    commitGciHandling(signal, apiConnectptr.p->globalcheckpointid, apiConnectptr);
     toCompleteHandlingLab(signal);
     return;
   case CS_FAIL_COMMITTING:
@@ -11390,7 +11390,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
-    commitGciHandling(signal, apiConnectptr.p->globalcheckpointid);
+    commitGciHandling(signal, apiConnectptr.p->globalcheckpointid, apiConnectptr);
     toCommitHandlingLab(signal);
     return;
   case CS_FAIL_ABORTING:
