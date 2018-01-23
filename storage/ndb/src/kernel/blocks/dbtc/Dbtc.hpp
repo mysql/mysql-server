@@ -2258,7 +2258,7 @@ private:
   void toCompleteHandlingLab(Signal* signal);
   void toCommitHandlingLab(Signal* signal);
   void toAbortHandlingLab(Signal* signal);
-  void abortErrorLab(Signal* signal);
+  void abortErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void nodeTakeOverCompletedLab(Signal* signal,
                                 NodeId nodeId,
                                 Uint32 maxInstanceId);
