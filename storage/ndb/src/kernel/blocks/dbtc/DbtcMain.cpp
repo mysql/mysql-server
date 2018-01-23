@@ -1693,7 +1693,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
   };
 
-  seizeApiConnect(signal);
+  seizeApiConnect(signal, apiConnectptr);
   if (terrorCode == ZOK) {
     jam();
     apiConnectptr.p->ndbapiConnect = tapiPointer;
@@ -15495,7 +15495,7 @@ void Dbtc::releaseTcConnectFail(Signal* signal)
   tcConList.addFirst(tcConnectptr);
 }//Dbtc::releaseTcConnectFail()
 
-void Dbtc::seizeApiConnect(Signal* signal) 
+void Dbtc::seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr)
 {
   if (cfirstfreeApiConnect != RNIL) {
     jam();
@@ -20063,7 +20063,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   }
   c_counters.cconcurrentOp++;
 
-  seizeApiConnect(signal);
+  seizeApiConnect(signal, apiConnectptr);
   if (unlikely(terrorCode != ZOK))
   {
     jam();

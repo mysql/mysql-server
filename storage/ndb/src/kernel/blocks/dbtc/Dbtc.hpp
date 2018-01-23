@@ -2051,7 +2051,7 @@ private:
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal);
-  void seizeApiConnect(Signal* signal);
+  void seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   void seizeApiConnectCopy(Signal* signal);
   void seizeApiConnectFail(Signal* signal);
   [[noreturn]] void crash_gcp(Uint32 line);
