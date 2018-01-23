@@ -2006,7 +2006,7 @@ private:
                      const UintR scanParallel,
                      const Uint32 apiPtr[]);
   void initScanfragrec(Signal* signal);
-  void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
+  void releaseScanResources(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
 
   void sendDihGetNodesLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);

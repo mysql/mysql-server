@@ -12867,7 +12867,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   {
     jam();
     transP->apiScanRec = scanptr.i;
-    releaseScanResources(signal, scanptr, true /* NotStarted */);
+    releaseScanResources(signal, scanptr, apiConnectptr, true /* NotStarted */);
     goto SCAN_TAB_error;
   }
 
@@ -13302,7 +13302,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
   if (regApiPtr->apiFailState != ApiConnectRecord::AFS_API_OK)
   {
     jam();
-    releaseScanResources(signal, scanptr, true);
+    releaseScanResources(signal, scanptr, apiConnectptr, true);
     handleApiFailState(signal, apiConnectptr.i);
     return;
   }//if
@@ -13505,7 +13505,7 @@ void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal, ScanRecordPtr scanptr)
   if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
   {
     jam();
-    releaseScanResources(signal, scanptr, true);
+    releaseScanResources(signal, scanptr, apiConnectptr, true);
     handleApiFailState(signal, apiConnectptr.i);
     return;
   }//if
@@ -13527,11 +13527,12 @@ void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode,
   time_track_complete_scan_error(scanptr.p,
                                  refToNode(apiConnectptr.p->ndbapiBlockref));
   scanTabRefLab(signal, errCode);
-  releaseScanResources(signal, scanptr, not_started);
+  releaseScanResources(signal, scanptr, apiConnectptr, not_started);
 }//Dbtc::abortScanLab()
 
 void Dbtc::releaseScanResources(Signal* signal,
                                 ScanRecordPtr scanPtr,
+                                ApiConnectRecordPtr const apiConnectptr,
 				bool not_started)
 {
   if (apiConnectptr.p->cachePtr != RNIL)
@@ -14572,7 +14573,7 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
     time_track_complete_scan(scanPtr.p, refToNode(ref));
   }
   
-  releaseScanResources(signal, scanPtr);
+  releaseScanResources(signal, scanPtr, apiConnectptr);
   
   if(apiFail){
     jam();
@@ -14945,7 +14946,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   {
     jamDebug();
     time_track_complete_scan(scanPtr.p, refToNode(ref));
-    releaseScanResources(signal, scanPtr);
+    releaseScanResources(signal, scanPtr, apiConnectptr);
   }
 
 }//Dbtc::sendScanTabConf()
