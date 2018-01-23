@@ -219,7 +219,15 @@ class XSession {
       Default: FALSE
       Option type: BOOL
     */
-    Compatibility_mode
+    Compatibility_mode,
+    /** Determine what should be the lenght of a DATETIME field so that it
+        would be possible to distinguish if it contain only date or both
+        date and time parts.
+
+      Default: 10
+      Option type: INT
+    */
+    Datetime_length_discriminator
   };
 
  public:

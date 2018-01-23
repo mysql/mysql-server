@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -115,8 +115,9 @@ std::string as_string(const Column_metadata &m MY_ATTRIBUTE((unused)),
 }  // namespace details
 
 
-XRow_impl::XRow_impl(Metadata *metadata)
-: m_metadata(metadata) {
+XRow_impl::XRow_impl(Metadata *metadata, Context *context)
+: m_metadata(metadata),
+  m_context(context) {
 }
 
 int32_t XRow_impl::get_number_of_fields() const {
@@ -241,8 +242,18 @@ bool XRow_impl::get_datetime(const int32_t field_index,
     return false;
 
   const std::string &field = m_row->field(field_index);
-  bool has_time = (*m_metadata)[field_index].content_type ==
-      static_cast<uint32_t>(Mysqlx::Resultset::DATETIME);
+
+  bool has_time = false;
+  // Metadata does not contain content_type, the only way to determine
+  // if there is a time part is to look at the fields length.
+  if (!(*m_metadata)[field_index].has_content_type) {
+    if ((*m_metadata)[field_index].length >
+        m_context->m_datetime_length_discriminator)
+      has_time = true;
+  } else if ((*m_metadata)[field_index].content_type ==
+      static_cast<uint32_t>(Mysqlx::Resultset::DATETIME)) {
+    has_time = true;
+  }
 
   return row_decoder::buffer_to_datetime(field, out_data, has_time);
 }
