@@ -8226,6 +8226,7 @@ void Dbtc::execTC_HBREP(Signal* signal)
     (TcHbRep *)signal->getDataPtr();
 
   jamEntry();
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcHbRep->apiConnectPtr;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
 
