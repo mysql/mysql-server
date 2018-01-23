@@ -7556,7 +7556,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
     sendApiLateCommitSignal(signal, localApiConnectptr);
   }
   apiConnectptr = localApiConnectptr;
-  releaseTransResources(signal);
+  releaseTransResources(signal, apiConnectptr);
   CRASH_INSERTION(8054);
 }//Dbtc::execCOMPLETED()
 
@@ -7564,7 +7564,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
 /*                               RELEASE_TRANS_RESOURCES                     */
 /*       RELEASE ALL RESOURCES THAT ARE CONNECTED TO THIS TRANSACTION.       */
 /*---------------------------------------------------------------------------*/
-void Dbtc::releaseTransResources(Signal* signal) 
+void Dbtc::releaseTransResources(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   apiConnectptr.p->m_transaction_nodes.clear();
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
@@ -12000,7 +12000,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
             apiConnectptr = apiCopy;
           }
 
-          releaseTransResources(signal);
+          releaseTransResources(signal, apiConnectptr);
         }//if
         return;
       }//if

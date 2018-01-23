@@ -2053,7 +2053,7 @@ private:
   void releaseDirtyWrite(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
-  void releaseTransResources(Signal* signal);
+  void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   void seizeApiConnectCopy(Signal* signal);
   void seizeApiConnectFail(Signal* signal);
