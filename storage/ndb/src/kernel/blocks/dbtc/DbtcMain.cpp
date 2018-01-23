@@ -6355,7 +6355,7 @@ void Dbtc::commit020Lab(Signal* signal)
       localTcConnectptr.p->commitAckMarker = RNIL;
     }
     localTcConnectptr.p->tcConnectstate = OS_COMMITTING;
-    Tcount += sendCommitLqh(signal, localTcConnectptr.p);
+    Tcount += sendCommitLqh(signal, localTcConnectptr.p, apiConnectptr.p);
 
     if (tcConList.next(localTcConnectptr))
     {
@@ -6408,12 +6408,12 @@ void Dbtc::commit020Lab(Signal* signal)
 
 Uint32
 Dbtc::sendCommitLqh(Signal* signal,
-                    TcConnectRecord * const regTcPtr)
+                    TcConnectRecord * const regTcPtr,
+                    ApiConnectRecord* const regApiPtr)
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
   Uint32 instanceKey = regTcPtr->lqhInstanceKey;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 

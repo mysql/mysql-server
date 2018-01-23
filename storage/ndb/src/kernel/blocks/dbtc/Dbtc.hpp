@@ -1912,7 +1912,8 @@ private:
   void sendPackedSignal(Signal* signal,
                         struct PackedWordsContainer * container);
   Uint32 sendCommitLqh(Signal* signal,
-                       TcConnectRecord * const regTcPtr);
+                       TcConnectRecord * regTcPtr,
+                       ApiConnectRecord* regApiPtr);
   Uint32 sendCompleteLqh(Signal* signal,
                          TcConnectRecord * const regTcPtr);
 
