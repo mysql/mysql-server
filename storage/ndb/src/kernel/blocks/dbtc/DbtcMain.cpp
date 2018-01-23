@@ -8692,7 +8692,7 @@ ABORT020:
      * SENDING THE OPERATION, WAITING FOR REPLIES, WAITING FOR MORE       
      * ATTRINFO OR OPERATION IS PREPARED. WE NEED TO ABORT ALL LQH'S.     
      *----------------------------------------------------------------------*/
-    releaseAndAbort(signal);
+    releaseAndAbort(signal, apiConnectptr.p);
     tcConnectptr.p->tcConnectstate = OS_ABORT_SENT;
     TloopCount += 127;
     break;
@@ -8766,12 +8766,12 @@ ABORT020:
 /*--------------------------------------------------------------------------*/
 /*       RELEASE KEY AND ATTRINFO OBJECTS AND SEND ABORT TO THE LQH BLOCK.  */
 /*--------------------------------------------------------------------------*/
-int Dbtc::releaseAndAbort(Signal* signal) 
+int Dbtc::releaseAndAbort(Signal* signal, ApiConnectRecord* const regApiPtr)
 {
   HostRecordPtr localHostptr;
   UintR TnoLoops = tcConnectptr.p->noOfNodes;
   
-  apiConnectptr.p->counter++;
+  regApiPtr->counter++;
   bool prevAlive = false;
   for (Uint32 Ti = 0; Ti < TnoLoops ; Ti++) {
     localHostptr.i = tcConnectptr.p->tcNodedata[Ti];
@@ -8790,15 +8790,15 @@ int Dbtc::releaseAndAbort(Signal* signal)
       tblockref = numberToRef(DBLQH, instanceKey, localHostptr.i);
       signal->theData[0] = tcConnectptr.i;
       signal->theData[1] = cownref;
-      signal->theData[2] = apiConnectptr.p->transid[0];
-      signal->theData[3] = apiConnectptr.p->transid[1];
+      signal->theData[2] = regApiPtr->transid[0];
+      signal->theData[3] = regApiPtr->transid[1];
       sendSignal(tblockref, GSN_ABORT, signal, 4, JBB);
       prevAlive = true;
     } else {
       jam();
       signal->theData[0] = tcConnectptr.i;
-      signal->theData[1] = apiConnectptr.p->transid[0];
-      signal->theData[2] = apiConnectptr.p->transid[1];
+      signal->theData[1] = regApiPtr->transid[0];
+      signal->theData[2] = regApiPtr->transid[1];
       signal->theData[3] = localHostptr.i;
       signal->theData[4] = ZFALSE;
       sendSignal(cownref, GSN_ABORTED, signal, 5, JBB);

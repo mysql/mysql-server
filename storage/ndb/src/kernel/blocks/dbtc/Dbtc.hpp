@@ -1942,7 +1942,7 @@ private:
   void checkStartFragTimeout(Signal* signal);
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
-  int  releaseAndAbort(Signal* signal);
+  int  releaseAndAbort(Signal* signal, ApiConnectRecord* regApiPtr);
 
   void scan_for_read_backup(Signal *, Uint32, Uint32, Uint32);
   void releaseMarker(ApiConnectRecord * const regApiPtr);
