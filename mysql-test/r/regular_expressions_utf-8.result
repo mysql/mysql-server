@@ -791,3 +791,27 @@ NULL
 SELECT regexp_substr ( 'a', 'a', 1, 0, NULL );
 regexp_substr ( 'a', 'a', 1, 0, NULL )
 NULL
+#
+# Bug#27232647: REGEX: ASSERTION FAILED: !STR || STR != M_PTR
+#
+SELECT regexp_like( reverse(''), 123 );
+regexp_like( reverse(''), 123 )
+0
+SELECT regexp_like( soundex(@v1), 'abc' );
+regexp_like( soundex(@v1), 'abc' )
+NULL
+SELECT regexp_like( password(@v1), 'abc' );
+regexp_like( password(@v1), 'abc' )
+0
+SELECT regexp_like( left('', ''), 'abc' );
+regexp_like( left('', ''), 'abc' )
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
+regexp_like( repeat(@v1, 'abc'), 'abc' )
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abc'
+Warning	1292	Truncated incorrect INTEGER value: 'abc'

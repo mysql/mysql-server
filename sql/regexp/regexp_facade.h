@@ -1,7 +1,7 @@
 #ifndef SQL_REGEXP_REGEXP_FACADE_H_
 #define SQL_REGEXP_REGEXP_FACADE_H_
 
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,8 @@ class Regexp_facade {
  public:
   explicit Regexp_facade(uint flags)
     : m_flags(flags),
-      m_current_subject("", 0, regexp_lib_charset)
+      m_current_subject(static_cast<const char*>(nullptr), 0,
+                        regexp_lib_charset)
   {}
 
   /**
