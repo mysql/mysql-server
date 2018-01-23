@@ -6149,7 +6149,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
     return;
   }//if
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
-    TCKEY_abort(signal, 31, apiConnectptr);
+    TCKEY_abort(signal, 31, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
   }//if
   ApiConnectRecord * const regApiPtr = 
@@ -6167,6 +6167,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
   UintR TApifailureNr = regApiPtr->failureNr;
   UintR Tfailure_nr = cfailure_nr;
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = TapiConnectptrIndex;
   apiConnectptr.p = regApiPtr;
   if (TapiConnectstate != CS_PREPARE_TO_COMMIT) {
