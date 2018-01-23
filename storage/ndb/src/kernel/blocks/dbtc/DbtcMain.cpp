@@ -13150,7 +13150,8 @@ void Dbtc::scanKeyinfoLab(Signal* signal, CacheRecord * const regCachePtr)
     abortScanLab(signal, 
                  scanPtr,
                  ZGET_DATAREC_ERROR, 
-                 true /* Not started */);
+                 true /* Not started */,
+                 apiConnectptr);
     
     /* Prepare for up coming ATTRINFO/KEYINFO */
     apiConnectptr.p->apiConnectstate = CS_ABORTING;
@@ -13202,7 +13203,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr const
                                  Tlen)))
   {
     jam();
-    abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true);
+    abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true, apiConnectptr);
     return;
   }
 
@@ -13221,7 +13222,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr const
   else if (unlikely (regCachePtr->currReclenAi > regCachePtr->attrlength))
   {
     jam();
-    abortScanLab(signal, scanptr, ZLENGTH_ERROR, true);
+    abortScanLab(signal, scanptr, ZLENGTH_ERROR, true, apiConnectptr);
     return;
   }
   
@@ -13242,7 +13243,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectRecor
   } else {
     abortScanLab(signal, scanptr, 
 		 tabPtr.p->getErrorCode(scanptr.p->scanSchemaVersion),
-		 true);
+		 true,
+                 apiConnectptr);
     return;
   }
 
@@ -13311,7 +13313,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
   }//if
   if (tfragCount == 0) {
     jam();
-    abortScanLab(signal, scanptr, ZNO_FRAGMENT_ERROR, true);
+    abortScanLab(signal, scanptr, ZNO_FRAGMENT_ERROR, true, apiConnectptr);
     return;
   }//if
   
@@ -13512,7 +13514,7 @@ void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal, ScanRecordPtr scanptr)
     handleApiFailState(signal, apiConnectptr.i);
     return;
   }//if
-  abortScanLab(signal, scanptr, errCode, true);
+  abortScanLab(signal, scanptr, errCode, true, apiConnectptr);
 }//Dbtc::execDIH_SCAN_TAB_REF()
 
 /**
@@ -13522,7 +13524,7 @@ void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal, ScanRecordPtr scanptr)
  * is in 'RUNNING' or in 'CLOSING_SCAN' state.
  */
 void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode,
-			bool not_started) 
+			bool not_started, ApiConnectRecordPtr const apiConnectptr)
 {
   ndbassert(scanptr.p->scanState != ScanRecord::RUNNING);
   ndbassert(scanptr.p->scanState != ScanRecord::CLOSING_SCAN);
