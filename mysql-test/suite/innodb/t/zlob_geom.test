@@ -1,3 +1,4 @@
+--source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Bug #27368662 	PAGE_TYPE == FIL_PAGE_TYPE_ZLOB_FIRST LOB::Z_READ
