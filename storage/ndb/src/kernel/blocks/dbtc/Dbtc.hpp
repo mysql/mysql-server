@@ -2050,7 +2050,7 @@ private:
   void releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* regApiPtr);
   void releaseKeys(CacheRecord* regCachePtr);
   void releaseDirtyRead(Signal*, ApiConnectRecordPtr, TcConnectRecord*);
-  void releaseDirtyWrite(Signal* signal);
+  void releaseDirtyWrite(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal);

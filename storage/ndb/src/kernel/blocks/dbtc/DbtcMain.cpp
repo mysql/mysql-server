@@ -5331,7 +5331,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
     jam();
-    releaseDirtyWrite(signal);
+    releaseDirtyWrite(signal, apiConnectptr);
     regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
   } 
   else if (Toperation == ZREAD && TopSimple)
@@ -7618,7 +7618,7 @@ void Dbtc::releaseApiConCopy(Signal* signal)
 /* ========================================================================= */
 /* -------  RELEASE ALL RECORDS CONNECTED TO A DIRTY WRITE OPERATION ------- */
 /* ========================================================================= */
-void Dbtc::releaseDirtyWrite(Signal* signal) 
+void Dbtc::releaseDirtyWrite(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
   unlinkReadyTcCon(signal, apiConnectptr.p);
