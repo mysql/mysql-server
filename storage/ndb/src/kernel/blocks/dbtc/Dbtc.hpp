@@ -1899,11 +1899,11 @@ private:
                        UintR Tstart);
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
-  void printState(Signal* signal, int place, bool force_trace=false);
+  void printState(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr, bool force_trace = false);
   int seizeTcRecord(Signal* signal);
   int seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr);
   void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
-  void TCKEY_abort(Signal* signal, int place);
+  void TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr);
   void copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR copyLen);
   void reportNodeFailed(Signal* signal, NodeId nodeId);
   void sendPackedTCKEYCONF(Signal* signal,
@@ -2278,7 +2278,7 @@ private:
   void diverify010Lab(Signal* signal);
   void intstartphase3x010Lab(Signal* signal);
   void sttorryLab(Signal* signal);
-  void abortBeginErrorLab(Signal* signal);
+  void abortBeginErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void tabStateErrorLab(Signal* signal);
   void wrongSchemaVersionErrorLab(Signal* signal);
   void noFreeConnectionErrorLab(Signal* signal);
