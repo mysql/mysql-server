@@ -1956,7 +1956,7 @@ private:
 
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void setupFailData(Signal* signal);
+  void setupFailData(Signal* signal, ApiConnectRecord* regApiPtr);
   bool findApiConnectFail(Signal* signal, Uint32 transid1, Uint32 transid2);
   void initApiConnectFail(Signal* signal,
                           Uint32 transid1,

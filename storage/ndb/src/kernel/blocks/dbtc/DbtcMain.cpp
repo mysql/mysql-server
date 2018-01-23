@@ -6478,7 +6478,7 @@ Dbtc::DIVER_node_fail_handling(Signal* signal, Uint64 Tgci)
    * ABORT/COMMIT/COMPLETE  HANDLING AS ALSO USED BY TAKE OVER FUNCTIONALITY. 
    *------------------------------------------------------------------------*/
   tabortInd = ZFALSE;
-  setupFailData(signal);
+  setupFailData(signal, apiConnectptr.p);
   if (false && tabortInd == ZFALSE) {
     jam();
     commitGciHandling(signal, Tgci);
@@ -9233,7 +9233,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       A NODE FAILURE.                                            */
     /*------------------------------------------------------------------*/
     tabortInd = ZCOMMIT_SETUP;
-    setupFailData(signal);
+    setupFailData(signal, apiConnectptr.p);
     toCommitHandlingLab(signal);
     return;
   case CS_COMPLETE_SENT:
@@ -9246,7 +9246,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       A NODE FAILURE.                                              */
     /*--------------------------------------------------------------------*/
     tabortInd = ZCOMMIT_SETUP;
-    setupFailData(signal);
+    setupFailData(signal, apiConnectptr.p);
     toCompleteHandlingLab(signal);
     return;
   case CS_ABORTING:
@@ -12192,9 +12192,9 @@ void Dbtc::releaseTakeOver(Signal* signal, ApiConnectRecordPtr const apiConnectp
 /* SETUP DATA TO REUSE TAKE OVER CODE FOR HANDLING ABORT/COMMIT IN NODE      */
 /* FAILURE SITUATIONS.                                                       */
 /*---------------------------------------------------------------------------*/
-void Dbtc::setupFailData(Signal* signal) 
+void Dbtc::setupFailData(Signal* signal, ApiConnectRecord* const regApiPtr)
 {
-  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   ndbrequire(tcConList.first(tcConnectptr));
   do {
     switch (tcConnectptr.p->tcConnectstate) {
@@ -12260,11 +12260,11 @@ void Dbtc::setupFailData(Signal* signal)
     tcConnectptr.p->tcConnectstate = OS_TAKE_OVER;
     tcConnectptr.p->tcOprec = tcConnectptr.i;
   } while (tcConList.next(tcConnectptr));
-  apiConnectptr.p->tcBlockref = cownref;
-  apiConnectptr.p->currentTcConnect = apiConnectptr.p->tcConnect.getFirst();
-  tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
+  regApiPtr->tcBlockref = cownref;
+  regApiPtr->currentTcConnect = regApiPtr->tcConnect.getFirst();
+  tcConnectptr.i = regApiPtr->tcConnect.getFirst();
   tcConnectRecord.getPtr(tcConnectptr);
-  apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
+  regApiPtr->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
   tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
 }//Dbtc::setupFailData()
 
