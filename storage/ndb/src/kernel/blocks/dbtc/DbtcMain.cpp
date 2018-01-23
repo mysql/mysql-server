@@ -7585,12 +7585,12 @@ void Dbtc::releaseTransResources(Signal* signal)
 /*       SENDS GCP_TCFINISHED WHEN ALL TRANSACTIONS BELONGING TO A CERTAIN */
 /*       GLOBAL CHECKPOINT HAVE COMPLETED.                                 */
 /* *********************************************************************>> */
-void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
+void Dbtc::handleGcp(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   GcpRecordPtr localGcpPtr;
   localGcpPtr.i = apiConnectptr.p->gcpPointer;
   c_gcpRecordPool.getPtr(localGcpPtr);
-  unlinkApiConnect(localGcpPtr, regApiPtr);
+  unlinkApiConnect(localGcpPtr, apiConnectptr);
   if (localGcpPtr.p->firstApiConnect == RNIL) {
     if (localGcpPtr.p->gcpNomoretransRec == ZTRUE) {
       if (c_ongoing_take_over_cnt == 0)

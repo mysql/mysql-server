@@ -2024,7 +2024,7 @@ private:
   void copyApi(Ptr<ApiConnectRecord> dst, Ptr<ApiConnectRecord> src);
   void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr apiConnectptr);
   void gcpTcfinished(Signal* signal, Uint64 gci);
-  void handleGcp(Signal* signal, Ptr<ApiConnectRecord>);
+  void handleGcp(Signal* signal, ApiConnectRecordPtr);
   void hash(Signal* signal, CacheRecord * regCachePtr);
   bool handle_special_hash(Uint32 dstHash[4], 
                            const Uint32* src, Uint32 srcLen, 
