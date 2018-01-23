@@ -6512,21 +6512,19 @@ void get_active_roles(THD *thd, List_of_granted_roles *roles)
 /**
   Helper function for Item_func_current_role.
   @param thd Thread handler
-  @param str [out] Item_func string buffer
   @param active_role [out] Comma separated list of auth ids
 
-  @returns pointer to active role
+  @returns pointer to a string with all active roles or "NONE" if none found
  */
 
-String *func_current_role(THD *thd, String *str, String *active_role)
+void func_current_role(THD *thd, String *active_role)
 {
   List_of_granted_roles roles;
   get_active_roles(thd, &roles);
   if (roles.size() == 0)
   {
     active_role->set_ascii("NONE", 4);
-    str->copy(*active_role);
-    return str;
+    return;
   }
   std::sort(roles.begin(), roles.end());
   bool first= true;
@@ -6546,12 +6544,7 @@ String *func_current_role(THD *thd, String *str, String *active_role)
     append_identifier(thd, active_role, rid.first.host().c_str(),
                       rid.first.host().length());
   }
-  if (str != 0)
-  {
-    str->copy(*active_role);
-    return str;
-  }
-  return active_role;
+  return;
 }
 
 /**
