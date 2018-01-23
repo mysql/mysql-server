@@ -125,4 +125,35 @@ UPDATE t1 SET c1=1000 WHERE c2=2;
 -- connection master
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#27244826: INVISIBLE INDEXES ARE NOT RESPECTED BY SLAVE UNDER ROW
+--echo # FORMAT
+--echo #
+
+CREATE TABLE t1 ( id INT, KEY idx_id(id) );
+
+INSERT INTO t1 VALUES (1), (2), (3);
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Alter idx_id index on slave to invisible.
+ALTER TABLE t1 ALTER INDEX idx_id INVISIBLE;
+
+--connection master
+DELETE FROM t1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # check whether invisible attribute is respected
+SELECT table_name, index_name, is_visible
+FROM information_schema.statistics
+WHERE index_name = 'idx_id';
+
+SELECT * FROM sys.schema_unused_indexes WHERE index_name = 'idx_id';
+
+SELECT rows_selected
+FROM sys.schema_index_statistics
+WHERE index_name = 'idx_id';
+
+--connection master
+DROP TABLE t1;
+
 --source include/rpl_end.inc

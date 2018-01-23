@@ -8948,12 +8948,13 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
          key++,keyinfo++)
     {
       /*
-        - Skip innactive keys
-        - Skip unique keys without nullable parts
-        - Skip indices that do not support ha_index_next() e.g. full-text
-        - Skip primary keys
+        The following indexes are skipped:
+        - Inactive/invisible indexes.
+        - UNIQUE NOT NULL indexes.
+        - Indexes that do not support ha_index_next() e.g. full-text.
+        - Primary key indexes.
       */
-      if (!(table->s->keys_in_use.is_set(key)) ||
+      if (!(table->s->usable_indexes(current_thd).is_set(key)) ||
           ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           !(table->file->index_flags(key, 0, true) & HA_READ_NEXT) ||
           (key == table->s->primary_key))
