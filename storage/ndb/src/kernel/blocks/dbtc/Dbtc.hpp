@@ -2045,7 +2045,7 @@ private:
   void linkTcInConnectionlist(Signal* signal);
   void releaseAbortResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseApiCon(Signal* signal, UintR aApiConnectPtr);
-  void releaseApiConCopy(Signal* signal);
+  void releaseApiConCopy(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseApiConnectFail(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* regApiPtr);
   void releaseKeys(CacheRecord* regCachePtr);

@@ -7575,7 +7575,7 @@ void Dbtc::releaseTransResources(Signal* signal)
   handleGcp(signal, apiConnectptr);
   releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
   releaseAllSeizedIndexOperations(apiConnectptr.p);
-  releaseApiConCopy(signal);
+  releaseApiConCopy(signal, apiConnectptr);
 }//Dbtc::releaseTransResources()
 
 /* *********************************************************************>> */
@@ -7603,7 +7603,7 @@ void Dbtc::handleGcp(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
   }
 }//Dbtc::handleGcp()
 
-void Dbtc::releaseApiConCopy(Signal* signal) 
+void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   ndbassert(regApiPtr->nextApiConnect == RNIL);
