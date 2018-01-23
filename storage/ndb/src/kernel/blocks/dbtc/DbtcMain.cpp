@@ -13105,16 +13105,16 @@ errout:
   return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
 
-void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode) 
+void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode, ApiConnectRecord* const regApiPtr)
 {
   ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
-  ref->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
-  ref->transId1 = apiConnectptr.p->transid[0];
-  ref->transId2 = apiConnectptr.p->transid[1];
+  ref->apiConnectPtr = regApiPtr->ndbapiConnect;
+  ref->transId1 = regApiPtr->transid[0];
+  ref->transId2 = regApiPtr->transid[1];
   ref->errorCode  = errCode;
   ref->closeNeeded = 0;
-  sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABREF, 
-	     signal, ScanTabRef::SignalLength, JBB);
+  sendSignal(regApiPtr->ndbapiBlockref, GSN_SCAN_TABREF,
+             signal, ScanTabRef::SignalLength, JBB);
 }//Dbtc::scanTabRefLab()
 
 /**
@@ -13529,7 +13529,7 @@ void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode,
 
   time_track_complete_scan_error(scanptr.p,
                                  refToNode(apiConnectptr.p->ndbapiBlockref));
-  scanTabRefLab(signal, errCode);
+  scanTabRefLab(signal, errCode, apiConnectptr.p);
   releaseScanResources(signal, scanptr, apiConnectptr, not_started);
 }//Dbtc::abortScanLab()
 
@@ -14278,13 +14278,13 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
       DEBUG("scanTabRefLab: ZSCANTIME_OUT_ERROR2");
       ndbout_c("apiConnectptr(%d) -> abort", apiConnectptr.i);
       ndbabort(); //B2 indication of strange things going on
-      scanTabRefLab(signal, ZSCANTIME_OUT_ERROR2);
+      scanTabRefLab(signal, ZSCANTIME_OUT_ERROR2, apiConnectptr.p);
       return;
     }
     DEBUG("scanTabRefLab: ZSTATE_ERROR");
     DEBUG("  apiConnectstate="<<apiConnectptr.p->apiConnectstate);
     ndbabort(); //B2 indication of strange things going on
-    scanTabRefLab(signal, ZSTATE_ERROR);
+    scanTabRefLab(signal, ZSTATE_ERROR, apiConnectptr.p);
     return;
   }//if
   

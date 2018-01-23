@@ -2229,7 +2229,7 @@ private:
   void warningHandlerLab(Signal* signal, int line);
   [[noreturn]] void systemErrorLab(Signal* signal, int line);
   void sendSignalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void scanTabRefLab(Signal* signal, Uint32 errCode);
+  void scanTabRefLab(Signal* signal, Uint32 errCode, ApiConnectRecord* regApiPtr);
   void diFcountReqLab(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
   void signalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abort080Lab(Signal* signal);
