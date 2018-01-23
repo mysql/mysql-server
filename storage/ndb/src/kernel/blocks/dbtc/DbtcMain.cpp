@@ -7048,7 +7048,7 @@ Dbtc::sendFireTrigReq(Signal* signal,
       ndbrequire(localTcConnectptr.p->tcConnectstate == OS_PREPARED);
       localTcConnectptr.p->tcConnectstate = OS_FIRE_TRIG_REQ;
       localTcConnectptr.p->m_special_op_flags = flags;
-      i += sendFireTrigReqLqh(signal, localTcConnectptr, pass, regApiPtr);
+      i += sendFireTrigReqLqh(signal, localTcConnectptr, pass, regApiPtr.p);
       Tlqhkeyreqrec++;
       currentFireTrigReqs++;
       concurrentLimit--;
@@ -7123,7 +7123,7 @@ Uint32
 Dbtc::sendFireTrigReqLqh(Signal* signal,
                          Ptr<TcConnectRecord> regTcPtr,
                          Uint32 pass,
-                         Ptr<ApiConnectRecord> regApiPtr)
+                         ApiConnectRecord* const regApiPtr)
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
@@ -7138,8 +7138,8 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   Uint32 Tdata[FireTrigReq::SignalLength];
   FireTrigReq * req = CAST_PTR(FireTrigReq, Tdata);
   req->tcOpRec = regTcPtr.i;
-  req->transId[0] = regApiPtr.p->transid[0];
-  req->transId[1] = regApiPtr.p->transid[1];
+  req->transId[0] = regApiPtr->transid[0];
+  req->transId[1] = regApiPtr->transid[1];
   req->pass = pass;
   Uint32 len = FireTrigReq::SignalLength;
 

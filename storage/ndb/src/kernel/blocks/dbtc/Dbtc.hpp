@@ -1921,8 +1921,7 @@ private:
 
   void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
 
-  Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass,
-                            Ptr<ApiConnectRecord>);
+  Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass, ApiConnectRecord* regApiPtr);
 
   void checkWaitFireTrigConfDone(Signal*,
                                  Ptr<ApiConnectRecord>);
