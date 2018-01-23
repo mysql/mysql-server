@@ -379,7 +379,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     apiConnectptr.i = Tdata0;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
-    sendtckeyconf(signal, Tdata1);
+    sendtckeyconf(signal, Tdata1, apiConnectptr);
     return;
   case TcContinueB::ZSEND_FIRE_TRIG_REQ:
     jam();
@@ -4766,7 +4766,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
      * Special case of lqhKeyConf_checkTransactionState:
      * - commit with zero operations: handle only for simple read
      */
-    sendtckeyconf(signal, state == CS_START_COMMITTING);
+    sendtckeyconf(signal, state == CS_START_COMMITTING, apiConnectptr);
     regApiPtr.p->apiConnectstate = 
       (state == CS_START_COMMITTING ? CS_CONNECTED : state);
     setApiConTimer(regApiPtr, 0, __LINE__);
@@ -5573,14 +5573,14 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
     } else if (TnoOfOutStanding > 0) {
       if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
-        sendtckeyconf(signal, 0);
+        sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }
       else if (tc_testbit(regApiPtr.p->m_flags,
                           ApiConnectRecord::TF_INDEX_OP_RETURN))
       {
 	jam();
-        sendtckeyconf(signal, 0);
+        sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }//if
       jam();
@@ -5594,19 +5594,19 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
   case CS_RECEIVING:
     if (TnoOfOutStanding == 0) {
       jam();
-      sendtckeyconf(signal, 2);
+      sendtckeyconf(signal, 2, apiConnectptr);
       return;
     } else {
       if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
-        sendtckeyconf(signal, 0);
+        sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }
       else if (tc_testbit(regApiPtr.p->m_flags,
                           ApiConnectRecord::TF_INDEX_OP_RETURN))
       {
 	jam();
-        sendtckeyconf(signal, 0);
+        sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }//if
       jam();
@@ -5616,14 +5616,14 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
     if (TnoOfOutStanding > 0) {
       if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
-        sendtckeyconf(signal, 0);
+        sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }
       else if (tc_testbit(regApiPtr.p->m_flags,
                           ApiConnectRecord::TF_INDEX_OP_RETURN))
       {
         jam();
-        sendtckeyconf(signal, 0);
+        sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }//if
       jam();
@@ -5647,7 +5647,7 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
                    ApiConnectRecord::TF_INDEX_OP_RETURN))
     {
       jam();
-      sendtckeyconf(signal, 0);
+      sendtckeyconf(signal, 0, apiConnectptr);
       return;
     }
     else if (TnoOfOutStanding == 0 && regApiPtr.p->pendingTriggers == 0)
@@ -5664,7 +5664,7 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
   }//switch
 }//Dbtc::lqhKeyConf_checkTransactionState()
 
-void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
+void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag, ApiConnectRecordPtr const apiConnectptr)
 {
   if(ERROR_INSERTED(8049)){
     CLEAR_ERROR_INSERT_VALUE;
@@ -6014,7 +6014,7 @@ void Dbtc::diverify010Lab(Signal* signal)
   else
   {
     jam();
-    sendtckeyconf(signal, 1);
+    sendtckeyconf(signal, 1, apiConnectptr);
     regApiPtr->apiConnectstate = CS_CONNECTED;
     regApiPtr->m_transaction_nodes.clear();
     setApiConTimer(apiConnectptr, 0, __LINE__);
@@ -6625,7 +6625,7 @@ Dbtc::sendApiCommitSignal(Signal *signal, Ptr<ApiConnectRecord> regApiPtr)
     }
     else
     {
-      sendtckeyconf(signal, 1);
+      sendtckeyconf(signal, 1, apiConnectptr);
     }
   }
   else if (regApiPtr.p->returnsignal == RS_TC_COMMITCONF) 
@@ -7628,7 +7628,7 @@ void Dbtc::releaseDirtyWrite(Signal* signal)
       jam();
       regApiPtr->apiConnectstate = CS_CONNECTED;
       setApiConTimer(apiConnectptr, 0, __LINE__);
-      sendtckeyconf(signal, 1);
+      sendtckeyconf(signal, 1, apiConnectptr);
     }//if
   }//if
 }//Dbtc::releaseDirtyWrite()
@@ -7924,7 +7924,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
                  tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG))
         {
 	  jam();
-	  sendtckeyconf(signal, 2);
+	  sendtckeyconf(signal, 2, apiConnectptr);
 	  return;
 	}
       }//if
