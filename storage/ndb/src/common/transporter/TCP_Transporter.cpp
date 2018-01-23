@@ -208,37 +208,6 @@ TCP_Transporter::initTransporter() {
   return true;
 }
 
-static
-void
-set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname, 
-	int val)
-{
-  int actual = 0, defval = 0;
-  ndb_socket_len_t len = sizeof(actual);
-
-  ndb_getsockopt(fd, level, optval, (char*)&defval, &len);
-
-  if (ndb_setsockopt(fd, level, optval,
-                    (char*)&val, sizeof(val)) < 0)
-  {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
-                         optname, val, errno, strerror(errno));
-#endif
-  }
-  
-  len = sizeof(actual);
-  if ((ndb_getsockopt(fd, level, optval,
-                     (char*)&actual, &len) == 0) &&
-      actual != val)
-  {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",
-                         optname, val, actual, defval);
-#endif
-  }
-}
-
 int
 TCP_Transporter::pre_connect_options(NDB_SOCKET_TYPE sockfd)
 {
