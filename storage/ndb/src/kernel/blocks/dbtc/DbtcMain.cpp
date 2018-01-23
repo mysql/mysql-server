@@ -5568,7 +5568,7 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
   case CS_START_COMMITTING:
     if (TnoOfOutStanding == 0) {
       jam();
-      diverify010Lab(signal);
+      diverify010Lab(signal, apiConnectptr);
       return;
     } else if (TnoOfOutStanding > 0) {
       if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
@@ -5654,7 +5654,7 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
     {
       jam();
       regApiPtr.p->apiConnectstate = CS_START_COMMITTING;
-      diverify010Lab(signal);
+      diverify010Lab(signal, apiConnectptr);
       return;
     }
     return;
@@ -5935,7 +5935,7 @@ Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 /*                               D I V E R I F Y                             */
 /*                                                                           */
 /*****************************************************************************/
-void Dbtc::diverify010Lab(Signal* signal) 
+void Dbtc::diverify010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   signal->theData[0] = apiConnectptr.i;
@@ -7917,7 +7917,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       if (regApiPtr->lqhkeyconfrec == regApiPtr->lqhkeyreqrec) {
 	if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
           jam();
-          diverify010Lab(signal);
+          diverify010Lab(signal, apiConnectptr);
 	  return;
 	}
         else if (regApiPtr->tckeyrec > 0 ||
@@ -8023,7 +8023,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
           /*******************************************************************/
           regApiPtr->returnsignal = RS_TC_COMMITCONF;
           setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
-          diverify010Lab(signal);
+          diverify010Lab(signal, apiConnectptr);
           return;
         } else {
           jam();

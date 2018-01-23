@@ -2276,7 +2276,7 @@ private:
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
   void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
-  void diverify010Lab(Signal* signal);
+  void diverify010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void intstartphase3x010Lab(Signal* signal);
   void sttorryLab(Signal* signal);
   void abortBeginErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
