@@ -5547,7 +5547,7 @@ void Dbtc::setupIndexOpReturn(ApiConnectRecord* regApiPtr,
  */
 void
 Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
-				       Ptr<ApiConnectRecord> regApiPtr)
+				       ApiConnectRecordPtr apiConnectptr)
 {
 /*---------------------------------------------------------------*/
 /* IF THE COMMIT FLAG IS SET IN SIGNAL TCKEYREQ THEN DBTC HAS TO */
@@ -5558,12 +5558,11 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
 /* FOR ALL OPERATIONS, AND THEN WAIT FOR THE API TO CONCLUDE THE */
 /* TRANSACTION                                                   */
 /*---------------------------------------------------------------*/
-  ConnectionState TapiConnectstate = regApiPtr.p->apiConnectstate;
-  UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
-  UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
+  ConnectionState TapiConnectstate = apiConnectptr.p->apiConnectstate;
+  UintR Tlqhkeyconfrec = apiConnectptr.p->lqhkeyconfrec;
+  UintR Tlqhkeyreqrec = apiConnectptr.p->lqhkeyreqrec;
   int TnoOfOutStanding = Tlqhkeyreqrec - Tlqhkeyconfrec;
 
-  apiConnectptr = regApiPtr;
   switch (TapiConnectstate) {
   case CS_START_COMMITTING:
     if (TnoOfOutStanding == 0) {
@@ -5571,12 +5570,12 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
       diverify010Lab(signal, apiConnectptr);
       return;
     } else if (TnoOfOutStanding > 0) {
-      if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
+      if (apiConnectptr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
         sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }
-      else if (tc_testbit(regApiPtr.p->m_flags,
+      else if (tc_testbit(apiConnectptr.p->m_flags,
                           ApiConnectRecord::TF_INDEX_OP_RETURN))
       {
 	jam();
@@ -5597,12 +5596,12 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
       sendtckeyconf(signal, 2, apiConnectptr);
       return;
     } else {
-      if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
+      if (apiConnectptr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
         sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }
-      else if (tc_testbit(regApiPtr.p->m_flags,
+      else if (tc_testbit(apiConnectptr.p->m_flags,
                           ApiConnectRecord::TF_INDEX_OP_RETURN))
       {
 	jam();
@@ -5614,12 +5613,12 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
     return;
   case CS_REC_COMMITTING:
     if (TnoOfOutStanding > 0) {
-      if (regApiPtr.p->tckeyrec == ZTCOPCONF_SIZE) {
+      if (apiConnectptr.p->tckeyrec == ZTCOPCONF_SIZE) {
         jam();
         sendtckeyconf(signal, 0, apiConnectptr);
         return;
       }
-      else if (tc_testbit(regApiPtr.p->m_flags,
+      else if (tc_testbit(apiConnectptr.p->m_flags,
                           ApiConnectRecord::TF_INDEX_OP_RETURN))
       {
         jam();
@@ -5638,22 +5637,22 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
 /*       CONSISTING OF DIRTY WRITES AND ALL OF THOSE WERE        */
 /*       COMPLETED. ENSURE TCKEYREC IS ZERO TO PREVENT ERRORS.   */
 /*---------------------------------------------------------------*/
-    regApiPtr.p->tckeyrec = 0;
+    apiConnectptr.p->tckeyrec = 0;
     return;
   case CS_SEND_FIRE_TRIG_REQ:
     return;
   case CS_WAIT_FIRE_TRIG_REQ:
-    if (tc_testbit(regApiPtr.p->m_flags,
+    if (tc_testbit(apiConnectptr.p->m_flags,
                    ApiConnectRecord::TF_INDEX_OP_RETURN))
     {
       jam();
       sendtckeyconf(signal, 0, apiConnectptr);
       return;
     }
-    else if (TnoOfOutStanding == 0 && regApiPtr.p->pendingTriggers == 0)
+    else if (TnoOfOutStanding == 0 && apiConnectptr.p->pendingTriggers == 0)
     {
       jam();
-      regApiPtr.p->apiConnectstate = CS_START_COMMITTING;
+      apiConnectptr.p->apiConnectstate = CS_START_COMMITTING;
       diverify010Lab(signal, apiConnectptr);
       return;
     }

@@ -2294,7 +2294,7 @@ private:
   void startphase1x010Lab(Signal* signal);
 
   void lqhKeyConf_checkTransactionState(Signal * signal,
-                                        Ptr<ApiConnectRecord> regApiPtr);
+                                        ApiConnectRecordPtr apiConnectptr);
 
   void checkDropTab(Signal* signal);
 
