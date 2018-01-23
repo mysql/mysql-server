@@ -3798,7 +3798,7 @@ bool SELECT_LEX::setup_group(THD *thd)
   @endcode
 
   @param thd                  reference to the context
-  @param expr                 expression to make replacement
+  @param func                 function to make replacement
   @param [out] changed  returns true if item contains a replaced field item
 
   @todo
