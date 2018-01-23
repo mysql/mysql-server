@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,7 +31,7 @@ The transaction lock system global types
 Created 5/7/1996 Heikki Tuuri
 *******************************************************/
 
-#include "ut0lst.h"
+#include "univ.i"
 
 #ifndef lock0types_h
 #define lock0types_h

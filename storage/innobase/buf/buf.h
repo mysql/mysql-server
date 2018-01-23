@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,10 @@ Created 11/5/1995 Heikki Tuuri
 
 #ifndef buf_h
 #define buf_h
+
+#include "univ.i"
+
+#include "page0size.h"
 
 /** Checks if a page contains only zeroes.
 @param[in]	read_buf	database page

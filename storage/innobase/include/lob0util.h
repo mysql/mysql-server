@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -25,6 +25,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 #ifndef lob0util_h
 #define lob0util_h
+
+#include <stdint.h>
+
+#include "buf0buf.h"
+#include "fil0fil.h"
+#include "fut0lst.h"
 
 namespace lob {
 

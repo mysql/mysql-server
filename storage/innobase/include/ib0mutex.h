@@ -36,6 +36,7 @@ Created 2013-03-26 Sunny Bains.
 
 #include "os0atomic.h"
 #include "os0event.h"
+#include "sync0policy.h"
 #include "ut0rnd.h"
 #include "ut0ut.h"
 
