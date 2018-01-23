@@ -2236,7 +2236,8 @@ private:
                         BlockReference TBRef,
                         Uint32 connectPtr,
                         Uint32 offset,
-                        Uint32 keyInfoIVal);
+                        Uint32 keyInfoIVal,
+                        ApiConnectRecord* const regApiPtr);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
 		    bool not_started = false);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);

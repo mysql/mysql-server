@@ -2448,13 +2448,14 @@ void Dbtc::sendKeyInfoTrain(Signal* signal,
                             BlockReference TBRef,
                             Uint32 connectPtr,
                             Uint32 offset,
-                            Uint32 sectionIVal)
+                            Uint32 sectionIVal,
+                            ApiConnectRecord* const regApiPtr)
 {
   jam();
 
   signal->theData[0] = connectPtr;
-  signal->theData[1] = apiConnectptr.p->transid[0];
-  signal->theData[2] = apiConnectptr.p->transid[1];
+  signal->theData[1] = regApiPtr->transid[0];
+  signal->theData[2] = regApiPtr->transid[1];
   Uint32 * dst = signal->theData + KeyInfo::HeaderLength;
 
   ndbassert( sectionIVal != RNIL );
@@ -4360,7 +4361,8 @@ void Dbtc::packLqhkeyreq(Signal* signal,
                      TBRef,
                      tcConnectptr.i,
                      LqhKeyReq::MaxKeyInfo,
-                     regCachePtr->keyInfoSectionI);
+                     regCachePtr->keyInfoSectionI,
+                     apiConnectptr.p);
   }//if
 
   /* Release key storage */ 
@@ -14794,7 +14796,8 @@ bool Dbtc::sendScanFragReq(Signal* signal,
                        scanFragP.p->lqhBlockref,
                        scanFragP.i,
                        0, // Offset 0
-                       sections.m_ptr[1].i);
+                       sections.m_ptr[1].i,
+                       apiConnectptr.p);
     }
     
     if(ERROR_INSERTED(8035))
