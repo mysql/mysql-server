@@ -6608,16 +6608,16 @@ void Dbtc::execCOMMITTED(Signal* signal)
 }//Dbtc::execCOMMITTED()
 
 void
-Dbtc::sendApiCommitSignal(Signal *signal, Ptr<ApiConnectRecord> regApiPtr)
+Dbtc::sendApiCommitSignal(Signal *signal, ApiConnectRecordPtr const apiConnectptr)
 {
-  ReturnSignal save = regApiPtr.p->returnsignal;
+  ReturnSignal save = apiConnectptr.p->returnsignal;
 
-  if (tc_testbit(regApiPtr.p->m_flags, ApiConnectRecord::TF_LATE_COMMIT))
+  if (tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_LATE_COMMIT))
   {
     jam();
-    regApiPtr.p->returnsignal = RS_NO_RETURN;
+    apiConnectptr.p->returnsignal = RS_NO_RETURN;
   }
-  if (regApiPtr.p->returnsignal == RS_TCKEYCONF)
+  if (apiConnectptr.p->returnsignal == RS_TCKEYCONF)
   {
     if (ERROR_INSERTED(8054))
     {
@@ -6629,43 +6629,43 @@ Dbtc::sendApiCommitSignal(Signal *signal, Ptr<ApiConnectRecord> regApiPtr)
       sendtckeyconf(signal, 1, apiConnectptr);
     }
   }
-  else if (regApiPtr.p->returnsignal == RS_TC_COMMITCONF) 
+  else if (apiConnectptr.p->returnsignal == RS_TC_COMMITCONF)
   {
     jam();
     TcCommitConf * const commitConf = (TcCommitConf *)&signal->theData[0];
-    if(regApiPtr.p->commitAckMarker == RNIL)
+    if (apiConnectptr.p->commitAckMarker == RNIL)
     {
       jam();
-      commitConf->apiConnectPtr = regApiPtr.p->ndbapiConnect;
+      commitConf->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
     } 
     else 
     {
       jam();
-      commitConf->apiConnectPtr = regApiPtr.p->ndbapiConnect | 1;
+      commitConf->apiConnectPtr = apiConnectptr.p->ndbapiConnect | 1;
     }
-    commitConf->transId1 = regApiPtr.p->transid[0];
-    commitConf->transId2 = regApiPtr.p->transid[1];
-    commitConf->gci_hi = Uint32(regApiPtr.p->globalcheckpointid >> 32);
-    commitConf->gci_lo = Uint32(regApiPtr.p->globalcheckpointid);
+    commitConf->transId1 = apiConnectptr.p->transid[0];
+    commitConf->transId2 = apiConnectptr.p->transid[1];
+    commitConf->gci_hi = Uint32(apiConnectptr.p->globalcheckpointid >> 32);
+    commitConf->gci_lo = Uint32(apiConnectptr.p->globalcheckpointid);
 
     if (!ERROR_INSERTED(8054) && !ERROR_INSERTED(8108))
     {
-      sendSignal(regApiPtr.p->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
+      sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
                  TcCommitConf::SignalLength, JBB);
     }
-    time_track_complete_transaction(regApiPtr.p);
+    time_track_complete_transaction(apiConnectptr.p);
   }
-  else if (regApiPtr.p->returnsignal == RS_NO_RETURN) 
+  else if (apiConnectptr.p->returnsignal == RS_NO_RETURN)
   {
     jam();
   } 
   else 
   {
-    regApiPtr.p->returnsignal = save;
+    apiConnectptr.p->returnsignal = save;
     TCKEY_abort(signal, 37, apiConnectptr);
     return;
   }//if
-  regApiPtr.p->returnsignal = save;
+  apiConnectptr.p->returnsignal = save;
 }
 
 /*-------------------------------------------------------*/
@@ -7436,6 +7436,7 @@ Dbtc::sendApiLateCommitSignal(Signal* signal,
 {
   jam();
   
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = apiCopy.p->apiCopyRecord;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
   /**
