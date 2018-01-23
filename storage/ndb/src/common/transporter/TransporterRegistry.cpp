@@ -2298,7 +2298,9 @@ TransporterRegistry::startReceiving()
 {
   DBUG_ENTER("TransporterRegistry::startReceiving");
 
+#ifndef WIN32
   m_shm_own_pid = getpid();
+#endif
   DBUG_VOID_RETURN;
 }
 
