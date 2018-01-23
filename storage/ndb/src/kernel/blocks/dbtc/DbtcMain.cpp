@@ -1400,7 +1400,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     ScanRecordPtr scanPtr;
     scanPtr.i = apiConnectptr.p->apiScanRec;
     ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
-    close_scan_req(signal, scanPtr, true);
+    close_scan_req(signal, scanPtr, true, apiConnectptr);
 
     (*TloopCount) += 64;
     break;
@@ -13383,7 +13383,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
   {
     jam();
     updateBuddyTimer(apiConnectptr);
-    close_scan_req_send_conf(signal, scanptr);
+    close_scan_req_send_conf(signal, scanptr, apiConnectptr);
     return;
   }
 
@@ -13838,7 +13838,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
   {
     jam();
     updateBuddyTimer(apiConnectptr);
-    close_scan_req_send_conf(signal, scanptr);
+    close_scan_req_send_conf(signal, scanptr, apiConnectptr);
     return;
   }
 
@@ -14059,7 +14059,7 @@ void Dbtc::scanError(Signal* signal, ScanRecordPtr scanptr, Uint32 errorCode)
 
   if(scanP->scanState == ScanRecord::CLOSING_SCAN){
     jam();
-    close_scan_req_send_conf(signal, scanptr);
+    close_scan_req_send_conf(signal, scanptr, apiConnectptr);
     return;
   }
   
@@ -14068,7 +14068,7 @@ void Dbtc::scanError(Signal* signal, ScanRecordPtr scanptr, Uint32 errorCode)
   /**
    * Close scan wo/ having received an order to do so
    */
-  close_scan_req(signal, scanptr, false);
+  close_scan_req(signal, scanptr, false, apiConnectptr);
   
   if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
   {
@@ -14145,7 +14145,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
         c_scan_frag_pool.release(scanFragptr);
       }
     }
-    close_scan_req_send_conf(signal, scanptr);
+    close_scan_req_send_conf(signal, scanptr, apiConnectptr);
     return;
   }
 
@@ -14328,7 +14328,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     /*********************************************************************
      * APPLICATION IS CLOSING THE SCAN.
      **********************************************************************/
-    close_scan_req(signal, scanptr, true);
+    close_scan_req(signal, scanptr, true, apiConnectptr);
     return;
   }//if
 
@@ -14402,8 +14402,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
 }//Dbtc::execSCAN_NEXTREQ()
 
 void
-Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
-
+Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received, ApiConnectRecordPtr const apiConnectptr)
+{
   ScanRecord* scanP = scanPtr.p;
   ndbrequire(scanPtr.p->scanState != ScanRecord::IDLE);  
   ScanRecord::ScanState old = scanPtr.p->scanState;
@@ -14533,12 +14533,12 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       }
     }
   }
-  close_scan_req_send_conf(signal, scanPtr);
+  close_scan_req_send_conf(signal, scanPtr, apiConnectptr);
 }
 
 void
-Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
-
+Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr, ApiConnectRecordPtr const apiConnectptr)
+{
   jam();
 
   ndbrequire(scanPtr.p->m_queued_scan_frags.isEmpty());

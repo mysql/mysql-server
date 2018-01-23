@@ -2014,8 +2014,8 @@ private:
   void sendFragScansLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
   bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr, ApiConnectRecordPtr);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
-  void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
-  void close_scan_req_send_conf(Signal*, ScanRecordPtr);
+  void close_scan_req(Signal*, ScanRecordPtr, bool received_req, ApiConnectRecordPtr apiConnectptr);
+  void close_scan_req_send_conf(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr);
   
   void checkGcp(Signal* signal);
   void commitGciHandling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr apiConnectptr);
