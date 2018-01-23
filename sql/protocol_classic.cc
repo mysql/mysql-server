@@ -56,7 +56,7 @@
   Fixed-Length Integer Types
   ============================
 
-  A fixed-length unsigned integer stores its value in a series of 
+  A fixed-length unsigned integer stores its value in a series of
   bytes with the least significant byte first.
 
   The MySQL uses the following fixed-length unsigned integer variants:
