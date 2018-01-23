@@ -1902,7 +1902,7 @@ private:
   void warningReport(Signal* signal, int place);
   void printState(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr, bool force_trace = false);
   int seizeTcRecord(Signal* signal);
-  int seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr);
+  int seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr, ApiConnectRecord* regApiPtr);
   void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
   void TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr);
   void copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR copyLen);
