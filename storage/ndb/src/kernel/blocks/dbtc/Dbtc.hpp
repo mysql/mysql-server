@@ -2065,7 +2065,8 @@ private:
                          UintR TBRef,
                          Uint32 connectPtr,
                          Uint32 offset,
-                         Uint32 attrInfoIVal);
+                         Uint32 attrInfoIVal,
+                         ApiConnectRecord* regApiPtr);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendlqhkeyreq(Signal* signal, 
                      BlockReference TBRef,

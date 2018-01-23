@@ -4684,7 +4684,8 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
                                        TBRef,
                                        tcConnectptr.i,
                                        LqhKeyReq::MaxAttrInfo,
-                                       regCachePtr->attrInfoSectionI)))
+                                       regCachePtr->attrInfoSectionI,
+                                       apiConnectptr.p)))
       {
         jam();
         TCKEY_abort(signal, 17, apiConnectptr);
@@ -14809,7 +14810,8 @@ bool Dbtc::sendScanFragReq(Signal* signal,
                                    scanFragP.p->lqhBlockref,
                                    scanFragP.i,
                                    0, // Offset 0
-                                   sections.m_ptr[0].i));
+                                   sections.m_ptr[0].i,
+                                   apiConnectptr.p));
     }
         
     if(ERROR_INSERTED(8035))
@@ -15562,10 +15564,9 @@ bool Dbtc::sendAttrInfoTrain(Signal* signal,
                              UintR TBRef,
                              Uint32 connectPtr,
                              Uint32 offset,
-                             Uint32 attrInfoIVal)
+                             Uint32 attrInfoIVal,
+                             ApiConnectRecord* const regApiPtr)
 {
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-
   ndbassert( attrInfoIVal != RNIL );
   SectionReader attrInfoReader(attrInfoIVal, getSectionSegmentPool());  
   Uint32 attrInfoLength= attrInfoReader.getSize();
