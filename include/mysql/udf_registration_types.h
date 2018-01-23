@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, unsigned char *,
                             unsigned char *);
 typedef void(*Udf_func_deinit)(UDF_INIT *);
 typedef bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
-typedef void(*Udf_func_any)();
+typedef void(*Udf_func_any)(void);
 typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, unsigned char *,
                                  unsigned char *);
 typedef long long(*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, unsigned char *,

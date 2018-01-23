@@ -329,6 +329,13 @@ IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
 ENDIF()
 
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
+    COMPILE_FLAGS -Wstrict-prototypes
+    )
+ENDIF()
+
 # We need to find both SSL .dlls and libmysql.dll, link statically on WIN32
 IF(DISABLE_SHARED OR WIN32)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})
