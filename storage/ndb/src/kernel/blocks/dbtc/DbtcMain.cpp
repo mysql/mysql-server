@@ -12764,6 +12764,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     keyLen = scanTabReq->attrLenKeyLen >> 16;
   }
 
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
 
