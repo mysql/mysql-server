@@ -31,8 +31,9 @@ Instrumented memory allocator.
 Created May 26, 2014 Vasil Dimov
 *******************************************************/
 
-#include "my_compiler.h"
 #include "univ.i"
+
+#include "my_compiler.h"
 #include "ut0new.h"
 
 /** Maximum number of retries to allocate memory. */
