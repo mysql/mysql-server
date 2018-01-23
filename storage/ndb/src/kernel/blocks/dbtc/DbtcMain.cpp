@@ -11102,7 +11102,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
         remove_transaction_from_tc_fail_hash(signal);
         releaseMarker(apiConnectptr.p);
         remove_from_transid_fail_hash(signal, transid1);
-        releaseTakeOver(signal);
+        releaseTakeOver(signal, apiConnectptr);
       }
       else
       {
@@ -11422,7 +11422,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
     signal->theData[2] = apiConnectptr.p->takeOverInd;
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
-    releaseTakeOver(signal);
+    releaseTakeOver(signal, apiConnectptr);
     break;
   case CS_FAIL_COMPLETED:
     jam();
@@ -11701,7 +11701,7 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
           signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
           signal->theData[2] = apiConnectptr.p->takeOverInd;
           sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
-          releaseTakeOver(signal);
+          releaseTakeOver(signal, apiConnectptr);
         } else {
           jam();
           releaseAbortResources(signal, apiConnectptr);
@@ -11978,7 +11978,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
           signal->theData[2] = apiConnectptr.p->takeOverInd;
           sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
           handleGcp(signal, apiConnectptr);
-          releaseTakeOver(signal);
+          releaseTakeOver(signal, apiConnectptr);
         } else {
           jam();
 
@@ -12175,7 +12175,7 @@ void Dbtc::initTcFail(Signal* signal)
 /*----------------------------------------------------------*/
 /*               RELEASE_TAKE_OVER                          */
 /*----------------------------------------------------------*/
-void Dbtc::releaseTakeOver(Signal* signal) 
+void Dbtc::releaseTakeOver(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
 
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);

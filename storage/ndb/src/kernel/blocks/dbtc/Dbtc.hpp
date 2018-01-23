@@ -1955,7 +1955,7 @@ private:
   void remove_transaction_from_tc_fail_hash(Signal *signal);
 
   void initTcFail(Signal* signal);
-  void releaseTakeOver(Signal* signal);
+  void releaseTakeOver(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void setupFailData(Signal* signal);
   bool findApiConnectFail(Signal* signal, Uint32 transid1, Uint32 transid2);
   void initApiConnectFail(Signal* signal,
