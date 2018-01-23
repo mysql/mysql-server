@@ -14053,6 +14053,7 @@ void Dbtc::scanError(Signal* signal, ScanRecordPtr scanptr, Uint32 errorCode)
   DEBUG("scanError, errorCode = "<< errorCode << 
 	", scanState = " << scanptr.p->scanState);
 
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanP->scanApiRec;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
   ndbrequire(apiConnectptr.p->apiScanRec == scanptr.i);
