@@ -956,18 +956,7 @@ public:
   {
     STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_RECORD );
 
-    ApiConnectRecord():
-      m_magic(Magic::make(TYPE_ID)),
-      m_apiConTimer(RNIL),
-      m_apiConTimer_line(0),
-      nextApiConnect(RNIL),
-      m_special_op_flags(0)
-    {
-      NdbTick_Invalidate(&m_start_ticks);
-      tcConnect.init();
-      theFiredTriggers.init();
-      theSeizedIndexOperations.init();
-    }
+    ApiConnectRecord();
     
     Uint32 m_magic;
     //---------------------------------------------------

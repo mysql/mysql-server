@@ -6013,6 +6013,77 @@ void Dbtc::diverify010Lab(Signal* signal)
 /* -------                  SEIZE_API_CONNECT                        ------- */
 /*                  SEIZE CONNECT RECORD FOR A REQUEST                       */
 /* ------------------------------------------------------------------------- */
+
+Dbtc::ApiConnectRecord::ApiConnectRecord()
+: m_magic(Magic::make(TYPE_ID)),
+  m_apiConTimer(RNIL),
+  m_apiConTimer_line(0),
+  apiConnectstate(CS_RESTART), /* CS_DISCONNECTED (CS_RESTART for Copy and Fail) */
+//  transid
+//tcConnect
+  lqhkeyconfrec(0),
+  cachePtr(RNIL),
+  currSavePointId(0),
+//counter
+  nextApiConnect(RNIL),
+//  nextHash(RNIL),
+//  prevApiConnect(RNIL),
+//gcpPointer
+//ndbapiConnect
+  ndbapiBlockref(0xFFFFFFFF), // Invalid ref
+  apiCopyRecord(RNIL),
+  globalcheckpointid(0),
+//??
+  lqhkeyreqrec(0),
+  buddyPtr(RNIL),
+  commitAckMarker(RNIL),
+  num_commit_ack_markers(0),
+  m_write_count(0),
+//returnsignal
+//abortState
+  m_flags(0),
+  m_special_op_flags(0),
+  takeOverRec((Uint8)Z8NIL),
+//currentReplicaNo
+  tckeyrec(0),
+  tcindxrec(0),
+  apiFailState(ApiConnectRecord::AFS_API_OK),
+//timeOutCounter
+  singleUserMode(0),
+  returncode(0),
+//takeOverInd
+//currentTcConnect
+//tcBlockref
+//failureNr
+//tcSendArray
+//m_transaction_nodes
+//theFiredTriggers
+//noIndexOp
+//...
+  accumulatingIndexOp(RNIL),
+  executingIndexOp(RNIL),
+  m_pre_commit_pass(0),
+  cascading_scans_count(0),
+//  returnsignal = RS_TCKEYCONF;
+  firedFragId(RNIL),
+//  failureNr(TfailureNr;
+//  transid[0] = Ttransid0;
+//  transid[1] = Ttransid1;
+  noIndexOp(0),
+#ifdef ERROR_INSERT
+  continueBCount(0),
+#endif
+  immediateTriggerId(RNIL)
+//...
+{
+  NdbTick_Invalidate(&m_start_ticks);
+  tcConnect.init();
+  theFiredTriggers.init();
+  theSeizedIndexOperations.init();
+
+  m_transaction_nodes.clear();
+}
+
 void Dbtc::seizeApiConnectCopy(Signal* signal) 
 {
   ApiConnectRecordPtr locApiConnectptr;
