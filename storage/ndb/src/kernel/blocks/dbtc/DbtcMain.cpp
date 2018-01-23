@@ -407,9 +407,10 @@ void Dbtc::execCONTINUEB(Signal* signal)
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
     ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = scanptr.p->scanApiRec;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
-    sendDihGetNodesLab(signal, scanptr);
+    sendDihGetNodesLab(signal, scanptr, apiConnectptr);
     return;
   }
   case TcContinueB::ZSEND_FRAG_SCANS:
@@ -418,9 +419,10 @@ void Dbtc::execCONTINUEB(Signal* signal)
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
     ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = scanptr.p->scanApiRec;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
-    sendFragScansLab(signal, scanptr);
+    sendFragScansLab(signal, scanptr, apiConnectptr);
     return;
   }
 #ifdef ERROR_INSERT
@@ -2524,6 +2526,7 @@ void Dbtc::execATTRINFO(Signal* signal)
   UintR TapiConnectFilesize = capiConnectFilesize;
 
   jamEntry();
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = Tdata1;
   ttransid_ptr = 1;
   if (Tdata1 >= TapiConnectFilesize) {
@@ -2626,7 +2629,7 @@ void Dbtc::execATTRINFO(Signal* signal)
     return;
   } else if (regApiPtr->apiConnectstate == CS_START_SCAN) {
     jam();
-    scanAttrinfoLab(signal, Tlength);
+    scanAttrinfoLab(signal, Tlength, apiConnectptr);
     return;
   } else {
     switch (regApiPtr->apiConnectstate) {
@@ -4296,7 +4299,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiCo
     releaseKeys(regCachePtr);
     releaseAttrinfo(cachePtr, apiConnectptr.p);
     regApiPtr->lqhkeyreqrec--;
-    unlinkReadyTcCon(signal);
+    unlinkReadyTcCon(signal, apiConnectptr.p);
     clearCommitAckMarker(regApiPtr, regTcPtr);
     releaseTcCon();
 
@@ -4740,7 +4743,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
   regApiPtr.p->tcSendArray[Ttckeyrec + 1] = TcKeyConf::DirtyReadBit | Tnode;
   regApiPtr.p->tckeyrec = Ttckeyrec + 2;
   
-  unlinkReadyTcCon(signal);
+  unlinkReadyTcCon(signal, apiConnectptr.p);
   releaseTcCon();
 
   /**
@@ -4773,10 +4776,8 @@ void Dbtc::releaseDirtyRead(Signal* signal,
 /* ------------------------------------------------------------------------- */
 /* -------        CHECK IF ALL TC CONNECTIONS ARE COMPLETED          ------- */
 /* ------------------------------------------------------------------------- */
-void Dbtc::unlinkReadyTcCon(Signal* signal) 
+void Dbtc::unlinkReadyTcCon(Signal* signal, ApiConnectRecord* const regApiPtr)
 {
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   tcConList.remove(tcConnectptr);
 }//Dbtc::unlinkReadyTcCon()
@@ -5328,7 +5329,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
     jam();
-    unlinkReadyTcCon(signal);
+    unlinkReadyTcCon(signal, apiConnectptr.p);
     releaseTcCon();
     regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
   }
@@ -5386,7 +5387,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     }
     
     /* Ok, all checks passed, release the original locking op */
-    unlinkReadyTcCon(signal);
+    unlinkReadyTcCon(signal, apiConnectptr.p);
     releaseTcCon();
 
     /* Remove record of original locking op's LQHKEYREQ/CONF
@@ -5402,7 +5403,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     tcConnectRecord.getPtr(tcConnectptr);
 
     /* Release the unlock operation */
-    unlinkReadyTcCon(signal);
+    unlinkReadyTcCon(signal, apiConnectptr.p);
     releaseTcCon();
 
     /* Remove record of unlock op's LQHKEYREQ */
@@ -7611,7 +7612,7 @@ void Dbtc::releaseApiConCopy(Signal* signal)
 void Dbtc::releaseDirtyWrite(Signal* signal) 
 {
   clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
-  unlinkReadyTcCon(signal);
+  unlinkReadyTcCon(signal, apiConnectptr.p);
   releaseTcCon();
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
@@ -7834,7 +7835,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
          */
         clearCommitAckMarker(regApiPtr, regTcPtr);
 
-        unlinkReadyTcCon(signal);
+        unlinkReadyTcCon(signal, apiConnectptr.p);
         releaseTcCon();
 
         trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
@@ -7879,7 +7880,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       bool isIndexOp = regTcPtr->isIndexOp(regTcPtr->m_special_op_flags);
       Uint32 indexOp = tcConnectptr.p->indexOp;
       Uint32 clientData = regTcPtr->clientData;
-      unlinkReadyTcCon(signal);   /* LINK TC CONNECT RECORD OUT OF  */
+      unlinkReadyTcCon(signal, apiConnectptr.p);   /* LINK TC CONNECT RECORD OUT OF  */
       releaseTcCon();       /* RELEASE THE TC CONNECT RECORD  */
       setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
       if (isIndexOp) {
@@ -12926,7 +12927,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     /* All AttrInfo (and KeyInfo) has been received, continue
      * processing
      */
-    diFcountReqLab(signal, scanptr);
+    diFcountReqLab(signal, scanptr, apiConnectptr);
   }
   
   return;
@@ -13171,7 +13172,7 @@ void Dbtc::scanKeyinfoLab(Signal* signal, CacheRecord * const regCachePtr)
 /*                                                                           */
 /*       RECEPTION OF ATTRINFO FOR SCAN TABLE REQUEST.                       */
 /*---------------------------------------------------------------------------*/
-void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen) 
+void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr const apiConnectptr)
 {
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
@@ -13202,7 +13203,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
     scanptr.p->scanAttrInfoPtr = regCachePtr->attrInfoSectionI;
     scanptr.p->scanKeyInfoPtr = regCachePtr->keyInfoSectionI;
     releaseCacheRecord(apiConnectptr, regCachePtr);
-    diFcountReqLab(signal, scanptr);
+    diFcountReqLab(signal, scanptr, apiConnectptr);
     return;
   }
   else if (unlikely (regCachePtr->currReclenAi > regCachePtr->attrlength))
@@ -13216,7 +13217,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
   return;
 }//Dbtc::scanAttrinfoLab()
 
-void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
+void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectRecordPtr const apiConnectptr)
 {
   /**
    * Check so that the table is not being dropped
@@ -13255,7 +13256,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   if (conf->senderData == 0)
   {
-    execDIH_SCAN_TAB_CONF(signal, scanptr, tabPtr);
+    execDIH_SCAN_TAB_CONF(signal, scanptr, tabPtr, apiConnectptr);
     return;
   }
   else
@@ -13274,7 +13275,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
  ********************************************************************/
 void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
                                  ScanRecordPtr scanptr,
-                                 TableRecordPtr tabPtr)
+                                 TableRecordPtr tabPtr,
+                                 ApiConnectRecordPtr const apiConnectptr)
 {
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   jamEntryDebug();
@@ -13335,7 +13337,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
    * Request fragment info from DIH.
    */
   jam();
-  sendDihGetNodesLab(signal, scanptr);
+  sendDihGetNodesLab(signal, scanptr, apiConnectptr);
 }//Dbtc::execDIH_SCAN_TAB_CONF()
 
 
@@ -13362,7 +13364,7 @@ int compareFragLocation(const void * a, const void * b)
  * a while here. To avoid too much work in one request we send CONTINUEB
  * every MAX_DIGETNODESREQS'th signal to space out the signals a bit.
  ********************************************************************/
-void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
+void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectRecordPtr const apiConnectptr)
 {
   jam();
   Uint32 fragCnt = 0;
@@ -13480,7 +13482,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
 
   /* Start sending SCAN_FRAGREQ's, possibly interrupted with CONTINUEB */
   scanP->scanNextFragId = 0;
-  sendFragScansLab(signal, scanptr);
+  sendFragScansLab(signal, scanptr, apiConnectptr);
 }//Dbtc::sendDihGetNodesLab
 
 /******************************************************
@@ -13809,7 +13811,8 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
  * signals a bit.
  ********************************************************************/
 void Dbtc::sendFragScansLab(Signal* signal,
-                            ScanRecordPtr scanptr)
+                            ScanRecordPtr scanptr,
+                            ApiConnectRecordPtr const apiConnectptr)
 {
   jamDebug();
   ScanFragRecPtr scanFragP;
@@ -13926,7 +13929,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
 
     ndbassert(scanptr.p->m_booked_fragments_count > 0);
     scanptr.p->m_booked_fragments_count--;
-    const bool success = sendScanFragReq(signal, scanptr, scanFragP);
+    const bool success = sendScanFragReq(signal, scanptr, scanFragP, apiConnectptr);
     if (!success)
     {
       jam();
@@ -14152,7 +14155,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
      */
     jam();
     scanFragptr.p->scanFragState = ScanFragRec::IDLE;
-    const bool ok = sendScanFragReq(signal, scanptr, scanFragptr);
+    const bool ok = sendScanFragReq(signal, scanptr, scanFragptr, apiConnectptr);
     if (!ok)
     {
       jam();
@@ -14366,7 +14369,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
       scanptr.p->m_booked_fragments_count--;
 
       scanFragptr.p->scanFragState = ScanFragRec::IDLE;
-      const bool ok = sendScanFragReq(signal, scanptr, scanFragptr);
+      const bool ok = sendScanFragReq(signal, scanptr, scanFragptr, apiConnectptr);
       if (!ok)
       {
         jam();
@@ -14585,7 +14588,8 @@ Dbtc::seizeScanrec(Signal* signal) {
 
 bool Dbtc::sendScanFragReq(Signal* signal,
                            ScanRecordPtr scanptr,
-                           ScanFragRecPtr scanFragP)
+                           ScanFragRecPtr scanFragP,
+                           ApiConnectRecordPtr const apiConnectptr)
 {
   jam();
   ScanRecord* const scanP = scanptr.p;

@@ -1822,7 +1822,8 @@ private:
                             ScanRecordPtr scanptr);
   void execDIH_SCAN_TAB_CONF(Signal* signal,
                              ScanRecordPtr scanptr,
-                             TableRecordPtr tabPtr);
+                             TableRecordPtr tabPtr,
+                             ApiConnectRecordPtr apiConnectptr);
   void execGCP_NOMORETRANS(Signal* signal);
   void execLQHKEYCONF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
@@ -2008,10 +2009,10 @@ private:
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
 
-  void sendDihGetNodesLab(Signal*, ScanRecordPtr);
+  void sendDihGetNodesLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
   bool sendDihGetNodeReq(Signal*, ScanRecordPtr, Uint32 scanFragId);
-  void sendFragScansLab(Signal*, ScanRecordPtr);
-  bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr);
+  void sendFragScansLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
+  bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr, ApiConnectRecordPtr);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
@@ -2074,7 +2075,7 @@ private:
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
   void unlinkAndReleaseGcp(Ptr<GcpRecord>);
-  void unlinkReadyTcCon(Signal* signal);
+  void unlinkReadyTcCon(Signal* signal, ApiConnectRecord* regApiPtr);
   void handleFailedOperation(Signal* signal,
 			     const LqhKeyRef * const lqhKeyRef, 
 			     bool gotLqhKeyRef);
@@ -2228,7 +2229,7 @@ private:
   [[noreturn]] void systemErrorLab(Signal* signal, int line);
   void sendSignalErrorRefuseLab(Signal* signal);
   void scanTabRefLab(Signal* signal, Uint32 errCode);
-  void diFcountReqLab(Signal* signal, ScanRecordPtr);
+  void diFcountReqLab(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
   void sendKeyInfoTrain(Signal* signal,
@@ -2268,7 +2269,7 @@ private:
   void seizeDatabuferrorLab(Signal* signal);
   void appendToSectionErrorLab(Signal* signal);
   void scanKeyinfoLab(Signal* signal, CacheRecord*);
-  void scanAttrinfoLab(Signal* signal, UintR Tlen);
+  void scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr apiConnectptr);
   void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void aiErrorLab(Signal* signal);
   void scanReleaseResourcesLab(Signal* signal);
