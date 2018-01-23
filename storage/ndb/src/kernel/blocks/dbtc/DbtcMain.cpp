@@ -22107,14 +22107,13 @@ Dbtc::time_track_complete_scan_frag_error(
 }
 
 void
-Dbtc::time_track_complete_transaction(
-  ApiConnectRecord * const apiConnectPtr)
+Dbtc::time_track_complete_transaction(ApiConnectRecord* const regApiPtr)
 {
   HostRecordPtr hostPtr;
   /* Transactions are recorded on the API node */
   Uint32 pos =
-    time_track_calculate_histogram_position(apiConnectPtr->m_start_ticks);
-  Uint32 apiNodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
+    time_track_calculate_histogram_position(regApiPtr->m_start_ticks);
+  Uint32 apiNodeId = refToNode(regApiPtr->ndbapiBlockref);
   hostPtr.i = apiNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_transaction_histogram[pos]++;

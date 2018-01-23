@@ -2344,9 +2344,9 @@ private:
      Uint32 dbNodeId);
    void time_track_complete_scan_frag(ScanFragRec * const scanFragPtr);
    void time_track_complete_scan_frag_error(ScanFragRec *const scanFragPtr);
-   void time_track_complete_transaction(ApiConnectRecord *const apiConnectPtr);
+   void time_track_complete_transaction(ApiConnectRecord *const regApiPtr);
    void time_track_complete_transaction_error(
-     ApiConnectRecord * const apiConnectPtr);
+     ApiConnectRecord * const regApiPtr);
    Uint32 check_own_location_domain(Uint16*, Uint32);
 protected:
   virtual bool getParam(const char* name, Uint32* count);
