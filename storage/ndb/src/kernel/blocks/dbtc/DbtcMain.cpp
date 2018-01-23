@@ -1807,7 +1807,7 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
 /****************************************************************************/
 // Error Handling for TCKEYREQ messages
 /****************************************************************************/
-void Dbtc::signalErrorRefuseLab(Signal* signal) 
+void Dbtc::signalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ptrGuard(apiConnectptr);
   if (apiConnectptr.p->apiConnectstate != CS_DISCONNECTED) {
@@ -1815,10 +1815,10 @@ void Dbtc::signalErrorRefuseLab(Signal* signal)
     apiConnectptr.p->abortState = AS_IDLE;
     apiConnectptr.p->apiConnectstate = CS_ABORTING;
   }//if
-  sendSignalErrorRefuseLab(signal);
+  sendSignalErrorRefuseLab(signal, apiConnectptr);
 }//Dbtc::signalErrorRefuseLab()
 
-void Dbtc::sendSignalErrorRefuseLab(Signal* signal) 
+void Dbtc::sendSignalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ndbassert(false);
   ptrGuard(apiConnectptr);
@@ -1915,7 +1915,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 1:
     jam();
     printState(signal, 3, apiConnectptr);
-    sendSignalErrorRefuseLab(signal);
+    sendSignalErrorRefuseLab(signal, apiConnectptr);
     return;
   case 2:{
     printState(signal, 6, apiConnectptr);
@@ -2209,7 +2209,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 55:
     jam();
     printState(signal, 5, apiConnectptr);
-    sendSignalErrorRefuseLab(signal);
+    sendSignalErrorRefuseLab(signal, apiConnectptr);
     return;
     
   case 56:{
@@ -2381,7 +2381,7 @@ void Dbtc::execKEYINFO(Signal* signal)
     /*       SET STATE TO ABORTING.                                   */
     /****************************************************************>*/
     printState(signal, 11, apiConnectptr);
-    signalErrorRefuseLab(signal);
+    signalErrorRefuseLab(signal, apiConnectptr);
     return;
   case CS_STARTED:
     jam();

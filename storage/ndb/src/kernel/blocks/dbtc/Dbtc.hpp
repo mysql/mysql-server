@@ -2227,10 +2227,10 @@ private:
   // Generated statement blocks
   void warningHandlerLab(Signal* signal, int line);
   [[noreturn]] void systemErrorLab(Signal* signal, int line);
-  void sendSignalErrorRefuseLab(Signal* signal);
+  void sendSignalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void scanTabRefLab(Signal* signal, Uint32 errCode);
   void diFcountReqLab(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
-  void signalErrorRefuseLab(Signal* signal);
+  void signalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abort080Lab(Signal* signal);
   void sendKeyInfoTrain(Signal* signal,
                         BlockReference TBRef,
