@@ -2344,6 +2344,7 @@ compare_transid(Uint32* val0, Uint32* val1)
 void Dbtc::execKEYINFO(Signal* signal) 
 {
   jamEntry();
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
   tmaxData = 20;
   if (apiConnectptr.i >= capiConnectFilesize) {
@@ -2417,7 +2418,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   {
   case OS_WAIT_KEYINFO:
     jam();
-    tckeyreq020Lab(signal, cachePtr);
+    tckeyreq020Lab(signal, cachePtr, apiConnectptr);
     return;
   default:
     jam();
@@ -2472,7 +2473,7 @@ void Dbtc::sendKeyInfoTrain(Signal* signal,
  * tckeyreq020Lab
  * Handle received KEYINFO signal
  */
-void Dbtc::tckeyreq020Lab(Signal* signal, CacheRecordPtr const cachePtr)
+void Dbtc::tckeyreq020Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConnectRecordPtr const apiConnectptr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   UintR TkeyLen = regCachePtr->keylen;
@@ -2511,7 +2512,7 @@ void Dbtc::tckeyreq020Lab(Signal* signal, CacheRecordPtr const cachePtr)
      * TCKEYREQ
      */
     jam();
-    tckeyreq050Lab(signal, cachePtr);
+    tckeyreq050Lab(signal, cachePtr, apiConnectptr);
     return;
   }
 }//Dbtc::tckeyreq020Lab()
@@ -2611,7 +2612,7 @@ void Dbtc::execATTRINFO(Signal* signal)
         jam();
         regApiPtr->apiConnectstate = CS_START_COMMITTING;
       }//if
-      attrinfoDihReceivedLab(signal, cachePtr);
+      attrinfoDihReceivedLab(signal, cachePtr, apiConnectptr);
     } else if (TattrlengthRemain < 0) {
       jam();
       DEBUG("ATTRINFO wrong total length="<<Tlength
@@ -3707,13 +3708,13 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   {
     jamDebug();
     /* Have all the KeyInfo (and AttrInfo), process now */
-    tckeyreq050Lab(signal, cachePtr);
+    tckeyreq050Lab(signal, cachePtr, apiConnectptr);
   } 
   else if (TkeyLength <= TcKeyReq::MaxKeyInfo) 
   {
     jam();
     /* Have all the KeyInfo, get any extra AttrInfo */
-    tckeyreq050Lab(signal, cachePtr);
+    tckeyreq050Lab(signal, cachePtr, apiConnectptr);
   }
   else 
   {
@@ -3830,7 +3831,7 @@ Dbtc::check_own_location_domain(Uint16 *nodes,
  * This method is executed once all KeyInfo has been obtained for
  * the TcKeyReq signal
  */
-void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr)
+void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConnectRecordPtr const apiConnectptr)
 {
   CacheRecord* const regCachePtr = cachePtr.p;
   UintR tnoOfBackup;
@@ -4212,7 +4213,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr)
       systemErrorLab(signal, __LINE__);
       return;
     }//switch
-    attrinfoDihReceivedLab(signal, cachePtr);
+    attrinfoDihReceivedLab(signal, cachePtr, apiConnectptr);
     return;
   } else {
     if (regCachePtr->lenAiInTckeyreq < regCachePtr->attrlength) {
@@ -4229,7 +4230,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr)
   return;
 }//Dbtc::tckeyreq050Lab()
 
-void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr)
+void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr const apiConnectptr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
@@ -4278,7 +4279,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr)
       const Uint32 instanceKey = regTcPtr->lqhInstanceKey;
       lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     }
-    packLqhkeyreq(signal, lqhRef, cachePtr);
+    packLqhkeyreq(signal, lqhRef, cachePtr, apiConnectptr);
   }
   else
   {
@@ -4329,14 +4330,16 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr)
 
 void Dbtc::packLqhkeyreq(Signal* signal,
                          BlockReference TBRef,
-                         CacheRecordPtr cachePtr)
+                         CacheRecordPtr cachePtr,
+                         ApiConnectRecordPtr const apiConnectptr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   UintR Tkeylen = regCachePtr->keylen;
 
   ndbassert( signal->getNoOfSections() == 0 );
 
-  sendlqhkeyreq(signal, TBRef, regCachePtr);
+  ApiConnectRecord* const regApiPtr = apiConnectptr.p;
+  sendlqhkeyreq(signal, TBRef, regCachePtr, regApiPtr);
 
   /* Do we need to send a KeyInfo signal train? */
   if ((! regCachePtr->useLongLqhKeyReq) &&
@@ -4352,18 +4355,18 @@ void Dbtc::packLqhkeyreq(Signal* signal,
 
   /* Release key storage */ 
   releaseKeys(regCachePtr);
-  packLqhkeyreq040Lab(signal, TBRef, cachePtr);
+  packLqhkeyreq040Lab(signal, TBRef, cachePtr, apiConnectptr);
 }//Dbtc::packLqhkeyreq()
 
 
 void Dbtc::sendlqhkeyreq(Signal* signal,
                          BlockReference TBRef,
-                         CacheRecord * const regCachePtr)
+                         CacheRecord * const regCachePtr,
+                         ApiConnectRecord* const regApiPtr)
 {
   UintR tslrAttrLen;
   UintR Tdata10;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Uint32 version = getNodeInfo(refToNode(TBRef)).m_version;
   UintR sig0, sig1, sig2, sig3, sig4, sig5, sig6;
 #ifdef ERROR_INSERT
@@ -4371,24 +4374,24 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     systemErrorLab(signal, __LINE__);
   }//if
   if (ERROR_INSERTED(8007)) {
-    if (apiConnectptr.p->apiConnectstate == CS_STARTED) {
+    if (regApiPtr->apiConnectstate == CS_STARTED) {
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
   }//if
   if (ERROR_INSERTED(8008)) {
-    if (apiConnectptr.p->apiConnectstate == CS_START_COMMITTING) {
+    if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
       CLEAR_ERROR_INSERT_VALUE;
       return;
     }//if
   }//if
   if (ERROR_INSERTED(8009)) {
-    if (apiConnectptr.p->apiConnectstate == CS_STARTED) {
+    if (regApiPtr->apiConnectstate == CS_STARTED) {
       return;
     }//if
   }//if
   if (ERROR_INSERTED(8010)) {
-    if (apiConnectptr.p->apiConnectstate == CS_START_COMMITTING) {
+    if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
       return;
     }//if
   }//if
@@ -4637,7 +4640,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
 
 void Dbtc::packLqhkeyreq040Lab(Signal* signal,
                                BlockReference TBRef,
-                               CacheRecordPtr cachePtr)
+                               CacheRecordPtr cachePtr,
+                               ApiConnectRecordPtr const apiConnectptr)
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;

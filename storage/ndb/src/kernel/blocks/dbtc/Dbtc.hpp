@@ -2068,7 +2068,8 @@ private:
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendlqhkeyreq(Signal* signal, 
                      BlockReference TBRef,
-                     CacheRecord*);
+                     CacheRecord*,
+                     ApiConnectRecord* regApiPtr);
   void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
   void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
@@ -2242,10 +2243,12 @@ private:
   void abort015Lab(Signal* signal);
   void packLqhkeyreq(Signal* signal, 
                      BlockReference TBRef,
-                     CacheRecordPtr);
+                     CacheRecordPtr,
+                     ApiConnectRecordPtr apiConnectptr);
   void packLqhkeyreq040Lab(Signal* signal,
                            BlockReference TBRef,
-                           CacheRecordPtr);
+                           CacheRecordPtr,
+                           ApiConnectRecordPtr apiConnectptr);
   void returnFromQueuedDeliveryLab(Signal* signal);
   void insert_take_over_failed_node(Signal*, Uint32 failedNodeId);
   void startTakeOverLab(Signal* signal,
@@ -2266,7 +2269,7 @@ private:
   void appendToSectionErrorLab(Signal* signal);
   void scanKeyinfoLab(Signal* signal, CacheRecord*);
   void scanAttrinfoLab(Signal* signal, UintR Tlen);
-  void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr);
+  void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void aiErrorLab(Signal* signal);
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
@@ -2278,14 +2281,14 @@ private:
   void tabStateErrorLab(Signal* signal);
   void wrongSchemaVersionErrorLab(Signal* signal);
   void noFreeConnectionErrorLab(Signal* signal);
-  void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr);
+  void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd);
   void timeOutLoopStartLab(Signal* signal, Uint32 apiConnectPtr);
   void initialiseRecordsLab(Signal* signal, UintR Tdata0, Uint32, Uint32);
-  void tckeyreq020Lab(Signal* signal, CacheRecordPtr cachePtr);
+  void tckeyreq020Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void intstartphase1x010Lab(Signal* signal, NodeId nodeId);
   void startphase1x010Lab(Signal* signal);
 
