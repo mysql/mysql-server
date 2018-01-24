@@ -7288,7 +7288,7 @@ void
 Dbtc::execFIRE_TRIG_REF(Signal* signal)
 {
   TcConnectRecordPtr localTcConnectptr;
-  ApiConnectRecordPtr regApiPtr;
+  ApiConnectRecordPtr apiConnectptr;
 
   UintR TapiConnectFilesize = capiConnectFilesize;
 
@@ -7296,25 +7296,23 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
   localTcConnectptr.i = ref->tcOpRec;
   jamEntry();
   tcConnectRecord.getPtr(localTcConnectptr);
-  regApiPtr.i = localTcConnectptr.p->apiConnect;
+  apiConnectptr.i = localTcConnectptr.p->apiConnect;
   if (localTcConnectptr.p->tcConnectstate != OS_FIRE_TRIG_REQ)
   {
     warningReport(signal, 28);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(regApiPtr);
+  c_apiConnectRecordPool.getPtr(apiConnectptr);
 
-  apiConnectptr = regApiPtr;
-
-  UintR Tdata1 = regApiPtr.p->transid[0] - ref->transId[0];
-  UintR Tdata2 = regApiPtr.p->transid[1] - ref->transId[1];
+  UintR Tdata1 = apiConnectptr.p->transid[0] - ref->transId[0];
+  UintR Tdata2 = apiConnectptr.p->transid[1] - ref->transId[1];
   Tdata1 = Tdata1 | Tdata2;
   if (Tdata1 != 0) {
     warningReport(signal, 28);
     return;
   }//if
 
-  if (!regApiPtr.p->isExecutingDeferredTriggers())
+  if (!apiConnectptr.p->isExecutingDeferredTriggers())
   {
     jam();
     warningReport(signal, 28);
