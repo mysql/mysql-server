@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4202,6 +4202,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
   if (res)
     DBUG_RETURN(res);
 
+  const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : nullptr;
   CHARSET_INFO *cs= system_charset_info;
   TABLE *show_table= tables->table;
   Field **ptr= show_table->field;
@@ -4214,6 +4215,10 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     uchar *pos;
     char tmp[MAX_FIELD_WIDTH];
     String type(tmp,sizeof(tmp), system_charset_info);
+
+    if (wild && wild[0] &&
+        wild_case_compare(system_charset_info, field->field_name, wild))
+      continue;
 
     // Get default row, with all NULL fields set to NULL
     restore_record(table, s->default_values);

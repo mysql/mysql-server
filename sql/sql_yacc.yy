@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -12600,7 +12600,12 @@ describe:
             lex->current_select()->parsing_place= CTX_SELECT_LIST;
             lex->select_lex->db= NULL;
 
-            auto *p= NEW_PTN PT_show_fields(@$, Show_cmd_type::STANDARD, $2);
+            LEX_STRING wild= { nullptr, 0 };
+            if (lex->wild)
+              wild= lex->wild->lex_string();
+
+            auto *p= NEW_PTN PT_show_fields(@$, Show_cmd_type::STANDARD, $2,
+                                            wild);
 
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             MAKE_CMD(p);

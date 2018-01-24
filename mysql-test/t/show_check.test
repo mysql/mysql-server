@@ -1503,5 +1503,17 @@ SELECT constraint_schema, constraint_name, table_name, column_name FROM
 SHOW EXTENDED INDEX FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#27387773 COLUMN OPTION FOR DESCRIBE IS IGNORED
+--echo #
+
+CREATE TEMPORARY TABLE t1 (f1 INT, f2 INT);
+--echo # These DESCRIBEs would show just single column after the fix.
+DESCRIBE t1 f1;
+DESCRIBE t1 f2;
+SHOW COLUMNS FROM t1 LIKE 'f1';
+SHOW COLUMNS FROM t1 LIKE 'f2';
+DROP TABLE t1;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
