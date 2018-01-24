@@ -10989,6 +10989,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     }
   }
 
+  ApiConnectRecordPtr apiConnectptr;
   if (findApiConnectFail(signal, transid1, transid2, apiConnectptr))
   {
     /**
