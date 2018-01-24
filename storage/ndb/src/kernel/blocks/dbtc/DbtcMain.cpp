@@ -7995,6 +7995,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
   UintR compare_transid1, compare_transid2;
 
   jamEntry();
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
   if (apiConnectptr.i < capiConnectFilesize) {
     c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
