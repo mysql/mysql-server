@@ -2062,7 +2062,7 @@ private:
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
-  void seizeApiConnectCopy(Signal* signal);
+  void seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
   void seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   [[noreturn]] void crash_gcp(Uint32 line);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);

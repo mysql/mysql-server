@@ -3251,7 +3251,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       releaseAtErrorLab(signal);
       return;
     }
-    seizeApiConnectCopy(signal);
+    seizeApiConnectCopy(signal, apiConnectptr.p);
   }
 
   if (localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)) {
@@ -6105,12 +6105,11 @@ Dbtc::ApiConnectRecord::ApiConnectRecord()
   m_transaction_nodes.clear();
 }
 
-void Dbtc::seizeApiConnectCopy(Signal* signal) 
+void Dbtc::seizeApiConnectCopy(Signal* signal, ApiConnectRecord* const regApiPtr)
 {
   ApiConnectRecordPtr locApiConnectptr;
 
   UintR TapiConnectFilesize = capiConnectFilesize;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
   locApiConnectptr.i = cfirstfreeApiConnectCopy;
   c_apiConnectRecordPool.getPtr(locApiConnectptr);
@@ -18019,8 +18018,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     regApiPtr->m_flags |=
       TcKeyReq::getExecuteFlag(tcIndxRequestInfo) ?
       ApiConnectRecord::TF_EXEC_FLAG : 0;
-    apiConnectptr = transPtr;
-    abortErrorLab(signal, apiConnectptr);
+    abortErrorLab(signal, transPtr);
     return;
   }
 
@@ -18035,12 +18033,10 @@ void Dbtc::execTCINDXREQ(Signal* signal)
       regApiPtr->m_flags |=
         TcKeyReq::getExecuteFlag(tcIndxRequestInfo) ?
         ApiConnectRecord::TF_EXEC_FLAG : 0;
-      apiConnectptr = transPtr;
-      abortErrorLab(signal, apiConnectptr);
+      abortErrorLab(signal, transPtr);
       return;
     }
-    apiConnectptr = transPtr;
-    seizeApiConnectCopy(signal);
+    seizeApiConnectCopy(signal, transPtr.p);
   }
 
   if (ERROR_INSERTED(8036) || !seizeIndexOperation(regApiPtr, indexOpPtr)) {
@@ -18051,8 +18047,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     regApiPtr->m_flags |=
       TcKeyReq::getExecuteFlag(tcIndxRequestInfo) ?
       ApiConnectRecord::TF_EXEC_FLAG : 0;
-    apiConnectptr = transPtr;
-    abortErrorLab(signal, apiConnectptr);
+    abortErrorLab(signal, transPtr);
     return;
   }
   TcIndexOperation* indexOp = indexOpPtr.p;
