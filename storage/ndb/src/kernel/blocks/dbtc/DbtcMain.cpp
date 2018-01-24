@@ -9049,6 +9049,7 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_timer_ptr)
         {
           continue;
         }
+        ApiConnectRecordPtr apiConnectptr;
         apiConnectptr.i =
             timers[i].p->m_entries[timer_index].m_apiConnectRecord;
         ndbrequire(apiConnectptr.i != RNIL);
