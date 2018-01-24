@@ -1307,7 +1307,8 @@ Dbtc::set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed, ApiConnectRe
 bool Dbtc::handleFailedApiConnection(Signal *signal,
                                      Uint32 *TloopCount,
                                      Uint32 TapiFailedNode,
-                                     bool apiNodeFailed)
+                                     bool apiNodeFailed,
+                                     ApiConnectRecordPtr const apiConnectptr)
 {
   if (apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_DISCONNECTED)
   {
@@ -1463,7 +1464,8 @@ Dbtc::handleFailedApiNode(Signal* signal,
       bool handled = handleFailedApiConnection(signal,
                                                &TloopCount,
                                                TapiFailedNode,
-                                               true);
+                                               true,
+                                               apiConnectptr);
       if (!handled)
       {
         systemErrorLab(signal, __LINE__);
@@ -1776,7 +1778,8 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
       bool handled = handleFailedApiConnection(signal,
                                                &dummy_loop_count,
                                                dummy_api_node,
-                                               false);
+                                               false,
+                                               apiConnectptr);
       ndbrequire(handled);
       /**
        * We have taken care of any necessary abort of ongoing statements.
