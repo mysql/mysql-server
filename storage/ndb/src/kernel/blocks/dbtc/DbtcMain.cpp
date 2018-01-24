@@ -18483,6 +18483,7 @@ Uint32 Dbtc::saveTRANSID_AI(Signal* signal,
       }
 
       /* All TransIdAI has arrived, abort */
+      ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = indexOp->connectionIndex;
       c_apiConnectRecordPool.getPtr(apiConnectptr);
       releaseIndexOperation(apiConnectptr.p, indexOp);
@@ -18501,6 +18502,7 @@ Uint32 Dbtc::saveTRANSID_AI(Signal* signal,
 #ifdef VM_TRACE
       ndbout_c("Dbtc::saveTRANSID_AI: Bad state when receiving\n");
 #endif
+      ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = indexOp->connectionIndex;
       c_apiConnectRecordPool.getPtr(apiConnectptr);
       releaseIndexOperation(apiConnectptr.p, indexOp);
