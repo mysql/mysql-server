@@ -1073,7 +1073,10 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
     {
       /* Dynamic privileges are always applied on global level */
       global.append(STRING_WITH_LEN(" ON *.* TO "));
-      append_identifier(thd, &global, role->user, strlen(role->user));
+      if (role->user != nullptr)
+        append_identifier(thd, &global, role->user, strlen(role->user));
+      else
+        global.append(STRING_WITH_LEN("''"));
       global.append('@');
       append_identifier(thd, &global, role->host.get_host(),
                         role->host.get_host_len());
@@ -6618,7 +6621,7 @@ bool clear_default_roles(THD *thd, TABLE *table,
   @param table An open table handler to the default_roles table
   @param default_role_policy The role name
   @param user The user name
- 
+
   @retval Error state
     @retval true An error occurred
     @retval false Success
