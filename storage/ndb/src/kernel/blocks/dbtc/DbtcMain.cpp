@@ -1951,7 +1951,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 3:
     jam();
     printState(signal, 7, apiConnectptr);
-    noFreeConnectionErrorLab(signal);
+    noFreeConnectionErrorLab(signal, apiConnectptr);
     return;
   case 4:
     jam();
@@ -2646,7 +2646,7 @@ void Dbtc::execATTRINFO(Signal* signal)
 	    <<", TcurrReclenAi="<< regCachePtr->currReclenAi);
       LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
       ndbrequire( tcConList.last(tcConnectptr));
-      aiErrorLab(signal);
+      aiErrorLab(signal, apiConnectptr);
     }//if
     return;
   } else if (regApiPtr->apiConnectstate == CS_START_SCAN) {
@@ -12530,13 +12530,13 @@ void Dbtc::wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr const 
   abortErrorLab(signal, apiConnectptr);
 }//Dbtc::wrongSchemaVersionErrorLab()
 
-void Dbtc::noFreeConnectionErrorLab(Signal* signal) 
+void Dbtc::noFreeConnectionErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   terrorCode = ZNO_FREE_TC_CONNECTION;
   abortErrorLab(signal, apiConnectptr);        /* RECORD. OTHERWISE GOTO ERRORHANDLING  */
 }//Dbtc::noFreeConnectionErrorLab()
 
-void Dbtc::aiErrorLab(Signal* signal) 
+void Dbtc::aiErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   terrorCode = ZLENGTH_ERROR;
   abortErrorLab(signal, apiConnectptr);

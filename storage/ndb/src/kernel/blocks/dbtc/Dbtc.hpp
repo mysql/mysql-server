@@ -2283,7 +2283,7 @@ private:
   void scanKeyinfoLab(Signal* signal, CacheRecord*, ApiConnectRecordPtr);
   void scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr apiConnectptr);
   void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
-  void aiErrorLab(Signal* signal);
+  void aiErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
   void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
@@ -2293,7 +2293,7 @@ private:
   void abortBeginErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void tabStateErrorLab(Signal* signal);
   void wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void noFreeConnectionErrorLab(Signal* signal);
+  void noFreeConnectionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
