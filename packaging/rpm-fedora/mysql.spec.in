@@ -82,6 +82,34 @@ Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 BuildRequires:  cmake
 BuildRequires:  perl
+BuildRequires:  perl(Carp)
+BuildRequires:  perl(Config)
+BuildRequires:  perl(Cwd)
+BuildRequires:  perl(Data::Dumper)
+BuildRequires:  perl(English)
+BuildRequires:  perl(Errno)
+BuildRequires:  perl(Exporter)
+BuildRequires:  perl(Fcntl)
+BuildRequires:  perl(File::Basename)
+BuildRequires:  perl(File::Copy)
+BuildRequires:  perl(File::Find)
+BuildRequires:  perl(File::Path)
+BuildRequires:  perl(File::Spec)
+BuildRequires:  perl(File::Spec::Functions)
+BuildRequires:  perl(File::Temp)
+BuildRequires:  perl(Getopt::Long)
+BuildRequires:  perl(IO::File)
+BuildRequires:  perl(IO::Handle)
+BuildRequires:  perl(IO::Pipe)
+BuildRequires:  perl(IO::Select)
+BuildRequires:  perl(IO::Socket)
+BuildRequires:  perl(IO::Socket::INET)
+BuildRequires:  perl(JSON)
+BuildRequires:  perl(Memoize)
+BuildRequires:  perl(POSIX)
+BuildRequires:  perl(Sys::Hostname)
+BuildRequires:  perl(Time::HiRes)
+BuildRequires:  perl(Time::localtime)
 %if 0%{?fedora} > 24
 BuildRequires:  perl-generators
 %endif
@@ -228,6 +256,34 @@ MySQL database server.
 %package        test
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
+Requires:       perl(Carp)
+Requires:       perl(Config)
+Requires:       perl(Cwd)
+Requires:       perl(Data::Dumper)
+Requires:       perl(English)
+Requires:       perl(Errno)
+Requires:       perl(Exporter)
+Requires:       perl(Fcntl)
+Requires:       perl(File::Basename)
+Requires:       perl(File::Copy)
+Requires:       perl(File::Find)
+Requires:       perl(File::Path)
+Requires:       perl(File::Spec)
+Requires:       perl(File::Spec::Functions)
+Requires:       perl(File::Temp)
+Requires:       perl(Getopt::Long)
+Requires:       perl(IO::File)
+Requires:       perl(IO::Handle)
+Requires:       perl(IO::Pipe)
+Requires:       perl(IO::Select)
+Requires:       perl(IO::Socket)
+Requires:       perl(IO::Socket::INET)
+Requires:       perl(JSON)
+Requires:       perl(Memoize)
+Requires:       perl(POSIX)
+Requires:       perl(Sys::Hostname)
+Requires:       perl(Time::HiRes)
+Requires:       perl(Time::localtime)
 %if 0%{?commercial}
 Requires:       mysql-commercial-server%{?_isa} >= %{min}
 Obsoletes:      mysql-community-test < %{version}-%{release}
@@ -915,7 +971,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Wed Jan 10 2018 Bjorn Munch <bjorn.munch@oracle.com> - 9.0.0-0.1
+* Wed Jan 24 2018 Bjorn Munch <bjorn.munch@oracle.com> - 9.0.0-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'
@@ -925,6 +981,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 - Do not pass SSL option to 5.6 compat build, just use bundled
 - Add License Book, remove COPYING
 - No longer need to remove obsoleted mysqltest man pages
+- Add perl modules for test subpackage
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin
