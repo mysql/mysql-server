@@ -2018,7 +2018,7 @@ private:
   bool sendDihGetNodeReq(Signal*, ScanRecordPtr, Uint32 scanFragId);
   void sendFragScansLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
   bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr, ApiConnectRecordPtr);
-  void sendScanTabConf(Signal* signal, ScanRecordPtr);
+  void sendScanTabConf(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req, ApiConnectRecordPtr apiConnectptr);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr);
   

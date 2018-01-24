@@ -5183,12 +5183,13 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   Uint32 deferredfk = LqhKeyConf::getDeferredFKBit(lqhKeyConf->numFiredTriggers);
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
-    TCKEY_abort(signal, 29, apiConnectptr);
+    TCKEY_abort(signal, 29, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
   }//if
   Ptr<ApiConnectRecord> regApiPtr;
   regApiPtr.i = TapiConnectptrIndex;
   regApiPtr.p = c_apiConnectRecordPool.getPtr(TapiConnectptrIndex);
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = TapiConnectptrIndex;
   apiConnectptr.p = regApiPtr.p;
   compare_transid1 = regApiPtr.p->transid[0] ^ Ttrans1;
@@ -14227,7 +14228,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
 
   if(scanptr.p->m_queued_count > /** Min */ 0){
     jamDebug();
-    sendScanTabConf(signal, scanptr);
+    sendScanTabConf(signal, scanptr, apiConnectptr);
   }
 }//Dbtc::execSCAN_FRAGCONF()
 
@@ -14854,7 +14855,10 @@ bool Dbtc::sendScanFragReq(Signal* signal,
 }//Dbtc::sendScanFragReq()
 
 
-void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
+void Dbtc::sendScanTabConf(Signal* signal,
+                           const ScanRecordPtr scanPtr,
+                           const ApiConnectRecordPtr apiConnectptr)
+{
   jamDebug();
   Uint32* ops = signal->getDataPtrSend()+4;
   Uint32 op_count = scanPtr.p->m_queued_count;
