@@ -1690,6 +1690,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     share->keys=      keys=      disk_buff[0];
     share->key_parts= key_parts= disk_buff[1];
   }
+  share->visible_indexes.init(0);
   share->keys_for_keyread.init(0);
   share->keys_in_use.init(keys);
 
@@ -4458,6 +4459,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->ref_count++;
   share->primary_key= MAX_KEY;
+  share->visible_indexes.init();
   share->keys_for_keyread.init();
   share->keys_in_use.init();
   share->keys= 0;
