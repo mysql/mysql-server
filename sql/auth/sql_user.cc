@@ -1329,7 +1329,6 @@ bool change_password(THD *thd, const char *host, const char *user,
 {
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   TABLE *table;
-  Acl_table_intact table_intact(thd);
   LEX_USER *combo= NULL;
   std::set<LEX_USER *> users;
   ulong what_to_set= 0;
@@ -1367,12 +1366,6 @@ bool change_password(THD *thd, const char *host, const char *user,
     DBUG_RETURN(ret != 1);
 
   table= tables[ACL_TABLES::TABLE_USER].table;
-
-  if (table_intact.check(table, ACL_TABLES::TABLE_USER))
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   ACL_USER *acl_user;
   if (!(acl_user= find_acl_user(host, user, TRUE)))
@@ -1766,13 +1759,6 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   /* Handle user table. */
-  if (table_intact.check(tables[ACL_TABLES::TABLE_USER].table,
-                         ACL_TABLES::TABLE_USER))
-  {
-    result= -1;
-    goto end;
-  }
-
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_USER,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1798,13 +1784,6 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   /* Handle db table. */
-  if (table_intact.check(tables[ACL_TABLES::TABLE_DB].table,
-                         ACL_TABLES::TABLE_DB))
-  {
-    result= -1;
-    goto end;
-  }
-
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_DB,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1831,14 +1810,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
 
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_routine_table",
                   DBUG_SET("+d,wl7158_handle_grant_table_2"););
-  /* Handle stored routines table. */
-  if (table_intact.check(tables[ACL_TABLES::TABLE_PROCS_PRIV].table,
-                         ACL_TABLES::TABLE_PROCS_PRIV))
-  {
-    result= -1;
-    goto end;
-  }
 
+  /* Handle stored routines table. */
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_PROCS_PRIV,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1883,14 +1856,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
 
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_tables_table",
                   DBUG_SET("+d,wl7158_handle_grant_table_2"););
-  /* Handle tables table. */
-  if (table_intact.check(tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
-                         ACL_TABLES::TABLE_TABLES_PRIV))
-  {
-    result= -1;
-    goto end;
-  }
 
+  /* Handle tables table. */
   if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_TABLES_PRIV,
                                  drop, user_from, user_to)) < 0)
   {
@@ -1913,13 +1880,6 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
                     DBUG_SET("+d,wl7158_handle_grant_table_2"););
 
     /* Handle columns table. */
-    if (table_intact.check(tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
-                           ACL_TABLES::TABLE_COLUMNS_PRIV))
-    {
-      result= -1;
-      goto end;
-    }
-
     if ((found= handle_grant_table(thd, tables, ACL_TABLES::TABLE_COLUMNS_PRIV,
                                    drop, user_from, user_to)) < 0)
     {
@@ -2546,7 +2506,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   ACL_USER *self= NULL;
   bool password_expire_undo= false;
   std::set<LEX_USER *> audit_users;
-  Acl_table_intact table_intact(thd);
 
   DBUG_ENTER("mysql_alter_user");
 
@@ -2566,13 +2525,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   if ((result= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
-
-  if (table_intact.check(tables[ACL_TABLES::TABLE_USER].table,
-                         ACL_TABLES::TABLE_USER))
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   is_privileged_user= is_privileged_user_for_credential_change(thd);
 

@@ -163,7 +163,6 @@ bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
 void clear_and_init_db_cache();
 bool acl_reload(THD *thd, bool locked= false);
 bool grant_reload(THD *thd, bool locked= false);
-bool roles_init_from_tables(THD *thd, bool locked= false);
 
 /* sql_user_table */
 ulong get_access(TABLE *form,uint fieldnr, uint *next_field);
@@ -204,7 +203,7 @@ int replace_roles_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                              bool revoke_grant);
 
 void acl_print_ha_error(int handler_error);
-bool check_acl_tables(TABLE_LIST *tables, bool report_error);
+bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd,
                             bool transactional_tables,
                             std::set<LEX_USER *> *extra_users= NULL,
@@ -214,8 +213,13 @@ bool log_and_commit_acl_ddl(THD *thd,
 /* sql_authorization */
 bool is_privileged_user_for_credential_change(THD *thd);
 void rebuild_vertex_index(THD *thd);
-void roles_init_graph(void);
-void roles_delete_graph(void);
+void default_roles_init(void);
+void default_roles_delete(void);
+void roles_graph_init(void);
+void roles_graph_delete(void);
+void roles_init(void);
+void roles_delete(void);
+
 /**
   Storage container for default role ids. Default roles are only weakly
   depending on ACL_USERs. You can retain a default role even if the

@@ -907,9 +907,7 @@ bool acl_end_trans_and_close_tables(THD *thd,
       acquire MDL on privilege tables after the release_transactional_locks()
       and before acl_reload/grant_reload() below.
     */
-    (void) acl_reload(thd, true);
-    (void) grant_reload(thd, true);
-    (void) roles_init_from_tables(thd, true);
+    reload_acl_caches(thd, true);
   }
   else if (notify_htons)
   {
@@ -2879,8 +2877,12 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
     DBUG_RETURN(-1);
   }
 
-  if (check_acl_tables(tables, true))
+  if (check_engine_type_for_acl_table(tables, true) ||
+      check_acl_tables_intact(thd, tables))
+  {
+    commit_and_close_mysql_tables(thd);
     DBUG_RETURN(-1);
+  }
 
   for (uint i= 0; i < ACL_TABLES::LAST_ENTRY; ++i)
     *transactional_tables= (*transactional_tables ||
@@ -3139,7 +3141,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no, bool d
     @retval true  some of ACL tables has an unsupported engine type.
 */
 
-bool check_acl_tables(TABLE_LIST *tables, bool report_error)
+bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error)
 {
   bool invalid_table_found= false;
 

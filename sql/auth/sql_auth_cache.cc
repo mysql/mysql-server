@@ -1539,48 +1539,36 @@ void notify_flush_event(THD *thd)
 
 
 /**
-  Initialize roles structures from tables.
+  Initialize roles structures from role tables handle.
 
-  This function is called by acl_init and may fail to
-  initialize role structures if role_edges and/or
-  default_roles are not present.
+  This function is called by acl_reload and may fail to
+  initialize role structures if handle to role_edges and/or
+  default_roles are NUL
 
-  @param [in] thd Handle to THD
+  @param [in] thd      Handle to THD object
+  @param [in] tablelst Handle to Roles tables
+
+  @returns status of cache update
+    @retval false Success
+    @retval true failure
 */
-
-static
-void roles_init(THD *thd)
+static bool reload_roles_cache(THD *thd, TABLE_LIST *tablelst)
 {
-  TABLE_LIST tables[2];
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("role_edges"),
-                           "role_edges", TL_READ, MDL_SHARED_READ_ONLY);
+  DBUG_ENTER("reload_roles_cache");
+  DBUG_ASSERT(tablelst);
 
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("default_roles"),
-                           "default_roles", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[0].next_local=
-    tables[0].next_global= tables + 1;
-  tables[1].next_local=
-    tables[1].next_global= 0;
-  tables[0].open_type=
-  tables[1].open_type= OT_BASE_ONLY;
-
-  bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
-  if (!result)
+  /*
+    Attempt to reload the role cache only if the role_edges and
+    default_roles tables exist.
+  */
+  if((tablelst[0].table) && (tablelst[1].table) &&
+     populate_roles_caches(thd, tablelst))
   {
-    check_acl_tables(tables, false);
-    commit_and_close_mysql_tables(thd);
-    result= roles_init_from_tables(thd);
+    DBUG_RETURN(true);
   }
 
-  if (result)
-  {
-    LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_TABLES_DODGY);
-  }
+  DBUG_RETURN(false);
 }
-
 
 /*
   Initialize structures responsible for user/db-level privilege checking and
@@ -1655,7 +1643,6 @@ bool acl_init(bool dont_read_acl_tables)
     by zeros at startup.
   */
   return_val|= acl_reload(thd);
-  roles_init(thd);
   notify_flush_event(thd);
   thd->release_resources();
   delete thd;
@@ -2272,7 +2259,7 @@ end:
 
 
 
-void acl_free(bool end)
+void acl_free(bool end /*= false*/)
 {
   free_root(&global_acl_memory,MYF(0));
   delete acl_users;
@@ -2316,7 +2303,7 @@ bool check_engine_type_for_acl_table(THD *thd)
   bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
   if (!result)
   {
-    check_acl_tables(tables, false);
+    check_engine_type_for_acl_table(tables, false);
     commit_and_close_mysql_tables(thd);
   }
 
@@ -2350,11 +2337,55 @@ public:
   }
 };
 
+/**
+  Helper function that checks the sanity of tables object present in
+  the TABLE_LIST object. it logs a warning message when a table is
+  missing
 
+  @param thd        Handle of current thread.
+  @param tables     A valid table list pointer
+
+  @retval
+    false       OK.
+    true        Error.
+*/
+bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables)
+{
+  Acl_table_intact table_intact(thd);
+  bool result_acl= false;
+
+  DBUG_ASSERT(tables);
+  for (auto idx =0; idx < ACL_TABLES::LAST_ENTRY; idx++)
+  {
+    if (tables[idx].table)
+    {
+      result_acl|= table_intact.check(tables[idx].table, (ACL_TABLES)idx);
+    }
+    else
+    {
+      LogErr(WARNING_LEVEL, ER_MISSING_ACL_SYSTEM_TABLE,
+        tables[idx].table_name_length, tables[idx].table_name);
+      result_acl|= true;
+    }
+  }
+  return result_acl;
+}
+
+/**
+  Opens the ACL tables and checks their sanity. This method reports error
+  only if it is unable to open or lock tables. It is called in situations
+  when server has to continue even if a corrupt table was found -
+  For example - acl_init()
+
+  @param thd        Handle of current thread.
+
+  @retval
+    false       OK.
+    true        Unable to open the table(s).
+*/
 bool check_acl_tables_intact(THD *thd)
 {
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
-  Acl_table_intact table_intact(thd);
   Acl_ignore_error_handler acl_ignore_handler;
 
   grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
@@ -2364,12 +2395,7 @@ bool check_acl_tables_intact(THD *thd)
   thd->push_internal_handler(&acl_ignore_handler);
   if (!result_acl)
   {
-    for (auto idx =0; idx < ACL_TABLES::LAST_ENTRY; idx++)
-      if (tables[idx].table)
-        table_intact.check(tables[idx].table, (ACL_TABLES) idx);
-      else
-        LogErr(WARNING_LEVEL, ER_MISSING_ACL_SYSTEM_TABLE,
-               tables[idx].table_name_length, tables[idx].table_name);
+    check_acl_tables_intact(thd, tables);
     commit_and_close_mysql_tables(thd);
   }
   thd->pop_internal_handler();
@@ -2413,20 +2439,38 @@ static bool is_expected_or_transient_error(THD *thd)
 
 bool acl_reload(THD *thd, bool locked)
 {
-  TABLE_LIST tables[4];
+  TABLE_LIST tables[6];
 
   MEM_ROOT old_mem;
   bool return_val= TRUE;
-  Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= NULL;
-  Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= NULL;
+  Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= nullptr;
+  Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= nullptr;
   Prealloced_array<ACL_PROXY_USER,
-    ACL_PREALLOC_SIZE> *old_acl_proxy_users = NULL;
+    ACL_PREALLOC_SIZE> *old_acl_proxy_users= nullptr;
+  Granted_roles_graph *old_granted_roles= nullptr;
+  Default_roles *old_default_roles= nullptr;
+  Role_index_map *old_authid_to_vertex= nullptr;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   User_to_dynamic_privileges_map *old_dyn_priv_map;
   DBUG_ENTER("acl_reload");
 
   if (!locked && !acl_cache_lock.lock())
     DBUG_RETURN(1);
+
+  // Interchange the global role cache ptrs with the local role cache ptrs.
+  auto swap_role_cache = [&]()
+  {
+    std::swap(old_granted_roles, g_granted_roles);
+    std::swap(old_default_roles, g_default_roles);
+    std::swap(old_authid_to_vertex, g_authid_to_vertex);
+  };
+  // Delete the memory pointed by the local role cache ptrs.
+  auto delete_old_role_cache = [&]()
+  {
+    delete old_granted_roles;
+    delete old_default_roles;
+    delete old_authid_to_vertex;
+  };
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -2453,13 +2497,30 @@ bool acl_reload(THD *thd, bool locked)
                            C_STRING_WITH_LEN("global_grants"),
                            "global_grants", TL_READ, MDL_SHARED_READ_ONLY);
 
+  tables[4].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("role_edges"),
+                           "role_edges",
+                           TL_READ,
+                           MDL_SHARED_READ_ONLY);
+
+  tables[5].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("default_roles"),
+                           "default_roles",
+                           TL_READ,
+                           MDL_SHARED_READ_ONLY);
+
   tables[0].next_local= tables[0].next_global= tables + 1;
   tables[1].next_local= tables[1].next_global= tables + 2;
   tables[2].next_local= tables[2].next_global= tables + 3;
+  tables[3].next_local= tables[3].next_global= tables + 4;
+  tables[4].next_local= tables[4].next_global= tables + 5;
+  tables[5].next_local= nullptr;
 
   tables[0].open_type= tables[1].open_type= tables[2].open_type=
-    tables[3].open_type= OT_BASE_ONLY;
-  tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+    tables[3].open_type= tables[4].open_type=
+    tables[5].open_type= OT_BASE_ONLY;
+  tables[3].open_strategy= tables[4].open_strategy=
+    tables[5].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -2480,7 +2541,10 @@ bool acl_reload(THD *thd, bool locked)
 
   old_acl_users= acl_users;
   old_acl_dbs= acl_dbs;
-  old_acl_proxy_users = acl_proxy_users;
+  old_acl_proxy_users= acl_proxy_users;
+
+  swap_role_cache();
+  roles_init();
 
   acl_users= new Prealloced_array<ACL_USER,
                                   ACL_PREALLOC_SIZE>(key_memory_acl_mem);
@@ -2500,7 +2564,14 @@ bool acl_reload(THD *thd, bool locked)
   acl_check_hosts= NULL;
   old_dyn_priv_map=
     swap_dynamic_privileges_map(new User_to_dynamic_privileges_map());
-  if ((return_val= acl_load(thd, tables)))
+
+  /*
+    Revert to the old acl caches, if either loading of acl cache or role
+    cache failed. We do this because roles caches maintain the shallow
+    copies of the ACL_USER(s).
+  */
+  if ((return_val= acl_load(thd, tables)) ||
+      (return_val= reload_roles_cache(thd, (tables + 4))))
   {                                     // Error. Revert to old list
     DBUG_PRINT("error",("Reverting to old privileges"));
     acl_free();                         /* purecov: inspected */
@@ -2508,6 +2579,11 @@ bool acl_reload(THD *thd, bool locked)
     acl_dbs= old_acl_dbs;
     acl_proxy_users= old_acl_proxy_users;
     global_acl_memory= move(old_mem);
+    // Revert to the old role caches
+    swap_role_cache();
+    // Old caches must be pointing to the global role caches right now
+    delete_old_role_cache();
+
     init_check_host();
     delete swap_dynamic_privileges_map(old_dyn_priv_map);
   }
@@ -2518,6 +2594,8 @@ bool acl_reload(THD *thd, bool locked)
     delete old_acl_dbs;
     delete old_acl_proxy_users;
     delete old_dyn_priv_map;
+    // Delete the old role caches
+    delete_old_role_cache();
   }
 
 end:
@@ -3772,9 +3850,6 @@ void Acl_map::operator delete(void* p)
 
 void init_acl_cache()
 {
-  g_default_roles= new Default_roles;
-  roles_init_graph();
-  dynamic_privileges_init();
   g_acl_cache= new Acl_cache();
   g_mandatory_roles= new std::vector<Role_id >;
   opt_mandatory_roles_cache= false;
@@ -3796,10 +3871,8 @@ void shutdown_acl_cache()
   g_acl_cache->increase_version();
   DBUG_ASSERT(g_acl_cache->size() == 0);
   delete g_acl_cache;
-  delete g_default_roles;
   g_acl_cache= NULL;
-  g_default_roles= NULL;
-  roles_delete_graph();
+  roles_delete();
   dynamic_privileges_delete();
   delete g_mandatory_roles;
 }
@@ -4020,26 +4093,33 @@ volatile uint32 global_password_reuse_interval= 0;
 /**
   Reload all ACL caches
 
-  @param [in] thd THD handle
+  @param [in] thd       THD handle
+  @param [in] locked    default value true that indicates
+                        acl cache is locked, false otherwise.
 
   @returns Status of reloading ACL caches
     @retval false Success
     @retval true Error
 */
 
-bool reload_acl_caches(THD *thd)
+bool reload_acl_caches(THD *thd, bool locked/*= true*/)
 {
   bool retval= true;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   DBUG_ENTER("reload_acl_caches");
 
-  if (!acl_cache_lock.lock())
-    DBUG_RETURN(retval);
+  if (!locked && !acl_cache_lock.lock())
+    goto end;
 
-  retval= acl_reload(thd, true);
-  if (!retval)
-    retval= grant_reload(thd, true);
-  if (!retval)
-    retval= roles_init_from_tables(thd, true);
+  if (check_engine_type_for_acl_table(thd) ||
+      check_acl_tables_intact(thd) ||
+      acl_reload(thd, true) ||
+      grant_reload(thd, true))
+  {
+    goto end;
+  }
+  retval= false;
+
+end:
   DBUG_RETURN(retval);
 }

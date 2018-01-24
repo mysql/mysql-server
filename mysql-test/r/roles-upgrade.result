@@ -40,14 +40,14 @@ sys.sys_config                                     OK
 #
 # Bug#24447771 ACL_INIT() RETURNS TRUE ON 5.7 DATA DIRECTORY
 #
-CALL mtr.add_suppression("Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed.");
 CALL mtr.add_suppression("ACL table mysql.role_edges missing. Some operations may fail.");
 CALL mtr.add_suppression("ACL table mysql.default_roles missing. Some operations may fail.");
 DROP TABLE mysql.role_edges;
 DROP TABLE mysql.default_roles;
 # restart:--log-error=MYSQLTEST_VARDIR/log/roles-upgrade.err
 # let's check for the presense of the warning
-Pattern "Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed." found
+Pattern "ACL table mysql.role_edges missing. Some operations may fail." found
+Pattern "ACL table mysql.default_roles missing. Some operations may fail." found
 # ACL DDLs should not work
 CREATE USER u1;
 ERROR 42S02: Table 'mysql.role_edges' doesn't exist

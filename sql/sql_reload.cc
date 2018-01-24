@@ -114,20 +114,6 @@ bool handle_reload_request(THD *thd, unsigned long options,
         */
         my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
-
-      /*
-        Check storage engine type for every ACL table and output warning
-        message in case it's different from supported one (InnoDB).
-      */
-      if (check_engine_type_for_acl_table(thd))
-        result= 1;
-
-      /*
-        Check all the ACL tables are intact and output warning message in
-        case any of the ACL tables are corrupted.
-      */
-      if (check_acl_tables_intact(thd))
-        result= 1;
     }
 
     reset_mqh(thd, (LEX_USER *)NULL, TRUE);
