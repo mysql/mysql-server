@@ -2906,7 +2906,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
 }//Dbtc::initApiConnectRec()
 
 int
-Dbtc::seizeTcRecord(Signal* signal)
+Dbtc::seizeTcRecord(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   if (!tcConnectRecord.seize(tcConnectptr))
@@ -3276,7 +3276,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     return;
   }//if
   
-  if (seizeTcRecord(signal) != 0) {
+  if (seizeTcRecord(signal, apiConnectptr) != 0)
+  {
     releaseSections(handle);
     return;
   }//if

@@ -1901,7 +1901,7 @@ private:
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
   void printState(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr, bool force_trace = false);
-  int seizeTcRecord(Signal* signal);
+  int seizeTcRecord(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   int seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr, ApiConnectRecord* regApiPtr);
   void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
   void TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr apiConnectptr);
