@@ -10716,7 +10716,7 @@ Dbtc::insert_transid_fail_hash(Uint32 transid1)
 }
 
 bool
-Dbtc::findApiConnectFail(Signal *signal, Uint32 transid1, Uint32 transid2)
+Dbtc::findApiConnectFail(Signal *signal, Uint32 transid1, Uint32 transid2, ApiConnectRecordPtr& apiConnectptr)
 {
   Uint32 bucket = get_transid_fail_bucket(transid1);
   apiConnectptr.i = ctransidFailHash[bucket];
@@ -10815,7 +10815,8 @@ bool
 Dbtc::findTcConnectFail(Signal* signal,
                         Uint32 transid1,
                         Uint32 transid2,
-                        Uint32 tcOprec) 
+                        Uint32 tcOprec,
+                        ApiConnectRecordPtr const apiConnectptr)
 {
   Uint32 bucket = get_tc_fail_bucket(transid1, tcOprec);
 
@@ -10985,7 +10986,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     }
   }
 
-  if (findApiConnectFail(signal, transid1, transid2))
+  if (findApiConnectFail(signal, transid1, transid2, apiConnectptr))
   {
     /**
      * Found a transaction record, record the added info about this
@@ -11041,7 +11042,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
      * it with info as received in LQH_TRANSCONF message. Also insert
      * it in hash table for transaction records in TC take over.
      */
-    seizeApiConnectFail(signal);
+    seizeApiConnectFail(signal, apiConnectptr);
     insert_transid_fail_hash(transid1);
     initApiConnectFail(signal,
                        transid1,
@@ -11074,7 +11075,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
       jam();
       instanceKey = getInstanceKey(tableId, fragId);
     }
-    if (findTcConnectFail(signal, transid1, transid2, tcOprec))
+    if (findTcConnectFail(signal, transid1, transid2, tcOprec, apiConnectptr))
     {
       jam();
       updateTcStateFail(signal,
@@ -12117,7 +12118,6 @@ void Dbtc::initApiConnectFail(Signal* signal,
              *   treat this as an updateApiStateFail and release already seize trans
              */
             releaseApiConnectFail(signal, apiConnectptr);
-            apiConnectptr = transPtr;
             updateApiStateFail(signal,
                                transid1,
                                transid2,
@@ -12126,7 +12126,7 @@ void Dbtc::initApiConnectFail(Signal* signal,
                                applRef,
                                gci,
                                nodeId,
-                               apiConnectptr);
+                               transPtr);
             return;
           }
         }
@@ -15557,7 +15557,7 @@ void Dbtc::seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr)
   }//if
 }//Dbtc::seizeApiConnect()
 
-void Dbtc::seizeApiConnectFail(Signal* signal) 
+void Dbtc::seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr)
 {
   apiConnectptr.i = cfirstfreeApiConnectFail;
   c_apiConnectRecordPool.getPtr(apiConnectptr);

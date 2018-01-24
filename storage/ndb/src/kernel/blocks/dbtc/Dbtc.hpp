@@ -1959,7 +1959,7 @@ private:
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void setupFailData(Signal* signal, ApiConnectRecord* regApiPtr);
-  bool findApiConnectFail(Signal* signal, Uint32 transid1, Uint32 transid2);
+  bool findApiConnectFail(Signal* signal, Uint32 transid1, Uint32 transid2, ApiConnectRecordPtr& apiConnectptr);
   void initApiConnectFail(Signal* signal,
                           Uint32 transid1,
                           Uint32 transid2,
@@ -1980,7 +1980,8 @@ private:
   bool findTcConnectFail(Signal* signal,
                          Uint32 transid1,
                          Uint32 transid2,
-                         Uint32 tcOprec);
+                         Uint32 tcOprec,
+                         ApiConnectRecordPtr apiConnectptr);
   void initTcConnectFail(Signal* signal,
                          Uint32 instanceKey,
                          Uint32 tcOprec,
@@ -2059,7 +2060,7 @@ private:
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   void seizeApiConnectCopy(Signal* signal);
-  void seizeApiConnectFail(Signal* signal);
+  void seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   [[noreturn]] void crash_gcp(Uint32 line);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnectFail(Signal* signal);
