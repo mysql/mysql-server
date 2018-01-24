@@ -4755,18 +4755,18 @@ void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* const regA
 /* -------   RELEASE ALL RECORDS CONNECTED TO A DIRTY OPERATION     ------- */
 /* ========================================================================= */
 void Dbtc::releaseDirtyRead(Signal* signal, 
-                            ApiConnectRecordPtr regApiPtr,
+                            ApiConnectRecordPtr const apiConnectptr,
                             TcConnectRecord* regTcPtr) 
 {
-  Uint32 Ttckeyrec = regApiPtr.p->tckeyrec;
+  Uint32 Ttckeyrec = apiConnectptr.p->tckeyrec;
   Uint32 TclientData = regTcPtr->clientData;
   Uint32 Tnode = regTcPtr->tcNodedata[0];
-  Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
-  ConnectionState state = regApiPtr.p->apiConnectstate;
+  Uint32 Tlqhkeyreqrec = apiConnectptr.p->lqhkeyreqrec;
+  ConnectionState state = apiConnectptr.p->apiConnectstate;
   
-  regApiPtr.p->tcSendArray[Ttckeyrec] = TclientData;
-  regApiPtr.p->tcSendArray[Ttckeyrec + 1] = TcKeyConf::DirtyReadBit | Tnode;
-  regApiPtr.p->tckeyrec = Ttckeyrec + 2;
+  apiConnectptr.p->tcSendArray[Ttckeyrec] = TclientData;
+  apiConnectptr.p->tcSendArray[Ttckeyrec + 1] = TcKeyConf::DirtyReadBit | Tnode;
+  apiConnectptr.p->tckeyrec = Ttckeyrec + 2;
   
   unlinkReadyTcCon(signal, apiConnectptr.p);
   releaseTcCon();
@@ -4776,7 +4776,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
    * Therefore decrese no LQHKEYCONF(REF) we are waiting for
    */
   c_counters.csimpleReadCount++;
-  regApiPtr.p->lqhkeyreqrec = --Tlqhkeyreqrec;
+  apiConnectptr.p->lqhkeyreqrec = --Tlqhkeyreqrec;
   
   if(Tlqhkeyreqrec == 0)
   {
@@ -4785,9 +4785,9 @@ void Dbtc::releaseDirtyRead(Signal* signal,
      * - commit with zero operations: handle only for simple read
      */
     sendtckeyconf(signal, state == CS_START_COMMITTING, apiConnectptr);
-    regApiPtr.p->apiConnectstate = 
+    apiConnectptr.p->apiConnectstate =
       (state == CS_START_COMMITTING ? CS_CONNECTED : state);
-    setApiConTimer(regApiPtr, 0, __LINE__);
+    setApiConTimer(apiConnectptr, 0, __LINE__);
 
     return;
   }
@@ -4795,7 +4795,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
   /**
    * Emulate LQHKEYCONF
    */
-  lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  lqhKeyConf_checkTransactionState(signal, apiConnectptr);
 }//Dbtc::releaseDirtyRead()
 
 /* ------------------------------------------------------------------------- */
