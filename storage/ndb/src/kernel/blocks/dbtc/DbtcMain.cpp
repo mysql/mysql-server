@@ -10756,7 +10756,7 @@ void Dbtc::releaseMarker(ApiConnectRecord * const regApiPtr)
   }
 }
 
-void Dbtc::remove_from_transid_fail_hash(Signal *signal, Uint32 transid1)
+void Dbtc::remove_from_transid_fail_hash(Signal *signal, Uint32 transid1, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecordPtr locApiConnectptr;
   ApiConnectRecordPtr prevApiConptr;
@@ -11118,7 +11118,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
         tcNodeFailptr.p->takeOverFailed = true;
         remove_transaction_from_tc_fail_hash(signal, apiConnectptr.p);
         releaseMarker(apiConnectptr.p);
-        remove_from_transid_fail_hash(signal, transid1);
+        remove_from_transid_fail_hash(signal, transid1, apiConnectptr);
         releaseTakeOver(signal, apiConnectptr);
       }
       else

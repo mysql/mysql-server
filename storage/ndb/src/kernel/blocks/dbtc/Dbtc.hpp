@@ -1951,7 +1951,7 @@ private:
 
   Uint32 get_transid_fail_bucket(Uint32 transid1);
   void insert_transid_fail_hash(Uint32 transid1, ApiConnectRecordPtr apiConnectptr);
-  void remove_from_transid_fail_hash(Signal *signal, Uint32 transid1);
+  void remove_from_transid_fail_hash(Signal *signal, Uint32 transid1, ApiConnectRecordPtr apiConnectptr);
   Uint32 get_tc_fail_bucket(Uint32 transid1, Uint32 tcOprec);
   void insert_tc_fail_hash(Uint32 transid1, Uint32 tcOprec);
   void remove_transaction_from_tc_fail_hash(Signal *signal, ApiConnectRecord* regApiPtr);
