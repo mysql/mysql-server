@@ -1994,7 +1994,8 @@ private:
                          Uint32 tcOprec,
                          Uint32 reqinfo,
                          LqhTransConf::OperationStatus transStatus,
-                         NodeId nodeId);
+                         NodeId nodeId,
+                         ApiConnectRecordPtr apiConnecptr);
 
   bool handleFailedApiConnection(Signal*,
                                  Uint32 *TloopCount,

@@ -11084,7 +11084,8 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
                         tcOprec,
                         reqinfo,
                         transStatus,
-                        nodeId);
+                        nodeId,
+                        apiConnectptr);
     }
     else
     {
@@ -12425,7 +12426,8 @@ void Dbtc::updateTcStateFail(Signal* signal,
                              Uint32 tcOprec,
                              Uint32 reqinfo,
                              LqhTransConf::OperationStatus transStatus,
-                             NodeId nodeId) 
+                             NodeId nodeId,
+                             ApiConnectRecordPtr const apiConnectptr)
 {
   const Uint8 replicaNo     = LqhTransConf::getReplicaNo(reqinfo);
   const Uint8 lastReplicaNo = LqhTransConf::getLastReplicaNo(reqinfo);
