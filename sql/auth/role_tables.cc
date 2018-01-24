@@ -90,11 +90,6 @@ TABLE *open_role_edges_table(THD *thd)
   DBUG_RETURN(tablelst.table);
 }
 
-void close_all_role_tables(THD *thd)
-{
-  commit_and_close_mysql_tables(thd);
-}
-
 TABLE *open_default_role_table(THD *thd)
 {
   DBUG_ENTER("open_role_edges_table");
@@ -253,144 +248,106 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   DBUG_ENTER("populate_roles_caches");
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   READ_RECORD read_record_info;
+  TABLE *roles_edges_table= tablelst[0].table;
+  TABLE *default_role_table= tablelst[1].table;
+
   /*
     To avoid any issues with inconsistencies we unconditionally increase
     acl cache version here.
   */
   get_global_acl_cache()->increase_version();
-  if (!tablelst[0].table->key_info || !tablelst[1].table->key_info)
-  {
-    TABLE *table= ((!tablelst[0].table->key_info) ? tablelst[0].table :
-                   tablelst[1].table);
-    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
 
-  TABLE *table= tablelst[0].table;
-  table->use_all_columns();
-  if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, false))
   {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
-  ACL_USER *acl_role;
-  ACL_USER *acl_user;
-  int read_rec_errcode;
-  MEM_ROOT tmp_mem;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
-  g_authid_to_vertex->clear();
-  g_granted_roles->clear();
-  while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
-  {
-    char *from_host= get_field(&tmp_mem,
-                               table->field[MYSQL_ROLE_EDGES_FIELD_FROM_HOST]);
-    char *from_user= get_field(&tmp_mem,
-                               table->field[MYSQL_ROLE_EDGES_FIELD_FROM_USER]);
-    char *to_host= get_field(&tmp_mem,
-                             table->field[MYSQL_ROLE_EDGES_FIELD_TO_HOST]);
-    char *to_user= get_field(&tmp_mem,
-                             table->field[MYSQL_ROLE_EDGES_FIELD_TO_USER]);
-    char *with_admin_opt= get_field(&tmp_mem,
-                                    table->field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]);
-
-    acl_role= find_acl_user(from_host, from_user, true);
-    acl_user= find_acl_user(to_host, to_user, true);
-    if (acl_user == NULL || acl_role == NULL)
+    roles_edges_table->use_all_columns();
+    if (init_read_record(&read_record_info, thd, roles_edges_table,
+                         NULL, 1, 1, false))
     {
-      my_printf_error(ER_UNKNOWN_ERROR,
-                      "Unknown authorization identifier `%s`@`%s`",
-                      MYF(0),
-                      to_user,
-                      to_host);
+      my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
+               roles_edges_table->s->table_name.str);
+      goto error;
+    }
+
+    ACL_USER *acl_role;
+    ACL_USER *acl_user;
+    int read_rec_errcode;
+    MEM_ROOT tmp_mem;
+    init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
+    g_authid_to_vertex->clear();
+    g_granted_roles->clear();
+    while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
+    {
+      char *from_host= get_field(&tmp_mem, roles_edges_table->
+                                 field[MYSQL_ROLE_EDGES_FIELD_FROM_HOST]);
+      char *from_user= get_field(&tmp_mem, roles_edges_table->
+                                 field[MYSQL_ROLE_EDGES_FIELD_FROM_USER]);
+      char *to_host= get_field(&tmp_mem, roles_edges_table->
+                               field[MYSQL_ROLE_EDGES_FIELD_TO_HOST]);
+      char *to_user= get_field(&tmp_mem, roles_edges_table->
+                               field[MYSQL_ROLE_EDGES_FIELD_TO_USER]);
+      char *with_admin_opt= get_field(&tmp_mem, roles_edges_table->
+                              field[MYSQL_ROLE_EDGES_FIELD_TO_WITH_ADMIN_OPT]);
+
+      acl_role= find_acl_user(from_host, from_user, true);
+      acl_user= find_acl_user(to_host, to_user, true);
+      if (acl_user == nullptr || acl_role == nullptr)
+      {
+        my_printf_error(ER_UNKNOWN_ERROR,
+                        "Unknown authorization identifier `%s`@`%s`",
+                        MYF(0),
+                        to_user,
+                        to_host);
+        rebuild_vertex_index(thd);
+        end_read_record(&read_record_info);
+        free_root(&tmp_mem, MYF(0));
+        goto error;
+      }
+      grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
+    }
+    end_read_record(&read_record_info);
+
+    default_role_table->use_all_columns();
+
+    bool ret= init_read_record(&read_record_info, thd, default_role_table,
+                               NULL, 1, 1, false);
+    DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit",
+                    end_read_record(&read_record_info);
+                    ret= true;);
+    if (ret)
+    {
+      my_error(ER_TABLE_CORRUPT, MYF(0), default_role_table->s->db.str,
+               default_role_table->s->table_name.str);
+
       rebuild_vertex_index(thd);
       end_read_record(&read_record_info);
       free_root(&tmp_mem, MYF(0));
-      DBUG_RETURN(true);
+      goto error;
     }
-    grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
-  }
-  end_read_record(&read_record_info);
-
-  table= tablelst[1].table;
-  table->use_all_columns();
-  if (init_read_record(&read_record_info, thd, table,
-                       NULL, 1, 1, false))
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-
-    rebuild_vertex_index(thd);
+    g_default_roles->clear();
+    while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
+    {
+      char *host= get_field(&tmp_mem, default_role_table->
+                            field[MYSQL_DEFAULT_ROLE_FIELD_HOST]);
+      char *user= get_field(&tmp_mem, default_role_table->
+                            field[MYSQL_DEFAULT_ROLE_FIELD_USER]);
+      char *role_host= get_field(&tmp_mem, default_role_table->
+                                 field[MYSQL_DEFAULT_ROLE_FIELD_ROLE_HOST]);
+      char *role_user= get_field(&tmp_mem, default_role_table->
+                                 field[MYSQL_DEFAULT_ROLE_FIELD_ROLE_USER]);
+      int user_len= (user ? strlen(user) : 0);
+      int host_len= (host ? strlen(host) : 0);
+      int role_user_len= (role_user ? strlen(role_user) : 0);
+      int role_host_len= (role_host ? strlen(role_host) : 0);
+      Role_id user_id(user, user_len, host, host_len);
+      Role_id role_id(role_user, role_user_len, role_host, role_host_len);
+      g_default_roles->emplace(user_id, role_id);
+    }
     end_read_record(&read_record_info);
     free_root(&tmp_mem, MYF(0));
-    DBUG_RETURN(true);
+    rebuild_vertex_index(thd);
+    opt_mandatory_roles_cache= false;
   }
-  g_default_roles->clear();
-  while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
-  {
-    char *host= get_field(&tmp_mem,
-                          table->field[MYSQL_DEFAULT_ROLE_FIELD_HOST]);
-    char *user= get_field(&tmp_mem,
-                          table->field[MYSQL_DEFAULT_ROLE_FIELD_USER]);
-    char *role_host= get_field(&tmp_mem,
-                               table->field[MYSQL_DEFAULT_ROLE_FIELD_ROLE_HOST]);
-    char *role_user= get_field(&tmp_mem,
-                               table->field[MYSQL_DEFAULT_ROLE_FIELD_ROLE_USER]);
-    int user_len= (user ? strlen(user) : 0);
-    int host_len= (host ? strlen(host) : 0);
-    int role_user_len= (role_user ? strlen(role_user) : 0);
-    int role_host_len= (role_host ? strlen(role_host) : 0);
-    Role_id user_id(user, user_len, host, host_len);
-    Role_id role_id(role_user, role_user_len, role_host, role_host_len);
-    g_default_roles->insert(std::make_pair(user_id, role_id));
-  }
-  end_read_record(&read_record_info);
-  free_root(&tmp_mem, MYF(0));
-  rebuild_vertex_index(thd);
-  opt_mandatory_roles_cache= false;
+
   DBUG_RETURN(false);
-}
-
-bool roles_init_from_tables(THD *thd, bool locked)
-{
-  DBUG_ENTER("roles_init_from_tables");
-  int ret= 0;
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-
-  if (!locked && !acl_cache_lock.lock())
-    DBUG_RETURN(true);
-
-  // open table
-  TABLE_LIST tablelst[2];
-  tablelst[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                             C_STRING_WITH_LEN("role_edges"),
-                             "role_edges",
-                             TL_READ,
-                             MDL_SHARED_READ_ONLY);
-  tablelst[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                             C_STRING_WITH_LEN("default_roles"),
-                             "default_roles",
-                             TL_READ,
-                             MDL_SHARED_READ_ONLY);
-  tablelst[0].next_local= tablelst[0].next_global= &tablelst[1];
-  tablelst[1].next_local= tablelst[1].next_global= 0;
-
-  if ((ret= open_and_lock_tables(thd, &tablelst[0], MYSQL_LOCK_IGNORE_TIMEOUT)))
-  {
-    DBUG_PRINT("error",("En error occurred while trying to open the "
-                        "mysql.roles_edges table"));
-    DBUG_RETURN(true);
-  }
-
-  if (populate_roles_caches(thd, tablelst))
-  {
-    close_all_role_tables(thd);
-    DBUG_RETURN(true);
-  }
-
-  close_all_role_tables(thd);
-  DBUG_RETURN(false);
+error:
+  DBUG_RETURN(true);
 }

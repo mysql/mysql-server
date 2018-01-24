@@ -7585,17 +7585,59 @@ bool rename_dynamic_grant(const LEX_CSTRING &old_user,
   }
   return false;
 }
+/**
+  Initialize the default role map that keeps the content from the
+  default_roles table.
+*/
+void default_roles_init()
+{
+  g_default_roles= new Default_roles;
+}
 
-void roles_init_graph()
+/**
+  Delete the default role instance
+*/
+void default_roles_delete()
+{
+  delete g_default_roles;
+}
+
+/**
+  Initialize the roles graph artifacts
+*/
+void roles_graph_init()
 {
   g_authid_to_vertex= new Role_index_map;
   g_granted_roles= new Granted_roles_graph;
 }
 
-void roles_delete_graph()
+/**
+  Delete the ACL role graph artifacts
+*/
+void roles_graph_delete()
 {
   delete g_granted_roles;
   delete g_authid_to_vertex;
+}
+
+/**
+  Initialize the roles caches that consist of the role graphs related
+  artifacts and default role map. In theory, default role map is
+  supposed to be a policy which has to be kept in sync with role graphs.
+*/
+void roles_init()
+{
+  roles_graph_init();
+  default_roles_init();
+}
+
+/**
+  Delete the role caches
+*/
+void roles_delete()
+{
+  roles_graph_delete();
+  default_roles_delete();
 }
 
 void dynamic_privileges_init()

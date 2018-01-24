@@ -2071,8 +2071,8 @@ static void clean_up(bool print_message)
   if (use_slave_mask)
     bitmap_free(&slave_error_mask);
   my_tz_free();
-  servers_free(1);
-  acl_free(1);
+  servers_free(true);
+  acl_free(true);
   grant_free();
   hostname_cache_free();
   range_optimizer_free();
@@ -2170,7 +2170,6 @@ static void clean_up(bool print_message)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
-  shutdown_acl_cache();
 
   persisted_variables_cache.cleanup();
 
