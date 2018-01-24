@@ -2244,7 +2244,7 @@ private:
                         ApiConnectRecord* const regApiPtr);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
 		    bool not_started, ApiConnectRecordPtr apiConnectptr);
-  void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
+  void sendAbortedAfterTimeout(Signal* signal, int Tcheck, ApiConnectRecordPtr apiConnectptr);
   void abort010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abort015Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void packLqhkeyreq(Signal* signal, 

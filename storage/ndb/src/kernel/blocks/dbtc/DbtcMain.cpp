@@ -326,7 +326,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     apiConnectptr.i = Tdata1;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     apiConnectptr.p->counter--;
-    sendAbortedAfterTimeout(signal, 1);
+    sendAbortedAfterTimeout(signal, 1, apiConnectptr);
     return;
   case TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS:
     jam();
@@ -9261,7 +9261,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       NODES THAT HAVE FAILED BEFORE SENDING ABORTED.             */
     /*------------------------------------------------------------------*/
     tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
-    sendAbortedAfterTimeout(signal, 0);
+    sendAbortedAfterTimeout(signal, 0, apiConnectptr);
     break;
   case CS_START_SCAN:{
     jam();
@@ -9382,7 +9382,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   return;
 }//Dbtc::timeOutFoundLab()
 
-void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
+void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * transP = apiConnectptr.p;
   if(transP->abortState == AS_IDLE){
