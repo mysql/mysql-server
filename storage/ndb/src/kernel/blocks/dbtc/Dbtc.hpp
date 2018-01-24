@@ -2292,7 +2292,7 @@ private:
   void sttorryLab(Signal* signal);
   void abortBeginErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void tabStateErrorLab(Signal* signal);
-  void wrongSchemaVersionErrorLab(Signal* signal);
+  void wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void noFreeConnectionErrorLab(Signal* signal);
   void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);

@@ -1975,7 +1975,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
 
   case 8:
     jam();
-    wrongSchemaVersionErrorLab(signal);
+    wrongSchemaVersionErrorLab(signal, apiConnectptr);
     return;
 
   case 9:
@@ -12516,7 +12516,7 @@ void Dbtc::tabStateErrorLab(Signal* signal)
   releaseAtErrorLab(signal);
 }//Dbtc::tabStateErrorLab()
 
-void Dbtc::wrongSchemaVersionErrorLab(Signal* signal) 
+void Dbtc::wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   const TcKeyReq * const tcKeyReq = (TcKeyReq *)&signal->theData[0];
 
