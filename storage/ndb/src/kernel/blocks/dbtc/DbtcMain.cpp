@@ -3040,6 +3040,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   const UintR TtabMaxIndex = ctabrecFilesize;
 
   ttransid_ptr = 6; 
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = TapiIndex;
   if (TapiIndex >= TapiMaxIndex) {
     releaseSections(handle);
