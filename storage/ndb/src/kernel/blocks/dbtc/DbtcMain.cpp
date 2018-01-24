@@ -10707,7 +10707,7 @@ Dbtc::get_transid_fail_bucket(Uint32 transid1)
 }
 
 void
-Dbtc::insert_transid_fail_hash(Uint32 transid1)
+Dbtc::insert_transid_fail_hash(Uint32 transid1, ApiConnectRecordPtr const apiConnectptr)
 {
   Uint32 bucket = get_transid_fail_bucket(transid1);
   apiConnectptr.p->nextApiConnect = ctransidFailHash[bucket];
@@ -11043,7 +11043,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
      * it in hash table for transaction records in TC take over.
      */
     seizeApiConnectFail(signal, apiConnectptr);
-    insert_transid_fail_hash(transid1);
+    insert_transid_fail_hash(transid1, apiConnectptr);
     initApiConnectFail(signal,
                        transid1,
                        transid2,
