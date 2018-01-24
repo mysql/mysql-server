@@ -7686,7 +7686,9 @@ void Dbtc::execLQHKEYREF(Signal* signal)
      *-----------------------------------------------------------------------*/
     Uint32 errCode = terrorCode = lqhKeyRef->errorCode;
     TcConnectRecord * const regTcPtr = tcConnectptr.p;
-    if (regTcPtr->tcConnectstate == OS_OPERATING) {
+    if (regTcPtr->tcConnectstate == OS_OPERATING)
+    {
+      ApiConnectRecordPtr apiConnectptr;
       Uint32 save = apiConnectptr.i = regTcPtr->apiConnect;
       c_apiConnectRecordPool.getPtr(apiConnectptr);
       ApiConnectRecord * const regApiPtr = apiConnectptr.p;
