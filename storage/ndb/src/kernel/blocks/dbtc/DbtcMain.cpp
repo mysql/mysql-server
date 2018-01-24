@@ -18236,7 +18236,7 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
 
   if (compare_transid(regApiPtr->transid, indxAttrInfo->transId) == false)
   {
-    TCKEY_abort(signal, 19, apiConnectptr);
+    TCKEY_abort(signal, 19, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
   }
 
