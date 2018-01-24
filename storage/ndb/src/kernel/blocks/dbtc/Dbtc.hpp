@@ -2270,7 +2270,7 @@ private:
                                 Uint32 maxInstanceId);
   void ndbsttorry010Lab(Signal* signal);
   void commit020Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void complete010Lab(Signal* signal);
+  void complete010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseAtErrorLab(Signal* signal);
   void seizeDatabuferrorLab(Signal* signal);
   void appendToSectionErrorLab(Signal* signal);

@@ -279,13 +279,16 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   }
   case TcContinueB::ZSEND_COMPLETE_LOOP:
+  {
     jam();
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     tcConnectptr.i = Tdata1;
     tcConnectRecord.getPtr(tcConnectptr);
-    complete010Lab(signal);
+    complete010Lab(signal, apiConnectptr);
     return;
+  }
   case TcContinueB::ZHANDLE_FAILED_API_NODE:
     jam();
     handleFailedApiNode(signal, Tdata0, Tdata1);
@@ -6602,7 +6605,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
 
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, localCopyPtr.p->tcConnect);
   ndbrequire( tcConList.first(tcConnectptr));
-  complete010Lab(signal);
+  complete010Lab(signal, apiConnectptr);
   return;
 
 }//Dbtc::execCOMMITTED()
@@ -6834,7 +6837,7 @@ void Dbtc::unlinkApiConnect(Ptr<GcpRecord> gcpPtr,
   }//if
 }//Dbtc::unlinkApiConnect()
 
-void Dbtc::complete010Lab(Signal* signal) 
+void Dbtc::complete010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
