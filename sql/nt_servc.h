@@ -10,9 +10,11 @@
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
 
-  Modifications copyright (c) 2000, 2017. Oracle and/or its affiliates.
+  Modifications copyright (c) 2000, 2018. Oracle and/or its affiliates.
   All rights reserved.
 */
+
+#include <windows.h>
 
 // main application thread
 typedef void (*THREAD_FC)(void *);

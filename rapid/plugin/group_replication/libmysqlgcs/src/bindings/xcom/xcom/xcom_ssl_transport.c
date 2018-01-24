@@ -25,8 +25,10 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wolfssl_fix_namespace_pollution_pre.h>
+
 #include <openssl/dh.h>
 #include <openssl/opensslv.h>
+
 #include <wolfssl_fix_namespace_pollution.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
@@ -34,8 +36,11 @@
 #include "my_compiler.h"
 #endif
 #include <wolfssl_fix_namespace_pollution_pre.h>
+
 #include "openssl/engine.h"
+
 #include <wolfssl_fix_namespace_pollution.h>
+
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"

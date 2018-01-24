@@ -29,8 +29,10 @@
 #include <winsock2.h>
 #endif  // WIN32
 #include <wolfssl_fix_namespace_pollution_pre.h>
+
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+
 #include <wolfssl_fix_namespace_pollution.h>
 #ifdef __cplusplus
 extern "C" {
