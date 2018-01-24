@@ -11905,6 +11905,7 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
     warningReport(signal, 12);
     return;
   }//if
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
   if (apiConnectptr.p->apiConnectstate != CS_WAIT_COMPLETE_CONF) {
