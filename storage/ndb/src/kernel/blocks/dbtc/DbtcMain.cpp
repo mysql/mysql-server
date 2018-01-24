@@ -15033,6 +15033,7 @@ void Dbtc::initApiConnect(Signal* signal)
 {
   Uint32 tiacTmp;
   Uint32 guard4;
+  ApiConnectRecordPtr apiConnectptr;
 
   tiacTmp = capiConnectFilesize / 3;
   ndbrequire(tiacTmp > 0);
