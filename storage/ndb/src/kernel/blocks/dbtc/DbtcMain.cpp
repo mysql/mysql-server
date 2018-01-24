@@ -11216,6 +11216,7 @@ void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd)
   while (tcNodeFailptr.p->currentHashIndexTakeOver < TRANSID_FAIL_HASH_SIZE)
   {
     jam();
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = 
         ctransidFailHash[tcNodeFailptr.p->currentHashIndexTakeOver];
     if (apiConnectptr.i != RNIL) {
@@ -11230,7 +11231,7 @@ void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd)
       ctransidFailHash[tcNodeFailptr.p->currentHashIndexTakeOver] = 
         apiConnectptr.p->nextApiConnect;
       tcNodeFailptr.p->handledOneTransaction = true;
-      completeTransAtTakeOverDoOne(signal, TtakeOverInd);
+      completeTransAtTakeOverDoOne(signal, TtakeOverInd, apiConnectptr);
       // One transaction taken care of, return from this function
       // and wait for the next CONTINUEB to continue processing
       break;
@@ -11368,7 +11369,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
   return;
 }//Dbtc::completeTransAtTakeOverDoLast()
 
-void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
+void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd, ApiConnectRecordPtr const apiConnectptr)
 {
   apiConnectptr.p->takeOverRec = (Uint8)tcNodeFailptr.i;
   apiConnectptr.p->takeOverInd = TtakeOverInd;
