@@ -65,8 +65,7 @@ void Dbtc::initRecords()
   void *p;
 #if defined(USE_INIT_GLOBAL_VARIABLES)
   {
-    void* tmp[] = { &apiConnectptr, 
-		    &tcConnectptr,
+    void* tmp[] = { &tcConnectptr,
 		    &hostptr,
 		    &timeOutptr,
 		    &scanFragptr, 

@@ -7312,7 +7312,11 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
     warningReport(signal, 28);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr))
+  {
+    warningReport(signal, 28);
+    return;
+  }
 
   UintR Tdata1 = apiConnectptr.p->transid[0] - ref->transId[0];
   UintR Tdata2 = apiConnectptr.p->transid[1] - ref->transId[1];

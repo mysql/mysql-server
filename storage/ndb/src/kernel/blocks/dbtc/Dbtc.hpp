@@ -2368,7 +2368,6 @@ private:
 
 
   ApiConnectRecord_pool c_apiConnectRecordPool;
-  ApiConnectRecordPtr apiConnectptr;
   UintR capiConnectFilesize;
 
   TcConnectRecord_pool tcConnectRecord;
