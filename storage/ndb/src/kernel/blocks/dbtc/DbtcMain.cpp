@@ -324,13 +324,16 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   }
   case TcContinueB::ZABORT_TIMEOUT_BREAK:
+  {
     jam();
     tcConnectptr.i = Tdata0;
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata1;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     apiConnectptr.p->counter--;
     sendAbortedAfterTimeout(signal, 1, apiConnectptr);
     return;
+  }
   case TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS:
     jam();
     removeMarkerForFailedAPI(signal, Tdata0, Tdata1);
@@ -379,13 +382,18 @@ void Dbtc::execCONTINUEB(Signal* signal)
     return;
   }
   case TcContinueB::DelayTCKEYCONF:
+  {
     jam();
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     sendtckeyconf(signal, Tdata1, apiConnectptr);
     return;
+  }
   case TcContinueB::ZSEND_FIRE_TRIG_REQ:
+  {
     jam();
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     {
@@ -410,6 +418,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
       checkWaitFireTrigConfDone(signal, apiConnectptr);
     }
     return;
+  }
   case TcContinueB::ZSTART_FRAG_SCANS:
   {
     jam();
