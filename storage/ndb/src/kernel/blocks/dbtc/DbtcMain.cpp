@@ -7561,8 +7561,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
     
     sendApiLateCommitSignal(signal, localApiConnectptr);
   }
-  apiConnectptr = localApiConnectptr;
-  releaseTransResources(signal, apiConnectptr);
+  releaseTransResources(signal, localApiConnectptr);
   CRASH_INSERTION(8054);
 }//Dbtc::execCOMPLETED()
 
