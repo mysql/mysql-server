@@ -11051,7 +11051,8 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
                        reqinfo,
                        applRef,
                        gci,
-                       nodeId);
+                       nodeId,
+                       apiConnectptr);
   }
 
   if(apiConnectptr.p->ndbapiBlockref == 0 && applRef != 0)
@@ -12035,7 +12036,8 @@ void Dbtc::initApiConnectFail(Signal* signal,
                               Uint32 reqinfo,
                               BlockReference applRef,
                               Uint64 gci,
-                              NodeId nodeId)
+                              NodeId nodeId,
+                              ApiConnectRecordPtr const apiConnectptr)
 {
   apiConnectptr.p->transid[0] = transid1;
   apiConnectptr.p->transid[1] = transid2;
