@@ -1,7 +1,3 @@
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
-CONNECTION_TYPE
-Socket
-0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }

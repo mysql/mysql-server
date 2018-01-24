@@ -5,19 +5,19 @@
 
 if ($dont_reset_global_status_variables != 1)
 {
-  let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions';
-  source include/wait_condition_or_abort.inc;
-
   if ($MYSQLXGLOBALRESET_DIR == '')
   {
     skip Mysqlx global status variables reset component not available.;
   }
 
   INSTALL COMPONENT "file://component_mysqlx_global_reset";
-  if (`SELECT mysqlx_reset_global_status_variables() != 1`)
-  {
-    die Unable to reset global status variables for mysqlx!;
-  }
+
+# If there are active connections, the 'mysqlx_reset_global_status_variables'
+# udf is going to fail (return '0'). Lets wait until the command is executed
+# successful (all old connections disconnected)
+  let $wait_condition= SELECT mysqlx_reset_global_status_variables() = 1;
+  source include/wait_condition_or_abort.inc;
+
   UNINSTALL COMPONENT "file://component_mysqlx_global_reset";
 }
 
