@@ -18270,6 +18270,7 @@ Dbtc::saveINDXKEYINFO(Signal* signal,
     ndbout_c("Dbtc::saveINDXKEYINFO: Failed to seize buffer for KeyInfo\n");
 #endif
     // Abort transaction
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = indexOp->connectionIndex;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     releaseIndexOperation(apiConnectptr.p, indexOp);
@@ -18312,6 +18313,7 @@ Dbtc::saveINDXATTRINFO(Signal* signal,
 #ifdef VM_TRACE
     ndbout_c("Dbtc::saveINDXATTRINFO: Failed to seize buffer for attrInfo\n");
 #endif
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = indexOp->connectionIndex;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     releaseIndexOperation(apiConnectptr.p, indexOp);
