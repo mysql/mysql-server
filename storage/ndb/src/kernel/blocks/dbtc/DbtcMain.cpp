@@ -16285,6 +16285,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 
     while(pos < limit)
     {
+      ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = pos;
       c_apiConnectRecordPool.getPtr(apiConnectptr);
       /* Following code mostly similar to that for NdbInfo transactions table */
