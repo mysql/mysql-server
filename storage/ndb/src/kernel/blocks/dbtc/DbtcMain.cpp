@@ -1455,6 +1455,7 @@ Dbtc::handleFailedApiNode(Signal* signal,
 {
   UintR TloopCount = 0;
   arrGuard(TapiFailedNode, MAX_NODES);
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = TapiConnectPtr;
   do {
     c_apiConnectRecordPool.getPtr(apiConnectptr);
