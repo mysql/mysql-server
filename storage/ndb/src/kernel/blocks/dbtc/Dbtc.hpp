@@ -2261,7 +2261,7 @@ private:
                         Uint32 instanceId,
                         Uint32 failedNodeId);
   void toCompleteHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void toCommitHandlingLab(Signal* signal);
+  void toCommitHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void toAbortHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abortErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void nodeTakeOverCompletedLab(Signal* signal,
