@@ -494,11 +494,11 @@ void Dbtc::execCONTINUEB(Signal* signal)
   }//switch
 }
 
-void Dbtc::execDIGETNODESREF(Signal* signal) 
+void Dbtc::execDIGETNODESREF(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   jamEntry();
   terrorCode = signal->theData[1];
-  releaseAtErrorLab(signal);
+  releaseAtErrorLab(signal, apiConnectptr);
 }
 
 void Dbtc::execINCL_NODEREQ(Signal* signal) 
@@ -1956,12 +1956,12 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 4:
     jam();
     terrorCode = ZERO_KEYLEN_ERROR;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
   case 5:
     jam();
     terrorCode = ZNO_AI_WITH_UPDATE;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
   case 6:
     jam();
@@ -1970,7 +1970,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
 
   case 7:
     jam();
-    tabStateErrorLab(signal);
+    tabStateErrorLab(signal, apiConnectptr);
     return;
 
   case 8:
@@ -1981,7 +1981,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 9:
     jam();
     terrorCode = ZSTATE_ERROR;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
 
   case 10:
@@ -1992,13 +1992,13 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 11:
     jam();
     terrorCode = ZMORE_AI_IN_TCKEYREQ_ERROR;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
 
   case 12:
     jam();
     terrorCode = ZSIMPLE_READ_WITHOUT_AI;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
 
   case 13:
@@ -2025,7 +2025,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 15:
     jam();
     terrorCode = ZSCAN_NODE_ERROR;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
 
   case 16:
@@ -2069,7 +2069,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
 
   case 24:
     jam();
-    appendToSectionErrorLab(signal);
+    appendToSectionErrorLab(signal, apiConnectptr);
     return;
 
   case 25:
@@ -2184,13 +2184,13 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 47:
     jam();
     terrorCode = apiConnectptr.p->returncode;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
 
   case 48:
     jam();
     terrorCode = ZCOMMIT_TYPE_ERROR;
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
 
   case 49:
@@ -2277,7 +2277,7 @@ start_failure:
 
   case 58:{
     jam();
-    releaseAtErrorLab(signal);
+    releaseAtErrorLab(signal, apiConnectptr);
     return;
   }
 
@@ -2514,7 +2514,7 @@ void Dbtc::tckeyreq020Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
                         wordsInSignal))
   {
     jam();
-    appendToSectionErrorLab(signal);
+    appendToSectionErrorLab(signal, apiConnectptr);
     return;
   }
   Tlen+= wordsInSignal;
@@ -2616,7 +2616,7 @@ void Dbtc::execATTRINFO(Signal* signal)
                           Tlength))
     {
       DEBUG("No more section segments available");
-      appendToSectionErrorLab(signal);
+      appendToSectionErrorLab(signal, apiConnectptr);
       return;
     }//if
 
@@ -3256,7 +3256,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       jam();
       releaseSections(handle);
       terrorCode = ZSEIZE_API_COPY_ERROR;
-      releaseAtErrorLab(signal);
+      releaseAtErrorLab(signal, apiConnectptr);
       return;
     }
     seizeApiConnectCopy(signal, apiConnectptr.p);
@@ -3581,7 +3581,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     if (!ok)
     {
       jam();
-      appendToSectionErrorLab(signal);
+      appendToSectionErrorLab(signal, apiConnectptr);
       return;
     }
                    
@@ -3595,7 +3595,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       if (!ok)
       {
         jam();
-        appendToSectionErrorLab(signal);
+        appendToSectionErrorLab(signal, apiConnectptr);
         return;
       }
     }
@@ -3953,7 +3953,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
   UintR TerrorIndicator = signal->theData[0];
   jamEntry();
   if (TerrorIndicator != 0) {
-    execDIGETNODESREF(signal);
+    execDIGETNODESREF(signal, apiConnectptr);
     return;
   }
   
@@ -4196,7 +4196,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
   {
     ndbassert(false);
     signal->theData[1] = 626;
-    execDIGETNODESREF(signal);
+    execDIGETNODESREF(signal, apiConnectptr);
     return;
   }
 
@@ -4207,7 +4207,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
   {
     ndbassert(false);
     signal->theData[1] = 626;
-    execDIGETNODESREF(signal);
+    execDIGETNODESREF(signal, apiConnectptr);
     return;
   }
 
@@ -5032,6 +5032,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
       return;
     }//if
     
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = apiConnectPtr;
     c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
     ApiConnectRecord * transP = apiConnectptr.p;
@@ -5069,6 +5070,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     }
 
     /* No more TransIdAI will arrive, abort */
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = indexOp->connectionIndex;
     c_apiConnectRecordPool.getPtr(apiConnectptr);
 
@@ -12510,10 +12512,10 @@ void Dbtc::execTC_CLOPSIZEREQ(Signal* signal)
 /* ######################################################################### */
 /* #######                        ERROR MODULE                       ####### */
 /* ######################################################################### */
-void Dbtc::tabStateErrorLab(Signal* signal) 
+void Dbtc::tabStateErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   terrorCode = ZSTATE_ERROR;
-  releaseAtErrorLab(signal);
+  releaseAtErrorLab(signal, apiConnectptr);
 }//Dbtc::tabStateErrorLab()
 
 void Dbtc::wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
@@ -12542,19 +12544,13 @@ void Dbtc::aiErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
   abortErrorLab(signal, apiConnectptr);
 }//Dbtc::aiErrorLab()
 
-void Dbtc::seizeDatabuferrorLab(Signal* signal) 
+void Dbtc::appendToSectionErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   terrorCode = ZGET_DATAREC_ERROR;
-  releaseAtErrorLab(signal);
-}//Dbtc::seizeDatabuferrorLab()
-
-void Dbtc::appendToSectionErrorLab(Signal* signal)
-{
-  terrorCode = ZGET_DATAREC_ERROR;
-  releaseAtErrorLab(signal);
+  releaseAtErrorLab(signal, apiConnectptr);
 }//Dbtc::appendToSectionErrorLab
 
-void Dbtc::releaseAtErrorLab(Signal* signal) 
+void Dbtc::releaseAtErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ptrGuard(tcConnectptr);
   tcConnectptr.p->tcConnectstate = OS_ABORTING;

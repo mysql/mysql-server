@@ -1816,7 +1816,7 @@ private:
   void execSEND_PACKED(Signal* signal);
   void execCOMPLETED(Signal* signal);
   void execCOMMITTED(Signal* signal);
-  void execDIGETNODESREF(Signal* signal);
+  void execDIGETNODESREF(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void execDIVERIFYCONF(Signal* signal);
   void execDIH_SCAN_TAB_REF(Signal* signal,
                             ScanRecordPtr scanptr,
@@ -2277,9 +2277,8 @@ private:
   void ndbsttorry010Lab(Signal* signal);
   void commit020Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void complete010Lab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void releaseAtErrorLab(Signal* signal);
-  void seizeDatabuferrorLab(Signal* signal);
-  void appendToSectionErrorLab(Signal* signal);
+  void releaseAtErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void appendToSectionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void scanKeyinfoLab(Signal* signal, CacheRecord*, ApiConnectRecordPtr);
   void scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr apiConnectptr);
   void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
@@ -2291,7 +2290,7 @@ private:
   void intstartphase3x010Lab(Signal* signal);
   void sttorryLab(Signal* signal);
   void abortBeginErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void tabStateErrorLab(Signal* signal);
+  void tabStateErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void noFreeConnectionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
