@@ -1954,7 +1954,7 @@ private:
   void remove_from_transid_fail_hash(Signal *signal, Uint32 transid1);
   Uint32 get_tc_fail_bucket(Uint32 transid1, Uint32 tcOprec);
   void insert_tc_fail_hash(Uint32 transid1, Uint32 tcOprec);
-  void remove_transaction_from_tc_fail_hash(Signal *signal);
+  void remove_transaction_from_tc_fail_hash(Signal *signal, ApiConnectRecord* regApiPtr);
 
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal, ApiConnectRecordPtr apiConnectptr);

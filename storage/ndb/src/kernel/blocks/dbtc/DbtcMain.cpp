@@ -10842,11 +10842,11 @@ Dbtc::findTcConnectFail(Signal* signal,
   return false;
 }
 
-void Dbtc::remove_transaction_from_tc_fail_hash(Signal *signal)
+void Dbtc::remove_transaction_from_tc_fail_hash(Signal *signal, ApiConnectRecord* const regApiPtr)
 {
   TcConnectRecordPtr remTcConnectptr;
 
-  remTcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
+  remTcConnectptr.i = regApiPtr->tcConnect.getFirst();
   while (remTcConnectptr.i != RNIL)
   {
     jam();
@@ -10854,7 +10854,7 @@ void Dbtc::remove_transaction_from_tc_fail_hash(Signal *signal)
     TcConnectRecordPtr prevListptr;
     tcConnectRecord.getPtr(remTcConnectptr);
     bool found = false;
-    Uint32 bucket = get_tc_fail_bucket(apiConnectptr.p->transid[0],
+    Uint32 bucket = get_tc_fail_bucket(regApiPtr->transid[0],
                                        remTcConnectptr.p->tcOprec);
     prevListptr.i = RNIL;
     loopTcConnectptr.i = ctcConnectFailHash[bucket];
@@ -11116,7 +11116,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
                             "this node has MaxNoOfConcurrentOperations = %u",
                             ctcConnectFailCount);
         tcNodeFailptr.p->takeOverFailed = true;
-        remove_transaction_from_tc_fail_hash(signal);
+        remove_transaction_from_tc_fail_hash(signal, apiConnectptr.p);
         releaseMarker(apiConnectptr.p);
         remove_from_transid_fail_hash(signal, transid1);
         releaseTakeOver(signal, apiConnectptr);
