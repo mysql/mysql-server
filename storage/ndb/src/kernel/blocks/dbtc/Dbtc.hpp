@@ -1975,7 +1975,8 @@ private:
                           Uint32 reqinfo,
                           BlockReference applRef,
                           Uint64 gci,
-                          NodeId nodeId);
+                          NodeId nodeId,
+                          ApiConnectRecordPtr apiConnectptr);
   bool findTcConnectFail(Signal* signal,
                          Uint32 transid1,
                          Uint32 transid2,

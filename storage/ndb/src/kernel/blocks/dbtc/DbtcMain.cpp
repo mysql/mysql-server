@@ -10994,7 +10994,8 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
                        reqinfo,
                        applRef,
                        gci,
-                       nodeId);
+                       nodeId,
+                       apiConnectptr);
   }
   else
   {
@@ -12119,7 +12120,8 @@ void Dbtc::initApiConnectFail(Signal* signal,
                                reqinfo,
                                applRef,
                                gci,
-                               nodeId);
+                               nodeId,
+                               apiConnectptr);
             return;
           }
         }
@@ -12285,7 +12287,8 @@ void Dbtc::updateApiStateFail(Signal* signal,
                               Uint32 reqinfo,
                               BlockReference applRef,
                               Uint64 gci,
-                              NodeId nodeId)
+                              NodeId nodeId,
+                              ApiConnectRecordPtr const apiConnectptr)
 {
   if(LqhTransConf::getMarkerFlag(reqinfo))
   {
