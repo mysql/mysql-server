@@ -2895,6 +2895,20 @@ double Item_sum_variance::val_real()
   {
     if (wf_common_init())
       return 0.0;
+
+    if (m_window->dont_aggregate())
+    {
+      if (count <= sample)
+      {
+        null_value= true;
+        return 0.0;
+      }
+
+      null_value= false;
+      return  variance_fp_recurrence_result(recurrence_s, recurrence_s2, count,
+                                            sample, optimize);
+    }
+
     /*
       For a group aggregate function, add() is called by Aggregator* classes;
       for a window function, which does not use Aggregator, it has be called
