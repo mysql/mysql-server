@@ -22,17 +22,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+// Implements the functions defined in ndb_schema_object.h
 #include "sql/ndb_schema_object.h"
+
+#include <mutex>
 
 #include "map_helpers.h"
 #include "mysql/service_mysql_alloc.h"
 #include "template_utils.h"
 
-extern mysql_mutex_t ndbcluster_mutex;
-
 class Ndb_schema_objects
 {
 public:
+  // Mutex protecting the unordered map
+  std::mutex m_lock;
   malloc_unordered_map<std::string, NDB_SCHEMA_OBJECT *> m_hash;
   Ndb_schema_objects()
     : m_hash(PSI_INSTRUMENT_ME)
@@ -49,7 +52,8 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
   DBUG_ENTER("ndb_get_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  mysql_mutex_lock(&ndbcluster_mutex);
+  std::lock_guard<std::mutex> lock_hash(ndb_schema_objects.m_lock);
+
   while (!(ndb_schema_object= find_or_nullptr(ndb_schema_objects.m_hash, key)))
   {
     if (!create_if_not_exists)
@@ -74,7 +78,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     mysql_cond_init(PSI_INSTRUMENT_ME, &ndb_schema_object->cond);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, false);
-    //slock_bitmap is intially cleared due to 'ZEROFILL-malloc'
+    //slock_bitmap is initially cleared due to 'ZEROFILL-malloc'
     break;
   }
   if (ndb_schema_object)
@@ -82,7 +86,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     ndb_schema_object->use_count++;
     DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->use_count));
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
+
   DBUG_RETURN(ndb_schema_object);
 }
 
@@ -93,7 +97,8 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   DBUG_ENTER("ndb_free_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", (*ndb_schema_object)->key));
 
-  mysql_mutex_lock(&ndbcluster_mutex);
+  std::lock_guard<std::mutex> lock_hash(ndb_schema_objects.m_lock);
+
   if (!--(*ndb_schema_object)->use_count)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
@@ -107,20 +112,19 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
   DBUG_VOID_RETURN;
 }
 
 //static
 void NDB_SCHEMA_OBJECT::check_waiters(const MY_BITMAP &new_participants)
 {
-  mysql_mutex_lock(&ndbcluster_mutex);
+  std::lock_guard<std::mutex> lock_hash(ndb_schema_objects.m_lock);
+
   for (const auto &key_and_value : ndb_schema_objects.m_hash)
   {
     NDB_SCHEMA_OBJECT *schema_object = key_and_value.second;
     schema_object->check_waiter(new_participants);
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 void
