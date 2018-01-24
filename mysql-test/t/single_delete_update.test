@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Single table specific update/delete tests (mysql_update and mysql_delete)
 #
@@ -147,8 +142,7 @@ DROP TABLE t2;
 --echo # quick select is Index Merge, should use filesort
 --echo #
 
-CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2))
-ENGINE= MyISAM;
+CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 FLUSH STATUS;
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -373,8 +367,7 @@ DROP TABLE t2;
 --echo # quick select is Index Merge, should use filesort
 --echo #
 
-CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2))
-ENGINE= MyISAM;
+CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 
 FLUSH STATUS;

@@ -7,7 +7,7 @@ t1	CREATE TABLE `t1` (
   `c` char(3) DEFAULT NULL,
   `e` enum('abc','def','ghi') DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('abc', 'de', 'ghi', 'jkl');
 insert into t1 values ('abc ', 'de ', 'ghi', 'jkl ');
 insert into t1 values ('abc    ', 'd  ', 'ghi', 'jkl    ');
@@ -30,7 +30,7 @@ binary v='a '
 1
 insert into t1 values('a');
 alter table t1 add primary key (v);
-ERROR 23000: Duplicate entry 'a' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'a ' for key 'PRIMARY'
 drop table t1;
 create table t1 (v varbinary(20));
 insert into t1 values('a');
@@ -54,6 +54,9 @@ insert into t1 values ("VSS");
 insert into t1 values ("Some samples");
 insert into t1 values ("Bar foo");
 insert into t1 values ("Bye");
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -80,10 +83,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	257	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	257	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(255);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -110,10 +116,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	258	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	258	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(256);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -140,10 +149,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	259	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	259	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(257);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -170,10 +182,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	260	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	260	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(258);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -200,10 +215,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	261	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	261	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(259);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -230,10 +248,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	262	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	262	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(258);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -260,10 +281,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	261	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	261	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(257);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -290,10 +314,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	260	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	260	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(256);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -320,10 +347,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	259	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	259	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(255);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -350,10 +380,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	258	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	258	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(254);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -380,7 +413,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	257	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	v	v	257	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 alter table t1 change v v varchar(253);
@@ -412,7 +445,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` = 'This is a test') order by `test`.`t1`.`v`
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	v	v	13	NULL	2	100.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	range	v	v	13	NULL	3	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where (`test`.`t1`.`v` like 'S%') order by `test`.`t1`.`v`
 drop table t1;
@@ -439,21 +472,21 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` varchar(65500) DEFAULT NULL,
   KEY `index1` (`f1`(10))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 modify f1 varchar(255);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` varchar(255) DEFAULT NULL,
   KEY `index1` (`f1`(10))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 modify f1 tinytext;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` tinytext,
   KEY `index1` (`f1`(10))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(f1 VARCHAR(100) DEFAULT 'test');
