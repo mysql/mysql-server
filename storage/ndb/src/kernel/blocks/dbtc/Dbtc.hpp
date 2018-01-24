@@ -2260,7 +2260,7 @@ private:
   void startTakeOverLab(Signal* signal,
                         Uint32 instanceId,
                         Uint32 failedNodeId);
-  void toCompleteHandlingLab(Signal* signal);
+  void toCompleteHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void toCommitHandlingLab(Signal* signal);
   void toAbortHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abortErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);

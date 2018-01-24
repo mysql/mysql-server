@@ -9251,7 +9251,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*--------------------------------------------------------------------*/
     tabortInd = ZCOMMIT_SETUP;
     setupFailData(signal, apiConnectptr.p);
-    toCompleteHandlingLab(signal);
+    toCompleteHandlingLab(signal, apiConnectptr);
     return;
   case CS_ABORTING:
     jam();
@@ -9360,7 +9360,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
       apiConnectptr.p->currentReplicaNo++;
     }//if
     tcurrentReplicaNo = (Uint8)Z8NIL;
-    toCompleteHandlingLab(signal);
+    toCompleteHandlingLab(signal, apiConnectptr);
     return;
   case CS_FAIL_PREPARED:
   case CS_FAIL_COMMITTING:
@@ -11380,7 +11380,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
     commitGciHandling(signal, apiConnectptr.p->globalcheckpointid, apiConnectptr);
-    toCompleteHandlingLab(signal);
+    toCompleteHandlingLab(signal, apiConnectptr);
     return;
   case CS_FAIL_COMMITTING:
     jam();
@@ -11854,7 +11854,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
         tcConnectRecord.getPtr(tcConnectptr);
         tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
         apiConnectptr.p->currentReplicaNo = tcurrentReplicaNo;
-        toCompleteHandlingLab(signal);
+        toCompleteHandlingLab(signal, apiConnectptr);
         return;
       }//if
       apiConnectptr.p->currentTcConnect = tcConnectptr.i;
@@ -11914,10 +11914,10 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
   }//if
   tcConnectptr.p->tcConnectstate = OS_COMPLETED;
   tcurrentReplicaNo = (Uint8)Z8NIL;
-  toCompleteHandlingLab(signal);
+  toCompleteHandlingLab(signal, apiConnectptr);
 }//Dbtc::execCOMPLETECONF()
 
-void Dbtc::toCompleteHandlingLab(Signal* signal) 
+void Dbtc::toCompleteHandlingLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   do {
     if (tcurrentReplicaNo != (Uint8)Z8NIL) {
@@ -11994,8 +11994,6 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
             ApiConnectRecordPtr apiCopy = apiConnectptr;
             
             sendApiLateCommitSignal(signal, apiCopy);
-            
-            apiConnectptr = apiCopy;
           }
 
           releaseTransResources(signal, apiConnectptr);
