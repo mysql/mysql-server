@@ -1286,18 +1286,18 @@ void Dbtc::execAPI_FAILREQ(Signal* signal)
  * variants.
  */
 void
-Dbtc::set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed)
+Dbtc::set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed, ApiConnectRecord* const regApiPtr)
 {
   if (apiNodeFailed)
   {
     jam();
     capiConnectClosing[TapiFailedNode]++;
-    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_FAILED;
+    regApiPtr->apiFailState = ApiConnectRecord::AFS_API_FAILED;
   }
   else
   {
     jam();
-    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_DISCONNECTED;
+    regApiPtr->apiFailState = ApiConnectRecord::AFS_API_DISCONNECTED;
   }
 }
 
@@ -1320,7 +1320,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
      * immediate CONF when receiving multiple TCRELEASEREQ.
      */
     ndbrequire(apiNodeFailed);
-    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed, apiConnectptr.p);
     return true;
   }
 #ifdef VM_TRACE
@@ -1367,7 +1367,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
       releaseApiCon(signal, apiConnectptr.i);
     } else {
       jam();
-      set_api_fail_state(TapiFailedNode, apiNodeFailed);
+      set_api_fail_state(TapiFailedNode, apiNodeFailed, apiConnectptr.p);
     }//if
     break;
   case CS_WAIT_ABORT_CONF:
@@ -1384,7 +1384,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     // wait for before we can respond with API_FAILCONF.
     /*********************************************************************/
     jam();
-    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed, apiConnectptr.p);
     break;
   case CS_START_SCAN:
   {
@@ -1395,7 +1395,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     /*********************************************************************/
     jam();
 
-    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed, apiConnectptr.p);
 
     ScanRecordPtr scanPtr;
     scanPtr.i = apiConnectptr.p->apiScanRec;
@@ -1420,7 +1420,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     // break after checking this record.
     /*********************************************************************/
     jam();
-    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed, apiConnectptr.p);
     abort010Lab(signal, apiConnectptr);
     (*TloopCount) = 256;
     break;

@@ -1997,7 +1997,7 @@ private:
                                  Uint32 *TloopCount,
                                  Uint32 TapiFailedNode,
                                  bool apiNodeFailed);
-  void set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed);
+  void set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed, ApiConnectRecord* regApiPtr);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,
