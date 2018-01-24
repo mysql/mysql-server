@@ -147,10 +147,10 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
                             table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);
       if (host == 0)
         host= &percentile_character[0];
-      char *user= get_field(&tmp_mem,
+      const char *user= get_field(&tmp_mem,
                             table->field[MYSQL_DYNAMIC_PRIV_FIELD_USER]);
       if (user == nullptr)
-        user= "";
+        user= "\0";
       char *priv= get_field(&tmp_mem,
                             table->field[MYSQL_DYNAMIC_PRIV_FIELD_PRIV]);
       char *with_grant_option=
