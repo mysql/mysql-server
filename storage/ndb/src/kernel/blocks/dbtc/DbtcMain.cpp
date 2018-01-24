@@ -6584,6 +6584,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
   /* NEW API CONNECT RECORD.                               */
   /*-------------------------------------------------------*/
 
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr = localApiConnectptr;
   localCopyPtr = sendApiCommitAndCopy(signal, apiConnectptr);
 
