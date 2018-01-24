@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -105,6 +105,7 @@ static xcl::Column_metadata unwrap_column_metadata(
   column.length = column_data->length();
 
   column.flags = column_data->flags();
+  column.has_content_type = column_data->has_content_type();
   column.content_type = column_data->content_type();
 
   return column;
@@ -136,7 +137,7 @@ Query_result::Query_result(
     std::shared_ptr<Context> context)
 : m_protocol(protocol),
   m_holder(protocol.get()),
-  m_row(&m_metadata),
+  m_row(&m_metadata, context.get()),
   m_query_instances(query_instances),
   m_instance_id(m_query_instances->instances_fetch_begin()),
   m_context(context) {

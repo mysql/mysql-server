@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,8 @@ class Context {
   bool                  m_consume_all_notices { true };
   XProtocol::Client_id  m_client_id         { XCL_CLIENT_ID_NOT_VALID };
   XError                m_global_error;
+  // Default value equal to lenght of DateTime when no time part is present
+  std::uint32_t         m_datetime_length_discriminator = 10;
 };
 
 }  // namespace xcl
