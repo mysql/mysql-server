@@ -2280,7 +2280,7 @@ private:
   void releaseAtErrorLab(Signal* signal);
   void seizeDatabuferrorLab(Signal* signal);
   void appendToSectionErrorLab(Signal* signal);
-  void scanKeyinfoLab(Signal* signal, CacheRecord*);
+  void scanKeyinfoLab(Signal* signal, CacheRecord*, ApiConnectRecordPtr);
   void scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr apiConnectptr);
   void attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
   void aiErrorLab(Signal* signal);

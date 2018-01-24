@@ -2424,7 +2424,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   if (apiConnectptr.p->apiConnectstate == CS_START_SCAN)
   {
     jam();
-    scanKeyinfoLab(signal, regCachePtr);
+    scanKeyinfoLab(signal, regCachePtr, apiConnectptr);
     return;
   }
 
@@ -13139,7 +13139,7 @@ void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode, ApiConnectRecord* const
  * scanKeyinfoLab
  * Handle reception of KeyInfo for a Scan
  */
-void Dbtc::scanKeyinfoLab(Signal* signal, CacheRecord * const regCachePtr)
+void Dbtc::scanKeyinfoLab(Signal* signal, CacheRecord * const regCachePtr, ApiConnectRecordPtr const apiConnectptr)
 {
   /* Receive KEYINFO for a SCAN operation 
    * Note that old NDBAPI nodes sometimes send header-only KEYINFO signals
