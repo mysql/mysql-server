@@ -11132,7 +11132,8 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
                           tcOprec,
                           reqinfo,
                           transStatus,
-                          nodeId);
+                          nodeId,
+                          apiConnectptr.i);
       }
     }
   }
@@ -12162,10 +12163,11 @@ void Dbtc::initTcConnectFail(Signal* signal,
                              Uint32 tcOprec,
                              Uint32 reqinfo,
                              LqhTransConf::OperationStatus transStatus,
-                             NodeId nodeId)
+                             NodeId nodeId,
+                             Uint32 apiConnectPtr)
 {
   TcConnectRecord * regTcPtr = tcConnectptr.p;
-  regTcPtr->apiConnect = apiConnectptr.i;
+  regTcPtr->apiConnect = apiConnectPtr;
   regTcPtr->tcOprec = tcOprec;
   Uint32 replicaNo = LqhTransConf::getReplicaNo(reqinfo);
   for (Uint32 i = 0; i < MAX_REPLICAS; i++) {

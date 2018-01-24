@@ -1988,7 +1988,8 @@ private:
                          Uint32 tcOprec,
                          Uint32 reqinfo,
                          LqhTransConf::OperationStatus transStatus,
-                         NodeId nodeId);
+                         NodeId nodeId,
+                         Uint32 apiConnectPtr);
   void updateTcStateFail(Signal* signal,
                          Uint32 instanceKey,
                          Uint32 tcOprec,
