@@ -1750,11 +1750,9 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 3, JBB);
     return;
   }
-  else
-  {
-    jam();
-    apiConnectptr.i = tapiPointer;
-  }//if
+  jam();
+  ApiConnectRecordPtr apiConnectptr;
+  apiConnectptr.i = tapiPointer;
   c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
   if (apiConnectptr.p->apiConnectstate == CS_DISCONNECTED ||
       apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_DISCONNECTED)
