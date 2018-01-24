@@ -14256,6 +14256,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   jamEntry();
 
   SectionHandle handle(this, signal);
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = req->apiConnectPtr;
   if (apiConnectptr.i >= capiConnectFilesize) {
     jam();
