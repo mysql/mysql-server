@@ -18536,6 +18536,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   }
   const UintR TconnectIndex = indexOp->connectionIndex;
   ApiConnectRecord * const regApiPtr = c_apiConnectRecordPool.getPtr(TconnectIndex);
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.p = regApiPtr;
   apiConnectptr.i = TconnectIndex;
   switch(indexOp->indexOpState) {
