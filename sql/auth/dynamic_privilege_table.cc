@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -149,6 +149,8 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
         host= &percentile_character[0];
       char *user= get_field(&tmp_mem,
                             table->field[MYSQL_DYNAMIC_PRIV_FIELD_USER]);
+      if (user == nullptr)
+        user= "";
       char *priv= get_field(&tmp_mem,
                             table->field[MYSQL_DYNAMIC_PRIV_FIELD_PRIV]);
       char *with_grant_option=
