@@ -1916,7 +1916,8 @@ private:
                        TcConnectRecord * regTcPtr,
                        ApiConnectRecord* regApiPtr);
   Uint32 sendCompleteLqh(Signal* signal,
-                         TcConnectRecord * const regTcPtr);
+                         TcConnectRecord * const regTcPtr,
+                         ApiConnectRecord* const regApiPtr);
 
   void startSendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
 

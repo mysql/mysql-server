@@ -6851,7 +6851,7 @@ void Dbtc::complete010Lab(Signal* signal)
     /* ************ */
     /*  COMPLETE  < */
     /* ************ */
-    Tcount += sendCompleteLqh(signal, localTcConnectptr.p);
+    Tcount += sendCompleteLqh(signal, localTcConnectptr.p, apiConnectptr.p);
     if (tcConList.next(localTcConnectptr))
     {
       if (Tcount < 16 &&
@@ -6892,12 +6892,12 @@ void Dbtc::complete010Lab(Signal* signal)
 
 Uint32
 Dbtc::sendCompleteLqh(Signal* signal,
-                      TcConnectRecord * const regTcPtr)
+                      TcConnectRecord * const regTcPtr,
+                      ApiConnectRecord* const regApiPtr)
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
   Uint32 instanceKey = regTcPtr->lqhInstanceKey;
-  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
