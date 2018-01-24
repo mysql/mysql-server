@@ -6578,7 +6578,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
   /*-------------------------------------------------------*/
 
   apiConnectptr = localApiConnectptr;
-  localCopyPtr = sendApiCommitAndCopy(signal);
+  localCopyPtr = sendApiCommitAndCopy(signal, apiConnectptr);
 
   UintR Tlqhkeyconfrec = localCopyPtr.p->lqhkeyconfrec;
   localCopyPtr.p->counter = Tlqhkeyconfrec;
@@ -6673,10 +6673,8 @@ Dbtc::sendApiCommitSignal(Signal *signal, ApiConnectRecordPtr const apiConnectpt
 /*       SEND COMMIT DECISION TO THE API.                */
 /*-------------------------------------------------------*/
 Ptr<Dbtc::ApiConnectRecord>
-Dbtc::sendApiCommitAndCopy(Signal* signal)
+Dbtc::sendApiCommitAndCopy(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
-  ApiConnectRecordPtr regApiPtr = apiConnectptr;
-
   if (ERROR_INSERTED(8055))
   {
     /**
@@ -6686,7 +6684,7 @@ Dbtc::sendApiCommitAndCopy(Signal* signal)
      */
     signal->theData[0] = 9999;
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
-    Uint32 node = refToNode(regApiPtr.p->ndbapiBlockref);
+    Uint32 node = refToNode(apiConnectptr.p->ndbapiBlockref);
     signal->theData[0] = node;
     sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
 
@@ -6695,7 +6693,7 @@ Dbtc::sendApiCommitAndCopy(Signal* signal)
     goto err8055;
   }
 
-  sendApiCommitSignal(signal, regApiPtr);
+  sendApiCommitSignal(signal, apiConnectptr);
 
 err8055:
   Ptr<ApiConnectRecord> copyPtr;
@@ -6704,13 +6702,13 @@ err8055:
    * Unlink copy connect record from main connect record to allow main record 
    * re-use.
    */
-  copyPtr.i = regApiPtr.p->apiCopyRecord;
-  regApiPtr.p->apiCopyRecord = RNIL;
-  UintR TapiFailState = regApiPtr.p->apiFailState;
+  copyPtr.i = apiConnectptr.p->apiCopyRecord;
+  apiConnectptr.p->apiCopyRecord = RNIL;
+  UintR TapiFailState = apiConnectptr.p->apiFailState;
 
   c_counters.ccommitCount++;
   c_apiConnectRecordPool.getPtr(copyPtr);
-  copyApi(copyPtr, regApiPtr);
+  copyApi(copyPtr, apiConnectptr);
   if (TapiFailState == ApiConnectRecord::AFS_API_OK)
   {
     return copyPtr;
@@ -6718,7 +6716,7 @@ err8055:
   else
   {
     jam();
-    handleApiFailState(signal, regApiPtr.i);
+    handleApiFailState(signal, apiConnectptr.i);
     return copyPtr;
   }//if
 }//Dbtc::sendApiCommitAndCopy()
@@ -11849,7 +11847,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
 	  sendTCKEY_FAILCONF(signal, apiConnectptr.p);
 	} else {
           jam();
-          apiConnectptr = sendApiCommitAndCopy(signal);
+          apiConnectptr = sendApiCommitAndCopy(signal, apiConnectptr);
         }//if
         apiConnectptr.p->currentTcConnect = apiConnectptr.p->tcConnect.getFirst();
         tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
