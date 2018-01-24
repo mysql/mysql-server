@@ -9695,6 +9695,7 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
 
