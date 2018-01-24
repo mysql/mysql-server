@@ -2048,7 +2048,7 @@ private:
   void initialiseTcConnect(Signal* signal);
   void linkApiToGcp(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
   void linkGciInGcilist(Ptr<GcpRecord>);
-  void linkTcInConnectionlist(Signal* signal);
+  void linkTcInConnectionlist(Signal* signal, ApiConnectRecord* regApiPtr);
   void releaseAbortResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void releaseApiCon(Signal* signal, UintR aApiConnectPtr);
   void releaseApiConCopy(Signal* signal, ApiConnectRecordPtr apiConnectptr);

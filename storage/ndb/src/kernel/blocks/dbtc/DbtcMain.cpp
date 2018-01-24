@@ -11125,7 +11125,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
       {
         jam();
         seizeTcConnectFail(signal);
-        linkTcInConnectionlist(signal);
+        linkTcInConnectionlist(signal, apiConnectptr.p);
         insert_tc_fail_hash(transid1, tcOprec);
         initTcConnectFail(signal,
                           instanceKey,
@@ -15343,9 +15343,9 @@ void Dbtc::linkGciInGcilist(Ptr<GcpRecord> gcpPtr)
 /* ------------------------------------------------------------------------- */
 /* ------- LINK A TC CONNECT RECORD INTO THE API LIST OF TC CONNECTIONS  --- */
 /* ------------------------------------------------------------------------- */
-void Dbtc::linkTcInConnectionlist(Signal* signal) 
+void Dbtc::linkTcInConnectionlist(Signal* signal, ApiConnectRecord* const regApiPtr)
 {
-  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   tcConList.addLast(tcConnectptr);
   ndbrequire(tcConnectptr.p->nextList == RNIL);
 }//Dbtc::linkTcInConnectionlist()
