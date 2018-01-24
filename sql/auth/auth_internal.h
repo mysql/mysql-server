@@ -381,7 +381,7 @@ User_to_dynamic_privileges_map *get_dynamic_privileges_map();
 User_to_dynamic_privileges_map *
 swap_dynamic_privileges_map(User_to_dynamic_privileges_map *map);
 bool populate_roles_caches(THD *thd, TABLE_LIST * tablelst);
-void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
+void grant_role(ACL_USER *role, const ACL_USER *user,
                 bool with_admin_opt);
 void get_mandatory_roles(std::vector< Role_id > *mandatory_roles);
 extern std::vector<Role_id > *g_mandatory_roles;

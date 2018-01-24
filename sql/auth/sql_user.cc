@@ -2130,7 +2130,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
 
         if (result == 0 && not_granted)
         {
-          grant_role(thd, acl_role, acl_user, false);
+          grant_role(acl_role, acl_user, false);
           Auth_id_ref from_user= create_authid_from(role);
           Auth_id_ref to_user= create_authid_from(tmp_user_name);
           result=

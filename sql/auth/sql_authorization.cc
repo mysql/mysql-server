@@ -560,7 +560,6 @@ bool is_role_id(LEX_USER *authid)
 
   @see mysql_grant_role
 
-  @param thd Thread handler
   @param role A pointer to the role to be granted
   @param user A pointer to the user which will be granted
   @param with_admin_opt True if the user should have the ability to pass on the
@@ -568,8 +567,7 @@ bool is_role_id(LEX_USER *authid)
 
   @return
 */
-void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
-                                bool with_admin_opt)
+void grant_role(ACL_USER *role, const ACL_USER *user, bool with_admin_opt)
 {
   DBUG_ENTER("grant_role");
   bool is_added;
@@ -717,7 +715,7 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
         /* An invalid reference was encountered; just ignore it. */
         continue;
       }
-      grant_role(thd, acl_role, acl_user_to, ref.second);
+      grant_role(acl_role, acl_user_to, ref.second);
       Auth_id_ref authid_role= create_authid_from(acl_role);
       Auth_id_ref authid_user= create_authid_from(acl_user_to);
       ret= modify_role_edges_in_table(thd, edge_table, authid_role, authid_user,
@@ -3295,7 +3293,7 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
         DBUG_PRINT("info",("User %s@%s will inherit from %s@%s",
                            acl_user->user, acl_user->host.get_host(),
         role->user.str, role->host.str));
-        grant_role(thd, acl_role, acl_user, with_admin_opt);
+        grant_role(acl_role, acl_user, with_admin_opt);
         Auth_id_ref from_user= create_authid_from(role);
         Auth_id_ref to_user= create_authid_from(acl_user);
         errors= modify_role_edges_in_table(thd, table, from_user, to_user,
