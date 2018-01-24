@@ -4977,6 +4977,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
      * Ensure that we have the  necessary information 
      * to send a rollback to the client
      */
+    ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = apiIndex;
     ApiConnectRecord * const regApiPtr = c_apiConnectRecordPool.getPtr(apiIndex);
     apiConnectptr.p = regApiPtr;
