@@ -8146,6 +8146,7 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
     potentiallyBad= true;
   }
 
+  ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
   if (apiConnectptr.i >= capiConnectFilesize) {
     goto TC_ROLL_warning;
