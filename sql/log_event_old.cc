@@ -1350,7 +1350,9 @@ Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
   m_width = net_field_length(&ptr_after_width);
   DBUG_PRINT("debug", ("m_width=%lu", m_width));
   /* Avoid reading out of buffer */
-  if (m_width + (ptr_after_width - (const uchar *)buf) > event_len)
+  if (static_cast<unsigned int>(m_width +
+                                (ptr_after_width -
+                                (const uchar *)buf)) > event_len)
   {
     m_cols.bitmap= NULL;
     DBUG_VOID_RETURN;

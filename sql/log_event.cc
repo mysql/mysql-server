@@ -9608,7 +9608,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   m_width = net_field_length(&ptr_after_width);
   DBUG_PRINT("debug", ("m_width=%lu", m_width));
   /* Avoid reading out of buffer */
-  if ((ptr_after_width + (m_width + 7) / 8) - (uchar*)buf > event_len)
+  if (static_cast<unsigned int>((ptr_after_width +
+                                 (m_width + 7) / 8) -
+                                 (uchar*)buf) > event_len)
   {
     m_cols.bitmap= NULL;
     DBUG_VOID_RETURN;
