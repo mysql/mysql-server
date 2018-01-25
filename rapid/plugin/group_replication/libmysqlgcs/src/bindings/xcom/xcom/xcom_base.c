@@ -5076,14 +5076,14 @@ int	xcom_client_boot(connection_descriptor *fd, node_list *nl, uint32_t group_id
 	return retval;
 }
 
-
 int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force)
 {
 	int retval = 0;
+	int retry_count = 10; // Same as 'connection_attempts'
 	pax_msg p;
 	pax_msg *rp = 0;
 
-	for(;;){
+	do {
 		retval = (int)xcom_send_client_app_data(fd, a, force);
 		if(retval < 0)
 			return 0;
@@ -5110,7 +5110,11 @@ int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force)
 			G_WARNING("read failed");
 			return 0;
 		}
-	}
+	} while (--retry_count);
+	// Timeout after REQUEST_RETRY has been received 'retry_count' times
+	G_MESSAGE(
+	 "Request failed: maximum number of retries (10) has been exhausted.");
+	return 0;
 }
 
 int xcom_send_cfg_wait(connection_descriptor * fd, node_list *nl,
