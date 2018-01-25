@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -360,7 +360,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
     break;
   case SEND_MESSAGE_TOO_BIG:
     ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
-                               "Message to big in sendSignal", "");
+                               "Message too big in sendSignal", "");
     break;
   case SEND_UNKNOWN_NODE:
     ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
