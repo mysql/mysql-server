@@ -607,11 +607,11 @@ static void
 ndbcluster_binlog_log_query(handlerton*, THD *thd,
                             enum_binlog_command binlog_command,
                             const char *query, uint query_length,
-                            const char *db, const char *table_name)
+                            const char *db, const char*)
 {
   DBUG_ENTER("ndbcluster_binlog_log_query");
-  DBUG_PRINT("enter", ("db: %s  table_name: %s  query: %s",
-                       db, table_name, query));
+  DBUG_PRINT("enter", ("binlog_command: %d, db: '%s', query: '%s'",
+                       binlog_command, db, query));
 
   if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
   {
@@ -624,57 +624,64 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
     srand(1);
   }
 
-  enum SCHEMA_OP_TYPE type;
-  /**
-   * Don't have any table_id/_version to uniquely identify the 
-   *  schema operation. Set the special values 0/0 which allows
-   *  ndbcluster_log_schema_op() to produce its own unique ids.
-   */
-  const uint32 table_id= 0, table_version= 0;
-  switch (binlog_command)
-  {
-  case LOGCOM_CREATE_DB:
-    DBUG_PRINT("info", ("New database '%s' created", db));
-    type= SOT_CREATE_DB;
-    break;
+  Ndb_schema_dist_client schema_dist_client(thd);
 
-  case LOGCOM_ALTER_DB:
-    DBUG_PRINT("info", ("The database '%s' was altered", db));
-    type= SOT_ALTER_DB;
-    break;
+  switch (binlog_command) {
+    case LOGCOM_CREATE_DB: {
+      DBUG_PRINT("info", ("New database '%s' created", db));
+      const bool result = schema_dist_client.create_db(query, query_length, db);
+      if (!result) {
+        // NOTE! There is currently no way to report an error from this
+        // function, just log an error and proceed
+        ndb_log_error("Failed to distribute 'CREATE DATABASE %s'", db);
+      }
+    } break;
 
-  case LOGCOM_ACL_NOTIFY:
-    DBUG_PRINT("info", ("Privilege tables have been modified"));
-    type= SOT_GRANT;
-    if (!Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
-    {
-      DBUG_VOID_RETURN;
-    }
-    /*
-      NOTE! Grant statements with db set to NULL is very rare but
-      may be provoked by for example dropping the currently selected
-      database. Since ndbcluster_log_schema_op does not allow
-      db to be NULL(can't create a key for the ndb_schem_object nor
-      writeNULL to ndb_schema), the situation is salvaged by setting db
-      to the constant string "mysql" which should work in most cases.
+    case LOGCOM_ALTER_DB: {
+      DBUG_PRINT("info", ("The database '%s' was altered", db));
+      const bool result = schema_dist_client.alter_db(query, query_length, db);
+      if (!result) {
+        // NOTE! There is currently no way to report an error from this
+        // function, just log an error and proceed
+        ndb_log_error("Failed to distribute 'ALTER DATABASE %s'", db);
+      }
+    } break;
 
-      Interestingly enough this "hack" has the effect that grant statements
-      are written to the remote binlog in same format as if db would have
-      been NULL.
-    */
-    if (!db)
-      db = "mysql";
-    break;    
+    case LOGCOM_ACL_NOTIFY: {
+      DBUG_PRINT("info", ("Privilege tables have been modified"));
+      if (!Ndb_dist_priv_util::priv_tables_are_in_ndb(thd)) {
+        DBUG_VOID_RETURN;
+      }
+      /*
+        NOTE! Grant statements with db set to NULL is very rare but
+        may be provoked by for example dropping the currently selected
+        database. Since ndbcluster_log_schema_op does not allow
+        db to be NULL(can't create a key for the ndb_schem_object nor
+        write NULL to ndb_schema), the situation is salvaged by setting db
+        to the constant string "mysql" which should work in most cases.
 
-  default:
-    DBUG_PRINT("info", ("Ignoring binlog_log_query notification"));
-    DBUG_VOID_RETURN;
-    break;
+        Interestingly enough this "hack" has the effect that grant statements
+        are written to the remote binlog in same format as if db would have
+        been NULL.
+      */
+      if (!db) {
+        db = "mysql";
+      }
 
+      const bool result =
+          schema_dist_client.acl_notify(query, query_length, db);
+      if (!result) {
+        // NOTE! There is currently no way to report an error from this
+        // function, just log an error and proceed
+        ndb_log_error("Failed to distribute '%s'", query);
+      }
+    } break;
+
+    default:
+      DBUG_PRINT("info", ("Ignoring binlog_log_query notification "
+                          "for binlog_command: %d", binlog_command));
+      break;
   }
-  ndbcluster_log_schema_op(thd, query, query_length,
-                           db, table_name, table_id, table_version, type,
-                           NULL, NULL);
   DBUG_VOID_RETURN;
 }
 

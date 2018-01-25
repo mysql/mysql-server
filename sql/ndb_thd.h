@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,5 +63,20 @@ applying_binlog(const THD* thd);
   Return the THD's unmasked server id
 */
 uint32 thd_unmasked_server_id(const THD* thd);
+
+/*
+ @brief Return the THD's current query string
+
+ @note It's safe for own thread to read it's query string
+*/
+const char* ndb_thd_query(const THD* thd);
+
+/*
+ @brief Return the length of THD's current query
+
+ @note It's safe for own thread to read it's query string length
+*/
+size_t ndb_thd_query_length(const THD* thd);
+
 
 #endif

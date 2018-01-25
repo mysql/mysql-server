@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,3 +88,7 @@ thd_unmasked_server_id(const THD* thd)
   assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
   return unmasked_server_id;
 }
+
+const char* ndb_thd_query(const THD* thd) { return thd->query().str; }
+
+size_t ndb_thd_query_length(const THD* thd) { return thd->query().length; }
