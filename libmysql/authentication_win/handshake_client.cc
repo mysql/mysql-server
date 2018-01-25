@@ -362,19 +362,65 @@ Blob Handshake_client::process_data(const Blob &data)
   To implement the protocol one can use several existing implementations:
   <ul>
   <li>MS Windows provides
-  [InitializeSecurityContextW]("http://msdn.microsoft.com/en-us/library/windows/desktop/aa375509(v=VS.85).aspx")
-  and [AcceptSecurityContext]("http://msdn.microsoft.com/en-us/library/aa374703.aspx")
+  [InitializeSecurityContextW](http://msdn.microsoft.com/en-us/library/windows/desktop/aa375509(v=VS.85).aspx)
+  and [AcceptSecurityContext](http://msdn.microsoft.com/en-us/library/aa374703.aspx)
   </li>
   <li>A open source implemenation of NTML, SPNEGO and Kerberos5 are provided by
-  [Heimdal]("http://www.h5l.org/")
+  [Heimdal](http://www.h5l.org/)
   </li>
   <li>Java6 added SPNEGO support to
-  [JGSS]("http://download.oracle.com/javase/6/docs/technotes/guides/security/jgss/lab/part5.html#SPNEGO")
+  [JGSS](http://download.oracle.com/javase/6/docs/technotes/guides/security/jgss/lab/part5.html#SPNEGO)
   which also provides the NTLM and Kerberos5 support.
   </li></ul>
 
-  @section sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego SPNEGO
+  @sa win_auth_handshake_client
+
+
   @section sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm NTLM
+
+  @note [Removed in Windows Vista and 2008](http://msdn.microsoft.com/en-us/library/aa480152.aspx#appcomp_topic16)
+
+  @note Documented in [MSDN](https://msdn.microsoft.com/en-us/library/cc207842.aspx)
+
+  @startuml
+  Client->Server: NTLM request
+  Server->Client: 0x01 + NTLM response
+  == repeat until done ==
+  Client->Server: NTLM request
+  Server->Client: OK
+  @enduml
+
+
+  @section sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego SPNEGO
+
+  Uses GSS-API as protocol and negotiates the proper auth-method automatically.
+  @par Tip
+  To decode these packets by hand you need to read:
+    <ul>
+      <li>
+         [RFC2473](http://tools.ietf.org/html/rfc2743.html#page-81)
+         Section 3.1: Mechanism-independent Token Format
+      </li><li>
+         [RFC4178](http://tools.ietf.org/html/rfc4178.html#page-7)
+         Section 4: Token Defintions
+      </li><li>
+         [X.680](http://www.itu.int/ITU-T/studygroups/com17/languages/X.680-0207.pdf)
+         ASN.1
+      </li><li>
+         [X.690](http://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf)
+         DER
+      </li>
+    </ul>
+
+  @startuml
+  Client->Server: GSS-API + SPNEGO NegTokenInit
+  Server->Client: 0x01 + SPNEGO NegTokenResponse
+  Client->Server: SPNEGO NegTokenResponse
+  Server->Client: 0x01 + SPNEGO NegTokenResponse
+  == repeat until done ==
+  Server->Client: OK
+  @enduml
+
 */
 
 /**
