@@ -6783,6 +6783,51 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 }
 
 /**
+  @page page_protocol_connection_phase_authentication_methods_clear_text_password Clear text client plugin
+
+  <ul>
+  <li>
+  This client side plugin is used by a number of server plugins:
+  LDAP (*authentication_ldap_simple*) and PAM (*authentication_pam*) to name a few.
+  </li>
+  <li>
+  The client name is *mysql_clear_password*
+  </li>
+  <li>
+  Client side requires nothing from the server. But the server generates
+  and sends a 20-byte
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  compatible scramble.
+  </li>
+  <li>
+  Client side sends the password in clear text to the server
+  </li>
+  </ul>
+
+  @startuml
+  Server->Client: 20 bytes of scramble to be ignored
+  Client->Server: The clear text password. null terminated.
+  @enduml
+
+  @note
+  Sending the scramble is not necessary for the clear text
+  method, but, since the server always initiates the exchange by
+  sending @ref page_protocol_connection_phase_packets_protocol_handshake
+  and that one has a placeholder for authentication plugin dependent data the
+  server does fill that space with a scramble should it come to pass that
+  it will back down to
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication.
+  This is also why it's OK no to specifically read this in
+  @ref clear_password_auth_client since it's already read as a part of
+  the initial exchange.
+
+
+  @sa ::clear_password_auth_client, ::server_mpvio_write_packet,
+    ::send_server_handshake_packet
+ */
+
+
+/**
   The main function of the mysql_clear_password authentication plugin.
 */
 
