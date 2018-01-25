@@ -393,7 +393,7 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
     break;
   case SEND_MESSAGE_TOO_BIG:
     ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
-                               "Message to big in sendSignal", "");
+                               "Message too big in sendSignal", "");
     break;
   case SEND_UNKNOWN_NODE:
     ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
