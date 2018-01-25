@@ -598,7 +598,7 @@
    The server name is *mysql_old_password*
    </li>
    <li>
-   The client name is *mysql_old_password"
+   The client name is *mysql_old_password*
    </li>
    <li>
    Client side requires an 8-byte random challenge from server
@@ -624,6 +624,8 @@
 
    @subpage page_protocol_connection_phase_authentication_methods_native_password_authentication
    @subpage page_caching_sha2_authentication_exchanges
+   @subpage page_protocol_connection_phase_authentication_methods_clear_text_password
+   @subpage page_protocol_connection_phase_authentication_methods_authentication_windows
 */
 
 /**
