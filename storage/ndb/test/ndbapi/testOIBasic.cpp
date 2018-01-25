@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -476,13 +476,13 @@ Tmr::over(const Tmr& t1)
 static const uint maxcsnumber = 512;
 static const uint maxcharcount = 32;
 static const uint maxcharsize = 4;
-static const uint maxxmulsize = 8;
+static const uint maxxfrmsize = 128; //64 proven to be too small
 
 // single mb char
 struct Chr {
   uchar m_bytes[maxcharsize];
-  uchar m_xbytes[maxxmulsize * maxcharsize];
-  uint m_size;
+  uchar m_xbytes[maxxfrmsize];
+  uint m_size;   //Actual size of m_bytes[]
   Chr();
 };
 
@@ -496,7 +496,7 @@ Chr::Chr()
 // charset and random valid chars to use
 struct Chs {
   CHARSET_INFO* m_cs;
-  uint m_xmul;
+  uint m_xlen;  // Max xfrm-len of single mb char, <= maxxfrmsize
   Chr* m_chr;
   Chs(CHARSET_INFO* cs);
   ~Chs();
@@ -508,10 +508,12 @@ operator<<(NdbOut& out, const Chs& chs);
 Chs::Chs(CHARSET_INFO* cs) :
   m_cs(cs)
 {
-  m_xmul = m_cs->strxfrm_multiply;
-  if (m_xmul == 0)
-    m_xmul = 1;
-  require(m_xmul <= maxxmulsize);
+  require(m_cs->mbmaxlen <= maxcharsize);
+  
+  // Maximum xformed length of a single code point:
+  m_xlen = (*cs->coll->strnxfrmlen)(cs, m_cs->mbmaxlen);
+  require(m_xlen <= maxxfrmsize);
+
   m_chr = new Chr [maxcharcount];
   uint i = 0;
   uint miss1 = 0;
@@ -553,7 +555,7 @@ Chs::Chs(CHARSET_INFO* cs) :
     // normalize
     memset(xbytes, 0, sizeof(m_chr[i].m_xbytes));
     // currently returns buffer size always
-    const size_t dstlen = m_xmul * size;
+    const size_t dstlen = m_xlen;
     const size_t xlen = (*cs->coll->strnxfrm)(
                                 cs, xbytes, dstlen, (uint)dstlen,
                                 bytes, size, 0);
@@ -611,7 +613,7 @@ static NdbOut&
 operator<<(NdbOut& out, const Chs& chs)
 {
   CHARSET_INFO* cs = chs.m_cs;
-  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "," << chs.m_xmul << "]";
+  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "," << chs.m_xlen << "]";
   return out;
 }
 
