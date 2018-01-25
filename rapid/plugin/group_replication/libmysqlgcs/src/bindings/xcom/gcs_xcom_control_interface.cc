@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -468,6 +468,11 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
         addr, port
       )
 
+      /*
+        Explicitly check the return value so that we are able to distinguish
+        between a failure in the synchronous local request from a failure in
+        the asynchronous add_node request.
+      */
       if (!m_xcom_proxy->xcom_add_node(*con, *m_local_node_info, m_gid_hash))
       {
         m_xcom_proxy->xcom_client_close_connection(con);
