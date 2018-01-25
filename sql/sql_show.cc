@@ -1344,7 +1344,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
   bool show_table_options= false;
-  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_MAXDB | MODE_ANSI)) != 0;
+  bool foreign_db_mode= (thd->variables.sql_mode & MODE_ANSI) != 0;
   my_bitmap_map *old_map;
   int error= 0;
   DBUG_ENTER("store_create_info");
@@ -1834,7 +1834,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info)
 {
-  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_MAXDB | MODE_ANSI)) != 0;
+  bool foreign_db_mode= (thd->variables.sql_mode & MODE_ANSI) != 0;
   char *end, buff[32];
 
   if (!foreign_db_mode)
@@ -1942,7 +1942,7 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
-  bool foreign_db_mode= (thd->variables.sql_mode & (MODE_MAXDB | MODE_ANSI)) != 0;
+  bool foreign_db_mode= (thd->variables.sql_mode & MODE_ANSI) != 0;
 
   // Print compact view name if the view belongs to the current database
   bool compact_view_name= thd->db().str != NULL &&

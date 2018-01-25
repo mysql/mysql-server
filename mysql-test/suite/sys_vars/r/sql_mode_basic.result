@@ -149,12 +149,6 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES
-SET @@global.sql_mode = MAXDB;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-SELECT @@global.sql_mode;
-@@global.sql_mode
-PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MAXDB,NO_AUTO_CREATE_USER
 SET @@global.sql_mode = TRADITIONAL;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -267,13 +261,9 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES
-SET @@session.sql_mode = MAXDB;
+SET @@session.sql_mode = TRADITIONAL;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-SELECT @@session.sql_mode;
-@@session.sql_mode
-PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MAXDB,NO_AUTO_CREATE_USER
-SET @@session.sql_mode = TRADITIONAL;
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION

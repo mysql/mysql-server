@@ -133,8 +133,6 @@ SET @@global.sql_mode = STRICT_ALL_TABLES;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = STRICT_TRANS_TABLES;
 SELECT @@global.sql_mode;
-SET @@global.sql_mode = MAXDB;
-SELECT @@global.sql_mode;
 SET @@global.sql_mode = TRADITIONAL;
 SELECT @@global.sql_mode;
 
@@ -183,8 +181,6 @@ SELECT @@session.sql_mode;
 SET @@session.sql_mode = STRICT_ALL_TABLES;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = STRICT_TRANS_TABLES;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MAXDB;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = TRADITIONAL;
 SELECT @@session.sql_mode;

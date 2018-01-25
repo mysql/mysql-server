@@ -71,7 +71,7 @@ let $big_tables = `select @@big_tables`;
 create table t0 (m int, n int, key(m)) engine=innodb;
 begin;
 select count(*) from t0;
-set @@session.sql_mode = MAXDB;
+set @@session.sql_mode = ANSI;
 set @@session.tmp_table_size = 0;
 set @@session.big_tables = 1;
 select @@big_tables;

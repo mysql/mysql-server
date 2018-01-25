@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,16 +136,16 @@ Routines::Routines()
                          "'ONLY_FULL_GROUP_BY',\n"
                          "'NO_UNSIGNED_SUBTRACTION',\n"
                          "'NO_DIR_IN_CREATE',\n"
-                         "'POSTGRESQL',\n"
-                         "'ORACLE',\n"
-                         "'MSSQL',\n"
-                         "'DB2',\n"
-                         "'MAXDB',\n"
-                         "'NO_KEY_OPTIONS',\n"
-                         "'NO_TABLE_OPTIONS',\n"
-                         "'NO_FIELD_OPTIONS',\n"
-                         "'MYSQL323',\n"
-                         "'MYSQL40',\n"
+                         "'NOT_USED_9',\n"
+                         "'NOT_USED_10',\n"
+                         "'NOT_USED_11',\n"
+                         "'NOT_USED_12',\n"
+                         "'NOT_USED_13',\n"
+                         "'NOT_USED_14',\n"
+                         "'NOT_USED_15',\n"
+                         "'NOT_USED_16',\n"
+                         "'NOT_USED_17',\n"
+                         "'NOT_USED_18',\n"
                          "'ANSI',\n"
                          "'NO_AUTO_VALUE_ON_ZERO',\n"
                          "'NO_BACKSLASH_ESCAPES',\n"

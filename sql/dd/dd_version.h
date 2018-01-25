@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,10 +61,15 @@
   Introduced in MySQL 8.0.0 by WL#6378.
   Never published in a GA version, abandoned.
 
-  80004 (current):
+  80004:
 
   There are so far no changes in the dictionary table definitions compared
   to the DD version 1 that was used in MySQL 8.0.3 (RC1).
+
+  80005 (current):
+
+  - WL#8383 and WL#9465: Removed obsolete SQL modes from enums in 'events',
+    'routines' and 'triggers'.
 
   If a new DD version is published in a MRU, that version may or may not
   be possible to downgrade to previous MRUs within the same GA. If
@@ -75,9 +80,9 @@
 */
 namespace dd {
 
-  static const uint DD_VERSION= 80004;
+  static const uint DD_VERSION= 80005;
 
-  static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD= 80004;
+  static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD= 80005;
 
 }
 

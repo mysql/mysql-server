@@ -160,7 +160,7 @@ delete from mysql.user where user like 'mysqltest\_1';
 delete from mysql.db where user like 'mysqltest\_1';
 drop database mysqltest_1;
 flush privileges;
-set sql_mode='maxdb';
+set sql_mode='NO_AUTO_CREATE_USER,ANSI';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1, t2;

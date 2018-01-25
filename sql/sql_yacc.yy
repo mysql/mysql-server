@@ -6273,10 +6273,7 @@ type:
           }
         | TIMESTAMP_SYM type_datetime_precision
           {
-            if (YYTHD->variables.sql_mode & MODE_MAXDB)
-              $$= NEW_PTN PT_time_type(Time_type::DATETIME, $2);
-            else
-              $$= NEW_PTN PT_timestamp_type($2);
+            $$= NEW_PTN PT_timestamp_type($2);
           }
         | DATETIME_SYM type_datetime_precision
           {

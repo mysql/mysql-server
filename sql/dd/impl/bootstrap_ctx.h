@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ enum class Stage
 };
 
 // Individual version labels that we can refer to.
-static constexpr uint DD_VERSION_80004= 80004;
+static constexpr uint DD_VERSION_80005= 80005;
 
 /*
   Set of supported DD version labels. A supported DD version is a version
@@ -63,7 +63,7 @@ static constexpr uint DD_VERSION_80004= 80004;
 */
 static std::set<uint> supported_dd_versions=
 {
-  DD_VERSION_80004
+  DD_VERSION_80005
 };
 
 

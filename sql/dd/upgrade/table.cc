@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -399,17 +399,18 @@ bool Trigger_loader::load_triggers(THD *thd,
     if (!definition)
       break;
 
-    const sql_mode_t *sql_mode= it_sql_mode++;
+    const sql_mode_t *sql_mode_ptr= it_sql_mode++;
     const LEX_STRING *definer= it_definer++;
     const LEX_STRING *client_cs_name= it_client_cs_name++;
     const LEX_STRING *connection_cl_name= it_connect_cl_name++;
     const LEX_STRING *db_cl_name= it_db_cl_name++;
     const longlong *created_timestamp= it_created_timestamps++;
 
-    // Backward compatibility: use default settings if attributes are missing.
-
-    if (!sql_mode)
-      sql_mode= &global_system_variables.sql_mode;
+    const sql_mode_t sql_mode= sql_mode_ptr == nullptr ?
+      // Backward compatibility: use default settings if attributes are missing
+      global_system_variables.sql_mode :
+      // or cleanup unsupported bits
+      *sql_mode_ptr & MODE_ALLOWED_MASK;
 
     if (!definer)
     {
@@ -507,7 +508,7 @@ bool Trigger_loader::load_triggers(THD *thd,
             table_name_str,
             orig_definition,
             body_utf8,
-            *sql_mode,
+            sql_mode,
             definer_user_name,
             definer_host_name,
             client_cs,

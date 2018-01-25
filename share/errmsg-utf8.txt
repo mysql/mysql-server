@@ -12252,6 +12252,8 @@ ER_RESERVED_TABLESPACE_NAME
 ER_CONN_INIT_CONNECT_IGNORED
   eng "init_connect variable is ignored for user: %s host: %s due to expired password."
 
+ER_UNSUPPORTED_SQL_MODE
+  eng "sql_mode=0x%08x is not supported"
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

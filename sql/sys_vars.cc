@@ -4364,9 +4364,6 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                 MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
   }
-  if (sql_mode & MODE_MAXDB)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE | MODE_NO_AUTO_CREATE_USER);
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
@@ -4421,14 +4418,16 @@ static bool fix_sql_mode(sys_var* self, THD *thd, enum_var_type type)
 }
 /*
   WARNING: When adding new SQL modes don't forget to update the
-  tables definitions that stores it's value (ie: mysql.event, mysql.routines)
+  tables definitions that stores it's value (ie: mysql.event, mysql.routines,
+  mysql.triggers)
 */
 static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE", ",",
   "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION", "NO_DIR_IN_CREATE",
-  "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
-  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
+  "NOT_USED_9", "NOT_USED_10", "NOT_USED_11", "NOT_USED_12", "NOT_USED_13",
+  "NOT_USED_14",
+  "NOT_USED_15", "NOT_USED_16", "NOT_USED_17", "NOT_USED_18", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
   "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE", "NO_ZERO_DATE",
   "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO", "TRADITIONAL",

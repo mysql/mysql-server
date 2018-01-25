@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -431,7 +431,8 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table)
   Routine_event_context_guard routine_ctx_guard(thd);
 
   thd->variables.sql_mode=
-    (sql_mode_t) proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
+    (sql_mode_t) (proc_table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int() &
+                  MODE_ALLOWED_MASK);
 
   LEX_CSTRING sp_db_str;
   LEX_STRING sp_name_str;

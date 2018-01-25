@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,8 +115,6 @@ using std::string;
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
-static ulong find_set(TYPELIB *lib, const char *x, size_t length,
-                      char **err_pos, uint *err_len);
 static char *alloc_query_str(size_t size);
 
 static void field_escape(DYNAMIC_STRING* in, const char *from);
@@ -150,13 +148,17 @@ static char  *opt_password=0,*current_user=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
              *where=0, *order_by=0,
              *opt_compatible_mode_str= 0,
-             *err_ptr= 0, *opt_ignore_error= 0,
+             *opt_ignore_error= 0,
              *log_error_file= NULL;
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
-static char compatible_mode_normal_str[255];
+static bool ansi_mode= false; ///< Force the "ANSI" SQL_MODE.
 /* Server supports character_set_results session variable? */
 static bool server_supports_switching_charsets= true;
-static ulong opt_compatible_mode= 0;
+/**
+  Use double quotes ("") like in the standard  to quote identifiers if true,
+  otherwise backticks (``, non-standard MySQL feature).
+*/
+static bool ansi_quotes_mode= false;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
 #define MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL 1
@@ -219,24 +221,6 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 const char *default_dbug_option="d:t:o,/tmp/mysqldump.trace";
 /* have we seen any VIEWs during table scanning? */
 bool seen_views= 0;
-const char *compatible_mode_names[]=
-{
-  "MYSQL323", "MYSQL40", "POSTGRESQL", "ORACLE", "MSSQL", "DB2",
-  "MAXDB", "NO_KEY_OPTIONS", "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS",
-  "ANSI",
-  NullS
-};
-#define MASK_ANSI_QUOTES \
-(\
- (1<<2)  | /* POSTGRESQL */\
- (1<<3)  | /* ORACLE     */\
- (1<<4)  | /* MSSQL      */\
- (1<<5)  | /* DB2        */\
- (1<<6)  | /* MAXDB      */\
- (1<<10)   /* ANSI       */\
-)
-TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
-                                  "", compatible_mode_names, NULL};
 
 collation_unordered_set<string> *ignore_table;
 
@@ -289,10 +273,8 @@ static struct my_option my_long_options[] =
    1, 0, 0, 0, 0, 0},
   {"compatible", OPT_COMPATIBLE,
    "Change the dump to be compatible with a given mode. By default tables "
-   "are dumped in a format optimized for MySQL. Legal modes are: ansi, "
-   "mysql323, mysql40, postgresql, oracle, mssql, db2, maxdb, no_key_options, "
-   "no_table_options, no_field_options. One can use several modes separated "
-   "by commas. Note: Requires MySQL server version 4.1.0 or higher. "
+   "are dumped in a format optimized for MySQL. The only legal mode is ANSI."
+   "Note: Requires MySQL server version 4.1.0 or higher. "
    "This option is ignored with earlier server versions.",
    &opt_compatible_mode_str, &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -766,11 +748,13 @@ static void write_header(FILE *sql_file, char *db_name)
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n\
 ");
     }
+    const char *mode1= path ? "" : "NO_AUTO_VALUE_ON_ZERO";
+    const char *mode2= ansi_mode ? "ANSI" : "";
+    const char *comma= *mode1 && *mode2 ? "," : "";
     fprintf(sql_file,
             "/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='%s%s%s' */;\n"
             "/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;\n",
-            path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
-            compatible_mode_normal_str);
+            mode1, comma, mode2);
     check_io(sql_file);
   }
 } /* write_header */
@@ -928,45 +912,16 @@ get_one_option(int optid, const struct my_option *opt,
   }
   case (int) OPT_COMPATIBLE:
     {
-      char buff[255];
-      char *end= compatible_mode_normal_str;
-      int i;
-      ulong mode;
-      uint err_len;
+      if (native_strcasecmp("ANSI", argument) != 0)
+      {
+        fprintf(stderr, "Invalid mode to --compatible: %s\n", argument);
+        exit(1);
+      }
 
       opt_quoted= 1;
       opt_set_charset= 0;
-      opt_compatible_mode_str= argument;
-      opt_compatible_mode= find_set(&compatible_mode_typelib,
-                                    argument, strlen(argument),
-                                    &err_ptr, &err_len);
-      if (err_len)
-      {
-        strmake(buff, err_ptr, MY_MIN(sizeof(buff) - 1, err_len));
-        fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
-        exit(1);
-      }
-#if !defined(DBUG_OFF)
-      {
-        size_t size_for_sql_mode= 0;
-        const char **ptr;
-        for (ptr= compatible_mode_names; *ptr; ptr++)
-          size_for_sql_mode+= strlen(*ptr);
-        size_for_sql_mode+= sizeof(compatible_mode_names)-1;
-        DBUG_ASSERT(sizeof(compatible_mode_normal_str)>=size_for_sql_mode);
-      }
-#endif
-      mode= opt_compatible_mode;
-      for (i= 0, mode= opt_compatible_mode; mode; mode>>= 1, i++)
-      {
-        if (mode & 1)
-        {
-          end= my_stpcpy(end, compatible_mode_names[i]);
-          end= my_stpcpy(end, ",");
-        }
-      }
-      if (end!=compatible_mode_normal_str)
-        end[-1]= 0;
+      ansi_quotes_mode= true;
+      ansi_mode= true;
       /*
         Set charset to the default compiled value if it hasn't
         been reset yet by --default-character-set=xxx.
@@ -1702,8 +1657,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
     DB_error(&mysql_connection, "when trying to connect");
     DBUG_RETURN(1);
   }
-  if ((mysql_get_server_version(&mysql_connection) < 40100) ||
-      (opt_compatible_mode & 3))
+  if (mysql_get_server_version(&mysql_connection) < 40100)
   {
     /* Don't dump SET NAMES with a pre-4.1 server (bug#7997).  */
     opt_set_charset= 0;
@@ -1717,7 +1671,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   */
   mysql->reconnect= 0;
   snprintf(buff, sizeof(buff), "/*!40100 SET @@SQL_MODE='%s' */",
-              compatible_mode_normal_str);
+           ansi_mode ? "ANSI" : "");
   if (mysql_query_with_error_report(mysql, 0, buff))
     DBUG_RETURN(1);
   /*
@@ -1836,7 +1790,7 @@ static bool test_if_special_chars(const char *str)
 static char *quote_name(const char *name, char *buff, bool force)
 {
   char *to= buff;
-  char qtype= (opt_compatible_mode & MASK_ANSI_QUOTES) ? '\"' : '`';
+  char qtype= ansi_quotes_mode ? '"' : '`';
 
   if (!force && !opt_quoted && !test_if_special_chars(name))
     return (char*) name;
@@ -3086,22 +3040,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       is_replication_metadata_table= replication_metadata_tables(db, table);
       if (is_log_table || is_replication_metadata_table)
         row[1]+= 13; /* strlen("CREATE TABLE ")= 13 */
-      if (opt_compatible_mode & 3)
-      {
-        fprintf(sql_file,
-                (is_log_table || is_replication_metadata_table) ?
-                "CREATE TABLE IF NOT EXISTS %s;\n" : "%s;\n", row[1]);
-      }
-      else
-      {
-        fprintf(sql_file,
-                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
-                " SET character_set_client = utf8mb4 ;\n"
-                "%s%s;\n"
-                "/*!40101 SET character_set_client = @saved_cs_client */;\n",
-                (is_log_table || is_replication_metadata_table) ?
-                "CREATE TABLE IF NOT EXISTS " : "", row[1]);
-      }
+
+      fprintf(sql_file,
+              "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
+              " SET character_set_client = utf8mb4 ;\n"
+              "%s%s;\n"
+              "/*!40101 SET character_set_client = @saved_cs_client */;\n",
+              (is_log_table || is_replication_metadata_table) ?
+              "CREATE TABLE IF NOT EXISTS " : "", row[1]);
 
       check_io(sql_file);
       mysql_free_result(result);
@@ -3634,7 +3580,7 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
 {
   char       name_buff[NAME_LEN*4+3];
   char       query_buff[QUERY_LENGTH];
-  uint       old_opt_compatible_mode= opt_compatible_mode;
+  bool       old_ansi_quotes_mode= ansi_quotes_mode;
   MYSQL_RES  *show_triggers_rs;
   MYSQL_ROW  row;
   FILE      *sql_file= md_result_file;
@@ -3650,7 +3596,7 @@ static int dump_triggers_for_table(char *table_name, char *db_name)
     DBUG_RETURN(1);
 
   /* Do not use ANSI_QUOTES on triggers in dump */
-  opt_compatible_mode&= ~MASK_ANSI_QUOTES;
+  ansi_quotes_mode= false;
 
   /* Get database collation. */
 
@@ -3723,10 +3669,10 @@ skip:
     goto done;
 
   /*
-    make sure to set back opt_compatible mode to
+    make sure to set back ansi_quotes_mode mode to
     original value
   */
-  opt_compatible_mode=old_opt_compatible_mode;
+  ansi_quotes_mode= old_ansi_quotes_mode;
 
   ret= false;
 
@@ -3742,7 +3688,7 @@ static bool dump_column_statistics_for_table(char *table_name, char *db_name)
   char       name_buff[NAME_LEN*4+3];
   char       column_buffer[NAME_LEN*4+3];
   char       query_buff[QUERY_LENGTH];
-  uint       old_opt_compatible_mode= opt_compatible_mode;
+  bool       old_ansi_quotes_mode= ansi_quotes_mode;
   char       *quoted_table;
   MYSQL_RES  *column_statistics_rs;
   MYSQL_ROW  row;
@@ -3818,10 +3764,10 @@ skip:
     goto done; /* purecov: deadcode */
 
   /*
-    make sure to set back opt_compatible mode to
+    make sure to set back ansi_quotes_mode mode to
     original value
   */
-  opt_compatible_mode=old_opt_compatible_mode;
+  ansi_quotes_mode= old_ansi_quotes_mode;
 
   ret= false;
 
@@ -5701,47 +5647,6 @@ static int start_transaction(MYSQL *mysql_con)
 }
 
 
-static ulong find_set(TYPELIB *lib, const char *x, size_t length,
-                      char **err_pos, uint *err_len)
-{
-  const char *end= x + length;
-  ulong found= 0;
-  uint find;
-  char buff[255];
-
-  *err_pos= 0;                  /* No error yet */
-  while (end > x && my_isspace(charset_info, end[-1]))
-    end--;
-
-  *err_len= 0;
-  if (x != end)
-  {
-    const char *start= x;
-    for (;;)
-    {
-      const char *pos= start;
-      uint var_len;
-
-      for (; pos != end && *pos != ','; pos++) ;
-      var_len= (uint) (pos - start);
-      strmake(buff, start, MY_MIN(sizeof(buff) - 1, var_len));
-      find= find_type(buff, lib, FIND_TYPE_BASIC);
-      if (!find)
-      {
-        *err_pos= (char*) start;
-        *err_len= var_len;
-      }
-      else
-        found|= ((longlong) 1 << (find - 1));
-      if (pos == end)
-        break;
-      start= pos + 1;
-    }
-  }
-  return found;
-}
-
-
 /* Print a value with a prefix on file */
 static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
                         const char *prefix, const char *name,
@@ -6410,7 +6315,6 @@ int main(int argc, char **argv)
   int exit_code, md_result_fd= 0;
   MY_INIT("mysqldump");
 
-  compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
 
   exit_code= get_options(&argc, &argv);

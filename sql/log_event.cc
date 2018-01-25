@@ -4957,8 +4957,17 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       (unlikely(print_event_info->sql_mode != sql_mode ||
                 !print_event_info->sql_mode_inited)))
   {
-    my_b_printf(file,"SET @@session.sql_mode=%lu%s\n",
-                (ulong)sql_mode, print_event_info->delimiter);
+    /*
+      All the SQL_MODEs included in 0x3ff00 were removed in 8.0.5. The upgrade
+      procedure clears these bits. So the bits can only be set on older binlogs.
+      Therefore, we generate this version-conditioned expression that masks out
+      the removed modes in case this is executed on 8.0.5 or later.
+    */
+    const char *mask= "";
+    if (sql_mode & 0x3ff00)
+      mask= "/*!80005 &~0x3ff00*/";
+    my_b_printf(file,"SET @@session.sql_mode=%lu%s%s\n",
+                (ulong)sql_mode, mask, print_event_info->delimiter);
     print_event_info->sql_mode= sql_mode;
     print_event_info->sql_mode_inited= 1;
   }
@@ -5268,9 +5277,28 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         elsewhere (you don't want all slaves to start ignoring the dirs).
       */
       if (sql_mode_inited)
+      {
+        /*
+          All the SQL_MODEs included in 0x3ff00 were removed in 8.0.5.
+          The upgrade procedure clears these bits. So the bits can only be set
+          when replicating from an older server. We consider it safe to clear
+          the bits, because:
+          (1) all these bits except MAXDB has zero impact on replicated
+          statements, and MAXDB has minimal impact only;
+          (2) the upgrade-pre-check script warns when the bit is set, so we
+          assume users have verified that it is safe to ignore the bit.
+        */
+        if (sql_mode & ~(MODE_ALLOWED_MASK | MODE_IGNORED_MASK))
+        {
+          my_error(ER_UNSUPPORTED_SQL_MODE, MYF(0),
+                   sql_mode & ~(MODE_ALLOWED_MASK | MODE_IGNORED_MASK));
+          goto compare_errors;
+        }
+        sql_mode&= MODE_ALLOWED_MASK;
         thd->variables.sql_mode=
           (sql_mode_t) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
                        (sql_mode & ~(ulonglong) MODE_NO_DIR_IN_CREATE));
+      }
       if (charset_inited)
       {
         if (rli->cached_charset_compare(charset))

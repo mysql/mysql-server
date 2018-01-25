@@ -404,20 +404,6 @@ max(t)
 2004-01-01 01:00:00
 2004-02-01 00:00:00
 drop table t1;
-set sql_mode='maxdb';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1 (a timestamp, b timestamp);
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE "t1" (
-  "a" datetime DEFAULT NULL,
-  "b" datetime DEFAULT NULL
-)
-set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-drop table t1;
 create table t1 (a int auto_increment primary key, b int, c timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 (a, b, c) values (1, 0, '2001-01-01 01:01:01'),
 (2, 0, '2002-02-02 02:02:02'), (3, 0, '2003-03-03 03:03:03');
