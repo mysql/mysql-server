@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -424,6 +424,10 @@ static task_env *alive_t = NULL;
 static uint32_t	my_id = 0; /* Unique id of this instance */
 static synode_no current_message; /* Current message number */
 static synode_no last_config_modification_id; /*Last configuration change proposal*/
+
+uint32_t get_my_id(){
+	return my_id;
+}
 
 synode_no get_current_message()
 {
@@ -3849,6 +3853,9 @@ int	acceptor_learner_task(task_arg arg)
 			ceptor_learner_task.
 		*/
 		ep->srv = get_server(site, ep->p->from);
+		if(ep->rfd.x_proto > x_1_2){ /* Ignore nodes which do not send ID */
+			update_xcom_id(ep->p->from, (uint32_t)ep->p->refcnt); /* Refcnt is really uuid */
+		}
 		ep->p->refcnt = 1; /* Refcnt from other end is void here */
 		MAY_DBG(FN;
 				NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
@@ -4005,6 +4012,9 @@ int	reply_handler_task(task_arg arg)
 				add_event(string_arg("ep->s->con.fd"));
 				add_event(int_arg(ep->s->con.fd));
 			);
+			if(ep->s->con.x_proto > x_1_2){ /* Ignore nodes which do not send ID */
+				update_xcom_id(ep->reply->from, (uint32_t)ep->reply->refcnt); /* Refcnt is really uuid */
+			}
 			ep->reply->refcnt = 1; /* Refcnt from other end is void here */
 			if (n <= 0) {
 				shutdown_connection(&ep->s->con);
@@ -4221,8 +4231,9 @@ static void	server_push_log(server *srv, synode_no push, node_no node)
 	site_def const *s = get_site_def();
 	while (!synode_gt(push, get_max_synode())) {
 		if (is_cached(push)) {
-			pax_machine * p = get_cache(push);
+			pax_machine * p = get_cache_no_touch(push);
 			if (pm_finished(p)) {
+				/* Need to clone message here since pax_machine may be re-used while message is sent */
 				pax_msg * pm = clone_pax_msg(p->learner.msg);
 				ref_msg(pm);
 				pm->op = recover_learn_op;
@@ -4264,8 +4275,6 @@ static void	server_handle_need_snapshot(server *srv, site_def const *s, node_no 
 	synode_no app_lsn = get_app_snap(&gs->app_snap);
 	if (!synode_eq(null_synode, app_lsn) && synode_lt(app_lsn, gs->log_start)){
 		gs->log_start = app_lsn;
-	} else if (!synode_eq(null_synode, last_config_modification_id)){
-		gs->log_start = last_config_modification_id;
 	}
 
 	server_send_snapshot(srv, s, gs, node);
