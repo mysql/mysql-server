@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,6 +216,7 @@ int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor* fd);
 int	xcom_client_terminate_and_exit(connection_descriptor* fd);
 int	xcom_client_set_cache_limit(connection_descriptor *fd, uint64_t cache_limit);
+uint32_t get_my_id();
 
 static inline char *strerr_msg(char *buf, size_t len, int nr)
 {
