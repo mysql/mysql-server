@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -71,5 +71,7 @@
 #define ER_X_BAD_CONFIGURATION           5165
 #define ER_X_MYSQLX_ACCOUNT_MISSING_PERMISSIONS 5167
 #define ER_X_EXPECT_FIELD_EXISTS_FAILED  5168
+
+#define ER_X_BAD_LOCKING                 5169
 
 #endif // _XPL_ERROR_H_

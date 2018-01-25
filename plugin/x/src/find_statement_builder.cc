@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -152,14 +152,26 @@ void xpl::Find_statement_builder::add_grouping_criteria(
   if (criteria.IsInitialized()) m_builder.put(" HAVING ").put_expr(criteria);
 }
 
-void xpl::Find_statement_builder::add_row_locking(
-    const Find &msg) const {
-  if (!msg.has_locking())
+void xpl::Find_statement_builder::add_row_locking(const Find &msg) const {
+  if (!msg.has_locking()) {
+    if (msg.has_locking_options())
+      throw ngs::Error(ER_X_BAD_LOCKING, "Invalid \"find\" message, \
+\"locking\" field is required when \"locking_options\" is set.");
     return;
+  }
 
   const auto lock_type = msg.locking();
   if (lock_type == Find::SHARED_LOCK)
     m_builder.put(" FOR SHARE");
   else if (lock_type == Find::EXCLUSIVE_LOCK)
     m_builder.put(" FOR UPDATE");
+
+  if (!msg.has_locking_options())
+    return;
+
+  const auto lock_options = msg.locking_options();
+  if (lock_options == Find::NOWAIT)
+    m_builder.put(" NOWAIT");
+  else if (lock_options == Find::SKIP_LOCKED)
+    m_builder.put(" SKIP LOCKED");
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -210,11 +210,73 @@ TEST_F(Find_statement_builder_test, add_row_lock_shared) {
   EXPECT_EQ(" FOR SHARE", query.get());
 }
 
+TEST_F(Find_statement_builder_test, add_row_lock_shared_with_grouping) {
+  msg.set_locking(Mysqlx::Crud::Find::SHARED_LOCK);
+  ASSERT_NO_THROW(
+      builder()->add_grouping(Grouping_list{ColumnIdentifier("alpha")}));
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" GROUP BY `alpha` FOR SHARE", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_shared_nowait) {
+  msg.set_locking(Mysqlx::Crud::Find::SHARED_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::NOWAIT);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR SHARE NOWAIT", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_shared_skip_locked) {
+  msg.set_locking(Mysqlx::Crud::Find::SHARED_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::SKIP_LOCKED);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR SHARE SKIP LOCKED", query.get());
+}
+
 TEST_F(Find_statement_builder_test, add_row_lock_exclusive) {
   msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
 
   ASSERT_NO_THROW(builder()->add_row_locking(msg));
   EXPECT_EQ(" FOR UPDATE", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_exclusive_with_grouping) {
+  msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
+  ASSERT_NO_THROW(
+      builder()->add_grouping(Grouping_list{ColumnIdentifier("alpha")}));
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" GROUP BY `alpha` FOR UPDATE", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_exclusive_nowait) {
+  msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::NOWAIT);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR UPDATE NOWAIT", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_exclusive_skip_locked) {
+  msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::SKIP_LOCKED);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR UPDATE SKIP LOCKED", query.get());
+}
+
+TEST_F(Find_statement_builder_test, skip_locked_set_but_no_locking) {
+  msg.set_locking_options(Mysqlx::Crud::Find::SKIP_LOCKED);
+
+  ASSERT_THROW(builder()->add_row_locking(msg), ngs::Error_code);
+}
+
+TEST_F(Find_statement_builder_test, nowait_set_but_no_locking) {
+  msg.set_locking_options(Mysqlx::Crud::Find::NOWAIT);
+
+  ASSERT_THROW(builder()->add_row_locking(msg), ngs::Error_code);
 }
 
 TEST_F(Find_statement_builder_test, build_table) {
