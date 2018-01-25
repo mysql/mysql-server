@@ -4280,6 +4280,8 @@ insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
 insert into t1 values (4, 4, 'row# 999');
 
+echo ------------------------------------------------------------------;
+echo;
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
 # pass as buffer size is incresed from 32K -> 64K
@@ -4296,6 +4298,8 @@ let $query = $query );
 eval explain $query;
 eval $query;
 
+echo ------------------------------------------------------------------;
+echo;
 # Same SPJ query with 4000 IN values
 # This will hit the actuall limit of 64K and will be
 # detected by API which will drop this pushed condition.
@@ -4314,6 +4318,8 @@ let $query = $query );
 eval explain $query;
 eval $query;
 
+echo ------------------------------------------------------------------;
+echo;
 # Build single table (non-SPJ) query with 4000 IN values
 # Should give same 'Warning 4294' as above
 let $query = select * from t1 x where x.name in ('foo';
@@ -4324,6 +4330,73 @@ while ($values < 4000)
   inc $values;
 }
 let $query = $query );
+
+eval explain $query;
+eval $query;
+
+
+############################################################
+# Bug #27397802 ENTIRE CLUSTER CRASHES WITH "MESSAGE TO BIG
+#               IN SENDSIGNAL" WITH BIG IN CLAUSE.
+#
+# Similar problem as Bug#13990924; This time with a pushed
+# condition as part of an EQ_REF child node
+#
+############################################################
+
+insert into t1 values (5, 4, 'row# 1');
+insert into t1 values (6, 4, 'row# 2');
+insert into t1 values (7, 4, 'row# 3');
+insert into t1 values (8, 4, 'row# 4');
+
+echo ------------------------------------------------------------------;
+echo;
+# A 'small' 1000 valued IN-list is handled OK
+#
+let $query = select * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $values = 0;
+while ($values < 1000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query ) order by x.k1;
+
+eval explain $query;
+eval $query;
+
+echo ------------------------------------------------------------------;
+echo;
+# Also a sufficient HUGE IN value list is ok as the pushed
+# condition code is > 64K and catched by other 'Too large'
+# checks.
+#
+let $query = select * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $values = 0;
+while ($values < 4000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query ) order by x.k1;
+
+eval explain $query;
+eval $query;
+
+
+echo ------------------------------------------------------------------;
+echo;
+# A pushed condition with size between 32K - 64K was not not 'Too large',
+# but would require fragmented sending in order to work -> Crashed.
+#
+let $query = select * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $values = 0;
+while ($values < 2000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query ) order by x.k1;
 
 eval explain $query;
 eval $query;
