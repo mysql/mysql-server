@@ -627,7 +627,7 @@ Gcs_ip_whitelist::configure(const std::string& the_list)
   m_original_list.assign(whitelist);
 
   // clear the list
-  m_ip_whitelist.clear();
+  this->clear();
 
   // remove whitespaces
   whitelist.erase(std::remove(whitelist.begin(), whitelist.end(), ' '),
@@ -736,7 +736,8 @@ get_address_for_whitelist(std::string addr, std::string mask,
   return false;
 }
 
-Gcs_ip_whitelist::~Gcs_ip_whitelist()
+void
+Gcs_ip_whitelist::clear()
 {
   std::set< Gcs_ip_whitelist_entry* >::const_iterator wl_it=
                                                          m_ip_whitelist.begin();
@@ -745,6 +746,11 @@ Gcs_ip_whitelist::~Gcs_ip_whitelist()
     delete (*wl_it);
     m_ip_whitelist.erase(wl_it++);
   }
+}
+
+Gcs_ip_whitelist::~Gcs_ip_whitelist()
+{
+  this->clear();
 }
 
 bool
