@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4155,8 +4155,15 @@ void do_perl(struct st_command *command)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
 
-    str_to_file(temp_file_path, ds_script.str, ds_script.length);
-
+    {
+      /* Compatibility for Perl 5.24 and newer. */
+      DYNAMIC_STRING ds_tmp;
+      init_dynamic_string(&ds_tmp, "push @INC, \".\";\n", 0, 1024);
+      dynstr_append_mem(&ds_tmp, ds_script.str, ds_script.length);
+      str_to_file(temp_file_path, ds_tmp.str, ds_tmp.length);
+      dynstr_free(&ds_tmp);
+    }
+    
     /* Format the "perl <filename>" command */
     my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
 
