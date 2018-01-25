@@ -6000,26 +6000,14 @@ void Dbtc::diverify010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectpt
     * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
     EXECUTE_DIRECT_MT(DBDIH, GSN_DIVERIFYREQ, signal,
                       2 + sizeof(void*)/sizeof(Uint32), 0);
-    if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
-        signal->theData[3] != 0)
+    if (!capiConnectPREPARE_TO_COMMITList.isEmpty() || signal->theData[3] != 0)
     {
       /* Put transaction last in verification queue */
       ndbrequire(regApiPtr->nextApiConnect == RNIL);
       ndbrequire(regApiPtr->apiConnectkind == ApiConnectRecord::CK_USER);
-      if (clastApiConnectPREPARE_TO_COMMIT != RNIL)
-      {
-        ApiConnectRecord* apiPtr;
-        apiPtr = c_apiConnectRecordPool.getPtr(clastApiConnectPREPARE_TO_COMMIT);
-        ndbrequire(apiPtr->nextApiConnect == RNIL);
-        apiPtr->nextApiConnect = apiConnectptr.i;
-      }
-      else
-      {
-        ndbassert(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
-        cfirstApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
-      }
-      clastApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
-      regApiPtr->apiConnectkind = ApiConnectRecord::CK_USER;
+      LocalApiConnectRecord_api_list apiConList(
+          c_apiConnectRecordPool, capiConnectPREPARE_TO_COMMITList);
+      apiConList.addLast(apiConnectptr);
       /**
        * If execDIVERIFYCONF is called below, make it pop a transaction
        * from verifiction queue.
@@ -6148,18 +6136,27 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   Uint64 Tgci = Tgci_lo | (Uint64(Tgci_hi) << 32);
 
   jamEntry();
+  if (ERROR_INSERTED(8017))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }  // if
+  LocalApiConnectRecord_api_list apiConList(c_apiConnectRecordPool,
+                                            capiConnectPREPARE_TO_COMMITList);
+  ApiConnectRecordPtr apiConnectptr;
   if (TapiConnectptrIndex == RNIL)
   {
-    /**
-     * DIVERIFYCONF from DBDIH
-     * There should be transactions queue for verification.
-     */
-    if (cfirstApiConnectPREPARE_TO_COMMIT == RNIL)
+    /* Pop first transaction in verification queue */
+    if (!apiConList.removeFirst(apiConnectptr))
     {
-      ndbassert(cfirstApiConnectPREPARE_TO_COMMIT != RNIL);
+      /**
+       * DIVERIFYCONF from DBDIH
+       * There should be transactions queue for verification.
+       */
+      ndbassert(!capiConnectPREPARE_TO_COMMITList.isEmpty());
       return;
     }
-    TapiConnectptrIndex = cfirstApiConnectPREPARE_TO_COMMIT;
+    ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_USER);
   }
   else
   {
@@ -6167,35 +6164,19 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
      * DIVERIFYCONF from DBTC
      * There should be no transactions queue for verification.
      */
-    ndbrequire(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
-  }
-  if (ERROR_INSERTED(8017)) {
-    CLEAR_ERROR_INSERT_VALUE;
-    return;
-  }//if
-  if (TapiConnectptrIndex >= TapiConnectFilesize) {
-    TCKEY_abort(signal, 31, ApiConnectRecordPtr::get(NULL, RNIL));
-    return;
-  }//if
-  ApiConnectRecord * const regApiPtr = 
-                            c_apiConnectRecordPool.getPtr(TapiConnectptrIndex);
-  if (cfirstApiConnectPREPARE_TO_COMMIT == TapiConnectptrIndex)
-  {
-    /* Pop first transaction in verification queue */
-    cfirstApiConnectPREPARE_TO_COMMIT = regApiPtr->nextApiConnect;
-    if (cfirstApiConnectPREPARE_TO_COMMIT == RNIL)
+    if (TapiConnectptrIndex >= TapiConnectFilesize)
     {
-      clastApiConnectPREPARE_TO_COMMIT = RNIL;
+      TCKEY_abort(signal, 31, ApiConnectRecordPtr::get(NULL, RNIL));
+      return;
     }
-    regApiPtr->nextApiConnect = RNIL;
+    apiConnectptr.i = TapiConnectptrIndex;
+    c_apiConnectRecordPool.getPtr(apiConnectptr);
   }
+  ApiConnectRecord* const regApiPtr = apiConnectptr.p;
   ndbrequire(regApiPtr->apiConnectkind == ApiConnectRecord::CK_USER);
   ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
   UintR TApifailureNr = regApiPtr->failureNr;
   UintR Tfailure_nr = cfailure_nr;
-  ApiConnectRecordPtr apiConnectptr;
-  apiConnectptr.i = TapiConnectptrIndex;
-  apiConnectptr.p = regApiPtr;
   if (TapiConnectstate != CS_PREPARE_TO_COMMIT) {
     TCKEY_abort(signal, 32, apiConnectptr);
     return;
@@ -6296,24 +6277,11 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr co
 void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
                         Ptr<ApiConnectRecord> regApiPtr)
 {
-  ApiConnectRecordPtr localApiConnectptr;
-
-  regApiPtr.p->nextGcpConnect = RNIL;
-  if (regGcpPtr.p->firstApiConnect == RNIL) {
-    regGcpPtr.p->firstApiConnect = regApiPtr.i;
-    jam();
-  } else {
-    UintR TapiConnectFilesize = capiConnectFilesize;
-    localApiConnectptr.i = regGcpPtr.p->lastApiConnect;
-    jam();
-    c_apiConnectRecordPool.getPtr(localApiConnectptr);
-    localApiConnectptr.p->nextGcpConnect = regApiPtr.i;
-  }//if
-  UintR TlastApiConnect = regGcpPtr.p->lastApiConnect;
+  LocalApiConnectRecord_gcp_list apiConList(c_apiConnectRecordPool,
+                                            regGcpPtr.p->apiConnectList);
+  apiConList.addLast(regApiPtr);
   regApiPtr.p->gcpPointer = regGcpPtr.i;
-  regApiPtr.p->prevGcpConnect = TlastApiConnect;
-  regGcpPtr.p->lastApiConnect = regApiPtr.i;
-}//Dbtc::linkApiToGcp()
+}
 
 void
 Dbtc::crash_gcp(Uint32 line)
@@ -6330,8 +6298,8 @@ Dbtc::crash_gcp(Uint32 line)
                Uint32(localGcpPointer.p->gcpId >> 32),
                Uint32(localGcpPointer.p->gcpId),
                localGcpPointer.p->gcpNomoretransRec,
-               localGcpPointer.p->firstApiConnect,
-               localGcpPointer.p->lastApiConnect,
+               localGcpPointer.p->apiConnectList.getFirst(),
+               localGcpPointer.p->apiConnectList.getLast(),
                localGcpPointer.p->nextList);
     } while (gcp_list.next(localGcpPointer));
   }
@@ -6349,8 +6317,7 @@ void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
     crash_gcp(__LINE__);
   }
   localGcpPointer.p->gcpId = Tgci;
-  localGcpPointer.p->firstApiConnect = RNIL;
-  localGcpPointer.p->lastApiConnect = RNIL;
+  localGcpPointer.p->apiConnectList.init();
   localGcpPointer.p->gcpNomoretransRec = ZFALSE;
 
   LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
@@ -6835,30 +6802,10 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
 void Dbtc::unlinkApiConnect(Ptr<GcpRecord> gcpPtr,
                             Ptr<ApiConnectRecord> regApiPtr)
 {
-  ApiConnectRecordPtr localApiConnectptr;
-  UintR TapiConnectFilesize = capiConnectFilesize;
-  UintR TprevGcpConnect = regApiPtr.p->prevGcpConnect;
-  UintR TnextGcpConnect = regApiPtr.p->nextGcpConnect;
-
-  if (TprevGcpConnect == RNIL) {
-    gcpPtr.p->firstApiConnect = TnextGcpConnect;
-    jam();
-  } else {
-    localApiConnectptr.i = TprevGcpConnect;
-    jam();
-    c_apiConnectRecordPool.getPtr(localApiConnectptr);
-    localApiConnectptr.p->nextGcpConnect = TnextGcpConnect;
-  }//if
-  if (TnextGcpConnect == RNIL) {
-    gcpPtr.p->lastApiConnect = TprevGcpConnect;
-    jam();
-  } else {
-    localApiConnectptr.i = TnextGcpConnect;
-    jam();
-    c_apiConnectRecordPool.getPtr(localApiConnectptr);
-    localApiConnectptr.p->prevGcpConnect = TprevGcpConnect;
-  }//if
-}//Dbtc::unlinkApiConnect()
+  LocalApiConnectRecord_gcp_list apiConList(c_apiConnectRecordPool,
+                                            gcpPtr.p->apiConnectList);
+  apiConList.remove(regApiPtr);
+}
 
 void Dbtc::complete010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
@@ -7617,7 +7564,8 @@ void Dbtc::handleGcp(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
   localGcpPtr.i = apiConnectptr.p->gcpPointer;
   c_gcpRecordPool.getPtr(localGcpPtr);
   unlinkApiConnect(localGcpPtr, apiConnectptr);
-  if (localGcpPtr.p->firstApiConnect == RNIL) {
+  if (localGcpPtr.p->apiConnectList.isEmpty())
+  {
     if (localGcpPtr.p->gcpNomoretransRec == ZTRUE) {
       if (c_ongoing_take_over_cnt == 0)
       {
@@ -9927,7 +9875,7 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
     if (gcpPtr.p->gcpId == tcheckGcpId)
     {
       jam();
-      bool empty = gcpPtr.p->firstApiConnect == RNIL;
+      bool empty = gcpPtr.p->apiConnectList.isEmpty();
 
       if (nfhandling)
       {
@@ -10015,8 +9963,7 @@ outoforder:
     ndbrequire(c_gcpRecordPool.seize(tmp));
 
     tmp.p->gcpId = tcheckGcpId;
-    tmp.p->firstApiConnect = RNIL;
-    tmp.p->lastApiConnect = RNIL;
+    tmp.p->apiConnectList.init();
     tmp.p->gcpNomoretransRec = ZTRUE;
 
     LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
@@ -10065,8 +10012,7 @@ outoforder:
     ndbrequire(c_gcpRecordPool.seize(tmp));
 
     tmp.p->gcpId = tcheckGcpId;
-    tmp.p->firstApiConnect = RNIL;
-    tmp.p->lastApiConnect = RNIL;
+    tmp.p->apiConnectList.init();
     tmp.p->gcpNomoretransRec = ZTRUE;
     gcp_list.insertAfter(tmp, prev);
     ndbassert(tmp.p->nextList == gcpPtr.i);
@@ -10544,7 +10490,7 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
      */
     if (tmpGcpPointer.p->gcpNomoretransRec)
     {
-      if (tmpGcpPointer.p->firstApiConnect == RNIL)
+      if (tmpGcpPointer.p->apiConnectList.isEmpty())
       {
         jam();
         g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
@@ -15186,8 +15132,7 @@ void Dbtc::initApiConnect(Signal* signal)
   c_apiConnectRecordPool.getPtr(apiConnectptr);
   apiConnectptr.p->nextApiConnect = RNIL;
   cfirstfreeApiConnectFail = 2 * tiacTmp;
-  cfirstApiConnectPREPARE_TO_COMMIT = RNIL;
-  clastApiConnectPREPARE_TO_COMMIT = RNIL;
+  capiConnectPREPARE_TO_COMMITList.init();
 }//Dbtc::initApiConnect()
 
 void Dbtc::inithost(Signal* signal) 

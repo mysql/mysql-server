@@ -1198,6 +1198,10 @@ Uint32 nextPool; // ArrayPool
   };
   
   typedef ArrayPool<ApiConnectRecord> ApiConnectRecord_pool;
+  typedef LocalSLFifoList<ApiConnectRecord_pool, IA_ApiConnect>
+      LocalApiConnectRecord_api_list;
+  typedef LocalDLFifoList<ApiConnectRecord_pool, IA_GcpConnect>
+      LocalApiConnectRecord_gcp_list;
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
   void setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
@@ -1769,8 +1773,7 @@ Uint32 nextPool; // ArrayPool
 
     Uint32 m_magic;
     Uint16 gcpNomoretransRec;
-    UintR firstApiConnect;
-    UintR lastApiConnect;
+    LocalApiConnectRecord_gcp_list::Head apiConnectList;
     UintR nextList;
     Uint64 gcpId;
   }; /* p2c: size = 32 bytes */
@@ -2508,8 +2511,7 @@ private:
   Uint16 terrorCode;
 
   UintR cfirstfreeApiConnectCopy; /* CS_RESTART */
-  Uint32 cfirstApiConnectPREPARE_TO_COMMIT;
-  Uint32 clastApiConnectPREPARE_TO_COMMIT;
+  LocalApiConnectRecord_api_list::Head capiConnectPREPARE_TO_COMMITList;
 
   LocalGcpRecord_list::Head c_gcpRecordList;
   UintR cfirstfreeScanrec;
