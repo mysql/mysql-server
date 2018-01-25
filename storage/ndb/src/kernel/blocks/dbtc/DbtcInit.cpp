@@ -76,13 +76,6 @@ void Dbtc::initRecords()
   // Records with dynamic sizes
   c_apiConnectRecordPool.setSize(capiConnectFilesize);
 
-  for(unsigned i = 0; i < capiConnectFilesize; i++)
-  {
-    ApiConnectRecordPtr apicon;
-    c_apiConnectRecordPool.seizeId(apicon, i);
-    new (apicon.p) ApiConnectRecord();
-  }
-
   // Init all index records
   TcIndexData_list indexes(c_theIndexPool);
   TcIndexDataPtr iptr;

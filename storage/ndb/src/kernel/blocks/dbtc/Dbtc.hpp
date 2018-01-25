@@ -1202,6 +1202,8 @@ Uint32 nextPool; // ArrayPool
       LocalApiConnectRecord_gcp_list;
   typedef LocalSLFifoList<ApiConnectRecord_pool, IA_ApiConnect>
       LocalApiConnectRecord_api_fifo;
+  typedef LocalSLList<ApiConnectRecord_pool, IA_ApiConnect>
+      LocalApiConnectRecord_api_list;
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
   void setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
@@ -2076,7 +2078,7 @@ private:
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   void seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
-  void seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
+  bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   [[noreturn]] void crash_gcp(Uint32 line);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnectFail(Signal* signal);
@@ -2519,7 +2521,7 @@ private:
   RSS_OP_SNAPSHOT(cConcScanCount);
 
   TableRecordPtr tabptr;
-  UintR cfirstfreeApiConnectFail;
+  LocalApiConnectRecord_api_list::Head c_apiConnectFailList;
   UintR cfirstfreeApiConnect;
 
   BlockReference cdihblockref;
