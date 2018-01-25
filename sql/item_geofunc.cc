@@ -3740,6 +3740,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
   }
 
   str->length(0);
+  str->set_charset(&my_charset_latin1);
   if ((null_value= g->as_wkt(str)))
   {
     DBUG_ASSERT(maybe_null);
