@@ -6005,7 +6005,7 @@ void Dbtc::diverify010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectpt
       /* Put transaction last in verification queue */
       ndbrequire(regApiPtr->nextApiConnect == RNIL);
       ndbrequire(regApiPtr->apiConnectkind == ApiConnectRecord::CK_USER);
-      LocalApiConnectRecord_api_list apiConList(
+      LocalApiConnectRecord_api_fifo apiConList(
           c_apiConnectRecordPool, capiConnectPREPARE_TO_COMMITList);
       apiConList.addLast(apiConnectptr);
       /**
@@ -6141,7 +6141,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     return;
   }  // if
-  LocalApiConnectRecord_api_list apiConList(c_apiConnectRecordPool,
+  LocalApiConnectRecord_api_fifo apiConList(c_apiConnectRecordPool,
                                             capiConnectPREPARE_TO_COMMITList);
   ApiConnectRecordPtr apiConnectptr;
   if (TapiConnectptrIndex == RNIL)
