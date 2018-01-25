@@ -11346,9 +11346,10 @@ cleanup_failed:
       (void)drop_table_and_related(thd, ndb, dict, m_table,
                                    0,          // drop_flags
                                    false);     // skip_related
+      NDB_SHARE::release_reference(share, "create"); // temporary ref.
       m_table = nullptr;
       my_printf_error(ER_INTERNAL_ERROR,
-                      "Failed to to create event for table '%s'",
+                      "Failed to create event for table '%s'",
                       MYF(0), name);
       DBUG_RETURN(ER_INTERNAL_ERROR);
     }
@@ -11364,9 +11365,10 @@ cleanup_failed:
         (void)drop_table_and_related(thd, ndb, dict, m_table,
                                      0,          // drop_flags
                                      false);     // skip_related
+        NDB_SHARE::release_reference(share, "create"); // temporary ref.
         m_table = nullptr;
         my_printf_error(ER_INTERNAL_ERROR,
-                        "Failed to to create event operation for table '%s'",
+                        "Failed to create event operation for table '%s'",
                         MYF(0), name);
         DBUG_RETURN(ER_INTERNAL_ERROR);
       }
