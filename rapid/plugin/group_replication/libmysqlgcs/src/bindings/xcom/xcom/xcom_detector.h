@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ int may_be_dead(detector_state const ds, node_no i, double seconds);
 void init_detector(detector_state ds);
 void invalidate_detector_sites(struct site_def *site);
 void update_detected(struct site_def *site);
+void update_xcom_id(node_no node, uint32_t id);
 
 #ifdef __cplusplus
 }
