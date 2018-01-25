@@ -4673,7 +4673,7 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
         break;
       default:
         G_DEBUG("connect - Error connecting (socket=%d, error=%d).",
-                fd, GET_OS_ERR);
+                fd, syserr);
         CONNECT_FAIL;
     }
 
@@ -4686,17 +4686,15 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size)
     MAY_DBG(FN; STRLIT("poll - Finished. "); NEXP(sysret, d));
 
     if (sysret == 0) {
-      G_DEBUG(
-          "Timed out while waiting for connection to be established! "
-          "Cancelling connection attempt. (socket= %d, error=%d)",
-          fd, res);
-      /*G_WARNING("poll - Timeout! Cancelling connection...");*/
+      G_DEBUG("Timed out while waiting for connection to be established! "
+              "Canceling connection attempt. (socket= %d, error=%d)",
+              fd, sysret);
       CONNECT_FAIL;
     }
 
     if (is_socket_error(sysret)) {
-      G_DEBUG("poll - Error while connecting! (socket= %d, error=%d)"
-              fd, GET_OS_ERR);
+      G_DEBUG("poll - Error while connecting! (socket= %d, error=%d)",
+              fd, syserr);
       CONNECT_FAIL;
     }
 
