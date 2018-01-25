@@ -225,6 +225,7 @@ int64_t xcom_client_send_data(uint32_t size, char *data,
 int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);
+uint32_t get_my_id();
 
 static inline char *strerr_msg(char *buf, size_t len, int nr)
 {
@@ -243,7 +244,6 @@ void set_xcom_comms_cb(xcom_state_change_cb x);
 
 synode_no get_delivered_msg();
 void set_max_synode_from_unified_boot(synode_no unified_boot_synode);
-void server_push_log(server *srv, synode_no push, node_no node);
 
 #define XCOM_FSM(action, arg)                               \
   do {                                                      \
