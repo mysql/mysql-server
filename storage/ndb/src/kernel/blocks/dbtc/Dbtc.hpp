@@ -2076,7 +2076,7 @@ private:
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
+  bool seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   void seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
   bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   [[noreturn]] void crash_gcp(Uint32 line);
@@ -2522,7 +2522,6 @@ private:
 
   TableRecordPtr tabptr;
   LocalApiConnectRecord_api_list::Head c_apiConnectFailList;
-  UintR cfirstfreeApiConnect;
 
   BlockReference cdihblockref;
   BlockReference cownref;                   /* OWN BLOCK REFERENCE */
