@@ -4460,7 +4460,7 @@ echo ------------------------------------------------------------------;
 echo;
 # A 'small' 1000 valued IN-list is handled OK
 #
-let $query = select * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
 let $values = 0;
 while ($values < 1000)
 {
@@ -4478,7 +4478,7 @@ echo;
 # condition code is > 64K and catched by other 'Too large'
 # checks.
 #
-let $query = select * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
 let $values = 0;
 while ($values < 4000)
 {
@@ -4496,7 +4496,7 @@ echo;
 # A pushed condition with size between 32K - 64K was not not 'Too large',
 # but would require fragmented sending in order to work -> Crashed.
 #
-let $query = select * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
+let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
 let $values = 0;
 while ($values < 2000)
 {
