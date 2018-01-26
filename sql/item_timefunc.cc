@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3623,6 +3623,19 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
     dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
     THD *thd= current_thd;
 
+    MYSQL_TIME time;
+    bool not_used= true;
+    // Convert longlong time to MYSQL_TIME format
+    if (my_longlong_to_datetime_with_warn(stat_data, &time, MYF(0)))
+    {
+      null_value= 1;
+      DBUG_RETURN(true);
+    }
+
+    // Convert MYSQL_TIME to epoc second according to local time_zone as
+    // cached_timestamp value is with local time_zone
+    my_time_t timestamp= thd->variables.time_zone->
+      TIME_to_gmt_sec(&time, &not_used);
     // Make sure we have safe string to access.
     schema_name_ptr->c_ptr_safe();
     table_name_ptr->c_ptr_safe();
@@ -3637,7 +3650,7 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 nullptr,
-                stat_data, cached_timestamp,
+                static_cast<ulonglong>(timestamp), cached_timestamp,
                 dd::info_schema::enum_table_stats_type::CHECK_TIME);
 
     if (unixtime)
