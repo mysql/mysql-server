@@ -468,7 +468,7 @@ ut_print_buf_hex(
 
 	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
 		byte	b = *data++;
-		o << hexdigit[(int) b >> 16] << hexdigit[b & 15];
+		o << hexdigit[(int) b >> 4] << hexdigit[b & 0x0F];
 	}
 
 	o << ")";
