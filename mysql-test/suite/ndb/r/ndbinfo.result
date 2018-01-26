@@ -1570,10 +1570,10 @@ new.tot_key_updates - old.tot_key_updates	0
 new.tot_key_writes - old.tot_key_writes	0
 new.tot_key_deletes - old.tot_key_deletes	0
 new.tot_key_refs - old.tot_key_refs	1
-new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	2
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	1
 new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes	20
-new.tot_key_prog_bytes - old.tot_key_prog_bytes	168
-new.tot_key_inst_exec - old.tot_key_inst_exec	7
+new.tot_key_prog_bytes - old.tot_key_prog_bytes	0
+new.tot_key_inst_exec - old.tot_key_inst_exec	0
 new.tot_key_bytes_returned - old.tot_key_bytes_returned	56
 new.tot_frag_scans - old.tot_frag_scans	0
 new.tot_scan_rows_examined - old.tot_scan_rows_examined	0
