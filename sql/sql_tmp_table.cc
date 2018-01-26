@@ -986,12 +986,12 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     else for (ORDER *tmp=group ; tmp ; tmp=tmp->next)
     {
       /*
-        marker == 4 means two things:
+        marker == MARKER_BIT means two things:
         - store NULLs in the key, and
         - convert BIT fields to 64-bit long, needed because MEMORY tables
           can't index BIT fields.
       */
-      (*tmp->item)->marker= 4;
+      (*tmp->item)->marker= Item::MARKER_BIT;
       const uint char_len=
         (*tmp->item)->max_length / (*tmp->item)->collation.collation->mbmaxlen;
       if (char_len > CONVERT_IF_BIGGER_TO_BLOB)
@@ -1221,7 +1221,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         write rows to the temporary table.
         We here distinguish between UNION and multi-table-updates by the fact
         that in the later case group is set to the row pointer.
-        (2) If item->marker == 4 then we force create_tmp_field
+        (2) If item->marker == MARKER_BIT then we force create_tmp_field
         to create a 64-bit longs for BIT fields because HEAP
         tables can't index BIT fields directly. We do the same
         for distinct, as we want the distinct index to be
@@ -1237,7 +1237,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                          group != 0, // (1)
                          !force_copy_fields &&
                            (not_all_columns || group !=0),
-                         item->marker == 4 || param->bit_fields_as_long, //(2)
+                         item->marker == Item::MARKER_BIT ||
+                         param->bit_fields_as_long, //(2)
                          force_copy_fields,
                          (windowing == TMP_WIN_CONDITIONAL && // (3)
                           param->m_window->frame_buffer_param() &&
@@ -1280,7 +1281,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           new_field->type() == MYSQL_TYPE_VARCHAR)
         table->s->db_create_options|= HA_OPTION_PACK_RECORD;
 
-      if (item->marker == 4 && item->maybe_null)
+      if (item->marker == Item::MARKER_BIT && item->maybe_null)
       {
 	group_null_items++;
 	new_field->flags|= GROUP_FLAG;

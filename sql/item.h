@@ -2627,18 +2627,39 @@ public:                            // Start of data fields
     - For json, the maximum size of a BLOB (it's underlying storage type).
   */
   uint32 max_length;               ///< Maximum length, in bytes
+  enum item_marker                 ///< Values for member 'marker'
+  { MARKER_NONE= 0, MARKER_CONST_PROPAG= 1,
+    MARKER_COND_ATTACH_APPLY= 2, MARKER_COND_ATTACH_OMIT= 3,
+    MARKER_BIT= 4, MARKER_FUNC_DEP_NOT_NULL= 5,
+    MARKER_DISTINCT_GROUP= 6, MARKER_ICP_COND_USES_INDEX_ONLY= 10 };
   /**
     This member has several successive meanings, depending on the phase we're
     in:
+    - when doing constant propagation (e.g. change_cond_ref_to_const(), to
+      remember that we have already processed the item).
     - when attaching conditions to tables: it says whether some condition
       needs to be attached or can be omitted (for example because it is already
       implemented by 'ref' access).
+    - when creating an internal temporary table: says how to store BIT fields
+    - when analyzing functional dependencies for only_full_group_by (says
+      whether a nullable column can be treated at not nullable)
+    - when we change DISTINCT to GROUP BY: used for book-keeping of
+      fields.
     - when pushing index conditions: it says whether a condition uses only
       indexed columns.
-    - when creating an internal temporary table: says how to store BIT fields.
-    - when we change DISTINCT to GROUP BY: used for book-keeping of fields.
+    The important property is that a phase must have a value (or few values)
+    which is reserved for this phase. If it wants to set "marked", it assigns
+    the value; it it wants to test if it is marked, it tests marker !=
+    value. If the value has been assigned and the phase wants to cancel it can
+    set marker to MARKER_NONE, which is a magic number which no phase
+    reserves.
+    A phase can expect 'marker' to be MARKER_NONE at the start of execution of
+    a normal statement, at the start of preparation of a PS, and at the start
+    of execution of a PS.
+    A phase should not expect marker's value to survive after the phase's
+    end - as a following phase may change it.
   */
-  int32 marker;
+  item_marker marker;
   Item_result cmp_context;         ///< Comparison context
 private:
   const bool is_parser_item;       ///< true if allocated directly by parser

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2155,8 +2155,6 @@ bool and_conditions(Item **e1, Item *e2)
 }
 
 
-#define ICP_COND_USES_INDEX_ONLY 10
-
 /*
   Get a part of the condition that can be checked using only index fields
 
@@ -2209,10 +2207,10 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
           new_cond->argument_list()->push_back(fix);
           used_tables|= fix->used_tables();
         }
-        n_marked += (item->marker == ICP_COND_USES_INDEX_ONLY);
+        n_marked += (item->marker == Item::MARKER_ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
-        cond->marker= ICP_COND_USES_INDEX_ONLY;
+        cond->marker= Item::MARKER_ICP_COND_USES_INDEX_ONLY;
       switch (new_cond->argument_list()->elements) {
       case 0:
         return NULL;
@@ -2238,10 +2236,10 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         if (!fix)
           return NULL;
         new_cond->argument_list()->push_back(fix);
-        n_marked += (item->marker == ICP_COND_USES_INDEX_ONLY);
+        n_marked += (item->marker == Item::MARKER_ICP_COND_USES_INDEX_ONLY);
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
-        cond->marker= ICP_COND_USES_INDEX_ONLY;
+        cond->marker= Item::MARKER_ICP_COND_USES_INDEX_ONLY;
       new_cond->quick_fix_field();
       new_cond->set_used_tables(cond->used_tables());
       new_cond->top_level_item();
@@ -2253,20 +2251,20 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
   {
     /* 
       Reset marker since it might have the value
-      ICP_COND_USES_INDEX_ONLY if this condition is part of the select
+      MARKER_ICP_COND_USES_INDEX_ONLY if this condition is part of the select
       condition for multiple tables.
     */
-    cond->marker= 0;
+    cond->marker= Item::MARKER_NONE;
     return NULL;
   }
-  cond->marker= ICP_COND_USES_INDEX_ONLY;
+  cond->marker= Item::MARKER_ICP_COND_USES_INDEX_ONLY;
   return cond;
 }
 
 
 static Item *make_cond_remainder(Item *cond, bool exclude_index)
 {
-  if (exclude_index && cond->marker == ICP_COND_USES_INDEX_ONLY)
+  if (exclude_index && cond->marker == Item::MARKER_ICP_COND_USES_INDEX_ONLY)
     return 0; /* Already checked */
 
   if (cond->type() == Item::COND_ITEM)

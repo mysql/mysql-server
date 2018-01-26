@@ -116,7 +116,7 @@ Item::Item():
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
   item_name(), orig_name(),
   max_length(0),
-  marker(0),
+  marker(MARKER_NONE),
   cmp_context(INVALID_RESULT),
   is_parser_item(false),
   runtime_item(false),
@@ -149,7 +149,7 @@ Item::Item(THD *thd, Item *item):
   item_name(item->item_name),
   orig_name(item->orig_name),
   max_length(item->max_length),
-  marker(0),
+  marker(MARKER_NONE),
   cmp_context(item->cmp_context),
   is_parser_item(false),
   runtime_item(false),
@@ -180,7 +180,7 @@ Item::Item(const POS &):
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
   item_name(), orig_name(),
   max_length(0),
-  marker(0),
+  marker(MARKER_NONE),
   cmp_context(INVALID_RESULT),
   is_parser_item(true),
   runtime_item(false),
@@ -801,7 +801,7 @@ void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
   fixed=0;
-  marker= 0;
+  marker= MARKER_NONE;
   if (orig_name.is_set())
     item_name= orig_name;
   DBUG_VOID_RETURN;

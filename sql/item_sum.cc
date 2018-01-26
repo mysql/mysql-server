@@ -1084,7 +1084,7 @@ bool Aggregator_distinct::setup(THD *thd)
       {    
         if (item->type() == Item::FIELD_ITEM &&
             ((Item_field*)item)->field->type() == FIELD_TYPE_BIT)
-          item->marker=4;
+          item->marker= Item::MARKER_BIT;
       }    
     }    
     if (!(table= create_tmp_table(thd, tmp_table_param, list, NULL, true, false,
@@ -5069,7 +5069,7 @@ bool Item_func_group_concat::setup(THD *thd)
     {
       if (item->type() == Item::FIELD_ITEM && 
           ((Item_field*) item)->field->type() == FIELD_TYPE_BIT)
-        item->marker= 4;
+        item->marker= Item::MARKER_BIT;
     }
   }
 
