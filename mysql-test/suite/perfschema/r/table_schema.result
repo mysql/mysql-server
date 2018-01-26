@@ -1353,7 +1353,7 @@ def	performance_schema	variables_info	VARIABLE_SOURCE	2	COMPILED	YES	enum	12	36	
 def	performance_schema	variables_info	VARIABLE_PATH	3	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	variables_info	MIN_VALUE	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	variables_info	MAX_VALUE	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	variables_info	SET_TIME	6	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	variables_info	SET_TIME	6	NULL	YES	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)			select,insert,update,references			NULL
 def	performance_schema	variables_info	SET_USER	7	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references			NULL
 def	performance_schema	variables_info	SET_HOST	8	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references			NULL
 select count(*) from information_schema.columns

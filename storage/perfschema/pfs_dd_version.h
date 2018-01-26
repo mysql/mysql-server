@@ -67,7 +67,26 @@
   - metadata_locks (modified, added column COLUMN_NAME)
   - replication_connection_configuration (modified)
   - instance_log_resource (created)
+
+  80005:
+
+  performance_schema tables changed in MySQL 8.0.5 are
+  - all, changed UTF8 (aka UTF8MB3) to UTF8MB4.
+
+  80006:
+
+  performance_schema tables changed in MySQL 8.0.6 are
+  - variables_info.set_time precision changed from 0 to 6.
+
+  80011:
+
+  Reverted UTF8MB4 changes.
+  Version bump from 8.0.6 to 8.0.11,
+  versions [8.0.5 - 8.0.10] inclusive are abandoned.
+
+  Version published is now 80011.
+
 */
-static const uint PFS_DD_VERSION = 80004;
+static const uint PFS_DD_VERSION = 80011;
 
 #endif /* PFS_DD_VERSION_H */

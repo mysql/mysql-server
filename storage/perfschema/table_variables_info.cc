@@ -58,7 +58,7 @@ Plugin_table table_variables_info::m_table_def(
     "  VARIABLE_PATH varchar(1024),\n"
     "  MIN_VALUE varchar(64),\n"
     "  MAX_VALUE varchar(64),\n"
-    "  SET_TIME TIMESTAMP(0) default null,\n"
+    "  SET_TIME TIMESTAMP(6) default null,\n"
     "  SET_USER CHAR(32) collate utf8_bin default null,\n"
     "  SET_HOST CHAR(60) collate utf8_bin default null\n",
     /* Options */
