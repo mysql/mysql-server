@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,8 @@ TEST_F(Timers_test_suite, read_one_message_default_read_timeout)
       Global_timeouts::Default::k_read_timeout));
 
   Error_code error;
-  sut.read_one_message(error);
+  auto result = sut.read_one_message(error);
+  ngs::free_object(result);
 }
 
 TEST_F(Timers_test_suite, read_one_message_custom_read_timeout)
@@ -218,7 +219,8 @@ TEST_F(Timers_test_suite, read_one_message_custom_read_timeout)
   EXPECT_CALL(mock_server, get_config()).WillRepeatedly(ReturnPointee(&conf));
 
   Error_code error;
-  client.read_one_message(error);
+  auto result = client.read_one_message(error);
+  ngs::free_object(result);
   EXPECT_CALL(*temp_connection->m_mock_vio, shutdown());
 }
 
