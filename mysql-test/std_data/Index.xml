@@ -1,3 +1,7 @@
+<!--
+  All the character sets and collations in this file are for testing purpose.
+  User should not use them in real enviroment.
+-->
 <charsets>
 
   <charset name="utf8">
