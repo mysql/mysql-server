@@ -52,7 +52,7 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     /* Name */
     "replication_applier_configuration",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  CHANNEL_NAME CHAR(64) not null,\n"
     "  DESIRED_DELAY INTEGER not null,\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */

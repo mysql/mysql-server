@@ -51,7 +51,7 @@ Plugin_table table_esgs_by_host_by_event_name::m_table_def(
     /* Name */
     "events_stages_summary_by_host_by_event_name",
     /* Definition */
-    "  HOST CHAR(60) COLLATE utf8_bin default null,\n"
+    "  HOST CHAR(60) COLLATE utf8mb4_bin default null,\n"
     "  EVENT_NAME VARCHAR(128) not null,\n"
     "  COUNT_STAR BIGINT unsigned not null,\n"
     "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"

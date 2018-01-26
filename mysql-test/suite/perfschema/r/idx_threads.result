@@ -79,13 +79,13 @@ where thread_os_id = @osid
 explain select THREAD_ID from performance_schema.threads
 where NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	NAME	NAME	386	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	NAME	NAME	514	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`NAME` = 'impossible')
 explain select THREAD_ID from performance_schema.threads
 where NAME = "thread/sql/main";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	NAME	NAME	386	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	NAME	NAME	514	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`NAME` = 'thread/sql/main')
 explain select * from performance_schema.threads
@@ -114,13 +114,13 @@ thread_id	name	processlist_state	processlist_info
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_USER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT	PROCESSLIST_ACCOUNT	99	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT	PROCESSLIST_ACCOUNT	131	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`PROCESSLIST_USER` = 'impossible')
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_USER = "root";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT	PROCESSLIST_ACCOUNT	99	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT	PROCESSLIST_ACCOUNT	131	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`PROCESSLIST_USER` = 'root')
 explain select * from performance_schema.threads
@@ -151,31 +151,31 @@ where PROCESSLIST_USER = "root"
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_USER = "impossible" and PROCESSLIST_HOST = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	282	const,const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	374	const,const	10	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_USER` = 'impossible') and (`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'impossible'))
+Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'impossible') and (`performance_schema`.`threads`.`PROCESSLIST_USER` = 'impossible'))
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	282	const,const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	374	const,const	10	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_USER` = 'root') and (`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'localhost'))
+Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'localhost') and (`performance_schema`.`threads`.`PROCESSLIST_USER` = 'root'))
 explain select * from performance_schema.threads
 where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST < "foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	99	const	10	33.33	Using where
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	131	const	10	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED`,`performance_schema`.`threads`.`HISTORY` AS `HISTORY`,`performance_schema`.`threads`.`CONNECTION_TYPE` AS `CONNECTION_TYPE`,`performance_schema`.`threads`.`THREAD_OS_ID` AS `THREAD_OS_ID`,`performance_schema`.`threads`.`RESOURCE_GROUP` AS `RESOURCE_GROUP` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_USER` = 'foo') and (`performance_schema`.`threads`.`PROCESSLIST_HOST` < 'foo'))
 explain select * from performance_schema.threads
 where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST > "bar";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	99	const	10	33.33	Using where
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	131	const	10	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED`,`performance_schema`.`threads`.`HISTORY` AS `HISTORY`,`performance_schema`.`threads`.`CONNECTION_TYPE` AS `CONNECTION_TYPE`,`performance_schema`.`threads`.`THREAD_OS_ID` AS `THREAD_OS_ID`,`performance_schema`.`threads`.`RESOURCE_GROUP` AS `RESOURCE_GROUP` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_USER` = 'foo') and (`performance_schema`.`threads`.`PROCESSLIST_HOST` > 'bar'))
 explain select * from performance_schema.threads
 where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST like "bar%";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	99	const	10	11.11	Using where
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	131	const	10	11.11	Using where
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED`,`performance_schema`.`threads`.`HISTORY` AS `HISTORY`,`performance_schema`.`threads`.`CONNECTION_TYPE` AS `CONNECTION_TYPE`,`performance_schema`.`threads`.`THREAD_OS_ID` AS `THREAD_OS_ID`,`performance_schema`.`threads`.`RESOURCE_GROUP` AS `RESOURCE_GROUP` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_USER` = 'foo') and (`performance_schema`.`threads`.`PROCESSLIST_HOST` like 'bar%'))
 select thread_id = @tid, name, processlist_state, processlist_info
@@ -188,13 +188,13 @@ where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost"
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_HOST = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	183	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	243	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'impossible')
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_HOST = "localhost";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	183	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	243	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'localhost')
 explain select * from performance_schema.threads
