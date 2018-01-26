@@ -25,13 +25,44 @@ basedir = CHOOSE_dir
 fix-nodeid = 1
 mt = 2
 
+[atrt.2ndbd]
+mt = 0
+
 [ndb_mgmd]
 
 [client]
 protocol=tcp
 
 #
-# .2node
+# .2ndbd - two ndbd nodes
+#
+
+[cluster_config.2ndbd]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+
+NoOfReplicas = 2
+DataMemory = 400M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+SendBufferMemory = 2M
+NoOfFragmentLogFiles = 4
+FragmentLogFileSize = 128M
+CompressedLCP=1
+CompressedBackup=1
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+
+SharedGlobalMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
+InitialTablespace=datafile01.dat:128M;datafile02.dat:64M
+TimeBetweenWatchDogCheckInitial=60000
+
+#
+# .2node - two ndbmtd nodes
 #
 
 [cluster_config.2node]
