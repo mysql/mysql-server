@@ -250,6 +250,17 @@
   fun:azclose
 }
 
+# Warning from zlib, cf. http://www.zlib.net/zlib_faq.html#faq36
+
+{
+   libz deflate5
+   Memcheck:Cond
+   fun:slide_hash
+   fun:fill_window
+   fun:deflate_fast
+   fun:deflate
+}
+
 #
 # Warning from my_thread_init becasue mysqld dies before kill thread exists
 #
