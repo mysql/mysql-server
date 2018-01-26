@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.14"
+VERSION="autotest-run.sh version 1.15"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -92,6 +92,9 @@ do
                 --baseport=*) baseport_arg="$1";;
                 --base-dir=*) base_dir=`echo $1 | sed s/--base-dir=//`;;
                 --clusters=*) clusters_arg="$1";;
+                --atrt-defaults-group-suffix=*)
+                    atrt_defaults_group_suffix_arg="${1/#--atrt-/--}"
+                    ;;
                 --site=*) site_arg="$1";;
         esac
         shift
@@ -368,11 +371,11 @@ if [ ${verbose} -gt 0 ] ; then
 fi
 
 # Setup configuration
-$atrt Cdq ${site_arg} ${clusters_arg} ${verbose_arg} $prefix my.cnf
+$atrt ${atrt_defaults_group_suffix_arg} Cdq ${site_arg} ${clusters_arg} ${verbose_arg} $prefix my.cnf
 
 # Start...
-args=""
-args="--report-file=report.txt"
+args="${atrt_defaults_group_suffix_arg}"
+args="$args --report-file=report.txt"
 args="$args --log-file=log.txt"
 args="$args --testcase-file=$test_dir/$RUN-tests.txt"
 args="$args ${baseport_arg}"
