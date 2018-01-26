@@ -44,25 +44,22 @@ class Find_statement_builder_stub : public Find_statement_builder {
 class Find_statement_builder_test : public ::testing::Test {
  public:
   Find_statement_builder_test()
-      : args(*msg.mutable_args()), expr_gen(0), stub(0) {}
+      : args(*msg.mutable_args()), expr_gen(nullptr) {}
 
-  ~Find_statement_builder_test() {
-    delete stub;
-    delete expr_gen;
-  }
+  std::unique_ptr<Find_statement_builder_stub> builder() {
+    expr_gen.reset(new Expression_generator(
+          &query, args, schema, is_table_data_model(msg)));
 
-  Find_statement_builder_stub *builder() {
-    expr_gen =
-        new Expression_generator(&query, args, schema, is_table_data_model(msg));
-    return stub = new Find_statement_builder_stub(expr_gen);
+    std::unique_ptr<Find_statement_builder_stub> stub(
+        new Find_statement_builder_stub(expr_gen.get()));
+    return std::move(stub);
   }
 
   Find_statement_builder::Find msg;
   Expression_generator::Args &args;
   Query_string_builder query;
   std::string schema;
-  Expression_generator *expr_gen;
-  Find_statement_builder_stub *stub;
+  std::unique_ptr<Expression_generator> expr_gen;
 
   enum {
     DM_DOCUMENT = 0,
