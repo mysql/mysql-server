@@ -124,6 +124,12 @@ void Gcs_xcom_interface::cleanup()
     interface_reference_singleton= NULL;
   }
 
+  cleanup_thread_ssl_resources();
+}
+
+
+void Gcs_xcom_interface::cleanup_thread_ssl_resources()
+{
   ::xcom_cleanup_ssl();
 }
 

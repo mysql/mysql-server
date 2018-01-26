@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,9 +260,6 @@ public:
     instance according to the binding parameter.
 
     @param[in] binding an enum value of the binding implementation to retrieve.
-
-    @return An instantiated object of a binding implementation.NULL in case of
-            error
   */
 
   static
@@ -279,6 +276,31 @@ public:
 
   static
   void cleanup(const std::string& binding);
+
+
+  /**
+    Static method that cleans up thread-local communication resources in the
+    Gcs_interface singleton instance according to the binding parameter.
+    This is required by the XCom backend when SSL is provided by OpenSSL.
+
+    @param[in] binding an enum value of the binding implementation to retrieve.
+  */
+
+  static void
+  cleanup_thread_communication_resources(enum_available_interfaces binding);
+
+
+  /**
+    Static method that cleans up thread-local communication resources in the
+    Gcs_interface singleton instance according to the binding parameter.
+    This is required by the XCom backend when SSL is provided by OpenSSL.
+
+    @param[in] binding a string matching the enum available_interfaces value of
+                       the binding implementation to retrieve.
+  */
+
+  static
+  void cleanup_thread_communication_resources(const std::string& binding);
 
 
 private:

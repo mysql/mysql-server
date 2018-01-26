@@ -491,7 +491,8 @@ end:
   int local_applier_error= pipeline->handle_action(stop_action);
   delete stop_action;
 
-  Gcs_interface_factory::cleanup(Gcs_operations::get_gcs_engine());
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+    Gcs_operations::get_gcs_engine());
 
   log_message(MY_INFORMATION_LEVEL, "The group replication applier thread"
                                     " was killed");
