@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -238,6 +238,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
     ADD_COMPILE_FLAGS(fts/fts0pars.cc
                       COMPILE_FLAGS "-Wno-logical-op")
+  ENDIF()
+  MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+  IF(HAVE_CAST_FUNCTION_TYPE)
+    ADD_COMPILE_FLAGS(fts/fts0pars.cc
+                      COMPILE_FLAGS "-Wno-cast-function-type")
   ENDIF()
 ENDIF()
 

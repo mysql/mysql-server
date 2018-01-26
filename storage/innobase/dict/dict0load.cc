@@ -1421,7 +1421,7 @@ dict_check_sys_tablespaces(
 	     rec != NULL;
 	     rec = dict_getnext_system(&pcur, &mtr))
 	{
-		char		space_name[NAME_LEN];
+		char		space_name[NAME_LEN+1];
 		space_id_t	space_id = 0;
 		ulint		fsp_flags;
 

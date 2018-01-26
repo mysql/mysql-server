@@ -9048,7 +9048,7 @@ Encryption::create_master_key(byte** master_key)
 	/* If uuid does not match with current server uuid,
 	set uuid as current server uuid. */
 	if (strcmp(s_uuid, server_uuid) != 0) {
-		strncpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
+		memcpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 	}
 
 	/* Generate new master key */
@@ -9178,7 +9178,7 @@ Encryption::get_master_key(
 		/* If m_master_key is 0, means there's no encrypted
 		tablespace, we need to generate the first master key,
 		and store it to key ring. */
-		strncpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
+		memcpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 
 		/* Prepare the server s_uuid. */
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
@@ -9319,7 +9319,7 @@ Encryption::fill_encryption_info(
 	ptr += sizeof(uint32);
 
 	/* Write server uuid. */
-	strncpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
+	memcpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
 	ptr += sizeof(s_uuid) - 1;
 
 	byte	key_info[ENCRYPTION_KEY_LEN * 2];

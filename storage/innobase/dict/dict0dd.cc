@@ -389,7 +389,7 @@ dd_table_open_on_id_low(
 	MDL_ticket**		mdl,
 	table_id_t		table_id)
 {
-	char		part_name[FN_REFLEN];
+	char		part_name[FN_REFLEN * 2];
 	const char*	name_to_open = nullptr;
 
 	ut_ad(thd == nullptr || thd == current_thd);
@@ -2960,7 +2960,7 @@ dd_table_load_fk_from_dd(
 				     db_name.c_str(), tb_name.c_str(),
 				     NULL, 0, &truncated);
 		ut_ad(!truncated);
-		char	norm_name[FN_REFLEN];
+		char	norm_name[FN_REFLEN * 2];
 		normalize_table_name(norm_name, buf);
 
 		dict_foreign_t* foreign = dict_mem_foreign_create();

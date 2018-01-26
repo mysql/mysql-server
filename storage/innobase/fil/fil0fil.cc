@@ -11708,7 +11708,7 @@ Fil_path::convert_to_filename_charset(std::string& name)
 	char	old_name[MAX_TABLE_NAME_LEN + 20];
 	char	filename[MAX_TABLE_NAME_LEN + 20];
 
-	strncpy(filename, name.c_str(), sizeof(filename));
+	strncpy(filename, name.c_str(), sizeof(filename) - 1);
 	strncpy(old_name, filename, sizeof(old_name));
 
 	ut_ad(strchr(filename, '/') == nullptr);
