@@ -274,6 +274,12 @@ private:
                            site_def const *xcom_config) const;
   bool add_address(std::string addr, std::string mask);
 
+  /**
+   @brief Clears the contents of this Whitelist object.
+
+   It deletes all entries and clears the internal set.
+   */
+  void clear();
 private:
   Gcs_ip_whitelist(Gcs_ip_whitelist const&);
   Gcs_ip_whitelist& operator=(Gcs_ip_whitelist const&);
