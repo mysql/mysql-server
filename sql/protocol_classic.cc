@@ -35,6 +35,8 @@
   - @subpage page_protocol_basic_packets
   - @subpage page_protocol_basic_response_packets
   - @subpage page_protocol_basic_character_set
+  - @subpage page_protocol_basic_compression
+  - @subpage page_protocol_basic_tls
 */
 
 
@@ -147,10 +149,48 @@
 */
 
 /**
-@page page_protocol_command_phase %Command Phase
+  @page page_protocol_command_phase %Command Phase
 
-@todo Document it.
+  In the command phase, the client sends a command packet with
+  the sequence-id [00]:
+
+  ~~~~~~~~
+  13 00 00 00 03 53 ...
+  01 00 00 00 01
+              ^^- command-byte
+           ^^---- sequence-id == 0
+  ~~~~~~~~
+
+  The first byte of the payload describes the command-type.
+  See ::enum_server_command for the list of commands supported.
+
+  The commands belong to one of the following sub-protocols
+
+  - @subpage page_protocol_command_phase_text
+  - @subpage page_protocol_command_phase_ps
+  - @subpage page_protocol_command_phase_sp
+  - @subpage page_protocol_command_phase_replication
+
+  @sa ::dispatch_command
 */
+
+/**
+   @page page_protocol_command_phase_text Text Protocol
+*/
+
+/**
+  @page page_protocol_command_phase_ps Prepared Statements
+*/
+
+/**
+   @page page_protocol_command_phase_sp Stored Programs
+*/
+
+/**
+   @page page_protocol_command_phase_replication Replication Protocol
+*/
+
+
 
 /**
   @page page_protocol_connection_lifecycle Connection Lifecycle
