@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -477,7 +477,7 @@ public:
     if (ret < 0)
     {
       DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
-      LogErr(ERROR_LEVEL, ER_CONN_TPC_BIND_FAIL, strerror(errno));
+      LogErr(ERROR_LEVEL, ER_CONN_TPC_BIND_FAIL, strerror(socket_errno));
       LogErr(ERROR_LEVEL, ER_CONN_TCP_IS_THERE_ANOTHER_USING_PORT,
              m_tcp_port);
       mysql_socket_close(listener_socket);
