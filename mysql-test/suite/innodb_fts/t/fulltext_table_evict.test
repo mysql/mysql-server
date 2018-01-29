@@ -1,0 +1,47 @@
+--echo #
+--echo # Bug Bug #27304661 MYSQL CRASH DOING SYNC INDEX ]
+--echo # [FATAL] INNODB: SEMAPHORE WAIT HAS LASTED > 600
+--echo #
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+CREATE TABLE t1 (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       f1 TEXT(500),
+       FULLTEXT idx (f1)
+       ) ENGINE=InnoDB;
+insert into t1 (f1) values ('fjdhfsjhf'),('dhjfhjshfj'),('dhjafjhfj');
+
+--source include/restart_mysqld.inc
+
+set @save_table_definition_cache=@@global.table_definition_cache;
+set @save_table_open_cache=@@global.table_open_cache;
+
+set global table_definition_cache=400;
+set global table_open_cache= 1024;
+
+SET GLOBAL DEBUG="+d,crash_if_fts_table_is_evicted";
+#Create 1000 tables, try the best to evict t1 .
+
+--disable_query_log
+let $loop=1000;
+while($loop)
+{
+  eval create table t_$loop(id int, name text(100), fulltext idxt_$loop(name) )engine=innodb;
+  dec $loop;
+}
+
+let $loop=1000;
+while($loop)
+{
+  eval drop table t_$loop;
+  dec $loop;
+}
+
+SET GLOBAL DEBUG="-d,crash_if_fts_table_is_evicted";
+--enable_query_log
+set @@global.table_definition_cache=@save_table_definition_cache;
+set @@global.table_open_cache=@save_table_open_cache;
+drop table t1;
+

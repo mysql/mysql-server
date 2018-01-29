@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1559,6 +1559,13 @@ dict_make_room_in_cache(
 
 		if (dict_table_can_be_evicted(table)) {
 
+			DBUG_EXECUTE_IF("crash_if_fts_table_is_evicted",
+			{
+				  if (table->fts &&
+				      dict_table_has_fts_index(table)) {
+					ut_ad(0);
+				  }
+			};);
 			dict_table_remove_from_cache_low(table, TRUE);
 
 			++n_evicted;
