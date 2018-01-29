@@ -514,6 +514,7 @@ private:
   /**
    * Arrays holding all transporters in the order they are created
    */
+  Transporter**     allTransporters;
   TCP_Transporter** theTCPTransporters;
   SHM_Transporter** theSHMTransporters;
   
