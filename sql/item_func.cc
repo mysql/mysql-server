@@ -2274,7 +2274,7 @@ longlong Item_func_mod::int_op()
   uval0= (ulonglong) (val0_negative && val0 != LLONG_MIN ? -val0 : val0);
   uval1= (ulonglong) (val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 % uval1;
-  return check_integer_overflow(val0_negative ? -(longlong) res : res,
+  return check_integer_overflow(val0_negative ? -res : res,
                                 !val0_negative);
 }
 
