@@ -267,6 +267,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 {
   DBUG_ENTER("TransporterRegistry::TransporterRegistry");
 
+  allTransporters     = new Transporter*      [maxTransporters];
   theTCPTransporters  = new TCP_Transporter * [maxTransporters];
   theSHMTransporters  = new SHM_Transporter * [maxTransporters];
   theTransporterTypes = new TransporterType   [maxTransporters];
@@ -291,6 +292,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   // Initialize the transporter arrays
   ErrorState default_error_state = { TE_NO_ERROR, (const char *)~(UintPtr)0 };
   for (unsigned i=0; i<maxTransporters; i++) {
+    allTransporters[i]    = NULL;
     theTCPTransporters[i] = NULL;
     theSHMTransporters[i] = NULL;
     theTransporters[i]    = NULL;
@@ -335,6 +337,7 @@ TransporterRegistry::~TransporterRegistry()
   disconnectAll(); 
   removeAll();
   
+  delete[] allTransporters;
   delete[] theTCPTransporters;
   delete[] theSHMTransporters;
   delete[] theTransporterTypes;
@@ -570,6 +573,7 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
   }
 
   // Put the transporter in the transporter arrays
+  allTransporters[nTransporters]            = t;
   theTCPTransporters[nTCPTransporters]      = t;
   theTransporters[t->getRemoteNodeId()]     = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_TCP_TRANSPORTER;
@@ -657,7 +661,13 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
     break;
 #endif
   }
-
+  ind = 0;
+  for(; ind < nTransporters; ind++)
+    if(allTransporters[ind]->getRemoteNodeId() == nodeId)
+      break;
+  ind++;
+  for(; ind < nTransporters; ind++)
+    allTransporters[ind-1] = allTransporters[ind];
   nTransporters--;
 
   // Delete the transporter and remove it from theTransporters array
@@ -1624,7 +1634,7 @@ TransporterRegistry::performSend()
 
   for (i = m_transp_count; i < nTransporters; i++) 
   {
-    Transporter *t = theTransporters[i];
+    Transporter *t = allTransporters[i];
     if (t != NULL
 #ifdef ERROR_INSERT
         && !m_sendBlocked.get(t->getRemoteNodeId())
@@ -1636,7 +1646,7 @@ TransporterRegistry::performSend()
   }
   for (i = 0; i < m_transp_count && i < nTransporters; i++) 
   {
-    Transporter *t = theTransporters[i];
+    Transporter *t = allTransporters[i];
     if (t != NULL
 #ifdef ERROR_INSERT
         && !m_sendBlocked.get(t->getRemoteNodeId())
