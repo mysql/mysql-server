@@ -3935,6 +3935,11 @@ dd_open_table_one(
 	} else {
 		dict_table_add_to_cache(m_table, TRUE, heap);
 
+		if (m_table->fts &&
+		    dict_table_has_fts_index(m_table)) {
+			fts_optimize_add_table(m_table);
+		}
+
 		if (dict_sys->dynamic_metadata != nullptr) {
 			dict_table_load_dynamic_metadata(m_table);
 		}
