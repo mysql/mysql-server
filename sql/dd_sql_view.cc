@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,6 +153,7 @@ public:
     {
     case ER_LOCK_WAIT_TIMEOUT:
     case ER_LOCK_DEADLOCK:
+    case ER_STACK_OVERRUN_NEED_MORE:
       break;
     case ER_NO_SUCH_USER:
       m_sql_errno= ER_NO_SUCH_USER;
@@ -436,6 +437,8 @@ static bool open_views_and_update_metadata(
     View_metadata_updater_error_handler error_handler;
     thd->push_internal_handler(&error_handler);
 
+    DBUG_EXECUTE_IF("enable_stack_overrun_simulation",
+       {DBUG_SET("+d,simulate_stack_overrun");});
 
     // This needs to be after View_metadata_updater_context so that
     // objects are released before metadata locks are dropped.
@@ -481,7 +484,10 @@ static bool open_views_and_update_metadata(
       }
       else if (error_handler.is_view_error_handled() == false)
       {
-        // ER_LOCK_DEADLOCK or ER_LOCK_WAIT_TIMEOUT.
+        // ER_STACK_OVERRUN_NEED_MORE, ER_LOCK_DEADLOCK or
+        // ER_LOCK_WAIT_TIMEOUT.
+        DBUG_EXECUTE_IF("enable_stack_overrun_simulation",
+            {DBUG_SET("-d,simulate_stack_overrun");});
         DBUG_RETURN(true);
       }
       continue;
@@ -514,7 +520,8 @@ static bool open_views_and_update_metadata(
       }
       else if (error_handler.is_view_error_handled() == false)
       {
-        // ER_LOCK_DEADLOCK or ER_LOCK_WAIT_TIMEOUT.
+        // ER_STACK_OVERRUN_NEED_MORE, ER_LOCK_DEADLOCK or
+        // ER_LOCK_WAIT_TIMEOUT.
         DBUG_RETURN(true);
       }
       continue;
