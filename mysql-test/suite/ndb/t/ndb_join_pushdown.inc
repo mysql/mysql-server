@@ -4497,7 +4497,7 @@ insert into t1 values (4, 4, 'row# 999');
 # range optimizer on 64 bit but not on 32 bit, thus cauing different result.
 # Fix by setting a fairly low value in order to get consistent behaviour
 set @save_range_opt_max = @@session.range_optimizer_max_mem_size;
-set range_optimizer_max_mem_size = 512*512;
+set range_optimizer_max_mem_size = 64*1024;
 
 echo ------------------------------------------------------------------;
 echo;
