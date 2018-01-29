@@ -1,4 +1,4 @@
-Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,23 @@ these cmake variables off:
 
 WITH_DEFAULT_COMPILER_OPTIONS
 WITH_DEFAULT_FEATURE_SET
+
+Building MySQL from source requires SSL headers and libraries to be
+available. The default value for the cmake variable WITH_SSL is "system".
+This means that on UNIX systems, you should install the appropriate
+OpenSSL developer package.
+
+For Windows users, please see
+   https://wiki.openssl.org/index.php/Binaries
+For Mac users, please see
+   http://brewformulas.org/Openssl
+
+You may also build OpenSSL yourself, and do
+   cmake -DWITH_SSL=</path/to/custom/openssl>
+in order to build MySQL.
+
+Finally, there is an option to use wolfSSL,
+see extra/README-wolfssl.txt on how to set this up.
 
 ===
 
