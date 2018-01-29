@@ -388,14 +388,16 @@ public:
                AttributeData * attr_data);
 
   Uint64 get_file_size() const { return m_file_size; }
-  /*get_file_size() and get_file_pos() are used to calculate restore
-  progress percentage and works fine in normal mode.
-
-  But, when compressed backup is enabled, m_file_pos gives the current file
-  position in uncompressed state and m_file_size gives the backup file size
-  in compressed state. So, Instead of m_file_pos, ndbzio_stream's m_file.in
-  parameter is used to get current position in compressed state.This
-  parameter also works when compressed backup is disabled.*/
+  /**
+   * get_file_size() and get_file_pos() are used to calculate restore
+   * progress percentage and works fine in normal mode.
+   *
+   * But, when compressed backup is enabled, m_file_pos gives the current file
+   * position in uncompressed state and m_file_size gives the backup file size
+   * in compressed state. So, Instead of m_file_pos, ndbzio_stream's m_file.in
+   * parameter is used to get current position in compressed state.This
+   * parameter also works when compressed backup is disabled.
+   */
   Uint64 get_file_pos() const { return m_file.in; }
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
