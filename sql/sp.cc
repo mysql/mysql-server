@@ -1149,7 +1149,10 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
     // validate comment string to invalid utf8 characters.
     if (is_invalid_string(chistics->comment,
                           system_charset_info))
-      DBUG_RETURN(SP_INTERNAL_ERROR);
+    {
+       my_error(SP_INTERNAL_ERROR, MYF(0));
+       DBUG_RETURN(true);
+    }
 
     // Check comment string length.
     if (check_string_char_length({ chistics->comment.str,
