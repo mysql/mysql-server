@@ -10685,12 +10685,13 @@ uint32 Item_type_holder::display_length(Item *item)
   of UNION result.
 
   @param table  temporary table for which we create fields
+  @param strict If strict mode is on
 
   @return
     created field
 */
 
-Field *Item_type_holder::make_field_by_type(TABLE *table)
+Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict)
 {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
@@ -10708,7 +10709,7 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                  enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    return field;
+    break;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
     field= new (*THR_MALLOC) Field_set(
@@ -10718,13 +10719,26 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
       enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    return field;
+    break;
   case MYSQL_TYPE_NULL:
-    return make_string_field(table);
+    field= make_string_field(table);
+    break;
   default:
+    field= tmp_table_field_from_field_type(table, 0);
     break;
   }
-  return tmp_table_field_from_field_type(table, 0);
+  if (strict && field && field->is_temporal_with_date() &&
+      !field->real_maybe_null())
+  {
+    /*
+      This function is used for CREATE SELECT UNION [ALL] ... , and, if
+      expression is non-nullable, the resulting column is declared
+      non-nullable with a default of 0. However, in strict mode, for dates,
+      0000-00-00 is invalid; in that case, don't give any default.
+    */
+    field->flags|= NO_DEFAULT_VALUE_FLAG;
+  }
+  return field;
 }
 
 
