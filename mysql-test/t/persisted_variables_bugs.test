@@ -42,5 +42,26 @@ RESET PERSIST;
 SET GLOBAL max_connections=DEFAULT;
 DROP DATABASE bug27374791;
 
+--echo #
+--echo # Bug #27322254: WITH PERSIST_ONLY, VARIABLE VALUE EQUALS 18446744073709547520
+--echo #                IS STORED AS -4096
+--echo #
+
+SELECT @@max_binlog_cache_size;
+SET PERSIST max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+  VARIABLE_NAME= 'max_binlog_cache_size';
+SET PERSIST_ONLY max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+  VARIABLE_NAME= 'max_binlog_cache_size';
+
+# Similar test which fixes this bug without SET PERSIST_ONLY
+SET @a=cast(@@max_binlog_cache_size as char);
+SELECT @a;
+
+# Cleanup
+RESET PERSIST;
+SET GLOBAL max_binlog_cache_size= DEFAULT;
+
 --echo # End of the 8.0 tests
 
