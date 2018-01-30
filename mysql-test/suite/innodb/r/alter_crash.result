@@ -2,10 +2,6 @@
 # Bug#20015132 ALTER TABLE FAILS TO CHECK IF TABLE IS CORRUPTED
 #
 CREATE TABLE t1(c1 INT PRIMARY KEY, c2 CHAR(1), c3 INT UNSIGNED) ENGINE=InnoDB;
-SET DEBUG='+d,ib_create_table_fail_too_many_trx';
-ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
-ERROR HY000: Too many active concurrent transactions
-SET DEBUG='-d,ib_create_table_fail_too_many_trx';
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 SET DEBUG='+d,dict_set_index_corrupted';
 CHECK TABLE t1;

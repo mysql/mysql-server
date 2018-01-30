@@ -2489,7 +2489,8 @@ static bool get_se_private_data(THD *thd, dd::Table *tab_obj)
   return false;
 }
 
-static bool create_dd_system_table(THD *thd,
+
+static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
                                    const dd::Schema &system_schema,
                                    const dd::String_type &table_name,
                                    HA_CREATE_INFO *create_info,
@@ -2514,7 +2515,7 @@ static bool create_dd_system_table(THD *thd,
                                      create_fields, keyinfo, keys,
                                      Alter_info::ENABLE, fk_keyinfo,
                                      fk_keys, file))
-    return true;
+    return nullptr;
 
   /*
     During --initialize, and for inert tables, get the SE private data
@@ -2529,21 +2530,21 @@ static bool create_dd_system_table(THD *thd,
     if (file->ha_get_se_private_data(tab_obj.get(),
               (table_type != nullptr &&
                *table_type  == System_tables::Types::INERT)))
-      return true;
+      return nullptr;
   }
   else
   {
     if (get_se_private_data(thd, tab_obj.get()))
-      return true;
+      return nullptr;
   }
 
   // Register the se private id with the DDSE.
   handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->dict_register_dd_table_id == nullptr)
-    return true;
+    return nullptr;
   ddse->dict_register_dd_table_id(tab_obj->se_private_id());
 
-  return thd->dd_client()->store(tab_obj.get());
+  return tab_obj;
 }
 
 
@@ -2557,17 +2558,17 @@ bool is_server_ps_table_name(const dd::String_type& schema_name,
 }
 
 
-bool create_dd_user_table(THD *thd,
-                          const dd::Schema &sch_obj,
-                          const dd::String_type &table_name,
-                          HA_CREATE_INFO *create_info,
-                          const List<Create_field> &create_fields,
-                          const KEY *keyinfo,
-                          uint keys,
-                          Alter_info::enum_enable_or_disable keys_onoff,
-                          const FOREIGN_KEY *fk_keyinfo,
-                          uint fk_keys,
-                          handler *file)
+std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
+                              const dd::Schema &sch_obj,
+                              const dd::String_type &table_name,
+                              HA_CREATE_INFO *create_info,
+                              const List<Create_field> &create_fields,
+                              const KEY *keyinfo,
+                              uint keys,
+                              Alter_info::enum_enable_or_disable keys_onoff,
+                              const FOREIGN_KEY *fk_keyinfo,
+                              uint fk_keys,
+                              handler *file)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(sch_obj.name(),
@@ -2589,24 +2590,23 @@ bool create_dd_user_table(THD *thd,
                                      create_fields, keyinfo, keys,
                                      keys_onoff, fk_keyinfo, fk_keys,
                                      file))
-    return true;
+    return nullptr;
 
-  // Store info in DD tables.
-  return thd->dd_client()->store(tab_obj.get());
+  return tab_obj;
 }
 
 
-bool create_table(THD *thd,
-                  const dd::Schema &sch_obj,
-                  const dd::String_type &table_name,
-                  HA_CREATE_INFO *create_info,
-                  const List<Create_field> &create_fields,
-                  const KEY *keyinfo,
-                  uint keys,
-                  Alter_info::enum_enable_or_disable keys_onoff,
-                  const FOREIGN_KEY *fk_keyinfo,
-                  uint fk_keys,
-                  handler *file)
+std::unique_ptr<dd::Table> create_table(THD *thd,
+                              const dd::Schema &sch_obj,
+                              const dd::String_type &table_name,
+                              HA_CREATE_INFO *create_info,
+                              const List<Create_field> &create_fields,
+                              const KEY *keyinfo,
+                              uint keys,
+                              Alter_info::enum_enable_or_disable keys_onoff,
+                              const FOREIGN_KEY *fk_keyinfo,
+                              uint fk_keys,
+                              handler *file)
 {
   dd::Dictionary *dict= dd::get_dictionary();
   const dd::Object_table *dd_table=
@@ -2673,36 +2673,68 @@ bool table_exists(dd::cache::Dictionary_client *client,
 }
 
 
-/**
-  Rename foreign keys which have generated names to
-  match the new name of the table.
+bool is_generated_foreign_key_name(const char *table_name,
+                                   size_t table_name_length,
+                                   const dd::Foreign_key &fk)
+{
+  /*
+    We assume that the name is generated if it starts with <table_name>_ibfk_
+  */
+  return ((fk.name().length() > table_name_length +
+                                sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1) &&
+          (memcmp(fk.name().c_str(), table_name, table_name_length) == 0) &&
+          (memcmp(fk.name().c_str() + table_name_length,
+                  dd::FOREIGN_KEY_NAME_SUBSTR,
+                  sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1) == 0));
+}
 
-  @param old_table_name  Table name before rename.
-  @param new_tab         New version of the table with new name set.
 
-  @todo Implement new naming scheme (or move responsibility of
-        naming to the SE layer).
+#ifndef DBUG_OFF
+static bool is_foreign_key_name_locked(THD *thd, const char *db,
+                                       const char *fk_name)
+{
+  char db_name_buff[NAME_LEN + 1], fk_name_buff[NAME_LEN + 1];
+  my_stpcpy(db_name_buff, db);
+  if (lower_case_table_names == 2)
+    my_casedn_str(system_charset_info, db_name_buff);
+  my_stpcpy(fk_name_buff, fk_name);
+  my_casedn_str(system_charset_info, fk_name_buff);
+  return thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::FOREIGN_KEY,
+                            db_name_buff, fk_name_buff, MDL_EXCLUSIVE);
+}
+#endif
 
-  @returns true if error, false otherwise.
-*/
 
-bool rename_foreign_keys(const char *old_table_name,
+bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
+                         const char *old_db MY_ATTRIBUTE((unused)),
+                         const char *old_table_name,
+                         const char *new_db MY_ATTRIBUTE((unused)),
                          dd::Table *new_tab)
 {
-  char fk_name_prefix[NAME_LEN + 7]; // Reserve 7 chars for _ibfk_ + NullS
-  strxnmov(fk_name_prefix, sizeof(fk_name_prefix) - 1,
-           old_table_name, dd::FOREIGN_KEY_NAME_SUBSTR, NullS);
   // With LCTN = 2, we are using lower-case tablename for FK name.
+  char old_table_name_norm[NAME_LEN + 1];
+  strmake(old_table_name_norm, old_table_name, NAME_LEN);
   if (lower_case_table_names == 2)
-    my_casedn_str(system_charset_info, fk_name_prefix);
-  size_t fk_prefix_length= strlen(fk_name_prefix);
+    my_casedn_str(system_charset_info, old_table_name_norm);
+  size_t old_table_name_norm_len= strlen(old_table_name_norm);
+
+#ifndef DBUG_OFF
+  bool is_db_changed= (my_strcasecmp(table_alias_charset, old_db, new_db)!=0);
+#endif
 
   for (dd::Foreign_key *fk : *new_tab->foreign_keys())
   {
-    // We assume the name is generated if it starts with
-    // (table_name)_ibfk_
-    if (fk->name().length() > fk_prefix_length &&
-        (memcmp(fk->name().c_str(), fk_name_prefix, fk_prefix_length) == 0))
+    /*
+      We assume that original foreign key name is locked.
+
+      This assumption might be too zealous in some cases (e.g.
+      if foreign key name is not generated and we are not moving
+      table between databases) however it holds.
+    */
+    DBUG_ASSERT(is_foreign_key_name_locked(thd, old_db, fk->name().c_str()));
+
+    if (is_generated_foreign_key_name(old_table_name_norm,
+                                      old_table_name_norm_len, *fk))
     {
       char table_name[NAME_LEN + 1];
       my_stpncpy(table_name, new_tab->name().c_str(), sizeof(table_name));
@@ -2710,7 +2742,7 @@ bool rename_foreign_keys(const char *old_table_name,
         my_casedn_str(system_charset_info, table_name);
       dd::String_type new_name(table_name);
       // Copy _ibfk_nnnn from the old name.
-      new_name.append(fk->name().substr(strlen(old_table_name)));
+      new_name.append(fk->name().substr(old_table_name_norm_len));
       if (check_string_char_length(to_lex_cstring(new_name.c_str()),
                                    "", NAME_CHAR_LEN,
                                    system_charset_info, 1))
@@ -2718,8 +2750,22 @@ bool rename_foreign_keys(const char *old_table_name,
         my_error(ER_TOO_LONG_IDENT, MYF(0), new_name.c_str());
         return true;
       }
+
+      // We should have lock on the new name as well.
+      DBUG_ASSERT(is_foreign_key_name_locked(thd, new_db, new_name.c_str()));
+
       fk->set_name(new_name);
     }
+#ifndef DBUG_OFF
+    else if (is_db_changed)
+    {
+      /*
+        If we are moving table between databases we should have lock on
+        the foreign key name in new database.
+      */
+      DBUG_ASSERT(is_foreign_key_name_locked(thd, new_db, fk->name().c_str()));
+    }
+#endif
   }
   return false;
 }

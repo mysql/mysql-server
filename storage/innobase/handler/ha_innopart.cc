@@ -2614,7 +2614,13 @@ ha_innopart::create(
 	const char*	table_index_file_name;
 	uint		created = 0;
 	THD*		thd = ha_thd();
-	trx_t*		trx = check_trx_exists(thd);
+	trx_t*		trx;
+
+	if (high_level_read_only) {
+		return HA_ERR_INNODB_READ_ONLY;
+	}
+
+	trx = check_trx_exists(thd);
 
 	create_table_info_t	info(thd,
 				     form,

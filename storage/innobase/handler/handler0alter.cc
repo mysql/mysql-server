@@ -629,11 +629,12 @@ ha_innobase::check_if_supported_inplace_alter(
 	if (high_level_read_only
 	    || srv_sys_space.created_new_raw()
 	    || srv_force_recovery) {
-		ha_alter_info->unsupported_reason = (srv_force_recovery)?
-			innobase_get_err_msg(ER_INNODB_FORCED_RECOVERY):
-			innobase_get_err_msg(ER_READ_ONLY_MODE);
-
-		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		if (srv_force_recovery) {
+			my_error(ER_INNODB_FORCED_RECOVERY, MYF(0));
+		} else {
+			my_error(ER_READ_ONLY_MODE, MYF(0));
+		}
+		DBUG_RETURN(HA_ALTER_ERROR);
 	}
 
 	if (altered_table->s->fields > REC_MAX_N_USER_FIELDS) {

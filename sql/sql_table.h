@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,8 @@ static const uint NO_FK_CHECKS=    1 << 2;
   the table.
 */
 static const uint NO_DD_COMMIT=    1 << 3;
+/** Don't change generated foreign key names while renaming table. */
+static const uint NO_FK_RENAME=    1 << 4;
 
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
@@ -259,6 +261,32 @@ collect_fk_parents_for_new_fks(THD *thd,
 
 
 /**
+  Add MDL requests for exclusive metadata locks on names of foreign keys
+  to be added by the CREATE TABLE or ALTER TABLE operation.
+
+  @param          thd                           Thread context.
+  @param          db_name                       Table's database name.
+  @param          table_name                    Table name.
+  @param          alter_info                    Alter_info object with the
+                                                list of FKs to be added.
+  @param          fk_max_generated_name_number  Max value of number component
+                                                among existing generated foreign
+                                                key names.
+  @param[in,out]  mdl_requests                  List to which MDL requests
+                                                are to be added.
+
+  @retval operation outcome, false if no error.
+*/
+bool
+collect_fk_names_for_new_fks(THD *thd,
+                             const char *db_name,
+                             const char *table_name,
+                             const Alter_info *alter_info,
+                             uint fk_max_generated_name_number,
+                             MDL_request_list *mdl_requests);
+
+
+/**
   Acquire exclusive metadata locks on tables which definitions need to
   be updated or invalidated since they are related through foreign keys
   to the table to be renamed,
@@ -378,7 +406,8 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
 bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
-                        const char * old_name, const dd::Schema &new_schema,
+                        const char *old_name, const char *old_fk_db,
+                        const char *old_fk_name, const dd::Schema &new_schema,
                         const char *new_db, const char * new_name, uint flags);
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
@@ -465,6 +494,8 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
   @param[in] existing_fks          An array of pre-existing FOREIGN KEYS
                                    (in case of ALTER).
   @param[in] existing_fks_count    The number of pre-existing foreign keys.
+  @param[in] fk_max_generated_name_number  Max value of number component among
+                                           existing generated foreign key names.
   @param select_field_count        The number of fields coming from a select table.
   @param find_parent_keys          Indicates whether we need to lookup name of
                                    unique constraint in parent table for foreign
@@ -485,6 +516,7 @@ bool mysql_prepare_create_table(THD *thd,
                                 uint *fk_key_count,
                                 FOREIGN_KEY *existing_fks,
                                 uint existing_fks_count,
+                                uint fk_max_generated_name_number,
                                 int select_field_count,
                                 bool find_parent_keys);
 

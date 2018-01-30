@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1980,6 +1980,39 @@ bool Dictionary_client::get_table_name_by_trigger_name(
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
 
   return error;
+}
+
+
+bool Dictionary_client::check_foreign_key_exists(
+                          const Schema &schema,
+                          const String_type &foreign_key_name,
+                          bool *exists)
+{
+#ifndef DBUG_OFF
+  char schema_name_buf[NAME_LEN + 1];
+  char fk_name_buff[NAME_LEN + 1];
+  my_stpcpy(fk_name_buff, foreign_key_name.c_str());
+  my_casedn_str(system_charset_info, fk_name_buff);
+
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+                                    MDL_key::FOREIGN_KEY,
+                                    dd::Object_table_definition_impl::
+                                    fs_name_case(schema.name(),
+                                                 schema_name_buf),
+                                    fk_name_buff, MDL_EXCLUSIVE));
+#endif
+
+  // Get info directly from the tables.
+  if (tables::Foreign_keys::check_foreign_key_exists(m_thd,
+                                                     schema.id(),
+                                                     foreign_key_name,
+                                                     exists))
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  return false;
 }
 
 

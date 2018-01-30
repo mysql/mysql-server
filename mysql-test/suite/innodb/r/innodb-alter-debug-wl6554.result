@@ -289,7 +289,7 @@ DROP TABLE t1;
 # alter operations with fk on parent
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE=Innodb;
-CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) , CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
+CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 3
@@ -302,7 +302,7 @@ a	LEFT(b,10)	LENGTH(b) = 254
 2	bbbbbbbbbb	1
 3	cccccccccc	1
 ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
-ERROR HY000: Duplicate foreign key constraint name 'fk'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
 ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) charset latin1, ALGORITHM=INPLACE;;
 SET DEBUG_SYNC='now WAIT_FOR s1';

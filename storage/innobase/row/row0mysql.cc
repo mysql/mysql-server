@@ -4762,7 +4762,7 @@ row_rename_table_for_mysql(
 		the table is stored in a single-table tablespace */
 
 		err = dict_table_rename_in_cache(
-			table, new_name, !new_is_tmp);
+			table, new_name, !table->refresh_fk && !new_is_tmp);
 		if (err != DB_SUCCESS) {
 			trx->error_state = DB_SUCCESS;
 			goto funct_exit;
@@ -4787,7 +4787,8 @@ row_rename_table_for_mysql(
 		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-		if (old_is_tmp || new_is_tmp) {
+		if ((old_is_tmp || new_is_tmp)
+		    && (!table->refresh_fk)) {
 			if (dict_locked) {
 				ut_ad(mutex_own(&dict_sys->mutex));
 				mutex_exit(&dict_sys->mutex);

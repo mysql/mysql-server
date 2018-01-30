@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,13 +166,6 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
         DBUG_RETURN(true);
       }
     }
-  }
-
-  if (name.str &&
-      check_string_char_length(name, "", NAME_CHAR_LEN, system_charset_info, 1))
-  {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
-    DBUG_RETURN(true);
   }
 
   for (const Key_part_spec *fk_col : ref_columns)

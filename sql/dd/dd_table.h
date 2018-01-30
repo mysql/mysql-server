@@ -49,6 +49,7 @@ template <class T> class List;
 
 namespace dd {
   class Abstract_table;
+  class Foreign_key;
   class Table;
 
   namespace cache {
@@ -60,8 +61,8 @@ static const char FOREIGN_KEY_NAME_SUBSTR[]= "_ibfk_";
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
-  and updates DD tables. This function creates a user table, as opposed
-  to create_table() which can handle system tables as well.
+  and return it to the caller. This function creates a user table, as
+  opposed to create_table() which can handle system tables as well.
 
   @param thd            Thread handle
   @param sch_obj        Schema.
@@ -75,30 +76,24 @@ static const char FOREIGN_KEY_NAME_SUBSTR[]= "_ibfk_";
   @param fk_keys        Number of foreign keys.
   @param file           handler instance for the table.
 
-  @note The caller must rollback both statement and transaction on failure,
-        before any further accesses to DD. This is because such a failure
-        might be caused by a deadlock, which requires rollback before any
-        other operations on SE (including reads using attachable transactions)
-        can be done.
-
-  @retval False - Success.
-  @retval True  - Error.
+  @returns Constructed dd::Table object, or nullptr in case of an error.
 */
-bool create_dd_user_table(THD *thd,
-                          const dd::Schema &sch_obj,
-                          const dd::String_type &table_name,
-                          HA_CREATE_INFO *create_info,
-                          const List<Create_field> &create_fields,
-                          const KEY *keyinfo,
-                          uint keys,
-                          Alter_info::enum_enable_or_disable keys_onoff,
-                          const FOREIGN_KEY *fk_keyinfo,
-                          uint fk_keys,
-                          handler *file);
+std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
+                              const dd::Schema &sch_obj,
+                              const dd::String_type &table_name,
+                              HA_CREATE_INFO *create_info,
+                              const List<Create_field> &create_fields,
+                              const KEY *keyinfo,
+                              uint keys,
+                              Alter_info::enum_enable_or_disable keys_onoff,
+                              const FOREIGN_KEY *fk_keyinfo,
+                              uint fk_keys,
+                              handler *file);
+
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
-  and updates DD tables accordingly.
+  and return it to the caller.
 
   @param thd                Thread handle
   @param sch_obj            Schema.
@@ -112,25 +107,19 @@ bool create_dd_user_table(THD *thd,
   @param fk_keys            Number of foreign keys.
   @param file               handler instance for the table.
 
-  @note The caller must rollback both statement and transaction on failure,
-        before any further accesses to DD. This is because such a failure
-        might be caused by a deadlock, which requires rollback before any
-        other operations on SE (including reads using attachable transactions)
-        can be done.
-
-  @retval False - Success.
-  @retval True  - Error.
+  @returns Constructed dd::Table object, or nullptr in case of an error.
 */
-bool create_table(THD *thd,
-                  const dd::Schema &sch_obj,
-                  const dd::String_type &table_name,
-                  HA_CREATE_INFO *create_info,
-                  const List<Create_field> &create_fields,
-                  const KEY *keyinfo, uint keys,
-                  Alter_info::enum_enable_or_disable keys_onoff,
-                  const FOREIGN_KEY *fk_keyinfo,
-                  uint fk_keys,
-                  handler *file);
+std::unique_ptr<dd::Table> create_table(THD *thd,
+                              const dd::Schema &sch_obj,
+                              const dd::String_type &table_name,
+                              HA_CREATE_INFO *create_info,
+                              const List<Create_field> &create_fields,
+                              const KEY *keyinfo, uint keys,
+                              Alter_info::enum_enable_or_disable keys_onoff,
+                              const FOREIGN_KEY *fk_keyinfo,
+                              uint fk_keys,
+                              handler *file);
+
 
 /**
   Prepares a dd::Table object for a temporary table from
@@ -200,6 +189,7 @@ bool table_exists(dd::cache::Dictionary_client *client,
                   const char *name,
                   bool *exists);
 
+
 /**
   Checking if the table is being created in a restricted
   tablespace.
@@ -218,10 +208,31 @@ bool invalid_tablespace_usage(THD *thd,
                               const HA_CREATE_INFO *create_info);
 
 /**
+  Check if foreign key name is generated one.
+
+  @param table_name         Table name.
+  @param table_name_length  Table name length.
+  @param fk                 Foreign key to be checked.
+
+  @note We assume that the name is generated if it starts with
+        *table_name*_ibfk_. i.e. follow InnoDB approach.
+
+  @returns true if name is generated, false otherwise.
+*/
+
+bool is_generated_foreign_key_name(const char *table_name,
+                                   size_t table_name_length,
+                                   const dd::Foreign_key &fk);
+
+
+/**
   Rename foreign keys which have generated names to
   match the new name of the table.
 
+  @param thd             Thread context.
+  @param old_db          Table's database before rename.
   @param old_table_name  Table name before rename.
+  @param new_db          Table's database after rename.
   @param new_tab         New version of the table with new name set.
 
   @todo Implement new naming scheme (or move responsibility of
@@ -230,8 +241,9 @@ bool invalid_tablespace_usage(THD *thd,
   @returns true if error, false otherwise.
 */
 
-bool rename_foreign_keys(const char *old_table_name,
-                         dd::Table *new_tab);
+bool rename_foreign_keys(THD *thd,
+                         const char *old_db, const char *old_table_name,
+                         const char *new_db, dd::Table *new_tab);
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of

@@ -24,13 +24,13 @@ select * from t1;
 --error ER_OPEN_AS_READONLY
 insert into t1 values(2, 3);
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_READ_ONLY
 alter table t1 add f3 int not null, algorithm=copy;
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_FORCED_RECOVERY
 alter table t1 add f3 int not null, algorithm=inplace;
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_FORCED_RECOVERY
 drop index idx on t1;
 
 --error ER_OPEN_AS_READONLY
@@ -66,13 +66,13 @@ select * from t2;
 --error ER_OPEN_AS_READONLY
 insert into t2 values(2, 3);
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_READ_ONLY
 alter table t2 add f3 int not null, algorithm=copy;
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_FORCED_RECOVERY
 alter table t2 add f3 int not null, algorithm=inplace;
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_FORCED_RECOVERY
 drop index idx on t2;
 
 --error ER_OPEN_AS_READONLY
@@ -106,13 +106,13 @@ select * from t2;
 --error ER_CANT_LOCK
 insert into t2 values(2, 3);
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_READ_ONLY
 alter table t2 add f3 int not null, algorithm=copy;
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_FORCED_RECOVERY
 alter table t2 add f3 int not null, algorithm=inplace;
 
---error ER_OPEN_AS_READONLY
+--error ER_INNODB_FORCED_RECOVERY
 drop index idx on t2;
 
 --error ER_CANT_LOCK

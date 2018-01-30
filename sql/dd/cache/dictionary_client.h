@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -806,6 +806,24 @@ public:
                                       String_type *table_name)
     MY_ATTRIBUTE((warn_unused_result));
 
+
+  /**
+    Check if schema contains foreign key with specified name.
+
+    @param        schema            Schema containing the foreign key.
+    @param        foreign_key_name  Name of the foreign key.
+    @param  [out] exists            Set to true if foreign key with
+                                    the name provided exists in the
+                                    schema, false otherwise.
+
+    @retval      false    No error.
+    @retval      true     Error.
+  */
+
+  bool check_foreign_key_exists(const Schema &schema,
+                                const String_type &foreign_key_name,
+                                bool *exists)
+    MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch the names of the components in the schema. Hidden components are

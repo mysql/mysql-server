@@ -791,7 +791,7 @@ PFS_object_row::make_row(PFS_program *pfs)
 int
 PFS_column_row::make_row(const MDL_key *mdl)
 {
-  static_assert(MDL_key::NAMESPACE_END == 16,
+  static_assert(MDL_key::NAMESPACE_END == 17,
                 "Adjust performance schema when changing enum_mdl_namespace");
 
   switch (mdl->mdl_namespace())
@@ -891,6 +891,11 @@ PFS_column_row::make_row(const MDL_key *mdl)
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
     m_column_name_length = 0;
+    break;
+  case MDL_key::FOREIGN_KEY:
+    m_object_type = OBJECT_TYPE_FOREIGN_KEY;
+    m_schema_name_length = mdl->db_name_length();
+    m_object_name_length = mdl->name_length();
     break;
   case MDL_key::NAMESPACE_END:
   default:

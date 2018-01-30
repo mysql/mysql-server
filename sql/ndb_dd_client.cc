@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,7 +268,8 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
                                          new_table_id, new_table_version);
 
   // Rename foreign keys
-  if (dd::rename_foreign_keys(old_table_name, to_table_def))
+  if (dd::rename_foreign_keys(m_thd, old_schema_name, old_table_name,
+                              new_schema_name, to_table_def))
   {
     // Failed to rename foreign keys or commit/rollback, unexpected
     DBUG_ASSERT(false);

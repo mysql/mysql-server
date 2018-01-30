@@ -2205,8 +2205,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
     for (const dd::Partition *sub_part_obj : part_obj->sub_partitions())
     {
-      DBUG_ASSERT(sub_part_obj->parent_partition_id() != dd::INVALID_OBJECT_ID);
-
       partition_element *curr_sub_part_elem= new (&share->mem_root) partition_element;
       if (!curr_sub_part_elem)
       {

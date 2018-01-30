@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1415,6 +1415,13 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc)
   const LEX_CSTRING used_name= to_lex_cstring(
     m_constraint_name.str ? m_constraint_name
                           : m_key_name.str ? m_key_name : NULL_STR);
+
+  if (used_name.str &&
+      check_string_char_length(used_name, "", NAME_CHAR_LEN, system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), used_name.str);
+    return true;
+  }
 
   Key_spec *foreign_key=
     new (*THR_MALLOC) Foreign_key_spec(thd->mem_root,
