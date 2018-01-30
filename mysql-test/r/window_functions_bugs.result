@@ -713,3 +713,69 @@ COALESCE(LAG(f1,1,1) OVER (ORDER BY f1))
 1
 NULL
 DROP TABLE t;
+#
+# Bug#27438725 WINDOW FUNCTION VARIANCE CAN GIVE WRONG RESULT
+#              WITH OPTIMIZED EVALUATION
+#
+CREATE TABLE t1(b INT);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+SELECT VARIANCE(b) over w `var`,
+AVG(b) OVER w `avg`,
+SUM(b) OVER w `sum`,
+b,
+COUNT(b) OVER w count FROM t1
+WINDOW w as (ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+var	avg	sum	b	count
+0.25	2.5000	5	2	2
+0.25	2.5000	5	3	2
+SET SESSION windowing_use_high_precision= FALSE;
+SELECT VARIANCE(b) over w `var`,
+AVG(b) OVER w `avg`,
+SUM(b) OVER w `sum`,
+b,
+count(b) OVER w count FROM t1
+WINDOW w as (ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+var	avg	sum	b	count
+0.25	2.5000	5	2	2
+0.25	2.5000	5	3	2
+SELECT VARIANCE(b) over w `var`,
+AVG(b) OVER w `avg`,
+SUM(b) OVER w `sum`,
+b,
+count(b) OVER w count,
+LAST_VALUE(b) OVER w lastval FROM t1
+WINDOW w as (ORDER BY b ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING);
+var	avg	sum	b	count	lastval
+0.25	2.5000	5	2	2	3
+0.25	2.5000	5	3	2	3
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+SET SESSION windowing_use_high_precision= TRUE;
+SELECT VARIANCE(b) over w `var`,
+FIRST_VALUE(b) over w fv,
+AVG(b) OVER w `avg`,
+SUM(b) OVER w `sum`,
+b,
+count(b) OVER w count FROM t1
+WINDOW w as (ORDER BY b ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+var	fv	avg	sum	b	count
+0.25	2	2.5000	5	2	2
+0	3	3.0000	6	2	2
+0	3	3.0000	3	3	1
+NULL	NULL	NULL	NULL	3	0
+SET SESSION windowing_use_high_precision= FALSE;
+SELECT VARIANCE(b) over w `var`,
+FIRST_VALUE(b) over w fv,
+AVG(b) OVER w `avg`,
+SUM(b) OVER w `sum`,
+b,
+count(b) OVER w count FROM t1
+WINDOW w as (ORDER BY b ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+var	fv	avg	sum	b	count
+0.25	2	2.5000	5	2	2
+0	3	3.0000	6	2	2
+0	3	3.0000	3	3	1
+NULL	NULL	NULL	NULL	3	0
+SET SESSION windowing_use_high_precision= TRUE;
+DROP TABLE t1;

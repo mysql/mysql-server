@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -554,15 +554,17 @@ protected:
   bool m_inverse_aggregation;
 
   /**
-    Execution state: process a selected row conditionally if the visited
-    row is either first, last, or nth by consulting m_rowno_in_frame in frame
-    and m_is_last_row_in_frame.
-    For other framing wfs, skip evaluation, just reuse current result.
+    Execution state: process a selected row conditionally if the visited row is
+    either the first, the last, or the nth by consulting m_rowno_in_frame in
+    frame and m_is_last_row_in_frame.  This is used for optimized FIRST_VALUE,
+    LAST_VALUE, NTH_VALUE and MIN/MAX.
 
-    E.g. after inversion of row N-1, we do not want to aggregate again
-    at N, since that value is already in the "sum"; but we do want to visit if
-    for setting FIRST_VALUE (or MIN/MAX optimized), nor do we want to aggregate
-    again if we visit the nth row in a frame; again, it is already included.
+    For other framing wfs, skip evaluation, just reuse current result,
+    i.e. after inversion of row N-1, we do not want to aggregate again at N,
+    since that value is already in the "sum"; but we do want to visit if for
+    setting FIRST_VALUE (or MIN/MAX depending on sort order), nor do we want to
+    aggregate again if we visit the nth row in a frame; again, it is already
+    included.
   */
   bool m_dont_aggregate;
 
