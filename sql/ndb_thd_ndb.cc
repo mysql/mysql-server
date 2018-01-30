@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #include "sql/ndb_thd_ndb.h"
 
 #include "my_dbug.h"
+#include "mysqld_error.h"
 #include "mysql/plugin.h"          // thd_get_thread_id
+#include "sql/sql_error.h"
 
 /*
   Default value for max number of transactions createable against NDB from
@@ -198,4 +200,45 @@ Thd_ndb::reset_trans_options(void)
 {
   DBUG_PRINT("info", ("Resetting trans_options"));
   trans_options = 0;
+}
+
+
+/*
+  Push to THD's condition stack
+
+  @param severity    Severity of the pushed condition
+  @param code        Error code to use for the pushed condition
+  @param[in]  fmt    printf-like format string
+  @param[in]  args   Arguments
+*/
+static void push_condition(THD* thd,
+                           Sql_condition::enum_severity_level severity,
+                           uint code, const char* fmt, va_list args)
+  MY_ATTRIBUTE((format(printf, 4, 0)));
+
+static void push_condition(THD* thd,
+                           Sql_condition::enum_severity_level severity,
+                           uint code, const char* fmt, va_list args) {
+  DBUG_ASSERT(fmt);
+
+  // Assemble the message
+  char msg_buf[512];
+  vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
+
+  push_warning(thd, severity, code, msg_buf);
+}
+
+void Thd_ndb::push_warning(const char* fmt, ...) const {
+  const uint code = ER_GET_ERRMSG;
+  va_list args;
+  va_start(args, fmt);
+  push_condition(m_thd, Sql_condition::SL_WARNING, code, fmt, args);
+  va_end(args);
+}
+
+void Thd_ndb::push_warning(uint code, const char* fmt, ...) const {
+  va_list args;
+  va_start(args, fmt);
+  push_condition(m_thd, Sql_condition::SL_WARNING, code, fmt, args);
+  va_end(args);
 }

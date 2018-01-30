@@ -4,12 +4,15 @@ Waiting for not started
 CREATE DATABASE test2;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
+Warning	1296	Schema distribution is not ready
 ALTER DATABASE test2 CHARACTER SET latin2;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
+Warning	1296	Schema distribution is not ready
 DROP DATABASE test2;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock
+Warning	1296	Schema distribution is not ready
 CREATE TABLE t1(a int not null primary key);
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB. Could not acquire global schema lock

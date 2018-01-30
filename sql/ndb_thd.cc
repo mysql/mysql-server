@@ -25,7 +25,6 @@
 #include "sql/ndb_thd.h"
 
 #include "my_dbug.h"
-#include "sql/mysqld.h"     // opt_server_id_mask
 #include "sql/ndb_thd_ndb.h"
 #include "sql/sql_class.h"
 
@@ -80,6 +79,7 @@ applying_binlog(const THD* thd)
   return false;
 }
 
+extern ulong opt_server_id_mask;
 
 uint32
 thd_unmasked_server_id(const THD* thd)

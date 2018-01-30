@@ -78,5 +78,4 @@ const char* ndb_thd_query(const THD* thd);
 */
 size_t ndb_thd_query_length(const THD* thd);
 
-
 #endif

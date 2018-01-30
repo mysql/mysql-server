@@ -624,11 +624,21 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
     srand(1);
   }
 
-  Ndb_schema_dist_client schema_dist_client(thd);
-
   switch (binlog_command) {
     case LOGCOM_CREATE_DB: {
       DBUG_PRINT("info", ("New database '%s' created", db));
+
+      Ndb_schema_dist_client schema_dist_client(thd);
+
+      if (!schema_dist_client.prepare(db, ""))
+      {
+        // Could not prepare the schema distribution client
+        // NOTE! As there is no way return error, this may have to be
+        // revisited, the prepare should be done
+        // much earlier where it can return an error for the query
+        DBUG_VOID_RETURN;
+      }
+
       const bool result = schema_dist_client.create_db(query, query_length, db);
       if (!result) {
         // NOTE! There is currently no way to report an error from this
@@ -639,6 +649,18 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
 
     case LOGCOM_ALTER_DB: {
       DBUG_PRINT("info", ("The database '%s' was altered", db));
+
+      Ndb_schema_dist_client schema_dist_client(thd);
+
+      if (!schema_dist_client.prepare(db, ""))
+      {
+        // Could not prepare the schema distribution client
+        // NOTE! As there is no way return error, this may have to be
+        // revisited, the prepare should be done
+        // much earlier where it can return an error for the query
+        DBUG_VOID_RETURN;
+      }
+
       const bool result = schema_dist_client.alter_db(query, query_length, db);
       if (!result) {
         // NOTE! There is currently no way to report an error from this
@@ -649,14 +671,27 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
 
     case LOGCOM_ACL_NOTIFY: {
       DBUG_PRINT("info", ("Privilege tables have been modified"));
+
       if (!Ndb_dist_priv_util::priv_tables_are_in_ndb(thd)) {
         DBUG_VOID_RETURN;
       }
+
+      Ndb_schema_dist_client schema_dist_client(thd);
+
+      if (!schema_dist_client.prepare(db, ""))
+      {
+        // Could not prepare the schema distribution client
+        // NOTE! As there is no way return error, this may have to be
+        // revisited, the prepare should be done
+        // much earlier where it can return an error for the query
+        DBUG_VOID_RETURN;
+      }
+
       /*
         NOTE! Grant statements with db set to NULL is very rare but
         may be provoked by for example dropping the currently selected
-        database. Since ndbcluster_log_schema_op does not allow
-        db to be NULL(can't create a key for the ndb_schem_object nor
+        database. Since Ndb_schema_dist_client::log_schema_op() does not allow
+        db to be NULL(can't create a key for the ndb_schema_object nor
         write NULL to ndb_schema), the situation is salvaged by setting db
         to the constant string "mysql" which should work in most cases.
 
@@ -677,9 +712,14 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
       }
     } break;
 
-    default:
+    case LOGCOM_CREATE_TABLE:
+    case LOGCOM_ALTER_TABLE:
+    case LOGCOM_RENAME_TABLE:
+    case LOGCOM_DROP_TABLE:
+    case LOGCOM_DROP_DB:
       DBUG_PRINT("info", ("Ignoring binlog_log_query notification "
-                          "for binlog_command: %d", binlog_command));
+                          "for binlog_command: %d",
+                          binlog_command));
       break;
   }
   DBUG_VOID_RETURN;
@@ -2009,25 +2049,23 @@ extern void update_slave_api_stats(Ndb*);
 /*
   log query in ndb_schema table
 */
-int ndbcluster_log_schema_op(THD *thd,
-                             const char *query, int query_length,
-                             const char *db, const char *table_name,
-                             uint32 ndb_table_id,
-                             uint32 ndb_table_version,
-                             enum SCHEMA_OP_TYPE type,
-                             const char *new_db, const char *new_table_name,
-                             bool log_query_on_participant)
+int Ndb_schema_dist_client::log_schema_op_impl(
+    Thd_ndb* thd_ndb,
+    const char *query, int query_length, const char *db, const char *table_name,
+    uint32 ndb_table_id, uint32 ndb_table_version, enum SCHEMA_OP_TYPE type,
+    const char *new_db, const char *new_table_name,
+    bool log_query_on_participant)
 {
-  DBUG_ENTER("ndbcluster_log_schema_op");
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
+  DBUG_ENTER("Ndb_schema_dist_client::log_schema_op_impl");
+
   if (!thd_ndb)
   {
-    if (!(thd_ndb= Thd_ndb::seize(thd)))
+    if (!(thd_ndb= Thd_ndb::seize(m_thd)))
     {
       ndb_log_error("Could not allocate Thd_ndb object");
       DBUG_RETURN(1);
     }
-    thd_set_thd_ndb(thd, thd_ndb);
+    thd_set_thd_ndb(m_thd, thd_ndb);
   }
 
   DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
@@ -2035,7 +2073,7 @@ int ndbcluster_log_schema_op(THD *thd,
   if (!ndb_schema_share ||
       thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP))
   {
-    if (thd->slave_thread)
+    if (m_thd->slave_thread)
       update_slave_api_stats(thd_ndb->ndb);
 
     DBUG_RETURN(0);
@@ -2048,7 +2086,7 @@ int ndbcluster_log_schema_op(THD *thd,
     DBUG_ASSERT(type == SOT_CREATE_DB ||
                 type == SOT_ALTER_DB ||
                 type == SOT_DROP_DB);
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                         ER_TOO_LONG_IDENT,
                         "Ndb has an internal limit of %u bytes on the size of schema identifiers",
                         NDB_MAX_DDL_NAME_BYTESIZE);
@@ -2067,7 +2105,7 @@ int ndbcluster_log_schema_op(THD *thd,
   {
   case SOT_DROP_TABLE:
     /* drop database command, do not log at drop table */
-    if (thd->lex->sql_command ==  SQLCOM_DROP_DB)
+    if (m_thd->lex->sql_command ==  SQLCOM_DROP_DB)
       DBUG_RETURN(0);
     /*
       Rewrite the drop table query as it may contain several tables
@@ -2077,10 +2115,10 @@ int ndbcluster_log_schema_op(THD *thd,
     */
 
     query= tmp_buf2;
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table1,
+    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_table1,
                                             table_name, 0);
     quoted_table1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db1,
+    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_db1,
                                             db, 0);
     quoted_db1[id_length]= '\0';
     query_length= (uint) (strxmov(tmp_buf2, "drop table ", quoted_db1, ".",
@@ -2098,16 +2136,16 @@ int ndbcluster_log_schema_op(THD *thd,
           -> RENAME TABLE t1 to tx + RENAME TABLE t2 to ty
     */
     query= tmp_buf2;
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db1,
+    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_db1,
                                             db, 0);
     quoted_db1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table1,
+    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_table1,
                                             table_name, 0);
     quoted_table1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db2,
+    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_db2,
                                             new_db, 0);
     quoted_db2[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table2,
+    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_table2,
                                             new_table_name, 0);
     quoted_table2[id_length]= '\0';
     query_length= (uint) (strxmov(tmp_buf2, "rename table ",
@@ -2248,11 +2286,7 @@ int ndbcluster_log_schema_op(THD *thd,
 
   if (ndbtab == 0)
   {
-    if (strcmp(NDB_REP_DB, db) != 0 ||
-        strcmp(NDB_SCHEMA_TABLE, table_name))
-    {
-      ndb_error= &dict->getNdbError();
-    }
+    ndb_error= &dict->getNdbError();
     goto end;
   }
 
@@ -2313,12 +2347,12 @@ int ndbcluster_log_schema_op(THD *thd,
       DBUG_ASSERT(r == 0);
       /* any value */
       Uint32 anyValue = 0;
-      if (! thd->slave_thread)
+      if (! m_thd->slave_thread)
       {
         /* Schema change originating from this MySQLD, check SQL_LOG_BIN
          * variable and pass 'setting' to all logging MySQLDs via AnyValue  
          */
-        if (thd_test_options(thd, OPTION_BIN_LOG)) /* e.g. SQL_LOG_BIN == on */
+        if (thd_test_options(m_thd, OPTION_BIN_LOG)) /* e.g. SQL_LOG_BIN == on */
         {
           DBUG_PRINT("info", ("Schema event for binlogging"));
           ndbcluster_anyvalue_set_normal(anyValue);
@@ -2348,8 +2382,8 @@ int ndbcluster_log_schema_op(THD *thd,
            AnyValues to/from Binlogged server-ids.
         */
         DBUG_PRINT("info", ("Replicated schema event with original server id %d",
-                            thd->server_id));
-        anyValue = thd_unmasked_server_id(thd);
+                            m_thd->server_id));
+        anyValue = thd_unmasked_server_id(m_thd);
       }
 
 #ifndef DBUG_OFF
@@ -2377,7 +2411,7 @@ int ndbcluster_log_schema_op(THD *thd,
 err:
     const NdbError *this_error= trans ?
       &trans->getNdbError() : &ndb->getNdbError();
-    if (this_error->status == NdbError::TemporaryError && !thd->killed)
+    if (this_error->status == NdbError::TemporaryError && !m_thd->killed)
     {
       if (retries--)
       {
@@ -2392,8 +2426,8 @@ err:
   }
 end:
   if (ndb_error)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                        ER_GET_ERRMSG, ER_THD(m_thd, ER_GET_ERRMSG),
                         ndb_error->code,
                         ndb_error->message,
                         "Could not log query '%s' on other mysqld's");
@@ -2437,7 +2471,7 @@ end:
                                           &ndb_schema_object->mutex,
                                           &abstime);
 
-      if (thd->killed)
+      if (m_thd->killed)
         break;
 
       { //Scope of ndb_schema_share protection
@@ -2483,7 +2517,7 @@ end:
                   log_type,
                   query);
 
-  if (thd->slave_thread)
+  if (m_thd->slave_thread)
     update_slave_api_stats(ndb);
 
   DBUG_RETURN(0);
@@ -3217,8 +3251,8 @@ class Ndb_schema_event_handler {
       assert(false);
       return false;
     }
-    assert(!strncmp(share->db, STRING_WITH_LEN(NDB_REP_DB)));
-    assert(!strncmp(share->table_name, STRING_WITH_LEN(NDB_SCHEMA_TABLE)));
+    assert(Ndb_schema_dist_client::is_schema_dist_table(share->db,
+                                                        share->table_name));
     return true;
   }
 
@@ -5436,11 +5470,10 @@ Ndb_binlog_client::create_event(Ndb *ndb, const NdbDictionary::Table*ndbtab,
   }
   else
   {
-    if (strcmp(share->db, NDB_REP_DB) == 0 &&
-        strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
-    {
+    if (Ndb_schema_dist_client::is_schema_dist_table(share->db,
+                                                     share->table_name)) {
       /**
-       * ER_SUBSCRIBE is only needed on NDB_SCHEMA_TABLE
+       * ER_SUBSCRIBE is only needed on schema distribution table
        */
       my_event.setReport((NDBEVENT::EventReport)
                          (NDBEVENT::ER_ALL |
@@ -5571,9 +5604,8 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
 
   // Check if this is the event operation on mysql.ndb_schema
   // as it need special processing
-  const bool do_ndb_schema_share =
-      (strcmp(share->db, NDB_REP_DB) == 0 &&
-       strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0);
+  const bool do_ndb_schema_share = Ndb_schema_dist_client::is_schema_dist_table(
+      share->db, share->table_name);
 
   // Check if this is the event operation on mysql.ndb_apply_status
   // as it need special processing

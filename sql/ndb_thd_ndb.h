@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -207,6 +207,31 @@ public:
   bool recycle_ndb(void);
 
   bool is_slave_thread(void) const { return m_slave_thread; }
+
+  /*
+    @brief Push a warning message onto THD's condition stack.
+           Using default error code.
+
+    @thd               Thread handle
+    @param[in]  fmt    printf-like format string
+    @param[in]  ...    Variable arguments matching format string
+  */
+  void push_warning(const char* fmt, ...) const
+    MY_ATTRIBUTE((format(printf, 2, 3)));
+
+  /*
+    @brief Push a warning message onto THD's condition stack.
+           Using specified error code.
+
+    @param      thd    Thread handle
+    @param      code   Error code to use for the warning
+    @param[in]  fmt    printf-like format string
+    @param[in]  ...    Variable arguments matching format string
+  */
+  void push_warning(uint code, const char* fmt, ...) const
+    MY_ATTRIBUTE((format(printf, 3, 4)));
+
+
 };
 
 #endif

@@ -10264,6 +10264,11 @@ static bool drop_table_and_related(THD *thd, Ndb *ndb,
                                    const NdbDictionary::Table *table,
                                    int drop_flags, bool skip_related);
 
+static int drop_table_impl(THD *thd, Ndb *ndb,
+                           Ndb_schema_dist_client &schema_dist_client,
+                           const char *path, const char *db,
+                           const char *table_name);
+
 /**
   Create a table in NDB Cluster
 
@@ -10437,18 +10442,17 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
-  if (!ndb_schema_dist_is_ready())
+  if (ndb_name_is_temp(m_tabname))
   {
-    /*
-      Don't allow table creation unless schema distribution is ready
-      ( unless it is a creation of the schema dist table itself )
-    */
-    if (!(strcmp(m_dbname, NDB_REP_DB) == 0 &&
-          strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
-    {
-      DBUG_PRINT("info", ("Schema distribution table not setup"));
-      DBUG_RETURN(HA_ERR_NO_CONNECTION);
-    }
+    // Creating table with temporary name, table will only be access by this
+    // MySQL Server -> skip schema distribution
+    DBUG_PRINT("info", ("Creating table with temporary name"));
+  }
+  else if (Ndb_schema_dist_client::is_schema_dist_table(m_dbname, m_tabname))
+  {
+    // Creating the schema distribution table itself -> skip schema distribution
+    // but apply special settings for the table
+    DBUG_PRINT("info", ("Creating the schema distribution table"));
 
     // Set mysql.ndb_schema table to read+write also in single user mode
     tab.setSingleUserMode(NdbDictionary::Table::SingleUserModeReadWrite);
@@ -10457,6 +10461,16 @@ int ha_ndbcluster::create(const char *name,
 
     // Mark the mysql.ndb_schema table as hidden in the DD
     ndb_dd_table_mark_as_hidden(table_def);
+  }
+  else
+  {
+    // Prepare schema distribution
+    if (!schema_dist_client.prepare(m_dbname, m_tabname))
+    {
+      // Failed to prepare schema distributions
+      DBUG_PRINT("info", ("Schema distribution failed to initialize"));
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
   }
 
   if (!ndb_apply_status_share)
@@ -10500,8 +10514,11 @@ int ha_ndbcluster::create(const char *name,
       DBUG_RETURN(err);
 
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
-    if ((err= delete_table(name, nullptr)))
-      DBUG_RETURN(err);
+    const int drop_result = drop_table_impl(
+        thd, thd_ndb->ndb, schema_dist_client, name, m_dbname, m_tabname);
+    if (drop_result) {
+      DBUG_RETURN(drop_result);
+    }
     ndbtab_g.reinit();
   }
 
@@ -11326,7 +11343,7 @@ cleanup_failed:
 
   if (ndb_name_is_temp(m_tabname))
   {
-    // Temporary table created OK
+    // Temporary named table created OK
     NDB_SHARE::release_reference(share, "create"); // temporary ref.
     m_table= 0;
     DBUG_RETURN(0); // All OK
@@ -11388,6 +11405,7 @@ cleanup_failed:
   }
   else
   {
+    DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
     schema_dist_result = schema_dist_client.create_table(
         share->db, share->table_name, m_table->getObjectId(),
         m_table->getObjectVersion());
@@ -12018,6 +12036,37 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   if (check_ndb_connection(thd))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
+  {
+    // Prepare schema distribution, find the names which will be used in this
+    // rename by looking at the parameters and the lex structures.
+    const char *prepare_dbname;
+    const char *prepare_tabname;
+    switch (thd_sql_command(thd)) {
+      case SQLCOM_CREATE_INDEX:
+      case SQLCOM_DROP_INDEX:
+      case SQLCOM_ALTER_TABLE:
+        prepare_dbname = thd->lex->select_lex->table_list.first->db;
+        prepare_tabname = thd->lex->select_lex->table_list.first->table_name;
+        break;
+
+      case SQLCOM_RENAME_TABLE:
+        prepare_dbname = old_dbname;
+        prepare_tabname = m_tabname;
+        break;
+
+    default:
+      ndb_log_error("INTERNAL ERROR: Unexpected sql command: %u "
+                    "using rename_table", thd_sql_command(thd));
+      abort();
+      break;
+    }
+
+    if (!schema_dist_client.prepare_rename(prepare_dbname, prepare_tabname,
+                                           new_dbname, new_tabname)) {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+  }
+
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::rename_table"))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
@@ -12489,9 +12538,14 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *)
 
   Ndb_schema_dist_client schema_dist_client(thd);
 
-  if (!ndb_schema_dist_is_ready())
+  const char* prepare_name = m_tabname;
+  if (ndb_name_is_temp(prepare_name))
   {
-    /* Don't allow drop table unless schema distribution is ready */
+    prepare_name = thd->lex->select_lex->table_list.first->table_name;
+  }
+
+  if (!schema_dist_client.prepare(m_dbname, prepare_name)) {
+    /* Don't allow delete table unless schema distribution is ready */
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
@@ -13367,10 +13421,13 @@ static void ndbcluster_drop_database(handlerton*, char *path)
 {
   THD *thd= current_thd;
   DBUG_ENTER("ndbcluster_drop_database");
+  DBUG_PRINT("enter", ("path: '%s'", path));
 
+  char db[FN_REFLEN];
+  ndb_set_dbname(path, db);
   Ndb_schema_dist_client schema_dist_client(thd);
 
-  if (!ndb_schema_dist_is_ready())
+  if (!schema_dist_client.prepare(db, ""))
   {
     /* Don't allow drop database unless schema distribution is ready */
     DBUG_VOID_RETURN;
@@ -13388,8 +13445,6 @@ static void ndbcluster_drop_database(handlerton*, char *path)
   // data directory and should be removed probably remove at this
   // point or in the "schema distribution synch" code.
 
-  char db[FN_REFLEN];
-  ndb_set_dbname(path, db);
   if (!schema_dist_client.drop_db(db))
   {
     // NOTE! There is currently no way to report an error from this
@@ -17228,6 +17283,11 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
   if (!(alter_data= new (*THR_MALLOC) NDB_ALTER_DATA(thd, dict, m_table)))
     DBUG_RETURN(true);
 
+  if (!alter_data->schema_dist_client.prepare(m_dbname, m_tabname))
+  {
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
+
   const NDBTAB* const old_tab = alter_data->old_table;
   NdbDictionary::Table * const new_tab = alter_data->new_table;
   ha_alter_info->handler_ctx= alter_data;
@@ -17903,6 +17963,11 @@ int ndbcluster_alter_tablespace(handlerton*,
   case (CREATE_TABLESPACE):
   {
     error= ER_CREATE_FILEGROUP_FAILED;
+
+    if (!schema_dist_client.prepare("", alter_info->tablespace_name))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
     
     NdbDictionary::Tablespace ndb_ts;
     NdbDictionary::Datafile ndb_df;
@@ -17975,6 +18040,12 @@ int ndbcluster_alter_tablespace(handlerton*,
   case (ALTER_TABLESPACE):
   {
     error= ER_ALTER_FILEGROUP_FAILED;
+
+    if (!schema_dist_client.prepare("", alter_info->tablespace_name))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_ADD_FILE)
     {
       NdbDictionary::Datafile ndb_df;
@@ -18049,6 +18120,12 @@ int ndbcluster_alter_tablespace(handlerton*,
   case (CREATE_LOGFILE_GROUP):
   {
     error= ER_CREATE_FILEGROUP_FAILED;
+
+    if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     NdbDictionary::LogfileGroup ndb_lg;
     NdbDictionary::Undofile ndb_uf;
     NdbDictionary::ObjectId objid;
@@ -18150,6 +18227,12 @@ int ndbcluster_alter_tablespace(handlerton*,
   case (ALTER_LOGFILE_GROUP):
   {
     error= ER_ALTER_FILEGROUP_FAILED;
+
+    if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     if (alter_info->undo_file_name == NULL)
     {
       /*
@@ -18223,6 +18306,12 @@ int ndbcluster_alter_tablespace(handlerton*,
   case (DROP_TABLESPACE):
   {
     error= ER_DROP_FILEGROUP_FAILED;
+
+    if (!schema_dist_client.prepare("", alter_info->tablespace_name))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     errmsg= "TABLESPACE";
     NdbDictionary::Tablespace ts=
       dict->getTablespace(alter_info->tablespace_name);
@@ -18238,6 +18327,12 @@ int ndbcluster_alter_tablespace(handlerton*,
   case (DROP_LOGFILE_GROUP):
   {
     error= ER_DROP_FILEGROUP_FAILED;
+
+    if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     errmsg= "LOGFILE GROUP";
     NdbDictionary::LogfileGroup lg=
       dict->getLogfileGroup(alter_info->logfile_group_name);
