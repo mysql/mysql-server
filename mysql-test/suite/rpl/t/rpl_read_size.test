@@ -22,7 +22,15 @@ let $slave_rpl_read_size= `SELECT @@GLOBAL.rpl_read_size`;
 --let $case= 0
 while ($case < 2)
 {
-  STOP SLAVE SQL_THREAD;
+  # This is done to ensure that count_read is calculated
+  # for the new relay log file.
+  --source include/rpl_connection_master.inc
+  INSERT INTO t1 VALUES (1, 'start');
+  --source include/sync_slave_sql_with_master.inc
+
+  # Avoid reading relay log file while receiving events
+  --source include/stop_slave_sql.inc
+
   # Move to the next relay log. This will ensure that the count_read
   # variable will only contains the read done by belows INSERT query.
    --let $count_read_start= query_get_value(SELECT count_read FROM performance_schema.file_summary_by_instance WHERE event_name='wait/io/file/sql/relaylog' ORDER BY file_name, count_read, 2)
