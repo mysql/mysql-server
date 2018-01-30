@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -376,6 +376,7 @@ public:
        inconsistent backup. Such operations are most DDL statements,
        and some administrative statements.
      - RESOURCE_GROUPS is for resource groups.
+     - FOREIGN_KEY is for foreign key names.
     Note that requests waiting for user-level locks get special
     treatment - waiting is aborted if connection to client is lost.
   */
@@ -395,6 +396,7 @@ public:
                             COLUMN_STATISTICS,
                             BACKUP_LOCK,
                             RESOURCE_GROUPS,
+                            FOREIGN_KEY,
                             /* This should be the last ! */
                             NAMESPACE_END };
 

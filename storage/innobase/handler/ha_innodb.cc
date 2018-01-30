@@ -13193,9 +13193,7 @@ create_table_info_t::prepare_create_table(
 		}
 	}
 
-	if (high_level_read_only && !is_intrinsic_temp_table()) {
-		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
-	}
+	ut_ad(!high_level_read_only || is_intrinsic_temp_table());
 
 	DBUG_RETURN(parse_table_name(name));
 }
@@ -13709,6 +13707,12 @@ innobase_basic_ddl::create_impl(
 	char		remote_path[FN_REFLEN];	/* Absolute path of table */
 	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
 	trx_t*		trx;
+
+	if (high_level_read_only
+		&& !(create_info->options
+			& HA_LEX_CREATE_INTERNAL_TMP_TABLE)) {
+		return HA_ERR_INNODB_READ_ONLY;
+	}
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */

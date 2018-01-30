@@ -11,11 +11,11 @@ f1	f2
 insert into t1 values(2, 3);
 ERROR HY000: Table 't1' is read only
 alter table t1 add f3 int not null, algorithm=copy;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: InnoDB is in read only mode.
 alter table t1 add f3 int not null, algorithm=inplace;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 drop index idx on t1;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 update t1 set f1=3 where f2=2;
 ERROR HY000: Table 't1' is read only
 create table t3(f1 int not null)engine=innodb;
@@ -41,11 +41,11 @@ f1	f2
 insert into t2 values(2, 3);
 ERROR HY000: Table 't2' is read only
 alter table t2 add f3 int not null, algorithm=copy;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: InnoDB is in read only mode.
 alter table t2 add f3 int not null, algorithm=inplace;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 drop index idx on t2;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 update t2 set f1=3 where f2=2;
 ERROR HY000: Table 't2' is read only
 create table t1(f1 int not null)engine=innodb;
@@ -71,11 +71,11 @@ f1	f2
 insert into t2 values(2, 3);
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 alter table t2 add f3 int not null, algorithm=copy;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: InnoDB is in read only mode.
 alter table t2 add f3 int not null, algorithm=inplace;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 drop index idx on t2;
-ERROR HY000: Table 'tables' is read only
+ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
 update t2 set f1=3 where f2=2;
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 create table t1(f1 int not null)engine=innodb;

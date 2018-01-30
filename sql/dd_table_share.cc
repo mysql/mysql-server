@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2200,8 +2200,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
     for (const dd::Partition *sub_part_obj : part_obj->sub_partitions())
     {
-      DBUG_ASSERT(sub_part_obj->parent_partition_id() != dd::INVALID_OBJECT_ID);
-
       partition_element *curr_sub_part_elem= new (&share->mem_root) partition_element;
       if (!curr_sub_part_elem)
       {

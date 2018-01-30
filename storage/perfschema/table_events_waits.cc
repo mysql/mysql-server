@@ -430,7 +430,7 @@ table_events_waits_common::make_metadata_lock_object_columns(
   if (safe_metadata_lock->get_version() == wait->m_weak_version)
   {
     // TODO: remove code duplication with PFS_column_row::make_row()
-    static_assert(MDL_key::NAMESPACE_END == 16,
+    static_assert(MDL_key::NAMESPACE_END == 17,
                   "Adjust performance schema when changing enum_mdl_namespace");
 
     MDL_key *mdl = &safe_metadata_lock->m_mdl_key;
@@ -549,6 +549,12 @@ table_events_waits_common::make_metadata_lock_object_columns(
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
       m_row.m_index_name_length = 0;
+      break;
+    case MDL_key::FOREIGN_KEY:
+      m_row.m_object_type = "FOREIGN KEY";
+      m_row.m_object_type_length = 11;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
       break;
     case MDL_key::NAMESPACE_END:
     default:

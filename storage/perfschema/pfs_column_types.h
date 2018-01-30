@@ -221,12 +221,13 @@ enum enum_object_type
   OBJECT_TYPE_ACL_CACHE = 14,
   OBJECT_TYPE_COLUMN_STATISTICS = 15,
   OBJECT_TYPE_BACKUP_LOCK = 16,
-  OBJECT_TYPE_RESOURCE_GROUPS = 17
+  OBJECT_TYPE_RESOURCE_GROUPS = 17,
+  OBJECT_TYPE_FOREIGN_KEY = 18
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
-#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_RESOURCE_GROUPS))
+#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_FOREIGN_KEY))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 

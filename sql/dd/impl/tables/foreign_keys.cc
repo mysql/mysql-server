@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,9 @@
 #include <string>
 
 #include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
-#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
+#include "sql/dd/impl/raw/raw_record.h" // dd::Raw_record
+#include "sql/dd/impl/raw/raw_table.h" // dd::Raw_table
+#include "sql/dd/impl/transaction_impl.h" // Transaction_ro
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/mysqld.h"
 #include "sql/stateless_allocator.h"
@@ -121,6 +123,14 @@ Foreign_keys::Foreign_keys()
 
 ///////////////////////////////////////////////////////////////////////////
 
+Object_key *Foreign_keys::create_key_by_foreign_key_name(
+  Object_id schema_id,
+  const String_type &foreign_key_name)
+{
+  return new (std::nothrow) Item_name_key(FIELD_SCHEMA_ID, schema_id,
+                                          FIELD_NAME, foreign_key_name);
+}
+
 Object_key *Foreign_keys::create_key_by_table_id(Object_id table_id)
 {
   return new (std::nothrow) Parent_id_range_key(
@@ -141,6 +151,39 @@ Object_key *Foreign_keys::create_key_by_referenced_name(
           referenced_schema,
           FIELD_REFERENCED_TABLE,
           referenced_table);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Foreign_keys::check_foreign_key_exists(THD *thd,
+                                            Object_id schema_id,
+                                            const String_type &foreign_key_name,
+                                            bool *exists)
+{
+  DBUG_ENTER("Foreign_keys::check_foreign_key_exists");
+
+  Transaction_ro trx(thd, ISO_READ_COMMITTED);
+  trx.otx.register_tables<dd::Foreign_key>();
+  if (trx.otx.open_tables())
+    DBUG_RETURN(true);
+
+  const std::unique_ptr<Object_key> key(
+    create_key_by_foreign_key_name(schema_id, foreign_key_name.c_str()));
+
+  Raw_table *table= trx.otx.get_table(instance().name());
+  DBUG_ASSERT(table != nullptr);
+
+  // Find record by the object-key.
+  std::unique_ptr<Raw_record> record;
+  if (table->find_record(*key, record))
+    DBUG_RETURN(true);
+
+  if (record.get())
+    *exists= true;
+  else
+    *exists= false;
+
+  DBUG_RETURN(false);
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,12 +70,34 @@ public:
 
   Foreign_keys();
 
+  static Object_key *create_key_by_foreign_key_name(
+    Object_id schema_id,
+    const String_type &foreign_key_name);
+
   static Object_key *create_key_by_table_id(Object_id table_id);
 
   static Object_key *create_key_by_referenced_name(
     const String_type &referenced_catalog,
     const String_type &referenced_schema,
     const String_type &referenced_table);
+
+  /**
+    Check if schema contains foreign key with specified name.
+
+    @param        thd               Thread context.
+    @param        schema_id         Id of schema to be inspected.
+    @param        foreign_key_name  Name of the foreign key.
+    @param  [out] exists            Set to true if foreign key with
+                                    the name provided exists in the
+                                    schema, false otherwise.
+
+    @retval      false    No error.
+    @retval      true     Error.
+  */
+
+  static bool check_foreign_key_exists(THD *thd, Object_id schema_id,
+                                       const String_type &foreign_key_name,
+                                       bool *exists);
 };
 
 ///////////////////////////////////////////////////////////////////////////

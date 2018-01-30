@@ -169,13 +169,13 @@ DROP TABLE t1;
 --echo # alter operations with fk on parent
 SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(254) charset latin1) ENGINE=Innodb;
-CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) , CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
+CREATE TABLE t2 (a2 INT , b2 VARCHAR(254) charset latin1, CONSTRAINT fk FOREIGN KEY (a2) REFERENCES t1 (a) ON UPDATE CASCADE ON DELETE CASCADE) ENGINE=Innodb;
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 INSERT IGNORE INTO t2 (a2,b2) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1,t2 WHERE t1.a = t2.a2 ORDER BY a;
 connect (con1,localhost,root,,);
 connection con1;
---error ER_FK_DUP_NAME
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t2 CHANGE b2 b2 varchar(255) charset latin1, DROP FOREIGN KEY fk,ADD CONSTRAINT fk FOREIGN KEY (b2) REFERENCES t1 (b),ADD INDEX idx(a2) ,ALGORITHM=INPLACE;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL s1 WAIT_FOR s2';
 --send ALTER TABLE t1 ADD INDEX idx(a),CHANGE b b varchar(255) charset latin1, ALGORITHM=INPLACE;

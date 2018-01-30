@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -513,8 +513,9 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
         QQ: Think about (!skip_error)
       */
-      if (mysql_rename_table(thd, hton, ren_table->db, old_alias, *to_schema,
-                             new_db, new_alias,
+      if (mysql_rename_table(thd, hton, ren_table->db, old_alias,
+                             ren_table->db, old_alias,
+                             *to_schema, new_db, new_alias,
                              ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
                               NO_DD_COMMIT : 0)) ||
           ((hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&

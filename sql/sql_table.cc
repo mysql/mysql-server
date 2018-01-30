@@ -846,9 +846,9 @@ size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
                        Which binlog cache should be used?
                        If true => trx cache
                        If false => stmt cache
-  @param[out] tmp_table_def  Placeholder for data-dictionary object for
-                             temporary table which was created. It will
-                             contain nullptr if no_ha_table was false.
+  @param[out] tmp_table_def  Data-dictionary object for temporary table
+                             which was created. Is not set if no_ha_table
+                             was false.
 
   @retval false  ok
   @retval true   error
@@ -864,11 +864,9 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
                                  Alter_info::enum_enable_or_disable keys_onoff,
                                  handler *file, bool no_ha_table,
                                  bool *binlog_to_trx_cache,
-                                 dd::Table **tmp_table_def)
+                                 std::unique_ptr<dd::Table> *tmp_table_def)
 {
   DBUG_ENTER("rea_create_tmp_table");
-
-  *tmp_table_def= NULL;
 
   std::unique_ptr<dd::Table> tmp_table_ptr=
     dd::create_tmp_table(thd, sch_obj, table_name, create_info, create_fields,
@@ -878,7 +876,7 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
 
   if (no_ha_table)
   {
-    *tmp_table_def= tmp_table_ptr.release();
+    *tmp_table_def= std::move(tmp_table_ptr);
     DBUG_RETURN(false);
   }
 
@@ -934,11 +932,17 @@ static bool rea_create_tmp_table(THD *thd, const char *path,
   @param file          Handler to use
   @param no_ha_table   Indicates that only definitions needs to be created
                        and not a table in the storage engine.
+  @param do_not_store_in_dd   Indicates that we should postpone storing table
+                              object in the data-dictionary. Requires SE
+                              supporting atomic DDL and no_ha_table flag set.
   @param part_info     Reference to partitioning data structure.
   @param[out] binlog_to_trx_cache
                        Which binlog cache should be used?
                        If true => trx cache
                        If false => stmt cache
+  @param[out] table_def_ptr  dd::Table object describing the table
+                             created if do_not_store_in_dd option was
+                             used. Not set otherwise.
   @param[out] post_ddl_ht    Set to handlerton for table's SE, if this SE
                              supports atomic DDL, so caller can call SE
                              post DDL hook after committing transaction.
@@ -961,33 +965,65 @@ static bool rea_create_base_table(THD *thd, const char *path,
                                   Alter_info::enum_enable_or_disable keys_onoff,
                                   uint fk_keys, FOREIGN_KEY *fk_key_info,
                                   handler *file, bool no_ha_table,
+                                  bool do_not_store_in_dd,
                                   partition_info *part_info,
                                   bool *binlog_to_trx_cache,
+                                  std::unique_ptr<dd::Table> *table_def_ptr,
                                   handlerton **post_ddl_ht)
 {
   DBUG_ENTER("rea_create_base_table");
 
-  bool result= dd::create_table(thd, sch_obj, table_name,
-                                create_info,
-                                create_fields,
-                                key_info,
-                                keys,
-                                keys_onoff,
-                                fk_key_info,
-                                fk_keys,
-                                file);
+  std::unique_ptr<dd::Table> table_def_res= dd::create_table(thd, sch_obj,
+                                                            table_name,
+                                                            create_info,
+                                                            create_fields,
+                                                            key_info,
+                                                            keys,
+                                                            keys_onoff,
+                                                            fk_key_info,
+                                                            fk_keys,
+                                                            file);
 
-  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-      !thd->is_plugin_fake_ddl())
-    result= trans_intermediate_ddl_commit(thd, result);
-
-  if (result)
+  if (!table_def_res)
     DBUG_RETURN(true);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Table *table_def= nullptr;
-  if (thd->dd_client()->acquire_for_modification(db, table_name, &table_def))
-    DBUG_RETURN(true);
+
+  if (do_not_store_in_dd)
+  {
+    /*
+      Clean up code assumes that SE supports atomic DDL if do_not_store_in_dd
+      was requested, so we can simply rollback our changes.
+
+      ha_create_table() won't work correctly if dd::Table object is not stored
+      in the data-dictionary.
+
+      For data-dictionary tables we rely on Dictionary_client::store() to update
+      their table definition.
+    */
+    DBUG_ASSERT(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
+    DBUG_ASSERT(no_ha_table);
+    DBUG_ASSERT(!dd::get_dictionary()->get_dd_table(db, table_name));
+
+    *table_def_ptr= std::move(table_def_res);
+
+    table_def= table_def_ptr->get();
+  }
+  else
+  {
+    bool result= thd->dd_client()->store(table_def_res.get());
+
+    if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        !thd->is_plugin_fake_ddl())
+      result= trans_intermediate_ddl_commit(thd, result);
+
+    if (result)
+      DBUG_RETURN(true);
+
+    if (thd->dd_client()->acquire_for_modification(db, table_name, &table_def))
+      DBUG_RETURN(true);
+  }
 
   if (no_ha_table)
   {
@@ -1265,6 +1301,46 @@ bool collect_fk_children(THD *thd, const dd::Table *table_def,
 }
 
 
+/**
+  Add MDL requests for exclusive lock on all foreign key names on the given
+  table to the list.
+
+  @param          thd           Thread context.
+  @param          db            Table's schema name.
+  @param          table_def     Table definition.
+  @param[in,out]  mdl_requests  List to which MDL requests are to be added.
+
+  @retval operation outcome, false if no error.
+*/
+
+static bool collect_fk_names(THD *thd, const char *db,
+                             const dd::Table *table_def,
+                             MDL_request_list *mdl_requests)
+{
+  for (const dd::Foreign_key *fk : table_def->foreign_keys())
+  {
+    /*
+      Since foreign key names are case-insesitive we need to lowercase them
+      before passing to MDL subsystem.
+    */
+    char fk_name[NAME_LEN + 1];
+    strmake(fk_name, fk->name().c_str(), NAME_LEN);
+    my_casedn_str(system_charset_info, fk_name);
+
+    MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+    if (mdl_request == NULL)
+      return true;
+
+    MDL_REQUEST_INIT(mdl_request, MDL_key::FOREIGN_KEY, db, fk_name,
+                     MDL_EXCLUSIVE, MDL_STATEMENT);
+
+    mdl_requests->push_front(mdl_request);
+  }
+
+  return false;
+}
+
+
 bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables)
 {
   MDL_request_list mdl_requests;
@@ -1322,6 +1398,9 @@ bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables)
         return true;
 
     if (collect_fk_children(thd, table_def, &mdl_requests))
+      return true;
+
+    if (collect_fk_names(thd, table->db, table_def, &mdl_requests))
       return true;
   }
 
@@ -5126,96 +5205,180 @@ const char* find_fk_parent_key(Alter_info *alter_info,
 
 
 /**
-  Restore the foreign key name for foreign keys which have been
-  temporarily renamed during ALTER TABLE. This is needed to avoid
-  problems with duplicate foreign key names while we have two
-  definitions of the same table.
+  Make old table definition's foreign keys use temporary names.
+  This is needed to avoid problems with duplicate foreign key
+  names while we have two definitions of the same table.
 
-  @param table_def      Table object.
-  @param alter_ctx      ALTER TABLE runtime context.
- */
+  @param  thd           Thread context.
+  @param  db_name       Database where old table definition resides.
+  @param  backup_name   Temporary name assigned to old table definition
+                        during ALTER TABLE.
 
-static void restore_foreign_key_names(dd::Table *table_def,
-                                      const Alter_table_ctx &alter_ctx)
+  @returns False - Success, True - Failure.
+*/
+
+static bool
+adjust_foreign_key_names_for_old_table_version(THD *thd, const char *db_name,
+                                               const char *backup_name)
 {
-  // Restore the original name for pre-existing foreign keys
-  // that had their name temporarily altered during ALTER TABLE
-  // to avoid violating the unique constraint on FK name.
+  dd::Table *table_def= nullptr;
+  MDL_request_list mdl_requests;
+
+  if (thd->dd_client()->acquire_for_modification(db_name, backup_name,
+                                                 &table_def))
+    return true;
+  DBUG_ASSERT(table_def != nullptr);
+
   for (dd::Foreign_key *fk : *table_def->foreign_keys())
   {
-    for (const FOREIGN_KEY *fk_key= alter_ctx.fk_info;
-         fk_key != alter_ctx.fk_info + alter_ctx.fk_count;
-         ++fk_key)
-    {
-      if (fk_key->orig_name != nullptr &&
-          fk->name().length() == strlen(fk_key->name) &&
-          (strncmp(fk_key->name, fk->name().c_str(), fk->name().length()) == 0))
-      {
-        fk->set_name(fk_key->orig_name);
-        break;
-      }
-    }
+    char temp_fk_name[4 + 20 + 1];
+
+    my_snprintf(temp_fk_name, sizeof(temp_fk_name), "#fk_%llu",
+                (ulonglong)fk->id());
+
+    /*
+      Acquire metadata locks on temporary names before updating data-dictionary
+      just in case somebody tries to create foreign keys with names like
+      #fk_<number> concurrently.
+    */
+    MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+    if (mdl_request == NULL)
+      return true;
+    MDL_REQUEST_INIT(mdl_request, MDL_key::FOREIGN_KEY, db_name, temp_fk_name,
+                     MDL_EXCLUSIVE, MDL_STATEMENT);
+    mdl_requests.push_front(mdl_request);
+
+    // Update dd::Foreign_key object but do not store it in data-dictionary yet.
+    fk->set_name(temp_fk_name);
   }
+
+  DBUG_ASSERT(!mdl_requests.is_empty());
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true;
+
+  return thd->dd_client()->update(table_def);
 }
 
 
 /**
-  Generate a foreign key name. Foreign key names have to be unique
-  for a given schema. This function is used when the user has not
-  specified neither constraint name nor foreign key name.
+  Find max value of number component among existing generated foreign
+  key names for the table.
 
-  For now, we have to replicate the name generated by InnoDB.
-  As long as InnoDB also stores FK metadata, we have to agree on
-  name in order for DROP FOREIGN KEY to work properly.
+  @param table_name   Table name (should be already in lowercase
+                      if l_c_t_n > 0).
+  @param table_def    Table definition.
 
-  The format is (table_name)_ibfk_(counter). The counter is 1-based
-  and per table. The number chosen for the counter is 1 higher than
-  the highest number currently in use.
+  @note We assume that names are generated according to InnoDB rules.
+        This function is in sync with generate_fk_name() and
+        dd::rename_foreign_keys().
+
+  @note This function mimics dict_table_get_highest_foreign_id() from 5.7.
+*/
+
+static uint get_fk_max_generated_name_number(const char *table_name,
+                                             const dd::Table *table_def)
+{
+  uint key_number= 0;
+  /*
+    There is no need to lowercase table_name as it is already supposed
+    to be in lowercase.
+  */
+  size_t table_name_length= strlen(table_name);
+
+  for (const dd::Foreign_key *fk : table_def->foreign_keys())
+  {
+    /*
+      We assume that the name is generated if it starts with <table_name>_ibfk_
+
+      Note that unlike during RENAME TABLE handling, here, i.e. when
+      generating name for new constraints, we mimic InnoDB's behavior from
+      5.7 and ignore pre-existing generated names which have pre-4.0.18 format.
+    */
+    if (dd::is_generated_foreign_key_name(table_name, table_name_length, *fk) &&
+        (fk->name().c_str()[table_name_length +
+                            sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1] != '0'))
+    {
+      char *end= nullptr;
+      uint nr= my_strtoull(fk->name().c_str() + table_name_length +
+                           sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) - 1,
+                           &end, 10);
+      if (!*end && nr > key_number)
+        key_number= nr;
+    }
+  }
+  return key_number;
+}
+
+
+/**
+  Generate a foreign key name and store it in buffer provided.
+
+  @note Foreign key names have to be unique for a given schema.
+        This function is used when the user has not specified
+        neither constraint name nor foreign key name.
+
+  @note For now, we have to replicate the name generated by InnoDB.
+        The format is (table_name)_ibfk_(counter). The counter is
+        1-based and per table. The number chosen for the counter is
+        1 higher than the highest number currently in use.
 
   @todo Implement new naming scheme (or move responsibility of
         naming to the SE layer).
 
-  @param table_name          Table name.
-  @param fk_info_buffer      Array of FKs.
-  @param fk_number           Index to FK to be added.
+  @param          name_buff                     Buffer for generated name.
+  @param          name_buff_size                Size of name buffer, if buffer
+                                                is too small generated name
+                                                will be truncated.
+  @param          table_name                    Table name.
+  @param[in,out]  fk_max_generated_name_number  Max value of number component
+                                                among existing generated
+                                                foreign key names.
+
+*/
+
+static void generate_fk_name(char *name_buff, size_t name_buff_size,
+                             const char *table_name,
+                             uint *fk_max_generated_name_number)
+{
+  my_snprintf(name_buff, name_buff_size, "%s%s%u", table_name,
+              dd::FOREIGN_KEY_NAME_SUBSTR, ++*fk_max_generated_name_number);
+}
+
+
+/**
+  Generate a foreign key name, allocate memory from thread's current
+  memory root for it.
+
+  @note Foreign key names have to be unique for a given schema.
+        This function is used when the user has not specified
+        neither constraint name nor foreign key name.
+
+  @note For now, we have to replicate the name generated by InnoDB.
+        The format is (table_name)_ibfk_(counter). The counter is
+        1-based and per table. The number chosen for the counter is
+        1 higher than the highest number currently in use.
+
+  @todo Implement new naming scheme (or move responsibility of
+        naming to the SE layer).
+
+  @param         table_name                    Table name.
+  @param[in,out] fk_max_generated_name_number  Max value of number component
+                                               among existing generated foreign
+                                               key names.
 
   @retval  Generated name
 */
 
 static const char* generate_fk_name(const char *table_name,
-                                    FOREIGN_KEY **fk_info_buffer,
-                                    uint fk_number)
+                                    uint *fk_max_generated_name_number)
 {
-  // InnoDB name generation (for now).
-  // Find the highest used key number.
-  uint key_number= 0;
-  for (uint i= 0; i < fk_number; i++)
-  {
-    const char *s;
-    if ((*fk_info_buffer)[i].orig_name != nullptr)
-    {
-      // The FK already existed, check the orignal name
-      s= strstr((*fk_info_buffer)[i].orig_name,
-                dd::FOREIGN_KEY_NAME_SUBSTR);
-    }
-    else
-    {
-      // New FK, check the newly generated name
-      s= strstr((*fk_info_buffer)[i].name,
-                dd::FOREIGN_KEY_NAME_SUBSTR);
-    }
-    if (s && strlen(s) > 6)
-    {
-      char *e= NULL;
-      uint nr= my_strtoull(s + 6, &e, 10);
-      if (!*e && nr > key_number)
-        key_number= nr;
-    }
-  }
-  std::string name(table_name);
-  name.append(dd::FOREIGN_KEY_NAME_SUBSTR);
-  name.append(std::to_string(key_number + 1));
-  return sql_strdup(name.c_str());
+  // The below buffer should be sufficient for any generated name.
+  char name[NAME_LEN + sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) + 10 + 1];
+  generate_fk_name(name, sizeof(name), table_name,
+                   fk_max_generated_name_number);
+  return sql_strdup(name);
 }
 
 
@@ -5418,14 +5581,15 @@ find_fk_parent_key(const dd::Table *parent_table_def, const dd::Foreign_key *fk)
   @param table_name          Table name.
   @param key_info_buffer     Array of indexes.
   @param key_count           Number of indexes.
-  @param fk_info_buffer      Array of FKs (pre-existing and new).
-  @param fk_number           Index to the FK to be prepared.
   @param fk_key              Parser info about new FK to prepare.
   @param se_supports_fks     Indicates whether SE supports FKs.
                              If not only basic FK validation is
                              performed.
   @param find_parent_key     Indicates whether we need to lookup name of unique
                              constraint in parent table for the FK.
+  @param[in,out] fk_max_generated_name_number  Max value of number component
+                                               among existing generated foreign
+                                               key names.
   @param[out] fk_info        Struct to populate.
 
   @retval true if error (error reported), false otherwise.
@@ -5438,11 +5602,10 @@ static bool prepare_foreign_key(THD *thd,
                                 const char *table_name,
                                 KEY *key_info_buffer,
                                 uint key_count,
-                                FOREIGN_KEY **fk_info_buffer,
-                                uint fk_number,
                                 const Foreign_key_spec *fk_key,
                                 bool se_supports_fks,
                                 bool find_parent_key,
+                                uint *fk_max_generated_name_number,
                                 FOREIGN_KEY *fk_info)
 {
   DBUG_ENTER("prepare_foreign_key");
@@ -5468,8 +5631,7 @@ static bool prepare_foreign_key(THD *thd,
     fk_info->name= fk_key->name.str;
   else
   {
-    fk_info->name= generate_fk_name(table_name,
-                                    fk_info_buffer, fk_number);
+    fk_info->name= generate_fk_name(table_name, fk_max_generated_name_number);
 
     // Length of generated name should be checked as well.
     if (check_string_char_length(to_lex_cstring(fk_info->name),
@@ -5480,8 +5642,6 @@ static bool prepare_foreign_key(THD *thd,
       DBUG_RETURN(true);
     }
   }
-  // New FKs doesn't have an original FK name.
-  fk_info->orig_name= nullptr;
 
   fk_info->key_parts= fk_key->columns.size();
 
@@ -5876,6 +6036,7 @@ bool mysql_prepare_create_table(THD *thd,
                                 uint *fk_key_count,
                                 FOREIGN_KEY *existing_fks,
                                 uint existing_fks_count,
+                                uint fk_max_generated_name_number,
                                 int select_field_count,
                                 bool find_parent_keys)
 {
@@ -6144,9 +6305,9 @@ bool mysql_prepare_create_table(THD *thd,
                               error_schema_name,
                               error_table_name,
                               *key_info_buffer, *key_count,
-                              fk_key_info_buffer, fk_number,
                               down_cast<const Foreign_key_spec*>(key),
                               se_supports_fks, find_parent_keys,
+                              &fk_max_generated_name_number,
                               fk_key_info))
         DBUG_RETURN(true);
 
@@ -6418,6 +6579,9 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
   @param no_ha_table         Indicates that only .FRM file (and PAR file if table
                              is partitioned) needs to be created and not a table
                              in the storage engine.
+  @param do_not_store_in_dd  Indicates that we should postpone storing table
+                             object in the data-dictionary. Requires SE
+                             supporting atomic DDL and no_ha_table flag set.
   @param[out] is_trans       Identifies the type of engine where the table
                              was created: either trans or non-trans.
   @param[out] key_info       Array of KEY objects describing keys in table
@@ -6431,10 +6595,13 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
                              which already existed in the table
                              (in case of ALTER TABLE).
   @param[in] existing_fk_count Number of pre-existing foreign keys.
-  @param[out] tmp_table_def  Data-dictionary object for temporary table
-                             which was created, but was not open because
-                             of "no_ha_table" flag. NULL otherwise (if
-                             table was open or is non-temporary).
+  @param[in] fk_max_generated_name_number  Max value of number component among
+                                           existing generated foreign key names.
+  @param[out] table_def      Data-dictionary object describing the table
+                             created if do_not_store_in_dd option was
+                             used or because the table is temporary and
+                             was not open due to no_ha_table. Not set
+                             otherwise.
   @param[out] post_ddl_ht    Set to handlerton for table's SE, if this SE
                              supports atomic DDL, so caller can call SE
                              post DDL hook after committing transaction.
@@ -6465,6 +6632,7 @@ bool create_table_impl(THD *thd,
                        uint select_field_count,
                        bool find_parent_keys,
                        bool no_ha_table,
+                       bool do_not_store_in_dd,
                        bool *is_trans,
                        KEY **key_info,
                        uint *key_count,
@@ -6473,13 +6641,13 @@ bool create_table_impl(THD *thd,
                        uint *fk_key_count,
                        FOREIGN_KEY *existing_fk_info,
                        uint existing_fk_count,
-                       dd::Table **tmp_table_def,
+                       uint fk_max_generated_name_number,
+                       std::unique_ptr<dd::Table> *table_def,
                        handlerton **post_ddl_ht)
 {
   DBUG_ENTER("create_table_impl");
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d",
                        db, table_name, internal_tmp_table));
-  *tmp_table_def= NULL;
 
   /* Check for duplicate fields and check type of table to create */
   if (!alter_info->create_list.elements)
@@ -6655,6 +6823,7 @@ bool create_table_impl(THD *thd,
                                  key_info, key_count,
                                  fk_key_info, fk_key_count,
                                  existing_fk_info, existing_fk_count,
+                                 fk_max_generated_name_number,
                                  select_field_count, find_parent_keys);
 
   if (is_whitelisted_table)
@@ -6816,7 +6985,7 @@ bool create_table_impl(THD *thd,
                              create_info, alter_info->create_list,
                              *key_count, *key_info, keys_onoff,
                              file.get(), no_ha_table, is_trans,
-                             tmp_table_def))
+                             table_def))
       DBUG_RETURN(true);
   }
   else
@@ -6824,8 +6993,9 @@ bool create_table_impl(THD *thd,
     if (rea_create_base_table(thd, path, schema, db, table_name,
                               create_info, alter_info->create_list,
                               *key_count, *key_info, keys_onoff, *fk_key_count,
-                              *fk_key_info, file.get(), no_ha_table, part_info,
-                              is_trans, post_ddl_ht))
+                              *fk_key_info, file.get(), no_ha_table,
+                              do_not_store_in_dd, part_info, is_trans,
+                              table_def, post_ddl_ht))
       DBUG_RETURN(true);
   }
 
@@ -6862,7 +7032,7 @@ bool mysql_create_table_no_lock(THD *thd,
   uint not_used_2;
   FOREIGN_KEY *not_used_3= NULL;
   uint not_used_4= 0;
-  dd::Table *not_used_5;
+  std::unique_ptr<dd::Table> not_used_5;
   char path[FN_REFLEN + 1];
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -6914,10 +7084,10 @@ bool mysql_create_table_no_lock(THD *thd,
   return create_table_impl(thd, *schema, db, table_name, table_name,
                            path, create_info, alter_info,
                            false, select_field_count,
-                           find_parent_keys, no_ha_table, is_trans,
+                           find_parent_keys, no_ha_table, false, is_trans,
                            &not_used_1, &not_used_2, Alter_info::ENABLE,
                            &not_used_3, &not_used_4,
-                           NULL, 0,
+                           nullptr, 0, 0,
                            &not_used_5, post_ddl_ht);
 }
 
@@ -7373,6 +7543,71 @@ bool collect_fk_parents_for_new_fks(THD *thd,
 }
 
 
+bool collect_fk_names_for_new_fks(THD *thd,
+                                  const char *db_name,
+                                  const char *table_name,
+                                  const Alter_info *alter_info,
+                                  uint fk_max_generated_name_number,
+                                  MDL_request_list *mdl_requests)
+{
+  for (size_t i= 0; i < alter_info->key_list.size(); i++)
+  {
+    const Key_spec *key= alter_info->key_list[i];
+
+    if (key->type == KEYTYPE_FOREIGN)
+    {
+      const Foreign_key_spec *fk= down_cast<const Foreign_key_spec*>(key);
+
+      if (fk->name.str)
+      {
+        /*
+          Since foreign key names are case-insesitive we need to lowercase
+          them before passing to MDL subsystem.
+        */
+        char fk_name[NAME_LEN + 1];
+        strmake(fk_name, fk->name.str, NAME_LEN);
+        my_casedn_str(system_charset_info, fk_name);
+
+        MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+        if (mdl_request == NULL)
+          return true;
+
+        MDL_REQUEST_INIT(mdl_request, MDL_key::FOREIGN_KEY,
+                         db_name, fk_name, MDL_EXCLUSIVE, MDL_STATEMENT);
+        mdl_requests->push_front(mdl_request);
+      }
+      else
+      {
+        char fk_name[NAME_LEN + 1];
+
+        /*
+          Note that the below code is in sync with generate_fk_name().
+
+          There is no need to lowercase generated foreign key name as the table
+          name is already in lower case.
+
+          Here we truncate generated name if it is too long. This is sufficient
+          for MDL purposes. Error will be reported later in this case.
+        */
+        generate_fk_name(fk_name, sizeof(fk_name), table_name,
+                         &fk_max_generated_name_number);
+
+        MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+        if (mdl_request == NULL)
+          return true;
+
+        MDL_REQUEST_INIT(mdl_request, MDL_key::FOREIGN_KEY,
+                         db_name, fk_name, MDL_EXCLUSIVE, MDL_STATEMENT);
+
+        mdl_requests->push_front(mdl_request);
+      }
+    }
+  }
+
+  return false;
+}
+
+
 /**
   Implementation of SQLCOM_CREATE_TABLE.
 
@@ -7444,6 +7679,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                                                  create_table->table_name) &&
          collect_fk_children(thd, create_table->db, create_table->table_name,
                              create_info->db_type, &mdl_requests)) ||
+        collect_fk_names_for_new_fks(thd, create_table->db,
+                                     create_table->table_name,
+                                     alter_info, 0, // No pre-existing FKs
+                                     &mdl_requests) ||
         (!mdl_requests.is_empty() &&
          thd->mdl_context.acquire_locks(&mdl_requests,
                                         thd->variables.lock_wait_timeout)))
@@ -7812,6 +8051,13 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
   @param base      The handlerton handle.
   @param old_db    The old database name.
   @param old_name  The old table name.
+  @param old_fk_db    The old table db to be used for
+                      identifying self-referencing FKs
+                      which need to be updated.
+  @param old_fk_name  The old table name to be used for
+                      identifying generated FK names and
+                      self-referencing FKs which need to
+                      be updated.
   @param new_schema  DD object for the new schema.
   @param new_db    The new database name.
   @param new_name  The new table name.
@@ -7821,6 +8067,8 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
                    NO_FK_CHECKS   Don't check FK constraints during rename.
                    NO_DD_COMMIT   Don't commit transaction after updating
                                   data-dictionary.
+                   NO_FK_RENAME   Don't change generated foreign key names
+                                  during rename.
 
   @note Use of NO_DD_COMMIT flag only allowed for SEs supporting atomic DDL.
 
@@ -7836,7 +8084,9 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
 
 bool
 mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
-                   const char *old_name, const dd::Schema &new_schema,
+                   const char *old_name,
+                   const char *old_fk_db, const char *old_fk_name,
+                   const dd::Schema &new_schema,
                    const char *new_db, const char *new_name, uint flags)
 {
   DBUG_ENTER("mysql_rename_table");
@@ -7887,6 +8137,29 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   to_table_def->set_hidden((flags & FN_TO_IS_TMP) ?
                            dd::Abstract_table::HT_HIDDEN_DDL :
                            dd::Abstract_table::HT_VISIBLE);
+
+  /* Adjust parent table for self-referencing foreign keys. */
+  for (dd::Foreign_key *fk : *(to_table_def->foreign_keys()))
+  {
+    if (my_strcasecmp(table_alias_charset,
+                      fk->referenced_table_schema_name().c_str(),
+                      old_fk_db) == 0 &&
+        my_strcasecmp(table_alias_charset,
+                      fk->referenced_table_name().c_str(),
+                      old_fk_name) == 0)
+    {
+      fk->set_referenced_table_schema_name(new_db);
+      fk->set_referenced_table_name(new_name);
+    }
+  }
+
+  /*
+    Unless supressed update generated foreign key names
+    (as they have table_name_ibfk_#### format).
+  */
+  if (!(flags & NO_FK_RENAME) &&
+      dd::rename_foreign_keys(thd, old_db, old_fk_name, new_db, to_table_def))
+    DBUG_RETURN(true);
 
   // Get the handler for the table, and issue an error if we cannot load it.
   handler *file= (base == NULL ? 0 :
@@ -7966,8 +8239,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     supporting atomic DDL. And for engines which can't do atomic DDL in
     either case there are scenarios in which DD and SE get out of sync.
   */
-  bool result= dd::rename_foreign_keys(old_name, to_table_def) ||
-               thd->dd_client()->update(to_table_def);
+  bool result= thd->dd_client()->update(to_table_def);
 
   /*
     Only rename histograms when this isn't a rename for temporary names
@@ -9506,7 +9778,7 @@ bool mysql_compare_tables(TABLE *table,
                                  &tmp_alter_info,
                                  table->file, &key_info_buffer,
                                  &key_count, &fk_key_info_buffer,
-                                 &fk_key_count, NULL, 0, 0,
+                                 &fk_key_count, nullptr, 0, 0, 0,
                                  false))
     DBUG_RETURN(true);
 
@@ -9911,7 +10183,6 @@ collect_and_lock_fk_tables_for_complex_alter_table(THD *thd,
     const Alter_table_ctx *alter_ctx, const Alter_info *alter_info,
     handlerton *old_hton, handlerton *new_hton,
     Foreign_key_parents_invalidator *fk_invalidator)
-
 {
   MDL_request_list mdl_requests;
 
@@ -9989,10 +10260,9 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
   if (!(new_hton->flags & HTON_SUPPORTS_FOREIGN_KEYS))
     return false;
 
-  dd::Table *new_table= nullptr;
-  if (thd->dd_client()->acquire_for_modification(alter_ctx->new_db,
-                                                 alter_ctx->new_alias,
-                                                 &new_table))
+  const dd::Table *new_table= nullptr;
+  if (thd->dd_client()->acquire(alter_ctx->new_db, alter_ctx->new_alias,
+                                &new_table))
     return true;
 
   DBUG_ASSERT(new_table != nullptr);
@@ -10007,22 +10277,6 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
 
   if (alter_ctx->is_table_renamed())
   {
-    for (dd::Foreign_key *fk : *(new_table->foreign_keys()))
-    {
-      if (my_strcasecmp(table_alias_charset,
-                        fk->referenced_table_schema_name().c_str(),
-                        table_list->db) == 0 &&
-          my_strcasecmp(table_alias_charset,
-                        fk->referenced_table_name().c_str(),
-                        table_list->table_name) == 0)
-      {
-        fk->set_referenced_table_schema_name(alter_ctx->new_db);
-        fk->set_referenced_table_name(alter_ctx->new_alias);
-      }
-    }
-    if (thd->dd_client()->update(new_table))
-      return true;
-
     if (adjust_fk_children_after_parent_rename(thd,
                                                table_list->db,
                                                table_list->table_name,
@@ -10042,6 +10296,179 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
 
   return adjust_fk_parents(thd, alter_ctx->new_db,
                            alter_ctx->new_alias, true, fk_invalidator);
+}
+
+
+/**
+  Add appropriate MDL requests on names of foreign keys on the table
+  to be renamed to the requests list.
+
+  @param          thd             Thread handle.
+  @param          db              Table's old schema.
+  @param          table_name      Table's old name.
+  @param          table_def       Table definition of table being RENAMEd.
+  @param          new_db          Table's new schema.
+  @param          new_table_name  Table's new name.
+  @param[in,out]  mdl_requests    List to which MDL requests need to be
+                                  added.
+
+  @retval operation outcome, false if no error.
+*/
+
+static bool
+collect_fk_names_for_rename_table(THD *thd,
+      const char *db, const char *table_name,
+      const dd::Table *table_def,
+      const char *new_db, const char *new_table_name,
+      MDL_request_list *mdl_requests)
+
+{
+  bool is_table_renamed= (my_strcasecmp(table_alias_charset, table_name,
+                          new_table_name) != 0);
+  bool is_db_changed= (my_strcasecmp(table_alias_charset, db, new_db) != 0);
+
+  char old_table_name_norm[NAME_LEN + 1];
+  strmake(old_table_name_norm, table_name, NAME_LEN);
+  // With LCTN = 2, we are using lower-case tablename for FK name.
+  if (lower_case_table_names == 2)
+    my_casedn_str(system_charset_info, old_table_name_norm);
+  char new_table_name_norm[NAME_LEN + 1];
+  strmake(new_table_name_norm, new_table_name, NAME_LEN);
+  if (lower_case_table_names == 2)
+     my_casedn_str(system_charset_info, new_table_name_norm);
+  size_t old_table_name_norm_len= strlen(old_table_name_norm);
+
+  for (const dd::Foreign_key *fk : table_def->foreign_keys())
+  {
+    /*
+      Since foreign key names are case-insesitive we need to lowercase
+      them before passing to MDL subsystem.
+    */
+    char fk_name[NAME_LEN + 1];
+    strmake(fk_name, fk->name().c_str(), NAME_LEN);
+    my_casedn_str(system_charset_info, fk_name);
+
+    MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+    if (mdl_request == NULL)
+      return true;
+
+    MDL_REQUEST_INIT(mdl_request, MDL_key::FOREIGN_KEY, db, fk_name,
+                     MDL_EXCLUSIVE, MDL_STATEMENT);
+
+    mdl_requests->push_front(mdl_request);
+
+    if (is_table_renamed &&
+        dd::is_generated_foreign_key_name(old_table_name_norm,
+                                          old_table_name_norm_len,
+                                          *fk))
+    {
+      char new_fk_name[NAME_LEN+1];
+
+      /*
+        Copy _ibfk_<number> part. Here we truncate generated name if it
+        is too long. This is sufficient for MDL purposes. Error will be
+        reported later in this case.
+      */
+      strxnmov(new_fk_name, NAME_LEN, new_table_name_norm,
+               fk->name().c_str() + old_table_name_norm_len,
+               NullS);
+
+      MDL_request *mdl_request2= new (thd->mem_root) MDL_request;
+      if (mdl_request2 == NULL)
+        return true;
+
+      MDL_REQUEST_INIT(mdl_request2, MDL_key::FOREIGN_KEY, new_db, new_fk_name,
+                       MDL_EXCLUSIVE, MDL_STATEMENT);
+
+      mdl_requests->push_front(mdl_request2);
+    }
+    else if (is_db_changed)
+    {
+      MDL_request *mdl_request2= new (thd->mem_root) MDL_request;
+      if (mdl_request2 == NULL)
+        return true;
+
+      MDL_REQUEST_INIT(mdl_request2, MDL_key::FOREIGN_KEY, new_db, fk_name,
+                       MDL_EXCLUSIVE, MDL_STATEMENT);
+
+      mdl_requests->push_front(mdl_request2);
+    }
+  }
+
+  return false;
+}
+
+
+/**
+  Check if complex ALTER TABLE with RENAME clause results in foreign key
+  names conflicts.
+
+  @param  thd         Thread handle.
+  @param  table_list  Table list element for table altered.
+  @param  table_def   dd::Table object describing new version of
+                      table prior to rename operation.
+  @param  new_schema  dd::Schema object for target schema.
+  @param  alter_ctx   ALTER TABLE operation context.
+
+  @retval True if error (e.g. due to foreign key name conflict),
+          false - otherwise.
+*/
+
+static bool
+check_fk_names_before_rename(THD *thd, TABLE_LIST *table_list,
+                             const dd::Table &table_def,
+                             const dd::Schema &new_schema,
+                             const Alter_table_ctx &alter_ctx)
+{
+  for (const dd::Foreign_key *fk : table_def.foreign_keys())
+  {
+    if (alter_ctx.is_table_name_changed() &&
+        dd::is_generated_foreign_key_name(table_list->table_name,
+                                          table_list->table_name_length,
+                                          *fk))
+    {
+      // We reserve extra NAME_LEN to ensure that new name fits.
+      char new_fk_name[NAME_LEN + NAME_LEN + 1];
+
+      // Construct new name by copying _ibfk_<number> suffix from old one.
+      strxnmov(new_fk_name, sizeof(new_fk_name) - 1, alter_ctx.new_name,
+               fk->name().c_str() + table_list->table_name_length, NullS);
+
+      if (check_string_char_length(to_lex_cstring(new_fk_name), "",
+                                   NAME_CHAR_LEN, system_charset_info,
+                                   true /* no error */))
+      {
+        my_error(ER_TOO_LONG_IDENT, MYF(0), new_fk_name);
+        return true;
+      }
+
+      bool exists;
+      if (thd->dd_client()->check_foreign_key_exists(new_schema, new_fk_name,
+                                                     &exists))
+        return true;
+
+      if (exists)
+      {
+        my_error(ER_FK_DUP_NAME, MYF(0), new_fk_name);
+        return true;
+      }
+    }
+    else if (alter_ctx.is_database_changed())
+    {
+      bool exists;
+      if (thd->dd_client()->check_foreign_key_exists(new_schema, fk->name(),
+                                                     &exists))
+        return true;
+
+      if (exists)
+      {
+        my_error(ER_FK_DUP_NAME, MYF(0), fk->name().c_str());
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 
@@ -10086,6 +10513,7 @@ static bool table_is_empty(TABLE * table, bool *is_empty)
   Perform in-place alter table.
 
   @param thd                Thread handle.
+  @param schema             Source schema.
   @param new_schema         Target schema.
   @param table_def          Table object for the original table.
   @param altered_table_def  Table object for the new version of the table.
@@ -10100,6 +10528,9 @@ static bool table_is_empty(TABLE * table, bool *is_empty)
   @param alter_ctx          ALTER TABLE runtime context.
   @param columns            A list of columns to be modified. This is needed
                             for removal/renaming of histogram statistics.
+  @param  fk_key_info       Array of FOREIGN_KEY objects describing foreign
+                            keys in new table version.
+  @param  fk_key_count      Number of foreign keys in new table version.
   @param[out] fk_invalidator  Set of parent tables which participate in FKs
                               together with table being altered and which
                               entries in DD cache need to be invalidated.
@@ -10121,6 +10552,7 @@ static bool table_is_empty(TABLE * table, bool *is_empty)
 */
 
 static bool mysql_inplace_alter_table(THD *thd,
+                                      const dd::Schema &schema,
                                       const dd::Schema &new_schema,
                                       const dd::Table *table_def,
                                       dd::Table *altered_table_def,
@@ -10132,6 +10564,7 @@ static bool mysql_inplace_alter_table(THD *thd,
                                       MDL_request *target_mdl_request,
                                       Alter_table_ctx *alter_ctx,
                                       histograms::columns_set &columns,
+                                      FOREIGN_KEY *fk_key_info, uint fk_key_count,
                                       Foreign_key_parents_invalidator *fk_invalidator)
 {
   handlerton *db_type= table->s->db_type();
@@ -10139,6 +10572,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
   bool rollback_needs_dict_cache_reset= false;
+  MDL_request_list mdl_requests;
 
   DBUG_ENTER("mysql_inplace_alter_table");
 
@@ -10206,6 +10640,57 @@ static bool mysql_inplace_alter_table(THD *thd,
                                            thd->variables.lock_wait_timeout))
   {
     goto cleanup;
+  }
+
+  /*
+    Acquire locks on names of new foreign keys. INPLACE algorithm creates
+    the new table definition in the original table's database.
+  */
+  if (collect_fk_names_for_new_fks(thd,
+        table_list->db, table_list->table_name, alter_info,
+        get_fk_max_generated_name_number(table_list->table_name,
+                                         table_def), &mdl_requests) ||
+      (alter_ctx->is_table_renamed() &&
+       collect_fk_names_for_rename_table(thd, table_list->db,
+                                         table_list->table_name,
+                                         altered_table_def,
+                                         alter_ctx->new_db,
+                                         alter_ctx->new_name,
+                                         &mdl_requests)))
+    goto cleanup;
+
+  if (!mdl_requests.is_empty() &&
+      thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    goto cleanup;
+
+  /*
+    Check if ALTER TABLE results in any foreign key name conflicts
+    before starting potentially expensive phases of INPLACE ALTER.
+  */
+  if (!dd::get_dictionary()->is_dd_table_name(table_list->db,
+                                              table_list->table_name) &&
+      (db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    for (FOREIGN_KEY *fk= fk_key_info + alter_ctx->fk_count;
+         fk < fk_key_info + fk_key_count; ++fk)
+    {
+      bool exists;
+      if (thd->dd_client()->check_foreign_key_exists(schema, fk->name, &exists))
+        goto cleanup;
+
+      if (exists)
+      {
+        my_error(ER_FK_DUP_NAME, MYF(0), fk->name);
+        goto cleanup;
+      }
+    }
+
+    if (alter_ctx->is_table_renamed() &&
+        check_fk_names_before_rename(thd, table_list, *altered_table_def,
+                                     new_schema, *alter_ctx))
+      goto cleanup;
+
   }
 
   // It's now safe to take the table level lock.
@@ -10416,20 +10901,24 @@ static bool mysql_inplace_alter_table(THD *thd,
     table_def= nullptr;
 
     DEBUG_SYNC_C("alter_table_after_dd_client_drop");
-    /*
-      Rename pre-existing foreign keys back to their original names.
-      Since foreign key names have to be unique per schema, they cannot
-      have the same name in both the old and the temp version of the
-      table definition. Since we now have only one defintion, the names
-      can be restored.
-    */
-    restore_foreign_key_names(altered_table_def, *alter_ctx);
 
-    if (thd->dd_client()->update(altered_table_def))
-      goto cleanup2;
-
-    if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+    if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {
+      /*
+        For engines supporting atomic DDL we have delayed storing new
+        table definition in the data-dictionary so far in order to avoid
+        conflicts between old and new definitions on foreign key names.
+        Since the old table definition is gone we can safely store new
+        definition now.
+      */
+      if (thd->dd_client()->store(altered_table_def))
+        goto cleanup2;
+    }
+    else
+    {
+      if (thd->dd_client()->update(altered_table_def))
+        goto cleanup2;
+
       /*
         Persist changes to data-dictionary for storage engines which don't
         support atomic DDL. Such SEs can't rollback in-place changes if error
@@ -10491,6 +10980,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (alter_ctx->is_table_renamed())
   {
     if (mysql_rename_table(thd, db_type, alter_ctx->db, alter_ctx->table_name,
+                           alter_ctx->db, alter_ctx->table_name,
                            new_schema, alter_ctx->new_db, alter_ctx->new_alias,
                            ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
                             NO_DD_COMMIT : 0)))
@@ -10943,17 +11433,9 @@ static bool transfer_preexisting_foreign_keys(
 
     FOREIGN_KEY *sql_fk= &alter_ctx->fk_info[alter_ctx->fk_count++];
 
-    // Remember the orignal name so we can set a temporary name to
-    // avoid name conflicts between FKs in the old table and the new table.
-    sql_fk->orig_name= strmake_root(thd->mem_root,
-                                    dd_fk->name().c_str(),
-                                    dd_fk->name().length() + 1);
-    // Make a temporary, unique name from the FK id.
-    std::string name("#fk_");
-    name.append(std::to_string(dd_fk->id()));
     sql_fk->name= strmake_root(thd->mem_root,
-                               name.c_str(),
-                               name.length() + 1);
+                               dd_fk->name().c_str(),
+                               dd_fk->name().length() + 1);
 
     sql_fk->unique_index_name=
       strmake_root(thd->mem_root,
@@ -11032,6 +11514,10 @@ static bool transfer_preexisting_foreign_keys(
                        dd_fk_ele->referenced_column_name());
     }
   }
+
+  alter_ctx->fk_max_generated_name_number=
+    get_fk_max_generated_name_number(src_table_name, src_table);
+
   return false;
 }
 
@@ -11717,11 +12203,6 @@ bool prepare_fields_and_keys(THD *thd,
                                           alter_ctx, &new_create_list))
       DBUG_RETURN(true);
   }
-  else
-  {
-    alter_ctx->fk_count= 0;
-    alter_ctx->fk_info= nullptr;
-  }
 
   if (rename_key_list.size() > 0)
   {
@@ -12158,7 +12639,9 @@ collect_and_lock_fk_tables_for_rename_table(THD *thd,
   if (collect_fk_children(thd, db, table_name, hton, &mdl_requests) ||
       collect_fk_children(thd, new_db, new_table_name, hton, &mdl_requests) ||
       collect_fk_parents_for_all_fks(thd, table_def, hton, &mdl_requests,
-                                     fk_invalidator))
+                                     fk_invalidator) ||
+      collect_fk_names_for_rename_table(thd, db, table_name, table_def,
+                                        new_db, new_table_name, &mdl_requests))
     return true;
 
   if (!mdl_requests.is_empty() &&
@@ -12177,30 +12660,12 @@ adjust_fks_for_rename_table(THD *thd,
                             handlerton *hton)
 
 {
-  dd::Table *new_table= nullptr;
+  const dd::Table *new_table= nullptr;
 
-  if (thd->dd_client()->acquire_for_modification(new_db, new_table_name,
-                                                 &new_table))
+  if (thd->dd_client()->acquire(new_db, new_table_name, &new_table))
     return true;
 
   DBUG_ASSERT(new_table != nullptr);
-
-  for (dd::Foreign_key *fk : *(new_table->foreign_keys()))
-  {
-    if (my_strcasecmp(table_alias_charset,
-                      fk->referenced_table_schema_name().c_str(),
-                      db) == 0 &&
-        my_strcasecmp(table_alias_charset,
-                      fk->referenced_table_name().c_str(),
-                      table_name) == 0)
-    {
-      fk->set_referenced_table_schema_name(new_db);
-      fk->set_referenced_table_name(new_table_name);
-    }
-  }
-
-  if (thd->dd_client()->update(new_table))
-    return true;
 
   if (adjust_fk_children_after_parent_rename(thd, db, table_name, hton,
                                              new_db, new_table_name))
@@ -12349,6 +12814,7 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
     close_all_tables_for_name(thd, table->s, false, NULL);
 
     if (mysql_rename_table(thd, old_db_type,
+                           alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->db, alter_ctx->table_name,
                            new_schema, alter_ctx->new_db, alter_ctx->new_alias,
                            (atomic_ddl ? NO_DD_COMMIT: 0)))
@@ -12576,6 +13042,62 @@ static bool is_alter_geometry_column_valid(Alter_info *alter_info)
     }
   }
   return true;
+}
+
+
+/**
+  Add MDL requests for exclusive lock on names of the foreign keys to
+  be dropped by ALTER TABLE operation to the lock requests list.
+
+  @param          thd             Thread context.
+  @param          db              Table's database before ALTER TABLE
+                                  operation.
+  @param          alter_info      Alter_info object with the list of FKs
+                                  to be dropped.
+  @param          table_def       dd::Table describing the table before
+                                  ALTER operation.
+  @param[in,out]  mdl_requests    List to which MDL requests are to be added.
+
+  @retval operation outcome, false if no error.
+*/
+
+static bool
+collect_fk_names_for_dropped_fks(THD *thd, const char *db,
+                                 const Alter_info *alter_info,
+                                 const dd::Table *table_def,
+                                 MDL_request_list *mdl_requests)
+{
+  for (const Alter_drop *drop : alter_info->drop_list)
+  {
+    if (drop->type == Alter_drop::FOREIGN_KEY)
+    {
+      for (const dd::Foreign_key *fk : table_def->foreign_keys())
+      {
+        if (my_strcasecmp(system_charset_info,
+                          drop->name, fk->name().c_str()) == 0)
+        {
+          /*
+            Since foreign key names are case-insesitive we need to lowercase
+            them before passing to MDL subsystem.
+          */
+          char fk_name[NAME_LEN + 1];
+          strmake(fk_name, fk->name().c_str(), NAME_LEN);
+          my_casedn_str(system_charset_info, fk_name);
+
+          MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+          if (mdl_request == NULL)
+            return true;
+
+          MDL_REQUEST_INIT(mdl_request, MDL_key::FOREIGN_KEY, db, fk_name,
+                           MDL_EXCLUSIVE, MDL_STATEMENT);
+
+          mdl_requests->push_front(mdl_request);
+          break;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 
@@ -12997,6 +13519,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
 
     /*
+      Lock names of foreign keys to be dropped.
+
+      Note that we can't lock names of foreign keys to be added yet
+      because database in which they will be created depends on ALTER
+      TABLE algorithm we are going to choose later.
+    */
+    if (collect_fk_names_for_dropped_fks(thd, table_list->db,
+                                        alter_info, old_table_def,
+                                        &mdl_requests))
+      DBUG_RETURN(true);
+
+    /*
       Under LOCK TABLES all parent tables must be locked at least in READ
       mode. Otherwise, our ALTER TABLE will leave after itself child table
       locked for WRITE, without corresponding parent tables locked and thus
@@ -13375,14 +13909,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /*
-    dd::Table object describing new version of temporary table. This object will
-    be created in memory in create_table_impl() and will not be put into
-    the DD Object Cache.
+    For temporary tables or tables in SEs supporting atomic DDL dd::Table
+    object describing new version of table. This object will be created in
+    memory in create_table_impl() and will not be put into the on-disk DD
+    and DD Object Cache.
 
-    We become responsible for destroying this dd::Table object until we pass its
-    ownership to the TABLE_SHARE of the temporary table.
+    We become responsible for destroying this dd::Table object (for
+    temporary tables until we pass its ownership to the TABLE_SHARE).
   */
-  dd::Table *tmp_table_def;
+  std::unique_ptr<dd::Table> non_dd_table_def;
 
   {
     Disable_binlog_guard binlog_guard(thd);
@@ -13391,11 +13926,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                              alter_ctx.table_name,
                              alter_ctx.get_tmp_path(),
                              create_info, alter_info,
-                             true, 0, true, true, NULL,
-                             &key_info, &key_count, keys_onoff,
+                             true, 0, true, true,
+                             /*
+                               If target SE supports atomic DDL do not store
+                               new table version in on-disk DD.
+                               It is not required to rollback statement in
+                               case of error and allows to keep correct names
+                               for pre-existing foreign keys in the dd::Table
+                               object for new table version.
+                              */
+                             (new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL),
+                             NULL, &key_info, &key_count, keys_onoff,
                              &fk_key_info, &fk_key_count,
                              alter_ctx.fk_info, alter_ctx.fk_count,
-                             &tmp_table_def, nullptr);
+                             alter_ctx.fk_max_generated_name_number,
+                             &non_dd_table_def, nullptr);
   }
 
   if (error)
@@ -13431,7 +13976,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   bool invalidate_fk_parents_on_error= false;
 
-  dd::Table *table_def= tmp_table_def;
+  /*
+    If we are ALTERing non-temporary table in SE not supporting atomic DDL
+    we don't have dd::Table object describing new version of table yet.
+    Retrieve it now.
+  */
+  dd::Table *table_def= non_dd_table_def.get();
   if (!table_def)
   {
     if (thd->dd_client()->acquire_for_modification(alter_ctx.new_db,
@@ -13521,15 +14071,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     alter_ctx.tmp_name, *table_def);
         (void)trans_intermediate_ddl_commit(thd, result);
       }
-      else
-      {
-        /*
-          We need to revert changes to data-dictionary but
-          still commit statement in this case.
-        */
-        if (thd->dd_client()->drop(table_def))
-          goto err_new_table_cleanup;
-      }
       is_noop= true;
       goto end_inplace_noop;
     }
@@ -13604,11 +14145,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (use_inplace)
     {
-      if (mysql_inplace_alter_table(thd, *new_schema, old_table_def,
+      if (mysql_inplace_alter_table(thd, *schema, *new_schema, old_table_def,
                                     table_def, table_list, table,
                                     altered_table, &ha_alter_info,
                                     inplace_supported, &target_mdl_request,
                                     &alter_ctx, columns,
+                                    fk_key_info, fk_key_count,
                                     &fk_invalidator))
       {
         DBUG_RETURN(true);
@@ -13659,6 +14201,39 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DEBUG_SYNC(thd, "alter_table_copy_after_lock_upgrade");
 
     /*
+      COPY algorithm creates new table version in the new database.
+      So if new database differs from old one we need to lock all
+      foreign key names in new table version. If it is the same as
+      the old one we need to lock only names of foreign keys added.
+
+      Also if table is renamed we need to acquire locks on all foreign
+      key names involved (taking into account adjustment of auto-generated
+      names).
+    */
+    if (alter_ctx.is_database_changed())
+    {
+      if (collect_fk_names(thd, alter_ctx.new_db, table_def, &mdl_requests))
+        goto err_new_table_cleanup;
+    }
+    else
+    {
+      if (collect_fk_names_for_new_fks(thd,
+            alter_ctx.new_db, table_list->table_name, alter_info,
+            get_fk_max_generated_name_number(table_list->table_name,
+                                             old_table_def),
+            &mdl_requests))
+        goto err_new_table_cleanup;
+    }
+
+    if (alter_ctx.is_table_renamed() &&
+        collect_fk_names_for_rename_table(thd, table_list->db,
+                                          table_list->table_name,
+                                          table_def, alter_ctx.new_db,
+                                          alter_ctx.new_name,
+                                          &mdl_requests))
+      goto err_new_table_cleanup;
+
+    /*
       Acquire SRO locks on parent tables for newly added foreign keys
       in order to prevent concurrent DML on them.
 
@@ -13688,12 +14263,65 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                        thd->variables.lock_wait_timeout))
       goto err_new_table_cleanup;
 
+
+    /*
+      Check if ALTER TABLE results in any foreign key name conflicts
+      before starting potentially expensive copying operation.
+    */
+    if (!dd::get_dictionary()->is_dd_table_name(table_list->db,
+                                                table_list->table_name) &&
+        (new_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+    {
+      if (alter_ctx.is_database_changed())
+      {
+        /*
+          If new table version was created schema different from the old one
+          we need to check names for both pre-existing and newly added foreign
+          keys.
+        */
+        for (FOREIGN_KEY *fk= fk_key_info;
+            fk < fk_key_info + fk_key_count; ++fk)
+        {
+          bool exists;
+          if (thd->dd_client()->check_foreign_key_exists(*new_schema, fk->name, &exists))
+            goto err_new_table_cleanup;
+
+          if (exists)
+          {
+            my_error(ER_FK_DUP_NAME, MYF(0), fk->name);
+            goto err_new_table_cleanup;
+          }
+        }
+      }
+      else
+      {
+        /* Otherwise we can limit our check to newly added foreign keys only. */
+        for (FOREIGN_KEY *fk= fk_key_info + alter_ctx.fk_count;
+             fk < fk_key_info + fk_key_count; ++fk)
+        {
+          bool exists;
+          if (thd->dd_client()->check_foreign_key_exists(*new_schema, fk->name, &exists))
+            goto err_new_table_cleanup;
+
+          if (exists)
+          {
+            my_error(ER_FK_DUP_NAME, MYF(0), fk->name);
+            goto err_new_table_cleanup;
+          }
+        }
+      }
+
+      if (alter_ctx.is_table_renamed() &&
+          check_fk_names_before_rename(thd, table_list, *table_def,
+                                       *new_schema, alter_ctx))
+        goto err_new_table_cleanup;
+    }
   }
 
   {
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
-                        create_info, false, false, table_def))
+                        create_info, false, true, table_def))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -13722,8 +14350,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       (void) open_temporary_table(thd, &tbl);
       new_table= tbl.table;
       /* Transfer dd::Table ownership to temporary table's share. */
-      new_table->s->tmp_table_def= tmp_table_def;
-      tmp_table_def= NULL;
+      new_table->s->tmp_table_def= non_dd_table_def.release();
     }
     else
     {
@@ -13890,13 +14517,24 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     new engines is necessary. If either of them lacks such support let
     us commit transaction so changes to data-dictionary are more closely
     reflect situations in SEs.
+
+    Also if new SE supports atomic DDL then we have not stored new table
+    definition in on-disk data-dictionary so far. It is time to do this
+    now if ALTER TABLE as a whole won't be atomic.
   */
   if (!atomic_replace)
   {
+    if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        thd->dd_client()->store(non_dd_table_def.get()))
+      goto err_new_table_cleanup;
+
     Disable_gtid_state_update_guard disabler(thd);
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
+
+    // Safety, in-memory dd::Table is no longer totally correct.
+    non_dd_table_def.reset();
   }
 
 
@@ -13969,8 +14607,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   if (mysql_rename_table(thd, old_db_type, alter_ctx.db, alter_ctx.table_name,
+                         alter_ctx.db, alter_ctx.table_name,
                          *schema, alter_ctx.db, backup_name,
-                         FN_TO_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
+                         FN_TO_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0) |
+                         NO_FK_RENAME))
   {
     // Rename to temporary name failed, delete the new table, abort ALTER.
     if (!atomic_replace)
@@ -13998,12 +14638,43 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   DBUG_ASSERT(!(new_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) ||
               (new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
+  /*
+    We also assume that we can't have non-atomic ALTER TABLE which
+    will preserve any foreign keys (i.e. such ALTER TABLE can only
+    drop all foreign keys on the table, or add new foreign keys to
+    table which previously didn't have any).
+  */
+  DBUG_ASSERT(atomic_replace || alter_ctx.fk_count == 0);
+
+  /*
+    If both old and new SEs support atomic DDL then we have not stored
+    new table definition in on-disk data-dictionary so far. It is time
+    to do this now. However, before doing this we need to rename foreign
+    keys in old table definition to temporary names to avoid conflicts
+    with duplicate names.
+  */
+  if (atomic_replace)
+  {
+    if (alter_ctx.fk_count > 0 &&
+        adjust_foreign_key_names_for_old_table_version(thd, alter_ctx.db,
+                                                       backup_name))
+      goto err_with_mdl;
+
+    if (thd->dd_client()->store(non_dd_table_def.get()))
+      goto err_with_mdl;
+
+    // Safety, in-memory dd::Table is no longer totally correct.
+    non_dd_table_def.reset();
+  }
+
   // Rename the new table to the correct name.
   if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
+                         alter_ctx.db, alter_ctx.table_name,
                          *new_schema, alter_ctx.new_db, alter_ctx.new_alias,
                          (FN_FROM_IS_TMP |
                           ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
-                           NO_DD_COMMIT : 0))) ||
+                           NO_DD_COMMIT : 0) |
+                          (alter_ctx.is_table_renamed() ? 0 : NO_FK_RENAME))) ||
       ((new_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
        adjust_fks_for_complex_alter_table(thd, table_list, &alter_ctx,
                                           alter_info, old_db_type, new_db_type,
@@ -14046,8 +14717,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       uint retries= 20;
       while (retries-- &&
              mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                                *schema, alter_ctx.db, alter_ctx.alias,
-                                FN_FROM_IS_TMP | NO_FK_CHECKS));
+                                alter_ctx.db, backup_name, *schema, alter_ctx.db,
+                                alter_ctx.alias,
+                                FN_FROM_IS_TMP | NO_FK_CHECKS | NO_FK_RENAME));
     }
     goto err_with_mdl;
   }
@@ -14130,32 +14802,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
-  /*
-    Rename pre-existing foreign keys back to their original names.
-    Since foreign key names have to be unique per schema, they cannot
-    have the same name in both the old and the temp version of the
-    table definition. Since we now have only one defintion, the names
-    can be restored.
-  */
-  if (alter_ctx.fk_count > 0)
-  {
-    dd::Table *new_table= nullptr;
-    if (thd->dd_client()->acquire_for_modification(alter_ctx.new_db,
-                                                   alter_ctx.new_alias,
-                                                   &new_table))
-      goto err_with_mdl;
-    DBUG_ASSERT(new_table != nullptr);
-
-    restore_foreign_key_names(new_table, alter_ctx);
-    if (thd->dd_client()->update(new_table))
-      goto err_with_mdl;
-
-    Disable_gtid_state_update_guard disabler(thd);
-    if (!atomic_replace &&
-        (trans_commit_stmt(thd) || trans_commit(thd)))
-      goto err_with_mdl;
-  }
-
 end_inplace_noop:
 
   THD_STAGE_INFO(thd, stage_end);
@@ -14170,8 +14816,14 @@ end_inplace_noop:
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->is_current_stmt_binlog_format_row() &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
+
+  /*
+    If this is no-op ALTER TABLE we don't have transaction started.
+    We can't use binlog's trx cache in this case as it requires active
+    transaction with valid XID.
+  */
   if (write_bin_log(thd, true, thd->query().str, thd->query().length,
-                    atomic_replace))
+                    atomic_replace && !is_noop))
     goto err_with_mdl;
 
   if (!is_noop)
@@ -14273,12 +14925,10 @@ err_new_table_cleanup:
       close_temporary_table(thd, new_table, true, true);
     else if (!no_ha_table)
       rm_temporary_table(thd, new_db_type, alter_ctx.get_tmp_path(),
-                         tmp_table_def);
-    delete tmp_table_def;
+                         non_dd_table_def.get());
   }
   else
   {
-    DBUG_ASSERT(tmp_table_def == nullptr);
     /* close_temporary_table() frees the new_table pointer. */
     if (new_table)
       close_temporary_table(thd, new_table, true, false);

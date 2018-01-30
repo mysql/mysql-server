@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -445,10 +445,17 @@ public:
   { return (new_db != db); };
 
   /**
-     @return true if the table is renamed, false otherwise.
+     @return true if the table name is changed, false otherwise.
+  */
+  bool is_table_name_changed() const
+  { return (new_name != table_name); };
+
+  /**
+     @return true if the table is renamed (i.e. its name or database changed),
+             false otherwise.
   */
   bool is_table_renamed() const
-  { return (is_database_changed() || new_name != table_name); };
+  { return is_database_changed() || is_table_name_changed(); };
 
   /**
      @return path to the original table.
@@ -481,13 +488,14 @@ public:
   const char   *new_alias;
   char         tmp_name[80];
 
-  /*
-    Used to remember which foreign keys already existed in the table.
-    These foreign keys must be temporary renamed in order to not
-    have conficting name with the foreign keys in the old table.
-  */
+  /* Used to remember which foreign keys already existed in the table. */
   FOREIGN_KEY  *fk_info;
   uint         fk_count;
+  /**
+    Maximum number component used by generated foreign key names in the
+    old version of table.
+  */
+  uint         fk_max_generated_name_number;
 
 private:
   char new_filename[FN_REFLEN + 1];

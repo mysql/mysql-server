@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for acl cache lock", 0, PSI_DOCUMENT_ME},
   {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
   {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME},
-  {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME}
+  {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -1712,6 +1713,7 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
     case MDL_key::COMMIT:
     case MDL_key::BACKUP_LOCK:
     case MDL_key::RESOURCE_GROUPS:
+    case MDL_key::FOREIGN_KEY:
       m_strategy= &m_scoped_lock_strategy;
       break;
     default:
@@ -1750,6 +1752,7 @@ MDL_lock::get_unobtrusive_lock_increment(const MDL_request *request)
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
     case MDL_key::BACKUP_LOCK:
+    case MDL_key::FOREIGN_KEY:
       return m_scoped_lock_strategy.m_unobtrusive_lock_increment[request->type];
     default:
       return m_object_lock_strategy.m_unobtrusive_lock_increment[request->type];

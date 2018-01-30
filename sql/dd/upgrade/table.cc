@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1791,6 +1791,7 @@ static bool migrate_table_to_dd(THD *thd,
                                  file, &key_info_buffer, &key_count,
                                  &dummy_fk_key_info, &fk_key_count,
                                  alter_ctx.fk_info, alter_ctx.fk_count,
+                                 alter_ctx.fk_max_generated_name_number,
                                  0, false /* No FKs here. */))
   {
     thd->mem_root= mem_root_backup;
@@ -1926,17 +1927,19 @@ static bool migrate_table_to_dd(THD *thd,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (dd::create_dd_user_table(thd,
-                               *sch_obj,
-                               to_table_name,
-                               &create_info,
-                               alter_info.create_list,
-                               key_info_buffer,
-                               key_count,
-                               Alter_info::ENABLE,
-                               fk_key_info_buffer,
-                               fk_number,
-                               table->file))
+  std::unique_ptr<dd::Table> table_def= dd::create_dd_user_table(thd,
+                                              *sch_obj,
+                                              to_table_name,
+                                              &create_info,
+                                              alter_info.create_list,
+                                              key_info_buffer,
+                                              key_count,
+                                              Alter_info::ENABLE,
+                                              fk_key_info_buffer,
+                                              fk_number,
+                                              table->file);
+
+  if (!table_def || thd->dd_client()->store(table_def.get()))
   {
     LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY,
            schema_name.c_str(), table_name.c_str());

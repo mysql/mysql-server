@@ -246,8 +246,6 @@ dd_table_open_on_dd_obj(
 	THD*				thd)
 {
 #ifdef UNIV_DEBUG
-	ut_ad(dd_table.is_persistent());
-
 	if (dd_part != nullptr) {
 		ut_ad(&dd_part->table() == &dd_table);
 		ut_ad(dd_table.se_private_id() == dd::INVALID_OBJECT_ID);

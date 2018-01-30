@@ -96,7 +96,7 @@ Alter_table_ctx::Alter_table_ctx()
     tables_opened(0),
     db(NULL), table_name(NULL), alias(NULL),
     new_db(NULL), new_name(NULL), new_alias(NULL),
-    fk_info(NULL), fk_count(0)
+    fk_info(nullptr), fk_count(0), fk_max_generated_name_number(0)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
@@ -111,7 +111,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(tables_opened_arg),
     new_db(new_db_arg), new_name(new_name_arg),
-    fk_info(NULL), fk_count(0)
+    fk_info(nullptr), fk_count(0), fk_max_generated_name_number(0)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
