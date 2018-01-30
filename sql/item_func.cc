@@ -7481,7 +7481,10 @@ String* Item_func_get_system_var::val_str(String* str)
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
-      str->set (val_int(), collation.collation);
+      if (unsigned_flag)
+        str->set ((ulonglong)val_int(), collation.collation);
+      else
+        str->set (val_int(), collation.collation);
       break;
     case SHOW_DOUBLE:
       str->set_real (val_real(), decimals, collation.collation);

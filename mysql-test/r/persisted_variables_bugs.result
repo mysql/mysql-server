@@ -32,4 +32,27 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET GLOBAL max_connections=DEFAULT;
 DROP DATABASE bug27374791;
+#
+# Bug #27322254: WITH PERSIST_ONLY, VARIABLE VALUE EQUALS 18446744073709547520
+#                IS STORED AS -4096
+#
+SELECT @@max_binlog_cache_size;
+@@max_binlog_cache_size
+18446744073709547520
+SET PERSIST max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+VARIABLE_NAME= 'max_binlog_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_binlog_cache_size	18446744073709547520
+SET PERSIST_ONLY max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+VARIABLE_NAME= 'max_binlog_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_binlog_cache_size	18446744073709547520
+SET @a=cast(@@max_binlog_cache_size as char);
+SELECT @a;
+@a
+18446744073709547520
+RESET PERSIST;
+SET GLOBAL max_binlog_cache_size= DEFAULT;
 # End of the 8.0 tests
