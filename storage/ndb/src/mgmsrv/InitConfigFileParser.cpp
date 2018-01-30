@@ -122,7 +122,9 @@ InitConfigFileParser::parseConfig(FILE * file) {
 	free(section);
 	ctx.reportError("Could not store previous default section "
 			"of configuration file.");
-	return 0;
+        delete ctx.m_currentSection;
+        ctx.m_currentSection = NULL;
+        return 0;
       }
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
       free(section);
@@ -143,7 +145,9 @@ InitConfigFileParser::parseConfig(FILE * file) {
 	free(section);
 	ctx.reportError("Could not store previous section "
 			"of configuration file.");
-	return 0;
+        delete ctx.m_currentSection;
+        ctx.m_currentSection = NULL;
+        return 0;
       }
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname), "%s", section);
       free(section);
@@ -161,17 +165,23 @@ InitConfigFileParser::parseConfig(FILE * file) {
      ****************************/
     if (!parseNameValuePair(ctx, line)) {
       ctx.reportError("Could not parse name-value pair in config file.");
+      delete ctx.m_currentSection;
+      ctx.m_currentSection = NULL;
       return 0;
     }
   }
   
   if (ferror(file)){
     ctx.reportError("Failure in reading");
+    delete ctx.m_currentSection;
+    ctx.m_currentSection = NULL;
     return 0;
   } 
 
   if(!storeSection(ctx)) {
     ctx.reportError("Could not store section of configuration file.");
+    delete ctx.m_currentSection;
+    ctx.m_currentSection = NULL;
     return 0;
   }
 
