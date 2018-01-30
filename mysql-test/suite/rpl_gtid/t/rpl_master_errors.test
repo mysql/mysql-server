@@ -81,6 +81,7 @@ FLUSH BINARY LOGS;
 --echo # Error: Client requests from a position less than 4
 --echo #
 --source include/rpl_connection_slave.inc
+--let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 --let $slave_debug= `SELECT @@debug`
 SET GLOBAL debug= 'd,request_master_log_pos_3';
