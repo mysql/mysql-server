@@ -956,6 +956,15 @@ public:
   {
     STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_RECORD );
 
+    enum ConnectionKind
+    {
+      CK_NONE = 0,
+      CK_FREE,
+      CK_USER,
+      CK_COPY,
+      CK_FAIL
+    };
+
     ApiConnectRecord();
     
     Uint32 m_magic;
@@ -965,6 +974,7 @@ public:
     Uint32 m_apiConTimer;
     Uint32 m_apiConTimer_line; // Last line updating timer
     ConnectionState apiConnectstate;
+    ConnectionKind apiConnectkind;
     UintR transid[2];
     LocalTcConnectRecord_fifo::Head tcConnect;
     

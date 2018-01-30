@@ -6005,6 +6005,7 @@ void Dbtc::diverify010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectpt
     {
       /* Put transaction last in verification queue */
       ndbrequire(regApiPtr->nextApiConnect == RNIL);
+      ndbrequire(regApiPtr->apiConnectkind == ApiConnectRecord::CK_USER);
       if (clastApiConnectPREPARE_TO_COMMIT != RNIL)
       {
         ApiConnectRecord* apiPtr;
@@ -6018,6 +6019,7 @@ void Dbtc::diverify010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectpt
         cfirstApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
       }
       clastApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+      regApiPtr->apiConnectkind = ApiConnectRecord::CK_USER;
       /**
        * If execDIVERIFYCONF is called below, make it pop a transaction
        * from verifiction queue.
@@ -6052,6 +6054,7 @@ Dbtc::ApiConnectRecord::ApiConnectRecord()
   m_apiConTimer(RNIL),
   m_apiConTimer_line(0),
   apiConnectstate(CS_RESTART), /* CS_DISCONNECTED (CS_RESTART for Copy and Fail) */
+  apiConnectkind(CK_FREE),
 //  transid
 //tcConnect
   lqhkeyconfrec(0),
@@ -6125,6 +6128,7 @@ void Dbtc::seizeApiConnectCopy(Signal* signal, ApiConnectRecord* const regApiPtr
 
   locApiConnectptr.i = cfirstfreeApiConnectCopy;
   c_apiConnectRecordPool.getPtr(locApiConnectptr);
+  ndbrequire(locApiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_COPY);
   cfirstfreeApiConnectCopy = locApiConnectptr.p->nextApiConnect;
   locApiConnectptr.p->nextApiConnect = RNIL;
   ndbassert(regApiPtr->apiCopyRecord == RNIL);
@@ -6132,6 +6136,7 @@ void Dbtc::seizeApiConnectCopy(Signal* signal, ApiConnectRecord* const regApiPtr
   tc_clearbit(regApiPtr->m_flags,
               ApiConnectRecord::TF_TRIGGER_PENDING);
   regApiPtr->m_special_op_flags = 0;
+  locApiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_COPY;
 }//Dbtc::seizeApiConnectCopy()
 
 void Dbtc::execDIVERIFYCONF(Signal* signal) 
@@ -6184,6 +6189,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
     }
     regApiPtr->nextApiConnect = RNIL;
   }
+  ndbrequire(regApiPtr->apiConnectkind == ApiConnectRecord::CK_USER);
   ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
   UintR TApifailureNr = regApiPtr->failureNr;
   UintR Tfailure_nr = cfailure_nr;
@@ -7626,6 +7632,7 @@ void Dbtc::handleGcp(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  ndbrequire(regApiPtr->apiConnectkind == ApiConnectRecord::CK_COPY);
   ndbassert(regApiPtr->nextApiConnect == RNIL);
   UintR TfirstfreeApiConnectCopyOld = cfirstfreeApiConnectCopy;
   cfirstfreeApiConnectCopy = apiConnectptr.i;
@@ -7633,6 +7640,7 @@ void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnec
   setApiConTimer(apiConnectptr, 0, __LINE__);
   regApiPtr->apiConnectstate = CS_RESTART;
   ndbrequire(regApiPtr->commitAckMarker == RNIL);
+  regApiPtr->apiConnectkind = ApiConnectRecord::CK_COPY;
 }//Dbtc::releaseApiConCopy()
 
 /* ========================================================================= */
@@ -10729,6 +10737,7 @@ void
 Dbtc::insert_transid_fail_hash(Uint32 transid1, ApiConnectRecordPtr const apiConnectptr)
 {
   Uint32 bucket = get_transid_fail_bucket(transid1);
+  ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FAIL);
   apiConnectptr.p->nextApiConnect = ctransidFailHash[bucket];
   ctransidFailHash[bucket] = apiConnectptr.i;
   return;
@@ -10744,6 +10753,7 @@ Dbtc::findApiConnectFail(Signal *signal, Uint32 transid1, Uint32 transid2, ApiCo
   {
     jam();
     c_apiConnectRecordPool.getPtr(apiConnectptr);
+    ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FAIL);
     if (apiConnectptr.p->transid[0] == transid1 &&
         apiConnectptr.p->transid[1] == transid2)
     {
@@ -10780,6 +10790,7 @@ void Dbtc::remove_from_transid_fail_hash(Signal *signal, Uint32 transid1, ApiCon
   ApiConnectRecordPtr locApiConnectptr;
   ApiConnectRecordPtr prevApiConptr;
 
+  ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FAIL);
   prevApiConptr.i = RNIL;
   Uint32 bucket = get_transid_fail_bucket(transid1);
   locApiConnectptr.i = ctransidFailHash[bucket];
@@ -11253,6 +11264,7 @@ void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd)
       /*       TRANSACTION.                                         */
       /*------------------------------------------------------------*/
       c_apiConnectRecordPool.getPtr(apiConnectptr);
+      ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FAIL);
       ctransidFailHash[tcNodeFailptr.p->currentHashIndexTakeOver] = 
         apiConnectptr.p->nextApiConnect;
       tcNodeFailptr.p->handledOneTransaction = true;
@@ -15081,6 +15093,7 @@ void Dbtc::initApiConnect(Signal* signal)
     refresh_watch_dog();
     jam();
     c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY do not check magic
+    apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
     apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
     apiConnectptr.p->m_apiConTimer = RNIL;
@@ -15113,6 +15126,7 @@ void Dbtc::initApiConnect(Signal* signal)
       refresh_watch_dog();
       jam();
       c_apiConnectRecordPool.getPtr(apiConnectptr);
+      apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_COPY;
       apiConnectptr.p->apiConnectstate = CS_RESTART;
       apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
       apiConnectptr.p->m_apiConTimer = RNIL;
@@ -15145,6 +15159,7 @@ void Dbtc::initApiConnect(Signal* signal)
     refresh_watch_dog();
     jam();
     c_apiConnectRecordPool.getPtr(apiConnectptr);
+    apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->m_apiConTimer = RNIL;
     ndbrequire(seizeApiConTimer(apiConnectptr));
     setApiConTimer(apiConnectptr, 0, __LINE__);
@@ -15381,6 +15396,7 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
   TcConnectRecordPtr rarTcConnectptr;
 
   c_counters.cabortCount++;
+  ndbrequire((apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_USER));
   if (apiConnectptr.p->apiCopyRecord != RNIL)
   {
     // Put apiCopyRecord back in free list.
@@ -15390,6 +15406,7 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     c_apiConnectRecordPool.getPtr(copyPtr);
     ndbassert(copyPtr.p->apiCopyRecord == RNIL);
     ndbassert(copyPtr.p->nextApiConnect == RNIL);
+    ndbrequire(copyPtr.p->apiConnectkind == ApiConnectRecord::CK_COPY);
     copyPtr.p->nextApiConnect = cfirstfreeApiConnectCopy;
     cfirstfreeApiConnectCopy = copyPtr.i;
     apiConnectptr.p->apiCopyRecord = RNIL;
@@ -15518,7 +15535,9 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   // TODO when making ApiRecordPool dynamic, free copy record here if unused.
   }
   ndbassert(TlocalApiConnectptr.p->nextApiConnect == RNIL);
+  ndbrequire(TlocalApiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_USER);
   TlocalApiConnectptr.p->nextApiConnect = cfirstfreeApiConnect;
+  TlocalApiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
   cfirstfreeApiConnect = TlocalApiConnectptr.i;
   setApiConTimer(TlocalApiConnectptr, 0, __LINE__);
   TlocalApiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
@@ -15541,7 +15560,9 @@ void Dbtc::releaseApiConnectFail(Signal* signal, ApiConnectRecordPtr const apiCo
   apiConnectptr.p->apiConnectstate = CS_RESTART;
   apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
   setApiConTimer(apiConnectptr, 0, __LINE__);
+  ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FAIL);
   apiConnectptr.p->nextApiConnect = cfirstfreeApiConnectFail;
+  apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
   cfirstfreeApiConnectFail = apiConnectptr.i;
   ndbrequire(apiConnectptr.p->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConnectFail()
@@ -15569,7 +15590,9 @@ void Dbtc::seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr)
     terrorCode = ZOK;
     apiConnectptr.i = cfirstfreeApiConnect;     /* ASSIGN A FREE RECORD FROM */
     c_apiConnectRecordPool.getPtr(apiConnectptr);
+    ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FREE);
     cfirstfreeApiConnect = apiConnectptr.p->nextApiConnect;
+    apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_USER;
     apiConnectptr.p->nextApiConnect = RNIL;
     setApiConTimer(apiConnectptr, 0, __LINE__);
     apiConnectptr.p->apiConnectstate = CS_CONNECTED; /* STATE OF CONNECTION */
@@ -15586,7 +15609,9 @@ void Dbtc::seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectpt
 {
   apiConnectptr.i = cfirstfreeApiConnectFail;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
+  ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FREE);
   cfirstfreeApiConnectFail = apiConnectptr.p->nextApiConnect;
+  apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FAIL;
   apiConnectptr.p->nextApiConnect = RNIL;
 }//Dbtc::seizeApiConnectFail()
 
