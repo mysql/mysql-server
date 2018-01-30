@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -175,17 +175,20 @@ fields are compared with collation!
 				must be protected by a page s-latch
 @param[in]	clust_index	clustered index
 @param[in]	thr		query thread
-@return true if the secondary record is equal to the corresponding
-fields in the clustered record, when compared with collation;
-FALSE if not equal or if the clustered record has been marked for deletion */
+@param[out]	is_equal	set to true if the secondary record is equal to the
+				corresponding fields in the clustered record, when compared with
+				collation; false if not equal or if the clustered record has been
+				marked for deletion; only valid if DB_SUCCESS was returned
+@return DB_SUCCESS or error code */
 static
-ibool
+dberr_t
 row_sel_sec_rec_is_for_clust_rec(
 	const rec_t*	sec_rec,
 	dict_index_t*	sec_index,
 	const rec_t*	clust_rec,
 	dict_index_t*	clust_index,
-	que_thr_t*	thr)
+	que_thr_t*	thr,
+	bool&		is_equal)
 {
 	const byte*	sec_field;
 	ulint		sec_len;
@@ -197,8 +200,10 @@ row_sel_sec_rec_is_for_clust_rec(
 	ulint		sec_offsets_[REC_OFFS_SMALL_SIZE];
 	ulint*		clust_offs	= clust_offsets_;
 	ulint*		sec_offs	= sec_offsets_;
-	ibool		is_equal	= TRUE;
-	trx_t*		trx = thr_get_trx(thr);
+	trx_t*		trx		= thr_get_trx(thr);
+	dberr_t		err		= DB_SUCCESS;
+
+	is_equal = true;
 
 	rec_offs_init(clust_offsets_);
 	rec_offs_init(sec_offsets_);
@@ -210,7 +215,8 @@ row_sel_sec_rec_is_for_clust_rec(
 		it is not visible in the read view.  Besides,
 		if there are any externally stored columns,
 		some of them may have already been purged. */
-		return(FALSE);
+		is_equal = false;
+		return (DB_SUCCESS);
 	}
 
 	heap = mem_heap_create(256);
@@ -254,6 +260,15 @@ row_sel_sec_rec_is_for_clust_rec(
 					thr->prebuilt->m_mysql_table, NULL,
 					NULL, NULL);
 
+			if (vfield == NULL) {
+				/* This may happen e.g. when this statement is executed in
+				 * read-uncommited isolation and value (like json function)
+				 * depends on an externally stored lob (like json) which
+				 * was not written yet. */
+				err = DB_COMPUTE_VALUE_FAILED;
+				goto func_exit;
+			}
+
 			clust_len = vfield->len;
 			clust_field = static_cast<byte*>(vfield->data);
 
@@ -294,7 +309,8 @@ row_sel_sec_rec_is_for_clust_rec(
 					    sec_field, sec_len,
 					    ifield->prefix_len,
 					    clust_index->table)) {
-					goto inequal;
+					is_equal = false;
+					goto func_exit;
 				}
 
 				continue;
@@ -332,7 +348,7 @@ row_sel_sec_rec_is_for_clust_rec(
 
 			if (!mbr_equal_cmp(sec_index->rtr_srs.get(), &sec_mbr,
 					   &tmp_mbr)) {
-				is_equal = FALSE;
+				is_equal = false;
 				goto func_exit;
 			}
 		} else {
@@ -342,8 +358,7 @@ row_sel_sec_rec_is_for_clust_rec(
 			if (0 != cmp_data_data(col->mtype, col->prtype, true,
 					       clust_field, len, sec_field,
 					       sec_len)) {
-inequal:
-				is_equal = FALSE;
+				is_equal = false;
 				goto func_exit;
 			}
 		}
@@ -353,7 +368,7 @@ func_exit:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
-	return(is_equal);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -1037,13 +1052,17 @@ row_sel_get_clust_rec(
 		visit through secondary index records that would not really
 		exist in our snapshot. */
 
-		if ((old_vers
-		     || rec_get_deleted_flag(rec, dict_table_is_comp(
-						     plan->table)))
-		    && !row_sel_sec_rec_is_for_clust_rec(rec, plan->index,
-							 clust_rec, index,
-							 thr)) {
-			goto func_exit;
+		if (old_vers
+			|| rec_get_deleted_flag(rec, dict_table_is_comp(plan->table))) {
+			bool rec_equal;
+
+			err = row_sel_sec_rec_is_for_clust_rec(
+				rec, plan->index, clust_rec, index, thr, rec_equal);
+			if (err != DB_SUCCESS) {
+				goto err_exit;
+			} else if (!rec_equal) {
+				goto func_exit;
+			}
 		}
 	}
 
@@ -3647,10 +3666,16 @@ row_sel_get_clust_rec_for_mysql(
 			|| trx->isolation_level <= TRX_ISO_READ_UNCOMMITTED
 			|| dict_index_is_spatial(sec_index)
 			|| rec_get_deleted_flag(rec, dict_table_is_comp(
-							sec_index->table)))
-		    && !row_sel_sec_rec_is_for_clust_rec(
-			    rec, sec_index, clust_rec, clust_index, thr)) {
-			clust_rec = NULL;
+							sec_index->table)))) {
+			bool rec_equal;
+
+			err = row_sel_sec_rec_is_for_clust_rec(
+				rec, sec_index, clust_rec, clust_index, thr, rec_equal);
+			if (err != DB_SUCCESS) {
+				goto err_exit;
+			} else if (!rec_equal) {
+				clust_rec = NULL;
+			}
 		}
 
 		err = DB_SUCCESS;
