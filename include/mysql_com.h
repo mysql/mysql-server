@@ -124,6 +124,27 @@
 #define SCRAMBLED_PASSWORD_CHAR_LENGTH (SCRAMBLE_LENGTH*2+1)
 
 
+/**
+   @defgroup group_cs_column_definition_flags Column Definition Flags
+   @ingroup group_cs
+
+   @brief Values for the flags bitmask used by ::Send_field:flags
+
+   Currently need to fit into 32 bits.
+
+   Each bit represents an optional feature of the protocol.
+
+   Both the client and the server are sending these.
+
+   The intersection of the two determines whast optional parts of the
+   protocol will be used.
+*/
+
+/**
+  @addtogroup group_cs_column_definition_flags
+  @{
+*/
+
 #define NOT_NULL_FLAG	1		/**< Field can't be NULL */
 #define PRI_KEY_FLAG	2		/**< Field is part of a primary key */
 #define UNIQUE_KEY_FLAG 4		/**< Field is part of a unique key */
@@ -162,6 +183,8 @@
                                            NULL by the user */
 #define FIELD_IS_MARKED    (1 << 28)    /**< Intern: field is marked,
                                              general purpose */
+/** @}*/
+
 
 #define REFRESH_GRANT		1	/**< Refresh grant tables */
 #define REFRESH_LOG		2	/**< Start on new log file */
