@@ -1,3 +1,5 @@
+--source include/have_log_bin.inc
+
 --echo #
 --echo # Bug #27016247: SET PERSIST_ONLY DOES NOT CONSIDER RUNTIME VALIDATION
 --echo #
