@@ -4316,11 +4316,17 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     {
       if (!(*arg)->fixed &&
           (*arg)->fix_fields(thd, arg))
-	DBUG_RETURN(1);
+      {
+        free_udf(u_d);
+        DBUG_RETURN(true);
+      }
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
       if (item->check_cols(1))
-	DBUG_RETURN(true);
+      {
+        free_udf(u_d);
+        DBUG_RETURN(true);
+      }
       /*
 	TODO: We should think about this. It is not always
 	right way just to set an UDF result to return my_charset_bin
@@ -4355,7 +4361,10 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     }
   }
   if (func->resolve_type(thd))
+  {
+    free_udf(u_d);
     DBUG_RETURN(true);
+  }
   initid.max_length=func->max_length;
   initid.maybe_null=func->maybe_null;
   initid.const_item= used_tables_cache == 0;
@@ -4434,6 +4443,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
              u_d->name.str, ER_THD(thd, ER_UNKNOWN_ERROR));
+    free_udf(u_d);
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
