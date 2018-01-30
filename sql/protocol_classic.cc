@@ -167,6 +167,7 @@
   The commands belong to one of the following sub-protocols
 
   - @subpage page_protocol_command_phase_text
+  - @subpage page_protocol_command_phase_utility
   - @subpage page_protocol_command_phase_ps
   - @subpage page_protocol_command_phase_sp
   - @subpage page_protocol_command_phase_replication
@@ -174,8 +175,19 @@
   @sa ::dispatch_command
 */
 
+
+/**
+   @page page_protocol_command_phase_utility Utility Commands
+
+   - @subpage page_protocol_com_quit
+   - @subpage page_protocol_com_init_db
+*/
+
+
 /**
    @page page_protocol_command_phase_text Text Protocol
+
+   - @subpage page_protocol_com_query
 */
 
 /**
@@ -183,14 +195,12 @@
 */
 
 /**
-   @page page_protocol_command_phase_sp Stored Programs
+  @page page_protocol_command_phase_sp Stored Programs
 */
 
 /**
-   @page page_protocol_command_phase_replication Replication Protocol
+  @page page_protocol_command_phase_replication Replication Protocol
 */
-
-
 
 /**
   @page page_protocol_connection_lifecycle Connection Lifecycle
@@ -1306,6 +1316,286 @@ int Protocol_classic::read_packet()
 }
 
 
+/**
+  @page page_protocol_com_quit COM_QUIT
+
+  Tells the server that the client wants it to close the connection.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>command</td>
+      <td>0x01: COM_QUIT</td></tr>
+  </table>
+
+  Server closes the connection or returns @ref page_protocol_basic_err_packet.
+*/
+
+
+/**
+  @page page_protocol_com_init_db COM_INIT_DB
+
+  Change the default schema of the connection
+
+  @return
+  - @ref page_protocol_basic_ok_packet on success
+  - @ref page_protocol_basic_err_packet on error
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>command</td>
+      <td>0x02: COM_INIT_DB</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>schema name</td>
+      <td>name of the schema to change to</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~~
+  05 00 00 00 02 74 65 73    74                         .....test
+  ~~~~~~~~~
+*/
+
+
+/**
+  @page page_protocol_com_query COM_QUERY
+
+  Send a @ref page_protocol_command_phase_text based SQL query
+
+  Execution starts immediately.
+
+  @return
+  - @subpage page_protocol_com_query_response
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>command</td>
+      <td>0x03: COM_QUERY</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>query</td>
+      <td>the text of the SQL query to execute</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~~
+  21 00 00 00 03 73 65 6c    65 63 74 20 40 40 76 65    !....select @@ve
+  72 73 69 6f 6e 5f 63 6f    6d 6d 65 6e 74 20 6c 69    rsion_comment li
+  6d 69 74 20 31                                        mit 1
+  ~~~~~~~~~
+
+  @sa Protocol_classic::parse_packet, dispatch_command,
+    mysql_parse, alloc_query, THD::set_query
+*/
+
+
+/**
+  @page page_protocol_com_query_response COM_QUERY Response
+
+  The query response packet is a meta packet which can be one of:
+
+  - @ref page_protocol_basic_err_packet
+  - @ref page_protocol_basic_ok_packet
+  - @subpage page_protocol_com_query_response_local_infile_request
+  - @subpage page_protocol_com_query_response_text_resultset
+
+  @startuml
+  COM_QUERY --> COM_QUERY_RESPONSE
+
+  COM_QUERY_RESPONSE --> TextResultSet : length encoded integer
+
+  state "Text Resultset" as TextResultSet {
+  FIELD_COUNT --> FIELD
+  FIELD --> FIELD
+  FIELD --> EOF
+  EOF --> ROW
+  ROW --> ROW
+  }
+
+  TextResultSet --> FinalEOF
+  TextResultSet --> Error
+
+  state "Final EOF" as FinalEOF
+
+  COM_QUERY_RESPONSE --> Error : 0xFF
+  COM_QUERY_RESPONSE --> OK : 0x00
+  COM_QUERY_RESPONSE --> MoreData : 0xFB
+
+  state "More Data" as MoreData {
+    GET_MORE_DATA --> SEND_MORE_DATA
+  }
+
+  MoreData --> Error
+  MoreData --> OK
+  @enduml
+
+  @note if ::CLIENT_DEPRECATE_EOF is on,
+  @ref page_protocol_basic_ok_packet is sent instead of an actual
+  @ref page_protocol_basic_eof_packet packet.
+
+  @sa cli_read_query_result, mysql_send_query, mysql_execute_command
+*/
+
+
+/**
+  @page page_protocol_com_query_response_local_infile_request LOCAL INFILE Request
+
+  If the client wants to `LOAD DATA` from a `LOCAL` file into the server it sends:
+
+  ~~~~~
+  LOAD DATA LOCAL INFILE '<filename>' INTO TABLE <table>;
+  ~~~~~
+
+  The `LOCAL` keyword triggers the server to set a `LOCAL INFILE` request packet
+  which asks the client to send the file via a
+  @subpage page_protocol_com_query_response_local_infile_data response
+
+  @startuml
+  Client -> Server: COM_QUERY
+  Server -> Client: 0xFB + filename
+  Client -> Server: content of filename
+  Client -> Server: empty packet
+  Server -> Client: OK
+  @enduml
+
+  The client has to send the ::CLIENT_LOCAL_FILES capability flag.
+
+  @return @ref page_protocol_com_query_response_local_infile_data
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>packet type</td>
+      <td>0xFB: LOCAL INFILE</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>filename</td>
+      <td>the path to the file the client shall send</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  0c 00 00 01 fb 2f 65 74    63 2f 70 61 73 73 77 64    ...../etc/passwd
+  ~~~~~~~~
+
+  @sa handle_local_infile, mysql_set_local_infile_handler, net_request_file,
+  Sql_cmd_load_table::execute_inner
+*/
+
+
+/**
+  @page page_protocol_com_query_response_local_infile_data LOCAL INFILE Data
+
+  If the client has data to send, it sends in one or more non-empty packets AS IS
+  followed by a empty packet.
+
+  If the file is empty or there is a error while reading the file only the empty
+  packet is sent.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>file content</td>
+      <td>raw file data</td></tr>
+  </table>
+
+  @sa handle_local_infile, mysql_set_local_infile_handler, net_request_file,
+  Sql_cmd_load_table::execute_inner
+*/
+
+
+/**
+  @page page_protocol_com_query_response_text_resultset Text Resultset
+
+  A Text Resultset is a possible @ref page_protocol_com_query_response.
+
+  It is made up of 2 parts:
+    - the column definitions (a.k.a. the metadata)
+    - the actual rows
+
+  The column definitions part starts with a packet containing the column-count,
+  followed by as many
+  @subpage page_protocol_com_query_response_text_resultset_column_definition
+  packets as there are columns and terminated by a
+  @ref page_protocol_basic_eof_packet if the ::CLIENT_DEPRECATE_EOF is not set.
+
+  Each row is a packet, too. The rows are terminated by another
+  @ref page_protocol_basic_eof_packet. In case the query could generate the
+  @ref page_protocol_com_query_response_text_resultset_column_definition set,
+  but generating the rows afterwards failed, a @ref page_protocol_basic_err_packet
+  may be sent instead of the last @ref page_protocol_basic_eof_packet.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>A packet containing an @ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>column_count</td>
+      <td>Number of @ref page_protocol_com_query_response_text_resultset_column_definition to follow</td></tr>
+  <tr><td>`column_count` x @ref page_protocol_com_query_response_text_resultset_column_definition</td>
+      <td>Field metadata</td>
+      <td>one @ref page_protocol_com_query_response_text_resultset_column_definition for each field up to `column_count`</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PROTOCOL_41 {</td></tr>
+  <tr><td>@ref page_protocol_basic_eof_packet</td>
+  <td>End of metadata</td>
+  <td>Marker to set the end of metadata</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>One or more @subpage page_protocol_com_query_response_text_resultset_row</td>
+  <td>The row data</td>
+  <td>each @ref page_protocol_com_query_response_text_resultset_row contains `column_count` values</td></tr>
+  <tr><td colspan="3">if (error processing) {</td></tr>
+  <tr><td>@ref page_protocol_basic_err_packet</td>
+  <td>terminator</td>
+  <td>Error details</td></tr>
+  <tr><td colspan="3">} else if capabilities @& ::CLIENT_DEPRECATE_EOF {</td></tr>
+  <tr><td>@ref page_protocol_basic_ok_packet</td>
+  <td>terminator</td>
+  <td>All the execution details</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref page_protocol_basic_eof_packet</td>
+  <td>terminator</td>
+  <td>end of resultset marker</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  If the ::SERVER_MORE_RESULTS_EXISTS flag is set in the last
+  @ref page_protocol_basic_eof_packet/@ref page_protocol_basic_ok_packet,
+  another @ref page_protocol_com_query_response_text_resultset will follow.
+  See Multi-resultset.
+
+  @todo Fill in the link for the Multi-resultset.
+
+  @startuml
+  :column count;
+  repeat
+    while (column available ?)
+      :column definition;
+    endwhile
+    :EOF;
+    while (row available?)
+      :row;
+    endwhile
+    if (error?) then (yes)
+      :ERR;
+    else (no)
+      :EOF;
+    endif
+  repeat while (SERVER_MORE_RESULTS_EXISTS?)
+  end
+  @enduml
+
+  @sa Protocol_classic::send_field_metadata, THD::send_result_metadata
+*/
+
+/**
+  @page page_protocol_com_query_response_text_resultset_row
+*/
+
+
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd)
 {
@@ -1713,6 +2003,126 @@ Protocol_classic::end_result_metadata()
   DBUG_RETURN(false);
 }
 
+
+/**
+  @page page_protocol_com_query_response_text_resultset_column_definition Column Definition
+
+  if ::CLIENT_PROTOCOL_41 is set @ref sect_protocol_com_query_response_text_resultset_column_definition_41
+  is used, @ref sec_protocol_com_query_response_text_resultset_column_definition_320
+
+  @section sect_protocol_com_query_response_text_resultset_column_definition_41 Protocol::ColumnDefinition41:
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>catalog</td>
+      <td>The catalog used. Currently always "def"</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>schema</td>
+      <td>schema name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>table</td>
+      <td>virtual table name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>org_table</td>
+      <td>physical table name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>name</td>
+      <td>virtual column name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>org_name</td>
+      <td>physical column name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>lenth of fixed length fields</td>
+      <td>[0x0c]</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>character_set</td>
+      <td>the column character set as defined in @ref page_protocol_basic_character_set</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>column_length</td>
+      <td>maximum length of the field</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>type</td>
+      <td>type of the column as defined in ::enum_field_types</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;2&gt;"</td>
+      <td>flags</td>
+      <td>Flags as defined in @ref group_cs_column_definition_flags</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>decimals</td>
+      <td>max shown decimal digits:
+        <ul>
+        <li>0x00 for integers and static strings</li>
+        <li>0x1f for dynamic strings, double, float</li>
+        <li>0x00 to 0x51 for decimals</li>
+        </ul></td></tr>
+  </table>
+
+  @note `decimals` and `column_length` can be used for text output formatting
+
+
+  @section sec_protocol_com_query_response_text_resultset_column_definition_320 Protocol::ColumnDefinition320:
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>table</td>
+      <td>Table name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>name</td>
+      <td>Column name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>lenth of type field</td>
+      <td>[01]</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>type</td>
+      <td>type of the column as defined in ::enum_field_types</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_LONG_FLAG {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>length of flags + decimals fields</td>
+      <td>[03]</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>flags</td>
+      <td>Flags as defined in @ref group_cs_column_definition_flags</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>decimals</td>
+      <td>number of decimal digits</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>length of flags + decimals fields</td>
+      <td>[02]</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;2&gt;"</td>
+      <td>flags</td>
+      <td>Flags as defined in @ref group_cs_column_definition_flags</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>decimals</td>
+      <td>number of decimal digits</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">if command was COM_FIELD_LIST {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>length of default values</td>
+      <td>[02]</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>default_values</td>
+      <td></td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  @sa Protocol_classic::send_field_metadata
+*/
+
+
+/**
+  Sends a single column metadata
+
+  @param field Field description
+  @param item_charset Character set to use
+  @retval false success
+  @retval true  error
+
+  See @ref page_protocol_com_query_response_text_resultset_column_definition for the format
+*/
 
 bool Protocol_classic::send_field_metadata(Send_field *field,
                                            const CHARSET_INFO *item_charset)

@@ -40,44 +40,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   These are the top level commands the server can receive
   while it listens for a new command in ::dispatch_command
 
-  @Warning Add new commands to the end of this list, otherwise old
-           servers won't be able to handle them as 'unsupported'.
+  @par Warning
+  Add new commands to the end of this list, otherwise old
+  servers won't be able to handle them as 'unsupported'.
 */
 enum enum_server_command
 {
-  COM_SLEEP,          /**< Currently refused by the server. @sa dispatch_command */
-  /**
-    Tells the server that the client wants it to close the connection.
-
-    Server closes the connection or returns
-    @ref page_protocol_basic_err_packet.
-  */
-  COM_QUIT,
-  /**
-    Change the default schema of the connection
-
-    @return
-    - @ref page_protocol_basic_ok_packet on success
-    - @ref page_protocol_basic_err_packet on error
-
-    <table>
-    <caption>Payload</caption>
-    <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-        <td>command</td>
-        <td>0x02: COM_INIT_DB</td></tr>
-    <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
-        <td>schema name</td>
-        <td>name of the schema to change to</td></tr>
-    </table>
-
-     @par Example
-     ~~~~~~~~~
-     05 00 00 00 02 74 65 73    74                         .....test
-     ~~~~~~~~~
-  */
-  COM_INIT_DB,
-  COM_QUERY,
+  COM_SLEEP,          /**< Currently refused by the server. See ::dispatch_command */
+  COM_QUIT,           /**< See @ref page_protocol_com_quit */
+  COM_INIT_DB,        /**< See @ref page_protocol_com_init_db */
+  COM_QUERY,          /**< See @ref page_protocol_com_query */
   COM_FIELD_LIST,
   COM_CREATE_DB,
   COM_DROP_DB,
