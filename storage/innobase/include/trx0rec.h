@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -318,14 +318,18 @@ trx_undo_rec_get_col_val(
 @param[in]	ptr		undo log pointer
 @param[in,out]	row		the dtuple to fill
 @param[in]	in_purge        called by purge thread
-@param[in]	col_map		online rebuild column map */
+@param[in]	online		true if this is from online DDL log
+@param[in]	col_map		online rebuild column map
+@param[in,out]	heap		memory heap to keep value when necessary */
 void
 trx_undo_read_v_cols(
 	const dict_table_t*	table,
 	const byte*		ptr,
 	const dtuple_t*		row,
 	bool			in_purge,
-	const ulint*		col_map);
+	bool			online,
+	const ulint*		col_map,
+	mem_heap_t*		heap);
 
 /** Read virtual column index from undo log if the undo log contains such
 info, and verify the column is still indexed, and output its position
