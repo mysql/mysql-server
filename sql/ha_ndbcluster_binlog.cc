@@ -2058,8 +2058,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
 
   DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
                        query, db, table_name));
-  if (!ndb_schema_share ||
-      thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP))
+  if (!ndb_schema_share)
   {
     DBUG_RETURN(0);
   }

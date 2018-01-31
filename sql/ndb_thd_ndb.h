@@ -66,6 +66,11 @@ public:
 
   enum Options
   {
+    /*
+      Don't distribute schema operations for this thread.
+      NOTE! Flag is _only_ set by the binlog injector thread and thus
+      any DDL operations it performs are not distributed.
+    */
     NO_LOG_SCHEMA_OP=  1 << 0,
     /* 
       This Thd_ndb is a participant in a global schema distribution.

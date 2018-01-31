@@ -257,6 +257,12 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
     DBUG_RETURN(false);
   }
 
+  // Don't distribute if thread has turned off schema distribution
+  if (m_thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP)) {
+    DBUG_PRINT("info", ("NO_LOG_SCHEMA_OP set - > skip schema distribution"));
+    DBUG_RETURN(true); // Ok, skipped
+  }
+
   const int result = log_schema_op_impl(
       m_thd_ndb, query, static_cast<int>(query_length), db, table_name,
       static_cast<uint32>(id), static_cast<uint32>(version), type, new_db,
