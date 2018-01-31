@@ -74,7 +74,6 @@
 #include "sql_string.h"
 #include "template_utils.h"     // down_cast, pointer_cast
 
-using namespace rapidjson;
 
 #ifdef MYSQL_SERVER
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
@@ -585,7 +584,7 @@ public:
   }
 
   /* purecov: begin deadcode */
-  bool RawNumber(const char*, SizeType, bool)
+  bool RawNumber(const char*, rapidjson::SizeType, bool)
   {
     /*
       Never called, since we don't instantiate the parser with
@@ -596,7 +595,7 @@ public:
   }
   /* purecov: end */
 
-  bool String(const char* str, SizeType length, bool)
+  bool String(const char* str, rapidjson::SizeType length, bool)
   {
     DUMP_CALLBACK("string", state);
     return seeing_value(create_dom_ptr<Json_string>(str, length));
@@ -609,7 +608,7 @@ public:
                                  expect_object_key);
   }
 
-  bool EndObject(SizeType)
+  bool EndObject(rapidjson::SizeType)
   {
     DUMP_CALLBACK("} end object", state);
     DBUG_ASSERT(m_state == expect_object_key);
@@ -624,7 +623,7 @@ public:
                                  expect_array_value);
   }
 
-  bool EndArray(SizeType)
+  bool EndArray(rapidjson::SizeType)
   {
     DUMP_CALLBACK("] end array", state);
     DBUG_ASSERT(m_state == expect_array_value);
@@ -632,7 +631,7 @@ public:
     return true;
   }
 
-  bool Key(const char* str, SizeType len, bool)
+  bool Key(const char* str, rapidjson::SizeType len, bool)
   {
     DBUG_ASSERT(m_state == expect_object_key);
     m_state= expect_object_value;
@@ -679,9 +678,9 @@ Json_dom_ptr Json_dom::parse(const char *text, size_t length,
                              const char **syntaxerr, size_t *offset)
 {
   Rapid_json_handler handler;
-  MemoryStream ss(text, length);
-  Reader reader;
-  bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
+  rapidjson::MemoryStream ss(text, length);
+  rapidjson::Reader reader;
+  bool success= reader.Parse<rapidjson::kParseDefaultFlags>(ss, handler);
 
   if (success)
   {
@@ -698,7 +697,7 @@ Json_dom_ptr Json_dom::parse(const char *text, size_t length,
   if (offset != NULL)
     *offset= reader.GetErrorOffset();
   if (syntaxerr != NULL)
-    *syntaxerr= GetParseError_En(reader.GetParseErrorCode());
+    *syntaxerr= rapidjson::GetParseError_En(reader.GetParseErrorCode());
 
   return NULL;
 }
@@ -722,16 +721,16 @@ namespace
   All the member functions follow the rapidjson convention of
   returning true on success and false on failure.
 */
-class Syntax_check_handler : public BaseReaderHandler<>
+class Syntax_check_handler : public rapidjson::BaseReaderHandler<>
 {
 private:
   size_t m_depth{0};     ///< The current depth of the document
 
 public:
   bool StartObject() { return !check_json_depth(++m_depth); }
-  bool EndObject(SizeType) { --m_depth; return true; }
+  bool EndObject(rapidjson::SizeType) { --m_depth; return true; }
   bool StartArray() { return !check_json_depth(++m_depth); }
-  bool EndArray(SizeType) { --m_depth; return true; }
+  bool EndArray(rapidjson::SizeType) { --m_depth; return true; }
 };
 
 } // namespace
@@ -740,8 +739,8 @@ public:
 bool is_valid_json_syntax(const char *text, size_t length)
 {
   Syntax_check_handler handler;
-  Reader reader;
-  MemoryStream ms(text, length);
+  rapidjson::Reader reader;
+  rapidjson::MemoryStream ms(text, length);
   return reader.Parse<rapidjson::kParseDefaultFlags>(ms, handler);
 }
 

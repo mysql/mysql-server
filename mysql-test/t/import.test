@@ -181,11 +181,7 @@ open(T1, "t1.sdi");
 open(T1_, ">t1_.sdi");
 while (<T1>)
 {
-  if (/"sdi_version": 1,/)
-  {
-    print T1_ "\"sdi_version\": 42,\n";
-    next;
-  }
+  s/("sdi_version": ?)\d+,/${1}42,/g;
   print T1_ $_;
 }
 close(T1);
@@ -364,12 +360,8 @@ open(T1, "t1.sdi");
 open(T1_, ">t1_.sdi");
 while (<T1>)
 {
-  if (/"name": "i"/)
-  {
-    print T1_ "\"name\": \"k\",\n";
-    next;
-  }
-  print T1_ $_;
+ s/("name": ?)"i"/$1"k"/g;
+ print T1_ $_;
 }
 close(T1);
 close(T1_);
@@ -513,11 +505,7 @@ open(T1, "t_case.sdi");
 open(T1_, ">t_case_.sdi");
 while (<T1>)
 {
-  if (/"name": "T_CASE"/)
-  {
-    print T1_ "\"name\": \"t_case\",\n";
-    next;
-  }
+  s/T_CASE/t_case/g;
   print T1_ $_;
 }
 close(T1);

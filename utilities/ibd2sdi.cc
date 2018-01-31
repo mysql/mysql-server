@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -63,6 +63,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "storage/innobase/include/ut0crc32.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h"
+#include <iostream>
+#include <exception>
+#include <sstream>
+#include "my_rapidjson_size_t.h"
+#include <rapidjson/istreamwrapper.h>
+#include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/error/en.h>
+#include <rapidjson/filewritestream.h>
 
 typedef enum {
 	SUCCESS = 0,
@@ -2248,14 +2258,14 @@ ibd2sdi::parse_fields_in_rec(
 		return(DB_CORRUPTION);
 	}
 
-	byte* uncompressed_sdi = static_cast<byte*>(malloc(sdi_uncomp_len + 20));
+	byte* uncompressed_sdi = static_cast<byte*>(calloc(sdi_uncomp_len + 1, 1));
 	Sdi_Decompressor decompressor(uncompressed_sdi,
-				      sdi_uncomp_len + 20,
+				      sdi_uncomp_len + 1,
 				      str,
 				      sdi_comp_len);
 	decompressor.decompress();
 
-	*sdi_data_len = sdi_uncomp_len;
+	*sdi_data_len = sdi_uncomp_len + 1;
 	*sdi_data = uncompressed_sdi;
 	free(str);
 
@@ -2404,8 +2414,13 @@ ibd2sdi::dump_sdi_rec(
 		fprintf(out_stream, ",\n");
 		fprintf(out_stream, "\t\"object\":\n");
 		fprintf(out_stream, "\t\t");
-		fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len),
-		       out_stream);
+		char*	sdi = reinterpret_cast<char*>(sdi_data);
+
+		rapidjson::Document d;
+		d.Parse(sdi);
+		rapidjson::FileWriteStream os(out_stream, sdi, sdi_data_len);
+		rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(os);
+		d.Accept(writer);
 	}
 
 	fprintf(out_stream, "\n}\n");
