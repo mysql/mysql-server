@@ -1,0 +1,75 @@
+--echo #
+--echo # Bug#27189701 INNODB: EARLY RELEASE OF GAP LOCKS FOR RC
+--echo # ISOLATION [XA PREPARE]
+--echo #
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int);
+
+--echo Connection: default
+SET DEBUG='+d,ib_force_release_gap_lock_prepare';
+
+--echo # 1.Test GAP lock only on supremum record
+XA START 'lock_trx';
+SELECT * FROM t1;
+
+--echo # Update empty table acquire GAP lock on supremum
+UPDATE t1 SET col2 = 100 where col1 = 10;
+
+connect (con1,localhost,root);
+--echo Connection: con1
+--send INSERT INTO t1 values(10, 100)
+
+connection default;
+--echo Connection: default
+XA END 'lock_trx';
+XA PREPARE 'lock_trx';
+
+connection con1;
+--echo Connection: con1
+--reap
+INSERT INTO t1 values(20, 200);
+SELECT * FROM t1 ORDER BY col1;
+
+connection default;
+--echo Connection: default
+XA COMMIT 'lock_trx';
+
+--echo # 2.Test GAP lock on multiple records
+XA START 'lock_trx_1';
+
+--echo # Update table acquire GAP lock on all rows
+UPDATE t1 SET col2 = col2 + 1;
+
+connection con1;
+--echo Connection: con1
+--send INSERT INTO t1 values(5, 50)
+
+connection default;
+--echo Connection: default
+XA END 'lock_trx_1';
+XA PREPARE 'lock_trx_1';
+
+connection con1;
+--echo Connection: con1
+--reap
+INSERT INTO t1 values(15, 150);
+INSERT INTO t1 values(25, 150);
+
+SELECT * FROM t1 ORDER BY col1;
+
+disconnect con1;
+
+connection default;
+--echo Connection: default
+XA COMMIT 'lock_trx_1';
+SELECT * FROM t1 ORDER BY col1;
+
+SET DEBUG='-d,ib_force_release_gap_lock_prepare';
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc
