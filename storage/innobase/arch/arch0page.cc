@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -849,9 +849,6 @@ Arch_Page_Sys::track_initial_pages()
 		buf_flush_list_mutex_exit(buf_pool);
 		mutex_exit(&buf_pool->flush_state_mutex);
 	}
-
-	/* Make sure all written pages are flushed to disk. */
-	log_checkpoint(false, false);
 }
 
 /** Enable tracking pages in all buffer pools.
@@ -1067,6 +1064,9 @@ Arch_Page_Sys::start(
 	*start_lsn = m_last_lsn;
 
 	arch_mutex_exit();
+
+	/* Make sure all written pages are synced to disk. */
+	log_checkpoint(false, false);
 
 	return(DB_SUCCESS);
 }

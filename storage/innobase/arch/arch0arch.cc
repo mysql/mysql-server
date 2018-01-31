@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -215,26 +215,14 @@ Arch_Group::write_to_file(
 		}
 	}
 
+	auto len_left = m_file_ctx.bytes_left();
+
+	/* New file is immediately opened when current file is over. */
+	ut_ad(len_left != 0);
+
 	while (length > 0) {
 
-		ib_uint64_t	len_copy;
-		ib_uint64_t	len_left;
-
-		len_copy = static_cast<ib_uint64_t>(length);
-
-		len_left = m_file_ctx.bytes_left();
-
-		/* Current file is over, switch to next file. */
-		if (len_left == 0) {
-
-			err = m_file_ctx.open_new(m_begin_lsn, m_header_len);
-			if (err != DB_SUCCESS) {
-
-				return(err);
-			}
-
-			len_left = m_file_ctx.bytes_left();
-		}
+		auto len_copy = static_cast<uint64_t>(length);
 
 		/* Write as much as possible in current file. */
 		if (len_left < len_copy) {
@@ -254,6 +242,20 @@ Arch_Group::write_to_file(
 
 		ut_ad(length >= write_size);
 		length -= write_size;
+
+		len_left = m_file_ctx.bytes_left();
+
+		/* Current file is over, switch to next file. */
+		if (len_left == 0) {
+
+			err = m_file_ctx.open_new(m_begin_lsn, m_header_len);
+			if (err != DB_SUCCESS) {
+
+				return(err);
+			}
+
+			len_left = m_file_ctx.bytes_left();
+		}
 	}
 
 	return(DB_SUCCESS);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -491,9 +491,13 @@ log_shutdown(void);
 
 /** Get last redo block from redo buffer and end LSN
 @param[out]	last_lsn	end lsn of last mtr
-@param[out]	last_block	last redo block */
+@param[out]	last_block	last redo block
+@param[in,out]	block_len	length in bytes */
 void
-log_get_last_block(lsn_t& last_lsn, byte* last_block);
+log_get_last_block(
+	lsn_t&		last_lsn,
+	byte*		last_block,
+	uint32_t&	block_len);
 
 /** Fill redo log header
 @param[out]	buf		filled buffer

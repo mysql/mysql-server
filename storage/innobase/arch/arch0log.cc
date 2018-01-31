@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,16 +78,17 @@ Log_Arch_Client_Ctx::start(
 	return(err);
 }
 
-/** Stop redo log archiving
+/** Stop redo log archiving. Exact trailer length is returned as out
+parameter which could be less than the redo block size.
 @param[out]	trailer	redo trailer. Caller must allocate buffer.
-@param[in]	len	buffer length
+@param[in,out]	len	trailer length
 @param[out]	offset	trailer block offset
 @return error code */
 dberr_t
 Log_Arch_Client_Ctx::stop(
 	byte*		trailer,
-	uint		len,
-	ib_uint64_t&	offset)
+	uint32_t&	len,
+	uint64_t&	offset)
 {
 	dberr_t	err;
 
@@ -97,7 +98,7 @@ Log_Arch_Client_Ctx::stop(
 	ut_ad(m_state == ARCH_CLIENT_STATE_STARTED);
 	ut_ad(trailer == nullptr || len >= OS_FILE_LOG_BLOCK_SIZE);
 
-	err = arch_log_sys->stop(m_group, m_end_lsn, trailer);
+	err = arch_log_sys->stop(m_group, m_end_lsn, trailer, len);
 
 	start_lsn = m_group->get_begin_lsn();
 
@@ -218,10 +219,11 @@ Log_Arch_Client_Ctx::release()
 
 	if (m_state == ARCH_CLIENT_STATE_STARTED) {
 
-		ib_uint64_t	dummy_offset;
+		uint64_t	dummy_offset;
+		uint32_t	dummy_len = 0;
 
 		/* This is for cleanup in error cases. */
-		stop(nullptr, 0, dummy_offset);
+		stop(nullptr, dummy_len, dummy_offset);
 	}
 
 	ut_ad(m_state == ARCH_CLIENT_STATE_STOPPED);
@@ -442,24 +444,60 @@ Arch_Log_Sys::start(
 	return(DB_SUCCESS);
 }
 
+#ifdef UNIV_DEBUG
+void
+Arch_Group::adjust_end_lsn(lsn_t& stop_lsn, uint32_t& blk_len)
+{
+	stop_lsn = ut_uint64_align_down(get_begin_lsn(),
+		OS_FILE_LOG_BLOCK_SIZE);
+
+	stop_lsn += get_file_size() - LOG_FILE_HDR_SIZE;
+	blk_len = 0;
+
+	/* Increase Stop LSN 64 bytes ahead of file end not exceeding
+	redo block size. */
+	DBUG_EXECUTE_IF("clone_arch_log_extra_bytes",
+		blk_len = 64;
+		stop_lsn += blk_len;);
+}
+
+void
+Arch_Group::adjust_copy_length(uint32_t& length)
+{
+	auto cmp_length = static_cast<uint64_t>(length);
+
+	if (cmp_length > m_file_ctx.bytes_left()) {
+
+		cmp_length = m_file_ctx.bytes_left();
+
+		length = static_cast<uint32_t>(cmp_length);
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /** Stop redo log archiving.
 If other clients are there, the client is detached from
 the current group.
 @param[out]	group		log archive group
 @param[out]	stop_lsn	stop lsn for client
 @param[out]	log_blk		redo log trailer block
+@param[in,out]	blk_len		length in bytes
 @return error code */
 dberr_t
 Arch_Log_Sys::stop(
 	Arch_Group*	group,
 	lsn_t&		stop_lsn,
-	byte*		log_blk)
+	byte*		log_blk,
+	uint32_t&	blk_len)
 {
 	dberr_t	err = DB_SUCCESS;
 	uint	count_active;
 
 	/* Get the current LSN and trailer block. */
-	log_get_last_block(stop_lsn, log_blk);
+	log_get_last_block(stop_lsn, log_blk, blk_len);
+
+	DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
+		group->adjust_end_lsn(stop_lsn, blk_len););
 
 	/* Will throw error, if shutdown. We still continue
 	with detach but return the error. */
@@ -842,6 +880,10 @@ Arch_Log_Sys::archive(
 		return(false);
 
 	} else {
+
+		DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
+				auto curr_group = get_arch_group();
+				curr_group->adjust_copy_length(arch_len););
 
 		ut_ad(curr_state == ARCH_STATE_ACTIVE);
 

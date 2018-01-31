@@ -309,6 +309,11 @@ public:
 	@param[in]	buff_size	buffer size for clone transfer */
 	void update_block_size(uint buff_size);
 
+	/** Update file size when file is extended during page copy
+	@param[in]	file_index	current file index
+	@param[in]	file_size	new file size */
+	void update_file_size(uint32_t file_index, uint64_t file_size);
+
 private:
 
 	/** Check if state transition is in progress
