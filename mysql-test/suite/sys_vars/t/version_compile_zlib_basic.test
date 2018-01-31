@@ -1,0 +1,50 @@
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.version_compile_zlib);
+
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.version_compile_zlib=1;
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.version_compile_zlib = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='version_compile_zlib';
+--enable_warnings
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='version_compile_zlib';
+--enable_warnings
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@version_compile_zlib = @@GLOBAL.version_compile_zlib;
+
+
+################################################################################
+#   Check if version_compile_zlib can be accessed with and without @@ sign     #
+################################################################################
+SELECT COUNT(@@version_compile_zlib);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.version_compile_zlib);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.version_compile_zlib);
+
+SELECT COUNT(@@GLOBAL.version_compile_zlib);
+
+--Error ER_BAD_FIELD_ERROR
+SELECT version_compile_zlib = @@SESSION.version_compile_zlib;
+
+

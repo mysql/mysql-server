@@ -51,6 +51,7 @@
 #include <sys/stat.h>
 #include <atomic>
 #include <limits>
+#include <zlib.h>
 
 #include "my_loglevel.h"
 #include "mysql_com.h"
@@ -4821,6 +4822,13 @@ static Sys_var_charptr Sys_version_compile_os(
        "version_compile_os", "version_compile_os",
        READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_compile_os_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(SYSTEM_TYPE));
+
+static const char *server_version_compile_zlib_ptr= ZLIB_VERSION;
+static Sys_var_charptr Sys_version_compile_zlib(
+       "version_compile_zlib", "version_compile_zlib",
+       READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_compile_zlib_ptr),
+       NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(ZLIB_VERSION));
 
 static Sys_var_ulong Sys_net_wait_timeout(
        "wait_timeout",
