@@ -41,6 +41,7 @@
 #include "plugin/x/src/xpl_session.h"
 #include "sql/hostname.h"
 
+
 namespace xpl {
 
 Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
@@ -101,11 +102,6 @@ void Client::set_is_interactive(const bool flag)  {
   }
 }
 
-
-ngs::shared_ptr<xpl::Session> Client::get_session() {
-  return ngs::static_pointer_cast<xpl::Session>(session());
-}
-
 /** Close the client from another thread
 
 This can be called from any thread, so care must be taken to not call
@@ -141,8 +137,16 @@ void Client::on_auth_timeout() {
   ++Global_status_variables::instance().m_connection_errors_count;
 }
 
+/* Check is a session assigned to this client has following thread data
+
+   The method can be called from different thread/xpl_client.
+ */
 bool Client::is_handler_thd(THD *thd) {
-  ngs::shared_ptr<ngs::Session_interface> session = this->session();
+  // When accessing the session we need to hold it in
+  // shared_pointer to be sure that the session is
+  // not reseted (by Mysqlx::Session::Reset) in middle
+  // of this operations.
+  auto session = this->session_smart_ptr();
 
   return thd && session && (session->get_thd() == thd);
 }
@@ -191,34 +195,34 @@ bool Client::is_localhost(const char *hostname) {
 void Protocol_monitor::init(Client *client) { m_client = client; }
 
 namespace {
-template <xpl::Common_status_variables::Variable xpl::Common_status_variables::*
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::*
               variable>
-inline void update_status(ngs::shared_ptr<xpl::Session> session) {
+inline void update_status(ngs::Session_interface *session) {
   if (session) ++(session->get_status_variables().*variable);
   ++(Global_status_variables::instance().*variable);
 }
 
-template <xpl::Common_status_variables::Variable xpl::Common_status_variables::*
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::*
               variable>
-inline void update_status(ngs::shared_ptr<xpl::Session> session, long param) {
+inline void update_status(ngs::Session_interface *session, long param) {
   if (session) (session->get_status_variables().*variable) += param;
   (Global_status_variables::instance().*variable) += param;
 }
 }  // namespace
 
 void Protocol_monitor::on_notice_warning_send() {
-  update_status<&Common_status_variables::m_notice_warning_sent>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_notice_warning_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_notice_other_send() {
-  update_status<&Common_status_variables::m_notice_other_sent>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_notice_other_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_error_send() {
-  update_status<&Common_status_variables::m_errors_sent>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_errors_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_fatal_error_send() {
@@ -230,22 +234,25 @@ void Protocol_monitor::on_init_error_send() {
 }
 
 void Protocol_monitor::on_row_send() {
-  update_status<&Common_status_variables::m_rows_sent>(m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_rows_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_send(long bytes_transferred) {
-  update_status<&Common_status_variables::m_bytes_sent>(m_client->get_session(),
-                                                        bytes_transferred);
+  update_status<&ngs::Common_status_variables::m_bytes_sent>(
+      m_client->session(),
+      bytes_transferred);
 }
 
 void Protocol_monitor::on_receive(long bytes_transferred) {
-  update_status<&Common_status_variables::m_bytes_received>(
-      m_client->get_session(), bytes_transferred);
+  update_status<&ngs::Common_status_variables::m_bytes_received>(
+      m_client->session(),
+      bytes_transferred);
 }
 
 void Protocol_monitor::on_error_unknown_msg_type() {
-  update_status<&Common_status_variables::m_errors_unknown_message_type>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_errors_unknown_message_type>(
+      m_client->session());
 }
 
 }  // namespace xpl

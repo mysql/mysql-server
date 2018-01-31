@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_SESSION_STATUS_VARIABLES_H_
-#define _XPL_SESSION_STATUS_VARIABLES_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SESSION_STATUS_VARIABLES_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_SESSION_STATUS_VARIABLES_H_
 
-#include "plugin/x/src/xpl_common_status_variables.h"
-
-
-namespace xpl
-{
+#include "plugin/x/ngs/include/ngs/common_status_variables.h"
 
 
-class Session_status_variables : public Common_status_variables
-{
+namespace ngs {
+
+class Session_status_variables : public Common_status_variables {
 public:
   Session_status_variables() {}
 
@@ -41,8 +38,7 @@ private:
   Session_status_variables(const Session_status_variables &);
 };
 
+}  // namespace ngs
 
-} // namespace xpl
 
-
-#endif // _XPL_SESSION_STATUS_VARIABLES_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SESSION_STATUS_VARIABLES_H_

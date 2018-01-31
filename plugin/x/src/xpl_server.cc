@@ -698,9 +698,10 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 
     {
       MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
-      ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
+      auto session = xpl_client->session_smart_ptr();
 
-      is_session = NULL != session.get();
+      is_session = (nullptr != session.get());
+
       if (is_session)
         mysql_session_id = session->data_context().mysql_session_id();
     }
@@ -715,7 +716,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
       bool is_killed = false;
       {
         MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
-        ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
+        auto session = xpl_client->session_smart_ptr();
 
         if (session)
           is_killed = session->data_context().is_killed();

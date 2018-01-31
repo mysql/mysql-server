@@ -159,7 +159,7 @@ bool xpl::Session::can_see_user(const std::string &user) const
 {
   const std::string owner = m_sql.get_authenticated_user_name();
 
-  if (is_ready() && !owner.empty())
+  if (state() == ngs::Session_interface::Ready && !owner.empty())
   {
     if (m_sql.has_authenticated_user_a_super_priv()
         || (owner == user))
@@ -169,8 +169,8 @@ bool xpl::Session::can_see_user(const std::string &user) const
 }
 
 
-void xpl::Session::update_status(Common_status_variables::Variable
-                                 Common_status_variables::*variable)
+void xpl::Session::update_status(ngs::Common_status_variables::Variable
+                                 ngs::Common_status_variables::*variable)
 {
   ++(m_status_variables.*variable);
   ++(Global_status_variables::instance().*variable);

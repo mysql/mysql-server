@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,12 @@
 #ifndef _NGS_PAGE_POOL_H_
 #define _NGS_PAGE_POOL_H_
 
+#include <atomic>
 #include <stdint.h>
 #include <list>
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/atomic.h"
 
 #define BUFFER_PAGE_SIZE 4096
 
@@ -163,7 +163,7 @@ namespace ngs
     int32_t       m_pages_cached;
     const int32_t m_page_size;
     Mutex         m_mutex;
-    ngs::atomic<int32_t> m_pages_allocated;
+    std::atomic<int32_t> m_pages_allocated;
   };
 
 

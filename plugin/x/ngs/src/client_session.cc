@@ -69,12 +69,6 @@ Session::~Session()
 }
 
 
-bool Session::is_ready() const
-{
-  return m_state == Ready;
-}
-
-
 void Session::on_close(const bool update_old_state)
 {
   if (m_state != Closing)
