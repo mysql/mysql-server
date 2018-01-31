@@ -222,6 +222,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   if (pNdb->init(2048)){
     NDB_ERR(pNdb->getNdbError());
     delete pNdb;
+    ndbout << "pNdb.init() failed" << endl;      
     return NDBT_FAILED;
   }
 
@@ -236,6 +237,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
        
     if (hugoOps.startTransaction(pNdb) != NDBT_OK){
       delete pNdb;
+      ndbout << "startTransaction failed, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -247,6 +249,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
       const int rowNo = (i % 256);
       if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
         errors++;
+        ndbout << "ReadRecord failed at line: " << __LINE__ << ", row: " << rowNo << endl;
         if (errors >= maxErrors){
           result = NDBT_FAILED;
           maxOpsLimit = i;
@@ -272,7 +275,9 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
       case 233:  // Out of operation records in transaction coordinator  
         // OK - end test
         endTest = true;
-        maxOpsLimit = i;
+        maxOpsLimit = i;		
+        ndbout << "execute failed at line: " << __LINE__
+	       << ", with execResult: " << execResult << endl;
         break;
       }
     } while (i < maxOpsLimit);
@@ -313,6 +318,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
 
     if (hugoOps.startTransaction(pNdb) != NDBT_OK){
       delete pNdb;
+      ndbout << "startTransaction failed, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
     
@@ -320,6 +326,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     {
       if(hugoOps.pkReadRecord(pNdb, rowNo, 1) != NDBT_OK){
         errors++;
+        ndbout << "ReadRecord failed at line: " << __LINE__ << ", row: " << rowNo << endl;
         if (errors >= maxErrors){
           result = NDBT_FAILED;
           break;
@@ -330,6 +337,8 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     const int execResult = hugoOps.execute_Commit(pNdb);
     if (execResult != NDBT_OK)
     {
+      ndbout << "execute failed at line: " << __LINE__
+	     << ", with execResult: " << execResult << endl;
       result = NDBT_FAILED;
     }
     hugoOps.closeTransaction(pNdb);
@@ -359,9 +368,11 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "Cool down periode didn't shrink NdbOperation free-list" << endl;
     result = NDBT_FAILED;
   }
-
+  
+  if (result != NDBT_OK)
+    ndbout << "Test case failed with result: " << result << endl;
+  
   delete pNdb;
-
   return result;
 }
 
