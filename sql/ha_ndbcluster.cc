@@ -12364,9 +12364,9 @@ drop_table_impl(THD *thd, Ndb *ndb,
   bool skip_related= false;
   int drop_flags = 0;
   // Copying alter can leave temporary named table which is parent of old FKs
-  if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
-       thd->lex->sql_command == SQLCOM_DROP_INDEX ||
-       thd->lex->sql_command == SQLCOM_CREATE_INDEX) &&
+  if ((thd_sql_command(thd) == SQLCOM_ALTER_TABLE ||
+       thd_sql_command(thd) == SQLCOM_DROP_INDEX ||
+       thd_sql_command(thd) == SQLCOM_CREATE_INDEX) &&
       ndb_name_is_temp(table_name))
   {
     DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));
@@ -12375,13 +12375,13 @@ drop_table_impl(THD *thd, Ndb *ndb,
     skip_related = true;
   }
 
-  if (thd->lex->sql_command == SQLCOM_DROP_DB)
+  if (thd_sql_command(thd) == SQLCOM_DROP_DB)
   {
     DBUG_PRINT("info", ("Using cascade constraints DB for drop database"));
     drop_flags |= NDBDICT::DropTableCascadeConstraintsDropDB;
   }
 
-  if (thd->lex->sql_command == SQLCOM_TRUNCATE)
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE)
   {
     DBUG_PRINT("info", ("Deleting table for TRUNCATE, skip dropping related"));
     skip_related= true;
@@ -12457,7 +12457,8 @@ drop_table_impl(THD *thd, Ndb *ndb,
   }
 
   if (!ndb_name_is_temp(table_name) &&
-      thd->lex->sql_command != SQLCOM_TRUNCATE)
+      thd_sql_command(thd) != SQLCOM_TRUNCATE &&
+      thd_sql_command(thd) != SQLCOM_DROP_DB)
   {
     if (!schema_dist_client.drop_table(db, table_name,
                                        ndb_table_id, ndb_table_version))
@@ -13433,8 +13434,8 @@ static void ndbcluster_drop_database(handlerton*, char *path)
     DBUG_VOID_RETURN;
   }
 
-  int res = ndbcluster_drop_database_impl(thd, schema_dist_client, path);
-  if(res != 0)
+  const int res = ndbcluster_drop_database_impl(thd, schema_dist_client, path);
+  if (res != 0)
   {
     DBUG_VOID_RETURN;
   }
@@ -13933,7 +13934,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
     if (table != NULL &&
         (thd= table->in_use) != NULL &&
         thd->lex != NULL &&
-        thd->lex->sql_command == SQLCOM_ALTER_TABLE)
+        thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
     {
       DBUG_VOID_RETURN;
     }

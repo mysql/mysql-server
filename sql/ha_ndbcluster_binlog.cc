@@ -2104,9 +2104,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   switch (type)
   {
   case SOT_DROP_TABLE:
-    /* drop database command, do not log at drop table */
-    if (m_thd->lex->sql_command ==  SQLCOM_DROP_DB)
-      DBUG_RETURN(0);
     /*
       Rewrite the drop table query as it may contain several tables
       but drop_table() is called once for each table in the query

@@ -308,6 +308,16 @@ bool Ndb_schema_dist_client::rename_table(const char* db,
 bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
                                         int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_table");
+
+  /*
+    Never distribute each dropped table as part of DROP DATABASE:
+    1) as only the DROP DATABASE command should go into binlog
+    2) as this MySQL Server is dropping the tables from NDB, when
+       the participants get the DROP DATABASE it will remove
+       any tables from the DD and then remove the database.
+  */
+  DBUG_ASSERT(thd_sql_command(m_thd) != SQLCOM_DROP_DB);
+
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             db, table_name, id, version, SOT_DROP_TABLE,
                             nullptr, nullptr));
