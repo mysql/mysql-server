@@ -10518,7 +10518,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   DBUG_PRINT("info:", ("in type %d len %d, dec %d",
                        get_real_type(item),
                        item->max_length, item->decimals));
-  fld_type= Field::field_type_merge(fld_type, get_real_type(item));
+  fld_type= real_type_to_type(Field::field_type_merge(fld_type,
+                                                      get_real_type(item)));
   {
     int item_decimals= item->decimals;
     /* fix variable decimals which always is NOT_FIXED_DEC */
