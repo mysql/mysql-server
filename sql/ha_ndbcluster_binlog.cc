@@ -2033,8 +2033,6 @@ static void ndb_report_waiting(const char *key,
 }
 
 
-extern void update_slave_api_stats(Ndb*);
-
 /*
   log query in ndb_schema table
 */
@@ -2063,9 +2061,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   if (!ndb_schema_share ||
       thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP))
   {
-    if (m_thd->slave_thread)
-      update_slave_api_stats(thd_ndb->ndb);
-
     DBUG_RETURN(0);
   }
 
@@ -2489,9 +2484,6 @@ end:
                   get_schema_type_name(log_type),
                   log_type,
                   query);
-
-  if (m_thd->slave_thread)
-    update_slave_api_stats(ndb);
 
   DBUG_RETURN(0);
 }

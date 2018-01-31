@@ -141,7 +141,7 @@ public:
   void reset_trans_options(void);
 
   // Start of transaction check, to automatically detect which
-  // trans options shoudl be enabled
+  // trans options should be enabled
   void transaction_checks(void);
   malloc_unordered_map<const void *, THD_NDB_SHARE *>
     open_tables{PSI_INSTRUMENT_ME};
@@ -230,8 +230,6 @@ public:
   */
   void push_warning(uint code, const char* fmt, ...) const
     MY_ATTRIBUTE((format(printf, 3, 4)));
-
-
 };
 
 #endif

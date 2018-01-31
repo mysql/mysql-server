@@ -111,6 +111,9 @@ bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
   return false;
 }
 
+Ndb_schema_dist_client::Ndb_schema_dist_client(THD* thd)
+    : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)) {}
+
 bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
 {
   DBUG_ENTER("Ndb_schema_dist_client::prepare");
@@ -172,12 +175,23 @@ bool Ndb_schema_dist_client::Prepared_keys::check_key(
   return false;
 }
 
+extern void update_slave_api_stats(const Ndb*);
+
 Ndb_schema_dist_client::~Ndb_schema_dist_client()
 {
   if (m_share)
   {
     // Release the reference to mysql.ndb_schema table
     NDB_SHARE::release_reference(m_share, "ndb_schema_dist_client");
+  }
+
+  if (m_thd_ndb->is_slave_thread())
+  {
+    // Copy-out slave thread statistics
+    // NOTE! This is just a "convenient place" to call this
+    // function, it could be moved to "end of statement"(if there
+    // was such a place..).
+    update_slave_api_stats(m_thd_ndb->ndb);
   }
 }
 
@@ -254,9 +268,6 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   }
   DBUG_RETURN(true);
 }
-
-Ndb_schema_dist_client::Ndb_schema_dist_client(THD* thd)
-    : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)) {}
 
 bool Ndb_schema_dist_client::create_table(const char* db,
                                           const char* table_name, int id,

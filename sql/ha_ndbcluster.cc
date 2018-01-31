@@ -491,11 +491,26 @@ static long long g_slave_api_client_stats[Ndb::NumClientStatistics];
 
 static long long g_server_api_client_stats[Ndb::NumClientStatistics];
 
+/**
+  @brief Copy the slave threads Ndb statistics to global
+         variables, thus allowing the statistics to be read
+         from other threads when those display status variables. This
+         copy out need to happen with regular intervals and as
+         such the slave thread will call it at convenient times.
+  @note This differs from other threads who will copy statistics
+        from their own Ndb object before showing the values.
+  @param ndb The ndb object
+*/
 void
-update_slave_api_stats(Ndb* ndb)
+update_slave_api_stats(const Ndb* ndb)
 {
+  // Should only be called by the slave (applier) thread
+  DBUG_ASSERT(current_thd->slave_thread);
+
   for (Uint32 i=0; i < Ndb::NumClientStatistics; i++)
+  {
     g_slave_api_client_stats[i] = ndb->getClientStat(i);
+  }
 }
 
 st_ndb_slave_state g_ndb_slave_state;
@@ -8319,10 +8334,10 @@ Thd_ndb::transaction_checks()
 {
   THD* thd = m_thd;
 
-  if (thd->lex->sql_command == SQLCOM_LOAD ||
+  if (thd_sql_command(thd) == SQLCOM_LOAD ||
       !THDVAR(thd, use_transactions))
   {
-    // Tutrn off transactionila behaviour for the duration of this
+    // Turn off transactional behaviour for the duration of this
     // statement/transaction
     set_trans_option(TRANS_TRANSACTIONS_OFF);
   }
@@ -8862,6 +8877,7 @@ int ndbcluster_commit(handlerton*, THD *thd, bool all)
     if (likely(res == 0))
       res= execute_commit(thd_ndb, trans, 1, true);
 
+    // Copy-out slave thread statistics
     update_slave_api_stats(thd_ndb->ndb);
   }
   else
@@ -9038,7 +9054,10 @@ static int ndbcluster_rollback(handlerton*, THD *thd, bool all)
   thd_ndb->m_handler= NULL;
 
   if (thd->slave_thread)
+  {
+    // Copy-out slave thread statistics
     update_slave_api_stats(thd_ndb->ndb);
+  }
 
   DBUG_RETURN(res);
 }
