@@ -25,7 +25,10 @@
 // Implements the functions defined in ndb_schema_dist.h
 #include "sql/ndb_schema_dist.h"
 
+#include <atomic>
+
 #include "my_dbug.h"
+#include "ndbapi/ndb_cluster_connection.hpp"
 #include "sql/ha_ndbcluster_tables.h"
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_share.h"
@@ -178,6 +181,34 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client()
   }
 }
 
+/*
+  Produce unique identifier for distributing objects that
+  does not have any global id from NDB. Use a sequence counter
+  which is unique in this node.
+*/
+static std::atomic<uint32> schema_dist_id_sequence{0};
+int Ndb_schema_dist_client::unique_id() {
+  int id = ++schema_dist_id_sequence;
+  // Handle wraparound
+  if (id == 0) {
+    id = ++schema_dist_id_sequence;
+  }
+  DBUG_ASSERT(id != 0);
+  return id;
+}
+
+/*
+  Produce unique identifier for distributing objects that
+  does not have any global version from NDB. Use own nodeid
+  which is unique in NDB.
+*/
+int Ndb_schema_dist_client::unique_version() const {
+  Thd_ndb* thd_ndb = get_thd_ndb(m_thd);
+  const int ver = thd_ndb->connection->node_id();
+  DBUG_ASSERT(ver != 0);
+  return ver;
+}
+
 bool Ndb_schema_dist_client::log_schema_op(const char* query,
                                            size_t query_length, const char* db,
                                            const char* table_name, int id,
@@ -187,6 +218,7 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
                                            bool log_query_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op");
   DBUG_ASSERT(db && table_name);
+  DBUG_ASSERT(id != 0 && version != 0);
 
   // Never allow temporary names when communicating with participant
   if (ndb_name_is_temp(db) || ndb_name_is_temp(table_name))
@@ -326,29 +358,29 @@ bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
 bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
                                        const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::create_db");
-  DBUG_RETURN(log_schema_op(query, query_length, db, "", RANDOM_ID,
-                            RANDOM_VERSION, SOT_CREATE_DB, nullptr, nullptr));
+  DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
+                            unique_version(), SOT_CREATE_DB, nullptr, nullptr));
 }
 
 bool Ndb_schema_dist_client::alter_db(const char* query, uint query_length,
                                       const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_db");
-  DBUG_RETURN(log_schema_op(query, query_length, db, "", RANDOM_ID,
-                            RANDOM_VERSION, SOT_ALTER_DB, nullptr, nullptr));
+  DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
+                            unique_version(), SOT_ALTER_DB, nullptr, nullptr));
 }
 
 bool Ndb_schema_dist_client::drop_db(const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_db");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            db, "", RANDOM_ID, RANDOM_VERSION, SOT_DROP_DB,
+                            db, "", unique_id(), unique_version(), SOT_DROP_DB,
                             nullptr, nullptr));
 }
 
 bool Ndb_schema_dist_client::acl_notify(const char* query, uint query_length,
                                         const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::acl_notify");
-  DBUG_RETURN(log_schema_op(query, query_length, db, "", RANDOM_ID,
-                            RANDOM_VERSION, SOT_GRANT, nullptr, nullptr));
+  DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
+                            unique_version(), SOT_GRANT, nullptr, nullptr));
 }
 
 bool Ndb_schema_dist_client::tablespace_changed(const char* tablespace_name,

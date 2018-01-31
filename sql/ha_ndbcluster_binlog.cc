@@ -613,17 +613,6 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
   DBUG_PRINT("enter", ("binlog_command: %d, db: '%s', query: '%s'",
                        binlog_command, db, query));
 
-  if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
-  {
-    /**
-     * Simulate behaviour immediately after mysql_main() init:
-     *   We do *not* set the random seed, which according to 'man rand'
-     *   is equivalent of setting srand(1). In turn this will result
-     *   in the same sequence of random numbers being produced on all mysqlds.
-     */ 
-    srand(1);
-  }
-
   switch (binlog_command) {
     case LOGCOM_CREATE_DB: {
       DBUG_PRINT("info", ("New database '%s' created", db));
@@ -2049,6 +2038,7 @@ extern void update_slave_api_stats(Ndb*);
 /*
   log query in ndb_schema table
 */
+
 int Ndb_schema_dist_client::log_schema_op_impl(
     Thd_ndb* thd_ndb,
     const char *query, int query_length, const char *db, const char *table_name,
@@ -2202,20 +2192,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   // Use nodeid of the primary cluster connection since that is
   // the nodeid which the coordinator and participants listen to
   const uint32 node_id= g_ndb_cluster_connection->node_id();
-
-  /**
-   * If table_id/_version is not specified, we have to produce
-   * our own unique identifier for the schema operation.
-   * Use a sequence counter and own node_id for uniqueness.
-   */
-  if (ndb_table_id == 0 && ndb_table_version == 0)
-  {
-    static uint32 seq_id = 0;
-    mysql_mutex_lock(&ndbcluster_mutex);
-    ndb_table_id = ++seq_id;
-    ndb_table_version = node_id;
-    mysql_mutex_unlock(&ndbcluster_mutex);
-  }
 
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {

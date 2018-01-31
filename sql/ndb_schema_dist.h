@@ -108,10 +108,19 @@ class Ndb_schema_dist_client {
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
 
-  // Special value 0 which allows log_schema_op() to
-  // produce its own unique values for id and version.
-  static constexpr int RANDOM_ID = 0;
-  static constexpr int RANDOM_VERSION = 0;
+  /*
+    @brief Generate unique id for distribution of objects which doesn't have
+           global id in NDB.
+    @return unique id
+  */
+  int unique_id();
+
+  /*
+    @brief Generate unique version for distribution of objects which doesn't
+           have global id in NDB.
+    @return unique version
+  */
+  int unique_version() const;
 
   int log_schema_op_impl(Thd_ndb *thd_ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
