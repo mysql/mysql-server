@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -173,6 +173,13 @@ struct lock_t {
 	bool is_record_lock() const
 	{
 		return(type() == LOCK_REC);
+	}
+
+	/** Determine if it is predicate lock.
+	@return true if predicate lock, false otherwise. */
+	bool is_predicate() const
+	{
+		return(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 	}
 
 	/** @return true if the lock wait flag is set */

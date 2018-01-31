@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -4848,6 +4848,19 @@ lock_rec_unlock(
 	}
 }
 
+/** Remove GAP lock from a next key record lock
+@param[in,out]	lock	lock object */
+static
+void
+lock_remove_gap_lock(lock_t* lock)
+{
+	/* Remove lock on supremum */
+	lock_rec_reset_nth_bit(lock, PAGE_HEAP_NO_SUPREMUM);
+
+	/* Remove GAP lock for other records */
+	lock->remove_gap_lock();
+}
+
 /** Release read locks of a transacion. It is called during XA
 prepare to release locks early.
 @param[in,out]	trx		transaction
@@ -4877,7 +4890,8 @@ lock_trx_release_read_locks(
 
 		/* Check only for record lock */
 		if (!lock->is_record_lock()
-		    || lock->is_insert_intention()) {
+		    || lock->is_insert_intention()
+		    || lock->is_predicate()) {
 
 			lock = next_lock;
 			continue;
@@ -4907,7 +4921,7 @@ lock_trx_release_read_locks(
 		}
 
 		/* Release GAP lock from Next Key lock */
-		lock->remove_gap_lock();
+		lock_remove_gap_lock(lock);
 
 		/* Grant locks */
 		lock_rec_grant(lock, false);

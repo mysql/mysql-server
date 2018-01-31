@@ -2878,11 +2878,16 @@ trx_prepare(
 	trx_sys_mutex_exit();
 	/*--------------------------------------*/
 
-	/* Release read locks after PREAPARE for READ COMMITTED
+	/* Force isolation level to RC and release GAP locks
+	for test purpose. */
+	DBUG_EXECUTE_IF("ib_force_release_gap_lock_prepare",
+			trx->isolation_level = TRX_ISO_READ_COMMITTED;);
+
+	/* Release read locks after PREPARE for READ COMMITTED
 	and lower isolation. */
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
 
-		/* Stop inherting GAP locks. */
+		/* Stop inheriting GAP locks. */
 		trx->skip_lock_inheritance = true;
 
 		/* Release only GAP locks for now. */
