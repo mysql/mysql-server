@@ -1582,8 +1582,8 @@ blob_done:
 	if (num_v) {
 		byte* b = const_cast<byte*>(mrec)
 			  + rec_offs_data_size(offsets);
-		trx_undo_read_v_cols(log->table, b, row, false,
-				     &(log->col_map[log->n_old_col]));
+		trx_undo_read_v_cols(log->table, b, row, false, true,
+				     &(log->col_map[log->n_old_col]), heap);
 	}
 
 	return(row);
@@ -1948,8 +1948,8 @@ all_done:
 
 	if (num_v) {
                 byte* b = (byte*)mrec + rec_offs_data_size(moffsets);
-                trx_undo_read_v_cols(log->table, b, old_pk, false,
-				     &(log->col_map[log->n_old_col]));
+                trx_undo_read_v_cols(log->table, b, old_pk, false, true,
+				     &(log->col_map[log->n_old_col]), heap);
         }
 
 	return(row_log_table_apply_delete_low(trx, &pcur, old_pk,
@@ -2603,8 +2603,8 @@ row_log_table_apply_op(
 			if (n_v_size > 2 && mrec_end > next_mrec) {
 				trx_undo_read_v_cols(
 					log->table, const_cast<byte*>(
-					next_mrec), old_pk, false,
-					&(log->col_map[log->n_old_col]));
+					next_mrec), old_pk, false, true,
+					&(log->col_map[log->n_old_col]), heap);
 				o_v_size = mach_read_from_2(next_mrec);
 			}
 

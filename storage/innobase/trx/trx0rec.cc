@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2494,7 +2494,8 @@ trx_undo_prev_version_build(
 
 		ut_ad(index->table->n_v_cols);
 		trx_undo_read_v_cols(index->table, ptr, *vrow,
-				     v_status & TRX_UNDO_PREV_IN_PURGE, NULL);
+				     v_status & TRX_UNDO_PREV_IN_PURGE,
+				     false, nullptr, nullptr);
 	}
 
 	return(true);
@@ -2505,14 +2506,18 @@ trx_undo_prev_version_build(
 @param[in]	ptr		undo log pointer
 @param[in,out]	row		the row struct to fill
 @param[in]	in_purge	called by purge thread
-@param[in]	col_map		online rebuild column map */
+@param[in]	online		true if this is from online DDL log
+@param[in]	col_map		online rebuild column map
+@param[in,out]	heap		memory heap to keep value when necessary */
 void
 trx_undo_read_v_cols(
 	const dict_table_t*	table,
 	const byte*		ptr,
 	const dtuple_t*		row,
 	bool			in_purge,
-	const ulint*		col_map)
+	bool			online,
+	const ulint*		col_map,
+	mem_heap_t*		heap)
 {
 	const byte*     end_ptr;
 	bool		first_v_col = true;
@@ -2571,7 +2576,13 @@ trx_undo_read_v_cols(
 			if (!in_purge
 			    || dfield_get_type(dfield)->mtype == DATA_MISSING) {
 				vcol->m_col.copy_type(dfield_get_type(dfield));
-				dfield_set_data(dfield, field, len);
+				if (online) {
+					dfield->adjust_v_data_mysql(
+						vcol, dict_table_is_comp(table),
+						field, len, heap);
+				} else {
+					dfield_set_data(dfield, field, len);
+				}
 			}
 		}
 	}

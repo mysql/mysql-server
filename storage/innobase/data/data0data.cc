@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,6 +45,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "page0zip.h"
 #include "rem0cmp.h"
 #include "rem0rec.h"
+#include "row0mysql.h"
 #include "row0upd.h"
 #include "lob0lob.h"
 
@@ -849,6 +850,72 @@ dfield_t::blobref() const
 	ut_ad(ext);
 
 	return(static_cast<byte*>(data) + len - BTR_EXTERN_FIELD_REF_SIZE);
+}
+
+/** Adjust and(or) set virtual column value which is read from undo
+or online DDL log
+@param[in]	vcol		virtual column definition
+@param[in]	comp		true if compact format
+@param[in]	field		virtual column value
+@param[in]	len		value length
+@param[in,out]	heap		memory heap to keep value when necessary */
+void
+dfield_t::adjust_v_data_mysql(
+	const dict_v_col_t*	vcol,
+	bool			comp,
+	const byte*		field,
+	ulint			len,
+	mem_heap_t*		heap)
+{
+	ulint			mtype;
+	const byte*		data = field;
+
+	ut_ad(heap != nullptr);
+
+	mtype = type.mtype;
+
+	if (mtype != DATA_MYSQL) {
+		dfield_set_data(this, field, len);
+		return;
+	}
+
+	/* Adjust the value if the data type is DATA_MYSQL, either
+	adding or striping trailing spaces when necessary. This may happen
+	in the scenario where there is an ALTER TABLE changing table's
+	row format from compact to non-compact or vice versa, and there
+	is also concurrent INSERT to this table. The log for the data could
+	be in different format from the final format, which should be adjusted.
+	Refer to row_mysql_store_col_in_innobase_format() too. */
+	if (comp && len == vcol->m_col.len
+	    && dtype_get_mbminlen(&type) == 1
+	    && dtype_get_mbmaxlen(&type) > 1) {
+		/* A full length record, which is of multibyte
+		charsets and recorded because old table is non-compact.
+		However, in compact table, no trailing spaces. */
+		ulint		n_chars;
+
+		ut_a(!(dtype_get_len(&type) % dtype_get_mbmaxlen(&type)));
+
+		n_chars = dtype_get_len(&type) / dtype_get_mbmaxlen(&type);
+
+		while (len > n_chars && data[len - 1] == 0x20) {
+			--len;
+		}
+	} else if (!comp && len < vcol->m_col.len
+		   && dtype_get_mbminlen(&type) == 1) {
+		/* A not full length record from compact table, so have to
+		add trailing spaces. */
+		byte*	v_data = reinterpret_cast<byte*>(mem_heap_alloc(
+			heap, vcol->m_col.len));
+
+		memcpy(v_data, field, len);
+		row_mysql_pad_col(1, v_data + len, vcol->m_col.len - len);
+
+		data = v_data;
+		len = vcol->m_col.len;
+	}
+
+	dfield_set_data(this, data, len);
 }
 
 /** Print the dfield_t object into the given output stream.

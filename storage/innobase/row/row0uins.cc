@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -362,7 +362,8 @@ close_table:
 			}
 			if (node->table->n_v_cols) {
 				trx_undo_read_v_cols(node->table, ptr,
-						     node->row, false, NULL);
+						     node->row, false, false,
+						     nullptr, nullptr);
 			}
 
 		} else {
