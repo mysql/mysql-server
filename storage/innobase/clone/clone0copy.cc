@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -150,7 +150,7 @@ Clone_Snapshot::init_file_copy()
 		m_redo_ctx.get_header_size(m_redo_file_size, m_redo_header_size,
 					   m_redo_trailer_size);
 
-		m_redo_header = static_cast<byte*>(mem_heap_alloc(
+		m_redo_header = static_cast<byte*>(mem_heap_zalloc(
 			m_snapshot_heap,
 			m_redo_header_size + m_redo_trailer_size));
 
@@ -314,7 +314,10 @@ Clone_Snapshot::init_redo_copy()
 	/* Add another chunk for the redo log trailer. */
 	++m_num_redo_chunks;
 #ifdef HAVE_PSI_STAGE_INTERFACE
-	m_monitor.add_estimate(m_redo_trailer_size);
+	if (m_redo_trailer_size != 0) {
+
+		m_monitor.add_estimate(m_redo_trailer_size);
+	}
 #endif
 
 	m_num_current_chunks = m_num_redo_chunks;

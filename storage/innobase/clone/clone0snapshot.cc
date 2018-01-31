@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -448,7 +448,7 @@ Clone_Snapshot::get_next_block(
 		} else if (chunk_num == m_num_current_chunks) {
 			/* Last chunk is the redo trailer. */
 
-			if (block_num != 0) {
+			if (block_num != 0 || m_redo_trailer_size == 0) {
 
 				block_num = 0;
 				return(DB_SUCCESS);
@@ -572,6 +572,19 @@ Clone_Snapshot::get_next_block(
 		data_size = static_cast<uint>(
 			current_file->m_file_size - data_offset);
 	}
+
+#ifdef UNIV_DEBUG
+	if (m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY) {
+
+		/* Current file is the last redo file */
+		if (current_file == m_redo_file_vector.back()
+		    && m_redo_trailer_size != 0) {
+
+			/* Should not exceed/overwrite the trailer */
+			ut_ad(data_offset + data_size <= m_redo_trailer_offset);
+		}
+	}
+#endif /* UNIV_DEBUG */
 
 	return(DB_SUCCESS);
 }

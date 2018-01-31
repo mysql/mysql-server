@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -330,7 +330,8 @@ Clone_Handle::receive_data(
 	    && offset == 0
 	    && file_meta->m_file_size < file_size) {
 
-		file_meta->m_file_size = file_size;
+		snapshot->update_file_size(task->m_current_file_index,
+					   file_size);
 	}
 
 	/* Open destination file for first block. */
@@ -461,6 +462,42 @@ Clone_Handle::apply(
 	}
 
 	return(err);
+}
+
+void
+Clone_Snapshot::update_file_size(uint32_t file_index, uint64_t file_size)
+{
+	/* Update file size when file is extended during page copy */
+	ut_ad(m_snapshot_state == CLONE_SNAPSHOT_PAGE_COPY);
+
+	auto	cur_file = get_file_by_index(file_index);
+
+	while (file_size > cur_file->m_file_size) {
+
+		++file_index;
+
+		if (file_index >= m_num_data_files) {
+
+			/* Update file size for the last file. */
+			cur_file->m_file_size = file_size;
+			break;
+		}
+
+		auto	next_file = get_file_by_index(file_index);
+
+		if (next_file->m_space_id != cur_file->m_space_id) {
+
+			/* Update file size for the last file. */
+			cur_file->m_file_size = file_size;
+			break;
+		}
+
+		/* Only system tablespace can have multiple nodes. */
+		ut_ad(cur_file->m_space_id == 0);
+
+		file_size -= cur_file->m_file_size;
+		cur_file = next_file;
+	}
 }
 
 /** Extend files after copying pages, if needed

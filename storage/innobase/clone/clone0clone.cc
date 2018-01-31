@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1095,6 +1095,8 @@ Clone_Handle::open_file(
 
 		task->m_file_cache = false;
 	}
+
+	DBUG_EXECUTE_IF("clone_no_zero_copy", task->m_file_cache = false;);
 
 	task->m_current_file_index = file_meta->m_file_index;
 

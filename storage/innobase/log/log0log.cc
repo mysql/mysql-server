@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2757,34 +2757,50 @@ log_shutdown()
 
 /** Get last redo block from redo buffer and end LSN
 @param[out]	last_lsn	end lsn of last mtr
-@param[out]	last_block	last redo block */
+@param[out]	last_block	last redo block
+@param[in,out]	block_len	length in bytes */
 void
 log_get_last_block(
 	lsn_t&		last_lsn,
-	byte*		last_block)
+	byte*		last_block,
+	uint32_t&	block_len)
 {
-	byte*		src_block;
+	byte*	src_block;
 
 	log_mutex_enter();
 	last_lsn = log_sys->lsn;
 
 	if (last_block == nullptr) {
 
+		block_len = 0;
 		log_mutex_exit();
 		return;
 	}
 
 	/* Copy last block from current buffer. */
-	src_block = log_sys->buf + ut_calc_align_down(log_sys->buf_free,
+	auto src_offset = ut_calc_align_down(log_sys->buf_free,
 		OS_FILE_LOG_BLOCK_SIZE);
 
-	ut_ad(src_block != nullptr);
+	src_block = log_sys->buf + src_offset;
 
-	ut_memcpy(last_block, src_block, OS_FILE_LOG_BLOCK_SIZE);
+	block_len = static_cast<uint32_t>(log_sys->buf_free - src_offset);
+
+	if (block_len == 0) {
+
+		ut_ad(last_lsn == ut_calc_align_down(last_lsn,
+			OS_FILE_LOG_BLOCK_SIZE));
+
+		log_mutex_exit();
+
+		return;
+	}
+
+	ut_memcpy(last_block, src_block, block_len);
 
 	log_mutex_exit();
 
 	log_block_store_checksum(last_block);
+	block_len = OS_FILE_LOG_BLOCK_SIZE;
 }
 
 #endif /* !UNIV_HOTBACKUP */

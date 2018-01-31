@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -317,28 +317,28 @@ public:
 
 	/** Check if current file is closed
 	@return true, if file is closed */
-	bool is_closed()
+	bool is_closed() const
 	{
 		return(m_file.m_file == OS_FILE_CLOSED);
 	}
 
 	/** Get file size
 	@return file size in bytes */
-	ib_uint64_t get_size()
+	ib_uint64_t get_size() const
 	{
 		return(m_size);
 	}
 
 	/** Get number of files
 	@return current file count */
-	uint get_file_count()
+	uint get_file_count() const
 	{
 		return(m_count);
 	}
 
 	/** Check how much is left in current file
 	@return length left in bytes */
-	ib_uint64_t bytes_left()
+	ib_uint64_t bytes_left() const
 	{
 		ut_ad(m_size >= m_offset);
 		return(m_size - m_offset);
@@ -440,6 +440,21 @@ public:
 			delete_files();
 		}
 	}
+
+#ifdef UNIV_DEBUG
+
+	/** Adjust end LSN to end of file. This is used in debug
+	mode to test the case when LSN is at file boundary.
+	@param[in,out]	stop_lsn	stop lsn for client
+	@param[out]	blk_len		last block length */
+	void adjust_end_lsn(lsn_t& stop_lsn, uint32_t& blk_len);
+
+	/** Adjust redo copy length to end of file. This is used
+	in debug mode to archive only till end of file.
+	@param[in,out]	length	data to copy in bytes */
+	void adjust_copy_length(uint32_t& length);
+
+#endif /* UNIV_DEBUG */
 
 	/** Initialize the file context for the archive group.
 	File context keeps the archived data in files on disk. There
@@ -568,21 +583,21 @@ public:
 	/** Get file size for this group.
 	Fixed size files are used for archiving data in a group.
 	@return file size in bytes */
-	ib_uint64_t get_file_size()
+	ib_uint64_t get_file_size() const
 	{
 		return(m_file_ctx.get_size());
 	}
 
 	/** Get start LSN for this group
 	@return start LSN */
-	lsn_t get_begin_lsn()
+	lsn_t get_begin_lsn() const
 	{
 		return(m_begin_lsn);
 	}
 
 	/** Check if archiving is going on for this group
 	@return true, if the group is active */
-	bool is_active()
+	bool is_active() const
 	{
 		return(m_is_active);
 	}
@@ -737,11 +752,13 @@ public:
 	@param[out]	group		log archive group
 	@param[out]	stop_lsn	stop lsn for client
 	@param[out]	log_blk		redo log trailer block
+	@param[in,out]	blk_len		length in bytes
 	@return error code */
 	dberr_t stop(
 		Arch_Group*	group,
 		lsn_t&		stop_lsn,
-		byte*		log_blk);
+		byte*		log_blk,
+		uint32_t&	blk_len);
 
 	/** Release the current group from client.
 	@param[in]	group		group the client is attached to

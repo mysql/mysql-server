@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -306,6 +306,11 @@ public:
 	/** Update snapshot block size based on caller's buffer size
 	@param[in]	buff_size	buffer size for clone transfer */
 	void update_block_size(uint buff_size);
+
+	/** Update file size when file is extended during page copy
+	@param[in]	file_index	current file index
+	@param[in]	file_size	new file size */
+	void update_file_size(uint32_t file_index, uint64_t file_size);
 
 private:
 

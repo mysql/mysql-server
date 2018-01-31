@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -77,10 +77,13 @@ public:
 
 	/** Stop redo log archiving
 	@param[out]	trailer	redo trailer. Caller must allocate buffer.
-	@param[in]	len	buffer length
+	@param[in,out]	len	buffer length
 	@param[out]	offset	trailer block offset
 	@return error code */
-	dberr_t stop(byte* trailer, uint len, ib_uint64_t& offset);
+	dberr_t stop(
+		byte*		trailer,
+		uint32_t&	len,
+		uint64_t&	offset);
 
 	/** Get archived data file details
 	@param[in]	cbk_func	callback called for each file
