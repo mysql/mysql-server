@@ -36,7 +36,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-%{version}
 
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 
@@ -50,7 +50,7 @@ Name:           mysql%{?cluster:-cluster}-%{product_suffix}-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
+Release:        1%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
@@ -402,9 +402,10 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Tue Dec 12 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-0.1
+* Wed Jan 31 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-1
 - Removed milestone marker
 - Move mysqlx to default plugin
+- Fixed the package names for GA release
 
 * Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add mysqlbackup
