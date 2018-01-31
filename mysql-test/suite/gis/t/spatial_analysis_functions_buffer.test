@@ -77,10 +77,8 @@ SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
 --echo # ST_BUFFER(point, distance)
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_center), 0));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_top), 1));
 
 --replace_numeric_round 4
@@ -89,7 +87,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(-0 0)'), 2));
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(2.34 -2.34)'), 3));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(1000 -1000)'), 5));
 
 --replace_numeric_round 4
@@ -102,7 +99,6 @@ SELECT ST_ASTEXT(ST_BUFFER(g, 100)) FROM gis_geometrycollection WHERE fid=105;
 --echo # ST_BUFFER(multipoint, distance)
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_all_points), 0));
 
 --replace_numeric_round 4
@@ -124,10 +120,8 @@ SELECT ST_ASTEXT(ST_BUFFER(g, 20)) FROM gis_geometrycollection WHERE fid=108;
 --echo # ST_BUFFER(linestring, distance)
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_top_to_center), 0));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_line_horizontal), 1));
 
 --replace_numeric_round 4
@@ -146,7 +140,6 @@ SELECT ST_ASTEXT(ST_BUFFER(g, 20)) FROM gis_geometrycollection WHERE fid=110;
 --echo # ST_BUFFER(multilinestring, distance)
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_lines_near_vertical), 0));
 
 --replace_numeric_round 4
@@ -171,7 +164,6 @@ SELECT ST_ASTEXT(ST_BUFFER(g, 20)) FROM gis_geometrycollection WHERE fid=114;
 --echo # ST_BUFFER(polygon, distance)
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star), 0));
 
 --replace_numeric_round 4
@@ -214,29 +206,23 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))')
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), -3));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), -5));
 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'), -1));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'), -3));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(2 2,2 4,4 4,4 2,2 2),(6 6,6 8,8 8,8 6,6 6))'), -5));
 
 --echo #####################################################################################
 --echo # ST_BUFFER(multipolygon, distance)
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_of_elems), 0));
 
 --replace_numeric_round 4
@@ -257,7 +243,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)))'), 5));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((4 4,4 6,6 6,6 4,4 4),(0 0,0 10,10 10,10 0,0 0)))'), 5));
 
 --replace_numeric_round 4
@@ -273,66 +258,50 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10,10 0,0 0)),'
                                                         '((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6, 4 4)))'), 1000));
 
---replace_numeric_round 4
+--replace_numeric_round 12
 SELECT ST_ASTEXT(ST_BUFFER(g, 20)) FROM gis_geometrycollection WHERE fid=103;
 
 # ST_Buffer() with negative distance value
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'), -5));
 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'), -3));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((14 14,14 16,16 16,16 14,14 14)))'), -1));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((14 14,14 16,16 16,16 14,14 14)))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((14 14,14 16,16 16,16 14,14 14)))'), -4));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((14 14,14 16,16 16,16 14,14 14)))'), -5));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((14 14,14 16,16 16,16 14,14 14)))'), -10));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 20,20 20,20 10,10 10)))'), -1));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 20,20 20,20 10,10 10)))'), -3));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 20,20 20,20 10,10 10)))'), -5));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 20,20 20,20 10,10 10)))'), -10));
 
 --echo #####################################################################################
 --echo # ST_BUFFER(geometrycollection, distance)
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_collection_elems), 0));
 
---replace_numeric_round 4
+--replace_numeric_round 12
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_collection_multilinestr), 1));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), 0));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), 10));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'), 100));
 
 # area check used because of the differences on various platforms
@@ -353,7 +322,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,0 10,10 10),GEOMETRYCOLLECTION())'), 10));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
                                                               'MULTIPOINT(0 0,10 10),'
                                                               'LINESTRING(1 1,2 2,3 3),'
@@ -400,28 +368,20 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTIO
 SELECT ST_ASTEXT(ST_BUFFER(g, 20)) FROM gis_geometrycollection WHERE fid=115;
 
 # ST_Buffer() with negative distance value
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))'), -5));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 20,20 20,20 10,10 10))))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((10 10,10 20,20 20,20 10,10 10))))'), -10));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)), POLYGON((10 10,10 20,20 20,20 10,10 10)))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)), POLYGON((10 10,10 20,20 20,20 10,10 10)))'), -5));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)), MULTIPOLYGON(((10 10,10 20,20 20,20 10,10 10))))'), -2));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)), MULTIPOLYGON(((10 10,10 20,20 20,20 10,10 10))))'), -10));
 
 ############################################################################################
@@ -441,7 +401,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)'), 2, ST_BUFFER_STRATEGY(
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(2.34 -2.34)'), 3, ST_BUFFER_STRATEGY('point_circle', 3)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(1000 -1000)'), 5, ST_BUFFER_STRATEGY('point_circle', 5)));
 
 --replace_numeric_round 4
@@ -459,13 +418,10 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(10 15,15 15,15 10)'), 5, 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)'), 100, ST_BUFFER_STRATEGY('point_circle', 50)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'), 5, ST_BUFFER_STRATEGY('point_circle', 4)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(5 5,10 10))'), 5, ST_BUFFER_STRATEGY('point_circle', 4)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5),MULTIPOINT(5 5))'), 5, ST_BUFFER_STRATEGY('point_circle', 4)));
 
 --replace_numeric_round 4
@@ -475,40 +431,28 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5),MULTIP
 --echo # ST_BUFFER() with 'point_square' strategy
 --echo #####################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)'), 2, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(2.34 -2.34)'), 3, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(1000 -1000)'), 5, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0.000001)'), 10, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(10 10,20 20,30 30)'), 5, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(10 15,15 15,15 10)'), 5, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1000 -1000,0.0001 0.000)'), 100, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'), 5, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(5 5,10 10))'), 5, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5),MULTIPOINT(5 5))'), 5, ST_BUFFER_STRATEGY('point_square')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5),MULTIPOINT(10 10,15 15))'), 5, ST_BUFFER_STRATEGY('point_square')));
 
 --echo #####################################################################################
@@ -539,7 +483,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 
 --replace_numeric_round 1
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000),(2 2,4 -9.002))'), 1000, ST_BUFFER_STRATEGY('end_round', 50)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10))'), 10, ST_BUFFER_STRATEGY('end_round', 4)));
 
 --replace_numeric_round 4
@@ -583,7 +526,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'), 50, ST_BUFFER_STRATEGY('end_flat')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'), 100, ST_BUFFER_STRATEGY('end_flat')));
 
 --replace_numeric_round 4
@@ -592,7 +534,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10))'), 10, ST_BUFFER_STRATEGY('end_flat')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((0 0,5 0),(0 0,0 5)))'), 10, ST_BUFFER_STRATEGY('end_flat')));
 
 --replace_numeric_round 4
@@ -633,7 +574,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 
 --replace_numeric_round 2
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000),(2 2,4 -9.002))'), 1000, ST_BUFFER_STRATEGY('join_round', 50)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,0 0))'), 1, ST_BUFFER_STRATEGY('join_round', 1)));
 
 --replace_numeric_round 4
@@ -673,7 +613,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((0 0,5 0),(0 0,0 5)))'), 10, ST_BUFFER_STRATEGY('join_round', 10)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)))'), 10, ST_BUFFER_STRATEGY('join_round', 4)));
 
 --replace_numeric_round 4
@@ -727,28 +666,20 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 
 --replace_numeric_round 1
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1000 -1000,0.0001 0.000),(2 2,4 -9.002))'), 1000, ST_BUFFER_STRATEGY('join_miter', 50)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,0 0))'), 1, ST_BUFFER_STRATEGY('join_miter', 1)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'), 5, ST_BUFFER_STRATEGY('join_miter', 5)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((10 10,10 20,20 20,20 10,10 10))'), 10, ST_BUFFER_STRATEGY('join_miter', 10)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((10 0,0 10,-10 0,0 -10,10 0 ))'), 10, ST_BUFFER_STRATEGY('join_miter', 50)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 8,8 8,8 0,0 0),(2 2,6 2,6 6,2 6,2 2))'), 1, ST_BUFFER_STRATEGY('join_miter',60)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))'), 100, ST_BUFFER_STRATEGY('join_miter', 60)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))'), 0.5, ST_BUFFER_STRATEGY('join_miter', 1)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 10,10 0,0 0,0 10)),((0 0,10 10,10 0,0 0)))'), 1, ST_BUFFER_STRATEGY('join_miter', 5)));
 
 --replace_numeric_round 4
@@ -757,7 +688,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,0 0)),
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((4 4,4 6,6 6,6 4, 4 4)))'), 4, ST_BUFFER_STRATEGY('join_miter', 50)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'), 4, ST_BUFFER_STRATEGY('join_miter', 60)));
 
 --replace_numeric_round 4
@@ -766,7 +696,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((0 0,5 0),(0 0,0 5)))'), 10, ST_BUFFER_STRATEGY('join_miter', 10)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)))'), 10, ST_BUFFER_STRATEGY('join_miter', 4)));
 
 --replace_numeric_round 4
@@ -782,7 +711,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 
                                                               'MULTILINESTRING((0 0,5 5,10 10)),'
                                                               'MULTILINESTRING((0 0,10 0),(0 0,-10 0)))'), 10, ST_BUFFER_STRATEGY('join_miter', 50)));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)),'
                                                               'MULTIPOLYGON(((0 0,2 2,4 0,0 0)),((3 3,3 5,5 5,5 3,3 3))))'), 10, ST_BUFFER_STRATEGY('join_miter', 10)));
 

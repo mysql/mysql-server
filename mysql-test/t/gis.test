@@ -2296,10 +2296,9 @@ DROP VIEW v2;
 CREATE TABLE t1 (g GEOMETRY);
 
 INSERT INTO t1 (g) VALUES (ST_GeomFromText("MULTIPOLYGON(((0 7,-3 -14,9 -11,0 7)))"));
-
---replace_numeric_round 4
+--replace_numeric_round 12
 SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Buffer(g, 2)) FROM t1;
---replace_numeric_round 4
+--replace_numeric_round 12
 SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Difference(g, g)) FROM t1;
 DROP TABLE t1;
 

@@ -1272,7 +1272,6 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_of_elems), 1));
 
 SET @buf = ST_BUFFER(ST_GEOMFROMTEXT(@star_of_elems), 1);
 
---replace_numeric_round 4
 SELECT st_area(@buf);
 
 --replace_numeric_round 4
@@ -1284,7 +1283,6 @@ SELECT ST_ASTEXT(ST_CENTROID(@buf));
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_CONVEXHULL(@buf));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_ENVELOPE(@buf));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top)) as result;
@@ -2389,13 +2387,10 @@ SELECT ST_ASTEXT(
 --echo # BUG#20510359 : ST_BUFFER() RETURNS NULL INSTEAD OF AN EMPTY GEOMETRY
 --echo ######################################################################################################
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -10));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -8));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -6));
 
 --echo ######################################################################################################
@@ -2418,7 +2413,6 @@ SELECT ST_ASTEXT(ST_BUFFER(0x010100000002000000000000000000000000000000, 1));
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10,10 0,0 10)'), 20, ST_BUFFER_STRATEGY('end_flat')));
 
---replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(10 0,0 10))'), 50, ST_BUFFER_STRATEGY('end_flat')));
 
 --echo ######################################################################################################
