@@ -2144,7 +2144,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     if ((trans= ndb->startTransaction()) == 0)
       goto err;
 
-    while (1)
     {
       NdbOperation *op= nullptr;
       int r= 0;
@@ -2246,7 +2245,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
 #endif  
       r|= op->setAnyValue(anyValue);
       DBUG_ASSERT(r == 0);
-      break;
     }
     if (trans->execute(NdbTransaction::Commit, NdbOperation::DefaultAbortOption,
                        1 /* force send */) == 0)
