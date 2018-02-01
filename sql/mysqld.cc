@@ -498,6 +498,7 @@
 #include "sql/rpl_rli.h"                // Relay_log_info
 #include "sql/rpl_slave.h"              // slave_load_tmpdir
 #include "sql/rpl_trx_tracking.h"
+#include "sql/sd_notify.h"              // sd_notify_connect
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"                // init_sp_psi_keys
@@ -1894,6 +1895,11 @@ void kill_mysql(void)
 static void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
+
+  if (errno)
+  {
+    sysd::notify("ERRNO=", errno, "\n");
+  }
 
   // At this point it does not make sense to buffer more messages.
   // Just flush what we have and write directly to stderr.
@@ -5426,6 +5432,9 @@ int mysqld_main(int argc, char **argv)
 {
   // Substitute the full path to the executable in argv[0]
   substitute_progpath(argv);
+  sysd::notify_connect();
+  sysd::notify("STATUS=SERVER_BOOTING\n");
+
   /*
     Perform basic thread library and malloc initialization,
     to be able to read defaults files and parse options.
@@ -6452,6 +6461,7 @@ int mysqld_main(int argc, char **argv)
   (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
   server_operational_state= SERVER_OPERATING;
+  sysd::notify("READY=1\nSTATUS=SERVER_OPERATING\nMAIN_PID=", getpid(), "\n");
 
   (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
@@ -6479,6 +6489,7 @@ int mysqld_main(int argc, char **argv)
   mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
   server_operational_state= SERVER_SHUTTING_DOWN;
+  sysd::notify("STOPPING=1\nSTATUS=SERVER_SHUTTING_DOWN\n");
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 

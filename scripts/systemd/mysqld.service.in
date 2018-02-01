@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,7 @@ WantedBy=multi-user.target
 User=@MYSQLD_USER@
 Group=@MYSQLD_USER@
 
-Type=forking
-
-PIDFile=@SYSTEMD_PID_DIR@/mysqld.pid
+Type=notify
 
 # Disable service start and stop timeout logic of systemd for mysqld service.
 TimeoutSec=0
@@ -51,7 +49,7 @@ PermissionsStartOnly=true
 ExecStartPre=@bindir@/mysqld_pre_systemd
 
 # Start main service
-ExecStart=@libexecdir@/mysqld --daemonize --pid-file=@SYSTEMD_PID_DIR@/mysqld.pid $MYSQLD_OPTS
+ExecStart=@libexecdir@/mysqld $MYSQLD_OPTS
 
 # Use this to switch malloc implementation
 EnvironmentFile=-/etc/sysconfig/mysql

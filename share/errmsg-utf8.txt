@@ -13845,6 +13845,15 @@ ER_LDAP_AUTH_FAILED_TO_SEARCH_DN
 ER_LDAP_AUTH_CONNECTION_POOL_REINIT_ENTER
   eng "Ldap_connection_pool::reinit"
 
+ER_SYSTEMD_NOTIFY_PATH_TOO_LONG
+  eng "The path path '%s', from the NOTIFY_SOCKET environment variable, is too long. At %u bytes it exceeds the limit of %u bytes for an AF_UNIX socket."
+
+ER_SYSTEMD_NOTIFY_CONNECT_FAILED
+  eng "Failed to connect to systemd notification socket named %s. Error: '%s'"
+
+ER_SYSTEMD_NOTIFY_WRITE_FAILED
+  eng "Failed to write '%s' to systemd notification. Error: '%s'"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
