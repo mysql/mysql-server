@@ -4706,6 +4706,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
   error= 0;
   while (rit != filename_list.rend())
   {
+    binlog_previous_gtid_set.clear();
     const char *filename= rit->c_str();
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
@@ -4742,13 +4743,31 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     case TRUNCATED:
       break;
     }
-    binlog_previous_gtid_set.clear();
 
     rit++;
   }
 
   if (rit == filename_list.rend())
   {
+    char* missing_gtids= NULL;
+    Gtid_set gtid_missing(gtid_set->get_sid_map());
+    gtid_missing.add_gtid_set(gtid_set);
+    gtid_missing.remove_gtid_set(&binlog_previous_gtid_set);
+    gtid_missing.to_string(&missing_gtids, false, NULL);
+
+    String tmp_uuid;
+    mysql_mutex_lock(&current_thd->LOCK_thd_data);
+    const auto it= current_thd->user_vars.find("slave_uuid");
+    if (it != current_thd->user_vars.end() && it->second->length() > 0)
+    {
+      tmp_uuid.copy(it->second->ptr(), it->second->length(), NULL);
+    }
+    mysql_mutex_unlock(&current_thd->LOCK_thd_data);
+
+    LogErr(WARNING_LEVEL, ER_FOUND_MISSING_GTIDS, tmp_uuid.ptr(),
+           missing_gtids);
+    my_free(missing_gtids);
+
     *errmsg= ER_THD(current_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
     error= -5;
   }
