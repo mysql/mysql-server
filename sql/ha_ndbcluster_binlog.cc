@@ -2067,9 +2067,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
 
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {
-    char key[FN_REFLEN + 1];
-    build_table_filename(key, sizeof(key) - 1, db, table_name, "", 0);
-    ndb_schema_object= ndb_get_schema_object(key, true);
+    ndb_schema_object= ndb_get_schema_object(db, table_name, true);
 
     /**
      * We will either get a newly created schema_object, or a 
@@ -3164,14 +3162,12 @@ class Ndb_schema_event_handler {
 
     assert(is_post_epoch());
 
-    char key[FN_REFLEN + 1];
-    build_table_filename(key, sizeof(key) - 1, schema->db, schema->name, "", 0);
-
     // Try to create a race between SLOCK acks handled after another
     // schema operation could have been started.
     if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
     {
-      NDB_SCHEMA_OBJECT *p= ndb_get_schema_object(key, false);
+      NDB_SCHEMA_OBJECT *p =
+          ndb_get_schema_object(schema->db, schema->name, false);
       if (p == NULL)
       {
         ndb_milli_sleep(10);
@@ -3183,12 +3179,13 @@ class Ndb_schema_event_handler {
     }
 
     /* Ack to any SQL thread waiting for schema op to complete */
-    NDB_SCHEMA_OBJECT *ndb_schema_object= ndb_get_schema_object(key, false);
+    NDB_SCHEMA_OBJECT *ndb_schema_object =
+        ndb_get_schema_object(schema->db, schema->name, false);
     if (!ndb_schema_object)
     {
       /* Noone waiting for this schema op in this mysqld */
-      ndb_log_verbose(19, "Discarding event...no obj: %s (%u/%u)",
-                          key, schema->id, schema->version);
+      ndb_log_verbose(19, "Discarding event...no obj: '%s.%s' (%u/%u)",
+                      schema->db, schema->name, schema->id, schema->version);
       DBUG_VOID_RETURN;
     }
 
@@ -3196,9 +3193,9 @@ class Ndb_schema_event_handler {
         ndb_schema_object->table_version != schema->version)
     {
       /* Someone waiting, but for another id/version... */
-      ndb_log_verbose(19, "Discarding event...key: %s "
+      ndb_log_verbose(19, "Discarding event...key: '%s.%s' "
                           "non matching id/version [%u/%u] != [%u/%u]",
-                          key,
+                          schema->db, schema->name,
                           ndb_schema_object->table_id,
                           ndb_schema_object->table_version,
                           schema->id,
@@ -3230,8 +3227,9 @@ class Ndb_schema_event_handler {
     bitmap_intersect(&ndb_schema_object->slock_bitmap, &schema->slock);
 
     /* Print updated slock together with before image of it */
-    ndb_log_verbose(19, "CLEAR_SLOCK key: %s(%u/%u) %x%08x, from %s to %x%08x",
-                        key, schema->id, schema->version,
+    ndb_log_verbose(19, "CLEAR_SLOCK key: '%s.%s' (%u/%u) %x%08x, from "
+                        "%s to %x%08x",
+                        schema->db, schema->name, schema->id, schema->version,
                         schema->slock_buf[1], schema->slock_buf[0],
                         before_slock,
                         ndb_schema_object->slock[1],

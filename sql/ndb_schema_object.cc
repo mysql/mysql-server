@@ -26,7 +26,7 @@
 #include "sql/ndb_schema_object.h"
 
 #include <mutex>
-
+#include <string>
 #include "map_helpers.h"
 #include "mysql/service_mysql_alloc.h"
 #include "template_utils.h"
@@ -44,17 +44,21 @@ public:
 } ndb_schema_objects;
 
 
-NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
+NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *db, const char* table_name,
                                          bool create_if_not_exists)
 {
   NDB_SCHEMA_OBJECT *ndb_schema_object;
-  size_t length= strlen(key);
   DBUG_ENTER("ndb_get_schema_object");
-  DBUG_PRINT("enter", ("key: '%s'", key));
+  DBUG_PRINT("enter", ("db: '%s', table_name: '%s'", db, table_name));
+
+  std::string key;
+  key.append("./").append(db).append("/").append(table_name);
+  DBUG_PRINT("info", ("key: '%s'", key.c_str()));
 
   std::lock_guard<std::mutex> lock_hash(ndb_schema_objects.m_lock);
 
-  while (!(ndb_schema_object= find_or_nullptr(ndb_schema_objects.m_hash, key)))
+  while (!(ndb_schema_object =
+               find_or_nullptr(ndb_schema_objects.m_hash, key.c_str())))
   {
     if (!create_if_not_exists)
     {
@@ -63,16 +67,17 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     }
     if (!(ndb_schema_object=
           (NDB_SCHEMA_OBJECT*) my_malloc(PSI_INSTRUMENT_ME,
-                                         sizeof(*ndb_schema_object) + length + 1,
+                                         sizeof(*ndb_schema_object) +
+                                         key.length() + 1,
                                          MYF(MY_WME | MY_ZEROFILL))))
     {
       DBUG_PRINT("info", ("malloc error"));
       break;
     }
     ndb_schema_object->key= (char *)(ndb_schema_object+1);
-    memcpy(ndb_schema_object->key, key, length + 1);
-    ndb_schema_object->key_length= length;
-    ndb_schema_objects.m_hash.emplace(key, ndb_schema_object);
+    memcpy(ndb_schema_object->key, key.c_str(), key.length() + 1);
+    ndb_schema_object->key_length= key.length();
+    ndb_schema_objects.m_hash.emplace(key.c_str(), ndb_schema_object);
     mysql_mutex_init(PSI_INSTRUMENT_ME, &ndb_schema_object->mutex,
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(PSI_INSTRUMENT_ME, &ndb_schema_object->cond);
