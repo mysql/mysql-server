@@ -10503,8 +10503,7 @@ int ha_ndbcluster::create(const char *name,
 
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE)
   {
-    Ndb_table_guard ndbtab_g(dict);
-    ndbtab_g.init(m_tabname);
+    Ndb_table_guard ndbtab_g(dict, m_tabname);
     if (!ndbtab_g.get_table())
       ERR_RETURN(dict->getNdbError());
 
@@ -10538,7 +10537,6 @@ int ha_ndbcluster::create(const char *name,
     if (drop_result) {
       DBUG_RETURN(drop_result);
     }
-    ndbtab_g.reinit();
   }
 
   DBUG_PRINT("info", ("Start parse of table modifiers, comment = %s",
