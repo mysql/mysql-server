@@ -2346,8 +2346,7 @@ end:
                   "distributed %s.%s(%u/%u) type: %s(%u) "
                   "query: \'%s\' to %x%08x",
                   db, table_name, ndb_table_id, ndb_table_version,
-                  get_schema_type_name(log_type),
-                  log_type, query,
+                  type_name(type), type, query,
                   ndb_schema_object->slock_bitmap.bitmap[1],
                   ndb_schema_object->slock_bitmap.bitmap[0]);
 
@@ -2419,9 +2418,7 @@ end:
                   "distribution of %s.%s(%u/%u) type: %s(%u) query: \'%s\'"
                   " - complete!",
                   db, table_name, ndb_table_id, ndb_table_version,
-                  get_schema_type_name(log_type),
-                  log_type,
-                  query);
+                  type_name(type), type, query);
 
   DBUG_RETURN(0);
 }
@@ -4171,7 +4168,8 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     ndb_log_verbose(9, "Got dist_priv event: %s, flushing privileges",
-                       get_schema_type_name(schema->type));
+                    Ndb_schema_dist_client::type_name(
+                        static_cast<SCHEMA_OP_TYPE>(schema->type)));
 
     // Participant never takes GSL
     assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
@@ -4199,7 +4197,8 @@ class Ndb_schema_event_handler {
                       schema->db, schema->name,
                       schema->id, schema->version,
                       schema->query,
-                      get_schema_type_name(schema_type),
+                      Ndb_schema_dist_client::type_name(
+                          static_cast<SCHEMA_OP_TYPE>(schema->type)),
                       schema_type,
                       schema->node_id,
                       schema->slock.bitmap[1],
@@ -4303,8 +4302,9 @@ class Ndb_schema_event_handler {
     {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
       ndb_log_verbose(9, "%s - %s.%s",
-                         get_schema_type_name(schema_type),
-                         schema->db, schema->name);
+                      Ndb_schema_dist_client::type_name(
+                          static_cast<SCHEMA_OP_TYPE>(schema->type)),
+                      schema->db, schema->name);
 
       switch (schema_type)
       {

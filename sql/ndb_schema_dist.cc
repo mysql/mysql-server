@@ -53,52 +53,6 @@ static const char* NDB_SCHEMA_TABLE_KEY =
 
 #undef DIR_SEP
 
-const char*
-get_schema_type_name(uint type)
-{
-  switch(type){
-  case SOT_DROP_TABLE:
-    return "DROP_TABLE";
-  case SOT_CREATE_TABLE:
-    return "CREATE_TABLE";
-  case SOT_ALTER_TABLE_COMMIT:
-    return "ALTER_TABLE_COMMIT";
-  case SOT_DROP_DB:
-    return "DROP_DB";
-  case SOT_CREATE_DB:
-    return "CREATE_DB";
-  case SOT_ALTER_DB:
-    return "ALTER_DB";
-  case SOT_CLEAR_SLOCK:
-    return "CLEAR_SLOCK";
-  case SOT_TABLESPACE:
-    return "TABLESPACE";
-  case SOT_LOGFILE_GROUP:
-    return "LOGFILE_GROUP";
-  case SOT_RENAME_TABLE:
-    return "RENAME_TABLE";
-  case SOT_TRUNCATE_TABLE:
-    return "TRUNCATE_TABLE";
-  case SOT_RENAME_TABLE_PREPARE:
-    return "RENAME_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_PREPARE:
-    return "ONLINE_ALTER_TABLE_PREPARE";
-  case SOT_ONLINE_ALTER_TABLE_COMMIT:
-    return "ONLINE_ALTER_TABLE_COMMIT";
-  case SOT_CREATE_USER:
-    return "CREATE_USER";
-  case SOT_DROP_USER:
-    return "DROP_USER";
-  case SOT_RENAME_USER:
-    return "RENAME_USER";
-  case SOT_GRANT:
-    return "GRANT";
-  case SOT_REVOKE:
-    return "REVOKE";
-  }
-  return "<unknown>";
-}
-
 bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
                                                   const char* table_name)
 {
@@ -460,5 +414,54 @@ const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {
   }
   // String representation for SCHEMA_OP_TYPE missing
   DBUG_ASSERT(false);  // Catch in debug
+  return "<unknown>";
+}
+
+const char*
+Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type)
+{
+  switch(type){
+  case SOT_DROP_TABLE:
+    return "DROP_TABLE";
+  case SOT_CREATE_TABLE:
+    return "CREATE_TABLE";
+  case SOT_ALTER_TABLE_COMMIT:
+    return "ALTER_TABLE_COMMIT";
+  case SOT_DROP_DB:
+    return "DROP_DB";
+  case SOT_CREATE_DB:
+    return "CREATE_DB";
+  case SOT_ALTER_DB:
+    return "ALTER_DB";
+  case SOT_CLEAR_SLOCK:
+    return "CLEAR_SLOCK";
+  case SOT_TABLESPACE:
+    return "TABLESPACE";
+  case SOT_LOGFILE_GROUP:
+    return "LOGFILE_GROUP";
+  case SOT_RENAME_TABLE:
+    return "RENAME_TABLE";
+  case SOT_TRUNCATE_TABLE:
+    return "TRUNCATE_TABLE";
+  case SOT_RENAME_TABLE_PREPARE:
+    return "RENAME_TABLE_PREPARE";
+  case SOT_ONLINE_ALTER_TABLE_PREPARE:
+    return "ONLINE_ALTER_TABLE_PREPARE";
+  case SOT_ONLINE_ALTER_TABLE_COMMIT:
+    return "ONLINE_ALTER_TABLE_COMMIT";
+  case SOT_CREATE_USER:
+    return "CREATE_USER";
+  case SOT_DROP_USER:
+    return "DROP_USER";
+  case SOT_RENAME_USER:
+    return "RENAME_USER";
+  case SOT_GRANT:
+    return "GRANT";
+  case SOT_REVOKE:
+    return "REVOKE";
+  default:
+    break;
+  }
+  DBUG_ASSERT(false);
   return "<unknown>";
 }

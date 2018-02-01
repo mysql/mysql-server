@@ -68,8 +68,6 @@ enum SCHEMA_OP_TYPE
   SOT_REVOKE= 19
 };
 
-const char* get_schema_type_name(uint type);
-
 /**
   @brief Ndb_schema_dist_client, class represents a Client
   in the schema distribution.
@@ -143,7 +141,7 @@ class Ndb_schema_dist_client {
                      bool log_query_on_participant = true);
 
   /**
-   * @brief Convert SCHEMA_OP_TYPE to string representation
+   * @brief Convert SCHEMA_OP_TYPE to human readable string representation
    * @param type
    * @return string describing the type
    */
@@ -191,6 +189,13 @@ class Ndb_schema_dist_client {
      @return true if table is the schema distribution table
    */
   static bool is_schema_dist_table(const char* db, const char* table_name);
+
+  /**
+   * @brief Convert SCHEMA_OP_TYPE to string
+   * @param type
+   * @return string describing the type
+   */
+  static const char* type_name(SCHEMA_OP_TYPE type);
 
   bool create_table(const char *db, const char *table_name, int id,
                     int version);
