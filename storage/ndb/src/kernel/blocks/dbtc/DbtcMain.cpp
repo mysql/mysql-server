@@ -16152,14 +16152,14 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       return;
     }
-    if (recordNo >= capiConnectFilesize)
-    {
-      return;
-    }
 
     ApiConnectRecordPtr ap;
     ap.i = recordNo;
-    c_apiConnectRecordPool.getPtr(ap); // TODO YYY fail if invalid or null or bad magic
+    if (!c_apiConnectRecordPool.getValidPtr(ap) ||
+        ap.isNull())
+    {
+      return;
+    }
 
     if (!includeOnlyActive ||
         ((ap.p->apiConnectstate != CS_CONNECTED) &&
@@ -16174,8 +16174,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
 
     numRecords--;
-    recordNo++;
-    if (recordNo < capiConnectFilesize && numRecords > 0)
+    (void) c_apiConnectRecordPool.getUncheckedPtrs(&recordNo, &ap, 1);
+    if (recordNo != RNIL && numRecords > 0)
     {
       dumpState->args[0] = DumpStateOrd::TcDumpSetOfApiConnectRec;
       dumpState->args[1] = recordNo;
@@ -16212,7 +16212,10 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    if (recordNo >= capiConnectFilesize)
+    ApiConnectRecordPtr ap;
+    ap.i = recordNo;
+    if (!c_apiConnectRecordPool.getValidPtr(ap) ||
+        ap.isNull())
     {
       return;
     }
@@ -16221,9 +16224,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    ApiConnectRecordPtr ap;
-    ap.i = recordNo;
-    c_apiConnectRecordPool.getPtr(ap); // TODO YYY fail if invalid or null
     infoEvent("Dbtc::c_apiConnectRecordPool.getPtr(%d): state=%d, abortState=%d, "
 	      "apiFailState=%d",
 	      ap.i,
@@ -16330,6 +16330,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
+//// TODO loop getUncheckedPtrs
     Uint32 limit = MIN(pos + 16, userVisibleConnectFilesize);
 
     while(pos < limit)
@@ -16492,6 +16493,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 
     ApiConnectRecordPtr ap;
     ap.i = record;
+// TODO YYY loop getUnchecked
     c_apiConnectRecordPool.getPtr(ap); // TODO YYY fail if invalid or null
 
     bool print = false;
@@ -16852,6 +16854,7 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::TRANSACTIONS_TABLEID:
   {
     Uint32 api_ptr = cursor->data[0];
+// TODO YYY loop
     const Uint32 maxloop = 256;
     for (Uint32 i = 0; i < maxloop; i++)
     {
