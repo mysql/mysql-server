@@ -66,7 +66,7 @@
 
 #Lets create several tables. They will all breach 1 or more rules
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Table .* does not use the InnoDB storage engine. This is not compatible with Group Replication");
+call mtr.add_suppression("Table .* does not use the InnoDB storage engine. This is not compatible with Group Replication.");
 SET SESSION sql_log_bin= 1;
 
 #Wrong table without Primary Key
@@ -269,8 +269,8 @@ CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
 DROP TABLE t1, tn;
 
 call mtr.add_suppression("Table.*is not transactional. This is not compatible with Group Replication");
-call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication");
-call mtr.add_suppression("Table.*has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication");
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication.");
+call mtr.add_suppression("Table.*has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication.");
 call mtr.add_suppression("binlog_checksum should be NONE for Group Replication");
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

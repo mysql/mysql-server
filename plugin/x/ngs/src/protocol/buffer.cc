@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ Alloc_result Buffer::reserve(size_t space)
     }
     catch (const std::bad_alloc &exc)
     {
-      log_error("Error allocating Buffer_page: %s", exc.what());
+      log_error(ER_XPLUGIN_BUFFER_PAGE_ALLOC_FAILED, exc.what());
       return Memory_error;
     }
     catch (const Page_pool::No_more_pages_exception &)
@@ -107,7 +107,7 @@ Alloc_result Buffer::add_pages(unsigned int npages)
     }
     catch (std::bad_alloc &exc)
     {
-      log_error("Error allocating Buffer_page: %s", exc.what());
+      log_error(ER_XPLUGIN_BUFFER_PAGE_ALLOC_FAILED, exc.what());
       return Memory_error;
     }
     catch (const Page_pool::No_more_pages_exception &)

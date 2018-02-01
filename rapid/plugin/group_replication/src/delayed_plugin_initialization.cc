@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/delayed_plugin_initialization.h"
 
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/group_replication_priv.h>
 #include <stddef.h>
 
@@ -165,10 +166,7 @@ int Delayed_initialization_thread::initialization_thread_handler()
   else
   {
     error= 1;
-    log_message(MY_ERROR_LEVEL,
-                "Unable to start Group Replication. Replication applier "
-                "infrastructure is not initialized since the server was "
-                "started with --initialize or --initialize-insecure.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_START_GRP_RPL_FAILED);
   }
 
   mysql_mutex_lock(&run_lock);

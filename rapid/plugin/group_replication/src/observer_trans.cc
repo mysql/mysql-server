@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/service_rpl_transaction_ctx.h>
 #include <mysql/service_rpl_transaction_write_set.h>
 #include <stddef.h>
@@ -32,7 +33,6 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/sql_service/sql_command_test.h"
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
@@ -138,7 +138,8 @@ int add_write_set(Transaction_context_log_event *tcle,
     if (!write_set_value)
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL, "No memory to generate write identification hash");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_OOM_FAILED_TO_GENERATE_IDENTIFICATION_HASH);
       DBUG_RETURN(1);
       /* purecov: end */
     }
@@ -146,8 +147,8 @@ int add_write_set(Transaction_context_log_event *tcle,
     if (base64_encode(buff, (size_t) BUFFER_READ_PKE, write_set_value))
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Base 64 encoding of the write identification hash failed");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_WRITE_IDENT_HASH_BASE64_ENCODING_FAILED);
       DBUG_RETURN(1);
       /* purecov: end */
     }
@@ -187,16 +188,14 @@ int group_replication_trans_before_dml(Trans_param *param, int& out)
    */
   if( (out+= (param->trans_ctx_info.binlog_format != BINLOG_FORMAT_ROW)) )
   {
-    log_message(MY_ERROR_LEVEL, "Binlog format should be ROW for Group Replication");
-
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_BINLOG_FORMAT);
     DBUG_RETURN(0);
   }
 
   if( (out+= (param->trans_ctx_info.binlog_checksum_options !=
                                                    binary_log::BINLOG_CHECKSUM_ALG_OFF)) )
   {
-    log_message(MY_ERROR_LEVEL, "binlog_checksum should be NONE for Group Replication");
-
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_CHECKSUM_SET);
     DBUG_RETURN(0);
   }
 
@@ -204,9 +203,8 @@ int group_replication_trans_before_dml(Trans_param *param, int& out)
               HASH_ALGORITHM_OFF)))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "A transaction_write_set_extraction algorithm "
-                "should be selected when running Group Replication");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET);
     DBUG_RETURN(0);
     /* purecov: end */
   }
@@ -214,9 +212,7 @@ int group_replication_trans_before_dml(Trans_param *param, int& out)
   if (local_member_info->has_enforces_update_everywhere_checks() &&
       (out+= (param->trans_ctx_info.tx_isolation == ISO_SERIALIZABLE)))
   {
-    log_message(MY_ERROR_LEVEL, "Transaction isolation level (tx_isolation) "
-                "is set to SERIALIZABLE, which is not compatible with Group "
-                "Replication");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNSUPPORTED_TRANS_ISOLATION);
     DBUG_RETURN(0);
   }
   /*
@@ -230,25 +226,22 @@ int group_replication_trans_before_dml(Trans_param *param, int& out)
   {
     if (param->tables_info[table].db_type != DB_TYPE_INNODB)
     {
-      log_message(MY_ERROR_LEVEL, "Table %s does not use the InnoDB storage "
-                                  "engine. This is not compatible with Group "
-                                  "Replication",
-                  param->tables_info[table].table_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NEEDS_INNODB_TABLE,
+                   param->tables_info[table].table_name);
       out++;
     }
 
     if(param->tables_info[table].number_of_primary_keys == 0)
     {
-      log_message(MY_ERROR_LEVEL, "Table %s does not have any PRIMARY KEY. This is not compatible with Group Replication",
-                  param->tables_info[table].table_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PRIMARY_KEY_NOT_DEFINED,
+                   param->tables_info[table].table_name);
       out++;
     }
     if (local_member_info->has_enforces_update_everywhere_checks() &&
         param->tables_info[table].has_cascade_foreign_key)
     {
-      log_message(MY_ERROR_LEVEL, "Table %s has a foreign key with"
-                  " 'CASCADE' clause. This is not compatible with Group"
-                  " Replication", param->tables_info[table].table_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED,
+                   param->tables_info[table].table_name);
       out++;
     }
   }
@@ -313,8 +306,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   if (is_plugin_waiting_to_set_server_read_mode())
   {
-    log_message(MY_ERROR_LEVEL,
-                "Transaction cannot be executed while Group Replication is stopping.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_WHILE_STOPPING);
     shared_plugin_stop_lock->release_read_lock();
     DBUG_RETURN(1);
   }
@@ -333,9 +325,7 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (member_status == Group_member_info::MEMBER_IN_RECOVERY)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Transaction cannot be executed while Group Replication is recovering."
-                " Try again when the server is ONLINE.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_WHILE_RECOVERING);
     shared_plugin_stop_lock->release_read_lock();
     DBUG_RETURN(1);
     /* purecov: end */
@@ -343,9 +333,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   if (member_status == Group_member_info::MEMBER_ERROR)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Transaction cannot be executed while Group Replication is on ERROR state."
-                " Check for errors and restart the plugin");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_IN_ERROR_STATE);
     shared_plugin_stop_lock->release_read_lock();
     DBUG_RETURN(1);
   }
@@ -353,9 +341,7 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (member_status == Group_member_info::MEMBER_OFFLINE)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Transaction cannot be executed while Group Replication is OFFLINE."
-                " Check for errors and restart the plugin");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_IN_OFFLINE_MODE);
     shared_plugin_stop_lock->release_read_lock();
     DBUG_RETURN(1);
     /* purecov: end */
@@ -417,8 +403,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   else
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "We can only use one cache type at a "
-                                "time on session %u", param->thread_id);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_MULTIPLE_CACHE_TYPE_NOT_SUPPORTED_FOR_SESSION,
+                 param->thread_id);
     shared_plugin_stop_lock->release_read_lock();
     DBUG_RETURN(1);
     /* purecov: end */
@@ -451,8 +438,8 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (reinit_cache(cache_log, READ_CACHE, 0))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Failed to reinit binlog cache log for read "
-                                "on session %u", param->thread_id);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_REINIT_BINLOG_CACHE_FOR_READ,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -472,9 +459,8 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (!tcle->is_valid())
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to create the context of the current "
-                "transaction on session %u", param->thread_id);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_CREATE_TRANS_CONTEXT,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -490,9 +476,8 @@ int group_replication_trans_before_commit(Trans_param *param)
     */
     if ((write_set == NULL) && (!is_gtid_specified))
     {
-      log_message(MY_ERROR_LEVEL, "Failed to extract the set of items written "
-                                  "during the execution of the current "
-                                  "transaction on session %u", param->thread_id);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_EXTRACT_TRANS_WRITE_SET,
+                   param->thread_id);
       error= pre_wait_error;
       goto err;
     }
@@ -503,9 +488,8 @@ int group_replication_trans_before_commit(Trans_param *param)
       {
         /* purecov: begin inspected */
         cleanup_transaction_write_set(write_set);
-        log_message(MY_ERROR_LEVEL, "Failed to gather the set of items written "
-                                    "during the execution of the current "
-                                    "transaction on session %u", param->thread_id);
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_GATHER_TRANS_WRITE_SET,
+                     param->thread_id);
         error= pre_wait_error;
         goto err;
         /* purecov: end */
@@ -554,11 +538,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (is_dml && transaction_size_limit &&
      transaction_size > transaction_size_limit)
   {
-    log_message(MY_ERROR_LEVEL, "Error on session %u. "
-                "Transaction of size %llu exceeds specified limit %lu. "
-                "To increase the limit please adjust group_replication_transaction_size_limit option.",
-                param->thread_id, transaction_size,
-                transaction_size_limit);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_SIZE_EXCEEDS_LIMIT,
+                 param->thread_id, transaction_size,
+                 transaction_size_limit);
     error= pre_wait_error;
     goto err;
   }
@@ -567,9 +549,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (reinit_cache(cache, READ_CACHE, 0))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error while re-initializing an internal "
-                                "cache, for read operations, on session %u",
-                                param->thread_id);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_READ_FAILED,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -579,8 +561,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (transaction_msg.append_cache(cache))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error while appending data to an internal "
-                                "cache on session %u", param->thread_id);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_APPENDING_DATA_TO_INTERNAL_CACHE_FAILED,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -590,8 +573,8 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (transaction_msg.append_cache(cache_log))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error while writing binary log cache on "
-                                "session %u", param->thread_id);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_BINLOG_CACHE_FAILED,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -602,9 +585,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (certification_latch->registerTicket(param->thread_id))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Unable to register for getting notifications "
-                                "regarding the outcome of the transaction on "
-                                "session %u", param->thread_id);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_REGISTER_TRANS_OUTCOME_NOTIFICTION,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -635,9 +618,8 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (send_error == GCS_MESSAGE_TOO_BIG)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error broadcasting transaction to the group "
-                                "on session %u. Message is too big.",
-                                param->thread_id);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_TOO_LONG_BROADCASTING_TRANS_FAILED,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -645,8 +627,8 @@ int group_replication_trans_before_commit(Trans_param *param)
   else if (send_error == GCS_NOK)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error while broadcasting the transaction to "
-                                "the group on session %u", param->thread_id);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BROADCASTING_TRANS_TO_GRP_FAILED,
+                 param->thread_id);
     error= pre_wait_error;
     goto err;
     /* purecov: end */
@@ -658,9 +640,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (certification_latch->waitTicket(param->thread_id))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error while waiting for conflict detection "
-                                "procedure to finish on session %u",
-                                param->thread_id);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_ERROR_WHILE_WAITING_FOR_CONFLICT_DETECTION,
+                 param->thread_id);
     error= post_wait_error;
     goto err;
     /* purecov: end */
@@ -672,9 +654,9 @@ err:
       reinit_cache(cache_log, WRITE_CACHE, cache_log_position))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error while re-initializing an internal "
-                                "cache, for write operations, on session %u",
-                                param->thread_id);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_WRITE_FAILED,
+                 param->thread_id);
     /* purecov: end */
   }
   observer_trans_put_io_cache(cache);
@@ -791,8 +773,7 @@ IO_CACHE* observer_trans_get_io_cache(my_thread_id thread_id,
       /* purecov: begin inspected */
       my_free(cache);
       cache= NULL;
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to create group replication commit cache on session %u",
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE,
                   thread_id);
       goto end;
       /* purecov: end */
@@ -811,9 +792,9 @@ IO_CACHE* observer_trans_get_io_cache(my_thread_id thread_id,
       close_cached_file(cache);
       my_free(cache);
       cache= NULL;
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to reinit group replication commit cache for write "
-                  "on session %u", thread_id);
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED,
+                   thread_id);
       goto end;
       /* purecov: end */
     }

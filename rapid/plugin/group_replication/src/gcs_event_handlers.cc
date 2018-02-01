@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "my_dbug.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/gcs_event_handlers.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
@@ -121,9 +122,7 @@ handle_transactional_message(const Gcs_message& message) const
   }
   else
   {
-    log_message(MY_ERROR_LEVEL,
-                "Message received while the plugin is not ready,"
-                " message discarded"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MSG_DISCARDED);
   }
 }
 
@@ -132,8 +131,7 @@ Plugin_gcs_events_handler::handle_certifier_message(const Gcs_message& message) 
 {
   if (this->applier_module == NULL)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Message received without a proper group replication applier"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return; /* purecov: inspected */
   }
 
@@ -150,7 +148,7 @@ Plugin_gcs_events_handler::handle_certifier_message(const Gcs_message& message) 
                                        static_cast<ulong>(payload_size),
                                        message.get_origin()))
   {
-    log_message(MY_ERROR_LEVEL, "Error processing message in Certifier"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CERTIFIER_MSSG_PROCESS_ERROR); /* purecov: inspected */
   }
 }
 
@@ -170,14 +168,12 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
         local_member_info->get_recovery_status();
     if (member_status != Group_member_info::MEMBER_IN_RECOVERY)
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "This server was not declared online since it is on status %s",
-                  Group_member_info::get_member_status_string(member_status)); /* purecov: inspected */
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_NOT_ONLINE,
+                   Group_member_info::get_member_status_string(member_status)); /* purecov: inspected */
       return; /* purecov: inspected */
     }
 
-    log_message(MY_INFORMATION_LEVEL,
-                "This server was declared online within the replication group");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_ONLINE);
 
     /*
      The member is declared as online upon receiving this message
@@ -207,10 +203,7 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
     {
       if (disable_server_read_mode(PSESSION_DEDICATED_THREAD))
       {
-        log_message(MY_WARNING_LEVEL,
-                    "When declaring the plugin online it was not possible to "
-                      "disable the server read mode settings. "
-                      "Try to disable it manually."); /* purecov: inspected */
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED); /* purecov: inspected */
       }
     }
 
@@ -220,10 +213,9 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
     Group_member_info* member_info= group_member_mgr->get_group_member_info(member_uuid);
     if (member_info != NULL)
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "The member with address %s:%u was declared online within the "
-                  "replication group",
-                  member_info->get_hostname().c_str(), member_info->get_port());
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEM_ONLINE,
+                   member_info->get_hostname().c_str(),
+                   member_info->get_port());
       delete member_info;
 
       /*
@@ -265,8 +257,7 @@ Plugin_gcs_events_handler::handle_stats_message(const Gcs_message& message) cons
 {
   if (this->applier_module == NULL)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Message received without a proper group replication applier"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return; /* purecov: inspected */
   }
 
@@ -281,8 +272,7 @@ Plugin_gcs_events_handler::handle_single_primary_message(const Gcs_message& mess
 {
   if (this->applier_module == NULL)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Message received without a proper group replication applier"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MISSING_GRP_RPL_APPLIER); /* purecov: inspected */
     return; /* purecov: inspected */
   }
 
@@ -328,9 +318,9 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
       {
         if (!member_info->is_unreachable())
         {
-          log_message(MY_WARNING_LEVEL,
-                      "Member with address %s:%u has become unreachable.",
-                      member_info->get_hostname().c_str(), member_info->get_port());
+          LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEM_UNREACHABLE,
+                       member_info->get_hostname().c_str(),
+                       member_info->get_port());
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
           member_info->set_unreachable();
@@ -342,9 +332,9 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
       {
         if (member_info->is_unreachable())
         {
-          log_message(MY_WARNING_LEVEL,
-                      "Member with address %s:%u is reachable again.",
-                      member_info->get_hostname().c_str(), member_info->get_port());
+          LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEM_REACHABLE,
+                       member_info->get_hostname().c_str(),
+                       member_info->get_port());
           /* purecov: begin inspected */
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
@@ -358,23 +348,10 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
   if ((members.size() - unreachable.size()) <= (members.size() / 2))
   {
     if (!group_partition_handler->get_timeout_on_unreachable())
-      log_message(MY_ERROR_LEVEL,
-                  "This server is not able to reach a majority of members "
-                  "in the group. This server will now block all updates. "
-                  "The server will remain blocked until contact with the "
-                  "majority is restored. "
-                  "It is possible to use group_replication_force_members "
-                  "to force a new group membership.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SRV_BLOCKED);
     else
-      log_message(MY_ERROR_LEVEL,
-                  "This server is not able to reach a majority of members "
-                  "in the group. This server will now block all updates. "
-                  "The server will remain blocked for the next %lu seconds. "
-                  "Unless contact with the majority is restored, after this "
-                  "time the member will error out and leave the group. "
-                  "It is possible to use group_replication_force_members "
-                  "to force a new group membership.",
-                  group_partition_handler->get_timeout_on_unreachable());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SRV_BLOCKED_FOR_SECS,
+                   group_partition_handler->get_timeout_on_unreachable());
 
     if (!group_partition_handler->is_partition_handler_running() &&
         !group_partition_handler->is_partition_handling_terminated())
@@ -393,18 +370,12 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
     {
       if (group_partition_handler->abort_partition_handler_if_running())
       {
-        log_message(MY_WARNING_LEVEL,
-                    "A group membership change was received but the plugin is "
-                    "already leaving due to the configured timeout on "
-                    "group_replication_unreachable_majority_timeout option.");
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_CHANGE_GRP_MEM_NOT_PROCESSED);
       }
       else
       {
         /* If it was not running or we canceled it in time */
-        log_message(MY_WARNING_LEVEL,
-                    "The member has resumed contact with a majority of the "
-                    "members in the group. Regular operation is restored and "
-                    "transactions are unblocked.");
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEMBER_CONTACT_RESTORED);
       }
     }
   }
@@ -419,15 +390,12 @@ Plugin_gcs_events_handler::log_members_leaving_message(const Gcs_view& new_view)
 
   get_hosts_from_view(new_view.get_leaving_members(), members_leaving, primary_member_host);
 
-  log_message(MY_WARNING_LEVEL,
-              "Members removed from the group: %s",
-              members_leaving.c_str());
+  LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEMBER_REMOVED,
+               members_leaving.c_str());
 
   if (!primary_member_host.empty())
-    log_message(MY_INFORMATION_LEVEL,
-                "Primary server with address %s left the group. "
-                "Electing new Primary.",
-                primary_member_host.c_str());
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_PRIMARY_MEMBER_LEFT_GRP,
+                 primary_member_host.c_str());
 }
 
 void
@@ -438,9 +406,8 @@ Plugin_gcs_events_handler::log_members_joining_message(const Gcs_view& new_view)
 
   get_hosts_from_view(new_view.get_joined_members(), members_joining, primary_member_host);
 
-  log_message(MY_INFORMATION_LEVEL,
-              "Members joined the group: %s",
-              members_joining.c_str());
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_ADDED,
+               members_joining.c_str());
 }
 
 void
@@ -509,9 +476,7 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
   if (is_joining &&
       local_member_info->get_recovery_status() == Group_member_info::MEMBER_ERROR)
   {
-    log_message(MY_ERROR_LEVEL,
-                "There was a previous plugin error while the member joined the group. "
-                "The member will now exit the group.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_EXIT_PLUGIN_ERROR);
     view_change_notifier->cancel_view_modification(GROUP_REPLICATION_CONFIGURATION_ERROR);
   }
   else
@@ -524,19 +489,13 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
     {
       if (group_partition_handler->abort_partition_handler_if_running())
       {
-        log_message(MY_WARNING_LEVEL,
-                    "A group membership change was received but the plugin is "
-                    "already leaving due to the configured timeout on "
-                    "group_replication_unreachable_majority_timeout option.");
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_CHANGE_GRP_MEM_NOT_PROCESSED);
         goto end;
       }
       else
       {
         /* If it was not running or we canceled it in time */
-        log_message(MY_WARNING_LEVEL,
-                    "The member has resumed contact with a majority of the "
-                    "members in the group. Regular operation is restored and "
-                    "transactions are unblocked.");
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEMBER_CONTACT_RESTORED);
       }
     }
 
@@ -605,15 +564,13 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
       delete view;
     }
 
-    log_message(MY_INFORMATION_LEVEL,
-                "Group membership changed to %s on view %s.",
-                group_member_mgr->get_string_current_view_active_hosts().c_str(),
-                view_id_representation.c_str());
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
+          group_member_mgr->get_string_current_view_active_hosts().c_str(),
+          view_id_representation.c_str());
   }
   else
   {
-    log_message(MY_INFORMATION_LEVEL,
-                "Group membership changed: This member has left the group.");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_LEFT_GRP);
   }
 
 end:
@@ -651,9 +608,7 @@ Plugin_gcs_events_handler::was_member_expelled_from_group(const Gcs_view& view) 
   if (view.get_error_code() == Gcs_view::MEMBER_EXPELLED)
   {
     result= true;
-    log_message(MY_ERROR_LEVEL,
-                "Member was expelled from the group due to network failures, "
-                "changing member status to ERROR.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_EXPELLED);
     /*
       Delete all members from group info except the local one.
 
@@ -827,8 +782,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
                                          GROUPREPL_USER,
                                          get_plugin_pointer()))
     {
-      log_message(MY_WARNING_LEVEL,
-                  "Unable to open session to (re)set read only mode. Skipping."); /* purecov: inspected */
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_SESSION_OPEN_FAILED); /* purecov: inspected */
       /*
        Unable to open session to (re)set read only mode.
        Mark that we should skipping that part code.
@@ -888,11 +842,9 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
           Group_member_info::MEMBER_ROLE_PRIMARY,
           m_notification_ctx);
 
-        log_message(MY_INFORMATION_LEVEL, "A new primary with address %s:%u "
-                    "was elected, enabling conflict detection until the new "
-                    "primary applies all relay logs.",
-                    the_primary->get_hostname().c_str(),
-                    the_primary->get_port());
+        LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
+                     the_primary->get_hostname().c_str(),
+                     the_primary->get_port());
 
         // Check if the session was established, it can (re)set read only mode.
         if (!skip_set_super_readonly)
@@ -901,31 +853,24 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
           {
             if (disable_super_read_only_mode(sql_command_interface))
             {
-              log_message(MY_WARNING_LEVEL,
-                          "Unable to disable super read only flag. "
-                          "Try to disable it manually."); /* purecov: inspected */
+              LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_DISABLE_READ_ONLY_FAILED); /* purecov: inspected */
             }
           }
           else
           {
             if (enable_super_read_only_mode(sql_command_interface))
             {
-              log_message(MY_WARNING_LEVEL,
-                          "Unable to set super read only flag. "
-                          "Try to set it manually."); /* purecov: inspected */
+              LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
             }
           }
         }
         /* code position limits messaging to primary change */
         if (is_primary_local)
-          log_message(MY_INFORMATION_LEVEL,
-                      "This server is working as primary member.");
+          LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_PRIMARY_MEM);
         else
-          log_message(MY_INFORMATION_LEVEL,
-                      "This server is working as secondary member with primary "
-                      "member address %s:%u.",
-                      the_primary->get_hostname().c_str(),
-                      the_primary->get_port());
+          LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
+                       the_primary->get_hostname().c_str(),
+                       the_primary->get_port());
       }
     }
     else if (!skip_set_super_readonly)
@@ -938,15 +883,12 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
       {
         // There are no servers in the group or they are all
         // recoverying WARN to the user
-        log_message(MY_WARNING_LEVEL,
-                    "Unable to set any member as primary. No suitable candidate."); /* purecov: inspected */
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_NO_SUITABLE_PRIMARY_MEM); /* purecov: inspected */
       }
 
       if(enable_super_read_only_mode(sql_command_interface))
       {
-        log_message(MY_WARNING_LEVEL,
-                    "Unable to set super read only flag. "
-                    "Try to set it manually."); /* purecov: inspected */
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
       }
     }
     delete sql_command_interface;
@@ -1057,9 +999,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     */
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error when activating super_read_only mode on start. "
-                  "The member will now exit the group.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR);
 
       /*
         The notification will be triggered in the top level handle function
@@ -1093,11 +1033,8 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     if (!local_member_info->in_primary_mode() &&
         new_view.get_members().size() > auto_increment_increment)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Group contains %lu members which is greater than"
-                  " group_replication_auto_increment_increment value of %lu."
-                  " This can lead to an higher rate of transactional aborts.",
-                  new_view.get_members().size(), auto_increment_increment);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_EXCEEDS_AUTO_INC_VALUE,
+                   new_view.get_members().size(), auto_increment_increment);
     }
 
     /*
@@ -1265,11 +1202,9 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
       Group_member_info * member_info= group_member_mgr->get_group_member_info_by_member_id(*member_id);
       if (member_info != NULL)
       {
-        log_message(MY_ERROR_LEVEL, "Member with address '%s:%u' didn't provide any data"
-                                    " during the last group change. Group"
-                                    " information can be outdated and lead to"
-                                    " errors on recovery",
-                                    member_info->get_hostname().c_str(), member_info->get_port());
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM,
+                     member_info->get_hostname().c_str(),
+                     member_info->get_port());
       }
       continue;
       /* purecov: end */
@@ -1312,10 +1247,8 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
     {
       if (is_joining)
       {
-        log_message(MY_ERROR_LEVEL,
-                    "There is already a member with server_uuid %s. "
-                    "The member will now exit the group.",
-                    local_member_info->get_uuid().c_str());
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_ALREADY_EXISTS,
+                     local_member_info->get_uuid().c_str());
       }
 
       // Clean up temporary states.
@@ -1352,24 +1285,18 @@ Plugin_gcs_events_handler::get_exchangeable_data() const
                                        get_plugin_pointer())
      )
   {
-    log_message(MY_WARNING_LEVEL,
-                "Error when extracting information for group change. "
-                "Operations and checks made to group joiners may be incomplete"); /* purecov: inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR); /* purecov: inspected */
     goto sending; /* purecov: inspected */
   }
 
   if (sql_command_interface->get_server_gtid_executed(server_executed_gtids))
   {
-    log_message(MY_WARNING_LEVEL,
-                "Error when extracting this member GTID executed set. "
-                "Operations and checks made to group joiners may be incomplete"); /* purecov: inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR); /* purecov: inspected */
     goto sending; /* purecov: inspected */
   }
   if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids))
   {
-    log_message(MY_WARNING_LEVEL,
-                "Error when extracting this member retrieved set for its applier. "
-                "Operations and checks made to group joiners may be incomplete"); /* purecov: inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_SET_EXTRACT_ERROR); /* purecov: inspected */
   }
 
   group_member_mgr->update_gtid_sets(local_member_info->get_uuid(),
@@ -1458,9 +1385,7 @@ Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) c
 #endif
   if (number_of_members > 9)
   {
-    log_message(MY_ERROR_LEVEL,
-                "The START GROUP_REPLICATION command failed since the group "
-                "already has 9 members");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_START_FAILED);
     return GROUP_REPLICATION_MAX_GROUP_SIZE;
   }
 
@@ -1480,8 +1405,7 @@ Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) c
 
   if (*joiner_compatibility_status == INCOMPATIBLE)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Member version is incompatible with the group");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_VER_INCOMPATIBLE);
     return GROUP_REPLICATION_CONFIGURATION_ERROR;
   }
 
@@ -1505,18 +1429,13 @@ Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) c
   {
     if (group_data_compatibility > 0)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "The member contains transactions not present in the group. "
-                  "The member will now exit the group.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_NOT_PRESENT_IN_GRP);
       return GROUP_REPLICATION_CONFIGURATION_ERROR;
     }
     else //error
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to assess if the member has more "
-                  "transactions than the group. "
-                  "The member will now exit the group.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_GREATER_THAN_GRP);
       return GROUP_REPLICATION_CONFIGURATION_ERROR;
       /* purecov: end */
     }
@@ -1575,10 +1494,7 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const
 
   if (compatibility_type != INCOMPATIBLE && override_lower_incompatibility)
   {
-    log_message(MY_INFORMATION_LEVEL,
-                "Member version is lower than some group member, but since "
-                "option 'group_replication_allow_local_lower_version_join' "
-                "is enabled, member will be allowed to join");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_VERSION_LOWER_THAN_GRP);
   }
 
   if (read_compatible && compatibility_type != INCOMPATIBLE)
@@ -1624,9 +1540,7 @@ int Plugin_gcs_events_handler::compare_member_transaction_sets() const
               add_gtid_text(applier_ret_set_str.c_str()) != RETURN_STATUS_OK)
       {
         /* purecov: begin inspected */
-        log_message(MY_ERROR_LEVEL,
-                    "Error processing local GTID sets when comparing this member"
-                    " transactions against the group");
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOCAL_GTID_SETS_PROCESS_ERROR);
         result= -1;
         goto cleaning;
         /* purecov: end */
@@ -1640,9 +1554,7 @@ int Plugin_gcs_events_handler::compare_member_transaction_sets() const
               add_gtid_text(applier_ret_set_str.c_str()) != RETURN_STATUS_OK)
       {
         /* purecov: begin inspected */
-        log_message(MY_ERROR_LEVEL,
-                    "Error processing group GTID sets when comparing this member"
-                    " transactions with the group");
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOCAL_GTID_SETS_PROCESS_ERROR);
         result= -1;
         goto cleaning;
         /* purecov: end */
@@ -1667,10 +1579,8 @@ int Plugin_gcs_events_handler::compare_member_transaction_sets() const
     local_member_set.to_string(&local_gtid_set_buf);
     char *group_gtid_set_buf;
     group_set.to_string(&group_gtid_set_buf);
-    log_message(MY_ERROR_LEVEL,
-                "This member has more executed transactions than those present"
-                " in the group. Local transactions: %s > Group transactions: %s",
-                local_gtid_set_buf, group_gtid_set_buf);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_TRANS_GREATER_THAN_GRP,
+                 local_gtid_set_buf, group_gtid_set_buf);
     my_free(local_gtid_set_buf);
     my_free(group_gtid_set_buf);
     result= 1;
@@ -1736,13 +1646,9 @@ Plugin_gcs_events_handler::compare_member_option_compatibility() const
         (*all_members_it)->get_gtid_assignment_block_size())
     {
       result= 1;
-      log_message(MY_ERROR_LEVEL,
-                  "The member is configured with a "
-                  "group_replication_gtid_assignment_block_size option "
-                  "value '%llu' different from the group '%llu'. "
-                  "The member will now exit the group.",
-                  local_member_info->get_gtid_assignment_block_size(),
-                  (*all_members_it)->get_gtid_assignment_block_size());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BLOCK_SIZE_DIFF_FROM_GRP,
+                   local_member_info->get_gtid_assignment_block_size(),
+                   (*all_members_it)->get_gtid_assignment_block_size());
       goto cleaning;
     }
 
@@ -1750,15 +1656,12 @@ Plugin_gcs_events_handler::compare_member_option_compatibility() const
        (*all_members_it)->get_write_set_extraction_algorithm())
     {
       result= 1;
-      log_message(MY_ERROR_LEVEL,
-                  "The member is configured with a "
-                  "transaction-write-set-extraction option "
-                  "value '%s' different from the group '%s'. "
-                  "The member will now exit the group.",
-                  get_write_set_algorithm_string(
-                      local_member_info->get_write_set_extraction_algorithm()),
-                  get_write_set_algorithm_string(
-                      (*all_members_it)->get_write_set_extraction_algorithm()));
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_TRANS_WRITE_SET_EXTRACT_DIFF_FROM_GRP,
+                   get_write_set_algorithm_string(
+                     local_member_info->get_write_set_extraction_algorithm()),
+                   get_write_set_algorithm_string(
+                     (*all_members_it)->get_write_set_extraction_algorithm()));
       goto cleaning;
     }
 
@@ -1769,15 +1672,11 @@ Plugin_gcs_events_handler::compare_member_option_compatibility() const
       const uint32 local_configuration_flags = local_member_info->get_configuration_flags();
 
       result= 1;
-      log_message(MY_ERROR_LEVEL,
-                  "The member configuration is not compatible with "
-                  "the group configuration. Variables such as "
-                  "single_primary_mode or enforce_update_everywhere_checks "
-                  "must have the same value on every server in the group. "
-                  "(member configuration option: [%s], group configuration "
-                  "option: [%s]).",
-                  Group_member_info::get_configuration_flags_string(local_configuration_flags).c_str(),
-                  Group_member_info::get_configuration_flags_string(member_configuration_flags).c_str());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_CFG_INCOMPATIBLE_WITH_GRP_CFG,
+                   Group_member_info::get_configuration_flags_string(
+                       local_configuration_flags).c_str(),
+                   Group_member_info::get_configuration_flags_string(
+                       member_configuration_flags).c_str());
       goto cleaning;
     }
   }
@@ -1804,43 +1703,45 @@ Plugin_gcs_events_handler::leave_group_on_error() const
   {
     if (error_message != NULL && *error_message != NULL)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error stopping all replication channels while server was"
-                  " leaving the group. %s", *error_message);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR,
+                   *error_message);
       my_free(error_message);
     }
     else
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error stopping all replication channels while server was"
-                  " leaving the group. Got error: %d. Please check the error"
-                  " log for more details.", error);
+      char buff[MYSQL_ERRMSG_SIZE];
+      size_t len= 0;
+      len= my_snprintf(buff, sizeof(buff), "Got error: ");
+      len+= my_snprintf((buff + len), sizeof(buff) - len, "%d", error);
+      my_snprintf((buff + len), sizeof(buff) - len,
+                  "Please check the error log for more details.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR,
+                   buff);
     }
   }
 
-  std::stringstream ss;
-  plugin_log_level log_severity= MY_WARNING_LEVEL;
+  longlong errcode= 0;
+  longlong log_severity= WARNING_LEVEL;
   switch (state)
   {
     case Gcs_operations::ERROR_WHEN_LEAVING:
       /* purecov: begin inspected */
-      ss << "Unable to confirm whether the server has left the group or not. "
-            "Check performance_schema.replication_group_members to check group membership information.";
-      log_severity= MY_ERROR_LEVEL;
+      errcode= ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
+      log_severity= ERROR_LEVEL;
       break;
       /* purecov: end */
     case Gcs_operations::ALREADY_LEAVING:
       /* purecov: begin inspected */
-      ss << "Skipping leave operation: concurrent attempt to leave the group is on-going.";
+      errcode= ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
       break;
       /* purecov: end */
     case Gcs_operations::ALREADY_LEFT:
       /* purecov: begin inspected */
-      ss << "Skipping leave operation: member already left the group.";
+      errcode= ER_GRP_RPL_SERVER_ALREADY_LEFT;
       break;
       /* purecov: end */
     case Gcs_operations::NOW_LEAVING:
       return;
   }
-  log_message(log_severity, ss.str().c_str()); /* purecov: inspected */
+  LogPluginErr(log_severity, errcode); /* purecov: inspected */
 }

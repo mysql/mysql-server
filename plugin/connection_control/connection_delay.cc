@@ -30,6 +30,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "mysqld_error.h"
 #include "plugin/connection_control/connection_control.h"
 #include "plugin/connection_control/security_context_wrapper.h"
 #include "sql/current_thd.h"            /* current_thd */
@@ -666,7 +667,8 @@ namespace connection_control
       if ((error= coordinator->notify_status_var(
                     &self, STAT_CONNECTION_DELAY_TRIGGERED, ACTION_INC)))
       {
-        error_handler->handle_error("Failed to update connection delay triggered stats");
+        error_handler->handle_error(
+          ER_CONN_CONTROL_STAT_CONN_DELAY_TRIGGERED_UPDATE_FAILED);
       }
       /*
         Invoking sleep while holding read lock on Connection_delay_action
@@ -686,12 +688,9 @@ namespace connection_control
       */
       if (m_userhost_hash.create_or_update_entry(userhost))
       {
-        char error_buffer[512];
-        memset(error_buffer, 0, sizeof(error_buffer));
-        my_snprintf(error_buffer, sizeof(error_buffer)-1,
-                    "Failed to update connection delay hash for account : %s",
-                    userhost.c_str());
-        error_handler->handle_error(error_buffer);
+        error_handler->handle_error(
+          ER_CONN_CONTROL_FAILED_TO_UPDATE_CONN_DELAY_HASH,
+          userhost.c_str());
         error= true;
       }
     }
@@ -750,7 +749,8 @@ namespace connection_control
                                                    STAT_CONNECTION_DELAY_TRIGGERED,
                                                    ACTION_RESET)))
         {
-          error_handler->handle_error("Failed to reset connection delay triggered stats");
+          error_handler->handle_error(
+            ER_CONN_CONTROL_STAT_CONN_DELAY_TRIGGERED_RESET_FAILED);
         }
         break;
       }
@@ -761,19 +761,16 @@ namespace connection_control
         if ((error= set_delay(new_delay,
                       (variable == OPT_MIN_CONNECTION_DELAY))))
         {
-          char error_buffer[512];
-          memset(error_buffer, 0, sizeof(error_buffer));
-          my_snprintf(error_buffer, sizeof(error_buffer) - 1,
-                      "Could not set %s delay for connection delay.",
-                      (variable == OPT_MIN_CONNECTION_DELAY) ? "min" : "max");
-          error_handler->handle_error(error_buffer);
+          error_handler->handle_error(
+            ER_CONN_CONTROL_FAILED_TO_SET_CONN_DELAY,
+            (variable == OPT_MIN_CONNECTION_DELAY) ? "min" : "max");
         }
         break;
       }
       default:
         /* Should never reach here. */
         DBUG_ASSERT(FALSE);
-        error_handler->handle_error("Unexpected option type for connection delay.");
+        error_handler->handle_error(ER_CONN_CONTROL_INVALID_CONN_DELAY_TYPE);
     };
     DBUG_RETURN(error);
   }
@@ -942,7 +939,7 @@ namespace connection_control
                                                                  &connection_event_delay_lock);
     if (!g_max_failed_connection_handler)
     {
-      error_handler->handle_error("Failed to initialization Connection_delay_action");
+      error_handler->handle_error(ER_CONN_CONTROL_DELAY_ACTION_INIT_FAILED);
       return true;
     }
     g_max_failed_connection_handler->init(coordinator);

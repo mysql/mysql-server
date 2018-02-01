@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,9 +172,9 @@ namespace keyring__keys_container_unittest
     generate_keyring_file_with_incorrect_file_version(keyring_incorrect_version);
     Buffered_file_io *keyring_io= new Buffered_file_io(logger);
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+                log(ERROR_LEVEL, StrEq("Incorrect Keyring file")));
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content."
+                log(ERROR_LEVEL, StrEq("Error while loading keyring content."
                                           " The keyring might be malformed")));
     EXPECT_EQ(keys_container->init(keyring_io, keyring_incorrect_version), 1);
     remove(keyring_incorrect_version);
@@ -189,9 +189,9 @@ namespace keyring__keys_container_unittest
     generate_keyring_file_with_incorrect_TAG(keyring_incorrect_tag);
     Buffered_file_io *keyring_io= new Buffered_file_io(logger);
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+                log(ERROR_LEVEL, StrEq("Incorrect Keyring file")));
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
+                log(ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
     EXPECT_EQ(keys_container->init(keyring_io, keyring_incorrect_tag), 1);
     remove(keyring_incorrect_tag);
     delete sample_key; //unused in this test
@@ -387,7 +387,7 @@ namespace keyring__keys_container_unittest
     std::string key_data1("Robi1");
     Key *key1= new Key("Roberts_key1", "AES", "Robert", key_data1.c_str(), key_data1.length()+1);
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
+                log(ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     //it should not be possible to store_key if the keyring file does not exist
     EXPECT_EQ(keys_container->store_key(key1), 1);
     delete key1;
@@ -410,9 +410,9 @@ namespace keyring__keys_container_unittest
     std::string key_data1("Robi1");
     Key *key1= new Key("Roberts_key1", "AES", "Robert", key_data1.c_str(), key_data1.length()+1);
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
+                log(ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+                log(ERROR_LEVEL, StrEq("Incorrect Keyring file")));
 
     //it should not be possible to store_key if the keyring file was changed
     EXPECT_EQ(keys_container->store_key(key1), 1);
@@ -736,8 +736,8 @@ namespace keyring__keys_container_unittest
 
     //Check that backup file was ignored (as backup file is malformed)
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
-    EXPECT_CALL(*((Mock_logger *)logger), log(MY_WARNING_LEVEL, StrEq("Found malformed keyring backup file - removing it")));
+                log(ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+    EXPECT_CALL(*((Mock_logger *)logger), log(WARNING_LEVEL, StrEq("Found malformed keyring backup file - removing it")));
     EXPECT_EQ(keys_container->init(keyring_io_2, file_name), 0);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 2);
     Key sample_key_id("Roberts_key", NULL, "Robert", NULL, 0);
@@ -879,7 +879,7 @@ namespace keyring__keys_container_unittest
     EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
       .WillOnce(Return(0)); // init successfull
     EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(Return(TRUE));
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
+    EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
 
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 1);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
@@ -909,7 +909,7 @@ namespace keyring__keys_container_unittest
       EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(TRUE));
       EXPECT_CALL(*mock_serialized_object, get_next_key(_)).WillOnce(DoAll(SetArgPointee<0>(invalid_key), Return(FALSE)));
 
-      EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
+      EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
    }
 
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 1);
@@ -937,7 +937,7 @@ namespace keyring__keys_container_unittest
     {
       InSequence dummy;
       EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(DoAll(SetArgPointee<0>(buffer), Return(FALSE)));
-      EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
+      EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
     }
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 1);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
@@ -963,7 +963,7 @@ namespace keyring__keys_container_unittest
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,NULL,NONE))
         .WillOnce(Return((ISerialized_object*)NULL));
-      EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
+      EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     }
     EXPECT_EQ(keys_container->store_key(sample_key), 1);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
@@ -998,7 +998,7 @@ namespace keyring__keys_container_unittest
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,STORE_KEY))
         .WillOnce(Return((ISerialized_object*)NULL));
-      EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
+      EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
     EXPECT_EQ(keys_container->store_key(sample_key), 1);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
@@ -1049,7 +1049,7 @@ namespace keyring__keys_container_unittest
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,NULL,NONE))
         .WillOnce(Return((ISerialized_object*)NULL));
-      EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
+      EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Could not flush keys to keyring's backup")));
     }
     EXPECT_EQ(keys_container->remove_key(sample_key), 1);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 1);
@@ -1110,7 +1110,7 @@ namespace keyring__keys_container_unittest
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,REMOVE_KEY))
         .WillOnce(Return((ISerialized_object*)NULL));
-      EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
+      EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
 
     EXPECT_EQ(keys_container->remove_key(sample_key), 1);
@@ -1274,7 +1274,7 @@ namespace keyring__keys_container_unittest
         .WillOnce(Return(mock_serializer));
       EXPECT_CALL(*mock_serializer, serialize(_,sample_key,REMOVE_KEY))
         .WillOnce(Return((ISerialized_object*)NULL));
-      EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
+      EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Could not flush keys to keyring")));
     }
 
     EXPECT_EQ(keys_container->remove_key(sample_key), 1);

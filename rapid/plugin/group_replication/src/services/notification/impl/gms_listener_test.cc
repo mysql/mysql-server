@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/group_member_status_listener.h>
 #include <mysql/components/services/group_membership_listener.h>
+#include <mysql/components/services/log_builtins.h>
 
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
@@ -127,9 +127,9 @@ log_notification_to_test_table(std::string msg)
 end:
   if (res)
   {
-    log_message(MY_WARNING_LEVEL, "Unable to log notification to table ("
-      "errno: %lu) (res: %d)! Message: %s",
-      srv_err, res, ss.str().c_str()); /* purecov: inspected */
+    LogPluginErr(WARNING_LEVEL,
+                 ER_GRP_RPL_GMS_LISTENER_FAILED_TO_LOG_NOTIFICATION,
+                 srv_err, res, ss.str().c_str()); /* purecov: inspected */
   }
 
   if (was_read_only)

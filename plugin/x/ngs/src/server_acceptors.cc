@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ bool Server_acceptors::prepare_impl(On_connection on_connection, const bool skip
 
   if (listeners.empty())
   {
-    log_warning("All I/O interfaces are disabled, X Protocol won't be accessible");
+    log_warning(ER_XPLUGIN_ALL_IO_INTERFACES_DISABLED);
 
     return false;
   }
@@ -167,7 +167,7 @@ bool Server_acceptors::prepare_impl(On_connection on_connection, const bool skip
   {
     abort();
 
-    log_error("Preparation of I/O interfaces failed, X Protocol won't be accessible");
+    log_error(ER_XPLUGIN_FAILED_TO_PREPARE_IO_INTERFACES);
 
     return false;
   }
@@ -328,7 +328,7 @@ void Server_acceptors::report_listener_status(Listener_interface *listener)
 {
   if (!listener->get_state().is(State_listener_prepared))
   {
-    log_error("Setup of %s failed, %s",
+    log_error(ER_XPLUGIN_LISTENER_SETUP_FAILED,
               listener->get_name_and_configuration().c_str(),
               listener->get_last_error().c_str());
 
@@ -336,11 +336,12 @@ void Server_acceptors::report_listener_status(Listener_interface *listener)
 
     if (!listener_configuration_variable.empty())
     {
-      log_info("Please see the MySQL documentation for '%s' system variables to fix the error", listener_configuration_variable.c_str());
+      log_info(ER_XPLUGIN_LISTENER_SYS_VARIABLE_ERROR, listener_configuration_variable.c_str());
     }
 
     return;
   }
 
-  log_info("X Plugin listens on %s", listener->get_name_and_configuration().c_str());
+  log_info(ER_XPLUGIN_LISTENER_STATUS_MSG,
+           listener->get_name_and_configuration().c_str());
 }

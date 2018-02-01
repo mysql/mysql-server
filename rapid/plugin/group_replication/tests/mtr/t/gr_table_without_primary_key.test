@@ -58,7 +58,7 @@ CREATE TABLE `t1` (
 --connection server1
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Plugin group_replication reported: 'Table t1 does not have any PRIMARY KEY. This is not compatible with Group Replication'");
+call mtr.add_suppression("Plugin group_replication reported: 'Table t1 does not have any PRIMARY KEY. This is not compatible with Group Replication.'");
 SET SESSION sql_log_bin= 1;
 
 --error ER_BEFORE_DML_VALIDATION_ERROR

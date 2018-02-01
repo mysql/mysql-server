@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,7 @@ SET(GMS_LISTENER_SERVICE_TEST_SOURCES
     src/services/notification/impl/gms_listener_test.cc)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="group_replication")
 
 IF(WITH_UNIT_TESTS)
   ADD_CONVENIENCE_LIBRARY(gr_unit_test_resource

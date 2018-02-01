@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #include "plugin/group_replication/include/sql_service/sql_service_context.h"
 
 #include "my_dbug.h"
-#include "plugin/group_replication/include/plugin_log.h"
 
 
 int Sql_service_context::start_result_metadata(uint ncols, uint,

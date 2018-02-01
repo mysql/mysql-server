@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,8 @@
 #include "plugin/group_replication/include/gcs_logger.h"
 
 #include "my_dbug.h"
-#include "plugin/group_replication/include/plugin_log.h"
+#include <mysqld_error.h>
+#include <mysql/components/services/log_builtins.h>
 
 enum_gcs_error Gcs_gr_logger_impl::initialize()
 {
@@ -45,16 +46,19 @@ void Gcs_gr_logger_impl::log_event(const gcs_log_level_t level,
   switch (level)
   {
     case GCS_INFO:
-      log_message(MY_INFORMATION_LEVEL, message.c_str());
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG,
+                   message.c_str());
       break;
 
     case GCS_WARN:
-      log_message(MY_WARNING_LEVEL, message.c_str());
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG,
+                   message.c_str());
       break;
 
     case GCS_ERROR:
     case GCS_FATAL:
-      log_message(MY_ERROR_LEVEL, message.c_str());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG,
+                   message.c_str());
       break;
 
     default:

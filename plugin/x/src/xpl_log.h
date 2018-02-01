@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -48,18 +48,18 @@ void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *);
 } // namespace xpl
 
 
-#define log_error(...)\
-  LogPluginErrMsg(ERROR_LEVEL, ER_XPLUGIN_ERROR_MSG, __VA_ARGS__)
+#define log_error(errcode, ...)\
+  LogPluginErr(ERROR_LEVEL, errcode, ## __VA_ARGS__)
 
-#define log_warning(...)\
-  LogPluginErrMsg(WARNING_LEVEL, ER_XPLUGIN_ERROR_MSG, __VA_ARGS__)
+#define log_warning(errcode, ...)\
+  LogPluginErr(WARNING_LEVEL, errcode, ## __VA_ARGS__)
 
-#define log_info(...)\
-  LogPluginErrMsg(INFORMATION_LEVEL, ER_XPLUGIN_ERROR_MSG, __VA_ARGS__)
+#define log_info(errcode, ...)\
+  LogPluginErr(INFORMATION_LEVEL, errcode, ## __VA_ARGS__)
 
 #ifdef XPLUGIN_LOG_DEBUG
 #define log_debug(...) LogPluginErrMsg(INFORMATION_LEVEL, ER_XPLUGIN_ERROR_MSG,\
-                                       __VA_ARGS__)
+                                       ## __VA_ARGS__)
 #else
 #define log_debug(...) do {} while(0)
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 #define PIPELINE_INTERFACES_INCLUDED
 
 #include <mysql/group_replication_priv.h>
+#include "mysql/components/services/log_builtins.h"
 
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 
@@ -337,9 +337,7 @@ private:
 
     if (unlikely(!log_event))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Unable to convert a packet into an event on the applier!"
-                  " Error: %s \n", errmsg); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_PACKET_TO_EVENT, errmsg); /* purecov: inspected */
       error= 1; /* purecov: inspected */
     }
 
@@ -378,8 +376,7 @@ private:
       {
         my_free(cache); /* purecov: inspected */
         cache= NULL;    /* purecov: inspected */
-        log_message(MY_ERROR_LEVEL,
-                    "Failed to create group replication pipeline cache!"); /* purecov: inspected */
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_CREATE_FAILED); /* purecov: inspected */
         return 1;       /* purecov: inspected */
       }
     }
@@ -388,17 +385,14 @@ private:
       /* Reinit cache. */
       if ((error= reinit_io_cache(cache, WRITE_CACHE, 0, 0, 0)))
       {
-        log_message(MY_ERROR_LEVEL,
-                    "Failed to reinit group replication pipeline cache for write!"); /* purecov: inspected */
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_REINIT_FAILED_WRITE); /* purecov: inspected */
         return error; /* purecov: inspected */
       }
     }
 
     if ((error= log_event->write(cache)))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Unable to convert the event into a packet on the applier!"
-                  " Error: %d\n", error); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET, error); /* purecov: inspected */
       return error; /* purecov: inspected */
     }
 
@@ -408,24 +402,20 @@ private:
     */
     if (cache->file != -1 && (error= flush_io_cache(cache)))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to flush group replication pipeline cache!"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_FLUSH_FAIL); /* purecov: inspected */
       return error; /* purecov: inspected */
     }
 
     if ((error= reinit_io_cache(cache, READ_CACHE, 0, 0, 0)))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to reinit group replication pipeline cache for read!"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_REINIT_FAILED_READ); /* purecov: inspected */
       return error; /* purecov: inspected */
     }
 
     if ((error= Log_event::read_log_event(cache, &packet_data, 0,
                                           binary_log::BINLOG_CHECKSUM_ALG_OFF)))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Unable to convert the event into a packet on the applier!"
-                  " Error: %s.\n", get_string_log_read_error_msg(error)); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET, get_string_log_read_error_msg(error)); /* purecov: inspected */
       return error; /* purecov: inspected */
     }
     packet= new Data_packet((uchar*)packet_data.ptr(), static_cast<ulong>(packet_data.length()));

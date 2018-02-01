@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
 
 #include "plugin/group_replication/include/auto_increment.h"
 
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 
 
 Plugin_group_replication_auto_increment::
@@ -55,13 +55,11 @@ reset_auto_increment_variables()
     set_auto_increment_increment(SERVER_DEFAULT_AUTO_INCREMENT);
     set_auto_increment_offset(SERVER_DEFAULT_AUTO_OFFSET);
 
-    log_message(MY_INFORMATION_LEVEL,
-                "auto_increment_increment is reset to %lu",
-                SERVER_DEFAULT_AUTO_INCREMENT);
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_AUTO_INC_RESET,
+                 SERVER_DEFAULT_AUTO_INCREMENT);
 
-    log_message(MY_INFORMATION_LEVEL,
-                "auto_increment_offset is reset to %lu",
-                SERVER_DEFAULT_AUTO_OFFSET);
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_AUTO_INC_OFFSET_RESET,
+                 SERVER_DEFAULT_AUTO_OFFSET);
   }
 }
 
@@ -88,12 +86,10 @@ set_auto_increment_variables(ulong increment, ulong offset)
     group_replication_auto_increment= increment;
     group_replication_auto_offset= offset;
 
-    log_message(MY_INFORMATION_LEVEL,
-                "auto_increment_increment is set to %lu",
-                increment);
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_AUTO_INC_SET,
+                 increment);
 
-    log_message(MY_INFORMATION_LEVEL,
-                "auto_increment_offset is set to %lu",
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_AUTO_INC_OFFSET_SET,
                 offset);
   }
 }

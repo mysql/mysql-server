@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define LOG_SUBSYSTEM_TAG "keyring_file"
-
 #include "my_config.h"
 
 #include <mysql/plugin_keyring.h>
@@ -33,6 +31,7 @@
 #include "my_psi_config.h"
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
+#include "mysqld_error.h"
 #include "plugin/keyring/buffered_file_io.h"
 #include "plugin/keyring/common/keyring.h"
 
@@ -65,8 +64,7 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   if (create_keyring_dir_if_does_not_exist(keyring_filename))
   {
     mysql_rwlock_unlock(&LOCK_keyring);
-    logger->log(MY_ERROR_LEVEL, "keyring_file_data cannot be set to new value"
-      " as the keyring file cannot be created/accessed in the provided path");
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_SET_KEYRING_FILE_DATA);
     return 1;
   }
   try
@@ -105,12 +103,11 @@ static struct st_mysql_sys_var *keyring_file_system_variables[]= {
   NULL
 };
 
-
 static SERVICE_TYPE(registry) *reg_srv= nullptr;
 SERVICE_TYPE(log_builtins) *log_bi= nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
-static int keyring_init(MYSQL_PLUGIN plugin_info)
+static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused)))
 {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     return TRUE;
@@ -131,12 +128,10 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     if (init_keyring_locks())
       return TRUE;
 
-    logger.reset(new Logger(plugin_info));
+    logger.reset(new Logger());
     if (create_keyring_dir_if_does_not_exist(keyring_file_data_value))
     {
-      logger->log(MY_ERROR_LEVEL, "Could not create keyring directory "
-        "The keyring_file will stay unusable until correct path to the keyring "
-        "directory gets provided");
+      logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_CREATE_KEYRING_DIR);
       return FALSE;
     }
     keys.reset(new Keys_container(logger.get()));
@@ -148,11 +143,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     if (keys->init(keyring_io, keyring_file_data_value))
     {
       is_keys_container_initialized = FALSE;
-      logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure. Please check"
-        " if the keyring_file_data points to readable keyring file or keyring file"
-        " can be created in the specified location. "
-        "The keyring_file will stay unusable until correct path to the keyring file "
-        "gets provided");
+      logger->log(ERROR_LEVEL, ER_KEYRING_FILE_INIT_FAILED);
       return FALSE;
     }
     is_keys_container_initialized = TRUE;
@@ -161,8 +152,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
   catch (...)
   {
     if (logger != NULL)
-      logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure due to internal"
-                                  " exception inside the plugin");
+      logger->log(ERROR_LEVEL, ER_KEYRING_INTERNAL_EXCEPTION_FAILED_FILE_INIT);
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return TRUE;
   }
@@ -230,7 +220,7 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
   catch (...)
   {
     if (logger != NULL)
-      logger->log(MY_ERROR_LEVEL, "Failed to generate a key due to internal exception inside keyring_file plugin");
+      logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_GENERATE_KEY);
     return TRUE;
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ void Client::activate_tls()
   }
   else
   {
-    log_warning("%s: Error during SSL handshake", client_id());
+    log_warning(ER_XPLUGIN_SSL_HANDSHAKE_WITH_SERVER_FAILED, client_id());
     disconnect_and_trigger_close();
   }
 }
@@ -230,7 +230,8 @@ void Client::handle_message(Request &request)
     default:
       // invalid message at this time
       m_protocol_monitor.on_error_unknown_msg_type();
-      log_info("%s: Invalid message %i received during client initialization", client_id(), request.get_type());
+      log_info(ER_XPLUGIN_INVALID_MSG_DURING_CLIENT_INIT, client_id(),
+               request.get_type());
       m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
       m_close_reason = Close_error;
       disconnect_and_trigger_close();
@@ -363,7 +364,8 @@ void Client::on_accept()
   ngs::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
-    log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
+    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
+                m_client_addr.c_str());
     m_encoder->send_init_error(ngs::Fatal(ER_OUT_OF_RESOURCES, "Could not allocate session"));
   }
   else
@@ -371,7 +373,8 @@ void Client::on_accept()
     ngs::Error_code error(session->init());
     if (error)
     {
-      log_warning("%s: Error initializing session for connection: %s", client_id(), error.message.c_str());
+      log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
+                  error.message.c_str());
       m_encoder->send_result(error);
       session.reset();
     }
@@ -417,7 +420,8 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused)))
   ngs::shared_ptr<Session_interface> session(m_server.create_session(*this, *m_encoder, 1));
   if (!session)
   {
-    log_warning("%s: Error creating session for connection from %s", client_id(), m_client_addr.c_str());
+    log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
+                m_client_addr.c_str());
     m_encoder->send_result(ngs::Fatal(ER_OUT_OF_RESOURCES, "Could not allocate new session"));
     m_state = Client_closing;
   }
@@ -426,7 +430,8 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused)))
     ngs::Error_code error(session->init());
     if (error)
     {
-      log_warning("%s: Error initializing session for connection: %s", client_id(), error.message.c_str());
+      log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
+                  error.message.c_str());
       m_encoder->send_result(error);
       session.reset();
       m_state = Client_closing;
@@ -442,7 +447,7 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused)))
 
 void Client::on_server_shutdown()
 {
-  log_info("%s: closing client because of shutdown (state: %i)", client_id(), m_state.load());
+  log_info(ER_XPLUGIN_CLOSING_CLIENTS_ON_SHUTDOWN, client_id(), m_state.load());
   //XXX send a server shutdown notice
   disconnect_and_trigger_close();
 }
@@ -517,9 +522,7 @@ Request *Client::read_one_message(Error_code &ret_error)
 
     if (!(out_err == EBADF && m_close_reason == Close_connect_timeout))
     {
-      log_info("%s: ERROR reading from socket %s (%i)",
-               client_id(),
-               out_strerr.c_str(),
+      log_info(ER_XPLUGIN_ERROR_READING_SOCKET, client_id(), out_strerr.c_str(),
                out_err);
       on_network_error(out_err);
     }
@@ -537,7 +540,8 @@ Request *Client::read_one_message(Error_code &ret_error)
 
   if (msg_size > m_server.get_config()->max_message_size)
   {
-    log_warning("%s: Message of size %u received, exceeding the limit of %i", client_id(), msg_size, m_server.get_config()->max_message_size);
+    log_warning(ER_XPLUGIN_MESSAGE_TOO_LONG, client_id(), msg_size,
+                m_server.get_config()->max_message_size);
     // invalid message size
     // Don't send error, just abort connection
     //ret_error = Fatal(ER_X_BAD_MESSAGE, "Message too large");
@@ -559,7 +563,7 @@ Request *Client::read_one_message(Error_code &ret_error)
   nread = m_connection->read(&m_msg_buffer[0], msg_size, m_read_timeout);
   if (nread == 0) // EOF
   {
-    log_info("%s: peer disconnected while reading message body", client_id());
+    log_info(ER_XPLUGIN_PEER_DISCONNECTED_WHILE_READING_MSG_BODY, client_id());
     on_network_error(0);
     return NULL;
   }
@@ -575,8 +579,7 @@ Request *Client::read_one_message(Error_code &ret_error)
       on_read_timeout(out_err, out_strerr);
     }
 
-    log_info("client_id:%s - %s while reading from socket, closing connection",
-             client_id(),
+    log_info(ER_XPLUGIN_READ_FAILED_CLOSING_CONNECTION, client_id(),
              out_strerr.c_str());
 
     on_network_error(out_err);
@@ -627,7 +630,7 @@ void Client::run(const bool skip_name_resolve)
   }
   catch (std::exception &e)
   {
-    log_error("%s: Force stopping client because exception occurred: %s", client_id(), e.what());
+    log_error(ER_XPLUGIN_FORCE_STOP_CLIENT, client_id(), e.what());
   }
 
   {

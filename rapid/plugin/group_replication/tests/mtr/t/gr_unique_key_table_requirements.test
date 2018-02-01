@@ -39,7 +39,7 @@
 --source ../inc/group_replication.inc
 
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication");
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication.");
 SET SESSION sql_log_bin=1;
 
 --connection server1

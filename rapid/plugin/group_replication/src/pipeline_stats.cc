@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 
 /*
@@ -561,8 +561,7 @@ Pipeline_stats_member_collector::send_stats_member_message(Flow_control_mode mod
   enum_gcs_error msg_error= gcs_module->send_message(message, true);
   if (msg_error != GCS_OK)
   {
-    log_message(MY_INFORMATION_LEVEL,
-                "Error while sending stats message"); /* purecov: inspected */
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SEND_STATS_ERROR); /* purecov: inspected */
   }
 }
 
@@ -778,16 +777,13 @@ void
 Pipeline_member_stats::debug(const char *member, int64 quota_size,
                              int64 quota_used)
 {
-  log_message(MY_INFORMATION_LEVEL, "Flow control - update member stats: "
-      "%s stats: certifier_queue %d, applier_queue %d,"
-      " certified %ld (%ld), applied %ld (%ld), local %ld (%ld), quota %ld (%ld) "
-      "mode=%d",
-      member, m_transactions_waiting_certification,
-      m_transactions_waiting_apply, m_transactions_certified,
-      m_delta_transactions_certified, m_transactions_applied,
-      m_delta_transactions_applied, m_transactions_local,
-      m_delta_transactions_local, quota_size, quota_used,
-      m_flow_control_mode); /* purecov: inspected */
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_STATS_INFO,
+               member, m_transactions_waiting_certification,
+               m_transactions_waiting_apply, m_transactions_certified,
+               m_delta_transactions_certified, m_transactions_applied,
+               m_delta_transactions_applied, m_transactions_local,
+               m_delta_transactions_local, quota_size, quota_used,
+               m_flow_control_mode); /* purecov: inspected */
 }
 #endif
 
@@ -959,13 +955,9 @@ Flow_control_module::flow_control_step(Pipeline_stats_member_collector* member)
         quota_size = (quota_size - extra_quota > 1) ? quota_size - extra_quota : 1;
 
 #ifndef DBUG_OFF
-        log_message(MY_INFORMATION_LEVEL,
-                    "Flow control: throttling to %ld commits per %ld sec, "
-                    "with %d writing and %d non-recovering members, "
-                    "min capacity %lld, lim throttle %lld", quota_size,
-                    flow_control_period_var, num_writing_members,
-                     num_non_recovering_members,
-                    min_capacity, lim_throttle);
+        LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_FLOW_CONTROL_STATS,
+                     quota_size, flow_control_period_var, num_writing_members,
+                     num_non_recovering_members, min_capacity, lim_throttle);
 #endif
       }
       else

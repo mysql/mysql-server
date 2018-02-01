@@ -12252,6 +12252,1593 @@ ER_RESERVED_TABLESPACE_NAME
 ER_CONN_INIT_CONNECT_IGNORED
   eng "init_connect variable is ignored for user: %s host: %s due to expired password."
 
+ER_REWRITER_OOM
+  eng "Out of memory."
+
+ER_REWRITER_TABLE_MALFORMED_ERROR
+  eng "Wrong column count or names when loading rules."
+
+ER_REWRITER_LOAD_FAILED
+  eng "Some rules failed to load."
+
+ER_REWRITER_READ_FAILED
+  eng "Got error from storage engine while refreshing rewrite rules."
+
+ER_CONN_CONTROL_EVENT_COORDINATOR_INIT_FAILED
+  eng "Failed to initialize Connection_event_coordinator"
+
+ER_CONN_CONTROL_STAT_CONN_DELAY_TRIGGERED_UPDATE_FAILED
+  eng "Failed to update connection delay triggered stats"
+
+ER_CONN_CONTROL_STAT_CONN_DELAY_TRIGGERED_RESET_FAILED
+  eng "Failed to reset connection delay triggered stats"
+
+ER_CONN_CONTROL_INVALID_CONN_DELAY_TYPE
+  eng "Unexpected option type for connection delay."
+
+ER_CONN_CONTROL_DELAY_ACTION_INIT_FAILED
+  eng "Failed to initialize Connection_delay_action"
+
+ER_CONN_CONTROL_FAILED_TO_SET_CONN_DELAY
+  eng "Could not set %s delay for connection delay."
+
+ER_CONN_CONTROL_FAILED_TO_UPDATE_CONN_DELAY_HASH
+  eng "Failed to update connection delay hash for account : %s"
+
+ER_XPLUGIN_FORCE_STOP_CLIENT
+  eng "%s: Force stopping client because exception occurred: %s"
+
+ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED
+  eng "%s.%u: Maximum number of authentication attempts reached, login failed."
+
+ER_XPLUGIN_BUFFER_PAGE_ALLOC_FAILED
+  eng "Error allocating Buffer_page: %s"
+
+ER_XPLUGIN_DETECTED_HANGING_CLIENTS
+  eng "Detected %u hanging client(s)"
+
+ER_XPLUGIN_FAILED_TO_ACCEPT_CLIENT
+  eng "Error accepting client"
+
+ER_XPLUGIN_FAILED_TO_SCHEDULE_CLIENT
+  eng "Internal error scheduling client for execution"
+
+ER_XPLUGIN_FAILED_TO_PREPARE_IO_INTERFACES
+  eng "Preparation of I/O interfaces failed, X Protocol won't be accessible"
+
+ER_XPLUGIN_SRV_SESSION_INIT_THREAD_FAILED
+  eng "srv_session_init_thread returned error"
+
+ER_XPLUGIN_UNABLE_TO_USE_USER_SESSION_ACCOUNT
+  eng "Unable to use user mysql.session account when connecting the server for internal plugin requests."
+
+ER_XPLUGIN_REFERENCE_TO_USER_ACCOUNT_DOC_SECTION
+  eng "For more information, please see the X Plugin User Account section in the MySQL documentation"
+
+ER_XPLUGIN_UNEXPECTED_EXCEPTION_DISPATCHING_CMD
+  eng "%s: Unexpected exception dispatching command: %s"
+
+ER_XPLUGIN_EXCEPTION_IN_TASK_SCHEDULER
+  eng "Exception in post: %s"
+
+ER_XPLUGIN_TASK_SCHEDULING_FAILED
+  eng "Internal error scheduling task"
+
+ER_XPLUGIN_EXCEPTION_IN_EVENT_LOOP
+  eng "Exception in event loop: \"%s\": %s"
+
+ER_XPLUGIN_LISTENER_SETUP_FAILED
+  eng "Setup of %s failed, %s"
+
+ER_XPLUING_NET_STARTUP_FAILED
+  eng "%s"
+
+ER_XPLUGIN_FAILED_AT_SSL_CONF
+  eng "Failed at SSL configuration: \"%s\""
+
+ER_XPLUGIN_CLIENT_SSL_HANDSHAKE_FAILED
+  eng "Error during SSL handshake for client connection (%i)"
+
+ER_XPLUGIN_SSL_HANDSHAKE_WITH_SERVER_FAILED
+  eng "%s: Error during SSL handshake"
+
+ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN
+  eng "%s: Error creating session for connection from %s"
+
+ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION
+  eng "%s: Error initializing session for connection: %s"
+
+ER_XPLUGIN_MESSAGE_TOO_LONG
+  eng "%s: Message of size %u received, exceeding the limit of %i"
+
+ER_XPLUGIN_UNINITIALIZED_MESSAGE
+  eng "Message is not properly initialized: %s"
+
+ER_XPLUGIN_FAILED_TO_SET_MIN_NUMBER_OF_WORKERS
+  eng "Unable to set minimal number of workers to %u; actual value is %i"
+
+ER_XPLUGIN_UNABLE_TO_ACCEPT_CONNECTION
+  eng "Unable to accept connection, disconnecting client"
+
+ER_XPLUGIN_ALL_IO_INTERFACES_DISABLED
+  eng "All I/O interfaces are disabled, X Protocol won't be accessible"
+
+ER_XPLUGIN_INVALID_MSG_DURING_CLIENT_INIT
+  eng "%s: Invalid message %i received during client initialization"
+
+ER_XPLUGIN_CLOSING_CLIENTS_ON_SHUTDOWN
+  eng "%s: closing client because of shutdown (state: %i)"
+
+ER_XPLUGIN_ERROR_READING_SOCKET
+  eng "%s: Error reading from socket %s (%i)"
+
+ER_XPLUGIN_PEER_DISCONNECTED_WHILE_READING_MSG_BODY
+  eng "%s: peer disconnected while reading message body"
+
+ER_XPLUGIN_READ_FAILED_CLOSING_CONNECTION
+  eng "client_id:%s - %s while reading from socket, closing connection"
+
+ER_XPLUGIN_INVALID_AUTH_METHOD
+  eng "%s.%u: Invalid authentication method %s"
+
+ER_XPLUGIN_UNEXPECTED_MSG_DURING_AUTHENTICATION
+  eng "%s: Unexpected message of type %i received during authentication"
+
+ER_XPLUGIN_ERROR_WRITING_TO_CLIENT
+  eng "Error writing to client: %s (%i)"
+
+ER_XPLUGIN_SCHEDULER_STARTED
+  eng "Scheduler \"%s\" started."
+
+ER_XPLUGIN_SCHEDULER_STOPPED
+  eng "Scheduler \"%s\" stopped."
+
+ER_XPLUGIN_LISTENER_SYS_VARIABLE_ERROR
+  eng "Please see the MySQL documentation for '%s' system variables to fix the error"
+
+ER_XPLUGIN_LISTENER_STATUS_MSG
+  eng "X Plugin listens on %s"
+
+ER_XPLUGIN_RETRYING_BIND_ON_PORT
+  eng "Retrying `bind()` on TCP/IP port %i"
+
+ER_XPLUGIN_SHUTDOWN_TRIGGERED
+  eng "Shutdown triggered by mysqld abort flag"
+
+ER_XPLUGIN_USER_ACCOUNT_WITH_ALL_PERMISSIONS
+  eng "Using %s account for authentication which has all required permissions"
+
+ER_XPLUGIN_EXISTING_USER_ACCOUNT_WITH_INCOMPLETE_GRANTS
+  eng "Using existing %s account for authentication. Incomplete grants will be fixed"
+
+ER_XPLUGIN_SERVER_STARTS_HANDLING_CONNECTIONS
+  eng "Server starts handling incoming connections"
+
+ER_XPLUGIN_SERVER_STOPPED_HANDLING_CONNECTIONS
+  eng "Stopped handling incoming connections"
+
+ER_XPLUGIN_FAILED_TO_INTERRUPT_SESSION
+  eng "%s: Could not interrupt client session"
+
+ER_XPLUGIN_CLIENT_RELEASE_TRIGGERED
+  eng "%s: release triggered by timeout in state:%i"
+
+ER_XPLUGIN_IPv6_AVAILABLE
+  eng "IPv6 is available"
+
+ER_XPLUGIN_UNIX_SOCKET_NOT_CONFIGURED
+  eng "UNIX socket not configured"
+
+ER_XPLUGIN_CLIENT_KILL_MSG
+  eng "Kill client: %i %s"
+
+ER_XPLUGIN_FAILED_TO_GET_SECURITY_CTX
+  eng "Could not get security context for session"
+
+ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX_TO_ROOT
+  eng "Unable to switch security context to root"
+
+ER_XPLUGIN_FAILED_TO_CLOSE_SQL_SESSION
+  eng "Error closing SQL session"
+
+ER_XPLUGIN_FAILED_TO_EXECUTE_ADMIN_CMD
+  eng "Error executing admin command %s: %s"
+
+ER_XPLUGIN_EMPTY_ADMIN_CMD
+  eng "Error executing empty admin command"
+
+ER_XPLUGIN_FAILED_TO_GET_SYS_VAR
+  eng "Unable to retrieve system variable \'%s\'"
+
+ER_XPLUGIN_FAILED_TO_GET_CREATION_STMT
+  eng "Unable to get creation stmt for collection \'%s\'; query result size: %lu"
+
+ER_XPLUGIN_FAILED_TO_GET_ENGINE_INFO
+  eng "Unable to get engine info for collection \'%s\'; creation stmt: %s"
+
+ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA
+  eng "Error getting result data: %s"
+
+ER_XPLUGIN_CAPABILITY_EXPIRED_PASSWORD
+  eng "Capability expired password failed with error: %s"
+
+ER_XPLUGIN_FAILED_TO_SET_SO_REUSEADDR_FLAG
+  eng "Failed to set SO_REUSEADDR flag (error: %d)."
+
+ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION
+  eng "Could not open internal MySQL session"
+
+ER_XPLUGIN_FAILED_TO_SWITCH_CONTEXT
+  eng "Unable to switch context to user %s"
+
+ER_XPLUGIN_FAILED_TO_UNREGISTER_UDF
+  eng "Can\'t unregister \'%s\' user defined function"
+
+ER_XPLUGIN_GET_PEER_ADDRESS_FAILED
+  eng "%s: get peer address failed, can't resolve IP to hostname"
+
+ER_XPLUGIN_CAPABILITY_CLIENT_INTERACTIVE_FAILED
+  eng "Capability client interactive failed with error: %s"
+
+ER_XPLUGIN_FAILED_TO_RESET_IPV6_V6ONLY_FLAG
+  eng "Failed to reset IPV6_V6ONLY flag (error: %d). The server will listen to IPv6 addresses only."
+
+ER_KEYRING_INVALID_KEY_TYPE
+  eng "Invalid key type"
+
+ER_KEYRING_INVALID_KEY_LENGTH
+  eng "Invalid key length for given block cipher"
+
+ER_KEYRING_FAILED_TO_CREATE_KEYRING_DIR
+  eng "Could not create keyring directory. The keyring_file will stay unusable until correct path to the keyring directory gets provided"
+
+ER_KEYRING_FILE_INIT_FAILED
+  eng "keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided"
+
+ER_KEYRING_INTERNAL_EXCEPTION_FAILED_FILE_INIT
+  eng "keyring_file initialization failure due to internal exception inside the plugin."
+
+ER_KEYRING_FAILED_TO_GENERATE_KEY
+  eng "Failed to generate a key due to internal exception inside keyring_file plugin"
+
+ER_KEYRING_CHECK_KEY_FAILED_DUE_TO_INVALID_KEY
+  eng "Error while %s key: invalid key_type"
+
+ER_KEYRING_CHECK_KEY_FAILED_DUE_TO_EMPTY_KEY_ID
+  eng "Error while %s key: key_id cannot be empty"
+
+ER_KEYRING_OPERATION_FAILED_DUE_TO_INTERNAL_ERROR
+  eng "Failed to %s due to internal exception inside %s plugin"
+
+ER_KEYRING_INCORRECT_FILE
+  eng "Incorrect Keyring file"
+
+ER_KEYRING_FOUND_MALFORMED_BACKUP_FILE
+  eng "Found malformed keyring backup file - removing it"
+
+ER_KEYRING_FAILED_TO_RESTORE_FROM_BACKUP_FILE
+  eng "Error while restoring keyring from backup file cannot overwrite keyring with backup"
+
+ER_KEYRING_FAILED_TO_FLUSH_KEYRING_TO_FILE
+  eng "Error while flushing in-memory keyring into keyring file"
+
+ER_KEYRING_FAILED_TO_GET_FILE_STAT
+  eng "Error while reading stat for %s.Please check if file %s was not removed. OS returned this error: %s"
+
+ER_KEYRING_FAILED_TO_REMOVE_FILE
+  eng "Could not remove file %s OS retuned this error: %s"
+
+ER_KEYRING_FAILED_TO_TRUNCATE_FILE
+  eng "Could not truncate file %s. OS retuned this error: %s"
+
+ER_KEYRING_UNKNOWN_ERROR
+  eng "Unknown error %d"
+
+ER_KEYRING_FAILED_TO_SET_KEYRING_FILE_DATA
+  eng "keyring_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path"
+
+ER_KEYRING_FILE_IO_ERROR
+  eng "%s"
+
+ER_KEYRING_FAILED_TO_LOAD_KEYRING_CONTENT
+  eng "Error while loading keyring content. The keyring might be malformed"
+
+ER_KEYRING_FAILED_TO_FLUSH_KEYS_TO_KEYRING
+  eng "Could not flush keys to keyring"
+
+ER_KEYRING_FAILED_TO_FLUSH_KEYS_TO_KEYRING_BACKUP
+  eng "Could not flush keys to keyring's backup"
+
+ER_KEYRING_KEY_FETCH_FAILED_DUE_TO_EMPTY_KEY_ID
+  eng "Error while fetching key: key_id cannot be empty"
+
+ER_KEYRING_FAILED_TO_REMOVE_KEY_DUE_TO_EMPTY_ID
+  eng "Error while removing key: key_id cannot be empty"
+
+ER_KEYRING_OKV_INCORRECT_KEY_VAULT_CONFIGURED
+  eng "For keyring_okv to be initialized, please point keyring_okv_conf_dir variable to a directory with Oracle Key Vault configuration file and ssl materials"
+
+ER_KEYRING_OKV_INIT_FAILED_DUE_TO_INCORRECT_CONF
+  eng "keyring_okv initialization failure. Please check that the keyring_okv_conf_dir points to a readable directory and that the directory contains Oracle Key Vault configuration file and ssl materials. Please also check that Oracle Key Vault is up and running."
+
+ER_KEYRING_OKV_INIT_FAILED_DUE_TO_INTERNAL_ERROR
+  eng "keyring_okv initialization failure due to internal exception inside the plugin"
+
+ER_KEYRING_OKV_INVALID_KEY_TYPE
+  eng "Invalid key type"
+
+ER_KEYRING_OKV_INVALID_KEY_LENGTH_FOR_CIPHER
+  eng "Invalid key length for given block cipher"
+
+ER_KEYRING_OKV_FAILED_TO_GENERATE_KEY_DUE_TO_INTERNAL_ERROR
+  eng "Failed to generate a key due to internal exception inside keyring_okv plugin"
+
+ER_KEYRING_OKV_FAILED_TO_FIND_SERVER_ENTRY
+  eng "Could not find entry for server in configuration file %s"
+
+ER_KEYRING_OKV_FAILED_TO_FIND_STANDBY_SERVER_ENTRY
+  eng "Could not find entry for standby server in configuration file %s"
+
+ER_KEYRING_OKV_FAILED_TO_PARSE_CONF_FILE
+  eng "Could not parse the %s file provided"
+
+ER_KEYRING_OKV_FAILED_TO_LOAD_KEY_UID
+  eng "Could not load keys' uids from the OKV server"
+
+ER_KEYRING_OKV_FAILED_TO_INIT_SSL_LAYER
+  eng "Could not initialize ssl layer"
+
+ER_KEYRING_OKV_FAILED_TO_INIT_CLIENT
+  eng "Could not initialize OKV client"
+
+ER_KEYRING_OKV_CONNECTION_TO_SERVER_FAILED
+  eng "Could not connect to the OKV server"
+
+ER_KEYRING_OKV_FAILED_TO_REMOVE_KEY
+  eng "Could not remove the key"
+
+ER_KEYRING_OKV_FAILED_TO_ADD_ATTRIBUTE
+  eng "Could not add attribute, attribute_name=%s attribute value=%s"
+
+ER_KEYRING_OKV_FAILED_TO_GENERATE_KEY
+  eng "Could not generate the key."
+
+ER_KEYRING_OKV_FAILED_TO_STORE_KEY
+  eng "Could not store the key."
+
+ER_KEYRING_OKV_FAILED_TO_ACTIVATE_KEYS
+  eng "Could not activate the key."
+
+ER_KEYRING_OKV_FAILED_TO_FETCH_KEY
+  eng "Could not fetch generated key"
+
+ER_KEYRING_OKV_FAILED_TO_STORE_OR_GENERATE_KEY
+  eng "Could not store/generate the key - failed to set key attribute x-key-ready"
+
+ER_KEYRING_OKV_FAILED_TO_RETRIEVE_KEY_SIGNATURE
+  eng "Could not retrieve key signature from custom attributes"
+
+ER_KEYRING_OKV_FAILED_TO_RETRIEVE_KEY
+  eng "Could not retrieve key from OKV"
+
+ER_KEYRING_OKV_FAILED_TO_LOAD_SSL_TRUST_STORE
+  eng "Error loading trust store"
+
+ER_KEYRING_OKV_FAILED_TO_SET_CERTIFICATE_FILE
+  eng "Error setting the certificate file."
+
+ER_KEYRING_OKV_FAILED_TO_SET_KEY_FILE
+  eng "Error setting the key file."
+
+ER_KEYRING_OKV_KEY_MISMATCH
+  eng "Private key does not match the certificate public key"
+
+ER_KEYRING_ENCRYPTED_FILE_INCORRECT_KEYRING_FILE
+  eng "Incorrect Keyring file"
+
+ER_KEYRING_ENCRYPTED_FILE_DECRYPTION_FAILED
+  eng "Keyring_encrypted_file decryption failed. Please verify --keyring-encrypted-file-password option value."
+
+ER_KEYRING_ENCRYPTED_FILE_FOUND_MALFORMED_BACKUP_FILE
+  eng "Found malformed keyring backup file - removing it"
+
+ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_RESTORE_KEYRING
+  eng "Error while restoring keyring from backup file cannot overwrite keyring with backup"
+
+ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_FLUSH_KEYRING
+  eng "Error while flushing in-memory keyring into keyring file"
+
+ER_KEYRING_ENCRYPTED_FILE_ENCRYPTION_FAILED
+  eng "Keyring_encrypted_file encryption failed. Please verify --keyring-encrypted-file-password option value."
+
+ER_KEYRING_ENCRYPTED_FILE_INVALID_KEYRING_DIR
+  eng "keyring_encrypted_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path"
+
+ER_KEYRING_ENCRYPTED_FILE_FAILED_TO_CREATE_KEYRING_DIR
+  eng "Could not create keyring directory The keyring_encrypted_file will stay unusable until correct path to the keyring directory gets provided"
+
+ER_KEYRING_ENCRYPTED_FILE_PASSWORD_IS_INVALID
+  eng "The keyring_encrypted_file_password must be set to a valid value."
+
+ER_KEYRING_ENCRYPTED_FILE_PASSWORD_IS_TOO_LONG
+  eng "Too long keyring_encrypted_file_password value."
+
+ER_KEYRING_ENCRYPTED_FILE_INIT_FAILURE
+  eng "keyring_encrypted_file initialization failure. Please check if the keyring_encrypted_file_data points to readable keyring file or keyring file can be created in the specified location or password to decrypt keyring file is correct."
+
+ER_KEYRING_ENCRYPTED_FILE_INIT_FAILED_DUE_TO_INTERNAL_ERROR
+  eng "keyring_encrypted_file initialization failure due to internal exception inside the plugin"
+
+ER_KEYRING_ENCRYPTED_FILE_GEN_KEY_FAILED_DUE_TO_INTERNAL_ERROR
+  eng "Failed to generate a key due to internal exception inside keyring_encrypted_file plugin"
+
+ER_KEYRING_AWS_FAILED_TO_SET_CMK_ID
+  eng "keyring_aws_cmk_id cannot be set to the new value as AWS KMS seems to not understand the id provided. Please check that CMK id provided is correct."
+
+ER_KEYRING_AWS_FAILED_TO_SET_REGION
+  eng "keyring_aws_region cannot be set to the new value as AWS KMS seems to not understand the region provided. Please check that region provided is correct."
+
+ER_KEYRING_AWS_FAILED_TO_OPEN_CONF_FILE
+  eng "Could not open keyring_aws configuration file: %s. OS returned this error: %s"
+
+ER_KEYRING_AWS_FAILED_TO_ACCESS_KEY_ID_FROM_CONF_FILE
+  eng "Could not read AWS access key id from keyring_aws configuration file: %s. OS returned this error: %s"
+
+ER_KEYRING_AWS_FAILED_TO_ACCESS_KEY_FROM_CONF_FILE
+  eng "Could not read AWS access key from keyring_aws configuration file: %s. OS returned this error: %s"
+
+ER_KEYRING_AWS_INVALID_CONF_FILE_PATH
+  eng "Path to keyring aws configuration file cannot be empty"
+
+ER_KEYRING_AWS_INVALID_DATA_FILE_PATH
+  eng "Path to keyring_aws storage file cannot be empty."
+
+ER_KEYRING_AWS_FAILED_TO_ACCESS_OR_CREATE_KEYRING_DIR
+  eng "Unable to create/access keyring directory."
+
+ER_KEYRING_AWS_FAILED_TO_ACCESS_OR_CREATE_KEYRING_DATA_FILE
+  eng "Unable to create/access keyring_aws storage file. Please check if keyring_aws_data_file points to location where keyring file can be created/accessed. Please also make sure that MySQL server's user has high enough privileges to access this location."
+
+ER_KEYRING_AWS_FAILED_TO_INIT_DUE_TO_INTERNAL_ERROR
+  eng "keyring_aws initialization failed due to internal error when initializing synchronization primitive - %s. OS returned this error: %s:"
+
+ER_KEYRING_AWS_FAILED_TO_ACCESS_DATA_FILE
+  eng "Could not access keyring_aws storage file in the path provided. Please check if the keyring_aws directory can be accessed by MySQL Server"
+
+ER_KEYRING_AWS_CMK_ID_NOT_SET
+  eng "keyring_aws_cmk_id has to be set"
+
+ER_KEYRING_AWS_FAILED_TO_GET_KMS_CREDENTIAL_FROM_CONF_FILE
+  eng "Could not get AWS KMS credentials from the configuration file"
+
+ER_KEYRING_AWS_INIT_FAILURE
+  eng "keyring_aws initialization failure."
+
+ER_KEYRING_AWS_FAILED_TO_INIT_DUE_TO_PLUGIN_INTERNAL_ERROR
+  eng "keyring_aws initialization failure due to internal exception inside the plugin"
+
+ER_KEYRING_AWS_INVALID_KEY_LENGTH_FOR_CIPHER
+  eng "Invalid key length for given block cipher"
+
+ER_KEYRING_AWS_FAILED_TO_GENERATE_KEY_DUE_TO_INTERNAL_ERROR
+  eng "Failed to generate a key due to internal exception inside keyring_file plugin"
+
+ER_KEYRING_AWS_INCORRECT_FILE
+  eng "Incorrect Keyring file"
+
+ER_KEYRING_AWS_FOUND_MALFORMED_BACKUP_FILE
+  eng "Found malformed keyring backup file - removing it"
+
+ER_KEYRING_AWS_FAILED_TO_RESTORE_FROM_BACKUP_FILE
+  eng "Error while restoring keyring from backup file cannot overwrite keyring with backup"
+
+ER_KEYRING_AWS_FAILED_TO_FLUSH_KEYRING_TO_FILE
+  eng "Error while flushing in-memory keyring into keyring file"
+
+ER_KEYRING_AWS_INCORRECT_REGION
+  eng "Wrong region"
+
+ER_KEYRING_AWS_FAILED_TO_CONNECT_KMS
+  eng "Could not connect to AWS KMS with the credentials provided. Please make sure they are correct. AWS KMS returned this error: %s"
+
+ER_KEYRING_AWS_FAILED_TO_GENERATE_NEW_KEY
+  eng "Could not generate a new key. AWS KMS returned this error: %s"
+
+ER_KEYRING_AWS_FAILED_TO_ENCRYPT_KEY
+  eng "Could not encrypt key. AWS KMS returned this error: %s"
+
+ER_KEYRING_AWS_FAILED_TO_RE_ENCRYPT_KEY
+  eng "Could not re-encrypt key. AWS KMS returned this error: %s"
+
+ER_KEYRING_AWS_FAILED_TO_DECRYPT_KEY
+  eng "Could not decrypt key. AWS KMS returned this error: %s"
+
+ER_KEYRING_AWS_FAILED_TO_ROTATE_CMK
+  eng "Could not rotate the CMK. AWS KMS returned this error: %s"
+
+ER_GRP_RPL_GTID_ALREADY_USED
+  eng "The requested GTID '%s:%lld' was already used, the transaction will rollback."
+
+ER_GRP_RPL_APPLIER_THD_KILLED
+  eng "The group replication applier thread was killed."
+
+ER_GRP_RPL_EVENT_HANDLING_ERROR
+  eng "Error at event handling! Got error: %d."
+
+ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO
+  eng "Error when extracting group GTID execution information, some recovery operations may face future issues."
+
+ER_GRP_RPL_CERTIFICATE_SIZE_ERROR
+  eng "An error occured when trying to reduce the Certification information size for transmission."
+
+ER_GRP_RPL_CREATE_APPLIER_CACHE_ERROR
+  eng "Failed to create group replication pipeline applier cache!"
+
+ER_GRP_RPL_UNBLOCK_WAITING_THD
+  eng "Unblocking the group replication thread waiting for applier to start, as the start group replication was killed."
+
+ER_GRP_RPL_APPLIER_PIPELINE_NOT_DISPOSED
+  eng "The group replication applier pipeline was not properly disposed. Check the error log for further info."
+
+ER_GRP_RPL_APPLIER_THD_EXECUTION_ABORTED
+  eng "The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group."
+
+ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR
+  eng "Fatal error during execution on the Applier process of Group Replication. The server will now leave the group."
+
+ER_GRP_RPL_ERROR_STOPPING_CHANNELS
+  eng "Error stopping all replication channels while server was leaving the group. %s"
+
+ER_GRP_RPL_ERROR_SENDING_SINGLE_PRIMARY_MSSG
+  eng "Error sending single primary message informing that primary did apply relay logs."
+
+ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR
+  eng "Error updating transaction snapshot version after transaction being positively certified."
+
+ER_GRP_RPL_SIDNO_FETCH_ERROR
+  eng "Error fetching transaction sidno after transaction being positively certified."
+
+ER_GRP_RPL_BROADCAST_COMMIT_TRANS_MSSG_FAILED
+  eng "Broadcast of committed transactions message failed."
+
+ER_GRP_RPL_GROUP_NAME_PARSE_ERROR
+  eng "Unable to parse the group name during the Certification module initialization."
+
+ER_GRP_RPL_ADD_GRPSID_TO_GRPGTIDSID_MAP_ERROR
+  eng "Unable to add the group_sid in the group_gtid_sid_map during the Certification module initialization."
+
+ER_GRP_RPL_UPDATE_GRPGTID_EXECUTED_ERROR
+  eng "Error updating group_gtid_executed GITD set during the Certification module initialization."
+
+ER_GRP_RPL_DONOR_TRANS_INFO_ERROR
+  eng "Unable to handle the donor's transaction information when initializing the conflict detection component. Possible out of memory error."
+
+ER_GRP_RPL_SERVER_CONN_ERROR
+  eng "Error when establishing a server connection during the Certification module initialization."
+
+ER_GRP_RPL_ERROR_FETCHING_GTID_EXECUTED_SET
+  eng "Error when extracting this member GTID executed set. Certification module can't be properly initialized."
+
+ER_GRP_RPL_ADD_GTID_TO_GRPGTID_EXECUTED_ERROR
+  eng "Error while adding the server GTID EXECUTED set to the group_gtid_execute during the Certification module initialization."
+
+ER_GRP_RPL_ERROR_FETCHING_GTID_SET
+  eng "Error when extracting this member retrieved set for its applier. Certification module can't be properly initialized."
+
+ER_GRP_RPL_ADD_RETRIEVED_SET_TO_GRP_GTID_EXECUTED_ERROR
+  eng "Error while adding the member retrieved set to the group_gtid_executed during the Certification module initialization."
+
+ER_GRP_RPL_CERTIFICATION_INITIALIZATION_FAILURE
+  eng "Error during Certification module initialization."
+
+ER_GRP_RPL_UPDATE_LAST_CONFLICT_FREE_TRANS_ERROR
+  eng "Unable to update last conflict free transaction, this transaction will not be tracked on performance_schema.replication_group_member_stats.last_conflict_free_transaction."
+
+ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_REF_VER_ERROR
+  eng "Error updating transaction snapshot version reference for internal storage."
+
+ER_GRP_RPL_FETCH_TRANS_SIDNO_ERROR
+  eng "Error fetching transaction sidno while adding to the group_gtid_executed set."
+
+ER_GRP_RPL_ERROR_VERIFYING_SIDNO
+  eng "Error while ensuring the sidno be present in the group_gtid_executed."
+
+ER_GRP_RPL_CANT_GENERATE_GTID
+  eng "Impossible to generate Global Transaction Identifier: the integer component reached the maximal value. Restart the group with a new group_replication_group_name."
+
+ER_GRP_RPL_INVALID_GTID_SET
+  eng "Invalid stable transactions set."
+
+ER_GRP_RPL_UPDATE_GTID_SET_ERROR
+  eng "Error updating stable transactions set."
+
+ER_GRP_RPL_RECEIVED_SET_MISSING_GTIDS
+  eng "There was an error when filling the missing GTIDs on the applier channel received set. Despite not critical, on the long run this may cause performance issues."
+
+ER_GRP_RPL_SKIP_COMPUTATION_TRANS_COMMITTED
+  eng "Skipping the computation of the Transactions_committed_all_members field as an older instance of this computation is still ongoing."
+
+ER_GRP_RPL_NULL_PACKET
+  eng "Null packet on certifier's queue."
+
+ER_GRP_RPL_CANT_READ_GTID
+  eng "Error reading GTIDs from the message."
+
+ER_GRP_RPL_PROCESS_GTID_SET_ERROR
+  eng "Error processing stable transactions set."
+
+ER_GRP_RPL_PROCESS_INTERSECTION_GTID_SET_ERROR
+  eng "Error processing intersection of stable transactions set."
+
+ER_GRP_RPL_SET_STABLE_TRANS_ERROR
+  eng "Error setting stable transactions set."
+
+ER_GRP_RPL_CANT_READ_GRP_GTID_EXTRACTED
+  eng "Error reading group_gtid_extracted from the View_change_log_event."
+
+ER_GRP_RPL_CANT_READ_WRITE_SET_ITEM
+  eng "Error reading the write set item '%s' from the View_change_log_event."
+
+ER_GRP_RPL_INIT_CERTIFICATION_INFO_FAILURE
+  eng "Error during certfication_info initialization."
+
+ER_GRP_RPL_CONFLICT_DETECTION_DISABLED
+  eng "Primary had applied all relay logs, disabled conflict detection."
+
+ER_GRP_RPL_MSG_DISCARDED
+  eng "Message received while the plugin is not ready, message discarded."
+
+ER_GRP_RPL_MISSING_GRP_RPL_APPLIER
+  eng "Message received without a proper group replication applier."
+
+ER_GRP_RPL_CERTIFIER_MSSG_PROCESS_ERROR
+  eng "Error processing message in Certifier."
+
+ER_GRP_RPL_SRV_NOT_ONLINE
+  eng "This server was not declared online since it is on status %s."
+
+ER_GRP_RPL_SRV_ONLINE
+  eng "This server was declared online within the replication group."
+
+ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED
+  eng "When declaring the plugin online it was not possible to disable the server read mode settings. Try to disable it manually."
+
+ER_GRP_RPL_MEM_ONLINE
+  eng "The member with address %s:%u was declared online within the replication group."
+
+ER_GRP_RPL_MEM_UNREACHABLE
+  eng "Member with address %s:%u has become unreachable."
+
+ER_GRP_RPL_MEM_REACHABLE
+  eng "Member with address %s:%u is reachable again."
+
+ER_GRP_RPL_SRV_BLOCKED
+  eng "This server is not able to reach a majority of members in the group. This server will now block all updates. The server will remain blocked until contact with the majority is restored. It is possible to use group_replication_force_members to force a new group membership."
+
+ER_GRP_RPL_SRV_BLOCKED_FOR_SECS
+  eng "This server is not able to reach a majority of members in the group. This server will now block all updates. The server will remain blocked for the next %lu seconds. Unless contact with the majority is restored, after this time the member will error out and leave the group. It is possible to use group_replication_force_members to force a new group membership."
+
+ER_GRP_RPL_CHANGE_GRP_MEM_NOT_PROCESSED
+  eng "A group membership change was received but the plugin is already leaving due to the configured timeout on group_replication_unreachable_majority_timeout option."
+
+ER_GRP_RPL_MEMBER_CONTACT_RESTORED
+  eng "The member has resumed contact with a majority of the members in the group. Regular operation is restored and transactions are unblocked."
+
+ER_GRP_RPL_MEMBER_REMOVED
+  eng "Members removed from the group: %s"
+
+ER_GRP_RPL_PRIMARY_MEMBER_LEFT_GRP
+  eng "Primary server with address %s left the group. Electing new Primary."
+
+ER_GRP_RPL_MEMBER_ADDED
+  eng "Members joined the group: %s"
+
+ER_GRP_RPL_MEMBER_EXIT_PLUGIN_ERROR
+  eng "There was a previous plugin error while the member joined the group. The member will now exit the group."
+
+ER_GRP_RPL_MEMBER_CHANGE
+  eng "Group membership changed to %s on view %s."
+
+ER_GRP_RPL_MEMBER_LEFT_GRP
+  eng "Group membership changed: This member has left the group."
+
+ER_GRP_RPL_MEMBER_EXPELLED
+  eng "Member was expelled from the group due to network failures, changing member status to ERROR."
+
+ER_GRP_RPL_SESSION_OPEN_FAILED
+  eng "Unable to open session to (re)set read only mode. Skipping."
+
+ER_GRP_RPL_NEW_PRIMARY_ELECTED
+  eng "A new primary with address %s:%u was elected, enabling conflict detection until the new primary applies all relay logs."
+
+ER_GRP_RPL_DISABLE_READ_ONLY_FAILED
+  eng "Unable to disable super read only flag. Try to disable it manually"
+
+ER_GRP_RPL_ENABLE_READ_ONLY_FAILED
+  eng "Unable to set super read only flag. Try to set it manually."
+
+ER_GRP_RPL_SRV_PRIMARY_MEM
+  eng "This server is working as primary member."
+
+ER_GRP_RPL_SRV_SECONDARY_MEM
+  eng "This server is working as secondary member with primary member address %s:%u."
+
+ER_GRP_RPL_NO_SUITABLE_PRIMARY_MEM
+  eng "Unable to set any member as primary. No suitable candidate."
+
+ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR
+  eng "Error when activating super_read_only mode on start. The member will now exit the group."
+
+ER_GRP_RPL_EXCEEDS_AUTO_INC_VALUE
+  eng "Group contains %lu members which is greater than group_replication_auto_increment_increment value of %lu. This can lead to an higher rate of transactional aborts."
+
+ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM
+  eng "Member with address '%s:%u' didn't provide any data during the last group change. Group information can be outdated and lead to errors on recovery."
+
+ER_GRP_RPL_MEMBER_ALREADY_EXISTS
+  eng "There is already a member with server_uuid %s. The member will now exit the group."
+
+ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR
+  eng "Error when extracting information for group change. Operations and checks made to group joiners may be incomplete."
+
+ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR
+  eng "Error when extracting this member GTID executed set. Operations and checks made to group joiners may be incomplete."
+
+ER_GRP_RPL_GTID_SET_EXTRACT_ERROR
+  eng "Error when extracting this member retrieved set for its applier. Operations and checks made to group joiners may be incomplete."
+
+ER_GRP_RPL_START_FAILED
+  eng "The START GROUP_REPLICATION command failed since the group already has 9 members."
+
+ER_GRP_RPL_MEMBER_VER_INCOMPATIBLE
+  eng "Member version is incompatible with the group."
+
+ER_GRP_RPL_TRANS_NOT_PRESENT_IN_GRP
+  eng "The member contains transactions not present in the group. The member will now exit the group."
+
+ER_GRP_RPL_TRANS_GREATER_THAN_GRP
+  eng "It was not possible to assess if the member has more transactions than the group. The member will now exit the group."
+
+ER_GRP_RPL_MEMBER_VERSION_LOWER_THAN_GRP
+  eng "Member version is lower than some group member, but since option 'group_replication_allow_local_lower_version_join is enabled, member will be allowed to join."
+
+ER_GRP_RPL_LOCAL_GTID_SETS_PROCESS_ERROR
+  eng "Error processing local GTID sets when comparing this member transactions against the group."
+
+ER_GRP_RPL_MEMBER_TRANS_GREATER_THAN_GRP
+  eng "This member has more executed transactions than those present in the group. Local transactions: %s > Group transactions: %s"
+
+ER_GRP_RPL_BLOCK_SIZE_DIFF_FROM_GRP
+  eng "The member is configured with a group_replication_gtid_assignment_block_size option value '%llu' different from the group '%llu'. The member will now exit the group."
+
+ER_GRP_RPL_TRANS_WRITE_SET_EXTRACT_DIFF_FROM_GRP
+  eng "The member is configured with a transaction-write-set-extraction option value '%s' different from the group '%s'. The member will now exit the group."
+
+ER_GRP_RPL_MEMBER_CFG_INCOMPATIBLE_WITH_GRP_CFG
+  eng "The member configuration is not compatible with the group configuration. Variables such as single_primary_mode or enforce_update_everywhere_checks must have the same value on every server in the group. (member configuration option: [%s], group configuration option: [%s])."
+
+ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR
+  eng "Error stopping all replication channels while server was leaving the group. %s"
+
+ER_GRP_RPL_PURGE_APPLIER_LOGS
+  eng "Detected previous RESET MASTER invocation or an issue exists in the group replication applier relay log. Purging existing applier logs."
+
+ER_GRP_RPL_RESET_APPLIER_MODULE_LOGS_ERROR
+  eng "Unknown error occurred while resetting applier's module logs."
+
+ER_GRP_RPL_APPLIER_THD_SETUP_ERROR
+  eng "Failed to setup the group replication applier thread."
+
+ER_GRP_RPL_APPLIER_THD_START_ERROR
+  eng "Error while starting the group replication applier thread"
+
+ER_GRP_RPL_APPLIER_THD_STOP_ERROR
+  eng "Failed to stop the group replication applier thread."
+
+ER_GRP_RPL_FETCH_TRANS_DATA_FAILED
+  eng "Failed to fetch transaction data containing required transaction info for applier"
+
+ER_GRP_RPL_SLAVE_IO_THD_PRIMARY_UNKNOWN
+  eng "Can't start slave IO THREAD of channel '%s' when group replication is running with single-primary mode and the primary member is not known."
+
+ER_GRP_RPL_SALVE_IO_THD_ON_SECONDARY_MEMBER
+  eng "Can't start slave IO THREAD of channel '%s' when group replication is running with single-primary mode on a secondary member."
+
+ER_GRP_RPL_SLAVE_SQL_THD_PRIMARY_UNKNOWN
+  eng "Can't start slave SQL THREAD of channel '%s' when group replication is running with single-primary mode and the primary member is not known."
+
+ER_GRP_RPL_SLAVE_SQL_THD_ON_SECONDARY_MEMBER
+  eng "Can't start slave SQL THREAD of channel '%s' when group replication is running with single-primary mode on a secondary member."
+
+ER_GRP_RPL_NEEDS_INNODB_TABLE
+  eng "Table %s does not use the InnoDB storage engine. This is not compatible with Group Replication."
+
+ER_GRP_RPL_PRIMARY_KEY_NOT_DEFINED
+  eng "Table %s does not have any PRIMARY KEY. This is not compatible with Group Replication."
+
+ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED
+  eng "Table %s has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication."
+
+ER_GRP_RPL_AUTO_INC_RESET
+  eng "auto_increment_increment is reset to %lu"
+
+ER_GRP_RPL_AUTO_INC_OFFSET_RESET
+  eng "auto_increment_offset is reset to %lu"
+
+ER_GRP_RPL_AUTO_INC_SET
+  eng "auto_increment_increment is set to %lu"
+
+ER_GRP_RPL_AUTO_INC_OFFSET_SET
+  eng "auto_increment_offset is set to %lu"
+
+ER_GRP_RPL_FETCH_TRANS_CONTEXT_FAILED
+  eng "Failed to fetch transaction context containing required transaction info for certification"
+
+ER_GRP_RPL_FETCH_FORMAT_DESC_LOG_EVENT_FAILED
+  eng "Failed to fetch Format_description_log_event containing required server info for applier"
+
+ER_GRP_RPL_FETCH_TRANS_CONTEXT_LOG_EVENT_FAILED
+  eng "Failed to fetch Transaction_context_log_event containing required transaction info for certification"
+
+ER_GRP_RPL_FETCH_SNAPSHOT_VERSION_FAILED
+  eng "Failed to read snapshot version from transaction context event required for certification"
+
+ER_GRP_RPL_FETCH_GTID_LOG_EVENT_FAILED
+  eng "Failed to fetch Gtid_log_event containing required transaction info for certification"
+
+ER_GRP_RPL_UPDATE_SERV_CERTIFICATE_FAILED
+  eng "Unable to update certification result on server side, thread_id: %lu"
+
+ER_GRP_RPL_ADD_GTID_INFO_WITH_LOCAL_GTID_FAILED
+  eng "Unable to add gtid information to the group_gtid_executed set when gtid was provided for local transactions"
+
+ER_GRP_RPL_ADD_GTID_INFO_WITHOUT_LOCAL_GTID_FAILED
+  eng "Unable to add gtid information to the group_gtid_executed set when no gtid was provided for local transactions"
+
+ER_GRP_RPL_NOTIFY_CERTIFICATION_OUTCOME_FAILED
+  eng "Failed to notify certification outcome"
+
+ER_GRP_RPL_ADD_GTID_INFO_WITH_REMOTE_GTID_FAILED
+  eng "Unable to add gtid information to the group_gtid_executed set when gtid was provided for remote transactions"
+
+ER_GRP_RPL_ADD_GTID_INFO_WITHOUT_REMOTE_GTID_FAILED
+  eng "Unable to add gtid information to the group_gtid_executed set when gtid was not provided for remote transactions"
+
+ER_GRP_RPL_FETCH_VIEW_CHANGE_LOG_EVENT_FAILED
+  eng "Failed to fetch View_change_log_event containing required info for certification"
+
+ER_GRP_RPL_CONTACT_WITH_SRV_FAILED
+  eng "Error when contacting the server to ensure the proper logging of a group change in the binlog"
+
+ER_GRP_RPL_SRV_WAIT_TIME_OUT
+  eng "Timeout when waiting for the server to execute local transactions in order assure the group change proper logging"
+
+ER_GRP_RPL_FETCH_LOG_EVENT_FAILED
+  eng "Failed to fetch Log_event containing required server info for applier"
+
+ER_GRP_RPL_START_GRP_RPL_FAILED
+  eng "Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with --initialize or --initialize-insecure."
+
+ER_GRP_RPL_CONN_INTERNAL_PLUGIN_FAIL
+  eng "Failed to establish an internal server connection to execute plugin operations"
+
+ER_GRP_RPL_SUPER_READ_ON
+  eng "Setting super_read_only=ON."
+
+ER_GRP_RPL_SUPER_READ_OFF
+  eng "Setting super_read_only=OFF."
+
+ER_GRP_RPL_KILLED_SESSION_ID
+  eng "killed session id: %d status: %d"
+
+ER_GRP_RPL_KILLED_FAILED_ID
+  eng "killed failed id: %d failed: %d"
+
+ER_GRP_RPL_INTERNAL_QUERY
+  eng "Internal query: %s result in error. Error number: %s"
+
+ER_GRP_RPL_COPY_FROM_EMPTY_STRING
+  eng "Error copying from empty string "
+
+ER_GRP_RPL_QUERY_FAIL
+  eng "Query execution resulted in failure. errno: %d"
+
+ER_GRP_RPL_CREATE_SESSION_UNABLE
+  eng "Unable to create a session for executing the queries on the server"
+
+ER_GRP_RPL_MEMBER_NOT_FOUND
+  eng "The member with address %s:%u has unexpectedly disappeared, killing the current group replication recovery connection"
+
+ER_GRP_RPL_MAXIMUM_CONNECTION_RETRIES_REACHED
+  eng "Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery."
+
+ER_GRP_RPL_ALL_DONORS_LEFT_ABORT_RECOVERY
+  eng "All donors left. Aborting group replication recovery."
+
+ER_GRP_RPL_ESTABLISH_RECOVERY_WITH_DONOR
+  eng "Establishing group recovery connection with a possible donor. Attempt %d/%d"
+
+ER_GRP_RPL_ESTABLISH_RECOVERY_WITH_ANOTHER_DONOR
+  eng "Retrying group recovery connection with another donor. Attempt %d/%d"
+
+ER_GRP_RPL_NO_VALID_DONOR
+  eng "No valid donors exist in the group, retrying"
+
+ER_GRP_RPL_CONFIG_RECOVERY
+  eng "Error when configuring the group recovery connection to the donor."
+
+ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR
+  eng "Establishing connection to a group replication recovery donor %s at %s port: %d."
+
+ER_GRP_RPL_CREATE_GRP_RPL_REC_CHANNEL
+  eng "Error while creating the group replication recovery channel with donor %s at %s port: %d."
+
+ER_GRP_RPL_DONOR_SERVER_CONN
+  eng "There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable."
+
+ER_GRP_RPL_CHECK_STATUS_TABLE
+  eng "For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery."
+
+ER_GRP_RPL_STARTING_GRP_REC
+  eng "Error while starting the group replication recovery receiver/applier threads"
+
+ER_GRP_RPL_DONOR_CONN_TERMINATION
+  eng "Terminating existing group replication donor connection and purging the corresponding logs."
+
+ER_GRP_RPL_STOPPING_GRP_REC
+  eng "Error when stopping the group replication recovery's donor connection"
+
+ER_GRP_RPL_PURGE_REC
+  eng "Error when purging the group replication recovery's relay logs"
+
+ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_APPLIER
+  eng "Unable to kill the current group replication recovery donor connection after an applier error. Recovery will shutdown."
+
+ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_FAILOVER
+  eng "Unable to kill the current group replication recovery donor connection during failover. Recovery will shutdown."
+
+ER_GRP_RPL_FAILED_TO_NOTIFY_GRP_MEMBERSHIP_EVENT
+  eng "Unexpected error when notifying an internal component named %s regarding a group membership event."
+
+ER_GRP_RPL_FAILED_TO_BROADCAST_GRP_MEMBERSHIP_NOTIFICATION
+  eng "An undefined error was found while broadcasting an internal group membership notification! This is likely to happen if your components or plugins are not properly loaded or are malfunctioning!"
+
+ER_GRP_RPL_FAILED_TO_BROADCAST_MEMBER_STATUS_NOTIFICATION
+  eng "An undefined error was found while broadcasting an internal group member status notification! This is likely to happen if your components or plugins are not properly loaded or are malfunctioning!"
+
+ER_GRP_RPL_OOM_FAILED_TO_GENERATE_IDENTIFICATION_HASH
+  eng "No memory to generate write identification hash"
+
+ER_GRP_RPL_WRITE_IDENT_HASH_BASE64_ENCODING_FAILED
+  eng "Base 64 encoding of the write identification hash failed"
+
+ER_GRP_RPL_INVALID_BINLOG_FORMAT
+  eng "Binlog format should be ROW for Group Replication"
+
+ER_GRP_RPL_BINLOG_CHECKSUM_SET
+  eng "binlog_checksum should be NONE for Group Replication"
+
+ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET
+  eng "A transaction_write_set_extraction algorithm should be selected when running Group Replication"
+
+ER_GRP_RPL_UNSUPPORTED_TRANS_ISOLATION
+  eng "Transaction isolation level (tx_isolation) is set to SERIALIZABLE, which is not compatible with Group Replication"
+
+ER_GRP_RPL_CANNOT_EXECUTE_TRANS_WHILE_STOPPING
+  eng "Transaction cannot be executed while Group Replication is stopping."
+
+ER_GRP_RPL_CANNOT_EXECUTE_TRANS_WHILE_RECOVERING
+  eng "Transaction cannot be executed while Group Replication is recovering. Try again when the server is ONLINE."
+
+ER_GRP_RPL_CANNOT_EXECUTE_TRANS_IN_ERROR_STATE
+  eng "Transaction cannot be executed while Group Replication is on ERROR state. Check for errors and restart the plugin"
+
+ER_GRP_RPL_CANNOT_EXECUTE_TRANS_IN_OFFLINE_MODE
+  eng "Transaction cannot be executed while Group Replication is OFFLINE. Check for errors and restart the plugin"
+
+ER_GRP_RPL_MULTIPLE_CACHE_TYPE_NOT_SUPPORTED_FOR_SESSION
+  eng "We can only use one cache type at a time on session %u"
+
+ER_GRP_RPL_FAILED_TO_REINIT_BINLOG_CACHE_FOR_READ
+  eng "Failed to reinit binlog cache log for read on session %u"
+
+ER_GRP_RPL_FAILED_TO_CREATE_TRANS_CONTEXT
+  eng "Failed to create the context of the current transaction on session %u"
+
+ER_GRP_RPL_FAILED_TO_EXTRACT_TRANS_WRITE_SET
+  eng "Failed to extract the set of items written during the execution of the current transaction on session %u"
+
+ER_GRP_RPL_FAILED_TO_GATHER_TRANS_WRITE_SET
+  eng "Failed to gather the set of items written during the execution of the current transaction on session %u"
+
+ER_GRP_RPL_TRANS_SIZE_EXCEEDS_LIMIT
+  eng "Error on session %u. Transaction of size %llu exceeds specified limit %lu. To increase the limit please adjust group_replication_transaction_size_limit option."
+
+ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_READ_FAILED
+  eng "Error while re-initializing an internal cache, for read operations, on session %u"
+
+ER_GRP_RPL_APPENDING_DATA_TO_INTERNAL_CACHE_FAILED
+  eng "Error while appending data to an internal cache on session %u"
+
+ER_GRP_RPL_WRITE_TO_BINLOG_CACHE_FAILED
+  eng "Error while writing binary log cache on session %u"
+
+ER_GRP_RPL_FAILED_TO_REGISTER_TRANS_OUTCOME_NOTIFICTION
+  eng "Unable to register for getting notifications regarding the outcome of the transaction on session %u"
+
+ER_GRP_RPL_MSG_TOO_LONG_BROADCASTING_TRANS_FAILED
+  eng "Error broadcasting transaction to the group on session %u. Message is too big."
+
+ER_GRP_RPL_BROADCASTING_TRANS_TO_GRP_FAILED
+  eng "Error while broadcasting the transaction to the group on session %u"
+
+ER_GRP_RPL_ERROR_WHILE_WAITING_FOR_CONFLICT_DETECTION
+  eng "Error while waiting for conflict detection procedure to finish on session %u"
+
+ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_WRITE_FAILED
+  eng "Error while re-initializing an internal cache, for write operations, on session %u"
+
+ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE
+  eng "Failed to create group replication commit cache on session %u"
+
+ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED
+  eng "Failed to reinit group replication commit cache for write on session %u"
+
+ER_GRP_RPL_PREV_REC_SESSION_RUNNING
+  eng "A previous recovery session is still running. Please stop the group replication plugin and wait for it to stop"
+
+ER_GRP_RPL_FATAL_REC_PROCESS
+  eng "Fatal error during the recovery process of Group Replication. The server will leave the group."
+
+ER_GRP_RPL_WHILE_STOPPING_REP_CHANNEL
+  eng "Error stopping all replication channels while server was leaving the group. %s"
+
+ER_GRP_RPL_UNABLE_TO_EVALUATE_APPLIER_STATUS
+  eng "Unable to evaluate the group replication applier execution status. Group replication recovery will shutdown to avoid data corruption."
+
+ER_GRP_RPL_ONLY_ONE_SERVER_ALIVE
+  eng "Only one server alive. Declaring this server as online within the replication group"
+
+ER_GRP_RPL_CERTIFICATION_REC_PROCESS
+  eng "Error when processing certification information in the recovery process"
+
+ER_GRP_RPL_UNABLE_TO_ENSURE_EXECUTION_REC
+  eng "Unable to ensure the execution of group transactions received during recovery."
+
+ER_GRP_RPL_WHILE_SENDING_MSG_REC
+  eng "Error while sending message for group replication recovery"
+
+ER_GRP_RPL_READ_UNABLE_FOR_SUPER_READ_ONLY
+  eng "Unable to read the server value for the super_read_only variable."
+
+ER_GRP_RPL_READ_UNABLE_FOR_READ_ONLY_SUPER_READ_ONLY
+  eng "Unable to read the server values for the read_only and super_read_only variables."
+
+ER_GRP_RPL_UNABLE_TO_RESET_SERVER_READ_MODE
+  eng "Unable to reset the server read mode settings. Try to reset them manually."
+
+ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS
+  eng "Due to a plugin error, some transactions were unable to be certified and will now rollback."
+
+ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS
+  eng "Error when trying to unblock non certified transactions. Check for consistency errors when restarting the service"
+
+ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
+  eng "This server is working as secondary member with primary member address %s:%u."
+
+ER_GRP_RPL_FAILED_TO_START_WITH_INVALID_SERVER_ID
+  eng "Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with server_id=0. Please, restart the server with server_id larger than 0."
+
+ER_GRP_RPL_FORCE_MEMBERS_MUST_BE_EMPTY
+  eng "group_replication_force_members must be empty on group start. Current value: '%s'"
+
+ER_GRP_RPL_PLUGIN_STRUCT_INIT_NOT_POSSIBLE_ON_SERVER_START
+  eng "It was not possible to guarantee the initialization of plugin structures on server start"
+
+ER_GRP_RPL_FAILED_TO_ENABLE_SUPER_READ_ONLY_MODE
+  eng "Could not enable the server read only mode and guarantee a safe recovery execution"
+
+ER_GRP_RPL_FAILED_TO_INIT_COMMUNICATION_ENGINE
+  eng "Error on group communication engine initialization"
+
+ER_GRP_RPL_FAILED_TO_START_ON_SECONDARY_WITH_ASYNC_CHANNELS
+  eng "Can't start group replication on secondary member with single-primary mode while asynchronous replication channels are running."
+
+ER_GRP_RPL_FAILED_TO_START_COMMUNICATION_ENGINE
+  eng "Error on group communication engine start"
+
+ER_GRP_RPL_TIMEOUT_ON_VIEW_AFTER_JOINING_GRP
+  eng "Timeout on wait for view after joining group"
+
+ER_GRP_RPL_FAILED_TO_CALL_GRP_COMMUNICATION_INTERFACE
+  eng "Error calling group communication interfaces"
+
+ER_GRP_RPL_MEMBER_SERVER_UUID_IS_INCOMPATIBLE_WITH_GRP
+  eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_name %s."
+
+ER_GRP_RPL_MEMBER_CONF_INFO
+  eng "Member configuration: member_id: %lu; member_uuid: \"%s\"; single-primary mode: \"%s\"; group_replication_auto_increment_increment: %lu; "
+
+ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP
+  eng "Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information."
+
+ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING
+  eng "Skipping leave operation: concurrent attempt to leave the group is on-going."
+
+ER_GRP_RPL_SERVER_ALREADY_LEFT
+  eng "Skipping leave operation: member already left the group."
+
+ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE
+  eng "Going to wait for view modification"
+
+ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN
+  eng "On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details"
+
+ER_GRP_RPL_REQUESTING_NON_MEMBER_SERVER_TO_LEAVE
+  eng "Requesting to leave the group despite of not being a member"
+
+ER_GRP_RPL_IS_STOPPING
+  eng "Plugin 'group_replication' is stopping."
+
+ER_GRP_RPL_IS_STOPPED
+  eng "Plugin 'group_replication' has been stopped."
+
+ER_GRP_RPL_FAILED_TO_ENABLE_READ_ONLY_MODE_ON_SHUTDOWN
+  eng "On plugin shutdown it was not possible to enable the server read only mode. Local transactions will be accepted and committed."
+
+ER_GRP_RPL_RECOVERY_MODULE_TERMINATION_TIMED_OUT_ON_SHUTDOWN
+  eng "On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details"
+
+ER_GRP_RPL_APPLIER_TERMINATION_TIMED_OUT_ON_SHUTDOWN
+  eng "On shutdown there was a timeout on the Group Replication applier termination."
+
+ER_GRP_RPL_FAILED_TO_SHUTDOWN_REGISTRY_MODULE
+  eng "Unexpected failure while shutting down registry module!"
+
+ER_GRP_RPL_FAILED_TO_INIT_HANDLER
+  eng "Failure during Group Replication handler initialization"
+
+ER_GRP_RPL_FAILED_TO_REGISTER_SERVER_STATE_OBSERVER
+  eng "Failure when registering the server state observers"
+
+ER_GRP_RPL_FAILED_TO_REGISTER_TRANS_STATE_OBSERVER
+  eng "Failure when registering the transactions state observers"
+
+ER_GRP_RPL_FAILED_TO_REGISTER_BINLOG_STATE_OBSERVER
+  eng "Failure when registering the binlog state observers"
+
+ER_GRP_RPL_FAILED_TO_START_ON_BOOT
+  eng "Unable to start Group Replication on boot"
+
+ER_GRP_RPL_FAILED_TO_STOP_ON_PLUGIN_UNINSTALL
+  eng "Failure when stopping Group Replication on plugin uninstall"
+
+ER_GRP_RPL_FAILED_TO_UNREGISTER_SERVER_STATE_OBSERVER
+  eng "Failure when unregistering the server state observers"
+
+ER_GRP_RPL_FAILED_TO_UNREGISTER_TRANS_STATE_OBSERVER
+  eng "Failure when unregistering the transactions state observers"
+
+ER_GRP_RPL_FAILED_TO_UNREGISTER_BINLOG_STATE_OBSERVER
+  eng "Failure when unregistering the binlog state observers"
+
+ER_GRP_RPL_ALL_OBSERVERS_UNREGISTERED
+  eng "All Group Replication server observers have been successfully unregistered"
+
+ER_GRP_RPL_FAILED_TO_PARSE_THE_GRP_NAME
+  eng "Unable to parse the group name."
+
+ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP
+  eng "Unable to parse the group name."
+
+ER_GRP_RPL_APPLIER_NOT_STARTED_DUE_TO_RUNNING_PREV_SHUTDOWN
+  eng "Cannot start the Group Replication applier as a previous shutdown is still running: The thread will stop once its task is complete."
+
+ER_GRP_RPL_FAILED_TO_INIT_APPLIER_MODULE
+  eng "Unable to initialize the Group Replication applier module."
+
+ER_GRP_RPL_APPLIER_INITIALIZED
+  eng "Group Replication applier module successfully initialized!"
+
+ER_GRP_RPL_COMMUNICATION_SSL_CONF_INFO
+  eng "Group communication SSL configuration: group_replication_ssl_mode: \"%s\"; server_key_file: \"%s\"; server_cert_file: \"%s\"; client_key_file: \"%s\"; client_cert_file: \"%s\"; ca_file: \"%s\"; ca_path: \"%s\"; cipher: \"%s\"; tls_version: \"%s\"; crl_file: \"%s\"; crl_path: \"%s\""
+
+ER_GRP_RPL_ABORTS_AS_SSL_NOT_SUPPORTED_BY_MYSQLD
+  eng "MySQL server does not have SSL support and group_replication_ssl_mode is \"%s\", START GROUP_REPLICATION will abort"
+
+ER_GRP_RPL_SSL_DISABLED
+  eng "Group communication SSL configuration: group_replication_ssl_mode: \"%s\""
+
+ER_GRP_RPL_UNABLE_TO_INIT_COMMUNICATION_ENGINE
+  eng "Unable to initialize the group communication engine"
+
+ER_GRP_RPL_BINLOG_DISABLED
+  eng "Binlog must be enabled for Group Replication"
+
+ER_GRP_RPL_GTID_MODE_OFF
+  eng "Gtid mode should be ON for Group Replication"
+
+ER_GRP_RPL_LOG_SLAVE_UPDATES_NOT_SET
+  eng "LOG_SLAVE_UPDATES should be ON for Group Replication"
+
+ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE
+  eng "Extraction of transaction write sets requires an hash algorithm configuration. Please, double check that the parameter transaction-write-set-extraction is set to a valid algorithm."
+
+ER_GRP_RPL_RELAY_LOG_INFO_REPO_MUST_BE_TABLE
+  eng "Relay log info repository must be set to TABLE"
+
+ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE
+  eng "Master info repository must be set to TABLE."
+
+ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER
+  eng "In order to use parallel applier on Group Replication, parameter slave-parallel-type must be set to 'LOGICAL_CLOCK'."
+
+ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET
+  eng "Group Replication requires slave-preserve-commit-order to be set to ON when using more than 1 applier threads."
+
+ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE
+  eng "It is not allowed to run single primary mode with 'enforce_update_everywhere_checks' enabled."
+
+ER_GRP_RPL_MODULE_TERMINATE_ERROR
+  eng "error_message: %s"
+
+ER_GRP_RPL_GRP_NAME_OPTION_MANDATORY
+  eng "The group name option is mandatory"
+
+ER_GRP_RPL_GRP_NAME_IS_TOO_LONG
+  eng "The group name '%s' is not a valid UUID, its length is too big"
+
+ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID
+  eng "The group name '%s' is not a valid UUID"
+
+ER_GRP_RPL_FLOW_CTRL_MIN_QUOTA_GREATER_THAN_MAX_QUOTA
+  eng "group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota"
+
+ER_GRP_RPL_FLOW_CTRL_MIN_RECOVERY_QUOTA_GREATER_THAN_MAX_QUOTA
+  eng "group_replication_flow_control_min_recovery_quota cannot be larger than group_replication_flow_control_max_quota"
+
+ER_GRP_RPL_FLOW_CTRL_MAX_QUOTA_SMALLER_THAN_MIN_QUOTAS
+  eng "group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota"
+
+ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING
+  eng "The given value for recovery ssl option '%s' is invalid as its length is beyond the limit"
+
+ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET
+  eng "There is one group_replication_force_members operation already ongoing"
+
+ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED
+  eng "group_replication_force_members can only be updated when Group Replication is running and a majority of the members are unreachable"
+
+ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF
+  eng "Initialized group communication with configuration: group_replication_group_name: '%s'; group_replication_local_address: '%s'; group_replication_group_seeds: '%s'; group_replication_bootstrap_group: '%s'; group_replication_poll_spin_loops: %lu; group_replication_compression_threshold: %lu; group_replication_ip_whitelist: '%s'; group_replication_communication_debug_options: '%s'"
+
+ER_GRP_RPL_UNKNOWN_GRP_RPL_APPLIER_PIPELINE_REQUESTED
+  eng "Unknown group replication applier pipeline requested"
+
+ER_GRP_RPL_FAILED_TO_BOOTSTRAP_EVENT_HANDLING_INFRASTRUCTURE
+  eng "Unable to bootstrap group replication event handling infrastructure. Unknown handler type: %d"
+
+ER_GRP_RPL_APPLIER_HANDLER_NOT_INITIALIZED
+  eng "One of the group replication applier handlers is null due to an initialization error"
+
+ER_GRP_RPL_APPLIER_HANDLER_IS_IN_USE
+  eng "A group replication applier handler, marked as unique, is already in use."
+
+ER_GRP_RPL_APPLIER_HANDLER_ROLE_IS_IN_USE
+  eng "A group replication applier handler role, that was marked as unique, is already in use."
+
+ER_GRP_RPL_FAILED_TO_INIT_APPLIER_HANDLER
+  eng "Error on group replication applier handler initialization"
+
+ER_GRP_RPL_SQL_SERVICE_FAILED_TO_INIT_SESSION_THREAD
+  eng "Error when initializing a session thread for internal server connection."
+
+ER_GRP_RPL_SQL_SERVICE_COMM_SESSION_NOT_INITIALIZED
+  eng "Error running internal SQL query: %s. The internal server communication session is not initialized"
+
+ER_GRP_RPL_SQL_SERVICE_SERVER_SESSION_KILLED
+  eng "Error running internal SQL query: %s. The internal server session was killed or server is shutting down."
+
+ER_GRP_RPL_SQL_SERVICE_FAILED_TO_RUN_SQL_QUERY
+  eng "Error running internal SQL query: %s. Got internal SQL error: %s(%d)"
+
+ER_GRP_RPL_SQL_SERVICE_SERVER_INTERNAL_FAILURE
+  eng "Error running internal SQL query: %s. Internal failure."
+
+ER_GRP_RPL_SQL_SERVICE_RETRIES_EXCEEDED_ON_SESSION_STATE
+  eng "Error, maximum number of retries exceeded when waiting for the internal server session state to be operating"
+
+ER_GRP_RPL_SQL_SERVICE_FAILED_TO_FETCH_SECURITY_CTX
+  eng "Error when trying to fetch security context when contacting the server for internal plugin requests."
+
+ER_GRP_RPL_SQL_SERVICE_SERVER_ACCESS_DENIED_FOR_USER
+  eng "There was an error when trying to access the server with user: %s. Make sure the user is present in the server and that mysql_upgrade was run after a server update."
+
+ER_GRP_RPL_SQL_SERVICE_MAX_CONN_ERROR_FROM_SERVER
+  eng "Failed to establish an internal server connection to execute plugin operations since the server does not have available connections, please increase @@GLOBAL.MAX_CONNECTIONS. Server error: %i."
+
+ER_GRP_RPL_SQL_SERVICE_SERVER_ERROR_ON_CONN
+  eng "Failed to establish an internal server connection to execute plugin operations. Server error: %i. Server error message: %s"
+
+ER_GRP_RPL_UNREACHABLE_MAJORITY_TIMEOUT_FOR_MEMBER
+  eng "This member could not reach a majority of the members for more than %ld seconds. The member will now leave the group as instructed by the group_replication_unreachable_majority_timeout option."
+
+ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS
+  eng "The server was automatically set into read only mode after an error was detected."
+
+ER_GRP_RPL_GMS_LISTENER_FAILED_TO_LOG_NOTIFICATION
+  eng "Unable to log notification to table (errno: %lu) (res: %d)! Message: %s"
+
+ER_GRP_RPL_GRP_COMMUNICATION_ENG_INIT_FAILED
+  eng "Failure in group communication engine '%s' initialization"
+
+ER_GRP_RPL_SET_GRP_COMMUNICATION_ENG_LOGGER_FAILED
+  eng "Unable to set the group communication engine logger"
+
+ER_GRP_RPL_DEBUG_OPTIONS
+  eng "Current debug options are: '%s'."
+
+ER_GRP_RPL_INVALID_DEBUG_OPTIONS
+  eng "Some debug options in '%s' are not valid."
+
+ER_GRP_RPL_EXIT_GRP_GCS_ERROR
+  eng "Error calling group communication interfaces while trying to leave the group"
+
+ER_GRP_RPL_GRP_MEMBER_OFFLINE
+  eng "Member is OFFLINE, it is not possible to force a new group membership"
+
+ER_GRP_RPL_GCS_INTERFACE_ERROR
+  eng "Error calling group communication interfaces"
+
+ER_GRP_RPL_FORCE_MEMBER_VALUE_SET_ERROR
+  eng "Error setting group_replication_force_members value '%s' on group communication interfaces"
+
+ER_GRP_RPL_FORCE_MEMBER_VALUE_SET
+  eng "The group_replication_force_members value '%s' was set in the group communication interfaces"
+
+ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT
+  eng "Timeout on wait for view after setting group_replication_force_members value '%s' into group communication interfaces"
+
+ER_GRP_RPL_BROADCAST_COMMIT_MSSG_TOO_BIG
+  eng "Broadcast of committed transactions message failed. Message is too big."
+
+ER_GRP_RPL_SEND_STATS_ERROR
+  eng "Error while sending stats message"
+
+ER_GRP_RPL_MEMBER_STATS_INFO
+  eng "Flow control - update member stats: %s stats certifier_queue %d, applier_queue %d certified %ld (%ld), applied %ld (%ld), local %ld (%ld), quota %ld (%ld) mode=%d"
+
+ER_GRP_RPL_FLOW_CONTROL_STATS
+  eng "Flow control: throttling to %ld commits per %ld sec, with %d writing and %d non-recovering members, min capacity %lld, lim throttle %lld"
+
+ER_GRP_RPL_UNABLE_TO_CONVERT_PACKET_TO_EVENT
+  eng "Unable to convert a packet into an event on the applier. Error: %s"
+
+ER_GRP_RPL_PIPELINE_CREATE_FAILED
+  eng "Failed to create group replication pipeline cache."
+
+ER_GRP_RPL_PIPELINE_REINIT_FAILED_WRITE
+  eng "Failed to reinit group replication pipeline cache for write."
+
+ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET
+  eng "Unable to convert the event into a packet on the applier. Error: %s"
+
+ER_GRP_RPL_PIPELINE_FLUSH_FAIL
+  eng "Failed to flush group replication pipeline cache."
+
+ER_GRP_RPL_PIPELINE_REINIT_FAILED_READ
+  eng "Failed to reinit group replication pipeline cache for read."
+
+ER_GRP_RPL_STOP_REP_CHANNEL
+  eng "Error stopping all replication channels while server was leaving the group. Got error: %d. Please check the error log for more details."
+
+ER_GRP_RPL_GCS_GR_ERROR_MSG
+  eng "%s"
+
+ER_GRP_RPL_SLAVE_IO_THREAD_UNBLOCKED
+  eng "The slave IO thread of channel '%s' is unblocked as the member is declared ONLINE now."
+
+ER_GRP_RPL_SLAVE_IO_THREAD_ERROR_OUT
+  eng "The slave IO thread of channel '%s' will error out as the member failed to come ONLINE."
+
+ER_GRP_RPL_SLAVE_APPLIER_THREAD_UNBLOCKED
+  eng "The slave applier thread of channel '%s' is unblocked as the member is declared ONLINE now."
+
+ER_GRP_RPL_SLAVE_APPLIER_THREAD_ERROR_OUT
+  eng "The slave applier thread of channel '%s' will error out as the member failed to come ONLINE."
+
+ER_LDAP_AUTH_FAILED_TO_CREATE_OR_GET_CONNECTION
+  eng "LDAP authentication initialize: failed to create/ get connection from the pool. "
+
+ER_LDAP_AUTH_DEINIT_FAILED
+  eng "LDAP authentication de_initialize Failed"
+
+ER_LDAP_AUTH_SKIPPING_USER_GROUP_SEARCH
+  eng "Skipping group search, No group attribute mentioned"
+
+ER_LDAP_AUTH_POOL_DISABLE_MAX_SIZE_ZERO
+  eng "Pool max size is 0, connection pool is disabled"
+
+ER_LDAP_AUTH_FAILED_TO_CREATE_LDAP_OBJECT_CREATOR
+  eng "Connection pool initialization, failed to create LDAP object creator"
+
+ER_LDAP_AUTH_FAILED_TO_CREATE_LDAP_OBJECT
+  eng "Connection pool initialization, failed to create LDAP object"
+
+ER_LDAP_AUTH_TLS_CONF
+  eng "LDAP TLS configuration"
+
+ER_LDAP_AUTH_TLS_CONNECTION
+  eng "LDAP TLS connection"
+
+ER_LDAP_AUTH_CONN_POOL_NOT_CREATED
+  eng "LDAP pool is not created."
+
+ER_LDAP_AUTH_CONN_POOL_INITIALIZING
+  eng "LDAP pool is initializing"
+
+ER_LDAP_AUTH_CONN_POOL_DEINITIALIZING
+  eng "LDAP pool is de-initializing"
+
+ER_LDAP_AUTH_ZERO_MAX_POOL_SIZE_UNCHANGED
+  eng "Pool max size old and new values are 0"
+
+ER_LDAP_AUTH_POOL_REINITIALIZING
+  eng "LDAP pool is re-initializing"
+
+ER_LDAP_AUTH_FAILED_TO_WRITE_PACKET
+  eng "Plug-in has failed to write the packet."
+
+ER_LDAP_AUTH_SETTING_USERNAME
+  eng "Setting LDAP user name as : %s"
+
+ER_LDAP_AUTH_USER_AUTH_DATA
+  eng "User authentication data: %s size: %lu"
+
+ER_LDAP_AUTH_INFO_FOR_USER
+  eng "User is authenticated as: %s external user: %s"
+
+ER_LDAP_AUTH_USER_GROUP_SEARCH_INFO
+  eng "Group search information: %s scope: %d filter: %s"
+
+ER_LDAP_AUTH_USER_NOT_FOUND_IN_ANY_GRP
+  eng "User %s is not member of any group."
+
+ER_LDAP_AUTH_USER_FOUND_IN_MANY_GRPS
+  eng "User %s is member of more than one group"
+
+ER_LDAP_AUTH_USER_HAS_MULTIPLE_GRP_NAMES
+  eng "For user %s has multiple user group names. Please check if group attribute name is correct"
+
+ER_LDAP_AUTH_SEARCHED_USER_GRP_NAME
+  eng "Searched group name: %s"
+
+ER_LDAP_AUTH_OBJECT_CREATE_TIMESTAMP
+  eng "LDAP authentication object creation time_stamp: %s dn: %s"
+
+ER_LDAP_AUTH_CERTIFICATE_NAME
+  eng "Certificate name: %s"
+
+ER_LDAP_AUTH_FAILED_TO_POOL_DEINIT
+  eng "Failed to pool de-initialized: pool is already reconstructing"
+
+ER_LDAP_AUTH_FAILED_TO_INITIALIZE_POOL_IN_RECONSTRUCTING
+  eng "Pool initialization failed: pool is already initialized"
+
+ER_LDAP_AUTH_FAILED_TO_INITIALIZE_POOL_IN_INIT_STATE
+  eng "Pool initialization failed: pool is initializing"
+
+ER_LDAP_AUTH_FAILED_TO_INITIALIZE_POOL_IN_DEINIT_STATE
+  eng "Pool initialization failed: pool is de-initializing"
+
+ER_LDAP_AUTH_FAILED_TO_DEINITIALIZE_POOL_IN_RECONSTRUCT_STATE
+  eng "Failed to pool deinitialized: pool is already reconstructing"
+
+ER_LDAP_AUTH_FAILED_TO_DEINITIALIZE_NOT_READY_POOL
+  eng "Failed to pool deinitialized : pool is not ready"
+
+ER_LDAP_AUTH_FAILED_TO_GET_CONNECTION_AS_PLUGIN_NOT_READY
+  eng "Ldap_connection_pool::get: Failed to return connection as plug-in is not ready/initializing/de-initializing"
+
+ER_LDAP_AUTH_CONNECTION_POOL_INIT_FAILED
+  eng "Connection pool has failed to initialized"
+
+ER_LDAP_AUTH_MAX_ALLOWED_CONNECTION_LIMIT_HIT
+  eng "Ldap_connetion_pool::get LDAP maximum connection allowed size is reached. Increase the maximum limit."
+
+ER_LDAP_AUTH_MAX_POOL_SIZE_SET_FAILED
+  eng "Set max pool size failed."
+
+ER_LDAP_AUTH_PLUGIN_FAILED_TO_READ_PACKET
+  eng "Plug-in has failed to read the packet from client"
+
+ER_LDAP_AUTH_CREATING_LDAP_CONNECTION
+  eng "Ldap_authentication::initialize: creating new LDAP connection. "
+
+ER_LDAP_AUTH_GETTING_CONNECTION_FROM_POOL
+  eng "Ldap_authentication::initialize: getting connection from pool. "
+
+ER_LDAP_AUTH_RETURNING_CONNECTION_TO_POOL
+  eng "Ldap_authentication::de_initialize putting back connection in the pool"
+
+ER_LDAP_AUTH_SEARCH_USER_GROUP_ATTR_NOT_FOUND
+  eng "Ldap_authentication::search_user_group no group attribute found"
+
+ER_LDAP_AUTH_LDAP_INFO_NULL
+  eng "Ldap_connetion_pool::put ldap info null"
+
+ER_LDAP_AUTH_FREEING_CONNECTION
+  eng "Ldap_connection_pool::put connection is freeing. "
+
+ER_LDAP_AUTH_CONNECTION_PUSHED_TO_POOL
+  eng "Ldap_connection_pool::put connection in pushed in the pool"
+
+ER_LDAP_AUTH_CONNECTION_CREATOR_ENTER
+  eng "Ldap_connection_creator::Ldap_connection_creator"
+
+ER_LDAP_AUTH_STARTING_TLS
+  eng "starting TLS"
+
+ER_LDAP_AUTH_CONNECTION_GET_LDAP_INFO_NULL
+  eng "Ldap_connection_pool::get: (ldap_info == NULL)|| (*ldap_info)"
+
+ER_LDAP_AUTH_DELETING_CONNECTION_KEY
+  eng "Ldap_connection_pool::deinit: deleting connection key %s"
+
+ER_LDAP_AUTH_POOLED_CONNECTION_KEY
+  eng " Ldap_connection_pool::get pooled connection key: %s"
+
+ER_LDAP_AUTH_CREATE_CONNECTION_KEY
+  eng "Ldap_connection_pool::get create connection key: %s"
+
+ER_LDAP_AUTH_COMMUNICATION_HOST_INFO
+  eng "LDAP communication host %s port %u"
+
+ER_LDAP_AUTH_METHOD_TO_CLIENT
+  eng "Sending authentication method to client : %s"
+
+ER_LDAP_AUTH_SASL_REQUEST_FROM_CLIENT
+  eng "SASL request received from mysql client: %s"
+
+ER_LDAP_AUTH_SASL_PROCESS_SASL
+  eng "Ldap_sasl_authentication::process_sasl rc: %s"
+
+ER_LDAP_AUTH_SASL_BIND_SUCCESS_INFO
+  eng "Ldap_sasl_authentication::process_sasl sasl bind succeed. dn: %s method: %s server credential: %s"
+
+ER_LDAP_AUTH_STARTED_FOR_USER
+  eng "LDAP authentication started for user name: %s"
+
+ER_LDAP_AUTH_DISTINGUISHED_NAME
+  eng "%s"
+
+ER_LDAP_AUTH_INIT_FAILED
+  eng "LDAP authentication initialize is failed with: %s"
+
+ER_LDAP_AUTH_OR_GROUP_RETRIEVAL_FAILED
+  eng "LDAP authentication failed or group retrieval failed: %s"
+
+ER_LDAP_AUTH_USER_GROUP_SEARCH_FAILED
+  eng "Search user group has failed: %s"
+
+ER_LDAP_AUTH_USER_BIND_FAILED
+  eng "LDAP user bind has failed: %s"
+
+ER_LDAP_AUTH_POOL_GET_FAILED_TO_CREATE_CONNECTION
+  eng "Connection pool get: Failed to create LDAP connection. %s"
+
+ER_LDAP_AUTH_FAILED_TO_CREATE_LDAP_CONNECTION
+  eng "Failed to create new LDAP connection:  %s"
+
+ER_LDAP_AUTH_FAILED_TO_ESTABLISH_TLS_CONNECTION
+  eng "Failed to establish TLS connection:  %s"
+
+ER_LDAP_AUTH_FAILED_TO_SEARCH_DN
+  eng "Failed to search user full dn: %s"
+
+ER_LDAP_AUTH_CONNECTION_POOL_REINIT_ENTER
+  eng "Ldap_connection_pool::reinit"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

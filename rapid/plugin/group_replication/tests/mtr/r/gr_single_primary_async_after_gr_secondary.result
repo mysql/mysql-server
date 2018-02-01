@@ -42,8 +42,8 @@ START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
 include/wait_for_slave_sql_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
 
 # 5. Verify occurrence of error message
-Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member' in the input file: 2
-Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member' in the input file: 2
+Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
+Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
 
 # 6. Verify channel ch3_2 IO & SQL THREAD is OFF
 include/assert.inc [Verify channel ch3_2 IO_THREAD is OFF]

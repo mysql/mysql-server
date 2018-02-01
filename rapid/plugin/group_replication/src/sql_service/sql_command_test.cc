@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,8 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/sql_service/sql_command_test.h"
 
 /*
@@ -59,7 +59,7 @@ void check_sql_command_create(Sql_service_interface *srvi)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL, "query execution resulted in failure. errno: %d", srv_err); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL, srv_err); /* purecov: inspected */
   }
 }
 
@@ -88,7 +88,7 @@ void check_sql_command_insert(Sql_service_interface *srvi)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL, "query execution resulted in failure. errno: %d", srv_err); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL, srv_err); /* purecov: inspected */
   }
 }
 
@@ -118,7 +118,7 @@ void check_sql_command_update(Sql_service_interface *srvi)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL, "query execution resulted in failure. errno: %d", srv_err); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL, srv_err); /* purecov: inspected */
   }
 }
 
@@ -135,7 +135,7 @@ void check_sql_command_drop(Sql_service_interface *srvi)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL, "query execution resulted in failure. errno: %d", srv_err); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL, srv_err); /* purecov: inspected */
   }
 }
 
@@ -147,8 +147,7 @@ int sql_command_check()
   if (srvi == NULL)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Unable to create a session for executing the"
-                " queries on the server");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CREATE_SESSION_UNABLE); /* purecov: inspected */
     return error;
     /* purecov: end */
   }

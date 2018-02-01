@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ public:
     log_debug("UNIX Socket is %s", unix_socket_file.c_str());
 
     if (unix_socket_file.empty()) {
-      log_info("UNIX socket not configured");
+      log_info(ER_XPLUGIN_UNIX_SOCKET_NOT_CONFIGURED);
       error_message = "the socket file path is empty";
 
       return listener_socket;

@@ -61,7 +61,7 @@ ngs::Error_code Sql_data_context::init() {
   if (!m_mysql_session) {
     if (ER_SERVER_ISNT_AVAILABLE == m_last_sql_errno)
       return ngs::Error_code(ER_SERVER_ISNT_AVAILABLE, "Server API not ready");
-    log_error("Could not open internal MySQL session");
+    log_error(ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION);
     return ngs::Error_code(ER_X_SESSION, "Could not open session");
   }
   return ngs::Error_code();
@@ -88,7 +88,7 @@ void Sql_data_context::deinit() {
 
 static void kill_completion_handler(void*, unsigned int sql_errno,
                                     const char *err_msg) {
-  log_warning("Kill client: %i %s", sql_errno, err_msg);
+  log_warning(ER_XPLUGIN_CLIENT_KILL_MSG, sql_errno, err_msg);
 }
 
 bool Sql_data_context::kill() {
@@ -103,12 +103,12 @@ bool Sql_data_context::kill() {
 
       if (thd_get_security_context(srv_session_info_get_thd(session),
                                    &scontext))
-        log_warning("Could not get security context for session");
+        log_warning(ER_XPLUGIN_FAILED_TO_GET_SECURITY_CTX);
       else {
         const char *user = MYSQL_SESSION_USER;
         const char *host = MYSQLXSYS_HOST;
         if (security_context_lookup(scontext, user, host, NULL, NULL))
-          log_warning("Unable to switch security context to root");
+          log_warning(ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX_TO_ROOT);
         else {
           COM_DATA data;
           Callback_command_delegate deleg;
@@ -125,7 +125,7 @@ bool Sql_data_context::kill() {
             if (!deleg.get_error())
               ok = true;
             else
-              log_info("Kill client: %i %s", deleg.get_error().error,
+              log_info(ER_XPLUGIN_CLIENT_KILL_MSG, deleg.get_error().error,
                        deleg.get_error().message.c_str());
           }
         }
@@ -170,7 +170,7 @@ Sql_data_context::~Sql_data_context() {
     log_debug("sqlsession deinit~: %p [%i]", m_mysql_session,
               srv_session_info_get_session_id(m_mysql_session));
   if (m_mysql_session && srv_session_close(m_mysql_session))
-    log_warning("Error closing SQL session");
+    log_warning(ER_XPLUGIN_FAILED_TO_CLOSE_SQL_SESSION);
 }
 
 void Sql_data_context::switch_to_local_user(const std::string &user) {
@@ -193,7 +193,8 @@ ngs::Error_code Sql_data_context::authenticate(
   error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, NULL, NULL);
 
   if (error) {
-    log_error("Unable to switch context to user %s", MYSQL_SESSION_USER);
+    const char *session_user= MYSQL_SESSION_USER;
+    log_error(ER_XPLUGIN_FAILED_TO_SWITCH_CONTEXT, session_user);
     return error;
   }
 
@@ -247,7 +248,7 @@ ngs::Error_code Sql_data_context::authenticate(
     return error;
   }
 
-  log_error("Unable to switch context to user %s", user);
+  log_error(ER_XPLUGIN_FAILED_TO_SWITCH_CONTEXT, user);
 
   return error;
 }

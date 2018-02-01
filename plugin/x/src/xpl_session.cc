@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,8 @@ bool xpl::Session::handle_ready_message(ngs::Request &command)
   catch (std::exception &exc)
   {
     // not supposed to happen, but catch exceptions as a last defense..
-    log_error("%s: Unexpected exception dispatching command: %s\n", m_client.client_id(), exc.what());
+    log_error(ER_XPLUGIN_UNEXPECTED_EXCEPTION_DISPATCHING_CMD,
+              m_client.client_id(), exc.what());
     on_close();
     return true;
   }
@@ -106,7 +107,7 @@ void xpl::Session::on_kill()
   if (!m_sql.is_killed())
   {
     if (!m_sql.kill())
-      log_info("%s: Could not interrupt client session", m_client.client_id());
+      log_info(ER_XPLUGIN_FAILED_TO_INTERRUPT_SESSION, m_client.client_id());
   }
 
   on_close(true);

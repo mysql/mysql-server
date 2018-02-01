@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include <mysql/components/services/group_member_status_listener.h>
 #include <mysql/components/services/group_membership_listener.h>
+#include <mysql/components/services/log_builtins.h>
 
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
@@ -181,10 +182,9 @@ static bool notify(SvcTypes svc_type, Notification_context& ctx)
         !default_notified)
     {
       if (notify_func_ptr(ctx, h_listener_svc))
-        log_message(MY_WARNING_LEVEL,
-                    "Unexpected error when notifying an internal component "
-                    "named %s regarding a group membership event.",
-                    next_svc_name); /* purecov: inspected */
+        LogPluginErr(WARNING_LEVEL,
+                     ER_GRP_RPL_FAILED_TO_NOTIFY_GRP_MEMBERSHIP_EVENT,
+                     next_svc_name); /* purecov: inspected */
 
       default_notified= default_notified ||
         (h_listener_svc == h_listener_default_svc);
@@ -228,11 +228,10 @@ notify_and_reset_ctx(Notification_context& ctx)
     /* notify membership events listeners. */
     if (notify(kGroupMembership, ctx))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "An undefined error was found while broadcasting an "
-                  "internal group membership notification! This is likely "
-                  "to happen if your components or plugins are not properly "
-                  "loaded or are malfunctioning!"); /* purecov: inspected */
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_FAILED_TO_BROADCAST_GRP_MEMBERSHIP_NOTIFICATION);
+      /* purecov: end */
       res= true; /* purecov: inspected */
     }
   }
@@ -242,11 +241,10 @@ notify_and_reset_ctx(Notification_context& ctx)
     /* notify member status events listeners. */
     if (notify(kGroupMemberStatus, ctx))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "An undefined error was found while broadcasting an "
-                  "internal group member status notification! This is likely "
-                  "to happen if your components or plugins are not properly "
-                  "loaded or are malfunctioning!"); /* purecov: inspected */
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_FAILED_TO_BROADCAST_MEMBER_STATUS_NOTIFICATION);
+      /* purecov: end */
       res= true; /* purecov: inspected */
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ ngs::Error_code Admin_command_handler::Command_handler::execute(
     return (admin->*(iter->second))(to_lower(name_space), args);
   }
   catch (std::exception &e) {
-    log_error("Error executing admin command %s: %s", command.c_str(),
+    log_error(ER_XPLUGIN_FAILED_TO_EXECUTE_ADMIN_CMD, command.c_str(),
               e.what());
     return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
   }
@@ -97,7 +97,7 @@ ngs::Error_code Admin_command_handler::execute(const std::string &name_space,
                       "before executing this statement.");
 
   if (command.empty()) {
-    log_error("Error executing empty admin command");
+    log_error(ER_XPLUGIN_EMPTY_ADMIN_CMD);
     return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
   }
 
@@ -513,7 +513,7 @@ T get_system_variable(ngs::Sql_session_interface *da,
   try {
     result.query(("SELECT @@" + variable).c_str());
     if (result.size() != 1) {
-      log_error("Unable to retrieve system variable '%s'", variable.c_str());
+      log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR, variable.c_str());
       return T();
     }
     T value = T();
@@ -521,7 +521,7 @@ T get_system_variable(ngs::Sql_session_interface *da,
     return value;
   }
   catch (const ngs::Error_code &) {
-    log_error("Unable to retrieve system variable '%s'", variable.c_str());
+    log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR, variable.c_str());
     return T();
   }
 }

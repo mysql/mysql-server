@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ bool Registrator::unregistration(const std::string &udf_name) {
   int was_present = 0;
   if (!m_registrator.is_valid() ||
       m_registrator->udf_unregister(udf_name.c_str(), &was_present)) {
-    log_error("Can't unregister '%s' user defined function", udf_name.c_str());
+    log_error(ER_XPLUGIN_FAILED_TO_UNREGISTER_UDF, udf_name.c_str());
     return false;
   }
   return true;

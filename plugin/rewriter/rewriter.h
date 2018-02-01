@@ -1,6 +1,6 @@
 #ifndef REWRITER_INCLUDED
 #define REWRITER_INCLUDED
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -52,13 +52,6 @@ class Rewriter {
 
 public:
 
-  enum Load_status {
-    REWRITER_OK,
-    REWRITER_ERROR_TABLE_MALFORMED,
-    REWRITER_ERROR_LOAD_FAILED,
-    REWRITER_ERROR_READ_FAILED
-  };
-
   Rewriter();
 
   /**
@@ -78,7 +71,7 @@ public:
   Rewrite_result rewrite_query(MYSQL_THD thd, const uchar* key);
 
   /// Empty the hashtable and reload all rules from disk table.
-  Load_status refresh(MYSQL_THD thd);
+  longlong refresh(MYSQL_THD thd);
 
   /**
     Implementation of the loading procedure. The server doesn't handle
@@ -91,7 +84,7 @@ public:
   void do_refresh(MYSQL_THD session_thd);
 
 private:
-  Rewriter::Load_status m_refresh_status;
+  longlong m_refresh_status;
 
   /// The in-memory rules hash table.
   malloc_unordered_multimap<std::string, std::unique_ptr<Rule>>

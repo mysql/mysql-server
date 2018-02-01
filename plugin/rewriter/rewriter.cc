@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include "m_string.h" // Needed because debug_sync.h is not self-sufficient.
 #include "my_dbug.h"
+#include "mysqld_error.h"
 #include "nullable.h"
 #include "plugin/rewriter/messages.h"
 #include "plugin/rewriter/persisted_rule.h"
@@ -137,7 +138,7 @@ void Rewriter::do_refresh(MYSQL_THD session_thd)
 
   if (c.table_is_malformed())
   {
-    m_refresh_status= REWRITER_ERROR_TABLE_MALFORMED;
+    m_refresh_status=  ER_REWRITER_TABLE_MALFORMED_ERROR;
     DBUG_VOID_RETURN;
   }
   m_digests.clear();
@@ -163,11 +164,11 @@ void Rewriter::do_refresh(MYSQL_THD session_thd)
     }
   }
   if (c.had_serious_read_error())
-    m_refresh_status= REWRITER_ERROR_READ_FAILED;
+    m_refresh_status= ER_REWRITER_READ_FAILED;
   else if (saw_rule_error)
-    m_refresh_status= REWRITER_ERROR_LOAD_FAILED;
+    m_refresh_status= ER_REWRITER_LOAD_FAILED;
   else
-    m_refresh_status= REWRITER_OK;
+    m_refresh_status= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -191,13 +192,13 @@ void *refresh_callback(void *p_args)
 } // namespace
 
 
-Rewriter::Load_status Rewriter::refresh(MYSQL_THD thd)
+longlong Rewriter::refresh(MYSQL_THD thd)
 {
   services::Session session(thd);
 
   Refresh_callback_args args= { this, session.thd() };
 
-  m_refresh_status= REWRITER_OK;
+  m_refresh_status= 0;
 
   my_thread_handle handle;
   mysql_parser_start_thread(session.thd(), refresh_callback, &args, &handle);

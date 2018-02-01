@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 
 #include "my_dbug.h"
 #include "mysys_err.h"
+#include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/mysqld.h"
 #include "sql/sql_error.h"
@@ -163,7 +164,8 @@ int File_io::fstat(File file, MY_STAT *stat_area, myf myFlags)
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
-    logger->log(MY_ERROR_LEVEL, error_message.str().c_str());
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_GET_FILE_STAT,
+                my_filename(file), my_filename(file), strerror(errno));
   }
   return result;
 }
@@ -175,10 +177,11 @@ bool File_io::remove(const char *filename, myf myFlags)
     std::stringstream error_message;
     error_message << "Could not remove file " << filename
                   << " OS retuned this error: " << strerror(errno);
-    logger->log(MY_ERROR_LEVEL, error_message.str().c_str());
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_REMOVE_FILE, filename,
+                strerror(errno));
     return TRUE;
   }
   return FALSE;
@@ -211,10 +214,11 @@ bool File_io::truncate(File file, myf myFlags)
     std::stringstream error_message;
     error_message << "Could not truncate file " << my_filename(file)
                   << ". OS retuned this error: " << strerror(errno);
-    logger->log(MY_ERROR_LEVEL, error_message.str().c_str());
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, errno,
                    error_message.str().c_str());
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_TRUNCATE_FILE,
+                my_filename(file), strerror(errno));
     return TRUE;
   }
 //#else
@@ -235,7 +239,7 @@ void File_io::my_warning(int nr, ...)
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, nr,
                    error_message.str().c_str());
-    logger->log(MY_ERROR_LEVEL, error_message.str().c_str());
+    logger->log(ERROR_LEVEL, ER_KEYRING_UNKNOWN_ERROR, nr);
   }
   else
   {
@@ -247,7 +251,7 @@ void File_io::my_warning(int nr, ...)
     va_end(args);
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, nr, warning);
-    logger->log(MY_ERROR_LEVEL, warning);
+    logger->log(ERROR_LEVEL, ER_KEYRING_FILE_IO_ERROR, warning);
   }
 }
 

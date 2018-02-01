@@ -46,7 +46,7 @@ include/rpl_sync.inc
 #  2. Execute a query on the table without primary key on
 #     server 1 that will fail on pre-conditions check.
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Plugin group_replication reported: 'Table t1 does not have any PRIMARY KEY. This is not compatible with Group Replication'");
+call mtr.add_suppression("Plugin group_replication reported: 'Table t1 does not have any PRIMARY KEY. This is not compatible with Group Replication.'");
 SET SESSION sql_log_bin= 1;
 INSERT /*! IGNORE */ INTO t1 VALUES (NULL, NULL, -1188668826649100288, 'x', NULL, 'can\'t', 'p', 'didn\'t', 'we', 8, 'what', 'who', NULL, 'can', 'not', 1);
 ERROR HY000: The table does not comply with the requirements by an external plugin.

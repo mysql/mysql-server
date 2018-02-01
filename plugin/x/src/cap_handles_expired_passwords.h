@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ private:
     }
     catch (const ngs::Error_code &error)
     {
-      log_error("Capability expired password failed with error: %s", error.message.c_str());
+      log_error(ER_XPLUGIN_CAPABILITY_EXPIRED_PASSWORD, error.message.c_str());
       return false;
     }
     return true;

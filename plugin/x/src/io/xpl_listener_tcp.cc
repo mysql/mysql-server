@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ public:
       bind_addresses.push_back(BIND_IPv4_ADDRESS);
 
       if (is_ipv6_avaiable()) {
-        log_info("IPv6 is available");
+        log_info(ER_XPLUGIN_IPv6_AVAILABLE);
         bind_addresses.push_back(BIND_IPv6_ADDRESS);
       }
     }
@@ -131,8 +131,7 @@ public:
         if (result_socket->set_socket_opt(
               IPPROTO_IPV6, IPV6_V6ONLY,
               (char *) &option_flag, sizeof (option_flag))) {
-          log_error("Failed to reset IPV6_V6ONLY flag (error: %d). "
-                    "The server will listen to IPv6 addresses only.",
+          log_error(ER_XPLUGIN_FAILED_TO_RESET_IPV6_V6ONLY_FLAG,
                     (int) socket_errno);
         }
       }
@@ -143,7 +142,7 @@ public:
     {
       int one = 1;
       if(result_socket->set_socket_opt(SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one))) {
-          log_error("Failed to set SO_REUSEADDR flag (error: %d). ",
+          log_error(ER_XPLUGIN_FAILED_TO_SET_SO_REUSEADDR_FLAG,
                     (int) m_system_interface->get_socket_errno());
       }
     }
@@ -365,7 +364,7 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
     if (SOCKET_EADDRINUSE != system_interface->get_socket_errno())
       break;
 
-    log_info("Retrying `bind()` on TCP/IP port %i", (int)m_port);
+    log_info(ER_XPLUGIN_RETRYING_BIND_ON_PORT, (int)m_port);
 
     const int time_to_wait = retry * retry / 3 + 1;
     system_interface->sleep(time_to_wait);

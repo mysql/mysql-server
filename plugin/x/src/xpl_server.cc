@@ -71,7 +71,7 @@ public:
   {
     if (srv_session_init_thread(m_plugin_ptr) != 0)
     {
-      log_error("srv_session_init_thread returned error");
+      log_error(ER_XPLUGIN_SRV_SESSION_INIT_THREAD_FAILED);
       return false;
     }
 
@@ -200,7 +200,7 @@ bool xpl::Server::on_verify_server_state()
   if (is_exiting())
   {
     if (!exiting)
-      log_info("Shutdown triggered by mysqld abort flag");
+      log_info(ER_XPLUGIN_SHUTDOWN_TRIGGERED);
 
     // closing clients has been moved to other thread
     // this thread have to gracefully shutdown io operations
@@ -508,7 +508,7 @@ void xpl::Server::verify_mysqlx_user_grants(Sql_data_context &context)
 
   if (has_select_on_mysql_user && has_super)
   {
-    log_info("Using %s account for authentication which has all required permissions", MYSQLXSYS_ACCOUNT);
+    log_info(ER_XPLUGIN_USER_ACCOUNT_WITH_ALL_PERMISSIONS, MYSQLXSYS_ACCOUNT);
     return;
   }
 
@@ -516,7 +516,8 @@ void xpl::Server::verify_mysqlx_user_grants(Sql_data_context &context)
   // lets accept it, and apply the grants
   if (has_no_privileges && (num_of_grants == 1 || (num_of_grants == 2 && has_select_on_mysql_user)))
   {
-    log_info("Using existing %s account for authentication. Incomplete grants will be fixed", MYSQLXSYS_ACCOUNT);
+    log_info(ER_XPLUGIN_EXISTING_USER_ACCOUNT_WITH_INCOMPLETE_GRANTS,
+             MYSQLXSYS_ACCOUNT);
     throw ngs::Error(ER_X_MYSQLX_ACCOUNT_MISSING_PERMISSIONS, "%s account without any grants", MYSQLXSYS_ACCOUNT);
   }
 
@@ -536,9 +537,9 @@ void xpl::Server::net_thread()
 
   if (on_net_startup())
   {
-    log_info("Server starts handling incoming connections");
+    log_info(ER_XPLUGIN_SERVER_STARTS_HANDLING_CONNECTIONS);
     m_server.start();
-    log_info("Stopped handling incoming connections");
+    log_info(ER_XPLUGIN_SERVER_STOPPED_HANDLING_CONNECTIONS);
   }
 
   ssl_wrapper_thread_cleanup();
@@ -592,10 +593,8 @@ bool xpl::Server::on_net_startup()
       sql_result.query("SELECT @@skip_networking, @@skip_name_resolve, @@have_ssl='YES', @@ssl_key, "
                        "@@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath, @@tls_version;");
     } catch (const ngs::Error_code &) {
-      log_error("Unable to use user mysql.session account when connecting"
-                "the server for internal plugin requests.");
-      log_info("For more information, please see the X Plugin User Account"
-               "section in the MySQL documentation");
+      log_error(ER_XPLUGIN_UNABLE_TO_USE_USER_SESSION_ACCOUNT);
+      log_info(ER_XPLUGIN_REFERENCE_TO_USER_ACCOUNT_DOC_SECTION);
       throw;
     }
 
@@ -641,8 +640,9 @@ bool xpl::Server::on_net_startup()
 
     if (ssl_setup_result)
     {
+      const char *is_wolfssl_or_openssl= IS_WOLFSSL_OR_OPENSSL("WolfSSL", "OpenSSL");
       LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION,
-                   IS_WOLFSSL_OR_OPENSSL("WolfSSL", "OpenSSL"));
+                   is_wolfssl_or_openssl);
     }
     else
     {
@@ -661,7 +661,7 @@ bool xpl::Server::on_net_startup()
       instance->m_server.start_failed();
       return false;
     }
-    log_error("%s", e.message.c_str());
+    log_error(ER_XPLUING_NET_STARTUP_FAILED, e.message.c_str());
   }
 
   instance->server().close_all_clients();

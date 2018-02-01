@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,7 @@ bool Admin_command_index::is_table_support_virtual_columns(
   try {
     result.query(qb.get());
     if (result.size() != 1) {
-      log_error(
-          "Unable to get creation stmt for collection '%s';"
-          " query result size: %lu",
+      log_error(ER_XPLUGIN_FAILED_TO_GET_CREATION_STMT,
           std::string(schema.empty() ? name : schema + "." + name).c_str(),
           static_cast<unsigned long>(result.size()));  // NOLINT(runtime/int)
       *error = ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
@@ -75,9 +73,7 @@ bool Admin_command_index::is_table_support_virtual_columns(
   static const char *const engine = "ENGINE=";
   std::string::size_type pos = create_stmt.find(engine);
   if (pos == std::string::npos) {
-    log_error(
-        "Unable to get engine info for collection '%s';"
-        " creation stmt: %s",
+    log_error(ER_XPLUGIN_FAILED_TO_GET_ENGINE_INFO,
         std::string(schema.empty() ? name : schema + "." + name).c_str(),
         create_stmt.c_str());
     *error = ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");

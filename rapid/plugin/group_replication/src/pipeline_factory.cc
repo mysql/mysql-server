@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,10 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/handlers/applier_handler.h"
 #include "plugin/group_replication/include/handlers/certification_handler.h"
 #include "plugin/group_replication/include/handlers/event_cataloger.h"
-#include "plugin/group_replication/include/plugin_log.h"
 
 
 int get_pipeline(Handler_pipeline_type pipeline_type,
@@ -64,8 +64,10 @@ int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
       (*pipeline_conf)[2]= SQL_THREAD_APPLICATION_HANDLER;
       DBUG_RETURN(3);
     default:
-      log_message(MY_ERROR_LEVEL, "Unknown group replication applier pipeline"
-                                  " requested"); /* purecov: inspected */
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_UNKNOWN_GRP_RPL_APPLIER_PIPELINE_REQUESTED);
+      /* purecov: end */
   }
   DBUG_RETURN(0); /* purecov: inspected */
 }
@@ -95,11 +97,12 @@ int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
         handler= new Applier_handler();
         break;
       default:
-        error= 1; /* purecov: inspected */
-        log_message(MY_ERROR_LEVEL,
-                    "Unable to bootstrap group replication event handling "
-                    "infrastructure. Unknown handler type: %d",
-                    handler_list[i]); /* purecov: inspected */
+        /* purecov: begin inspected */
+        error= 1;
+        LogPluginErr(ERROR_LEVEL,
+          ER_GRP_RPL_FAILED_TO_BOOTSTRAP_EVENT_HANDLING_INFRASTRUCTURE,
+          handler_list[i]);
+        /* purecov: end */
     }
 
     if (!handler)
@@ -107,9 +110,7 @@ int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
       /* purecov: begin inspected */
       if (!error) //not an unknown handler but a initialization error
       {
-        log_message(MY_ERROR_LEVEL,
-                    "One of the group replication applier handlers is null due"
-                    " to an initialization error");
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_HANDLER_NOT_INITIALIZED);
       }
       DBUG_RETURN(1);
       /* purecov: end */
@@ -130,9 +131,7 @@ int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
         //Check to see if the handler was already used in this pipeline
         if (handler_list[i] == handler_list[z])
         {
-          log_message(MY_ERROR_LEVEL,
-                      "A group replication applier handler, marked as unique,"
-                      " is already in use.");
+          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_HANDLER_IS_IN_USE);
           delete handler;
           DBUG_RETURN(1);
         }
@@ -144,9 +143,7 @@ int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
         if (handler_with_same_role != NULL)
         {
           /* purecov: begin inspected */
-          log_message(MY_ERROR_LEVEL,
-                      "A group replication applier handler role, "
-                      "that was marked as unique, is already in use.");
+          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_HANDLER_ROLE_IS_IN_USE);
           delete handler;
           DBUG_RETURN(1);
           /* purecov: end */
@@ -158,8 +155,7 @@ int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
     if ((error= handler->initialize()))
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL, "Error on group replication applier "
-                                  "handler initialization");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_APPLIER_HANDLER);
       DBUG_RETURN(error);
       /* purecov: end */
     }
