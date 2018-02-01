@@ -744,8 +744,7 @@ void Dbtc::scan_for_read_backup(Signal *signal,
   {
     ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = api_ptr;
-    c_apiConnectRecordPool.getPtr(apiConnectptr, false);
-    if (apiConnectptr.isNull())
+    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
     {
       continue;
     }
@@ -1476,8 +1475,8 @@ Dbtc::handleFailedApiNode(Signal* signal,
     apiConnectptr.i = TapiConnectPtr;
     jam();
     jamLine(apiConnectptr.i);
-    c_apiConnectRecordPool.getPtr(apiConnectptr, false);
-    if (apiConnectptr.i != RNIL &&
+    if (c_apiConnectRecordPool.getValidPtr(apiConnectptr) &&
+        !apiConnectptr.isNull() &&
         apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_USER)
     {
       jam();
@@ -1761,21 +1760,9 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
   tapiPointer = signal->theData[0]; /* REQUEST SENDERS CONNECT RECORD POINTER*/
   tapiBlockref = signal->theData[1];/* SENDERS BLOCK REFERENCE*/
   tuserpointer = signal->theData[2];
-  if (tapiPointer >= capiConnectFilesize)
-  {
-    jam();
-    ndbassert(false);
-    signal->theData[0] = tuserpointer;
-    signal->theData[1] = ZINVALID_CONNECTION;
-    signal->theData[2] = __LINE__;
-    sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 3, JBB);
-    return;
-  }
-  jam();
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tapiPointer;
-  c_apiConnectRecordPool.getPtr(apiConnectptr, false); // TODO YYY fail if invalid or null
-  if (apiConnectptr.isNull())
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
   {
     jam();
     ndbassert(false);
@@ -2392,11 +2379,11 @@ void Dbtc::execKEYINFO(Signal* signal)
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
   tmaxData = 20;
-  if (apiConnectptr.i >= capiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  {
     TCKEY_abort(signal, 18, apiConnectptr);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
   ttransid_ptr = 1;
   if (compare_transid(apiConnectptr.p->transid, signal->theData+1) == false) 
   {
@@ -2567,20 +2554,19 @@ void Dbtc::execATTRINFO(Signal* signal)
 {
   UintR Tdata1 = signal->theData[0];
   UintR Tlength = signal->length();
-  UintR TapiConnectFilesize = capiConnectFilesize;
 
   jamEntry();
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = Tdata1;
   ttransid_ptr = 1;
-  if (Tdata1 >= TapiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  {
     DEBUG("Drop ATTRINFO, wrong apiConnectptr");
     TCKEY_abort(signal, 18, apiConnectptr);
     return;
   }//if
 
-  ApiConnectRecord * const regApiPtr = c_apiConnectRecordPool.getPtr(Tdata1);
-  apiConnectptr.p = regApiPtr;
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
   if (compare_transid(regApiPtr->transid, signal->theData+1) == false)
   {
@@ -3066,16 +3052,16 @@ void Dbtc::execTCKEYREQ(Signal* signal)
    * where to find the transaction identifier in the signal.
    *-------------------------------------------------------------------------*/
   const UintR TapiIndex = tcKeyReq->apiConnectPtr;
-  const UintR TapiMaxIndex = capiConnectFilesize;
   const UintR TtabIndex = tcKeyReq->tableId;
   const UintR TtabMaxIndex = ctabrecFilesize;
 
   ttransid_ptr = 6; 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = TapiIndex;
-  if (TapiIndex >= TapiMaxIndex) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  {
     releaseSections(handle);
-    TCKEY_abort(signal, 6, apiConnectptr);
+    TCKEY_abort(signal, 6, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
   }//if
   if (TtabIndex >= TtabMaxIndex) {
@@ -4995,7 +4981,9 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     
     const UintR apiIndex = truncatedTcKeyReq->apiConnectPtr;
     
-    if (apiIndex >= capiConnectFilesize)
+    ApiConnectRecordPtr apiConnectptr;
+    apiConnectptr.i = apiIndex;
+    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
     {
       jam();
       warningHandlerLab(signal, __LINE__);
@@ -5006,10 +4994,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
      * Ensure that we have the  necessary information 
      * to send a rollback to the client
      */
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = apiIndex;
-    ApiConnectRecord * const regApiPtr = c_apiConnectRecordPool.getPtr(apiIndex);
-    apiConnectptr.p = regApiPtr;
+    ApiConnectRecord * const regApiPtr = apiConnectptr.p;
     UintR transId1= truncatedTcKeyReq->transId1;
     UintR transId2= truncatedTcKeyReq->transId2;
     
@@ -5046,16 +5031,15 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     Uint32 transId1= truncatedScanTabReq->transId1;
     Uint32 transId2= truncatedScanTabReq->transId2;
     
-    if (apiConnectPtr >= capiConnectFilesize)
+    ApiConnectRecordPtr apiConnectptr;
+    apiConnectptr.i = apiConnectPtr;
+    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
     {
       jam();
       warningHandlerLab(signal, __LINE__);
       return;
     }//if
     
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = apiConnectPtr;
-    c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
     ApiConnectRecord * transP = apiConnectptr.p;
     
     /* Now send the SCAN_TABREF */
@@ -5209,23 +5193,20 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     return;
   }//if
   UintR TapiConnectptrIndex = regTcPtr->apiConnect;
-  UintR TapiConnectFilesize = capiConnectFilesize;
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
   Uint32 numFired = LqhKeyConf::getFiredCount(lqhKeyConf->numFiredTriggers);
   Uint32 deferreduk = LqhKeyConf::getDeferredUKBit(lqhKeyConf->numFiredTriggers);
   Uint32 deferredfk = LqhKeyConf::getDeferredFKBit(lqhKeyConf->numFiredTriggers);
 
-  if (TapiConnectptrIndex >= TapiConnectFilesize) {
+  ApiConnectRecordPtr apiConnectptr;
+  apiConnectptr.i = TapiConnectptrIndex;
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  {
     TCKEY_abort(signal, 29, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
   }//if
-  Ptr<ApiConnectRecord> regApiPtr;
-  regApiPtr.i = TapiConnectptrIndex;
-  regApiPtr.p = c_apiConnectRecordPool.getPtr(TapiConnectptrIndex);
-  ApiConnectRecordPtr apiConnectptr;
-  apiConnectptr.i = TapiConnectptrIndex;
-  apiConnectptr.p = regApiPtr.p;
+  ApiConnectRecordPtr const regApiPtr = apiConnectptr;
   compare_transid1 = regApiPtr.p->transid[0] ^ Ttrans1;
   compare_transid2 = regApiPtr.p->transid[1] ^ Ttrans2;
   compare_transid1 = compare_transid1 | compare_transid2;
@@ -6135,8 +6116,6 @@ bool Dbtc::seizeApiConnectCopy(Signal* signal,
 {
   ApiConnectRecordPtr locApiConnectptr;
 
-  UintR TapiConnectFilesize = capiConnectFilesize;
-
   if (!c_apiConnectRecordPool.seize(locApiConnectptr))
   {
     return false;
@@ -6157,7 +6136,6 @@ bool Dbtc::seizeApiConnectCopy(Signal* signal,
 void Dbtc::execDIVERIFYCONF(Signal* signal) 
 {
   UintR TapiConnectptrIndex = signal->theData[0];
-  UintR TapiConnectFilesize = capiConnectFilesize;
   UintR Tgci_hi = signal->theData[1];
   UintR Tgci_lo = signal->theData[2];
   Uint64 Tgci = Tgci_lo | (Uint64(Tgci_hi) << 32);
@@ -6191,13 +6169,12 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
      * DIVERIFYCONF from DBTC
      * There should be no transactions queue for verification.
      */
-    if (TapiConnectptrIndex >= TapiConnectFilesize)
+    apiConnectptr.i = TapiConnectptrIndex;
+    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
     {
       TCKEY_abort(signal, 31, ApiConnectRecordPtr::get(NULL, RNIL));
       return;
     }
-    apiConnectptr.i = TapiConnectptrIndex;
-    c_apiConnectRecordPool.getPtr(apiConnectptr);
   }
   ApiConnectRecord* const regApiPtr = apiConnectptr.p;
   ndbrequire(regApiPtr->apiConnectkind == ApiConnectRecord::CK_USER);
@@ -6527,8 +6504,6 @@ void Dbtc::execCOMMITTED(Signal* signal)
   ApiConnectRecordPtr localApiConnectptr;
   ApiConnectRecordPtr localCopyPtr;
 
-  UintR TapiConnectFilesize = capiConnectFilesize;
-
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8018)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -6717,7 +6692,6 @@ Dbtc::sendApiCommitAndCopy(Signal* signal, ApiConnectRecordPtr const apiConnectp
 
 err8055:
   Ptr<ApiConnectRecord> copyPtr;
-  UintR TapiConnectFilesize = capiConnectFilesize;
   /**
    * Unlink copy connect record from main connect record to allow main record 
    * re-use.
@@ -7200,8 +7174,6 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecordPtr regApiPtr;
 
-  UintR TapiConnectFilesize = capiConnectFilesize;
-
   const FireTrigConf * conf = CAST_CONSTPTR(FireTrigConf, signal->theData);
   localTcConnectptr.i = conf->tcOpRec;
   jamEntry();
@@ -7281,8 +7253,6 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecordPtr apiConnectptr;
 
-  UintR TapiConnectFilesize = capiConnectFilesize;
-
   const FireTrigRef * ref = CAST_CONSTPTR(FireTrigRef, signal->theData);
   localTcConnectptr.i = ref->tcOpRec;
   jamEntry();
@@ -7293,7 +7263,11 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
     warningReport(signal, 28);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr))
+  {
+    warningReport(signal, 28);
+    return;
+  }
 
   UintR Tdata1 = apiConnectptr.p->transid[0] - ref->transId[0];
   UintR Tdata2 = apiConnectptr.p->transid[1] - ref->transId[1];
@@ -7480,8 +7454,6 @@ void Dbtc::execCOMPLETED(Signal* signal)
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecordPtr localApiConnectptr;
 
-  UintR TapiConnectFilesize = capiConnectFilesize;
-
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8031)) {
     systemErrorLab(signal, __LINE__);
@@ -7611,7 +7583,7 @@ void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnec
   ndbrequire(regApiPtr->commitAckMarker == RNIL);
   regApiPtr->apiConnectkind = ApiConnectRecord::CK_FREE;
   releaseApiConTimer(apiConnectptr);
-  c_apiConnectRecordPool.release(apiConnectptr.i);
+  c_apiConnectRecordPool.release(apiConnectptr);
 }//Dbtc::releaseApiConCopy()
 
 /* ========================================================================= */
@@ -7992,8 +7964,8 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
   jamEntry();
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
-  if (apiConnectptr.i < capiConnectFilesize) {
-    c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
+  if (c_apiConnectRecordPool.getValidPtr(apiConnectptr) && !apiConnectptr.isNull())
+  {
     compare_transid1 = apiConnectptr.p->transid[0] ^ signal->theData[1];
     compare_transid2 = apiConnectptr.p->transid[1] ^ signal->theData[2];
     compare_transid1 = compare_transid1 | compare_transid2;
@@ -8142,10 +8114,10 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
-  if (apiConnectptr.i >= capiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  {
     goto TC_ROLL_warning;
   }//if
-  c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
   compare_transid1 = apiConnectptr.p->transid[0] ^ signal->theData[1];
   compare_transid2 = apiConnectptr.p->transid[1] ^ signal->theData[2];
   compare_transid1 = compare_transid1 | compare_transid2;
@@ -8523,11 +8495,12 @@ void Dbtc::execABORTED(Signal* signal)
   }//if
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
-  if (apiConnectptr.i >= capiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+      apiConnectptr.isNull())
+  {
     warningReport(signal, 0);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
   compare_transid1 = apiConnectptr.p->transid[0] ^ signal->theData[1];
   compare_transid2 = apiConnectptr.p->transid[1] ^ signal->theData[2];
   compare_transid1 = compare_transid1 | compare_transid2;
@@ -10384,8 +10357,8 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   {
     ApiConnectRecordPtr transPtr;
     transPtr.i = transPtrI;
-    c_apiConnectRecordPool.getPtr(transPtr, false);
-    if (transPtr.i != RNIL && transPtr.p->m_transaction_nodes.get(failedNodeId))
+    if (c_apiConnectRecordPool.getValidPtr(transPtr) &&
+        !transPtr.isNull() && transPtr.p->m_transaction_nodes.get(failedNodeId))
     {
       jam();
 
@@ -12781,7 +12754,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
 
-  if (apiConnectptr.i >= capiConnectFilesize)
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
   {
     jam();
     releaseSections(handle);
@@ -12789,7 +12762,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     return;
   }//if
 
-  c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
   ApiConnectRecord * transP = apiConnectptr.p;
 
   if (transP->apiConnectstate != CS_CONNECTED) {
@@ -14255,13 +14227,13 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   SectionHandle handle(this, signal);
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = req->apiConnectPtr;
-  if (apiConnectptr.i >= capiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  {
     jam();
     releaseSections(handle);
     warningHandlerLab(signal, __LINE__);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(apiConnectptr); // TODO YYY fail if invalid or null
 
   /**
    * Check transid
@@ -15065,8 +15037,7 @@ void Dbtc::initApiConnect(Signal* signal)
   {
     refresh_watch_dog();
     jam();
-    apiConnectptr.i = i;
-    ndbrequire(c_apiConnectRecordPool.seizeId(apiConnectptr, apiConnectptr.i));
+    ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
     apiConnectptr.p = new (apiConnectptr.p) ApiConnectRecord();
     apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
@@ -15100,8 +15071,7 @@ void Dbtc::initApiConnect(Signal* signal)
   {
     refresh_watch_dog();
     jam();
-    apiConnectptr.i = i;
-    ndbrequire(c_apiConnectRecordPool.seizeId(apiConnectptr, apiConnectptr.i));
+    ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
     apiConnectptr.p = new (apiConnectptr.p) ApiConnectRecord();
     apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->apiConnectstate = CS_RESTART;
@@ -15111,6 +15081,7 @@ void Dbtc::initApiConnect(Signal* signal)
     setApiConTimer(apiConnectptr, 0, __LINE__);
     apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
     apiConnectptr.p->cachePtr = RNIL;
+    ndbrequire(apiConnectptr.i == i);
     apiConnectptr.p->nextApiConnect = apiConnectptr.i + 1;
     apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF;  // Invalid ref
     apiConnectptr.p->commitAckMarker = RNIL;
@@ -15175,7 +15146,7 @@ void Dbtc::initApiConnect(Signal* signal)
     c_apiConnectRecordPool.getPtr(apiConnectptr);
     ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FREE);
     releaseApiConTimer(apiConnectptr);
-    c_apiConnectRecordPool.release(i);
+    c_apiConnectRecordPool.release(apiConnectptr);
   }
 
   capiConnectPREPARE_TO_COMMITList.init();
@@ -15401,7 +15372,7 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     copyPtr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->apiCopyRecord = RNIL;
     releaseApiConTimer(copyPtr);
-    c_apiConnectRecordPool.release(copyPtr.i);
+    c_apiConnectRecordPool.release(copyPtr);
   }
   if (apiConnectptr.p->cachePtr != RNIL)
   {
@@ -16265,7 +16236,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     Uint32 stateless_count = 0;   /* Number 'started' with no ops */
     Uint32 stateful_count = 0;    /* Number running */
     Uint32 scan_count = 0;        /* Number used for scans */
-    const Uint32 userVisibleConnectFilesize = 2 * capiConnectFilesize / 3;
+    const Uint32 userVisibleConnectFilesize = capiConnectFilesize;
     
     if (signal->getLength() == 2)
     {
@@ -16329,8 +16300,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = pos;
-      c_apiConnectRecordPool.getPtr(apiConnectptr, false);
-      if (apiConnectptr.isNull() ||
+      if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+          apiConnectptr.isNull() ||
           (apiConnectptr.p->apiConnectkind != ApiConnectRecord::CK_USER))
       {
         pos++;
@@ -16850,8 +16821,8 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
     {
       ApiConnectRecordPtr ptr;
       ptr.i = api_ptr;
-      c_apiConnectRecordPool.getPtr(ptr, false);
-      if (ptr.i != RNIL)
+      if (c_apiConnectRecordPool.getValidPtr(ptr) &&
+          !ptr.isNull())
       {
       Ndbinfo::Row row(signal, req);
       if (ndbinfo_write_trans(row, ptr))
@@ -17970,13 +17941,13 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   SectionHandle handle(this, signal);
 
   transPtr.i = TapiIndex;
-  if (transPtr.i >= capiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(transPtr) || transPtr.isNull())
+  {
     jam();
     warningHandlerLab(signal, __LINE__);
     releaseSections(handle);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(transPtr); // TODO YYY fail if invalid or null
   ApiConnectRecord * const regApiPtr = transPtr.p;  
   // Seize index operation
   TcIndexOperationPtr indexOpPtr;
@@ -18211,12 +18182,12 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
   const UintR TconnectIndex = indxKeyInfo->connectPtr;
   ApiConnectRecordPtr transPtr;
   transPtr.i = TconnectIndex;
-  if (transPtr.i >= capiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(transPtr) || transPtr.isNull())
+  {
     jam();
     warningHandlerLab(signal, __LINE__);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(transPtr); // TODO YYY fail if invalid or null
   ApiConnectRecord * const regApiPtr = transPtr.p;
   TcIndexOperationPtr indexOpPtr;
   TcIndexOperation* indexOp;
@@ -18259,12 +18230,12 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
   const UintR TconnectIndex = indxAttrInfo->connectPtr;
   ApiConnectRecordPtr transPtr;
   transPtr.i = TconnectIndex;
-  if (transPtr.i >= capiConnectFilesize) {
+  if (!c_apiConnectRecordPool.getValidPtr(transPtr) || transPtr.isNull())
+  {
     jam();
     warningHandlerLab(signal, __LINE__);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(transPtr); // TODO YYY fail if invalid or null
   ApiConnectRecord * const regApiPtr = transPtr.p;  
   TcIndexOperationPtr indexOpPtr;
   TcIndexOperation* indexOp;
@@ -19429,7 +19400,7 @@ void Dbtc::continueTriggeringOp(Signal* signal,
   }
 }
 
-void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
+void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr const* transPtr)
 {
   ApiConnectRecord* regApiPtr = transPtr->p;
   TcConnectRecordPtr opPtr;
@@ -19566,7 +19537,7 @@ Dbtc::waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr)
 
 bool Dbtc::executeTrigger(Signal* signal,
                           TcFiredTriggerData* firedTriggerData,
-                          ApiConnectRecordPtr* transPtr,
+                          ApiConnectRecordPtr const* transPtr,
                           TcConnectRecordPtr* opPtr)
 {
   /* Using a IgnoreAlloc variant of getPtr to make the lookup safe.
@@ -19618,7 +19589,7 @@ bool Dbtc::executeTrigger(Signal* signal,
 void Dbtc::executeIndexTrigger(Signal* signal,
                                TcDefinedTriggerData* definedTriggerData,
                                TcFiredTriggerData* firedTriggerData,
-                               ApiConnectRecordPtr* transPtr,
+                               ApiConnectRecordPtr const* transPtr,
                                TcConnectRecordPtr* opPtr)
 {
   TcIndexData* indexData = c_theIndexes.getPtr(definedTriggerData->indexId);
@@ -19727,7 +19698,7 @@ void
 Dbtc::executeFKParentTrigger(Signal* signal,
                              TcDefinedTriggerData* definedTriggerData,
                              TcFiredTriggerData* firedTriggerData,
-                             ApiConnectRecordPtr* transPtr,
+                             ApiConnectRecordPtr const* transPtr,
                              TcConnectRecordPtr* opPtr)
 {
   Ptr<TcFKData> fkPtr;
@@ -19849,7 +19820,7 @@ oom:
 void
 Dbtc::fk_readFromChildTable(Signal* signal,
                             TcFiredTriggerData* firedTriggerData,
-                            ApiConnectRecordPtr* transPtr,
+                            ApiConnectRecordPtr const* transPtr,
                             TcConnectRecordPtr* opPtr,
                             TcFKData* fkData,
                             Uint32 op,
@@ -20139,7 +20110,7 @@ Dbtc::fk_buildKeyInfo(Uint32& keyIVal, bool& hasNull,
 void
 Dbtc::fk_scanFromChildTable(Signal* signal,
                             TcFiredTriggerData* firedTriggerData,
-                            ApiConnectRecordPtr* transPtr,
+                            ApiConnectRecordPtr const* transPtr,
                             const Uint32 opPtrI,
                             TcFKData* fkData,
                             Uint32 op,
@@ -20916,7 +20887,7 @@ void
 Dbtc::executeFKChildTrigger(Signal* signal,
                             TcDefinedTriggerData* definedTriggerData,
                             TcFiredTriggerData* firedTriggerData,
-                            ApiConnectRecordPtr* transPtr,
+                            ApiConnectRecordPtr const* transPtr,
                             TcConnectRecordPtr* opPtr)
 {
   Ptr<TcFKData> fkPtr;
@@ -20955,7 +20926,7 @@ Dbtc::executeFKChildTrigger(Signal* signal,
 void
 Dbtc::fk_readFromParentTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
-                             ApiConnectRecordPtr* transPtr,
+                             ApiConnectRecordPtr const* transPtr,
                              TcConnectRecordPtr* opPtr,
                              TcFKData* fkData)
 {
@@ -21220,7 +21191,7 @@ bool Dbtc::appendAttrDataToSection(Uint32& sectionIVal,
 
 void Dbtc::insertIntoIndexTable(Signal* signal, 
                                 TcFiredTriggerData* firedTriggerData, 
-                                ApiConnectRecordPtr* transPtr,
+                                ApiConnectRecordPtr const* transPtr,
                                 TcConnectRecordPtr* opPtr,
                                 TcIndexData* indexData)
 {
@@ -21386,7 +21357,7 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 
 void Dbtc::deleteFromIndexTable(Signal* signal, 
                                 TcFiredTriggerData* firedTriggerData, 
-                                ApiConnectRecordPtr* transPtr,
+                                ApiConnectRecordPtr const* transPtr,
                                 TcConnectRecordPtr* opPtr,
                                 TcIndexData* indexData)
 {
@@ -21499,7 +21470,7 @@ Dbtc::TableRecord::getErrorCode(Uint32 schemaVersion) const {
 void Dbtc::executeReorgTrigger(Signal* signal,
                                TcDefinedTriggerData* definedTriggerData,
                                TcFiredTriggerData* firedTriggerData,
-                               ApiConnectRecordPtr* transPtr,
+                               ApiConnectRecordPtr const* transPtr,
                                TcConnectRecordPtr* opPtr)
 {
 
@@ -21650,7 +21621,7 @@ bool
 Dbtc::executeFullyReplicatedTrigger(Signal* signal,
                                     TcDefinedTriggerData* definedTriggerData,
                                     TcFiredTriggerData* firedTriggerData,
-                                    ApiConnectRecordPtr* transPtr,
+                                    ApiConnectRecordPtr const* transPtr,
                                     TcConnectRecordPtr* opPtr)
 {
   /**

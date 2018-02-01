@@ -74,7 +74,6 @@ void Dbtc::initRecords()
   }
 #endif
   // Records with dynamic sizes
-  c_apiConnectRecordPool.setSize(capiConnectFilesize);
 
   // Init all index records
   TcIndexData_list indexes(c_theIndexPool);
@@ -122,6 +121,7 @@ void Dbtc::initRecords()
   c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 0, UINT32_MAX);
   c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 0, UINT32_MAX);
   c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 0, UINT32_MAX);
+  c_apiConnectRecordPool.init(ApiConnectRecord::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool

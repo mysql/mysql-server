@@ -1197,7 +1197,7 @@ Uint32 nextPool; // ArrayPool
     };
   };
   
-  typedef ArrayPool<ApiConnectRecord> ApiConnectRecord_pool;
+  typedef TransientPool<ApiConnectRecord> ApiConnectRecord_pool;
   typedef LocalDLFifoList<ApiConnectRecord_pool, IA_GcpConnect>
       LocalApiConnectRecord_gcp_list;
   typedef LocalSLFifoList<ApiConnectRecord_pool, IA_ApiConnect>
@@ -2152,16 +2152,16 @@ private:
                             TcConnectRecord* trigOp,
                             ApiConnectRecordPtr);
 
-  void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
+  void executeTriggers(Signal* signal, ApiConnectRecordPtr const* transPtr);
   void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
   bool executeTrigger(Signal* signal,
                       TcFiredTriggerData* firedTriggerData,
-                      ApiConnectRecordPtr* transPtr,
+                      ApiConnectRecordPtr const* transPtr,
                       TcConnectRecordPtr* opPtr);
   void executeIndexTrigger(Signal* signal,
                            TcDefinedTriggerData* definedTriggerData,
                            TcFiredTriggerData* firedTriggerData,
-                           ApiConnectRecordPtr* transPtr,
+                           ApiConnectRecordPtr const* transPtr,
                            TcConnectRecordPtr* opPtr);
   Uint32 appendDataToSection(Uint32& sectionIVal,
                              AttributeBuffer & src,
@@ -2174,41 +2174,41 @@ private:
                                bool& hasNull);
   void insertIntoIndexTable(Signal* signal, 
                             TcFiredTriggerData* firedTriggerData, 
-                            ApiConnectRecordPtr* transPtr,
+                            ApiConnectRecordPtr const* transPtr,
                             TcConnectRecordPtr* opPtr,
                             TcIndexData* indexData);
   void deleteFromIndexTable(Signal* signal, 
                             TcFiredTriggerData* firedTriggerData, 
-                            ApiConnectRecordPtr* transPtr,
+                            ApiConnectRecordPtr const* transPtr,
                             TcConnectRecordPtr* opPtr,
                             TcIndexData* indexData);
 
   void executeReorgTrigger(Signal* signal,
                            TcDefinedTriggerData* definedTriggerData,
                            TcFiredTriggerData* firedTriggerData,
-                           ApiConnectRecordPtr* transPtr,
+                           ApiConnectRecordPtr const* transPtr,
                            TcConnectRecordPtr* opPtr);
 
   void executeFKParentTrigger(Signal* signal,
                               TcDefinedTriggerData* definedTriggerData,
                               TcFiredTriggerData* firedTriggerData,
-                              ApiConnectRecordPtr* transPtr,
+                              ApiConnectRecordPtr const* transPtr,
                               TcConnectRecordPtr* opPtr);
 
   void executeFKChildTrigger(Signal* signal,
                               TcDefinedTriggerData* definedTriggerData,
                               TcFiredTriggerData* firedTriggerData,
-                              ApiConnectRecordPtr* transPtr,
+                              ApiConnectRecordPtr const* transPtr,
                               TcConnectRecordPtr* opPtr);
 
   void fk_readFromParentTable(Signal* signal,
                               TcFiredTriggerData* firedTriggerData,
-                              ApiConnectRecordPtr* transPtr,
+                              ApiConnectRecordPtr const* transPtr,
                               TcConnectRecordPtr* opPtr,
                               TcFKData* fkData);
   void fk_readFromChildTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
-                             ApiConnectRecordPtr* transPtr,
+                             ApiConnectRecordPtr const* transPtr,
                              TcConnectRecordPtr* opPtr,
                              TcFKData* fkData,
                              Uint32 op, Uint32 attrValuesPtrI);
@@ -2222,7 +2222,7 @@ private:
                         Uint32 operation);
   void fk_scanFromChildTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
-                             ApiConnectRecordPtr* transPtr,
+                             ApiConnectRecordPtr const* transPtr,
                              Uint32 opPtrI,
                              TcFKData* fkData,
                              Uint32 op, Uint32 attrValuesPtrI);
@@ -2243,7 +2243,7 @@ private:
   bool executeFullyReplicatedTrigger(Signal* signal,
                                      TcDefinedTriggerData* definedTriggerData,
                                      TcFiredTriggerData* firedTriggerData,
-                                     ApiConnectRecordPtr* transPtr,
+                                     ApiConnectRecordPtr const* transPtr,
                                      TcConnectRecordPtr* opPtr);
 
   void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head* triggers);
