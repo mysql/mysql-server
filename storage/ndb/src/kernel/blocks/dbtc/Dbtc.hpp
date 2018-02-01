@@ -2077,7 +2077,7 @@ private:
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   bool seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
-  void seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
+  bool seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
   bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   [[noreturn]] void crash_gcp(Uint32 line);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
@@ -2512,7 +2512,6 @@ private:
   Uint16 cownNodeid;
   Uint16 terrorCode;
 
-  UintR cfirstfreeApiConnectCopy; /* CS_RESTART */
   LocalApiConnectRecord_api_fifo::Head capiConnectPREPARE_TO_COMMITList;
 
   LocalGcpRecord_list::Head c_gcpRecordList;
