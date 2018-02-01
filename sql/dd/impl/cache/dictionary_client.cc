@@ -23,6 +23,7 @@
 #include "sql/dd/cache/dictionary_client.h"
 
 #include <stdio.h>
+#include <iostream>
 #include <memory>
 
 #include "lex_string.h"
@@ -680,11 +681,97 @@ bool is_component_hidden<dd::Abstract_table>(dd::Raw_record *r)
             r->read_int(dd::tables::Tables::FIELD_HIDDEN)) !=
          dd::Abstract_table::HT_VISIBLE; }
 
-}
+using SPI_missing_status = std::bitset<2>;
+enum class SPI_missing_type {
+  TABLES,
+  PARTITIONS
+};
+using SPI_order = std::vector<dd::Object_id>;
+using SPI_index = std::unordered_map<dd::Object_id, SPI_missing_status>;
+
+template <size_t SIZE>
+class SPI_lru_cache_templ
+{
+  SPI_order m_order;
+  unsigned int m_insix = 0;
+  SPI_index m_index;
+
+#ifndef DBUG_OFF
+  mutable int m_hits;
+  mutable int m_misses = 1;
+#endif /* DBUG_OFF */
+
+public:
+  ~SPI_lru_cache_templ() {
+    DBUG_EXECUTE_IF("spi_cache_stats", {
+        std::cout << "SPI_lru_cache stats; m_order.size(): " << m_order.size()
+                  << " m_hits: " << m_hits << " m_misses: " << m_misses;
+        if (m_hits > 0) {
+          std::cout << " hit rate: "
+                    << 100*(static_cast<double>(m_hits) / (m_hits + m_misses))
+                    << " %";
+        }
+        std::cout << std::endl;
+      });
+  }
+
+  void insert(dd::Object_id id, SPI_missing_type t) {
+    if (m_order.size() < SIZE) {
+      m_order.push_back(id);
+    }
+    else {
+      m_insix %= SIZE;
+      m_index.erase(m_order[m_insix]);
+      m_order[m_insix] = id;
+    }
+    ++m_insix;
+    auto &status = m_index[id];
+    status[static_cast<size_t>(t)]= true;
+  }
+
+  bool is_cached(dd::Object_id id, SPI_missing_type t) const {
+    auto it = m_index.find(id);
+    bool ex = (it != m_index.end() && it->second[static_cast<size_t>(t)]);
+    DBUG_EXECUTE_IF("spi_cache_stats", {
+        if (ex) {
+          ++m_hits;
+        }
+        else {
+          ++m_misses;
+        }});
+    return ex;
+  }
+};
+} // anon namespace
+
 
 
 namespace dd {
 namespace cache {
+
+/**
+  Inherit from an instantiation of the template to allow
+  forward-declaring in Dictionary_client.
+ */
+class SPI_lru_cache: public SPI_lru_cache_templ<1024> {};
+
+SPI_lru_cache_owner_ptr::~SPI_lru_cache_owner_ptr() {
+  if (m_spi_lru_cache != nullptr) {
+    delete m_spi_lru_cache;
+  }
+}
+
+SPI_lru_cache *SPI_lru_cache_owner_ptr::operator->() {
+  if (m_spi_lru_cache == nullptr) {
+    m_spi_lru_cache = new SPI_lru_cache{};
+  }
+  return m_spi_lru_cache;
+}
+
+bool is_cached(const SPI_lru_cache_owner_ptr &cache,
+               Object_id id, SPI_missing_type t) {
+  return (cache.is_nullptr() ? false : cache->is_cached(id, t));
+}
 
 // Transfer an object from the current to the previous auto releaser.
 template <typename T>
@@ -1596,6 +1683,10 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
 {
   DBUG_ASSERT(table);
   *table= NULL;
+  bool no_table = is_cached(m_no_table_spids, se_private_id,
+                            SPI_missing_type::TABLES);
+
+  if (no_table) { return false; }
 
   // Create se private key.
   Table::Aux_key key;
@@ -1612,8 +1703,11 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
   }
 
   // If object was not found.
-  if (stored_object == NULL)
+  if (stored_object == NULL) {
+    m_no_table_spids->insert(se_private_id, SPI_missing_type::TABLES);
     return false;
+  }
+  DBUG_ASSERT(no_table == false);
 
   // Dynamic cast may legitimately return NULL only if the stored object
   // was NULL, i.e., the object did not exist.
@@ -1643,6 +1737,9 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
 {
   DBUG_ASSERT(table);
   *table= NULL;
+  bool no_table = is_cached(m_no_table_spids, se_partition_id,
+                            SPI_missing_type::PARTITIONS);
+  if (no_table) { return false; }
 
   // Read record directly from the tables.
   Object_id table_id;
@@ -1654,8 +1751,10 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
     return true;
   }
 
-  if (table_id == INVALID_OBJECT_ID)
+  if (table_id == INVALID_OBJECT_ID) {
+    m_no_table_spids->insert(se_partition_id, SPI_missing_type::PARTITIONS);
     return false;
+  }
 
   if (acquire_uncached(table_id, table))
   {
@@ -1663,8 +1762,11 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
     return true;
   }
 
-  if (*table == NULL)
+  if (*table == NULL) {
+    m_no_table_spids->insert(se_partition_id, SPI_missing_type::PARTITIONS);
     return false;
+  }
+  DBUG_ASSERT(no_table == false);
 
   return false;
 }
@@ -3200,4 +3302,13 @@ template bool Dictionary_client::update(Resource_group*);
 
 } // namespace cache
 } // namespace dd
+
+namespace dd_cache_unittest {
+void insert(dd::cache::SPI_lru_cache_owner_ptr &c, dd::Object_id id) {
+  c->insert(id, SPI_missing_type::TABLES);
+}
+bool is_cached(const dd::cache::SPI_lru_cache_owner_ptr &c, dd::Object_id id) {
+  return dd::cache::is_cached(c, id, SPI_missing_type::TABLES);
+}
+} // namespace dd_cache_unittest
 

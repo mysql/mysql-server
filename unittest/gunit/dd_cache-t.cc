@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1724,6 +1724,29 @@ TEST_F(CacheStorageTest, PartitionTest)
 
     EXPECT_FALSE(dc->drop(obj2));
     dc->commit_modified_objects();
+  }
+}
+
+// Test that SPI chache evicts entries when it exceeds max size
+TEST_F(CacheStorageTest, TestSPICache)
+{
+  dd::cache::SPI_lru_cache_owner_ptr cache;
+
+  // Load the cache
+  for (dd::Object_id i = 0; i < 1024; ++i) {
+    EXPECT_FALSE(dd_cache_unittest::is_cached(cache, i));
+    dd_cache_unittest::insert(cache, i);
+    EXPECT_TRUE(dd_cache_unittest::is_cached(cache, i));
+  }
+
+  // Add more ids and verify that the expected id is evicted
+  for (dd::Object_id i = 1024; i < 2048; ++i) {
+    dd::Object_id victim = i % 1024;
+    EXPECT_FALSE(dd_cache_unittest::is_cached(cache, i));
+    EXPECT_TRUE(dd_cache_unittest::is_cached(cache, victim));
+    dd_cache_unittest::insert(cache, i);
+    EXPECT_TRUE(dd_cache_unittest::is_cached(cache, i));
+    EXPECT_FALSE(dd_cache_unittest::is_cached(cache, victim));
   }
 }
 

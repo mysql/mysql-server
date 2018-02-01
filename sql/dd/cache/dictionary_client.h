@@ -45,6 +45,45 @@ class Entity_object;
 namespace dd {
 namespace cache {
 
+class SPI_lru_cache;
+
+/**
+  A smart-pointer for managing an SPI_lru_cache even when it is only
+  forward declared. Automaticlly allocated cache with new, and assigns
+  m_spi_lru_cache to it, when dereferenced using non-const
+  operator->(). Destructor deletes the object pointed to by
+  m_spi_lru_cache.
+*/
+class SPI_lru_cache_owner_ptr {
+  SPI_lru_cache *m_spi_lru_cache = nullptr;
+public:
+  /** Calls delete on m_spi_lru_cache unless nullptr. */
+  ~SPI_lru_cache_owner_ptr();
+
+  /**
+    Creates cache on demand if m_spi_lru_cache is nullptr.
+    @return pointer to cache.
+  */
+  SPI_lru_cache *operator->();
+
+  /**
+    Const overload which does not create cache on demand, but merely
+    returns the pointer.
+    @return pointer to cache (may be nullptr)
+  */
+  const SPI_lru_cache *operator->() const {
+    return m_spi_lru_cache;
+  }
+
+  /*
+    Predicate for nullptr.
+    @return true if points to valid cache, false otherwise.
+   */
+  bool is_nullptr() const {
+    return (m_spi_lru_cache == nullptr);
+  }
+};
+
 
 /**
   Implementation of a dictionary client.
@@ -226,6 +265,12 @@ private:
   Auto_releaser m_default_releaser;       // Default auto releaser.
   Auto_releaser *m_current_releaser;      // Current auto releaser.
 
+
+  /**
+    Se-private ids known not to exist in either TABLES or PARTITIONS
+    or both.
+  */
+  SPI_lru_cache_owner_ptr m_no_table_spids;
 
   /**
     Get a dictionary object.
@@ -1119,5 +1164,11 @@ public:
 
 } // namespace cache
 } // namespace dd
+
+// Functions declarations exported only to facilitate unit testing.
+namespace dd_cache_unittest {
+void insert(dd::cache::SPI_lru_cache_owner_ptr &c, dd::Object_id id);
+bool is_cached(const dd::cache::SPI_lru_cache_owner_ptr &c, dd::Object_id id);
+} // namespace dd_cache_unittest
 
 #endif // DD_CACHE__DICTIONARY_CLIENT_INCLUDED
