@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1797,11 +1797,13 @@ rtr_cur_search_with_match(
 					increase = rtr_rec_cal_increase(
 						tuple, rec, offsets, &area,
 						index->rtr_srs.get());
-					/* Once it goes beyond DBL_MAX,
-					it would not make sense to record
-					such value, just make it
-					DBL_MAX / 2  */
-					if (increase >= DBL_MAX) {
+					/* Once it goes beyond DBL_MAX or
+					they are both DBL_MAX, it would not
+					make sense to record such value,
+					just make it DBL_MAX / 2  */
+					if (increase >= DBL_MAX
+					    || (increase == 0
+						&& std::isfinite(area))) {
 						increase = DBL_MAX / 2;
 					}
 
