@@ -16853,33 +16853,47 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
   }
   case Ndbinfo::TRANSACTIONS_TABLEID:
   {
+    Uint32 loop_count = 0;
     Uint32 api_ptr = cursor->data[0];
-// TODO YYY loop
     const Uint32 maxloop = 256;
-    for (Uint32 i = 0; i < maxloop; i++)
+    bool do_break = false;
+    while (!do_break &&
+           api_ptr != RNIL &&
+           loop_count < maxloop)
     {
-      ApiConnectRecordPtr ptr;
-      ptr.i = api_ptr;
-      if (c_apiConnectRecordPool.getValidPtr(ptr) &&
-          !ptr.isNull())
+      ApiConnectRecordPtr ptrs[8];
+      Uint32 ptr_cnt =
+          c_apiConnectRecordPool.getUncheckedPtrs(&api_ptr,
+                                                  ptrs,
+                                                  NDB_ARRAY_SIZE(ptrs)); // TODO respect #loops left
+      loop_count += NDB_ARRAY_SIZE(ptrs);
+      for (Uint32 i = 0; i < ptr_cnt; i++)
       {
-      Ndbinfo::Row row(signal, req);
-      if (ndbinfo_write_trans(row, ptr))
-      {
-        jam();
-        ndbinfo_send_row(signal, req, row, rl);
+        if (!Magic::match(ptrs[i].p->m_magic, ApiConnectRecord::TYPE_ID))
+        {
+          continue;
+        }
+        ApiConnectRecordPtr const& ptr = ptrs[i];
+        Ndbinfo::Row row(signal, req);
+        if (ndbinfo_write_trans(row, ptr))
+        {
+          jam();
+          ndbinfo_send_row(signal, req, row, rl);
+        }
+        if (rl.need_break(req))
+        {
+          if (i + 1 < ptr_cnt)
+          {
+            api_ptr = ptrs[i + 1].i;
+          }
+          do_break = true;
+          break;
+        }
       }
-      }
-
-      api_ptr++;
-      if (api_ptr == capiConnectFilesize)
-      {
-        goto done;
-      }
-      else if (rl.need_break(req))
-      {
-        break;
-      }
+    }
+    if (api_ptr == RNIL)
+    {
+      goto done;
     }
     ndbinfo_send_scan_break(signal, req, rl, api_ptr);
     return;
