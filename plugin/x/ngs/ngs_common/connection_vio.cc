@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -220,7 +220,7 @@ bool Ssl_context::setup(const Config &config)
 
   if (NULL == m_ssl_acceptor)
   {
-    log_warning("Failed at SSL configuration: \"%s\"", sslGetErrString(error));
+    log_warning(ER_XPLUGIN_FAILED_AT_SSL_CONF, sslGetErrString(error));
     return false;
   }
 
@@ -246,7 +246,7 @@ bool Ssl_context::activate_tls(Connection_vio &conn,
   auto vio = conn.m_vio->get_vio();
   if (sslaccept(m_ssl_acceptor, vio, handshake_timeout, &error) != 0)
   {
-    log_warning("Error during SSL handshake for client connection (%i)", (int)error);
+    log_warning(ER_XPLUGIN_CLIENT_SSL_HANDSHAKE_FAILED, (int)error);
     return false;
   }
 

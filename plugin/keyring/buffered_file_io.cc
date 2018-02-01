@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "mysqld_error.h"
 
 namespace keyring {
 
@@ -105,7 +106,7 @@ bool Buffered_file_io::check_file_structure(File file, size_t file_size)
       return checker->check_file_structure(file, file_size, &digest) == false;
      }) == checkers.end())
   {
-    logger->log(MY_ERROR_LEVEL, "Incorrect Keyring file");
+    logger->log(ERROR_LEVEL, ER_KEYRING_INCORRECT_FILE);
     return true;
   }
   return false;
@@ -155,8 +156,7 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
     return false; //no backup file to recover from
   if (load_file_into_buffer(backup_file, &buffer))
   {
-    logger->log(MY_WARNING_LEVEL, "Found malformed keyring backup file - "
-                                  "removing it");
+    logger->log(WARNING_LEVEL, ER_KEYRING_FOUND_MALFORMED_BACKUP_FILE);
     file_io.close(backup_file, MYF(0));
     // if backup file was successfully removed then we have one keyring file
     return remove_backup(MYF(MY_WME));
@@ -171,8 +171,7 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
       file_io.close(keyring_file, MYF(MY_WME)) < 0)
 
   {
-    logger->log(MY_ERROR_LEVEL, "Error while restoring keyring from backup file"
-                                " cannot overwrite keyring with backup");
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_RESTORE_FROM_BACKUP_FILE);
     return true;
   }
   return remove_backup(MYF(MY_WME));
@@ -222,8 +221,7 @@ bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
                   SHA256_DIGEST_LENGTH, MYF(0)) == SHA256_DIGEST_LENGTH)
     return false;
 
-  logger->log(MY_ERROR_LEVEL, "Error while flushing in-memory keyring into "
-                              "keyring file");
+  logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_FLUSH_KEYRING_TO_FILE);
   return true;
 }
 

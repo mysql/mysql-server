@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -718,6 +718,15 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
             .lookup_quoted(ecode, "Plugin " LOG_SUBSYSTEM_TAG " reported",\
                            ## __VA_ARGS__)
 
+#define LogPluginErrV(severity, ecode, vl) \
+  LogEvent().prio(severity)\
+            .errcode(ecode)\
+            .subsys(LOG_SUBSYSTEM_TAG)\
+            .source_line(__LINE__)\
+            .source_file(MY_BASENAME)\
+            .function(__FUNCTION__)\
+            .lookup_quotedv(ecode, "Plugin " LOG_SUBSYSTEM_TAG " reported", vl)
+
 #define LogPluginErrMsg(severity, ecode, ...) \
   LogEvent().prio(severity)\
             .errcode(ecode)\
@@ -740,6 +749,8 @@ inline void dummy_log_message(longlong severity MY_ATTRIBUTE((unused)),
 #define LogErr(severity, ecode, ...) \
   dummy_log_message(severity, ecode, ## __VA_ARGS__)
 #define LogPluginErr(severity, ecode, ...) \
+  dummy_log_message(severity, ecode, ## __VA_ARGS__)
+#define LogPluginErrV(severity, ecode, ...) \
   dummy_log_message(severity, ecode, ## __VA_ARGS__)
 #define LogPluginErrMsg(severity, ecode, ...) \
   dummy_log_message(severity, ecode, ## __VA_ARGS__)
@@ -1214,6 +1225,14 @@ public:
     va_start(args, tag);
     set_message_by_errcode(errcode, args);
     va_end(args);
+
+    return *this;
+  }
+
+  LogEvent &lookup_quotedv(longlong errcode, const char *tag, va_list vl)
+  {
+    msg_tag= tag;
+    set_message_by_errcode(errcode, vl);
 
     return *this;
   }

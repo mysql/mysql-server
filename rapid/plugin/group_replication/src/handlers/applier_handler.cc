@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 
 Applier_handler::Applier_handler() {}
 
@@ -52,16 +52,12 @@ Applier_handler::initialize_repositories(bool reset_logs,
 
   if (reset_logs)
   {
-    log_message(MY_INFORMATION_LEVEL,
-                "Detected previous RESET MASTER invocation or an issue exists "
-                "in the group replication applier relay log. "
-                "Purging existing applier logs.");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_PURGE_APPLIER_LOGS);
 
     if ((error = channel_interface.purge_logs(true)))
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                 "Unknown error occurred while resetting applier's module logs");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RESET_APPLIER_MODULE_LOGS_ERROR);
       DBUG_RETURN(error);
       /* purecov: end */
     }
@@ -85,8 +81,7 @@ Applier_handler::initialize_repositories(bool reset_logs,
 
   if (error)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Failed to setup the group replication applier thread."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_SETUP_ERROR); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);
@@ -100,8 +95,7 @@ int Applier_handler::start_applier_thread()
                                              NULL, false);
   if (error)
   {
-      log_message(MY_ERROR_LEVEL,
-                  "Error while starting the group replication applier thread");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_START_ERROR);
   }
 
   DBUG_RETURN(error);
@@ -118,8 +112,7 @@ int Applier_handler::stop_applier_thread()
 
   if ((error= channel_interface.stop_threads(false, true)))
   {
-      log_message(MY_ERROR_LEVEL,
-                  "Failed to stop the group replication applier thread."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_STOP_ERROR); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);
@@ -135,9 +128,7 @@ int Applier_handler::handle_event(Pipeline_event *event,Continuation *cont)
   DBUG_EXECUTE_IF("applier_handler_force_error_on_pipeline", error= 1;);
   if (error || (p == NULL))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch transaction data containing required"
-                " transaction info for applier");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_DATA_FAILED);
     error= 1;
     goto end;
   }

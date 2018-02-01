@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define LOG_SUBSYSTEM_TAG "group_replication"
-
 #include <cassert>
 #include <sstream>
 
@@ -34,7 +32,6 @@
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 
 #ifndef DBUG_OFF
 #include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
@@ -376,29 +373,6 @@ void terminate_wait_on_start_process()
   online_wait_mutex->end_wait_lock();
 }
 
-int log_message(enum plugin_log_level level, const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 2, 3)));
-
-int log_message(enum plugin_log_level level, const char *format, ...)
-{
-  va_list args;
-  char buff[1024];
-
-  // Log error if logging service is initialized.
-  if (!log_bi)
-    return 0;
-
-  va_start(args, format);
-  vsnprintf(buff, sizeof(buff), format, args);
-  va_end(args);
-
-  longlong error_lvl= level == MY_ERROR_LEVEL ? ERROR_LEVEL :
-                      level == MY_WARNING_LEVEL ? WARNING_LEVEL :
-                                                  INFORMATION_LEVEL;
-  LogPluginErr(error_lvl, ER_GRP_RPL_ERROR_MSG, buff);
-  return 0;
-}
-
 static bool initialize_registry_module()
 {
   return
@@ -504,20 +478,15 @@ int plugin_group_replication_start(char **)
   if (!start_group_replication_at_boot_var &&
       !server_engine_initialized())
   {
-    log_message(MY_ERROR_LEVEL,
-                "Unable to start Group Replication. Replication applier "
-                "infrastructure is not initialized since the server was "
-                "started with server_id=0. Please, restart the server "
-                "with server_id larger than 0.");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_START_WITH_INVALID_SERVER_ID);
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
   }
   if (force_members_var != NULL &&
       strlen(force_members_var) > 0)
   {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_force_members must be empty "
-                "on group start. Current value: '%s'",
-                force_members_var);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBERS_MUST_BE_EMPTY,
+                 force_members_var);
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
   }
   if (check_flow_control_min_quota_long(flow_control_min_quota_var))
@@ -562,9 +531,8 @@ int plugin_group_replication_start(char **)
     if (delayed_initialization_thread->launch_initialization_thread())
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to guarantee the initialization of plugin"
-                    " structures on server start");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_PLUGIN_STRUCT_INIT_NOT_POSSIBLE_ON_SERVER_START);
       delete delayed_initialization_thread;
       delayed_initialization_thread= NULL;
       DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
@@ -631,9 +599,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
     {
       /* purecov: begin inspected */
       error =1;
-      log_message(MY_ERROR_LEVEL,
-                  "Could not enable the server read only mode and guarantee a "
-                    "safe recovery execution");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_FAILED_TO_ENABLE_SUPER_READ_ONLY_MODE);
       goto err;
       /* purecov: end */
     }
@@ -669,8 +636,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   // Setup GCS.
   if ((error= configure_group_communication(&server_ssl_variables)))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error on group communication engine initialization");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_COMMUNICATION_ENGINE);
     goto err;
   }
 
@@ -682,10 +648,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   if (check_async_channel_running_on_secondary())
   {
     error= 1;
-    log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-      " member with single-primary mode while"
-      " asynchronous replication channels are"
-      " running.");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_START_ON_SECONDARY_WITH_ASYNC_CHANNELS);
     goto err; /* purecov: inspected */
   }
 
@@ -741,8 +705,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
 
   if ((error= start_group_communication()))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error on group communication engine start");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_START_COMMUNICATION_ENGINE);
     goto err;
   }
 
@@ -751,8 +715,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
     if (!view_change_notifier->is_cancelled())
     {
       //Only log a error when a view modification was not cancelled.
-      log_message(MY_ERROR_LEVEL,
-                  "Timeout on wait for view after joining group");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TIMEOUT_ON_VIEW_AFTER_JOINING_GRP);
     }
     error= view_change_notifier->get_error();
     goto err;
@@ -806,16 +769,17 @@ int configure_group_member_manager(char *hostname, char *uuid,
   if (gcs_module->get_local_member_identifier(gcs_local_member_identifier))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error calling group communication interfaces");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_CALL_GRP_COMMUNICATION_INTERFACE);
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
     /* purecov: end */
   }
 
   if (!strcmp(uuid, group_name_var))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Member server_uuid is incompatible with the group. "
-                "Server_uuid %s matches group_name %s.", uuid, group_name_var);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_MEMBER_SERVER_UUID_IS_INCOMPATIBLE_WITH_GRP,
+                 uuid, group_name_var);
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
   }
   //Configure Group Member Manager
@@ -859,16 +823,11 @@ int configure_group_member_manager(char *hostname, char *uuid,
   group_member_mgr= new Group_member_info_manager(local_member_info);
   group_member_mgr_configured= true;
 
-  log_message(MY_INFORMATION_LEVEL,
-              "Member configuration: "
-              "member_id: %lu; "
-              "member_uuid: \"%s\"; "
-              "single-primary mode: \"%s\"; "
-              "group_replication_auto_increment_increment: %lu; ",
-              get_server_id(),
-              (local_member_info != NULL) ? local_member_info->get_uuid().c_str() : "NULL",
-              single_primary_mode_var ? "true" : "false",
-              auto_increment_increment_var);
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CONF_INFO, get_server_id(),
+               (local_member_info != NULL) ?
+                  local_member_info->get_uuid().c_str() : "NULL",
+               single_primary_mode_var ? "true" : "false",
+               auto_increment_increment_var);
 
   DBUG_RETURN(0);
 }
@@ -917,38 +876,35 @@ int leave_group()
 
     Gcs_operations::enum_leave_state state= gcs_module->leave();
 
-    std::stringstream ss;
-    plugin_log_level log_severity= MY_WARNING_LEVEL;
+    longlong log_severity= WARNING_LEVEL;
+    longlong errcode= 0;
     switch (state)
     {
       case Gcs_operations::ERROR_WHEN_LEAVING:
         /* purecov: begin inspected */
-        ss << "Unable to confirm whether the server has left the group or not. "
-              "Check performance_schema.replication_group_members to check group membership information.";
-        log_severity= MY_ERROR_LEVEL;
+        errcode= ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
+        log_severity= ERROR_LEVEL;
         break;
         /* purecov: end */
       case Gcs_operations::ALREADY_LEAVING:
-        ss << "Skipping leave operation: concurrent attempt to leave the group is on-going.";
+        errcode= ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
         break;
       case Gcs_operations::ALREADY_LEFT:
         /* purecov: begin inspected */
-        ss << "Skipping leave operation: member already left the group.";
+        errcode= ER_GRP_RPL_SERVER_ALREADY_LEFT;
         break;
         /* purecov: end */
       case Gcs_operations::NOW_LEAVING:
         goto bypass_message;
     }
-    log_message(log_severity, "%s", ss.str().c_str());
+    LogPluginErr(log_severity, errcode);
 bypass_message:
     //Wait anyway
-    log_message(MY_INFORMATION_LEVEL, "Going to wait for view modification");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
     if (view_change_notifier->wait_for_view_modification())
     {
-      log_message(MY_WARNING_LEVEL,
-                  "On shutdown there was a timeout receiving a view change. "
-                  "This can lead to a possible inconsistent state. "
-                  "Check the log for more details");
+      LogPluginErr(WARNING_LEVEL,
+                  ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
     }
   }
   else
@@ -963,9 +919,8 @@ bypass_message:
       the group when the communication layer failure detector
       detects that it left.
     */
-    log_message(MY_INFORMATION_LEVEL,
-                "Requesting to leave the group despite of not "
-                "being a member");
+    LogPluginErr(INFORMATION_LEVEL,
+                 ER_GRP_RPL_REQUESTING_NON_MEMBER_SERVER_TO_LEAVE);
     gcs_module->leave();
   }
 
@@ -1015,8 +970,7 @@ int plugin_group_replication_stop(char **error_message)
     shared_plugin_stop_lock->release_write_lock();
     DBUG_RETURN(0);
   }
-  log_message(MY_INFORMATION_LEVEL,
-              "Plugin 'group_replication' is stopping.");
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_IS_STOPPING);
 
   plugin_is_waiting_to_set_server_read_mode= true;
 
@@ -1043,8 +997,7 @@ int plugin_group_replication_stop(char **error_message)
   });
 
   shared_plugin_stop_lock->release_write_lock();
-  log_message(MY_INFORMATION_LEVEL,
-              "Plugin 'group_replication' has been stopped.");
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_IS_STOPPED);
 
   // Enable super_read_only.
   if (!server_shutdown_status &&
@@ -1053,10 +1006,10 @@ int plugin_group_replication_stop(char **error_message)
   {
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "On plugin shutdown it was not possible to enable the "
-                  "server read only mode. Local transactions will be accepted "
-                  "and committed."); /* purecov: inspected */
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_FAILED_TO_ENABLE_READ_ONLY_MODE_ON_SHUTDOWN);
+      /* purecov: end */
     }
     plugin_is_waiting_to_set_server_read_mode= false;
   }
@@ -1073,9 +1026,10 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
   if(terminate_recovery_module())
   {
     //Do not throw an error since recovery is not vital, but warn either way
-    log_message(MY_WARNING_LEVEL,
-                "On shutdown there was a timeout on the Group Replication "
-                "recovery module termination. Check the log for more details"); /* purecov: inspected */
+    /* purecov: begin inspected */
+    LogPluginErr(WARNING_LEVEL,
+                 ER_GRP_RPL_RECOVERY_MODULE_TERMINATION_TIMED_OUT_ON_SHUTDOWN);
+    /* purecov: end */
   }
 
   DBUG_EXECUTE_IF("group_replication_after_recovery_module_terminated",
@@ -1091,9 +1045,8 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
   int error= 0;
   if((error= terminate_applier_module()))
   {
-    log_message(MY_ERROR_LEVEL,
-                "On shutdown there was a timeout on the Group Replication"
-                " applier termination.");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_APPLIER_TERMINATION_TIMED_OUT_ON_SHUTDOWN);
   }
 
   if (flag_stop_async_channel)
@@ -1126,7 +1079,8 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
 
           if (total_length < MYSQL_ERRMSG_SIZE)
           {
-            log_message(MY_INFORMATION_LEVEL, "error_message: %s", *error_message);
+            LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MODULE_TERMINATE_ERROR,
+                         *error_message);
 
             char *ptr= (char *)my_realloc(PSI_NOT_INSTRUMENTED,
                                                *error_message,
@@ -1180,8 +1134,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
   if (finalize_registry_module())
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Unexpected failure while shutting down registry module!");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_SHUTDOWN_REGISTRY_MODULE);
     if (!error)
       error= 1;
     /* purecov: end */
@@ -1233,9 +1186,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   if (group_replication_init())
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failure during Group Replication handler initialization");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_HANDLER);
     return 1;
     /* purecov: end */
   }
@@ -1244,9 +1195,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
                                     (void *)plugin_info_ptr))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failure when registering the server state observers");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_REGISTER_SERVER_STATE_OBSERVER);
     return 1;
     /* purecov: end */
   }
@@ -1254,9 +1204,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   if (register_trans_observer(&trans_observer, (void *)plugin_info_ptr))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failure when registering the transactions state observers");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_REGISTER_TRANS_STATE_OBSERVER);
     return 1;
     /* purecov: end */
   }
@@ -1265,9 +1214,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
                                         (void *)plugin_info_ptr))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failure when registering the binlog state observers");
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_REGISTER_BINLOG_STATE_OBSERVER);
     return 1;
     /* purecov: end */
   }
@@ -1299,8 +1247,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 
   if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
-    log_message(MY_ERROR_LEVEL,
-                "Unable to start Group Replication on boot");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_START_ON_BOOT);
   }
 
   return 0;
@@ -1316,8 +1263,7 @@ int plugin_group_replication_deinit(void *p)
   int observer_unregister_error= 0;
 
   if (plugin_group_replication_stop())
-    log_message(MY_ERROR_LEVEL,
-                "Failure when stopping Group Replication on plugin uninstall");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_STOP_ON_PLUGIN_UNINSTALL);
 
   if (group_member_mgr != NULL)
   {
@@ -1341,29 +1287,27 @@ int plugin_group_replication_deinit(void *p)
 
   if (unregister_server_state_observer(&server_state_observer, p))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Failure when unregistering the server state observers");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_UNREGISTER_SERVER_STATE_OBSERVER);
     observer_unregister_error++;
   }
 
   if (unregister_trans_observer(&trans_observer, p))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Failure when unregistering the transactions state observers");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_UNREGISTER_TRANS_STATE_OBSERVER);
     observer_unregister_error++;
   }
 
   if (unregister_binlog_transmit_observer(&binlog_transmit_observer, p))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Failure when unregistering the binlog state observers");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_FAILED_TO_UNREGISTER_BINLOG_STATE_OBSERVER);
     observer_unregister_error++;
   }
 
   if (observer_unregister_error == 0)
-    log_message(MY_INFORMATION_LEVEL,
-                "All Group Replication server observers"
-                " have been successfully unregistered");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ALL_OBSERVERS_UNREGISTERED);
 
   if (channel_observation_manager_list != NULL)
   {
@@ -1433,7 +1377,7 @@ static bool init_group_sidno()
   if (group_sid.parse(group_name_var, strlen(group_name_var)) != RETURN_STATUS_OK)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Unable to parse the group name.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_PARSE_THE_GRP_NAME);
     DBUG_RETURN(true);
     /* purecov: end */
   }
@@ -1442,7 +1386,7 @@ static bool init_group_sidno()
   if (group_sidno <= 0)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Unable to generate the sidno for the group.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP);
     DBUG_RETURN(true);
     /* purecov: end */
   }
@@ -1466,10 +1410,8 @@ int configure_and_start_applier_module()
   {
     if ((error= applier_module->is_running())) //it is still running?
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Cannot start the Group Replication applier as a previous "
-                  "shutdown is still running: "
-                  "The thread will stop once its task is complete.");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_APPLIER_NOT_STARTED_DUE_TO_RUNNING_PREV_SHUTDOWN);
       DBUG_RETURN(error);
     }
     else
@@ -1506,8 +1448,7 @@ int configure_and_start_applier_module()
 
   if ((error= applier_module->initialize_applier_thread()))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Unable to initialize the Group Replication applier module.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_APPLIER_MODULE);
     //terminate the applier_thread if running
     if (!applier_module->terminate_applier_thread())
     {
@@ -1516,8 +1457,7 @@ int configure_and_start_applier_module()
     }
   }
   else
-    log_message(MY_INFORMATION_LEVEL,
-                "Group Replication applier module successfully initialized!");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_APPLIER_INITIALIZED);
 
   DBUG_RETURN(error);
 }
@@ -1628,33 +1568,20 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
         gcs_module_parameters.add_parameter("ssl_fips_mode", ssl_fips_mode); /* purecov: inspected */
 #endif
 
-      log_message(MY_INFORMATION_LEVEL,
-                  "Group communication SSL configuration: "
-                  "group_replication_ssl_mode: \"%s\"; "
-                  "server_key_file: \"%s\"; "
-                  "server_cert_file: \"%s\"; "
-                  "client_key_file: \"%s\"; "
-                  "client_cert_file: \"%s\"; "
-                  "ca_file: \"%s\"; "
-                  "ca_path: \"%s\"; "
-                  "cipher: \"%s\"; "
-                  "tls_version: \"%s\"; "
-                  "crl_file: \"%s\"; "
-                  "crl_path: \"%s\"; "
-                  "ssl_fips_mode: \"%s\"",
-                  ssl_mode.c_str(), ssl_key.c_str(), ssl_cert.c_str(),
-                  ssl_key.c_str(), ssl_cert.c_str(), ssl_ca.c_str(),
-                  ssl_capath.c_str(), ssl_cipher.c_str(), tls_version.c_str(),
-                  ssl_crl.c_str(), ssl_crlpath.c_str(), ssl_fips_mode.c_str());
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_COMMUNICATION_SSL_CONF_INFO,
+                   ssl_mode.c_str(), ssl_key.c_str(), ssl_cert.c_str(),
+                   ssl_key.c_str(), ssl_cert.c_str(), ssl_ca.c_str(),
+                   ssl_capath.c_str(), ssl_cipher.c_str(), tls_version.c_str(),
+                   ssl_crl.c_str(), ssl_crlpath.c_str(),
+                   ssl_fips_mode.c_str());
     }
     // No SSL support on server.
     else
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "MySQL server does not have SSL support and "
-                  "group_replication_ssl_mode is \"%s\", START "
-                  "GROUP_REPLICATION will abort", ssl_mode.c_str());
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_ABORTS_AS_SSL_NOT_SUPPORTED_BY_MYSQLD,
+                   ssl_mode.c_str());
       DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
       /* purecov: end */
     }
@@ -1663,9 +1590,8 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
   else
   {
     gcs_module_parameters.add_parameter("ssl_mode", ssl_mode);
-    log_message(MY_INFORMATION_LEVEL,
-                "Group communication SSL configuration: "
-                "group_replication_ssl_mode: \"%s\"", ssl_mode.c_str());
+
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SSL_DISABLED, ssl_mode.c_str());
   }
 
   if (ip_whitelist_var != NULL)
@@ -1700,28 +1626,18 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
   // Configure GCS.
   if (gcs_module->configure(gcs_module_parameters))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Unable to initialize the group communication engine");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_INIT_COMMUNICATION_ENGINE);
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
   }
-  log_message(MY_INFORMATION_LEVEL,
-              "Initialized group communication with configuration: "
-              "group_replication_group_name: \"%s\"; "
-              "group_replication_local_address: \"%s\"; "
-              "group_replication_group_seeds: \"%s\"; "
-              "group_replication_bootstrap_group: %s; "
-              "group_replication_poll_spin_loops: %lu; "
-              "group_replication_compression_threshold: %lu; "
-              "group_replication_ip_whitelist: \"%s\"; "
-              "group_replication_communication_debug_options: \"%s\"",
-              group_name_var,
-              local_address_var,
-              group_seeds_var,
-              bootstrap_group_var ? "true" : "false",
-              poll_spin_loops_var,
-              compression_threshold_var,
-              ip_whitelist_var,
-              communication_debug_options_var);
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF,
+               group_name_var,
+               local_address_var,
+               group_seeds_var,
+               bootstrap_group_var ? "true" : "false",
+               poll_spin_loops_var,
+               compression_threshold_var,
+               ip_whitelist_var,
+               communication_debug_options_var);
 
   DBUG_RETURN(0);
 }
@@ -1882,42 +1798,39 @@ static int check_if_server_properly_configured()
 
   if(!startup_pre_reqs.binlog_enabled)
   {
-    log_message(MY_ERROR_LEVEL, "Binlog must be enabled for Group Replication");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_DISABLED);
     DBUG_RETURN(1);
   }
 
   if(startup_pre_reqs.binlog_checksum_options != binary_log::BINLOG_CHECKSUM_ALG_OFF)
   {
-    log_message(MY_ERROR_LEVEL, "binlog_checksum should be NONE for Group Replication");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_CHECKSUM_SET);
     DBUG_RETURN(1);
   }
 
   if(startup_pre_reqs.binlog_format != BINLOG_FORMAT_ROW)
   {
-    log_message(MY_ERROR_LEVEL, "Binlog format should be ROW for Group Replication");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_BINLOG_FORMAT);
     DBUG_RETURN(1);
   }
 
   if(startup_pre_reqs.gtid_mode != GTID_MODE_ON)
   {
-    log_message(MY_ERROR_LEVEL, "Gtid mode should be ON for Group Replication");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_MODE_OFF);
     DBUG_RETURN(1);
   }
 
   if(startup_pre_reqs.log_slave_updates != true)
   {
-    log_message(MY_ERROR_LEVEL,
-                "LOG_SLAVE_UPDATES should be ON for Group Replication");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOG_SLAVE_UPDATES_NOT_SET);
     DBUG_RETURN(1);
   }
 
   if(startup_pre_reqs.transaction_write_set_extraction ==
      HASH_ALGORITHM_OFF)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Extraction of transaction write sets requires an hash algorithm "
-                "configuration. Please, double check that the parameter "
-                "transaction-write-set-extraction is set to a valid algorithm.");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE);
     DBUG_RETURN(1);
   }
   else
@@ -1928,13 +1841,13 @@ static int check_if_server_properly_configured()
 
   if (startup_pre_reqs.mi_repository_type != 1) //INFO_REPOSITORY_TABLE
   {
-    log_message(MY_ERROR_LEVEL, "Master info repository must be set to TABLE.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE);
     DBUG_RETURN(1);
   }
 
   if (startup_pre_reqs.rli_repository_type != 1) //INFO_REPOSITORY_TABLE
   {
-    log_message(MY_ERROR_LEVEL, "Relay log info repository must be set to TABLE");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RELAY_LOG_INFO_REPO_MUST_BE_TABLE);
     DBUG_RETURN(1);
   }
 
@@ -1942,26 +1855,23 @@ static int check_if_server_properly_configured()
   {
     if (startup_pre_reqs.parallel_applier_type != CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "In order to use parallel applier on Group Replication, parameter "
-                  "slave-parallel-type must be set to 'LOGICAL_CLOCK'.");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER);
       DBUG_RETURN(1);
     }
 
     if (!startup_pre_reqs.parallel_applier_preserve_commit_order)
     {
-      log_message(MY_WARNING_LEVEL,
-                  "Group Replication requires slave-preserve-commit-order "
-                  "to be set to ON when using more than 1 applier threads.");
+      LogPluginErr(WARNING_LEVEL,
+                   ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET);
       DBUG_RETURN(1);
     }
   }
 
   if (single_primary_mode_var && enforce_update_everywhere_checks_var)
   {
-    log_message(MY_ERROR_LEVEL,
-                "It is not allowed to run single primary mode with "
-                "'enforce_update_everywhere_checks' enabled.");
+    LogPluginErr(ERROR_LEVEL,
+      ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE);
     DBUG_RETURN(1);
   }
 
@@ -1999,7 +1909,7 @@ static int check_group_name_string(const char *str, bool is_var_update)
   if (!str)
   {
     if(!is_var_update)
-      log_message(MY_ERROR_LEVEL, "The group name option is mandatory");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_OPTION_MANDATORY);
     else
       my_message(ER_WRONG_VALUE_FOR_VAR,
                  "The group name option is mandatory",
@@ -2011,8 +1921,7 @@ static int check_group_name_string(const char *str, bool is_var_update)
   if (length > UUID_LENGTH)
   {
     if(!is_var_update)
-      log_message(MY_ERROR_LEVEL, "The group name '%s' is not a valid UUID, its"
-                  " length is too big", str);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_IS_TOO_LONG, str);
     else
       my_message(ER_WRONG_VALUE_FOR_VAR,
                  "The group name is not a valid UUID, its length is too big",
@@ -2023,7 +1932,11 @@ static int check_group_name_string(const char *str, bool is_var_update)
   if (!binary_log::Uuid::is_valid(str, length))
   {
     if(!is_var_update)
-      log_message(MY_ERROR_LEVEL, "The group name '%s' is not a valid UUID", str); /* purecov: inspected */
+    {
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID);
+      /* purecov: end */
+    }
     else
       my_message(ER_WRONG_VALUE_FOR_VAR, "The group name is not a valid UUID",
                  MYF(0));
@@ -2087,9 +2000,8 @@ static int check_flow_control_min_quota_long(longlong value, bool is_var_update)
   if (value > flow_control_max_quota_var && flow_control_max_quota_var > 0)
   {
     if (!is_var_update)
-      log_message(MY_ERROR_LEVEL,
-                  "group_replication_flow_control_min_quota cannot be larger than "
-                  "group_replication_flow_control_max_quota");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_FLOW_CTRL_MIN_QUOTA_GREATER_THAN_MAX_QUOTA);
     else
       my_message(ER_WRONG_VALUE_FOR_VAR,
                  "group_replication_flow_control_min_quota cannot be larger than "
@@ -2108,9 +2020,8 @@ static int check_flow_control_min_recovery_quota_long(longlong value, bool is_va
   if (value > flow_control_max_quota_var && flow_control_max_quota_var > 0)
   {
     if (!is_var_update)
-      log_message(MY_ERROR_LEVEL,
-                  "group_replication_flow_control_min_recovery_quota cannot be "
-                  "larger than group_replication_flow_control_max_quota");
+      LogPluginErr(ERROR_LEVEL,
+        ER_GRP_RPL_FLOW_CTRL_MIN_RECOVERY_QUOTA_GREATER_THAN_MAX_QUOTA);
     else
       my_message(ER_WRONG_VALUE_FOR_VAR,
                  "group_replication_flow_control_min_recovery_quota cannot be "
@@ -2133,10 +2044,8 @@ static int check_flow_control_max_quota_long(longlong value, bool is_var_update)
            && flow_control_min_recovery_quota_var != 0)))
   {
     if (!is_var_update)
-      log_message(MY_ERROR_LEVEL,
-                  "group_replication_flow_control_max_quota cannot be smaller "
-                  "than group_replication_flow_control_min_quota or "
-                  "group_replication_flow_control_min_recovery_quota");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_FLOW_CTRL_MAX_QUOTA_SMALLER_THAN_MIN_QUOTAS);
     else
       my_message(ER_WRONG_VALUE_FOR_VAR,
                  "group_replication_flow_control_max_quota cannot be smaller "
@@ -2302,9 +2211,8 @@ static int check_recovery_ssl_string(const char *str, const char *var_name,
   if (strlen(str) > FN_REFLEN)
   {
     if(!is_var_update)
-      log_message(MY_ERROR_LEVEL,
-                  "The given value for recovery ssl option '%s' is invalid"
-                  " as its length is beyond the limit", var_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING,
+                   var_name);
     else
       my_message(ER_WRONG_VALUE_FOR_VAR,
                   "The given value for recovery ssl option is invalid"
@@ -2705,9 +2613,7 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR*,
   mysql_mutex_lock(&force_members_running_mutex);
   if (force_members_running)
   {
-    log_message(MY_ERROR_LEVEL,
-                "There is one group_replication_force_members "
-                "operation already ongoing");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET);
     mysql_mutex_unlock(&force_members_running_mutex);
     DBUG_RETURN(1);
   }
@@ -2741,10 +2647,7 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR*,
   if (!plugin_is_group_replication_running() ||
       !group_member_mgr->is_majority_unreachable())
   {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_force_members can only be updated"
-                " when Group Replication is running and a majority of the"
-                " members are unreachable");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBERS_SET_UPDATE_NOT_ALLOWED);
     error= 1;
     goto end;
   }

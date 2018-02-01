@@ -23,6 +23,7 @@
 #include "plugin/group_replication/include/group_partition_handling.h"
 
 #include <mysql/group_replication_priv.h>
+#include <mysql/components/services/log_builtins.h>
 
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
@@ -97,10 +98,7 @@ void Group_partition_handling::kill_transactions_and_leave()
 
   Notification_context ctx;
 
-  log_message(MY_ERROR_LEVEL,
-              "This member could not reach a majority of the members for more "
-              "than %ld seconds. The member will now leave the group as instructed "
-              "by the group_replication_unreachable_majority_timeout option.",
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNREACHABLE_MAJORITY_TIMEOUT_FOR_MEMBER,
                timeout_on_unreachable);
 
   /*
@@ -126,29 +124,28 @@ void Group_partition_handling::kill_transactions_and_leave()
   bool set_read_mode= false;
   Gcs_operations::enum_leave_state state= gcs_module->leave();
 
-  std::stringstream ss;
-  plugin_log_level log_severity= MY_WARNING_LEVEL;
+  longlong errcode= 0;
+  longlong log_severity= WARNING_LEVEL;
   switch (state)
   {
     case Gcs_operations::ERROR_WHEN_LEAVING:
-      ss << "Unable to confirm whether the server has left the group or not. "
-            "Check performance_schema.replication_group_members to check group membership information.";
-      log_severity= MY_ERROR_LEVEL;
+      errcode= ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
+      log_severity= ERROR_LEVEL;
       set_read_mode= true;
       break;
     case Gcs_operations::ALREADY_LEAVING:
-      ss << "Skipping leave operation: concurrent attempt to leave the group is on-going."; /* purecov: inspected */
+      errcode= ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
       break; /* purecov: inspected */
     case Gcs_operations::ALREADY_LEFT:
-      ss << "Skipping leave operation: member already left the group."; /* purecov: inspected */
+      errcode= ER_GRP_RPL_SERVER_ALREADY_LEFT; /* purecov: inspected */
       break; /* purecov: inspected */
     case Gcs_operations::NOW_LEAVING:
       set_read_mode= true;
-      ss << "The server was automatically set into read only mode after an error was detected.";
-      log_severity= MY_ERROR_LEVEL;
+      errcode= ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS;
+      log_severity= ERROR_LEVEL;
       break;
   }
-  log_message(log_severity, ss.str().c_str());
+  LogPluginErr(log_severity, errcode);
 
   /*
     If true it means:

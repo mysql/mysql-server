@@ -43,6 +43,8 @@ SET(TESTS
   file_io
 )
 
+ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="keyring_file_tests")
+
 SET(ALL_KEYRING_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_KEYRING_TESTS ${test}-t.cc)
@@ -70,7 +72,9 @@ LIST(APPEND SRC_FILES
 IF(WIN32)
   LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
 ENDIF()
+
 ADD_LIBRARY(keyring_test STATIC ${SRC_FILES})
+ADD_DEPENDENCIES(keyring_test GenError)
 
 IF (MERGE_UNITTESTS)
   MYSQL_ADD_EXECUTABLE(merge_keyring_file_tests-t

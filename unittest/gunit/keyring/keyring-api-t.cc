@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,7 +215,7 @@ namespace keyring__api_unittest
 #if !defined(HAVE_UBSAN)
   TEST_F(Keyring_api_test, StoreInvalidType)
   {
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: invalid key_type")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while storing key: invalid key_type")));
     EXPECT_EQ(mysql_key_store("Robert_key", "YYY", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1), 1);
     char *key_type;
@@ -377,46 +377,46 @@ namespace keyring__api_unittest
 #if !defined(HAVE_UBSAN)
   TEST_F(Keyring_api_test, NullKeyId)
   {
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_store(NULL, "AES", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_store(NULL, "AES", NULL, sample_key_data.c_str(),
                               sample_key_data.length() + 1), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_store("", "AES", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_store("", "AES", NULL, sample_key_data.c_str(),
                               sample_key_data.length() + 1), 1);
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_fetch(NULL, &key_type, "Robert", &key, &key_len), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_fetch(NULL, &key_type, NULL, &key, &key_len), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_fetch("", &key_type, "Robert", &key, &key_len), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_fetch("", &key_type, NULL, &key, &key_len), 1);
 
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_remove(NULL, "Robert") , 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_remove(NULL, NULL) , 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_remove("", "Robert") , 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_remove("", NULL) , 1);
 
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_generate(NULL, "AES", "Robert", 128), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_generate(NULL, "AES", NULL, 128), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_generate("", "AES", "Robert", 128), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_CALL(*((Mock_logger *)logger.get()), log(ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
     EXPECT_EQ(mysql_key_generate("", "AES", NULL, 128), 1);
   }
 #endif  // HAVE_UBSAN

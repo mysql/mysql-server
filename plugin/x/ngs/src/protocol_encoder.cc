@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,8 @@ bool Protocol_encoder::send_message(int8_t type, const Message &message, bool fo
   }
   if (!message.IsInitialized())
   {
-    log_warning("Message is not properly initialized: %s", message.InitializationErrorString().c_str());
+    log_warning(ER_XPLUGIN_UNINITIALIZED_MESSAGE,
+                message.InitializationErrorString().c_str());
   }
 
   // header
@@ -310,7 +311,7 @@ bool Protocol_encoder::flush_buffer()
         m_write_timeout);
     if (result <= 0)
     {
-      log_info("Error writing to client: %s (%i)", strerror(errno), errno);
+      log_info(ER_XPLUGIN_ERROR_WRITING_TO_CLIENT, strerror(errno), errno);
       on_error(errno);
       return false;
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 #include <vector>
 
 #include "my_dbug.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 
 
 const std::string Gcs_operations::gcs_engine= "xcom";
@@ -76,9 +76,8 @@ Gcs_operations::initialize()
                gcs_engine)) == NULL)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failure in group communication engine '%s' initialization",
-                gcs_engine.c_str());
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_COMMUNICATION_ENG_INIT_FAILED,
+                 gcs_engine.c_str());
     error= GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
     goto end;
     /* purecov: end */
@@ -87,8 +86,8 @@ Gcs_operations::initialize()
   if (gcs_interface->set_logger(&gcs_logger))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Unable to set the group communication engine logger");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_SET_GRP_COMMUNICATION_ENG_LOGGER_FAILED);
     error= GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
     goto end;
     /* purecov: end */
@@ -148,19 +147,16 @@ Gcs_operations::do_set_debug_options(std::string &debug_options) const
      Gcs_debug_options::get_debug_options(res_debug_options, debug_options);
      error= GCS_OK;
 
-     log_message(
-       MY_INFORMATION_LEVEL, "Current debug options are: '%s'.", debug_options.c_str()
-     );
+     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_DEBUG_OPTIONS,
+                  debug_options.c_str());
   }
   else
   {
     std::string str_debug_options;
     Gcs_debug_options::get_current_debug_options(str_debug_options);
 
-    log_message(
-      MY_ERROR_LEVEL,
-      "Some debug options in '%s' are not valid.", debug_options.c_str()
-    );
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_DEBUG_OPTIONS,
+                 debug_options.c_str());
   }
 
   return error;
@@ -290,18 +286,14 @@ Gcs_operations::leave()
     else
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Error calling group communication interfaces while trying"
-                  " to leave the group");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_EXIT_GRP_GCS_ERROR);
       goto end;
       /* purecov: end */
     }
   }
   else
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error calling group communication interfaces while trying"
-                " to leave the group");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_EXIT_GRP_GCS_ERROR);
     goto end;
   }
 
@@ -451,9 +443,7 @@ Gcs_operations::force_members(const char* members)
   if (gcs_interface == NULL || !gcs_interface->is_initialized())
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Member is OFFLINE, it is not possible to force a "
-                "new group membership");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
     error= 1;
     goto end;
     /* purecov: end */
@@ -469,8 +459,7 @@ Gcs_operations::force_members(const char* members)
     if (gcs_management == NULL)
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Error calling group communication interfaces");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
       error= 1;
       goto end;
       /* purecov: end */
@@ -486,23 +475,19 @@ Gcs_operations::force_members(const char* members)
     if (result != GCS_OK)
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Error setting group_replication_force_members "
-                  "value '%s' on group communication interfaces", members);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET_ERROR,
+                   members);
       error= 1;
       goto end;
       /* purecov: end */
     }
-    log_message(MY_INFORMATION_LEVEL,
-                "The group_replication_force_members value '%s' "
-                "was set in the group communication interfaces", members);
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET,
+                 members);
     if (view_change_notifier->wait_for_view_modification())
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Timeout on wait for view after setting "
-                  "group_replication_force_members value '%s' "
-                  "into group communication interfaces", members);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT,
+                   members);
       error= 1;
       goto end;
       /* purecov: end */
@@ -510,9 +495,7 @@ Gcs_operations::force_members(const char* members)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL,
-                "Member is not ONLINE, it is not possible to force a "
-                "new group membership");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
     error= 1;
     goto end;
   }

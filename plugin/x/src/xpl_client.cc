@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -162,8 +162,7 @@ std::string Client::resolve_hostname() {
       m_connection->peer_address(socket_ip_string, socket_port);
 
   if (NULL == addr) {
-    log_error("%s: get peer address failed, can't resolve IP to hostname",
-              m_id);
+    log_error(ER_XPLUGIN_GET_PEER_ADDRESS_FAILED, m_id);
     return "";
   }
 

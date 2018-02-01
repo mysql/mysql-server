@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Can't establish a internal server connection to execute plugin operations.*");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
 call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 SET SESSION sql_log_bin= 1;
 

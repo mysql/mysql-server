@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 
 using std::string;
 const int GTID_WAIT_TIMEOUT= 30; //30 seconds
@@ -156,9 +156,7 @@ Certification_handler::set_transaction_context(Pipeline_event *pevent)
   if (error || (packet == NULL))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch transaction context containing required"
-                " transaction info for certification");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_CONTEXT_FAILED);
     DBUG_RETURN(1);
     /* purecov: end */
   }
@@ -181,9 +179,7 @@ Certification_handler::get_transaction_context(Pipeline_event *pevent,
   if (pevent->get_FormatDescription(&fdle) && (fdle == NULL))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch Format_description_log_event containing"
-                " required server info for applier");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_FORMAT_DESC_LOG_EVENT_FAILED);
     DBUG_RETURN(1);
     /* purecov: end */
   }
@@ -196,9 +192,7 @@ Certification_handler::get_transaction_context(Pipeline_event *pevent,
   DBUG_EXECUTE_IF("certification_handler_force_error_on_pipeline", error= 1;);
   if (error || (transaction_context_event == NULL))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch Transaction_context_log_event containing"
-                " required transaction info for certification");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_CONTEXT_LOG_EVENT_FAILED);
     DBUG_RETURN(1);
   }
 
@@ -206,9 +200,7 @@ Certification_handler::get_transaction_context(Pipeline_event *pevent,
   if ((*tcle)->read_snapshot_version())
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to read snapshot version from transaction context"
-                " event required for certification");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_SNAPSHOT_VERSION_FAILED);
     DBUG_RETURN(1);
     /* purecov: end */
   }
@@ -276,9 +268,7 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
   if (error || (event == NULL))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch Gtid_log_event containing required"
-                " transaction info for certification");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_GTID_LOG_EVENT_FAILED);
     cont->signal(1, true);
     error= 1;
     goto end;
@@ -336,9 +326,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
     if (set_transaction_ctx(transaction_termination_ctx))
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Unable to update certification result on server side, thread_id: %lu",
-                  tcle->get_thread_id());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UPDATE_SERV_CERTIFICATE_FAILED,
+                   tcle->get_thread_id());
       cont->signal(1,true);
       error= 1;
       goto end;
@@ -355,9 +344,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
 
         if (error)
         {
-          log_message(MY_ERROR_LEVEL, "Unable to add gtid information to the "
-                      "group_gtid_executed set when gtid was provided for "
-                      "local transactions");
+          LogPluginErr(ERROR_LEVEL,
+                       ER_GRP_RPL_ADD_GTID_INFO_WITH_LOCAL_GTID_FAILED);
           certification_latch->releaseTicket(tcle->get_thread_id());
           cont->signal(1,true);
           goto end;
@@ -368,9 +356,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
         if (cert_module->add_group_gtid_to_group_gtid_executed(seq_number, true))
         {
           /* purecov: begin inspected */
-          log_message(MY_ERROR_LEVEL, "Unable to add gtid information to the "
-                      "group_gtid_executed set when no gtid was provided for "
-                      "local transactions");
+          LogPluginErr(ERROR_LEVEL,
+                       ER_GRP_RPL_ADD_GTID_INFO_WITHOUT_LOCAL_GTID_FAILED);
           certification_latch->releaseTicket(tcle->get_thread_id());
           cont->signal(1,true);
           error= 1;
@@ -383,7 +370,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
     if (certification_latch->releaseTicket(tcle->get_thread_id()))
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL, "Failed to notify certification outcome");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_NOTIFY_CERTIFICATION_OUTCOME_FAILED);
       cont->signal(1,true);
       error= 1;
       goto end;
@@ -424,9 +412,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
         if (cert_module->add_group_gtid_to_group_gtid_executed(seq_number, false))
         {
           /* purecov: begin inspected */
-          log_message(MY_ERROR_LEVEL, "Unable to add gtid information to the "
-                      "group_gtid_executed set when gtid was not provided for "
-                      "remote transactions");
+          LogPluginErr(ERROR_LEVEL,
+                       ER_GRP_RPL_ADD_GTID_INFO_WITHOUT_REMOTE_GTID_FAILED);
           cont->signal(1,true);
           error= 1;
           goto end;
@@ -443,9 +430,8 @@ Certification_handler::handle_transaction_id(Pipeline_event *pevent,
         if (error)
         {
           /* purecov: begin inspected */
-          log_message(MY_ERROR_LEVEL, "Unable to add gtid information to the "
-                      "group_gtid_executed set when gtid was provided for "
-                      "remote transactions");
+          LogPluginErr(ERROR_LEVEL,
+                       ER_GRP_RPL_ADD_GTID_INFO_WITH_REMOTE_GTID_FAILED);
           cont->signal(1,true);
           goto end;
           /* purecov: end */
@@ -506,9 +492,7 @@ Certification_handler::extract_certification_info(Pipeline_event *pevent,
   if (error || (event == NULL))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch View_change_log_event containing required"
-                " info for certification");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_VIEW_CHANGE_LOG_EVENT_FAILED);
     cont->signal(1, true);
     DBUG_RETURN(1);
     /* purecov: end */
@@ -554,9 +538,7 @@ int Certification_handler::wait_for_local_transaction_execution()
     )
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Error when contacting the server to ensure the proper logging "
-                "of a group change in the binlog");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONTACT_WITH_SRV_FAILED);
     delete sql_command_interface;
     DBUG_RETURN(1);
     /* purecov: end */
@@ -569,15 +551,11 @@ int Certification_handler::wait_for_local_transaction_execution()
     /* purecov: begin inspected */
     if (error == 1) //timeout
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Timeout when waiting for the server to execute local "
-                  "transactions in order assure the group change proper logging");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SRV_WAIT_TIME_OUT);
     }
     else
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error when waiting for the server to execute local "
-                  "transactions in order assure the group change proper logging");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SRV_WAIT_TIME_OUT);
     }
     /* purecov: end */
   }
@@ -595,9 +573,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   if (pevent->get_LogEvent(&event) || (event == NULL))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch Log_event containing required server"
-                " info for applier");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_LOG_EVENT_FAILED);
     cont->signal(1, true);
     DBUG_RETURN(1);
     /* purecov: end */
@@ -606,9 +582,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   if (pevent->get_FormatDescription(&fd_event) && (fd_event == NULL))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to fetch Format_description_log_event containing"
-                " required server info for applier");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_FORMAT_DESC_LOG_EVENT_FAILED);
     cont->signal(1, true);
     DBUG_RETURN(1);
     /* purecov: end */

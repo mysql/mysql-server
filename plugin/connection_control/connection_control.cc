@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,8 +19,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#define LOG_SUBSYSTEM_TAG "CONNECTION_CONTROL"
 
 #include "plugin/connection_control/connection_control.h"
 
@@ -45,16 +43,13 @@ namespace connection_control
   class Connection_control_error_handler : public Error_handler
   {
   public:
-    Connection_control_error_handler(MYSQL_PLUGIN plugin_info)
-      : m_plugin_info(plugin_info)
-    {}
-
-    void handle_error(const char * error_message)
+    void handle_error(longlong errcode, ...)
     {
-      LogPluginErr(ERROR_LEVEL, ER_CONN_CONTROL_ERROR_MSG, error_message);
+      va_list vl;
+      va_start(vl, errcode);
+      LogPluginErrV(ERROR_LEVEL, errcode, vl);
+      va_end(vl);
     }
-  private:
-    MYSQL_PLUGIN m_plugin_info;
   };
 }
 
@@ -96,7 +91,7 @@ connection_control_notify(MYSQL_THD thd,
     {
       const struct mysql_event_connection *connection_event=
         (const struct mysql_event_connection *) event;
-      Connection_control_error_handler error_handler(connection_control_plugin_info);
+      Connection_control_error_handler error_handler;
       /** Notify event coordinator */
       g_connection_event_coordinator->notify_event(thd, &error_handler,
                                                    connection_event);
@@ -129,11 +124,11 @@ connection_control_init(MYSQL_PLUGIN plugin_info)
     return 1;
 
   connection_control_plugin_info= plugin_info;
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
+  Connection_control_error_handler error_handler;
   g_connection_event_coordinator= new Connection_event_coordinator();
   if (!g_connection_event_coordinator)
   {
-    error_handler.handle_error("Failed to initialize Connection_event_coordinator");
+    error_handler.handle_error(ER_CONN_CONTROL_EVENT_COORDINATOR_INIT_FAILED);
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
@@ -254,7 +249,7 @@ update_failed_connections_threshold(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   */
   longlong new_value= *(reinterpret_cast<const longlong *>(save));
   g_variables.failed_connections_threshold= (int64)new_value;
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
+  Connection_control_error_handler error_handler;
   g_connection_event_coordinator->notify_sys_var(&error_handler,
                                                  OPT_FAILED_CONNECTIONS_THRESHOLD,
                                                  &new_value);
@@ -334,7 +329,7 @@ update_min_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 {
   longlong new_value= *(reinterpret_cast<const longlong *>(save));
   g_variables.min_connection_delay= (int64)new_value;
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
+  Connection_control_error_handler error_handler;
   g_connection_event_coordinator->notify_sys_var(&error_handler,
                                                  OPT_MIN_CONNECTION_DELAY,
                                                  &new_value);
@@ -414,7 +409,7 @@ update_max_connection_delay(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 {
   longlong new_value= *(reinterpret_cast<const longlong *>(save));
   g_variables.max_connection_delay= (int64)new_value;
-  Connection_control_error_handler error_handler(connection_control_plugin_info);
+  Connection_control_error_handler error_handler;
   g_connection_event_coordinator->notify_sys_var(&error_handler,
                                                  OPT_MAX_CONNECTION_DELAY,
                                                  &new_value);

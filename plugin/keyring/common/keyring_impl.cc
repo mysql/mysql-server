@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_socket.h"
+#include "mysqld_error.h"
 #include "plugin/keyring/common/keyring.h"
 
 namespace keyring
@@ -88,11 +89,11 @@ bool is_key_length_and_type_valid(const char *key_type, size_t key_len)
   else
   {
     is_type_valid= false;
-    logger->log(MY_ERROR_LEVEL, "Invalid key type");
+    logger->log(ERROR_LEVEL, ER_KEYRING_INVALID_KEY_TYPE);
   }
 
   if (is_type_valid == true && is_key_len_valid == false)
-    logger->log(MY_ERROR_LEVEL, "Invalid key length for given block cipher");
+    logger->log(ERROR_LEVEL, ER_KEYRING_INVALID_KEY_LENGTH);
 
   return is_type_valid && is_key_len_valid;
 }
@@ -101,10 +102,8 @@ void log_operation_error(const char *failed_operation, const char *plugin_name)
 {
  if (logger != NULL)
  {
-   std::ostringstream err_msg;
-   err_msg << "Failed to " << failed_operation << " due to internal exception inside "
-           << plugin_name << " plugin";
-   logger->log(MY_ERROR_LEVEL, err_msg.str().c_str());
+   logger->log(ERROR_LEVEL, ER_KEYRING_OPERATION_FAILED_DUE_TO_INTERNAL_ERROR,
+               failed_operation, plugin_name);
  }
 }
 
@@ -140,10 +139,8 @@ void log_opearation_error(const char *failed_operation, const char *plugin_name)
 {
  if (logger != NULL)
  {
-   std::ostringstream err_msg;
-   err_msg << "Failed to " << failed_operation << " due to internal exception inside "
-           << plugin_name << " plugin";
-   logger->log(MY_ERROR_LEVEL, err_msg.str().c_str());
+   logger->log(ERROR_LEVEL, ER_KEYRING_OPERATION_FAILED_DUE_TO_INTERNAL_ERROR,
+               failed_operation, plugin_name);
  }
 }
 
@@ -171,8 +168,7 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
 
   if (key_to_fetch->is_key_id_valid() == false)
   {
-    logger->log(MY_ERROR_LEVEL,
-                "Error while fetching key: key_id cannot be empty");
+    logger->log(ERROR_LEVEL, ER_KEYRING_KEY_FETCH_FAILED_DUE_TO_EMPTY_KEY_ID);
     return true;
   }
   mysql_rwlock_rdlock(&LOCK_keyring);
@@ -194,18 +190,16 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
 
 bool check_key_for_writing(IKey* key, std::string error_for)
 {
-  std::string error_msg= "Error while ";
-  error_msg+= error_for;
   if (key->is_key_type_valid() == false)
   {
-    error_msg+= " key: invalid key_type";
-    logger->log(MY_ERROR_LEVEL, error_msg.c_str());
+    logger->log(ERROR_LEVEL, ER_KEYRING_CHECK_KEY_FAILED_DUE_TO_INVALID_KEY,
+                error_for.c_str());
     return true;
   }
   if (key->is_key_id_valid() == false)
   {
-    error_msg+= " key: key_id cannot be empty";
-    logger->log(MY_ERROR_LEVEL, error_msg.c_str());
+    logger->log(ERROR_LEVEL, ER_KEYRING_CHECK_KEY_FAILED_DUE_TO_EMPTY_KEY_ID,
+                error_for.c_str());
     return true;
   }
  return false;
@@ -240,8 +234,7 @@ bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove)
     return true;
   if (key_to_remove->is_key_id_valid() == false)
   {
-    logger->log(MY_ERROR_LEVEL,
-                "Error while removing key: key_id cannot be empty");
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_REMOVE_KEY_DUE_TO_EMPTY_ID);
     return true;
   }
   mysql_rwlock_wrlock(&LOCK_keyring);

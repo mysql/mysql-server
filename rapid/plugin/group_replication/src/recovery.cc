@@ -27,9 +27,9 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
 #include "plugin/group_replication/include/recovery_message.h"
@@ -83,10 +83,7 @@ Recovery_module::start_recovery(const string& group_name,
   if (recovery_state_transfer.check_recovery_thread_status())
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "A previous recovery session is still running. "
-                "Please stop the group replication plugin and"
-                " wait for it to stop.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PREV_REC_SESSION_RUNNING);
     DBUG_RETURN(1);
     /* purecov: end */
   }
@@ -187,8 +184,7 @@ Recovery_module::stop_recovery()
 void Recovery_module::leave_group_on_recovery_failure()
 {
   Notification_context ctx;
-  log_message(MY_ERROR_LEVEL, "Fatal error during the Recovery process of "
-              "Group Replication. The server will leave the group.");
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FATAL_REC_PROCESS);
   //tell the update process that we are already stopping
   recovery_aborted= true;
 
@@ -214,43 +210,37 @@ void Recovery_module::leave_group_on_recovery_failure()
   {
     if (error_message != NULL && *error_message != NULL)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error stopping all replication channels while server was"
-                  " leaving the group. %s", *error_message);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WHILE_STOPPING_REP_CHANNEL, *error_message);
       my_free(error_message);
     }
     else
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error stopping all replication channels while server was"
-                  " leaving the group. Got error: %d. Please check the error"
-                  " log for more details.", error);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_STOP_REP_CHANNEL, error);
     }
   }
 
-  std::stringstream ss;
-  plugin_log_level log_severity= MY_WARNING_LEVEL;
+  longlong errcode= 0;
+  enum loglevel log_severity= WARNING_LEVEL;
   switch (state)
   {
     case Gcs_operations::ERROR_WHEN_LEAVING:
       /* purecov: begin inspected */
-      ss << "Unable to confirm whether the server has left the group or not. "
-            "Check performance_schema.replication_group_members to check group membership information.";
-      log_severity= MY_ERROR_LEVEL;
+      errcode= ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
+      log_severity= ERROR_LEVEL;
       break;
       /* purecov: end */
     case Gcs_operations::ALREADY_LEAVING:
-      ss << "Skipping leave operation: concurrent attempt to leave the group is on-going.";
+      errcode= ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
       break;
     case Gcs_operations::ALREADY_LEFT:
       /* purecov: begin inspected */
-      ss << "Skipping leave operation: member already left the group.";
+      errcode= ER_GRP_RPL_SERVER_ALREADY_LEFT;
       break;
       /* purecov: end */
     case Gcs_operations::NOW_LEAVING:
       return;
   }
-  log_message(log_severity, ss.str().c_str());
+  LogPluginErr(log_severity, errcode);
 }
 
 /*
@@ -337,10 +327,7 @@ Recovery_module::recovery_thread_handle()
   if (!recovery_aborted && error)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Can't evaluate the group replication applier execution status. "
-                "Group replication recovery will shutdown to avoid data "
-                "corruption.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_EVALUATE_APPLIER_STATUS);
     goto cleanup;
     /* purecov: end */
   }
@@ -364,9 +351,7 @@ Recovery_module::recovery_thread_handle()
   {
     if (!recovery_aborted)
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "Only one server alive."
-                  " Declaring this server as online within the replication group");
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ONLY_ONE_SERVER_ALIVE);
     }
     goto single_member_online;
   }
@@ -495,8 +480,7 @@ Recovery_module::set_retrieved_cert_info(void* info)
   if (error)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error when processing Certification "
-                "information in the Recovery process");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CERTIFICATION_REC_PROCESS);
     leave_group_on_recovery_failure();
     DBUG_RETURN(1);
     /* purecov: end */
@@ -565,9 +549,7 @@ int Recovery_module::wait_for_applier_module_recovery()
         if (error == -2) //error when waiting
         {
           applier_monitoring= false;
-          log_message(MY_ERROR_LEVEL,
-                      "It is not possible to ensure the execution of group"
-                      " transactions received during recovery.");
+          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_ENSURE_EXECUTION_REC);
           DBUG_RETURN(1);
         }
         /* purecov: end */
@@ -596,8 +578,7 @@ void Recovery_module::notify_group_recovery_end()
   enum_gcs_error msg_error= gcs_module->send_message(recovery_msg);
   if (msg_error != GCS_OK)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error while sending message for group replication recovery"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WHILE_SENDING_MSG_REC); /* purecov: inspected */
   }
 
   DBUG_VOID_RETURN;

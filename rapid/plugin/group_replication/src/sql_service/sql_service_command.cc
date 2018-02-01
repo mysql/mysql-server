@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
 #include <mysql/group_replication_priv.h>
-
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 #include "plugin/group_replication/include/plugin_constants.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
 using std::string;
@@ -83,11 +83,7 @@ establish_session_connection(enum_plugin_con_isolation isolation_param,
 
   if (error)
   {
-    /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Can't establish a internal server connection to execute"
-                  " plugin operations");
-
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONN_INTERNAL_PLUGIN_FAIL); /* purecov: begin inspected */
     if (m_plugin_session_thread)
     {
       m_plugin_session_thread->terminate_session_thread();
@@ -157,7 +153,7 @@ internal_set_super_read_only(Sql_service_interface *sql_interface, void*)
     err = sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
 
     DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 1);
-    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=ON.");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
 #endif
   }
 
@@ -203,7 +199,7 @@ internal_reset_super_read_only(Sql_service_interface *sql_interface, void*)
     err= sql_interface->execute_query(query, &rset);
 
     DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
-    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=OFF.");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
   }
 #endif
   DBUG_RETURN(srv_err);
@@ -248,7 +244,7 @@ internal_reset_read_only(Sql_service_interface *sql_interface, void*)
     err= sql_interface->execute_query(query, &rset);
 
     DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
-    log_message(MY_INFORMATION_LEVEL, "Setting read_only=OFF.");
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
   }
 #endif
 
@@ -271,13 +267,13 @@ long Sql_service_command_interface::kill_session(uint32_t session_id,
     srv_err= m_server_interface->execute(data, COM_PROCESS_KILL, &rset);
     if (srv_err == 0)
     {
-      log_message(MY_INFORMATION_LEVEL, "killed session id: %d status: %d",
-                  session_id, m_server_interface->is_session_killed(session));
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_KILLED_SESSION_ID,
+                   session_id, m_server_interface->is_session_killed(session));
     }
     else
     {
-      log_message(MY_INFORMATION_LEVEL, "killed failed id: %d failed: %d",
-                  session_id, srv_err); /* purecov: inspected */
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_KILLED_FAILED_ID,
+                   session_id, srv_err); /* purecov: inspected */
     }
   }
   DBUG_RETURN(srv_err);
@@ -457,11 +453,7 @@ internal_wait_for_server_gtid_executed(Sql_service_interface *sql_interface,
   if (srv_err)
   {
     /* purecov: begin inspected */
-    std::stringstream errorstream;
-    errorstream << "Internal query: " << query;
-    errorstream << " result in error. Error number: " << srv_err;
-
-    log_message(MY_ERROR_LEVEL, errorstream.str().c_str());
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INTERNAL_QUERY, query.c_str(), srv_err);
     DBUG_RETURN(1);
     /* purecov: end */
   }

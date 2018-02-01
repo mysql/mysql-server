@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     remove("./some_funny_name"); //just to be sure some_funny_name does not exist
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StrEq("File './some_funny_name' not found "
                                    "(Errcode: 2 - No such file or directory)")));
     File file= file_io.open(keyring::keyring_file_data_key, "./some_funny_name",
@@ -103,7 +103,7 @@ namespace keyring__file_io_unittest
     ASSERT_TRUE(file >= 0); //successfully created
     file_io.close(file, MYF(MY_WME));
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Error on close of")));
     ASSERT_TRUE(file_io.close(file, MYF(MY_WME)) != 0);
 
@@ -116,7 +116,7 @@ namespace keyring__file_io_unittest
     File file=2050;
     uchar buff[2];
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Error reading file")));
     ASSERT_TRUE(file_io.read(file, buff, 10, MYF(MY_WME)) != 10);
   }
@@ -126,7 +126,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     File file=2050;
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Error writing file")));
     ASSERT_TRUE(file_io.write(file, reinterpret_cast<const uchar*>("123"), 10,
                               MYF(MY_WME)) != 10);
@@ -137,7 +137,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     File file=2050;
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Can't seek in file")));
     ASSERT_TRUE(file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) == MY_FILEPOS_ERROR);
   }
@@ -147,7 +147,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     File file=2050;
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Can't seek in file")));
     ASSERT_TRUE(file_io.tell(file, MYF(MY_WME)) == ((my_off_t) -1));
   }
@@ -157,7 +157,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     File file=2050;
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Can't sync file")));
     ASSERT_TRUE(file_io.sync(file, MYF(MY_WME)) != 0);
   }
@@ -167,7 +167,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     File file=2050;
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Error while reading stat for")));
     MY_STAT keyring_file_stat;
     ASSERT_TRUE(file_io.fstat(file, &keyring_file_stat, MYF(MY_WME)) != 0);
@@ -178,7 +178,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     remove("./some_funny_name"); //just to be sure some_funny_name does not exist
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StrEq("Could not remove file ./some_funny_name OS "
                                    "retuned this error: No such file or directory")));
     ASSERT_TRUE(file_io.remove("./some_funny_name", MYF(MY_WME)) != 0);
@@ -189,7 +189,7 @@ namespace keyring__file_io_unittest
     keyring::File_io file_io(logger);
     File file=2050;
 
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL,
+    EXPECT_CALL(*logger, log(ERROR_LEVEL,
                              StartsWith("Could not truncate file")));
     ASSERT_TRUE(file_io.truncate(file, MYF(MY_WME)) != 0);
   }

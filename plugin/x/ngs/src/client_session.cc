@@ -166,7 +166,8 @@ bool Session::handle_auth_message(ngs::Request &command)
     m_auth_handler = m_client.server().get_auth_handler(authm.mech_name(), this);
     if (!m_auth_handler.get())
     {
-      log_info("%s.%u: Invalid authentication method %s", m_client.client_id(), m_id, authm.mech_name().c_str());
+      log_info(ER_XPLUGIN_INVALID_AUTH_METHOD, m_client.client_id(),
+               m_id, authm.mech_name().c_str());
       m_encoder->send_init_error(ngs::Fatal(ER_NOT_SUPPORTED_AUTH_MODE, "Invalid authentication method %s", authm.mech_name().c_str()));
       stop_auth();
       return true;
@@ -187,7 +188,8 @@ bool Session::handle_auth_message(ngs::Request &command)
   else
   {
     m_encoder->get_protocol_monitor().on_error_unknown_msg_type();
-    log_info("%s: Unexpected message of type %i received during authentication", m_client.client_id(), type);
+    log_info(ER_XPLUGIN_UNEXPECTED_MSG_DURING_AUTHENTICATION,
+             m_client.client_id(), type);
     m_encoder->send_init_error(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
     stop_auth();
     return false;
@@ -245,11 +247,7 @@ void Session::on_auth_failure(
   m_failed_auth_count++;
 
   if (!can_authenticate_again()) {
-    log_error(
-        "%s.%u: Maximum number of authentication attempts reached,"
-        " login failed.",
-        m_client.client_id(),
-        m_id);
+    log_error(ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED, m_client.client_id(), m_id);
     stop_auth();
   }
 

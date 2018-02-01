@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 #include "lex_string.h"
 #include "my_dbug.h"
-#include "plugin/group_replication/include/plugin_log.h"
+#include <mysql/components/services/log_builtins.h>
 #include <mysqld_error.h>
 
 /* Sql_service_interface constructor */
@@ -55,19 +55,14 @@ static void srv_session_error_handler(void *, unsigned int sql_errno,
   switch (sql_errno)
   {
     case ER_CON_COUNT_ERROR:
-      log_message(MY_ERROR_LEVEL,
-                 "Can't establish a internal server connection to "
-                 "execute plugin operations since the server "
-                 "does not have available connections, please "
-                 "increase @@GLOBAL.MAX_CONNECTIONS. Server error: %i.",
-                 sql_errno);
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_SQL_SERVICE_MAX_CONN_ERROR_FROM_SERVER,
+                   sql_errno);
       break;
     default:
-      log_message(MY_ERROR_LEVEL,
-                 "Can't establish a internal server connection to "
-                 "execute plugin operations. Server error: %i. "
-                 "Server error message: %s",
-                 sql_errno, err_msg);
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_SQL_SERVICE_SERVER_ERROR_ON_CONN,
+                   sql_errno, err_msg);
   }
 }
 
@@ -103,8 +98,8 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr)
     if (srv_session_init_thread(plugin_ptr))
     {
       /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL, "Error when initializing a session thread for"
-                                  "internal server connection.");
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_SQL_SERVICE_FAILED_TO_INIT_SESSION_THREAD);
       return 1;
       /* purecov: end */
     }
@@ -137,9 +132,9 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
   if (!m_session)
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. "
-                "The internal server communication session is not initialized",
-                cmd.com_query.query);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_SQL_SERVICE_COMM_SESSION_NOT_INITIALIZED,
+                 cmd.com_query.query);
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -147,9 +142,9 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
   if (is_session_killed(m_session))
   {
     /* purecov: begin inspected */
-    log_message(MY_INFORMATION_LEVEL, "Error running internal SQL query: %s. "
-                "The internal server session was killed or server is shutting "
-                "down.", cmd.com_query.query);
+    LogPluginErr(INFORMATION_LEVEL,
+                 ER_GRP_RPL_SQL_SERVICE_SERVER_SESSION_KILLED,
+                 cmd.com_query.query);
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -167,25 +162,27 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
 
     if (err != 0)
     {
-      log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. Got "
-                  "internal SQL error: %s(%d)", cmd.com_query.query,
-                  rset->sql_errno(), rset->err_msg().c_str());
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_SQL_SERVICE_FAILED_TO_RUN_SQL_QUERY,
+                   cmd.com_query.query, rset->sql_errno(),
+                   rset->err_msg().c_str());
     }
     else
     {
       if (is_session_killed(m_session) && rset->get_killed_status())
       {
-        log_message(MY_INFORMATION_LEVEL, "Error running internal SQL query: "
-                    "%s. The internal server session was killed or server is "
-                    "shutting down.", cmd.com_query.query);
+        LogPluginErr(INFORMATION_LEVEL,
+                     ER_GRP_RPL_SQL_SERVICE_SERVER_SESSION_KILLED,
+                     cmd.com_query.query);
         err= -1;
       }
       else
       {
         /* sql_errno is empty and session is alive */
         err= -2;
-        log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. "
-                    "Internal failure.", cmd.com_query.query);
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GRP_RPL_SQL_SERVICE_SERVER_INTERNAL_FAILURE,
+                     cmd.com_query.query);
       }
     }
 
@@ -260,9 +257,9 @@ int Sql_service_interface::wait_for_session_server(ulong total_timeout)
     /* purecov: begin inspected */
     if (number_of_tries >= MAX_NUMBER_RETRIES)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error, maximum number of retries exceeded when waiting for "
-                  "the internal server session state to be operating");
+      LogPluginErr(ERROR_LEVEL,
+        ER_GRP_RPL_SQL_SERVICE_RETRIES_EXCEEDED_ON_SESSION_STATE);
+
       err= 1;
       break;
     }
@@ -286,19 +283,17 @@ int Sql_service_interface::set_session_user(const char *user)
   MYSQL_SECURITY_CONTEXT sc;
   if (thd_get_security_context(srv_session_info_get_thd(m_session), &sc)) {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Error when trying to fetch security context when contacting the"
-                " server for internal plugin requests.");
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_SQL_SERVICE_FAILED_TO_FETCH_SECURITY_CTX);
     return 1;
     /* purecov: end */
   }
   if (security_context_lookup(sc, user, "localhost", NULL, NULL))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "There was an error when trying to access the server with user:"
-                " %s. Make sure the user is present in the server and that"
-                " mysql_upgrade was run after a server update.", user);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_SQL_SERVICE_SERVER_ACCESS_DENIED_FOR_USER,
+                 user);
     return 1;
     /* purecov: end */
   }

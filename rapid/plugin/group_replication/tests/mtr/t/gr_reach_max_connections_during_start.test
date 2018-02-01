@@ -22,7 +22,7 @@
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Can't establish a internal server connection to execute plugin operations.*");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations.*");
 call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
 SET SESSION sql_log_bin= 1;
 
@@ -38,7 +38,7 @@ START GROUP_REPLICATION;
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_reach_max_connections_during_start
 --let $assert_count = 1
---let $assert_select = Can't establish a internal server connection to execute plugin operations since the server does not have available connections, please increase @@GLOBAL.MAX_CONNECTIONS.
+--let $assert_select = Failed to establish an internal server connection to execute plugin operations since the server does not have available connections, please increase @@GLOBAL.MAX_CONNECTIONS.
 --let $assert_text = Found the expected error log message about exceeded max connections.
 --source include/assert_grep.inc
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
+#include "mysql/components/services/log_builtins.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_utils.h"
 
@@ -55,9 +56,7 @@ long enable_super_read_only_mode(Sql_service_command_interface *command_interfac
   }
   else
   {
-    log_message(MY_ERROR_LEVEL,
-                "Can't read the server value for the super_read_only"
-                " variable."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_READ_UNABLE_FOR_SUPER_READ_ONLY); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);
@@ -125,9 +124,7 @@ long get_read_mode_state(Sql_service_command_interface *sql_command_interface,
   }
   else
   {
-    log_message(MY_ERROR_LEVEL,
-                "Can't read the server values for the read_only and "
-                "super_read_only variables."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_READ_UNABLE_FOR_READ_ONLY_SUPER_READ_ONLY); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);
@@ -148,9 +145,7 @@ long set_read_mode_state(Sql_service_command_interface *sql_service_command,
   if (error)
   {
     //Do not throw an error as the user can reset the read mode
-    log_message(MY_ERROR_LEVEL,
-                "It was not possible to reset the server read mode settings."
-                " Try to reset them manually."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_RESET_SERVER_READ_MODE); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);

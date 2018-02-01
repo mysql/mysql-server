@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
 
 #include "plugin/group_replication/include/sql_service/sql_resultset.h"
 
-#include "plugin/group_replication/include/plugin_log.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 
 Field_value::Field_value()
 : is_unsigned(false), has_ptr(false)
@@ -98,7 +99,7 @@ void Field_value::copy_string(const char *str, size_t length)
   }
   else
   {
-    log_message(MY_ERROR_LEVEL, "Error copying from empty string "); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_COPY_FROM_EMPTY_STRING); /* purecov: inspected */
   }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
+#include "mysqld_error.h"
 #include "plugin/keyring/buffered_file_io.h"
 #include "plugin/keyring/common/keyring_key.h"
 #include "sql/sql_plugin_ref.h"
@@ -247,7 +248,7 @@ namespace keyring_buffered_file_io_unittest
 
     EXPECT_EQ(buffered_io->flush_to_backup(serialized_object_with_keys_to_add), 0);
     remove("./sample_keyring");
-    EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
+    EXPECT_CALL(*logger, log(ERROR_LEVEL, StrEq("Incorrect Keyring file")));
 
     //keyring was removed between flush to backup and flush to storage operations
     //thus flush to storage should fail

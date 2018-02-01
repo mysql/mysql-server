@@ -161,7 +161,7 @@ set session sql_log_bin=0;
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
 call mtr.add_suppression("'This member could not reach a majority of the members for more than.*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
-call mtr.add_suppression("Due to a plugin error, some transactions can't be certified and will now rollback.");
+call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");

@@ -27,10 +27,10 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/certifier.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME= "gtid_extracted";
@@ -238,14 +238,13 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
       gcs_module->send_message(gtid_executed_message, true);
   if (send_err == GCS_MESSAGE_TOO_BIG)
   {
-    log_message(MY_ERROR_LEVEL, "Broadcast of committed transactions message "
-                                "failed. Message is too big."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BROADCAST_COMMIT_MSSG_TOO_BIG); /* purecov: inspected */
     error= 1; /* purecov: inspected */
   }
   else if (send_err == GCS_NOK)
   {
-    log_message(MY_INFORMATION_LEVEL,
-                "Broadcast of committed transactions message failed."); /* purecov: inspected */
+    LogPluginErr(INFORMATION_LEVEL,
+                 ER_GRP_RPL_BROADCAST_COMMIT_TRANS_MSSG_FAILED); /* purecov: inspected */
     error= 1; /* purecov: inspected */
   }
 
@@ -349,9 +348,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
   rpl_sid group_sid;
   if (group_sid.parse(group_name_var, strlen(group_name_var)) != RETURN_STATUS_OK)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Unable to parse the group name during"
-                " the Certification module initialization"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GROUP_NAME_PARSE_ERROR); /* purecov: inspected */
     error= 1; /* purecov: inspected */
     goto end; /* purecov: inspected */
   }
@@ -359,28 +356,21 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
   group_gtid_sid_map_group_sidno= group_gtid_sid_map->add_sid(group_sid);
   if (group_gtid_sid_map_group_sidno < 0)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Unable to add the group_sid in the group_gtid_sid_map during"
-                " the Certification module initialization"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ADD_GRPSID_TO_GRPGTIDSID_MAP_ERROR); /* purecov: inspected */
     error= 1; /* purecov: inspected */
     goto end; /* purecov: inspected */
   }
 
   if (group_gtid_executed->ensure_sidno(group_gtid_sid_map_group_sidno) != RETURN_STATUS_OK)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error updating group_gtid_executed GITD set during"
-                " the Certification module initialization"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UPDATE_GRPGTID_EXECUTED_ERROR); /* purecov: inspected */
     error= 1; /* purecov: inspected */
     goto end; /* purecov: inspected */
   }
 
   if (group_gtid_extracted->ensure_sidno(group_gtid_sid_map_group_sidno) != RETURN_STATUS_OK)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Unable to handle the donor's transaction information"
-                " when initializing the conflict detection component."
-                " Possible out of memory error."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_DONOR_TRANS_INFO_ERROR); /* purecov: inspected */
     error= 1; /* purecov: inspected */
     goto end; /* purecov: inspected */
   }
@@ -389,9 +379,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
   if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD,
                                                           GROUPREPL_USER))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error when establishing a server connection during"
-                " the Certification module initialization"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SERVER_CONN_ERROR); /* purecov: inspected */
     error= 1; /* purecov: inspected */
     goto end; /* purecov: inspected */
   }
@@ -400,18 +388,13 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
   DBUG_EXECUTE_IF("gr_server_gtid_executed_extraction_error", error=1;);
   if (error)
   {
-    log_message(MY_WARNING_LEVEL,
-                "Error when extracting this member GTID executed set."
-                " Certification module can't be properly initialized");
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ERROR_FETCHING_GTID_EXECUTED_SET);
     goto end;
   }
 
   if (group_gtid_executed->add_gtid_text(gtid_executed.c_str()) != RETURN_STATUS_OK)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error while adding the server GTID EXECUTED set to the"
-                " group_gtid_execute during the Certification module"
-                " initialization"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ADD_GTID_TO_GRPGTID_EXECUTED_ERROR); /* purecov: inspected */
     error= 1; /* purecov: inspected */
     goto end; /* purecov: inspected */
   }
@@ -421,19 +404,15 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
     Replication_thread_api applier_channel("group_replication_applier");
     if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids))
     {
-      log_message(MY_WARNING_LEVEL,
-                  "Error when extracting this member retrieved set for its applier."
-                  " Certification module can't be properly initialized"); /* purecov: inspected */
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ERROR_FETCHING_GTID_SET); /* purecov: inspected */
       error= 1; /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
 
     if (group_gtid_executed->add_gtid_text(applier_retrieved_gtids.c_str()) != RETURN_STATUS_OK)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error while adding the member retrieved set to the"
-                  " group_gtid_executed during the Certification module"
-                  " initialization"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_ADD_RETRIEVED_SET_TO_GRP_GTID_EXECUTED_ERROR); /* purecov: inspected */
       error= 1; /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
@@ -631,8 +610,7 @@ int Certifier::initialize(ulonglong gtid_assignment_block_size)
   */
   if (initialize_server_gtid_set(true))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error during Certification module initialization.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CERTIFICATION_INITIALIZATION_FAILURE);
     error= 1;
     goto end;
   }
@@ -765,9 +743,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     */
     if (snapshot_version->ensure_sidno(group_sidno) != RETURN_STATUS_OK)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error updating transaction snapshot version after"
-                  " transaction being positively certified"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR); /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
 
@@ -799,9 +775,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     rpl_sidno sidno_for_group_gtid_sid_map= gle->get_sidno(group_gtid_sid_map);
     if (sidno_for_group_gtid_sid_map < 1)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error fetching transaction sidno after transaction"
-                  " being positively certified"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SIDNO_FETCH_ERROR); /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
     if (group_gtid_executed->contains_gtid(sidno_for_group_gtid_sid_map, gle->get_gno()))
@@ -809,9 +783,8 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
       char buf[rpl_sid::TEXT_LENGTH + 1];
       gle->get_sid()->to_string(buf);
 
-      log_message(MY_ERROR_LEVEL,
-                  "The requested GTID '%s:%lld' was already used, the transaction will rollback"
-                  , buf, gle->get_gno());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED, buf,
+                   gle->get_gno());
       goto end;
     }
     /*
@@ -820,17 +793,13 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     rpl_sidno sidno= gle->get_sidno(snapshot_version->get_sid_map());
     if (sidno < 1)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error fetching transaction sidno after transaction"
-                  " being positively certified"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SIDNO_FETCH_ERROR);  /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
 
     if (snapshot_version->ensure_sidno(sidno) != RETURN_STATUS_OK)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error updating transaction snapshot version after"
-                  " transaction being positively certified"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR);  /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
     snapshot_version->_add_gtid(sidno, gle->get_gno());
@@ -842,10 +811,8 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     rpl_sidno last_conflict_free_transaction_sidno= gle->get_sidno(group_gtid_sid_map);
     if (last_conflict_free_transaction_sidno < 1)
     {
-      log_message(MY_WARNING_LEVEL,
-                  "Unable to update last conflict free transaction, "
-                  "this transaction will not be tracked on "
-                  "performance_schema.replication_group_member_stats.last_conflict_free_transaction"); /* purecov: inspected */
+      LogPluginErr(WARNING_LEVEL,
+                   ER_GRP_RPL_UPDATE_LAST_CONFLICT_FREE_TRANS_ERROR);  /* purecov: inspected */
     }
     else
     {
@@ -873,9 +840,8 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     {
       result= 0; /* purecov: inspected */
       delete snapshot_version_value; /* purecov: inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Error updating transaction snapshot version reference "
-                  "for internal storage"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_REF_VER_ERROR);  /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
 
@@ -944,18 +910,14 @@ int Certifier::add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
 
   if (sidno < 1)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error fetching transaction sidno while adding to the "
-                "group_gtid_executed set."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_SIDNO_ERROR);  /* purecov: inspected */
     mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
   if (group_gtid_executed->ensure_sidno(sidno) != RETURN_STATUS_OK)
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error while ensuring the sidno be present in the "
-                "group_gtid_executed"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_VERIFYING_SIDNO);  /* purecov: inspected */
     mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
@@ -1114,10 +1076,7 @@ Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
 
     if (iv == NULL)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Impossible to generate Global Transaction Identifier: "
-                  "the integer component reached the maximal value. Restart "
-                  "the group with a new group_replication_group_name.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_GENERATE_GTID);
       DBUG_RETURN(-1);
     }
 
@@ -1210,7 +1169,7 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set* executed_gtid_set)
 
   if (executed_gtid_set == NULL)
   {
-    log_message(MY_ERROR_LEVEL, "Invalid stable transactions set"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_GTID_SET); /* purecov: inspected */
     DBUG_RETURN(true); /* purecov: inspected */
   }
 
@@ -1218,7 +1177,7 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set* executed_gtid_set)
   if (stable_gtid_set->add_gtid_set(executed_gtid_set) != RETURN_STATUS_OK)
   {
     stable_gtid_set_lock->unlock(); /* purecov: inspected */
-    log_message(MY_ERROR_LEVEL, "Error updating stable transactions set"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UPDATE_GTID_SET_ERROR); /* purecov: inspected */
     DBUG_RETURN(true); /* purecov: inspected */
   }
   stable_gtid_set_lock->unlock();
@@ -1292,10 +1251,7 @@ void Certifier::garbage_collect()
   */
   if (channel_add_executed_gtids_to_received_gtids(applier_module_channel_name))
   {
-    log_message(MY_WARNING_LEVEL,
-                "There was an error when filling the missing GTIDs on "
-                "the applier channel received set. Despite not critical, "
-                "on the long run this may cause performance issues"); /* purecov: inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_RECEIVED_SET_MISSING_GTIDS); /* purecov: inspected */
   }
 
   DBUG_VOID_RETURN;
@@ -1368,10 +1324,7 @@ int Certifier::handle_certifier_data(const uchar *data, ulong len,
   }
   else
   {
-    log_message(MY_WARNING_LEVEL, "Skipping the computation of "
-                "the Transactions_committed_all_members field as "
-                "an older instance of this computation is still "
-                "ongoing."); /* purecov: inspected */
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_SKIP_COMPUTATION_TRANS_COMMITTED); /* purecov: inspected */
     mysql_mutex_unlock(&LOCK_members); /* purecov: inspected */
   }
 
@@ -1408,7 +1361,7 @@ int Certifier::stable_set_handle()
 
     if (packet == NULL)
     {
-      log_message(MY_ERROR_LEVEL, "Null packet on certifier's queue"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NULL_PACKET); /* purecov: inspected */
       error= 1; /* purecov: inspected */
       break;    /* purecov: inspected */
     }
@@ -1419,7 +1372,7 @@ int Certifier::stable_set_handle()
 
     if (member_set.add_gtid_encoding(payload, packet->len) != RETURN_STATUS_OK)
     {
-      log_message(MY_ERROR_LEVEL, "Error reading GTIDs from the message"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_READ_GTID); /* purecov: inspected */
       error= 1; /* purecov: inspected */
     }
     else
@@ -1431,7 +1384,7 @@ int Certifier::stable_set_handle()
       {
         if (executed_set.add_gtid_set(&member_set))
         {
-          log_message(MY_ERROR_LEVEL, "Error processing stable transactions set"); /* purecov: inspected */
+          LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PROCESS_GTID_SET_ERROR); /* purecov: inspected */
           error= 1; /* purecov: inspected */
         }
       }
@@ -1449,7 +1402,8 @@ int Certifier::stable_set_handle()
         */
         if (member_set.intersection(&executed_set, &intersection_result) != RETURN_STATUS_OK)
         {
-          log_message(MY_ERROR_LEVEL, "Error processing intersection of stable transactions set"); /* purecov: inspected */
+          LogPluginErr(ERROR_LEVEL,
+                       ER_GRP_RPL_PROCESS_INTERSECTION_GTID_SET_ERROR); /* purecov: inspected */
           error= 1; /* purecov: inspected */
         }
         else
@@ -1457,7 +1411,7 @@ int Certifier::stable_set_handle()
           executed_set.clear();
           if (executed_set.add_gtid_set(&intersection_result) != RETURN_STATUS_OK)
           {
-            log_message(MY_ERROR_LEVEL, "Error processing stable transactions set"); /* purecov: inspected */
+            LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PROCESS_GTID_SET_ERROR); /* purecov: inspected */
             error= 1; /* purecov: inspected */
           }
         }
@@ -1469,7 +1423,7 @@ int Certifier::stable_set_handle()
 
   if (!error && set_group_stable_transactions_set(&executed_set))
   {
-    log_message(MY_ERROR_LEVEL, "Error setting stable transactions set"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SET_STABLE_TRANS_ERROR); /* purecov: inspected */
     error= 1; /* purecov: inspected */
   }
 
@@ -1570,8 +1524,7 @@ int Certifier::set_certification_info(std::map<std::string, std::string> *cert_i
               reinterpret_cast<const uchar*>(it->second.c_str()), it->second.length())
             != RETURN_STATUS_OK)
       {
-        log_message(MY_ERROR_LEVEL,
-                    "Error reading group_gtid_extracted from the View_change_log_event"); /* purecov: inspected */
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_READ_GRP_GTID_EXTRACTED); /* purecov: inspected */
         mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
         DBUG_RETURN(1); /* purecov: inspected */
       }
@@ -1583,9 +1536,7 @@ int Certifier::set_certification_info(std::map<std::string, std::string> *cert_i
             reinterpret_cast<const uchar*>(it->second.c_str()), it->second.length())
           != RETURN_STATUS_OK)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error reading the write set item '%s' from the View_change_log_event",
-                  key.c_str()); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANT_READ_WRITE_SET_ITEM, key.c_str()); /* purecov: inspected */
       mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
       DBUG_RETURN(1); /* purecov: inspected */
     }
@@ -1595,8 +1546,7 @@ int Certifier::set_certification_info(std::map<std::string, std::string> *cert_i
 
   if (initialize_server_gtid_set())
   {
-    log_message(MY_ERROR_LEVEL, "Error during certfication_info"
-                " initialization."); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INIT_CERTIFICATION_INFO_FAILURE); /* purecov: inspected */
     mysql_mutex_unlock(&LOCK_certification_info); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
@@ -1718,9 +1668,7 @@ void Certifier::disable_conflict_detection()
   local_member_info->disable_conflict_detection();
   mysql_mutex_unlock(&LOCK_certification_info);
 
-  log_message(MY_INFORMATION_LEVEL,
-              "Primary had applied all relay logs, disabled conflict "
-              "detection");
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFLICT_DETECTION_DISABLED);
 
   DBUG_VOID_RETURN;
 }

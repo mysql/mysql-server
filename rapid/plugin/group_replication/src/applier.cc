@@ -28,9 +28,9 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/applier.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 #include "plugin/group_replication/include/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
@@ -234,7 +234,7 @@ Applier_module::inject_event_into_pipeline(Pipeline_event* pevent,
   pipeline->handle_event(pevent, cont);
 
   if ((error= cont->wait()))
-    log_message(MY_ERROR_LEVEL, "Error at event handling! Got error: %d", error);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_EVENT_HANDLING_ERROR, error);
 
   return error;
 }
@@ -276,9 +276,7 @@ Applier_module::apply_view_change_packet(View_change_packet *view_change_packet,
     if (intersect_group_executed_sets(view_change_packet->group_executed_set,
                                       group_executed_set))
     {
-       log_message(MY_WARNING_LEVEL,
-                   "Error when extracting group GTID execution information, "
-                   "some recovery operations may face future issues"); /* purecov: inspected */
+       LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO); /* purecov: inspected */
        delete sid_map;            /* purecov: inspected */
        delete group_executed_set; /* purecov: inspected */
        group_executed_set= NULL;  /* purecov: inspected */
@@ -290,9 +288,7 @@ Applier_module::apply_view_change_packet(View_change_packet *view_change_packet,
     if (get_certification_handler()->get_certifier()->
         set_group_stable_transactions_set(group_executed_set))
     {
-      log_message(MY_WARNING_LEVEL,
-                  "An error happened when trying to reduce the Certification "
-                  " information size for transmission"); /* purecov: inspected */
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_CERTIFICATE_SIZE_ERROR);  /* purecov: inspected */
     }
     delete sid_map;
     delete group_executed_set;
@@ -393,8 +389,7 @@ Applier_module::applier_thread_handle()
   {
     my_free(cache);   /* purecov: inspected */
     cache= NULL;      /* purecov: inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Failed to create group replication pipeline applier cache!"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CREATE_APPLIER_CACHE_ERROR);  /* purecov: inspected */
     applier_error= 1; /* purecov: inspected */
     goto end;         /* purecov: inspected */
   }
@@ -494,8 +489,7 @@ end:
   Gcs_interface_factory::cleanup_thread_communication_resources(
     Gcs_operations::get_gcs_engine());
 
-  log_message(MY_INFORMATION_LEVEL, "The group replication applier thread"
-                                    " was killed");
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_APPLIER_THD_KILLED);
 
   DBUG_EXECUTE_IF("applier_thd_timeout",
                   {
@@ -573,10 +567,7 @@ Applier_module::initialize_applier_thread()
     {
       applier_error= 1;
       applier_killed_status= true;
-      log_message(MY_WARNING_LEVEL,
-                  "Unblocking the group replication thread waiting for"
-                  " applier to start, as the start group replication"
-                  " was killed.");
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_UNBLOCK_WAITING_THD);
       break;
     }
     mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
@@ -594,9 +585,7 @@ Applier_module::terminate_applier_pipeline()
   {
     if ((error= pipeline->terminate_pipeline()))
     {
-      log_message(MY_WARNING_LEVEL,
-                  "The group replication applier pipeline was not properly"
-                  " disposed. Check the error log for further info."); /* purecov: inspected */
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_APPLIER_PIPELINE_NOT_DISPOSED);  /* purecov: inspected */
     }
     //delete anyway, as we can't do much on error cases
     delete pipeline;
@@ -694,10 +683,7 @@ void Applier_module::inform_of_applier_stop(char* channel_name,
   if (!strcmp(channel_name, applier_module_channel_name) &&
       aborted && applier_thd_state.is_thread_alive() )
   {
-    log_message(MY_ERROR_LEVEL,
-                "The applier thread execution was aborted."
-                " Unable to process more transactions,"
-                " this member will now leave the group.");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_EXECUTION_ABORTED);
 
     applier_error= 1;
 
@@ -716,9 +702,7 @@ void Applier_module::leave_group_on_failure()
   Notification_context ctx;
   DBUG_ENTER("Applier_module::leave_group_on_failure");
 
-  log_message(MY_ERROR_LEVEL,
-              "Fatal error during execution on the Applier process of "
-              "Group Replication. The server will now leave the group.");
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR);
 
   /* Notify member status update. */
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
@@ -743,42 +727,43 @@ void Applier_module::leave_group_on_failure()
   {
     if (error_message != NULL && *error_message != NULL)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error stopping all replication channels while server was"
-                  " leaving the group. %s", *error_message);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_STOPPING_CHANNELS,
+                   *error_message);
       my_free(error_message);
     }
     else
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error stopping all replication channels while server was"
-                  " leaving the group. Got error: %d. Please check the error"
-                  " log for more details.", error);
+      char buff[MYSQL_ERRMSG_SIZE];
+      size_t len= 0;
+      len= snprintf(buff, sizeof(buff), "Got error: ");
+      len+= snprintf((buff + len), sizeof(buff) - len, "%d", error);
+      snprintf((buff + len), sizeof(buff) - len,
+               "Please check the error log for more details.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_STOPPING_CHANNELS, buff);
     }
   }
 
-  std::stringstream ss;
-  plugin_log_level log_severity= MY_WARNING_LEVEL;
+  longlong errcode= 0;
+  enum loglevel log_severity= WARNING_LEVEL;
   switch (state)
   {
     case Gcs_operations::ERROR_WHEN_LEAVING:
-      ss << "Unable to confirm whether the server has left the group or not. "
-            "Check performance_schema.replication_group_members to check group membership information.";
-      log_severity= MY_ERROR_LEVEL;
+      errcode= ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
+      log_severity= ERROR_LEVEL;
       break;
     case Gcs_operations::ALREADY_LEAVING:
-      ss << "Skipping leave operation: concurrent attempt to leave the group is on-going."; /* purecov: inspected */
+      errcode= ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
       break; /* purecov: inspected */
     case Gcs_operations::ALREADY_LEFT:
-      ss << "Skipping leave operation: member already left the group."; /* purecov: inspected */
+      errcode= ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING; /* purecov: inspected */
       break; /* purecov: inspected */
     case Gcs_operations::NOW_LEAVING:
       set_read_mode= true;
-      ss << "The server was automatically set into read only mode after an error was detected.";
-      log_severity= MY_ERROR_LEVEL;
+      errcode= ER_GRP_RPL_SERVER_SET_TO_READ_ONLY_DUE_TO_ERRORS;
+      log_severity= ERROR_LEVEL;
       break;
   }
-  log_message(log_severity, ss.str().c_str());
+  LogPluginErr(log_severity, errcode);
 
   kill_pending_transactions(set_read_mode, false);
 
@@ -1010,9 +995,7 @@ int Applier_module::check_single_primary_queue_status()
         single_primary_message(Single_primary_message::SINGLE_PRIMARY_QUEUE_APPLIED_MESSAGE);
     if (gcs_module->send_message(single_primary_message))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error sending single primary message informing "
-                  "that primary did apply relay logs"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_SENDING_SINGLE_PRIMARY_MSSG);  /* purecov: inspected */
       return 1; /* purecov: inspected */
     }
   }

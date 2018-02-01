@@ -41,7 +41,7 @@ ERROR 40000: Plugin instructed the server to rollback the current transaction.
 DROP TABLE t1;
 set session sql_log_bin=0;
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
-call mtr.add_suppression("Due to a plugin error, some transactions can't be certified and will now rollback.");
+call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");
 call mtr.add_suppression("read failed");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include "plugin/group_replication/include/plugin_utils.h"
 
 #include "my_inttypes.h"
+#include "mysql/components/services/log_builtins.h"
 #include "plugin/group_replication/include/plugin.h"
 
 using std::vector;
@@ -45,9 +46,7 @@ void Blocked_transaction_handler::unblock_waiting_transactions()
 
   if (!waiting_threads.empty())
   {
-    log_message(MY_WARNING_LEVEL,
-                "Due to a plugin error, some transactions can't be certified"
-                " and will now rollback.");
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS);
   }
 
   vector<my_thread_id>::const_iterator it;
@@ -66,9 +65,7 @@ void Blocked_transaction_handler::unblock_waiting_transactions()
         certification_latch->releaseTicket(thread_id))
     {
       //Nothing much we can do
-      log_message(MY_ERROR_LEVEL,
-                 "Error when trying to unblock non certified transactions."
-                 " Check for consistency errors when restarting the service"); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS); /* purecov: inspected */
     }
   }
   mysql_mutex_unlock(&unblocking_process_lock);
@@ -86,9 +83,7 @@ void log_primary_member_details()
                  group_member_mgr->get_group_member_info(primary_member_uuid);
     if (primary_member_info != NULL)
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "This server is working as secondary member with primary "
-                  "member address %s:%u.",
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY,
                   primary_member_info->get_hostname().c_str(),
                   primary_member_info->get_port());
       delete primary_member_info;

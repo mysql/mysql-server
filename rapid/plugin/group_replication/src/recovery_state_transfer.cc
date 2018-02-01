@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "mysql/components/services/log_builtins.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_log.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
@@ -292,10 +292,8 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left)
       */
       if (!donor_transfer_finished)
       {
-        log_message(MY_INFORMATION_LEVEL,
-                    "The member with address %s:%u has unexpectedly disappeared,"
-                    " killing the current group replication recovery connection",
-                    current_donor_hostname.c_str(), current_donor_port);
+        LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_NOT_FOUND,
+                     current_donor_hostname.c_str(), current_donor_port);
 
         //Awake the recovery loop to connect to another donor
         donor_failover();
@@ -407,37 +405,29 @@ int Recovery_state_transfer::establish_donor_connection()
     // max number of retries reached, abort
     if (donor_connection_retry_count == max_connection_attempts_to_donors)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Maximum number of retries when trying to "
-                  "connect to a donor reached. "
-                  "Aborting group replication recovery.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MAXIMUM_CONNECTION_RETRIES_REACHED);
       mysql_mutex_unlock(&donor_selection_lock);
       DBUG_RETURN(error);
     }
 
     if (group_member_mgr->get_number_of_members() == 1)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "All donors left. Aborting group replication recovery.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ALL_DONORS_LEFT_ABORT_RECOVERY);
       mysql_mutex_unlock(&donor_selection_lock);
       DBUG_RETURN(error);
     }
 
     if(donor_connection_retry_count == 0)
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "Establishing group recovery connection with a possible donor."
-                  " Attempt %d/%d",
-                  donor_connection_retry_count + 1,
-                  max_connection_attempts_to_donors);
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISH_RECOVERY_WITH_DONOR,
+                   donor_connection_retry_count + 1,
+                   max_connection_attempts_to_donors);
     }
     else
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "Retrying group recovery connection with another donor. "
-                  "Attempt %d/%d",
-                  donor_connection_retry_count + 1,
-                  max_connection_attempts_to_donors);
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISH_RECOVERY_WITH_ANOTHER_DONOR,
+                   donor_connection_retry_count + 1,
+                   max_connection_attempts_to_donors);
     }
 
     //Rebuild the list, if empty
@@ -458,8 +448,7 @@ int Recovery_state_transfer::establish_donor_connection()
       build_donor_list(NULL);
       if (suitable_donors.empty())
       {
-        log_message(MY_INFORMATION_LEVEL,
-                  "No valid donors exist in the group, retrying");
+        LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NO_VALID_DONOR);
         donor_connection_retry_count++;
         mysql_mutex_unlock(&donor_selection_lock);
         continue;
@@ -476,9 +465,7 @@ int Recovery_state_transfer::establish_donor_connection()
 
     if ((error= initialize_donor_connection()))
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error when configuring the group recovery"
-                  " connection to the donor."); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONFIG_RECOVERY); /* purecov: inspected */
     }
 
     if (!error && !recovery_aborted)
@@ -534,21 +521,17 @@ int Recovery_state_transfer::initialize_donor_connection()
 
   if (!error)
   {
-    log_message(MY_INFORMATION_LEVEL,
-                "Establishing connection to a group replication recovery donor"
-                " %s at %s port: %d.",
-                selected_donor->get_uuid().c_str(),
-                hostname,
-                port);
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
+                 selected_donor->get_uuid().c_str(),
+                 hostname,
+                 port);
   }
   else
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error while creating the group replication recovery channel "
-                "with donor %s at %s port: %d.",
-                selected_donor->get_uuid().c_str(),
-                hostname,
-                port); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CREATE_GRP_RPL_REC_CHANNEL,
+                 selected_donor->get_uuid().c_str(),
+                 hostname,
+                 port); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);
@@ -630,23 +613,12 @@ int Recovery_state_transfer::start_recovery_donor_threads()
 
     if (error == RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR)
     {
-      log_message(MY_ERROR_LEVEL,
-                  "There was an error when connecting to the donor server. "
-                  "Please check that group_replication_recovery channel "
-                  "credentials and all MEMBER_HOST column values of "
-                  "performance_schema.replication_group_members table are "
-                  "correct and DNS resolvable.");
-      log_message(MY_ERROR_LEVEL,
-                  "For details please check "
-                  "performance_schema.replication_connection_status table "
-                  "and error log messages of Slave I/O for channel "
-                  "group_replication_recovery.");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_DONOR_SERVER_CONN);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CHECK_STATUS_TABLE);
     }
     else
     {
-      log_message(MY_ERROR_LEVEL,
-                  "Error while starting the group replication recovery "
-                  "receiver/applier threads");
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_STARTING_GRP_REC);
     }
   }
 
@@ -657,18 +629,14 @@ int Recovery_state_transfer::terminate_recovery_slave_threads()
 {
   DBUG_ENTER("Recovery_state_transfer::terminate_recovery_slave_threads");
 
-  log_message(MY_INFORMATION_LEVEL,
-              "Terminating existing group replication donor connection "
-              "and purging the corresponding logs.");
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_DONOR_CONN_TERMINATION);
 
   int error= 0;
 
   //If the threads never started, the method just returns
   if ((error= donor_connection_interface.stop_threads(true, true)))
   {
-    log_message(MY_ERROR_LEVEL,
-                "Error when stopping the group replication recovery's donor"
-                " connection"); /* purecov: inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_STOPPING_GRP_REC); /* purecov: inspected */
   }
   else
   {
@@ -687,8 +655,7 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos()
   if ((error = donor_connection_interface.purge_logs(false)))
   {
     /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Error when purging the group replication recovery's relay logs");
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PURGE_REC);
     DBUG_RETURN(error);
     /* purecov: end */
   }
@@ -731,10 +698,8 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd)
       if ((error= terminate_recovery_slave_threads()))
       {
         /* purecov: begin inspected */
-        log_message(MY_ERROR_LEVEL,
-                    "Can't kill the current group replication recovery donor"
-                    " connection after an applier error."
-                    " Recovery will shutdown.");
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_APPLIER);
         //if we can't stop, abort recovery
        DBUG_RETURN(error);
         /* purecov: end */
@@ -752,9 +717,8 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd)
       if ((error= donor_connection_interface.stop_threads(true, true)))
       {
         /* purecov: begin inspected */
-        log_message(MY_ERROR_LEVEL,
-                    "Can't kill the current group replication recovery donor"
-                    " connection during failover. Recovery will shutdown.");
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_FAILOVER);
         //if we can't stop, abort recovery
         DBUG_RETURN(error);
         /* purecov: end */

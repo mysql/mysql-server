@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -200,7 +200,7 @@ void Server::wait_for_clients_closure()
     {
       const unsigned int num_of_clients = static_cast<unsigned int>(m_client_list.size());
 
-      log_error("Detected %u hanging client", num_of_clients);
+      log_error(ER_XPLUGIN_DETECTED_HANGING_CLIENTS, num_of_clients);
       break;
     }
     my_sleep(250000); // wait for 0.25s
@@ -263,7 +263,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     if (0 == (m_errors_while_accepting++ & 255))
     {
       // error accepting client
-      log_error("Error accepting client");
+      log_error(ER_XPLUGIN_FAILED_TO_ACCEPT_CLIENT);
     }
     const time_t microseconds_to_sleep = 100000;
 
@@ -294,7 +294,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     // all references to client object should be removed at this thread
     if (!m_worker_scheduler->post(task))
     {
-      log_error("Internal error scheduling client for execution");
+      log_error(ER_XPLUGIN_FAILED_TO_SCHEDULE_CLIENT);
       ngs::free_object(task);
       m_client_list.remove(client_id);
     }
@@ -304,7 +304,7 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
   else
   {
     m_delegate->did_reject_client(Server_delegate::TooManyConnections);
-    log_warning("Unable to accept connection, disconnecting client");
+    log_warning(ER_XPLUGIN_UNABLE_TO_ACCEPT_CONNECTION);
   }
 }
 

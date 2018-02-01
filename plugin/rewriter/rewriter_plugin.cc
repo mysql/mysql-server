@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,6 @@ using std::string;
   rewrite_query_post_parse() if it is set.
 */
 static bool needs_initial_load;
-
-static const char *MESSAGE_OOM= "Out of memory.";
 
 static const size_t MAX_QUERY_LENGTH_IN_LOG= 100;
 
@@ -272,29 +270,18 @@ static int rewriter_plugin_deinit(void*)
 */
 static bool reload(MYSQL_THD thd)
 {
-  const char *message= NULL;
+  longlong errcode= 0;
   try {
-    switch (rewriter->refresh(thd))
-    {
-    case Rewriter::REWRITER_OK:
+    errcode= rewriter->refresh(thd);
+    if (errcode == 0)
       return false;
-    case Rewriter::REWRITER_ERROR_TABLE_MALFORMED:
-      message= "Wrong column count or names when loading rules.";
-      break;
-    case Rewriter::REWRITER_ERROR_LOAD_FAILED:
-      message= "Some rules failed to load.";
-      break;
-    case Rewriter::REWRITER_ERROR_READ_FAILED:
-      message= "Got error from storage engine while refreshing rewrite rules.";
-      break;
-    }
   }
   catch (const std::bad_alloc &ba)
   {
-    message= MESSAGE_OOM;
+    errcode= ER_REWRITER_OOM;
   }
-  DBUG_ASSERT(message != NULL);
-  LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_ERROR_MSG, message);
+  DBUG_ASSERT(errcode != 0);
+  LogPluginErr(ERROR_LEVEL, errcode);
   return true;
 }
 
@@ -394,7 +381,7 @@ int rewrite_query_notify(MYSQL_THD thd,
   }
   catch (std::bad_alloc &ba)
   {
-    LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_ERROR_MSG, MESSAGE_OOM);
+    LogPluginErr(ERROR_LEVEL, ER_REWRITER_OOM);
   }
 
   mysql_rwlock_unlock(&LOCK_table);
@@ -411,8 +398,10 @@ int rewrite_query_notify(MYSQL_THD thd,
 
     parse_error= services::parse(thd, rewrite_result.new_query, is_prepared);
     if (parse_error != 0)
+    {
       LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_FAILED,
                    mysql_parser_get_query(thd).str);
+    }
 
     ++status_var_number_rewritten_queries;
   }

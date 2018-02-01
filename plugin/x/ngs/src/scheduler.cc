@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ void Scheduler_dynamic::launch()
   if (m_is_running.compare_exchange_strong(int_0, 1))
   {
     create_min_num_workers();
-    log_info("Scheduler \"%s\" started.", m_name.c_str());
+    log_info(ER_XPLUGIN_SCHEDULER_STARTED, m_name.c_str());
   }
 }
 
@@ -101,7 +101,7 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
     log_debug("Exception in set minimal number of workers \"%s\"", e.what());
 
     const int32 m = m_workers_count.load();
-    log_warning("Unable to set minimal number of workers to %u; actual value is %i", n, m);
+    log_warning(ER_XPLUGIN_FAILED_TO_SET_MIN_NUMBER_OF_WORKERS, n, m);
     m_min_workers_count.store(m);
     return m;
   }
@@ -143,7 +143,7 @@ void Scheduler_dynamic::stop()
       ngs::thread_join(&thread, NULL);
     }
 
-    log_info("Scheduler \"%s\" stopped.", m_name.c_str());
+    log_info(ER_XPLUGIN_SCHEDULER_STOPPED, m_name.c_str());
   }
 }
 
@@ -165,7 +165,7 @@ bool Scheduler_dynamic::post(Task* task)
       try { create_thread(); }
       catch (std::exception &e)
       {
-        log_error("Exception in post: %s", e.what());
+        log_error(ER_XPLUGIN_EXCEPTION_IN_TASK_SCHEDULER, e.what());
         decrease_tasks_count();
         return false;
       }
@@ -202,7 +202,7 @@ bool Scheduler_dynamic::post_and_wait(const Task& task_to_be_posted)
 
     if (!post(task))
     {
-      log_error("Internal error scheduling task");
+      log_error(ER_XPLUGIN_TASK_SCHEDULING_FAILED);
       return false;
     }
   }
@@ -308,8 +308,7 @@ void *Scheduler_dynamic::worker()
       }
       catch (std::exception &e)
       {
-        log_error("Exception in event loop:\"%s\": %s",
-                  m_name.c_str(), e.what());
+        log_error(ER_XPLUGIN_EXCEPTION_IN_EVENT_LOOP, m_name.c_str(), e.what());
       }
 
       if (task_available)

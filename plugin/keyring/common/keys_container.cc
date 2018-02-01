@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <algorithm>
 
 #include "my_dbug.h"
+#include <mysqld_error.h>
 
 using std::string;
 using std::unique_ptr;
@@ -210,8 +211,7 @@ bool Keys_container::load_keys_from_keyring_storage()
       was_error= keyring_io->get_serialized_object(&serialized_keys);
   }
   if(was_error)
-    logger->log(MY_ERROR_LEVEL, "Error while loading keyring content. "
-                                "The keyring might be malformed");
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_LOAD_KEYRING_CONTENT);
   return was_error;
 }
 
@@ -222,7 +222,7 @@ bool Keys_container::flush_to_storage(IKey *key, Key_operation operation)
 
   if (serialized_object == NULL || keyring_io->flush_to_storage(serialized_object))
   {
-    logger->log(MY_ERROR_LEVEL, "Could not flush keys to keyring");
+    logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_FLUSH_KEYS_TO_KEYRING);
     delete serialized_object;
     return true;
   }
@@ -237,7 +237,8 @@ bool Keys_container::flush_to_backup()
 
   if (serialized_object == NULL || keyring_io->flush_to_backup(serialized_object))
   {
-    logger->log(MY_ERROR_LEVEL, "Could not flush keys to keyring's backup");
+    logger->log(ERROR_LEVEL,
+                ER_KEYRING_FAILED_TO_FLUSH_KEYS_TO_KEYRING_BACKUP);
     delete serialized_object;
     return true;
   }

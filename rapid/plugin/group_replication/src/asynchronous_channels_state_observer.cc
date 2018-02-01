@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/asynchronous_channels_state_observer.h"
 
+#include <mysql/components/services/log_builtins.h>
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
 
@@ -46,9 +47,8 @@ thread_start(Binlog_relay_IO_param* param)
         local_member_info->get_recovery_status() ==
                             Group_member_info::MEMBER_ONLINE)
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "The slave IO thread of channel '%s' is unblocked as the"
-                  " member is declared ONLINE now.", param->channel_name);
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SLAVE_IO_THREAD_UNBLOCKED,
+                   param->channel_name);
     }
     else if (group_member_mgr &&
              (local_member_info->get_recovery_status() ==
@@ -56,9 +56,8 @@ thread_start(Binlog_relay_IO_param* param)
               local_member_info->get_recovery_status() ==
                             Group_member_info::MEMBER_OFFLINE))
     {
-      log_message(MY_ERROR_LEVEL, "The slave IO thread of channel '%s'"
-                                  " will error out as the member failed to come"
-                                  " ONLINE.", param->channel_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_IO_THREAD_ERROR_OUT,
+                   param->channel_name);
       return 1;
     }
   }
@@ -76,19 +75,15 @@ thread_start(Binlog_relay_IO_param* param)
 
     if (m_uuid == "UNDEFINED")
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave IO THREAD of channel '%s'"
-                                  " when group replication is running with"
-                                  " single-primary mode and the primary member"
-                                  " is not known.", param->channel_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_IO_THD_PRIMARY_UNKNOWN,
+                   param->channel_name);
       return 1;
     }
 
     if (m_uuid != local_member_info->get_uuid())
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave IO THREAD of channel '%s'"
-                                  " when group replication is running with"
-                                  " single-primary mode on a secondary member.",
-                                  param->channel_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SALVE_IO_THD_ON_SECONDARY_MEMBER,
+                   param->channel_name);
       return 1;
     }
   }
@@ -118,9 +113,8 @@ applier_start(Binlog_relay_IO_param *param)
         local_member_info->get_recovery_status() ==
                             Group_member_info::MEMBER_ONLINE)
     {
-      log_message(MY_INFORMATION_LEVEL,
-                  "The slave applier thread of channel '%s' is unblocked as the"
-                  " member is declared ONLINE now.", param->channel_name);
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SLAVE_APPLIER_THREAD_UNBLOCKED,
+                   param->channel_name);
     }
     else if (group_member_mgr &&
              (local_member_info->get_recovery_status() ==
@@ -128,9 +122,8 @@ applier_start(Binlog_relay_IO_param *param)
               local_member_info->get_recovery_status() ==
                             Group_member_info::MEMBER_OFFLINE))
     {
-      log_message(MY_ERROR_LEVEL, "The slave applier thread of channel '%s'"
-                                  " will error out as the member failed to come"
-                                  " ONLINE.", param->channel_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_APPLIER_THREAD_ERROR_OUT,
+                   param->channel_name);
       return 1;
     }
   }
@@ -148,19 +141,15 @@ applier_start(Binlog_relay_IO_param *param)
 
     if (m_uuid == "UNDEFINED")
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave SQL THREAD of channel '%s'"
-                                  " when group replication is running with"
-                                  " single-primary mode and the primary member"
-                                  " is not known.", param->channel_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_SQL_THD_PRIMARY_UNKNOWN,
+                   param->channel_name);
       return 1;
     }
 
     if (m_uuid != local_member_info->get_uuid())
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave SQL THREAD of channel '%s'"
-                                  " when group replication is running with"
-                                  " single-primary mode on a secondary member.",
-                                  param->channel_name);
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_SQL_THD_ON_SECONDARY_MEMBER,
+                   param->channel_name);
       return 1;
     }
   }
@@ -228,19 +217,15 @@ applier_log_event(Binlog_relay_IO_param*,
     {
       if (trans_param->tables_info[table].db_type != DB_TYPE_INNODB)
       {
-        log_message(MY_ERROR_LEVEL, "Table %s does not use the InnoDB storage "
-                                    "engine. This is not compatible with Group "
-                                    "Replication.",
-                                    trans_param->tables_info[table].table_name);
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NEEDS_INNODB_TABLE,
+                     trans_param->tables_info[table].table_name);
         out++;
       }
 
       if (trans_param->tables_info[table].number_of_primary_keys == 0)
       {
-        log_message(MY_ERROR_LEVEL, "Table %s does not have any PRIMARY KEY."
-                                    " This is not compatible with Group "
-                                    "Replication.",
-                                    trans_param->tables_info[table].table_name);
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PRIMARY_KEY_NOT_DEFINED,
+                     trans_param->tables_info[table].table_name);
         out++;
       }
 
@@ -248,10 +233,8 @@ applier_log_event(Binlog_relay_IO_param*,
           local_member_info->has_enforces_update_everywhere_checks() &&
           trans_param->tables_info[table].has_cascade_foreign_key)
       {
-        log_message(MY_ERROR_LEVEL, "Table %s has a foreign key with 'CASCADE'"
-                                    " clause. This is not compatible with "
-                                    "Group Replication.",
-                                    trans_param->tables_info[table].table_name);
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED,
+                     trans_param->tables_info[table].table_name);
         out++;
       }
     }
