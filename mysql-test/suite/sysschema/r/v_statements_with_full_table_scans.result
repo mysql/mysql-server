@@ -51,13 +51,13 @@ SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE 
 db	query	rows_examined
 SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 db	query	rows_examined
-test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ? 	768
+test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ?	768
 SELECT i, j, RAND() FROM v_statements_with_full_table_scans.t WHERE j = 12;
 SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 db	query	rows_examined
 SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 db	query	rows_examined
-test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ? 	1536
+test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ?	1536
 SELECT * FROM v_statements_with_full_table_scans.t WHERE i = 10;
 i	j
 10	4
@@ -65,5 +65,5 @@ SELECT db, query, rows_examined FROM sys.statements_with_full_table_scans WHERE 
 db	query	rows_examined
 SELECT db, query, rows_examined FROM sys.x$statements_with_full_table_scans WHERE query LIKE '%v_statements_with_full_table_scans%' ORDER BY rows_examined DESC;
 db	query	rows_examined
-test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ? 	1536
+test	SELECT `i` , `j` , `RAND` ( ) FROM `v_statements_with_full_table_scans` . `t` WHERE `j` = ?	1536
 DROP DATABASE v_statements_with_full_table_scans;

@@ -180,6 +180,15 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
   uint current_byte = 0;
   lex_token_string *tok_data;
 
+  /*
+    When a space needs to be appended, set add_space to true,
+    and delay actually adding the space until the next token
+    is found.
+    This is to prevent printing digest text
+    with a trailing space character.
+  */
+  bool add_space = false;
+
   /* Reset existing data */
   digest_output->length(0);
 
@@ -229,11 +238,19 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
         /* Get the next identifier from the storage buffer. */
         current_byte =
             read_identifier(digest_storage, current_byte, &id_ptr, &id_len);
-        if (current_byte > max_digest_length) return;
+        if (current_byte > max_digest_length) {
+          /* Truncation */
+          return;
+        }
 
         if (convert_text) {
           /* Verify that the converted text will fit. */
           if (to_cs->mbmaxlen * id_len > NAME_LEN) {
+            if (add_space) {
+              digest_output->append(" ", 1);
+              add_space = false;
+            }
+
             digest_output->append("...", 3);
             break;
           }
@@ -249,25 +266,37 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
         if (id_length == 0 || err_cs != 0) {
           break;
         }
+
+        if (add_space) {
+          digest_output->append(" ", 1);
+          add_space = false;
+        }
+
         /* Copy the converted identifier into the digest string. */
         digest_output->append("`", 1);
         if (id_length > 0) digest_output->append(id_string, id_length);
         if (tok == TOK_IDENT_AT)  // No space before @ in "table@query_block".
+        {
           digest_output->append("`", 1);
-        else
-          digest_output->append("` ", 2);
+        } else {
+          digest_output->append("`", 1);
+          add_space = true;
+        }
       } break;
 
       /* Everything else is printed as is. */
       default:
-        /*
-          Make sure not to overflow digest_text buffer.
-          +1 is to make sure extra space for ' '.
-        */
+        if (add_space) {
+          digest_output->append(" ", 1);
+          add_space = false;
+        }
+
         int tok_length = tok_data->m_token_length;
 
         digest_output->append(tok_data->m_token_string, tok_length);
-        if (tok_data->m_append_space) digest_output->append(" ", 1);
+        if (tok_data->m_append_space) {
+          add_space = true;
+        }
         break;
     }
   }
