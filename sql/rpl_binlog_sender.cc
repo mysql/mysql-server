@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -824,6 +824,18 @@ int Binlog_sender::check_start_file()
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid))
     {
+      Gtid_set gtid_missing(gtid_state->get_lost_gtids()->get_sid_map());
+      gtid_missing.add_gtid_set(gtid_state->get_lost_gtids());
+      gtid_missing.remove_gtid_set(m_exclude_gtid);
+
+      String tmp_uuid;
+      get_slave_uuid(m_thd, &tmp_uuid);
+      char* missing_gtids= NULL;
+      gtid_missing.to_string(&missing_gtids, false, NULL);
+      LogErr(WARNING_LEVEL, ER_FOUND_MISSING_GTIDS,
+             tmp_uuid.ptr(), missing_gtids);
+      my_free(missing_gtids);
+
       errmsg= ER_THD(m_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
