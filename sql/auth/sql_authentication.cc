@@ -532,11 +532,129 @@
 
   @section sect_protocol_connection_phase_com_change_user_auth Authentication After COM_CHANGE_USER Command
 
+  During @ref page_protocol_command_phase a client can send a ::COM_CHANGE_USER
+  command which will trigger authenticating into a new account via a full
+  authentication handshake.
 
+  Similarly to the @ref page_protocol_connection_phase the server may reply
+  with a @ref page_protocol_basic_err_packet or
+  @ref page_protocol_basic_ok_packet for the usual fast-path or with
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
+  containing the authentication method to be used for the new account
+  and the first authentication data payload to be consumed by the client.
+  Further handshake continues as usual, as defined by the authentication
+  method of the new account. Eventually the server will accept the new
+  account with @ref page_protocol_basic_ok_packet or it will reject the change
+  with an @ref page_protocol_basic_err_packet and disconnect.
+
+  1. The client sends ::COM_CHANGE_USER packet
+  2. The server responds with the
+    @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
+    which initiates authentication handshake using the correct authentication
+    method
+  3. Client and server exchange further packets as required by the
+    authentication method for the new account
+  4. The server responds with @ref page_protocol_basic_ok_packet and returns
+    to command phase or @ref page_protocol_basic_err_packet and closes
+    the connection.
+
+  @startuml
+  Client -> Server: COM_CHANGE_USER
+  Server -> Client: Auth Switch Requset Packet
+  == packets exchanged depending on the authentication method ==
+  Server -> Client: ERR packet or OK packet
+  @enduml
+
+  @subsection sect_protocol_connection_phase_com_change_user_auth_non_plugin COM_CHANGE_USER and Non-CLIENT_PLUGIN_AUTH Clients
+
+  Clients which do not support pluggable authentication can send
+  ::COM_CHANGE_USER command for accounts which use
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  or
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication.
+  In this case it is assumed that server has already sent the authentication
+  challenge - the same which was sent when the client connected for the first
+  time - and client's reply to that challenge, i.e. the hash of the new
+  password, should be sent in the `auth_response` field of ::COM_CHANGE_USER.
+
+  1. The client sends ::COM_CHANGE_USER packet with authentication response
+  (hash of the password) for
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  (post 4.1 clients) or
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
+  (pre 4.1 clients) method.
+  2. The server responds with an @ref page_protocol_basic_ok_packet and returns
+  to @ref page_protocol_command_phase or with an
+  @ref page_protocol_basic_err_packet and closes the connection.
+
+  @startuml
+  Client -> Server : COM_CHANGE_USER with a password hash
+  Server -> Client : ERR packet or OK packet.
+  @enduml
+
+  As during normal connection, it is also possible that a post 4.1 client which
+  does not support pluggable authentication connects to an account which uses
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
+  In that case server will send
+  @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request
+  and expect the client to reply with
+  @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
+
+  1. The client sends ::COM_CHANGE_USER packet with response for
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  2. The server replies with
+  @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request (0xFE byte)
+  3. The client sends response again, this time in the form required by
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
+  4. The server responds with an @ref page_protocol_basic_ok_packet and returns
+  to @ref page_protocol_command_phase or an @ref page_protocol_basic_err_packet
+  and disconnects
+
+  @startuml
+  Client -> Server : COM_CHANGE_USER with a password hash
+  Server -> Client : Old Switch Request Packet
+  Client -> Server : Old Password Auth Response
+  Server -> Client : ERR packet or OK packet
+  @enduml
 
   @sa group_cs_capabilities_flags
   @subpage page_protocol_connection_phase_packets
   @subpage page_protocol_connection_phase_authentication_methods
+*/
+
+
+/**
+  @page page_protocol_basic_expired_passwords Expired Password
+
+  Since MySQL 5.6.7, a MySQL account can be expired.
+  If a account is expired, the session is in a restricted mode which
+  only permits SET PASSWORD = .. and similar SET commands.
+  Other statements will fail with an error like this:
+  ~~~~~~~~
+  mysql> SELECT 1;
+  ERROR 1820 (HY000): You must SET PASSWORD before executing this statement
+  ~~~~~~~~
+
+  Not all clients can properly deal with that error.
+  So on the protocol side exists a safeguard
+  ::CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS
+  @ref group_cs_capabilities_flags "capability flag" exists to prevent
+  clients from entering this "sandbox" mode.
+  Only clients that can handle this sandbox mode should report
+  ::CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS on.
+  Usually this means all interactive clients and all applications that got
+  adjusted to handle the relevant SQL error.
+
+  If a client is not setting that capability and it tries to login with an
+  account that has an expired password, the server will return an
+  @ref page_protocol_basic_err_packet for the
+  @ref page_protocol_connection_phase or the ::COM_CHANGE_USER request.
+
+  The idea is to block any activity until the password is reset.
+
+  @sa ::MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, mysql_options,
+  ACL_USER::password_expired, ACL_USER::password_lifetime,
+  acl_authenticate
 */
 
 
@@ -1834,7 +1952,89 @@ bool sha256_rsa_auth_status()
 }
 
 
-/* the packet format is described in send_change_user_packet() */
+/**
+  @page page_protocol_com_change_user COM_CHANGE_USER
+
+  @brief Changes the user of the current connection.
+
+  Also and resets the following connection state:
+  - user variables
+  - temporary tables
+  - prepared statements
+  - ... and others
+
+  It is going through the same states as the
+  @ref sect_protocol_connection_phase_initial_handshake
+
+  @return @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
+    or @ref page_protocol_basic_err_packet
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>command</td>
+      <td>0x11: COM_CHANGE_USER</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>user</td>
+      <td>user name</td></tr>
+  <tr><td colspan="3">if capabilities @& @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION" {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>auth_plugin_data_len</td>
+      <td>length of auth_response</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+      <td>auth_plugin_data</td>
+      <td>authentication data</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>auth_plugin_data</td>
+      <td>authentication data (9 bytes)</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>database</td>
+      <td>schema name</td></tr>
+  <tr><td colspan="3">if more data available {</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PROTOCOL_41 {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>character_set</td>
+      <td>new connection character set. See @ref page_protocol_basic_character_set</td></tr>
+  <tr><td colspan="3">} -- ::CLIENT_PROTOCOL_41</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>auth_plugin_name</td>
+      <td>client authentication plugin name used to generate auth_plugin_data</td></tr>
+  <tr><td colspan="3">} -- ::CLIENT_PLUGIN_AUTH</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_CONNECT_ATTRS {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>connection_attributes_length</td>
+      <td>length in bytes of the following block of key-value pairs</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+      <td>key</td>
+      <td>Key name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+      <td>value</td>
+      <td>value of key</td></tr>
+  <tr><td colspan="3">more key/value pairs until connection_attributes_length is depleted</td></tr>
+  <tr><td colspan="3">} -- ::CLIENT_CONNECT_ATTRS</td></tr>
+  <tr><td colspan="3">} -- more data available</td></tr>
+  </table>
+
+  Please also read @ref sect_protocol_connection_phase_com_change_user_auth
+
+  @sa mysql_change_user, send_change_user_packet, parse_com_change_user_packet,
+  acl_authenticate, dispatch_command
+*/
+
+/**
+  @brief Parses a @ref page_protocol_com_change_user
+
+  @param thd            current thread
+  @param mpvio          the communications channel
+  @param packet_length  length of the packet in mpvio's buffer
+
+  @retval true error
+  @retval false success
+*/
 static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
                                          size_t packet_length)
 {

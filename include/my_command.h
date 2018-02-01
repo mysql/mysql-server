@@ -46,24 +46,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 enum enum_server_command
 {
-  COM_SLEEP,          /**< Currently refused by the server. See ::dispatch_command */
+  /**
+    Currently refused by the server. See ::dispatch_command.
+    Also used internally to mark the start of a session.
+  */
+  COM_SLEEP,
   COM_QUIT,           /**< See @ref page_protocol_com_quit */
   COM_INIT_DB,        /**< See @ref page_protocol_com_init_db */
   COM_QUERY,          /**< See @ref page_protocol_com_query */
-  COM_FIELD_LIST,
-  COM_CREATE_DB,
-  COM_DROP_DB,
-  COM_REFRESH,
+  COM_FIELD_LIST,     /**< Depreated. See @ref page_protocol_com_field_list */
+  COM_CREATE_DB,      /**< Currently refused by the server. See ::dispatch_command */
+  COM_DROP_DB,        /**< Currently refused by the server. See ::dispatch_command */
+  COM_REFRESH,        /**< Depreated. See @ref page_protocol_com_refresh */
   COM_DEPRECATED_1,   /**< deprecated, used to be COM_SHUTDOWN */
-  COM_STATISTICS,
-  COM_PROCESS_INFO,
+  COM_STATISTICS,     /**< See @ref page_protocol_com_statistics */
+  COM_PROCESS_INFO,   /**< Depreated. See @ref page_protocol_com_process_info */
   COM_CONNECT,        /**< Currently refused by the server. */
-  COM_PROCESS_KILL,
-  COM_DEBUG,
-  COM_PING,
+  COM_PROCESS_KILL,   /**< Depreated. See @ref page_protocol_com_process_kill */
+  COM_DEBUG,          /**< See @ref page_protocol_com_debug */
+  COM_PING,           /**< See @ref page_protocol_com_ping */
   COM_TIME,           /**< Currently refused by the server. */
   COM_DELAYED_INSERT, /**< Functionality removed. */
-  COM_CHANGE_USER,
+  COM_CHANGE_USER,    /**< See @ref page_protocol_com_change_user */
   COM_BINLOG_DUMP,
   COM_TABLE_DUMP,
   COM_CONNECT_OUT,

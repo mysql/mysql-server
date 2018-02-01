@@ -185,42 +185,53 @@
                                              general purpose */
 /** @}*/
 
+/**
+   @defgroup group_cs_com_refresh_flags COM_REFRESH Flags
+   @ingroup group_cs
 
-#define REFRESH_GRANT		1	/**< Refresh grant tables */
-#define REFRESH_LOG		2	/**< Start on new log file */
-#define REFRESH_TABLES		4	/**< close all tables */
-#define REFRESH_HOSTS		8	/**< Flush host cache */
-#define REFRESH_STATUS		16	/**< Flush status variables */
+   @brief Values for the `sub_command` in ::COM_REFRESH
+
+   Currently the protocol carries only 8 bits of these flags.
+
+   The rest (8-end) are used only internally in the server.
+*/
+
+/**
+  @addtogroup group_cs_com_refresh_flags
+  @{
+*/
+
+
+#define REFRESH_GRANT		1	/**< Refresh grant tables, FLUSH PRIVILEGES */
+#define REFRESH_LOG		2	/**< Start on new log file, FLUSH LOGS */
+#define REFRESH_TABLES		4	/**< close all tables, FLUSH TABLES */
+#define REFRESH_HOSTS		8	/**< Flush host cache, FLUSH HOSTS */
+#define REFRESH_STATUS		16	/**< Flush status variables, FLUSH STATUS */
 #define REFRESH_THREADS		32	/**< Flush thread cache */
 #define REFRESH_SLAVE           64      /**< Reset master info and restart slave
-					   thread */
+					   thread, RESET SLAVE */
 #define REFRESH_MASTER          128     /**< Remove all bin logs in the index
-					   and truncate the index */
+					   and truncate the index, RESET MASTER */
 #define REFRESH_ERROR_LOG       256 /**< Rotate only the erorr log */
 #define REFRESH_ENGINE_LOG      512 /**< Flush all storage engine logs */
 #define REFRESH_BINARY_LOG     1024 /**< Flush the binary log */
 #define REFRESH_RELAY_LOG      2048 /**< Flush the relay log */
 #define REFRESH_GENERAL_LOG    4096 /**< Flush the general log */
 #define REFRESH_SLOW_LOG       8192 /**< Flush the slow query log */
-
-/* The following can't be set with mysql_refresh() */
+#define REFRESH_READ_LOCK	16384 /**< Lock tables for read. */
 /**
-  Lock tables for read.
+  Wait for an impending flush before closing the tables.
 
-  @sa mysql_refresh()
-*/
-#define REFRESH_READ_LOCK	16384
-/**
-  Intern flag
-
-  @sa mysql_refresh()
+  @sa REFRESH_READ_LOCK, handle_reload_request, close_cached_tables
 */
 #define REFRESH_FAST		32768
-
-#define REFRESH_USER_RESOURCES	0x80000L
+#define REFRESH_USER_RESOURCES	0x80000L /** FLISH RESOUCES. @sa ::reset_mqh */
 #define REFRESH_FOR_EXPORT      0x100000L /** FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /** FLUSH OPTIMIZER_COSTS */
 #define REFRESH_PERSIST         0x400000L /** RESET PERSIST */
+
+/** @}*/
+
 
 /**
    @defgroup group_cs_capabilities_flags Capabilities Flags

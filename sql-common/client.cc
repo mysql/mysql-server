@@ -3502,20 +3502,8 @@ static char *write_string(char *dest, char *dest_end, char *src, char *src_end)
   return (char*)(to + src_len);
 }
 /**
-  sends a COM_CHANGE_USER command with a caller provided payload
-
-  Packet format:
-   
-    Bytes       Content
-    -----       ----
-    n           user name - \0-terminated string
-    n           password
-                  3.23 scramble - \0-terminated string (9 bytes)
-                  otherwise - length (1 byte) coded
-    n           database name - \0-terminated string
-    2           character set number (if the server >= 4.1.x)
-    n           client auth plugin name - \0-terminated string,
-                  (if the server supports plugin auth)
+  Sends a @ref page_protocol_com_change_user
+  with a caller provided payload
 
   @retval 0 ok
   @retval 1 error
