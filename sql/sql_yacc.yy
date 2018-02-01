@@ -1247,7 +1247,6 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> DESCRIPTION_SYM               /* MYSQL */
 %token<keyword> ORGANIZATION_SYM              /* MYSQL */
 %token<keyword> REFERENCE_SYM                 /* MYSQL */
-%token<keyword>  MASTER_SSL_FIPS_MODE_SYM     /* MYSQL */
 
 
 /*
@@ -14006,7 +14005,6 @@ role_or_label_keyword:
         | VALUE_SYM
         | VARIABLES
         | VCPU_SYM
-        | MASTER_SSL_FIPS_MODE_SYM
         | VIEW_SYM
         | WAIT_SYM
         | WARNINGS

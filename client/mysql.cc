@@ -654,7 +654,6 @@ static COMMANDS commands[] = {
   { "MASTER_SSL_CAPATH", 0, 0, 0, ""},
   { "MASTER_SSL_CERT", 0, 0, 0, ""},
   { "MASTER_SSL_CIPHER", 0, 0, 0, ""},
-  { "MASTER_SSL_FIPS_MODE", 0, 0, 0, ""},
   { "MASTER_TLS_VERSION", 0, 0, 0, ""},
   { "MASTER_SSL_KEY", 0, 0, 0, ""},
   { "MASTER_USER", 0, 0, 0, ""},
