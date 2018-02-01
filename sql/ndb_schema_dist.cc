@@ -233,6 +233,7 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op");
   DBUG_ASSERT(db && table_name);
   DBUG_ASSERT(id != 0 && version != 0);
+  DBUG_ASSERT(m_thd_ndb);
 
   // Never allow temporary names when communicating with participant
   if (ndb_name_is_temp(db) || ndb_name_is_temp(table_name))
@@ -264,7 +265,7 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   }
 
   const int result = log_schema_op_impl(
-      m_thd_ndb, query, static_cast<int>(query_length), db, table_name,
+      m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name,
       static_cast<uint32>(id), static_cast<uint32>(version), type, new_db,
       new_table_name, log_query_on_participant);
   if (result != 0) {

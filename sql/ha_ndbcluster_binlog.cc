@@ -2038,23 +2038,13 @@ static void ndb_report_waiting(const char *key,
 */
 
 int Ndb_schema_dist_client::log_schema_op_impl(
-    Thd_ndb* thd_ndb,
+    Ndb* ndb,
     const char *query, int query_length, const char *db, const char *table_name,
     uint32 ndb_table_id, uint32 ndb_table_version, enum SCHEMA_OP_TYPE type,
     const char *new_db, const char *new_table_name,
     bool log_query_on_participant)
 {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op_impl");
-
-  if (!thd_ndb)
-  {
-    if (!(thd_ndb= Thd_ndb::seize(m_thd)))
-    {
-      ndb_log_error("Could not allocate Thd_ndb object");
-      DBUG_RETURN(1);
-    }
-    thd_set_thd_ndb(m_thd, thd_ndb);
-  }
 
   DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
                        query, db, table_name));
@@ -2238,7 +2228,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     }
   }
 
-  Ndb *ndb= thd_ndb->ndb;
   char save_db[FN_REFLEN];
   strcpy(save_db, ndb->getDatabaseName());
 

@@ -122,7 +122,7 @@ class Ndb_schema_dist_client {
   */
   int unique_version() const;
 
-  int log_schema_op_impl(Thd_ndb *thd_ndb, const char *query, int query_length,
+  int log_schema_op_impl(class Ndb* ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,
                          enum SCHEMA_OP_TYPE type, const char *new_db,
