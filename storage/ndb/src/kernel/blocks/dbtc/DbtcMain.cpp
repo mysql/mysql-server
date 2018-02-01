@@ -10366,34 +10366,50 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   jam();
   Uint32 TtcTimer = ctcTimer;
   Uint32 TapplTimeout = c_appl_timeout_value;
-  Uint32 RT_BREAK = 64;
-  Uint32 endPtrI = transPtrI + RT_BREAK;
-  if (endPtrI > capiConnectFilesize)
-  {
-    endPtrI = capiConnectFilesize;
-  }
 
-  for (; transPtrI < endPtrI; transPtrI++)
+  const Uint32 RT_BREAK = 64;
+  Uint32 loop_count = 0;
+  Uint32 api_ptr = transPtrI;
+  bool found = false;
+  while (!found &&
+         api_ptr != RNIL &&
+         loop_count < RT_BREAK)
   {
-    ApiConnectRecordPtr transPtr;
-    transPtr.i = transPtrI;
-    if (c_apiConnectRecordPool.getValidPtr(transPtr) &&
-        !transPtr.isNull() && transPtr.p->m_transaction_nodes.get(failedNodeId))
+    jam();
+    ApiConnectRecordPtr ptrs[8];
+    Uint32 ptr_cnt =
+        c_apiConnectRecordPool.getUncheckedPtrs(&api_ptr,
+                                                ptrs,
+                                                NDB_ARRAY_SIZE(ptrs));
+    loop_count += NDB_ARRAY_SIZE(ptrs);
+    for (Uint32 i = 0; i < ptr_cnt; i++)
     {
       jam();
+      if (!Magic::match(ptrs[i].p->m_magic, ApiConnectRecord::TYPE_ID))
+      {
+        continue;
+      }
+      ApiConnectRecordPtr const& transPtr = ptrs[i];
+      if (transPtr.p->m_transaction_nodes.get(failedNodeId))
+      {
+        jam();
 
-      // Force timeout regardless of state      
-      c_appl_timeout_value = 1;
-      setApiConTimer(transPtr, TtcTimer - 2, __LINE__);
-      timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
-      c_appl_timeout_value = TapplTimeout;
+        // Force timeout regardless of state      
+        c_appl_timeout_value = 1;
+          setApiConTimer(transPtr, TtcTimer - 2, __LINE__);
+        timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
+        c_appl_timeout_value = TapplTimeout;
       
-      transPtrI++;
-      break;
+        if (i + 1 < ptr_cnt)
+        {
+          api_ptr = ptrs[i + 1].i;
+        }
+        found = true;
+        break;
+      }
     }
   }
-  
-  if (transPtrI == capiConnectFilesize)
+  if (api_ptr == RNIL)
   {
     jam();
     checkNodeFailComplete(signal, failedNodeId, 
@@ -10402,7 +10418,7 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   else
   {
     signal->theData[0] = TcContinueB::ZNF_CHECK_TRANSACTIONS;
-    signal->theData[1] = transPtrI;
+    signal->theData[1] = api_ptr;
     signal->theData[2] = failedNodeId;
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
   }
