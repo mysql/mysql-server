@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,6 +154,9 @@ static int& g_loglevel = g_opts.loglevel; // default log level
 
 #define chkrc(x) \
   do { if (likely(x)) break; ndbout << "line " << __LINE__ << " FAIL " << #x << endl; if (g_opts.abort) abort(); return -1; } while (0)
+
+#define chkrc_break(x) \
+  if (unlikely(!(x))) { ndbout << "line " << __LINE__ << " FAIL " << #x << endl; break; }
 
 #define llx(n, x) \
   do { if (likely(g_loglevel < n)) break; ndbout << x << endl; } while (0)
@@ -2117,15 +2120,15 @@ runtest()
       srand(seed);
     }
     makekeys();
-    chkrc(loaddata(g_loop != 0) == 0);
+    chkrc_break(loaddata(g_loop != 0) == 0);
     makeranges();
-    chkrc(scanranges() == 0);
-    chkrc(updatestat() == 0);
-    chkrc(runlistener() == 0);
-    chkrc(readstat() == 0);
-    chkrc(queryranges() == 0);
+    chkrc_break(scanranges() == 0);
+    chkrc_break(updatestat() == 0);
+    chkrc_break(runlistener() == 0);
+    chkrc_break(readstat() == 0);
+    chkrc_break(queryranges() == 0);
     loopstats();
-    chkrc(loopdumps() == 0);
+    chkrc_break(loopdumps() == 0);
   }
   finalstats();
 
