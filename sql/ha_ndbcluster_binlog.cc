@@ -2064,9 +2064,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     DBUG_RETURN(ER_TOO_LONG_IDENT);
   }
 
-  // Use nodeid of the primary cluster connection since that is
-  // the nodeid which the coordinator and participants listen to
-  const uint32 node_id= g_ndb_cluster_connection->node_id();
 
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {
@@ -2107,8 +2104,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     }
   }
 
-  const NdbError *ndb_error= 0;
-  Uint64 epoch= 0;
   {
     /* begin protect ndb_schema_share */
     Mutex_guard ndb_schema_share_g(injector_data_mutex);
@@ -2122,16 +2117,15 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   char save_db[FN_REFLEN];
   strcpy(save_db, ndb->getDatabaseName());
 
-  char tmp_buf[FN_REFLEN];
   NDBDICT *dict= ndb->getDictionary();
   ndb->setDatabaseName(NDB_REP_DB);
   Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
   const NDBTAB *ndbtab= ndbtab_g.get_table();
-  NdbTransaction *trans= 0;
+  NdbTransaction *trans = nullptr;
   int retries= 100;
-  int retry_sleep= 30; /* 30 milliseconds, transaction */
 
-  if (ndbtab == 0)
+  const NdbError *ndb_error = nullptr;
+  if (ndbtab == nullptr)
   {
     ndb_error= &dict->getNdbError();
     goto end;
@@ -2139,17 +2133,24 @@ int Ndb_schema_dist_client::log_schema_op_impl(
 
   while (1)
   {
+    char tmp_buf[FN_REFLEN];
+    const Uint64 log_epoch = 0;
     const uint32 log_type= (uint32)type;
     const char *log_db= db;
     const char *log_tab= table_name;
     const char *log_subscribers= (char*)ndb_schema_object->slock;
+    // Use nodeid of the primary cluster connection since that is
+    // the nodeid which the coordinator and participants listen to
+    const uint32 log_node_id = g_ndb_cluster_connection->node_id();
+
     if ((trans= ndb->startTransaction()) == 0)
       goto err;
+
     while (1)
     {
-      NdbOperation *op= 0;
+      NdbOperation *op= nullptr;
       int r= 0;
-      r|= (op= trans->getNdbOperation(ndbtab)) == 0;
+      r|= (op= trans->getNdbOperation(ndbtab)) == nullptr;
       DBUG_ASSERT(r == 0);
       r|= op->writeTuple();
       DBUG_ASSERT(r == 0);
@@ -2172,17 +2173,17 @@ int Ndb_schema_dist_client::log_schema_op_impl(
       /* query */
       {
         NdbBlob *ndb_blob= op->getBlobHandle(SCHEMA_QUERY_I);
-        DBUG_ASSERT(ndb_blob != 0);
+        DBUG_ASSERT(ndb_blob != nullptr);
         uint blob_len= query_length;
         const char* blob_ptr= query;
         r|= ndb_blob->setValue(blob_ptr, blob_len);
         DBUG_ASSERT(r == 0);
       }
       /* node_id */
-      r|= op->setValue(SCHEMA_NODE_ID_I, node_id);
+      r|= op->setValue(SCHEMA_NODE_ID_I, log_node_id);
       DBUG_ASSERT(r == 0);
       /* epoch */
-      r|= op->setValue(SCHEMA_EPOCH_I, epoch);
+      r|= op->setValue(SCHEMA_EPOCH_I, log_epoch);
       DBUG_ASSERT(r == 0);
       /* id */
       r|= op->setValue(SCHEMA_ID_I, ndb_table_id);
@@ -2265,7 +2266,7 @@ err:
       {
         if (trans)
           ndb->closeTransaction(trans);
-        ndb_retry_sleep(retry_sleep);
+        ndb_retry_sleep(30); /* milliseconds, transaction */
         continue; // retry
       }
     }
