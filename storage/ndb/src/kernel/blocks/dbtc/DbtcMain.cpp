@@ -7610,6 +7610,7 @@ void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnec
   regApiPtr->apiConnectstate = CS_RESTART;
   ndbrequire(regApiPtr->commitAckMarker == RNIL);
   regApiPtr->apiConnectkind = ApiConnectRecord::CK_FREE;
+  releaseApiConTimer(apiConnectptr);
   c_apiConnectRecordPool.release(apiConnectptr.i);
 }//Dbtc::releaseApiConCopy()
 
@@ -15169,7 +15170,11 @@ void Dbtc::initApiConnect(Signal* signal)
   {
     refresh_watch_dog();
     jam();
+    ApiConnectRecordPtr apiConnectptr;
+    apiConnectptr.i = i;
+    c_apiConnectRecordPool.getPtr(apiConnectptr);
     ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FREE);
+    releaseApiConTimer(apiConnectptr);
     c_apiConnectRecordPool.release(i);
   }
 
@@ -15395,6 +15400,7 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     ndbrequire(copyPtr.p->apiConnectkind == ApiConnectRecord::CK_COPY);
     copyPtr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->apiCopyRecord = RNIL;
+    releaseApiConTimer(copyPtr);
     c_apiConnectRecordPool.release(copyPtr.i);
   }
   if (apiConnectptr.p->cachePtr != RNIL)
@@ -15537,6 +15543,7 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->ndbapiBlockref = 0;
   TlocalApiConnectptr.p->transid[0] = 0;
   TlocalApiConnectptr.p->transid[1] = 0;
+  releaseApiConTimer(TlocalApiConnectptr);
   c_apiConnectRecordPool.release(TlocalApiConnectptr);
 }//Dbtc::releaseApiCon()
 
