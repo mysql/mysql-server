@@ -123,8 +123,7 @@ class Ndb_schema_dist_client {
   int log_schema_op_impl(class Ndb* ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,
-                         SCHEMA_OP_TYPE type, const char *new_db,
-                         const char *new_table_name,
+                         SCHEMA_OP_TYPE type,
                          bool log_query_on_participant);
 
   /**
@@ -136,8 +135,7 @@ class Ndb_schema_dist_client {
    */
   bool log_schema_op(const char *query, size_t query_length, const char *db,
                      const char *table_name, int id, int version,
-                     SCHEMA_OP_TYPE type, const char *new_db,
-                     const char *new_table_name,
+                     SCHEMA_OP_TYPE type,
                      bool log_query_on_participant = true);
 
   /**

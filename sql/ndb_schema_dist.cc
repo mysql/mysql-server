@@ -181,8 +181,6 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
                                            size_t query_length, const char* db,
                                            const char* table_name, int id,
                                            int version, SCHEMA_OP_TYPE type,
-                                           const char* new_db,
-                                           const char* new_table_name,
                                            bool log_query_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op");
   DBUG_ASSERT(db && table_name);
@@ -220,8 +218,8 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
 
   const int result = log_schema_op_impl(
       m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name,
-      static_cast<uint32>(id), static_cast<uint32>(version), type, new_db,
-      new_table_name, log_query_on_participant);
+      static_cast<uint32>(id), static_cast<uint32>(version), type,
+      log_query_on_participant);
   if (result != 0) {
     // Schema distribution failed
     m_thd_ndb->push_warning("Schema distribution failed!");
@@ -244,8 +242,7 @@ bool Ndb_schema_dist_client::create_table(const char* db,
   }
 
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            db, table_name, id, version, SOT_CREATE_TABLE,
-                            nullptr, nullptr));
+                            db, table_name, id, version, SOT_CREATE_TABLE));
 }
 
 bool Ndb_schema_dist_client::truncate_table(const char* db,
@@ -253,8 +250,7 @@ bool Ndb_schema_dist_client::truncate_table(const char* db,
                                             int version) {
   DBUG_ENTER("Ndb_schema_dist_client::truncate_table");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            db, table_name, id, version, SOT_TRUNCATE_TABLE,
-                            nullptr, nullptr));
+                            db, table_name, id, version, SOT_TRUNCATE_TABLE));
 }
 
 
@@ -263,8 +259,8 @@ bool Ndb_schema_dist_client::alter_table(const char* db, const char* table_name,
                                          int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_table");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            db, table_name, id, version, SOT_ALTER_TABLE_COMMIT,
-                            nullptr, nullptr));
+                            db, table_name, id, version,
+                            SOT_ALTER_TABLE_COMMIT));
 }
 
 bool Ndb_schema_dist_client::alter_table_inplace_prepare(const char* db,
@@ -273,7 +269,7 @@ bool Ndb_schema_dist_client::alter_table_inplace_prepare(const char* db,
   DBUG_ENTER("Ndb_schema_dist_client::alter_table_inplace_prepare");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             db, table_name, id, version,
-                            SOT_ONLINE_ALTER_TABLE_PREPARE, nullptr, nullptr));
+                            SOT_ONLINE_ALTER_TABLE_PREPARE));
 }
 
 bool Ndb_schema_dist_client::alter_table_inplace_commit(const char* db,
@@ -282,7 +278,7 @@ bool Ndb_schema_dist_client::alter_table_inplace_commit(const char* db,
   DBUG_ENTER("Ndb_schema_dist_client::alter_table_inplace_commit");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             db, table_name, id, version,
-                            SOT_ONLINE_ALTER_TABLE_COMMIT, nullptr, nullptr));
+                            SOT_ONLINE_ALTER_TABLE_COMMIT));
 }
 
 bool Ndb_schema_dist_client::rename_table_prepare(
@@ -294,8 +290,7 @@ bool Ndb_schema_dist_client::rename_table_prepare(
   // that's since there isn't enough placeholders in the subsequent rename
   // table phase.
   DBUG_RETURN(log_schema_op(new_key_for_table, strlen(new_key_for_table), db,
-                            table_name, id, version, SOT_RENAME_TABLE_PREPARE,
-                            nullptr, nullptr));
+                            table_name, id, version, SOT_RENAME_TABLE_PREPARE));
 }
 
 bool Ndb_schema_dist_client::rename_table(const char* db,
@@ -304,9 +299,28 @@ bool Ndb_schema_dist_client::rename_table(const char* db,
                                           const char* new_tabname,
                                           bool log_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::rename_table");
-  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+
+  /*
+    Rewrite the query, the original query may contain several tables but
+    rename_table() is called once for each table in the query.
+      ie. RENAME TABLE t1 to tx, t2 to ty;
+          -> RENAME TABLE t1 to tx + RENAME TABLE t2 to ty
+  */
+  std::string rewritten_query;
+  rewritten_query.append("rename table `")
+      .append(db)
+      .append("`.`")
+      .append(table_name)
+      .append("` to `")
+      .append(new_dbname)
+      .append("`.`")
+      .append(new_tabname)
+      .append("`");
+  DBUG_PRINT("info", ("rewritten query: '%s'", rewritten_query.c_str()));
+
+  DBUG_RETURN(log_schema_op(rewritten_query.c_str(), rewritten_query.length(),
                             db, table_name, id, version, SOT_RENAME_TABLE,
-                            new_dbname, new_tabname, log_on_participant));
+                            log_on_participant));
 }
 
 bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
@@ -322,45 +336,57 @@ bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
   */
   DBUG_ASSERT(thd_sql_command(m_thd) != SQLCOM_DROP_DB);
 
-  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            db, table_name, id, version, SOT_DROP_TABLE,
-                            nullptr, nullptr));
+  /*
+    Rewrite the query, the original query may contain several tables but
+    drop_table() is called once for each table in the query.
+    ie. DROP TABLE t1, t2;
+      -> DROP TABLE t1 + DROP TABLE t2
+  */
+  std::string rewritten_query;
+  rewritten_query.append("drop table `")
+      .append(db)
+      .append("`.`")
+      .append(table_name)
+      .append("`");
+  DBUG_PRINT("info", ("rewritten query: '%s'", rewritten_query.c_str()));
+
+  DBUG_RETURN(log_schema_op(rewritten_query.c_str(), rewritten_query.length(),
+                            db, table_name, id, version, SOT_DROP_TABLE));
 }
 
 bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
                                        const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::create_db");
   DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
-                            unique_version(), SOT_CREATE_DB, nullptr, nullptr));
+                            unique_version(), SOT_CREATE_DB));
 }
 
 bool Ndb_schema_dist_client::alter_db(const char* query, uint query_length,
                                       const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_db");
   DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
-                            unique_version(), SOT_ALTER_DB, nullptr, nullptr));
+                            unique_version(), SOT_ALTER_DB));
 }
 
 bool Ndb_schema_dist_client::drop_db(const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_db");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            db, "", unique_id(), unique_version(), SOT_DROP_DB,
-                            nullptr, nullptr));
+                            db, "", unique_id(), unique_version(),
+                            SOT_DROP_DB));
 }
 
 bool Ndb_schema_dist_client::acl_notify(const char* query, uint query_length,
                                         const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::acl_notify");
   DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
-                            unique_version(), SOT_GRANT, nullptr, nullptr));
+                            unique_version(), SOT_GRANT));
 }
 
 bool Ndb_schema_dist_client::tablespace_changed(const char* tablespace_name,
                                                 int id, int version) {
   DBUG_ENTER("Ndb_schema_dist_client::tablespace_changed");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
-                            "", tablespace_name, id, version, SOT_TABLESPACE,
-                            nullptr, nullptr));
+                            "", tablespace_name, id, version, SOT_TABLESPACE));
 }
 
 bool Ndb_schema_dist_client::logfilegroup_changed(const char* logfilegroup_name,
@@ -368,7 +394,7 @@ bool Ndb_schema_dist_client::logfilegroup_changed(const char* logfilegroup_name,
   DBUG_ENTER("Ndb_schema_dist_client::logfilegroup_changed");
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             "", logfilegroup_name, id, version,
-                            SOT_LOGFILE_GROUP, nullptr, nullptr));
+                            SOT_LOGFILE_GROUP));
 }
 
 const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {

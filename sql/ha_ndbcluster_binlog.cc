@@ -34,8 +34,6 @@
 #include "sql/derror.h"     // ER_THD
 #include "sql/ha_ndbcluster.h"
 #include "sql/ha_ndbcluster_connection.h"
-#include "sql/log_event.h"  // my_strmov_quoted_identifier
-                            // tablename_to_filename
 #include "sql/mysqld.h"     // opt_bin_log
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
 #include "sql/ndb_binlog_client.h"
@@ -2041,7 +2039,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     Ndb* ndb,
     const char *query, int query_length, const char *db, const char *table_name,
     uint32 ndb_table_id, uint32 ndb_table_version, SCHEMA_OP_TYPE type,
-    const char *new_db, const char *new_table_name,
     bool log_query_on_participant)
 {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op_impl");
@@ -2065,61 +2062,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
                         "Ndb has an internal limit of %u bytes on the size of schema identifiers",
                         NDB_MAX_DDL_NAME_BYTESIZE);
     DBUG_RETURN(ER_TOO_LONG_IDENT);
-  }
-
-  char tmp_buf2[FN_REFLEN];
-  char quoted_table1[2 + 2 * FN_REFLEN + 1];
-  char quoted_db1[2 + 2 * FN_REFLEN + 1];
-  char quoted_db2[2 + 2 * FN_REFLEN + 1];
-  char quoted_table2[2 + 2 * FN_REFLEN + 1];
-  size_t id_length= 0;
-  switch (type)
-  {
-  case SOT_DROP_TABLE:
-    /*
-      Rewrite the drop table query as it may contain several tables
-      but drop_table() is called once for each table in the query
-      ie. DROP TABLE t1, t2;
-          -> DROP TABLE t1 + DROP TABLE t2
-    */
-
-    query= tmp_buf2;
-    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_table1,
-                                            table_name, 0);
-    quoted_table1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_db1,
-                                            db, 0);
-    quoted_db1[id_length]= '\0';
-    query_length= (uint) (strxmov(tmp_buf2, "drop table ", quoted_db1, ".",
-                                  quoted_table1, NullS) - tmp_buf2);
-    break;
-  case SOT_RENAME_TABLE:
-    /*
-      Rewrite the rename table query as it may contain several tables
-      but rename_table() is called once for each table in the query
-      ie. RENAME TABLE t1 to tx, t2 to ty;
-          -> RENAME TABLE t1 to tx + RENAME TABLE t2 to ty
-    */
-    query= tmp_buf2;
-    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_db1,
-                                            db, 0);
-    quoted_db1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_table1,
-                                            table_name, 0);
-    quoted_table1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_db2,
-                                            new_db, 0);
-    quoted_db2[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (m_thd, (char *) quoted_table2,
-                                            new_table_name, 0);
-    quoted_table2[id_length]= '\0';
-    query_length= (uint) (strxmov(tmp_buf2, "rename table ",
-                                  quoted_db1, ".", quoted_table1, " to ",
-                                  quoted_db2, ".", quoted_table2, NullS) - tmp_buf2);
-    break;
-    default:
-    // No rewrite necessary
-    break;
   }
 
   // Use nodeid of the primary cluster connection since that is
