@@ -416,3 +416,49 @@ bool Ndb_schema_dist_client::logfilegroup_changed(const char* logfilegroup_name,
                             "", logfilegroup_name, id, version,
                             SOT_LOGFILE_GROUP, nullptr, nullptr));
 }
+
+const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {
+  switch (type) {
+    case SOT_DROP_TABLE:
+      return "drop table";
+    case SOT_RENAME_TABLE_PREPARE:
+      return "rename table prepare";
+    case SOT_RENAME_TABLE:
+      return "rename table";
+    case SOT_CREATE_TABLE:
+      return "create table";
+    case SOT_ALTER_TABLE_COMMIT:
+      return "alter table";
+    case SOT_ONLINE_ALTER_TABLE_PREPARE:
+      return "online alter table prepare";
+    case SOT_ONLINE_ALTER_TABLE_COMMIT:
+      return "online alter table commit";
+    case SOT_DROP_DB:
+      return "drop db";
+    case SOT_CREATE_DB:
+      return "create db";
+    case SOT_ALTER_DB:
+      return "alter db";
+    case SOT_TABLESPACE:
+      return "tablespace";
+    case SOT_LOGFILE_GROUP:
+      return "logfile group";
+    case SOT_TRUNCATE_TABLE:
+      return "truncate table";
+    case SOT_CREATE_USER:
+      return "create user";
+    case SOT_DROP_USER:
+      return "drop user";
+    case SOT_RENAME_USER:
+      return "rename user";
+    case SOT_GRANT:
+      return "grant/revoke";
+    case SOT_REVOKE:
+      return "revoke all";
+    default:
+      break;
+  }
+  // String representation for SCHEMA_OP_TYPE missing
+  DBUG_ASSERT(false);  // Catch in debug
+  return "<unknown>";
+}

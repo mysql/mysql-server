@@ -2040,7 +2040,7 @@ static void ndb_report_waiting(const char *key,
 int Ndb_schema_dist_client::log_schema_op_impl(
     Ndb* ndb,
     const char *query, int query_length, const char *db, const char *table_name,
-    uint32 ndb_table_id, uint32 ndb_table_version, enum SCHEMA_OP_TYPE type,
+    uint32 ndb_table_id, uint32 ndb_table_version, SCHEMA_OP_TYPE type,
     const char *new_db, const char *new_table_name,
     bool log_query_on_participant)
 {
@@ -2073,8 +2073,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   char quoted_db2[2 + 2 * FN_REFLEN + 1];
   char quoted_table2[2 + 2 * FN_REFLEN + 1];
   size_t id_length= 0;
-  const char *type_str;
-  uint32 log_type= (uint32)type;
   switch (type)
   {
   case SOT_DROP_TABLE:
@@ -2094,10 +2092,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     quoted_db1[id_length]= '\0';
     query_length= (uint) (strxmov(tmp_buf2, "drop table ", quoted_db1, ".",
                                   quoted_table1, NullS) - tmp_buf2);
-    type_str= "drop table";
-    break;
-  case SOT_RENAME_TABLE_PREPARE:
-    type_str= "rename table prepare";
     break;
   case SOT_RENAME_TABLE:
     /*
@@ -2122,55 +2116,10 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     query_length= (uint) (strxmov(tmp_buf2, "rename table ",
                                   quoted_db1, ".", quoted_table1, " to ",
                                   quoted_db2, ".", quoted_table2, NullS) - tmp_buf2);
-    type_str= "rename table";
     break;
-  case SOT_CREATE_TABLE:
-    type_str= "create table";
+    default:
+    // No rewrite necessary
     break;
-  case SOT_ALTER_TABLE_COMMIT:
-    type_str= "alter table";
-    break;
-  case SOT_ONLINE_ALTER_TABLE_PREPARE:
-    type_str= "online alter table prepare";
-    break;
-  case SOT_ONLINE_ALTER_TABLE_COMMIT:
-    type_str= "online alter table commit";
-    break;
-  case SOT_DROP_DB:
-    type_str= "drop db";
-    break;
-  case SOT_CREATE_DB:
-    type_str= "create db";
-    break;
-  case SOT_ALTER_DB:
-    type_str= "alter db";
-    break;
-  case SOT_TABLESPACE:
-    type_str= "tablespace";
-    break;
-  case SOT_LOGFILE_GROUP:
-    type_str= "logfile group";
-    break;
-  case SOT_TRUNCATE_TABLE:
-    type_str= "truncate table";
-    break;
-  case SOT_CREATE_USER:
-    type_str= "create user";
-    break;
-  case SOT_DROP_USER:
-    type_str= "drop user";
-    break;
-  case SOT_RENAME_USER:
-    type_str= "rename user";
-    break;
-  case SOT_GRANT:
-    type_str= "grant/revoke";
-    break;
-  case SOT_REVOKE:
-    type_str= "revoke all";
-    break;
-  default:
-    abort(); /* should not happen, programming error */
   }
 
   // Use nodeid of the primary cluster connection since that is
@@ -2248,6 +2197,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
 
   while (1)
   {
+    const uint32 log_type= (uint32)type;
     const char *log_db= db;
     const char *log_tab= table_name;
     const char *log_subscribers= (char*)ndb_schema_object->slock;
@@ -2407,7 +2357,7 @@ end:
   if (unlikely(ndb_error))
   {
     ndb_log_error("%s, distributing %s err: %u",
-                  type_str, ndb_schema_object->key,
+                  type_str(type), ndb_schema_object->key,
                   ndb_error->code);
   }
   else if (!bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
@@ -2445,12 +2395,12 @@ end:
         if (max_timeout == 0)
         {
           ndb_log_error("%s, distributing %s timed out. Ignoring...",
-                        type_str, ndb_schema_object->key);
+                        type_str(type), ndb_schema_object->key);
           DBUG_ASSERT(false);
           break;
         }
         if (ndb_log_get_verbose_level())
-          ndb_report_waiting(type_str, max_timeout,
+          ndb_report_waiting(type_str(type), max_timeout,
                              "distributing", ndb_schema_object->key,
                              &ndb_schema_object->slock_bitmap);
       }
@@ -2460,7 +2410,7 @@ end:
   else
   {
     ndb_log_verbose(19, "%s, not waiting for distributing %s",
-                    type_str, ndb_schema_object->key);
+                    type_str(type), ndb_schema_object->key);
   }
 
   ndb_free_schema_object(&ndb_schema_object);
