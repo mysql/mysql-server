@@ -110,6 +110,14 @@ const char* ssl_mode_values[]= {
   (char*)0
 };
 
+// SSL fips mode
+const char* ssl_fips_mode_values[]= {
+  "OFF",
+  "ON",
+  "STRICT",
+  (const char*)0
+};
+
 static const char *bool_type_allowed_values[]= {
   "OFF",
   "ON",
@@ -1594,6 +1602,7 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
     std::string ssl_crl(ssl_variables->ssl_crl ? ssl_variables->ssl_crl : "");
     std::string ssl_crlpath(ssl_variables->ssl_crlpath ? ssl_variables->ssl_crlpath : "");
     std::string tls_version(ssl_variables->tls_version? ssl_variables->tls_version : "");
+    std::string ssl_fips_mode(ssl_fips_mode_values[ssl_variables->ssl_fips_mode]);
 
     // SSL support on server.
     if (ssl_variables->have_ssl_opt)
@@ -1615,6 +1624,8 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
         gcs_module_parameters.add_parameter("crl_file", ssl_crl); /* purecov: inspected */
       if (!ssl_crlpath.empty())
         gcs_module_parameters.add_parameter("crl_path", ssl_crlpath); /* purecov: inspected */
+      if (!ssl_fips_mode.empty())
+        gcs_module_parameters.add_parameter("ssl_fips_mode", ssl_fips_mode); /* purecov: inspected */
 #endif
 
       log_message(MY_INFORMATION_LEVEL,
@@ -1629,11 +1640,12 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
                   "cipher: \"%s\"; "
                   "tls_version: \"%s\"; "
                   "crl_file: \"%s\"; "
-                  "crl_path: \"%s\"",
+                  "crl_path: \"%s\"; "
+                  "ssl_fips_mode: \"%s\"",
                   ssl_mode.c_str(), ssl_key.c_str(), ssl_cert.c_str(),
                   ssl_key.c_str(), ssl_cert.c_str(), ssl_ca.c_str(),
                   ssl_capath.c_str(), ssl_cipher.c_str(), tls_version.c_str(),
-                  ssl_crl.c_str(), ssl_crlpath.c_str());
+                  ssl_crl.c_str(), ssl_crlpath.c_str(), ssl_fips_mode.c_str());
     }
     // No SSL support on server.
     else

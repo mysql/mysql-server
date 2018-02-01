@@ -1,0 +1,174 @@
+
+# Purpose : ssl fips mode support.
+# Author  : Yashwant Kumar sahu
+#############################################################
+
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+--source include/have_ssl.inc
+--source include/have_fips.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # fips support.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite");
+call mtr.add_suppression("InnoDB: New log files created");
+
+--enable_query_log
+
+# We let our server restart attempts write to the file $error_log.
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PORT= `SELECT @@port`;
+
+--echo ##Test: Default server fips mode.
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Set server fips mode: OFF.
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SET @@global.ssl_fips_mode = 'OFF';"
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Set server fips mode: ON.
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SET @@global.ssl_fips_mode = 'ON';"
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Set server fips mode: STRICT.
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SET @@global.ssl_fips_mode = 'STRICT';"
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Set server fips mode: INVALID.
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SET @@global.ssl_fips_mode = 'INVALID';"
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+
+--echo ##Test: Restart server and provide ssl-fips-mode at server startup:
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--ssl-fips-mode=OFF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Restart server and provide ssl-fips-mode at server startup: ON
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--ssl-fips-mode=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Restart server and provide ssl-fips-mode at server startup: ON with skip ssl
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--ssl-fips-mode=ON --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Restart server and provide ssl-fips-mode at server startup: STRICT
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--ssl-fips-mode=STRICT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--echo Server fips mode:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: Restart server and provide weak cipher CAMELLIA256-SHA
+--echo client will only able to connect with only FIPS mode OFF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--ssl-cipher=CAMELLIA256-SHA" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--exec $MYSQL --host=127.0.0.1 --ssl-cipher=CAMELLIA256-SHA -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--exec $MYSQL --host=127.0.0.1 --ssl-cipher=CAMELLIA256-SHA --ssl-fips-mode=OFF -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--error 1
+--exec $MYSQL --host=127.0.0.1 --ssl-cipher=CAMELLIA256-SHA --ssl-fips-mode=ON -P $MASTER_MYPORT
+--error 1
+--exec $MYSQL --host=127.0.0.1 --ssl-cipher=CAMELLIA256-SHA --ssl-fips-mode=STRICT -P $MASTER_MYPORT
+--exec $MYSQLADMIN --no-defaults --host=127.0.0.1 -P $MASTER_MYPORT --ssl-cipher=CAMELLIA256-SHA --ssl-fips-mode=OFF -u root ping 2>&1
+--replace_regex /.*mysqladmin.*: connect/mysqladmin: connect/
+--error 1
+--exec $MYSQLADMIN --no-defaults --host=127.0.0.1 -P $MASTER_MYPORT --ssl-cipher=CAMELLIA256-SHA --ssl-fips-mode=ON -u root status 2>&1
+--replace_regex /.*mysqladmin.*: connect/mysqladmin: connect/
+--error 1
+--exec $MYSQLADMIN --no-defaults --host=127.0.0.1 -P $MASTER_MYPORT --ssl-cipher=CAMELLIA256-SHA --ssl-fips-mode=STRICT -u root status 2>&1
+
+--echo # restart server using restart default values
+--echo Restart server.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo ##Test: MySQL client, Set fips mode: Default
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --ssl-fips-mode=OFF -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: MySQL client, Set fips mode: OFF
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --ssl-fips-mode=OFF -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: MySQL client, Set fips mode: ON
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --ssl-fips-mode=ON -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: MySQL client, Set fips mode: STRICT
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --ssl-fips-mode=STRICT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--echo MD5 digest:
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);show warnings;"
+
+--echo ##Test: MySQL client, Set fips mode: INVALID
+--error 1
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --ssl-fips-mode=INVALID -e "SHOW VARIABLES LIKE 'ssl_fips%';"

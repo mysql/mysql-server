@@ -35,6 +35,12 @@
                                       opt->name);
       ssl_mode_set_explicitly= true;
       break;
+    case OPT_SSL_FIPS_MODE:
+#ifndef HAVE_WOLFSSL
+      opt_ssl_fips_mode= find_type_or_exit(argument, &ssl_fips_mode_typelib,
+                                           opt->name) - 1;
+#endif  //#ifndef HAVE_WOLFSSL
+      break;
     case OPT_SSL_CA:
     case OPT_SSL_CAPATH:
       /* Don't change ssl-mode if set explicitly. */ 

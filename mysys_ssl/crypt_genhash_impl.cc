@@ -39,8 +39,7 @@
 #include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-#include <wolfssl_fix_namespace_pollution.h>
-
+#include <openssl/evp.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -61,11 +60,40 @@
 #include <malloc.h>
 #endif
 
-#define	DIGEST_CTX	SHA256_CTX
-#define	DIGESTInit	SHA256_Init
-#define	DIGESTUpdate	SHA256_Update
-#define	DIGESTFinal	SHA256_Final
+#define	DIGEST_CTX EVP_MD_CTX
 #define	DIGEST_LEN	SHA256_DIGEST_LENGTH
+
+static void DIGESTCreate(DIGEST_CTX **ctx)
+{
+  if(ctx != nullptr)
+  {
+    *ctx= EVP_MD_CTX_create();
+  }
+}
+
+static void DIGESTInit(DIGEST_CTX *ctx)
+{
+  EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+}
+
+static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len)
+{
+  EVP_DigestUpdate(ctx, plaintext, len);
+}
+
+static void DIGESTFinal(void *txt, DIGEST_CTX *ctx)
+{
+  EVP_DigestFinal_ex(ctx, (unsigned char*)txt, NULL);
+}
+
+static void DIGESTDestroy(DIGEST_CTX **ctx)
+{
+  if(ctx != nullptr)
+  {
+    EVP_MD_CTX_destroy(*ctx);
+    *ctx=  NULL;
+  }
+}
 
 static const char crypt_alg_magic[] = "$5";
 
@@ -230,7 +258,7 @@ int extract_user_salt(char **salt_begin,
  *
  * "Released into the Public Domain by Ulrich Drepper <drepper@redhat.com>."
  */
- 
+
 /*
   Due to a Solaris namespace bug DS is a reserved word. To work around this
   DS is undefined.
@@ -254,7 +282,7 @@ my_crypt_genhash(char *ctbuffer,
   unsigned char B[DIGEST_LEN];
   unsigned char DP[DIGEST_LEN];
   unsigned char DS[DIGEST_LEN];
-  DIGEST_CTX ctxA, ctxB, ctxC, ctxDP, ctxDS;
+  DIGEST_CTX *ctxA, *ctxB, *ctxC, *ctxDP, *ctxDS= nullptr;
   unsigned int rounds =  num_rounds &&
                  (*num_rounds <= ROUNDS_MAX &&
                   *num_rounds >= ROUNDS_MIN) ?
@@ -264,6 +292,13 @@ my_crypt_genhash(char *ctbuffer,
   char *p;
   char *P, *Pp;
   char *S, *Sp;
+
+  /* Create Digest context. */
+  DIGESTCreate(&ctxA);
+  DIGESTCreate(&ctxB);
+  DIGESTCreate(&ctxC);
+  DIGESTCreate(&ctxDP);
+  DIGESTCreate(&ctxDS);
 
   if (num_rounds)
     *num_rounds= rounds;
@@ -290,46 +325,46 @@ my_crypt_genhash(char *ctbuffer,
   //plaintext_len = strlen(plaintext);
 
   /* 1. */
-  DIGESTInit(&ctxA);
+  DIGESTInit(ctxA);
 
   /* 2. The password first, since that is what is most unknown */
-  DIGESTUpdate(&ctxA, plaintext, plaintext_len);
+  DIGESTUpdate(ctxA, plaintext, plaintext_len);
 
   /* 3. Then the raw salt */
-  DIGESTUpdate(&ctxA, salt, salt_len);
+  DIGESTUpdate(ctxA, salt, salt_len);
 
   /* 4. - 8. */
-  DIGESTInit(&ctxB);
-  DIGESTUpdate(&ctxB, plaintext, plaintext_len);
-  DIGESTUpdate(&ctxB, salt, salt_len);
-  DIGESTUpdate(&ctxB, plaintext, plaintext_len);
-  DIGESTFinal(B, &ctxB);
+  DIGESTInit(ctxB);
+  DIGESTUpdate(ctxB, plaintext, plaintext_len);
+  DIGESTUpdate(ctxB, salt, salt_len);
+  DIGESTUpdate(ctxB, plaintext, plaintext_len);
+  DIGESTFinal(B, ctxB);
 
   /* 9. - 10. */
   for (i= plaintext_len; i > MIXCHARS; i -= MIXCHARS)
-    DIGESTUpdate(&ctxA, B, MIXCHARS);
-  DIGESTUpdate(&ctxA, B, i);
+    DIGESTUpdate(ctxA, B, MIXCHARS);
+  DIGESTUpdate(ctxA, B, i);
 
   /* 11. */
   for (i= plaintext_len; i > 0; i >>= 1) {
     if ((i & 1) != 0)
     {
-      DIGESTUpdate(&ctxA, B, MIXCHARS);
+      DIGESTUpdate(ctxA, B, MIXCHARS);
     }
     else
     {
-      DIGESTUpdate(&ctxA, plaintext, plaintext_len);
+      DIGESTUpdate(ctxA, plaintext, plaintext_len);
     }
   }
 
   /* 12. */
-  DIGESTFinal(A, &ctxA);
+  DIGESTFinal(A, ctxA);
 
   /* 13. - 15. */
-  DIGESTInit(&ctxDP);
+  DIGESTInit(ctxDP);
   for (i= 0; i < plaintext_len; i++)
-          DIGESTUpdate(&ctxDP, plaintext, plaintext_len);
-  DIGESTFinal(DP, &ctxDP);
+          DIGESTUpdate(ctxDP, plaintext, plaintext_len);
+  DIGESTFinal(DP, ctxDP);
 
   /* 16. */
   Pp= P= (char *)alloca(plaintext_len);
@@ -340,10 +375,10 @@ my_crypt_genhash(char *ctbuffer,
   (void) memcpy(Pp, DP, i);
 
   /* 17. - 19. */
-  DIGESTInit(&ctxDS);
+  DIGESTInit(ctxDS);
   for (i= 0; i < 16U + (uint8_t)A[0]; i++)
-          DIGESTUpdate(&ctxDS, salt, salt_len);
-  DIGESTFinal(DS, &ctxDS);
+          DIGESTUpdate(ctxDS, salt, salt_len);
+  DIGESTFinal(DS, ctxDS);
 
   /* 20. */
   Sp= S= (char *)alloca(salt_len);
@@ -356,40 +391,40 @@ my_crypt_genhash(char *ctbuffer,
   /*  21. */
   for (i= 0; i < rounds; i++)
   {
-  DIGESTInit(&ctxC);
+  DIGESTInit(ctxC);
 
     if ((i & 1) != 0)
     {
-      DIGESTUpdate(&ctxC, P, plaintext_len);
+      DIGESTUpdate(ctxC, P, plaintext_len);
     }
     else
     {
       if (i == 0)
-        DIGESTUpdate(&ctxC, A, MIXCHARS);
+        DIGESTUpdate(ctxC, A, MIXCHARS);
       else
-        DIGESTUpdate(&ctxC, DP, MIXCHARS);
+        DIGESTUpdate(ctxC, DP, MIXCHARS);
     }
 
     if (i % 3 != 0) {
-      DIGESTUpdate(&ctxC, S, salt_len);
+      DIGESTUpdate(ctxC, S, salt_len);
     }
 
     if (i % 7 != 0) {
-      DIGESTUpdate(&ctxC, P, plaintext_len);
+      DIGESTUpdate(ctxC, P, plaintext_len);
     }
 
     if ((i & 1) != 0)
     {
       if (i == 0)
-        DIGESTUpdate(&ctxC, A, MIXCHARS);
+        DIGESTUpdate(ctxC, A, MIXCHARS);
       else
-        DIGESTUpdate(&ctxC, DP, MIXCHARS);
+        DIGESTUpdate(ctxC, DP, MIXCHARS);
     }
     else
     {
-        DIGESTUpdate(&ctxC, P, plaintext_len);
+        DIGESTUpdate(ctxC, P, plaintext_len);
     }
-    DIGESTFinal(DP, &ctxC);
+    DIGESTFinal(DP, ctxC);
   }
 
   /* 22. Now make the output string */
@@ -427,13 +462,19 @@ my_crypt_genhash(char *ctbuffer,
   (void) memset(DP, 0, sizeof (DP));
   (void) memset(DS, 0, sizeof (DS));
 
+  /* 23. Clearing the context */
+  DIGESTDestroy(&ctxA);
+  DIGESTDestroy(&ctxB);
+  DIGESTDestroy(&ctxC);
+  DIGESTDestroy(&ctxDP);
+  DIGESTDestroy(&ctxDS);
   return (ctbuffer);
 }
 
 
 /**
   Generate a random string using ASCII characters but avoid seperator character.
-  Stdlib rand and srand are used to produce pseudo random numbers between 
+  Stdlib rand and srand are used to produce pseudo random numbers between
   with about 7 bit worth of entropty between 1-127.
 */
 void generate_user_salt(char *buffer, int buffer_len)

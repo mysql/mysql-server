@@ -134,6 +134,7 @@ enum enum_vio_io_event
 #define VIO_LOCALHOST 1                         /* a localhost connection */
 #define VIO_BUFFERED_READ 2                     /* use buffered read */
 #define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
+#define OPENSSL_ERROR_LENGTH 512                /* Openssl error code max length */
 
 MYSQL_VIO vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 MYSQL_VIO  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
@@ -236,7 +237,7 @@ enum enum_ssl_init_error
   SSL_INITERR_NOERROR= 0, SSL_INITERR_CERT, SSL_INITERR_KEY, 
   SSL_INITERR_NOMATCH, SSL_INITERR_BAD_PATHS, SSL_INITERR_CIPHERS, 
   SSL_INITERR_MEMFAIL, SSL_INITERR_NO_USABLE_CTX, SSL_INITERR_DHFAIL,
-  SSL_TLS_VERSION_INVALID, SSL_INITERR_LASTERR
+  SSL_TLS_VERSION_INVALID, SSL_FIPS_MODE_INVALID, SSL_FIPS_MODE_FAILED, SSL_INITERR_LASTERR
 };
 const char* sslGetErrString(enum enum_ssl_init_error err);
 
@@ -255,6 +256,8 @@ struct st_VioSSLFd
                        const char *crl_file, const char *crl_path, const long ssl_ctx_flags);
 
 long process_tls_version(const char *tls_version);
+
+int set_fips_mode(const uint fips_mode, char *err_string);
 
 struct st_VioSSLFd
 *new_VioSSLAcceptorFd(const char *key_file, const char *cert_file,

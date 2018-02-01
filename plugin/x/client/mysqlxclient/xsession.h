@@ -171,6 +171,19 @@ class XSession {
       Option type: STRING.
     */
     Ssl_mode,
+    /**
+      Configure the requirements regarding SSL FIPS mode connection.
+
+      It can take as arguments following string values:
+
+      * "OFF": Set the openssl FIPS mode 0 (OFF)
+      * "ON": Set the openssl FIPS mode 1 (ON)
+      * "STRICT": Set the openssl FIPS mode 2 (STRICT)
+
+      Default: "OFF".
+      Option type: STRING.
+    */
+    Ssl_fips_mode,
     /** Path to the SSL key file in PEM format. Option type: STRING. */
     Ssl_key,
     /** Path to a file in PEM format that contains a list of trusted

@@ -319,7 +319,7 @@ void finish_client_errs(void);
 extern const char *client_errors[];
 static inline const char* ER_CLIENT(int client_errno)
 {
-  if (client_errno >= 2000 && client_errno <= 2063)
+  if (client_errno >= 2000 && client_errno <= 2064)
     return client_errors[client_errno - 2000];
   return client_errors[2000];
 }
@@ -389,7 +389,8 @@ enum mysql_option
   MYSQL_OPT_SSL_MODE,
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
-  MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
+  MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
+  MYSQL_OPT_SSL_FIPS_MODE
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -430,6 +431,10 @@ enum mysql_ssl_mode
 {
   SSL_MODE_DISABLED= 1, SSL_MODE_PREFERRED, SSL_MODE_REQUIRED,
   SSL_MODE_VERIFY_CA, SSL_MODE_VERIFY_IDENTITY
+};
+enum mysql_ssl_fips_mode
+{
+  SSL_FIPS_MODE_OFF= 0, SSL_FIPS_MODE_ON= 1, SSL_FIPS_MODE_STRICT
 };
 typedef struct character_set
 {

@@ -175,15 +175,9 @@ void compute_digest_hash(const sql_digest_storage *digest_storage, unsigned char
   static_assert(DIGEST_HASH_SIZE == SHA256_DIGEST_LENGTH,
                 "DIGEST is no longer SHA256, fix compute_digest_hash()");
 
-#ifdef HAVE_WOLFSSL
-  (void) SHA_HASH256(digest_storage->m_token_array,
-                     digest_storage->m_byte_count,
-                     hash);
-#else
-  (void) SHA256(digest_storage->m_token_array,
-                digest_storage->m_byte_count,
-                hash);
-#endif
+  SHA_EVP256(digest_storage->m_token_array,
+         digest_storage->m_byte_count,
+         hash);
 }
 
 /*

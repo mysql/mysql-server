@@ -461,6 +461,49 @@ void ssl_start()
   }
 }
 
+#ifndef HAVE_WOLFSSL
+/**
+  Set fips mode in openssl library,
+  When we set fips mode ON/STRICT, it will perform following operations:
+  1. Check integrity of openssl library
+  2. Run fips related tests.
+  3. Disable non fips complaint algorithms
+  4. Should be set par process before openssl library initialization
+  5. When FIPs mode ON(1/2), calling weak algorithms  may results into process abort.
+
+  @param [in]  fips_mode     0 for fips mode off, 1/2 for fips mode ON
+  @param [out] err_string    If fips mode set fails, err_string will have detail failure reason.
+
+  @returns openssl set fips mode errors
+    @retval non 1 for Error
+    @retval 1 Success
+*/
+int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH])
+{
+  int rc= -1;
+  unsigned int fips_mode_old= -1;
+  unsigned long err_library= 0;
+  if (fips_mode > 2)
+  {
+    goto EXIT;
+  }
+  fips_mode_old= FIPS_mode();
+  if (fips_mode_old == fips_mode)
+  {
+    rc= 1;
+    goto EXIT;
+  }
+  if(!(rc= FIPS_mode_set(fips_mode)))
+  {
+    err_library= ERR_get_error();
+    ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH-1);
+    err_string[OPENSSL_ERROR_LENGTH-1]= '\0';
+  }
+EXIT:
+  return rc;
+}
+#endif
+
 long process_tls_version(const char *tls_version)
 {
   const char *separator= ",";

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,7 @@ enum options_mysqld
   OPT_ENFORCE_GTID_CONSISTENCY,
   OPT_INSTALL_SERVER,
   OPT_EARLY_PLUGIN_LOAD,
+  OPT_SSL_FIPS_MODE,
   OPT_KEYRING_MIGRATION_SOURCE,
   OPT_KEYRING_MIGRATION_DESTINATION,
   OPT_KEYRING_MIGRATION_USER,

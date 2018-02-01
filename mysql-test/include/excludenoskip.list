@@ -211,3 +211,8 @@ have_mac_os.inc
 # This file skips test for certain features in versions of the library where
 # the feature is missing.
 require_icu_version.inc
+
+#21.0 fips realted test will be run only on system where opensssl fips module is installed
+# currently we are checking via this env $OPENSSL_FIPS_INSTALLED
+not_have_fips.inc
+have_fips.inc

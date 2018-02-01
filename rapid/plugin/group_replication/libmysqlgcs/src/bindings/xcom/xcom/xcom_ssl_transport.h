@@ -58,6 +58,40 @@ enum ssl_enum_mode_options {
 };
 
 /*
+  Possible operation fips modes as explained further down. If you
+  want to add a new ssl fips mode, do it before the LAST_SSL_FIPS_MODE.
+*/
+enum ssl_enum_fips_mode_options {
+  INVALID_SSL_FIPS_MODE = -1,
+  SSL_FIPS_MODE_OFF = 0,
+  SSL_FIPS_MODE_ON,
+  SSL_FIPS_MODE_STRICT,
+  LAST_SSL_FIPS_MODE
+};
+
+/*
+  Return the operation fips mode as an integer from an operation fips mode provided
+  as a string. Note that the string must be provided in upper case letters
+  and the possible values are: "OFF", "ON", "STRICT",
+
+  If a different value is provide, INVALID_SSL_MODE (-1) is returned.
+*/
+int xcom_get_ssl_fips_mode(const char *mode);
+
+/*
+  Set the operation fips mode which might be the following:
+
+  . SSL_FIPS_MODE_OFF (0): This will set openssl fips mode value to 0
+
+  . SSL_FIPS_MODE_ON (1): This will set openssl fips mode value to 1
+
+  . SSL_FIPS_MODE_STRICT (2): This will set openssl fips mode value to 2
+
+  If a different value is provide, INVALID_SSL_FIPS_MODE (-1) is returned.
+*/
+int xcom_set_ssl_fips_mode(int mode);
+
+/*
   Return the operation mode as an integer from an operation mode provided
   as a string. Note that the string must be provided in upper case letters
   and the possible values are: "DISABLED", "PREFERRED", "REQUIRED",

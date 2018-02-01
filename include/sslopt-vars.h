@@ -56,6 +56,16 @@ const char *ssl_mode_names_lib[] =
 TYPELIB ssl_mode_typelib = {array_elements(ssl_mode_names_lib) - 1, "",
                             ssl_mode_names_lib, NULL};
 
+const char *ssl_fips_mode_names_lib[] =
+#ifndef HAVE_WOLFSSL
+  {"OFF", "ON", "STRICT",
+#else
+  {"OFF",
+#endif
+   NullS };
+TYPELIB ssl_fips_mode_typelib = {array_elements(ssl_fips_mode_names_lib) - 1, "",
+                            ssl_fips_mode_names_lib, NULL};
+
 static uint opt_ssl_mode     = SSL_MODE_PREFERRED;
 static char *opt_ssl_ca      = 0;
 static char *opt_ssl_capath  = 0;
@@ -65,6 +75,7 @@ static char *opt_ssl_key     = 0;
 static char *opt_ssl_crl     = 0;
 static char *opt_ssl_crlpath = 0;
 static char *opt_tls_version = 0;
+static ulong opt_ssl_fips_mode= SSL_FIPS_MODE_OFF;
 static bool ssl_mode_set_explicitly= false;
 
 static inline void set_client_ssl_options(MYSQL *mysql)
@@ -92,6 +103,7 @@ static inline void set_client_ssl_options(MYSQL *mysql)
   mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
   mysql_options(mysql, MYSQL_OPT_TLS_VERSION, opt_tls_version);
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &opt_ssl_mode);
+  mysql_options(mysql, MYSQL_OPT_SSL_FIPS_MODE, &opt_ssl_fips_mode);
 }
  
 #define SSL_SET_OPTIONS(mysql) set_client_ssl_options(mysql);

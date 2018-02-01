@@ -558,6 +558,7 @@ void cleanup_xcom()
   intf->finalize_xcom();
   xcom_proxy->xcom_destroy_ssl();
   xcom_proxy->xcom_set_ssl_mode(0 /* SSL_DISABLED */ );
+  xcom_proxy->xcom_set_ssl_fips_mode(0 /* SSL_FIPS_MODE_OFF */ );
 }
 
 
@@ -923,6 +924,7 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   gcs_engine->initialize(NULL);
 
   const std::string* ssl_mode_str = interface_params.get_parameter("ssl_mode");
+  const std::string* ssl_fips_mode_str = interface_params.get_parameter("ssl_fips_mode");
   if (ssl_mode_str)
   {
     int ssl_mode_int= xcom_proxy->xcom_get_ssl_mode(ssl_mode_str->c_str());
@@ -933,6 +935,18 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
       goto error;
     }
     xcom_proxy->xcom_set_ssl_mode(ssl_mode_int);
+  }
+
+  if (ssl_fips_mode_str)
+  {
+    int ssl_fips_mode_int = xcom_proxy->xcom_get_ssl_fips_mode(ssl_fips_mode_str->c_str());
+    if (ssl_fips_mode_int == -1) /* INVALID_SSL_FIPS_MODE */
+    {
+      MYSQL_GCS_LOG_ERROR("Requested invalid SSL FIPS mode: " << ssl_fips_mode_str->c_str());
+
+      goto error;
+    }
+    xcom_proxy->xcom_set_ssl_fips_mode(ssl_fips_mode_int);
   }
 
   if (xcom_proxy->xcom_use_ssl())
@@ -990,6 +1004,7 @@ error:
   assert(xcom_proxy != NULL);
   assert(gcs_engine != NULL);
   xcom_proxy->xcom_set_ssl_mode(0); /* SSL_DISABLED */
+  xcom_proxy->xcom_set_ssl_fips_mode(0); /* SSL_FIPS_MODE_OFF */
 
   delete m_node_address;
   m_node_address= NULL;

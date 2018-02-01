@@ -38,26 +38,7 @@
 
 #if defined(HAVE_OPENSSL)
 #include <openssl/sha.h>
-
-static int mysql_sha1_reset(SHA_CTX *context)
-{
-    return SHA1_Init(context);
-}
-
-
-static int mysql_sha1_input(SHA_CTX *context, const uint8 *message_array,
-                            unsigned length)
-{
-    return SHA1_Update(context, message_array, length);
-}
-
-
-static int mysql_sha1_result(SHA_CTX *context,
-                             uint8 Message_Digest[SHA1_HASH_SIZE])
-{
-    return SHA1_Final(Message_Digest, context);
-}
-
+#include <openssl/evp.h>
 #endif /* HAVE_OPENSSL */
 
 /**
@@ -70,14 +51,14 @@ static int mysql_sha1_result(SHA_CTX *context,
 void compute_sha1_hash(uint8 *digest, const char *buf, size_t len)
 {
 #if defined(HAVE_OPENSSL)
-  SHA_CTX sha1_context;
-
-  mysql_sha1_reset(&sha1_context);
-  mysql_sha1_input(&sha1_context, (const uint8 *) buf, (unsigned) len);
-  mysql_sha1_result(&sha1_context, digest);
+  EVP_MD_CTX *sha1_context= EVP_MD_CTX_create();
+  EVP_DigestInit_ex(sha1_context, EVP_sha1(), NULL);
+  EVP_DigestUpdate(sha1_context, buf, len);
+  EVP_DigestFinal_ex(sha1_context, digest, NULL);
+  EVP_MD_CTX_destroy(sha1_context);
+  sha1_context= nullptr;
 #endif /* HAVE_OPENSSL */
 }
-
 
 /**
   Wrapper function to compute SHA1 message digest for
@@ -93,12 +74,12 @@ void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
                              const char *buf2, int len2)
 {
 #if defined(HAVE_OPENSSL)
-  SHA_CTX sha1_context;
-
-  mysql_sha1_reset(&sha1_context);
-  mysql_sha1_input(&sha1_context, (const uint8 *) buf1, len1);
-  mysql_sha1_input(&sha1_context, (const uint8 *) buf2, len2);
-  mysql_sha1_result(&sha1_context, digest);
+  EVP_MD_CTX *sha1_context= EVP_MD_CTX_create();
+  EVP_DigestInit_ex(sha1_context, EVP_sha1(), NULL);
+  EVP_DigestUpdate(sha1_context, buf1, len1);
+  EVP_DigestUpdate(sha1_context, buf2, len2);
+  EVP_DigestFinal_ex(sha1_context, digest, NULL);
+  EVP_MD_CTX_destroy(sha1_context);
+  sha1_context= nullptr;
 #endif /* HAVE_OPENSSL */
 }
-

@@ -84,14 +84,10 @@ namespace keyring
 
   void Digest::compute(uchar *memory, size_t memory_size)
   {
-    //We are using SHA256 method from mysys_ssl library which symbols are exported
-    //by mysqld. SHA256 is defined in both cases - when server is linked with openssl
+    //We are using SHA_EVP256 method from mysys_ssl library which symbols are exported
+    //by mysqld. SHA_EVP256 is defined in both cases - when server is linked with openssl
     //and when it is linked with wolfSSL.
-#ifdef HAVE_WOLFSSL
-    (void) SHA_HASH256(memory, memory_size, value);
-#else
-    (void)::SHA256(memory, memory_size, value);
-#endif
+    (void)::SHA_EVP256(memory, memory_size, value);
     is_empty = false;
   }
 }//namespace keyring

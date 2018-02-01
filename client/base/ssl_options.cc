@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,11 @@ void Mysql_connection_options::Ssl_options::create_options()
       "Certificate revocation list path.");
   this->create_new_option(&::opt_tls_version, "tls-version",
       "TLS version to use.");
+  this->create_new_option(&this->m_ssl_fips_mode_string, "ssl-fips-mode",
+      "SSL fips mode to use.")
+    ->add_callback(new std::function<void(char*)>(
+      std::bind(
+        &Mysql_connection_options::Ssl_options::fips_mode_option_callback, this, _1)));
 #endif /* HAVE_OPENSSL */
 }
 
@@ -82,6 +87,13 @@ void Mysql_connection_options::Ssl_options::mode_option_callback(
 {
   ::opt_ssl_mode= find_type_or_exit(argument, &ssl_mode_typelib, "ssl-mode");
   ssl_mode_set_explicitly= true;
+}
+
+void Mysql_connection_options::Ssl_options::fips_mode_option_callback(
+  char *argument)
+{
+  ::opt_ssl_fips_mode= find_type_or_exit(argument, &ssl_fips_mode_typelib,
+                                        "ssl-fips-mode") - 1;
 }
 
 

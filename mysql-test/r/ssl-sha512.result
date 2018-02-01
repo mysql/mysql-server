@@ -11,5 +11,6 @@ ssl_cert	MYSQL_TEST_DIR/std_data/server-cert-sha512.pem
 ssl_cipher	DHE-RSA-AES256-SHA
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	MYSQL_TEST_DIR/std_data/server-key-sha512.pem
 DROP USER u1@localhost;

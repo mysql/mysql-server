@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -120,6 +120,7 @@ class Session_impl : public XSession {
   XError setup_authentication_methods_from_text(
       const std::vector<std::string> &value_list);
   XError setup_ssl_mode_from_text(const std::string &value);
+  XError setup_ssl_fips_mode_from_text(const std::string &value);
   XError setup_ip_mode_from_text(const std::string &value);
 
   static std::string get_method_from_auth(const Auth auth);

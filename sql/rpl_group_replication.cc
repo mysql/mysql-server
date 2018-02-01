@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -341,6 +341,7 @@ void get_server_parameters(char **hostname, uint *port, char** uuid,
   server_ssl_variables->ssl_key= opt_ssl_key;
   server_ssl_variables->ssl_crl= opt_ssl_crl;
   server_ssl_variables->ssl_crlpath= opt_ssl_crlpath;
+  server_ssl_variables->ssl_fips_mode= opt_ssl_fips_mode;
 
   return;
 }

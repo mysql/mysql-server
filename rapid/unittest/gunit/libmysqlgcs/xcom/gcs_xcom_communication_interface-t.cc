@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,6 +99,8 @@ public:
   MOCK_METHOD0(xcom_set_cleanup, void());
   MOCK_METHOD1(xcom_get_ssl_mode, int(const char* mode));
   MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
+  MOCK_METHOD1(xcom_get_ssl_fips_mode, int(const char* mode));
+  MOCK_METHOD1(xcom_set_ssl_fips_mode, int(int mode));
   MOCK_METHOD0(xcom_init_ssl, int());
   MOCK_METHOD0(xcom_destroy_ssl, void());
   MOCK_METHOD0(xcom_use_ssl, int());

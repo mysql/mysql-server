@@ -68,4 +68,12 @@
 #endif
     &opt_tls_version, &opt_tls_version, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
+   {"ssl-fips-mode", OPT_SSL_FIPS_MODE,
+    "SSL FIPS mode to use, "
+#ifndef HAVE_WOLFSSL
+    "permitted values are: OFF, ON, STRICT",
+#else
+    "permitted values are: OFF",
+#endif
+   0,0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_OPENSSL */

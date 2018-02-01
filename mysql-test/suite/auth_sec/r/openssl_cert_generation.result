@@ -76,6 +76,7 @@ ssl_cert	server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -118,6 +119,7 @@ ssl_cert	server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -162,6 +164,7 @@ ssl_cert
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.

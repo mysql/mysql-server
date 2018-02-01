@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,6 +300,32 @@ public:
   */
 
   virtual int xcom_set_ssl_mode(int mode)= 0;
+
+
+/*
+  Return the operation fips mode as an integer from an operation fips mode provided
+  as a string. Note that the string must be provided in upper case letters
+  and the possible values are: "OFF", "ON", "STRICT",
+
+  If a different value is provide, INVALID_SSL_MODE (-1) is returned.
+*/
+
+  virtual int xcom_get_ssl_fips_mode(const char* mode)= 0;
+
+
+/*
+  Set the operation fips mode which might be the following:
+
+  . SSL_FIPS_MODE_OFF (0): This will set openssl fips mode value to 0
+
+  . SSL_FIPS_MODE_ON (1): This will set openssl fips mode value to 1
+
+  . SSL_FIPS_MODE_STRICT (2): This will set openssl fips mode value to 2
+
+  If a different value is provide, INVALID_SSL_FIPS_MODE (-1) is returned.
+*/
+
+  virtual int xcom_set_ssl_fips_mode(int mode)= 0;
 
 
   /*
@@ -744,6 +770,8 @@ public:
   int xcom_init(xcom_port listen_port);
   int xcom_exit(bool xcom_handlers_open);
   int xcom_get_ssl_mode(const char* mode);
+  int xcom_get_ssl_fips_mode(const char* mode);
+  int xcom_set_ssl_fips_mode(int mode);
   int xcom_set_ssl_mode(int mode);
   int xcom_init_ssl();
   void xcom_destroy_ssl();

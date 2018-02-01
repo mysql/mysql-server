@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -654,6 +654,7 @@ static COMMANDS commands[] = {
   { "MASTER_SSL_CAPATH", 0, 0, 0, ""},
   { "MASTER_SSL_CERT", 0, 0, 0, ""},
   { "MASTER_SSL_CIPHER", 0, 0, 0, ""},
+  { "MASTER_SSL_FIPS_MODE", 0, 0, 0, ""},
   { "MASTER_TLS_VERSION", 0, 0, 0, ""},
   { "MASTER_SSL_KEY", 0, 0, 0, ""},
   { "MASTER_USER", 0, 0, 0, ""},

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,9 +68,11 @@ public:
 
 private:
     Nullable<std::string> m_ssl_mode_string;
+    Nullable<std::string> m_ssl_fips_mode_string;
 
     void ca_option_callback(char *argument);
     void mode_option_callback(char *argument);
+    void fips_mode_option_callback(char *argument);
   };
  
 public:

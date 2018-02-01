@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,6 +115,7 @@ enum options_client
   OPT_TLS_VERSION,
   OPT_SSL_MODE,
   OPT_PRINT_TABLE_METADATA,
+  OPT_SSL_FIPS_MODE,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

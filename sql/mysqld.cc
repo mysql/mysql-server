@@ -1459,6 +1459,7 @@ bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_cipher= NULL, *opt_ssl_key= NULL, *opt_ssl_crl= NULL,
      *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
+ulong opt_ssl_fips_mode= SSL_FIPS_MODE_OFF;
 
 #ifdef HAVE_OPENSSL
 struct st_VioSSLFd *ssl_acceptor_fd;
@@ -4195,6 +4196,15 @@ static void init_ssl()
 static int init_ssl_communication()
 {
 #ifdef HAVE_OPENSSL
+#ifndef HAVE_WOLFSSL
+  char ssl_err_string[OPENSSL_ERROR_LENGTH]= {'\0'};
+  int ret_fips_mode= set_fips_mode(opt_ssl_fips_mode, ssl_err_string);
+  if (ret_fips_mode != 1)
+  {
+    LogErr(ERROR_LEVEL, ER_SSL_FIPS_MODE_ERROR, ssl_err_string);
+    return 1;
+  }
+#endif
   if (opt_use_ssl)
   {
     ssl_artifacts_status auto_detection_status= auto_detect_ssl();
@@ -8774,6 +8784,7 @@ mysqld_get_one_option(int optid,
     /* crl has no effect in wolfSSL. */
     opt_ssl_crl= NULL;
     opt_ssl_crlpath= NULL;
+    opt_ssl_fips_mode= SSL_FIPS_MODE_OFF;
 #endif /* HAVE_WOLFSSL */
     break;
 #endif /* HAVE_OPENSSL */

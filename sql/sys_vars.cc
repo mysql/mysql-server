@@ -4497,6 +4497,44 @@ static Sys_var_charptr Sys_tls_version(
        READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
        IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
 
+#ifndef HAVE_WOLFSSL
+static bool update_fips_mode(sys_var*, THD*, enum_var_type)
+{
+  char ssl_err_string[OPENSSL_ERROR_LENGTH]= {'\0'};
+  if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string) != 1)
+  {
+    my_error(ER_SSL_FIPS_MODE_ERROR, MYF(0),
+             "Openssl is not fips enabled");
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+#endif
+
+#ifdef HAVE_WOLFSSL
+static const char *ssl_fips_mode_names[]= {"OFF", 0};
+#else
+static const char *ssl_fips_mode_names[]= {"OFF", "ON", "STRICT", 0};
+#endif
+static Sys_var_enum Sys_ssl_fips_mode(
+       "ssl_fips_mode",
+       "ssl fips mode, permitted values are OFF, ON, STRICT (Only for openssl)",
+       GLOBAL_VAR(opt_ssl_fips_mode), SSL_OPT(OPT_SSL_FIPS_MODE),
+       ssl_fips_mode_names, DEFAULT(0),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(NULL),
+#ifndef HAVE_WOLFSSL
+       ON_UPDATE(update_fips_mode),
+#else
+       ON_UPDATE(NULL),
+#endif 
+       NULL);
+
+
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
        READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_cert), SSL_OPT(OPT_SSL_CERT),

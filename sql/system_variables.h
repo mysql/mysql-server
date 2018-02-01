@@ -239,6 +239,7 @@ struct System_variables
   ulong updatable_views_with_limit;
   uint max_user_connections;
   ulong my_aes_mode;
+  ulong ssl_fips_mode;
   /**
     Controls what resultset metadata will be sent to the client.
     @sa enum_resultset_metadata

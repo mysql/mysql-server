@@ -53,6 +53,7 @@ Options:
 --ssl-cert            X509 cert in PEM format
 --ssl-cipher          SSL cipher to use
 --tls-version         TLS version to use
+--ssl-fips-mode       Fips mode to use
 --connect-expired-password Allow expired password
 --client-interactive  Connect in interactive mode
 --quiet               Don't print out messages sent

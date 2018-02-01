@@ -110,6 +110,7 @@ void Driver_command_line_options::print_help() {
   std::cout << "--ssl-cert            X509 cert in PEM format\n";
   std::cout << "--ssl-cipher          SSL cipher to use\n";
   std::cout << "--tls-version         TLS version to use\n";
+  std::cout << "--ssl-fips-mode       Fips mode to use\n";
   std::cout << "--connect-expired-password Allow expired password\n";
   std::cout << "--client-interactive  Connect in interactive mode\n";
   std::cout << "--quiet               Don't print out messages sent\n";
@@ -172,6 +173,8 @@ Driver_command_line_options::Driver_command_line_options(
       m_connection_options.ssl_key = value;
     } else if (check_arg_with_value(argv, i, "--ssl-ca", NULL, value)) {
       m_connection_options.ssl_ca = value;
+    } else if (check_arg_with_value(argv, i, "--ssl-fips-mode", NULL, value)) {
+      m_connection_options.ssl_fips_mode = value;
     } else if (check_arg_with_value(argv, i, "--ssl-ca_path", NULL, value)) {
       m_connection_options.ssl_ca_path = value;
     } else if (check_arg_with_value(argv, i, "--ssl-cert", NULL, value)) {

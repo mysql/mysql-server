@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -325,12 +325,20 @@ int Gcs_xcom_proxy_impl::xcom_get_ssl_mode(const char* mode)
    return ::xcom_get_ssl_mode(mode);
 }
 
+int Gcs_xcom_proxy_impl::xcom_get_ssl_fips_mode(const char* ssl_fips_mode)
+{
+   return ::xcom_get_ssl_fips_mode(ssl_fips_mode);
+}
 
 int Gcs_xcom_proxy_impl::xcom_set_ssl_mode(int mode)
 {
    return ::xcom_set_ssl_mode(mode);
 }
 
+int Gcs_xcom_proxy_impl::xcom_set_ssl_fips_mode(int mode)
+{
+   return ::xcom_set_ssl_fips_mode(mode);
+}
 
 int Gcs_xcom_proxy_impl::xcom_init_ssl()
 {

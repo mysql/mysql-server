@@ -1710,7 +1710,7 @@ static const char *default_options[]=
   "multi-results", "multi-statements", "multi-queries",
   "report-data-truncation", "plugin-dir", "default-auth",
   "bind-address", "ssl-crl", "ssl-crlpath", "enable-cleartext-plugin", "tls-version",
-  "ssl_mode", "optional-resultset-metadata",
+  "ssl_mode", "optional-resultset-metadata", "ssl-fips-mode",
   NullS
 };
 enum option_id {
@@ -1723,7 +1723,7 @@ enum option_id {
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries,
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth,
   OPT_bind_address, OPT_ssl_crl, OPT_ssl_crlpath, OPT_enable_cleartext_plugin,
-  OPT_tls_version, OPT_ssl_mode, OPT_optional_resultset_metadata,
+  OPT_tls_version, OPT_ssl_mode, OPT_optional_resultset_metadata, OPT_ssl_fips_mode,
   OPT_keep_this_one_last
 };
 
@@ -1966,10 +1966,10 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case OPT_ssl_cert:
 	case OPT_ssl_ca:
 	case OPT_ssl_capath:
-        case OPT_ssl_cipher:
-        case OPT_ssl_crl:
-        case OPT_ssl_crlpath:
-        case OPT_tls_version :
+  case OPT_ssl_cipher:
+  case OPT_ssl_crl:
+  case OPT_ssl_crlpath:
+  case OPT_tls_version:
 	  break;
 #endif /* HAVE_OPENSSL */
 	case OPT_character_sets_dir:
@@ -2760,6 +2760,7 @@ mysql_ssl_free(MYSQL *mysql)
     mysql->options.extension->ssl_ctx_flags= 0;
     mysql->options.extension->tls_version= 0;
     mysql->options.extension->ssl_mode= SSL_MODE_DISABLED;
+    mysql->options.extension->ssl_fips_mode= SSL_FIPS_MODE_OFF;
   }
   mysql->connector_fd = 0;
   DBUG_VOID_RETURN;
@@ -6163,6 +6164,23 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       DBUG_RETURN(1);
 #endif
     break;
+  case MYSQL_OPT_SSL_FIPS_MODE:
+  {
+#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
+    char ssl_err_string[OPENSSL_ERROR_LENGTH]= {'\0'};
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    mysql->options.extension->ssl_fips_mode= *(uint *) arg;
+    if (set_fips_mode(mysql->options.extension->ssl_fips_mode, ssl_err_string) != 1)
+    {
+      DBUG_PRINT("error", ("fips mode set error %s:", ssl_err_string) );
+      my_printf_error(CR_SSL_FIPS_MODE_ERR,
+                      "Set Fips mode ON/STRICT failed, detail: '%s'.",
+                      MYF(0), ssl_err_string);
+      DBUG_RETURN(1);
+    }
+#endif // defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
+    }
+    break;
   case MYSQL_OPT_SSL_MODE:
 #if defined(HAVE_OPENSSL)
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
@@ -6282,7 +6300,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
     MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH,
     MYSQL_OPT_SSL_CIPHER, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH, MYSQL_OPT_TLS_VERSION,
-    MYSQL_SERVER_PUBLIC_KEY
+    MYSQL_SERVER_PUBLIC_KEY, MYSQL_OPT_SSL_FIPS_MODE
 
   <none, error returned>
     MYSQL_OPT_NAMED_PIPE, MYSQL_OPT_CONNECT_ATTR_RESET,
@@ -6355,6 +6373,10 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_MODE:
     *((uint *) arg)= mysql->options.extension ?
                      mysql->options.extension->ssl_mode : 0;
+    break;
+  case MYSQL_OPT_SSL_FIPS_MODE:
+    *((uint *) arg)= mysql->options.extension ?
+                     mysql->options.extension->ssl_fips_mode : 0;
     break;
   case MYSQL_PLUGIN_DIR:
     *((char **)arg)= mysql->options.extension ?

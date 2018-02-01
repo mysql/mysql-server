@@ -47,6 +47,8 @@ namespace xcl {
 
 const char * const ER_TEXT_INVALID_SSL_MODE =
     "Invalid value for SSL mode";
+const char * const ER_TEXT_INVALID_SSL_FIPS_MODE =
+    "Invalid value for SSL fips mode";
 const char * const ER_TEXT_OPTION_NOT_SUPPORTED =
     "Option not supported";
 const char * const ER_TEXT_CAPABILITY_NOT_SUPPORTED =
@@ -309,6 +311,8 @@ XError Session_impl::set_mysql_option(
       break;
     case Mysqlx_option::Ssl_mode:
       return setup_ssl_mode_from_text(value);
+    case Mysqlx_option::Ssl_fips_mode:
+      return setup_ssl_fips_mode_from_text(value);
     case Mysqlx_option::Ssl_key:
       m_context->m_ssl_config.m_key = value;
       break;
@@ -330,6 +334,7 @@ XError Session_impl::set_mysql_option(
     case Mysqlx_option::Ssl_crl_path:
       m_context->m_ssl_config.m_crl_path = value;
       break;
+
     case Mysqlx_option::Authentication_method:
       return setup_authentication_methods_from_text({value});
     default:
@@ -784,6 +789,38 @@ XError Session_impl::setup_ssl_mode_from_text(const std::string &value) {
       ER_TEXT_INVALID_SSL_MODE};
 
   m_context->m_ssl_config.m_mode = mode_value->second;
+
+  return {};
+}
+
+XError Session_impl::setup_ssl_fips_mode_from_text(const std::string &value) {
+  if(value == "") {
+    m_context->m_ssl_config.m_ssl_fips_mode = Ssl_config::Mode_ssl_fips::Ssl_fips_mode_off;
+    return {};
+  };
+
+  const std::size_t mode_text_max_lenght = 20;
+  std::string mode_text;
+
+  mode_text.reserve(mode_text_max_lenght);
+  for (const auto c : value) {
+    mode_text.push_back(toupper(c));
+  }
+
+  static std::map<std::string, Ssl_config::Mode_ssl_fips> modes {
+    { "OFF",       Ssl_config::Mode_ssl_fips::Ssl_fips_mode_off },
+    { "ON",        Ssl_config::Mode_ssl_fips::Ssl_fips_mode_on },
+    { "STRICT",    Ssl_config::Mode_ssl_fips::Ssl_fips_mode_strict }
+  };
+
+  auto mode_value = modes.find(mode_text);
+
+  if (modes.end() == mode_value)
+    return XError{
+      CR_X_UNSUPPORTED_OPTION_VALUE,
+      ER_TEXT_INVALID_SSL_FIPS_MODE};
+
+  m_context->m_ssl_config.m_ssl_fips_mode = mode_value->second;
 
   return {};
 }

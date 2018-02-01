@@ -49,9 +49,15 @@ static const char *ssl_mode_options[] = {
     "DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY",
 };
 
+static const char *ssl_fips_mode_options[] = {
+    "OFF", "ON", "STRICT"
+};
+
 #define SSL_MODE_OPTIONS_COUNT \
   (sizeof(ssl_mode_options) / sizeof(*ssl_mode_options))
 
+#define SSL_MODE_FIPS_OPTIONS_COUNT \
+  (sizeof(ssl_fips_mode_options) / sizeof(*ssl_fips_mode_options))
 
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
@@ -165,6 +171,7 @@ static DH *get_dh2048(void) {
 
 static char *ssl_pw = NULL;
 static int ssl_mode = SSL_DISABLED;
+static int ssl_fips_mode = SSL_FIPS_MODE_OFF;
 static int ssl_init_done = 0;
 
 SSL_CTX *server_ctx = NULL;
@@ -282,6 +289,32 @@ error:
   if (dh) DH_free(dh);
   return 1;
 }
+
+#ifndef HAVE_WOLFSSL
+#define OPENSSL_ERROR_LENGTH 512
+static int configure_ssl_fips_mode(const uint fips_mode) {
+  int rc = -1;
+  unsigned int fips_mode_old= -1;
+  char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
+  unsigned long err_library = 0;
+  if (fips_mode > 2) {
+    goto EXIT;
+  }
+  fips_mode_old= FIPS_mode();
+  if (fips_mode_old == fips_mode) {
+    rc= 1;
+    goto EXIT;
+  }
+  if(!(rc = FIPS_mode_set(fips_mode))) {
+    err_library = ERR_get_error();
+    ERR_error_string_n(err_library, err_string, sizeof(err_string)-1);
+    err_string[sizeof(err_string)-1] = '\0';
+    G_ERROR("openssl fips mode set failed: %s", err_string);
+  }
+EXIT:
+  return rc;
+}
+#endif
 
 static int configure_ssl_ca(SSL_CTX *ssl_ctx, const char *ca_file,
                             const char *ca_path) {
@@ -448,6 +481,32 @@ int xcom_set_ssl_mode(int mode) {
   return retval;
 }
 
+int xcom_get_ssl_fips_mode(const char *mode) {
+  int retval = INVALID_SSL_FIPS_MODE;
+  int idx = 0;
+
+  for (; idx < (int)SSL_MODE_FIPS_OPTIONS_COUNT; ++idx) {
+    if (strcmp(mode, ssl_fips_mode_options[idx]) == 0) {
+      retval = idx;
+      break;
+    }
+  }
+  assert(retval > INVALID_SSL_FIPS_MODE && retval < LAST_SSL_FIPS_MODE);
+
+  return retval;
+}
+
+int xcom_set_ssl_fips_mode(int mode) {
+  int retval = INVALID_SSL_FIPS_MODE;
+
+  if (mode >= SSL_FIPS_MODE_OFF && mode < LAST_SSL_FIPS_MODE) {
+    retval = ssl_fips_mode = mode;
+  }
+
+  assert(retval > INVALID_SSL_FIPS_MODE && retval < LAST_SSL_FIPS_MODE);
+  return retval;
+}
+
 int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                   const char *client_key_file, const char *client_cert_file,
                   const char *ca_file, const char *ca_path,
@@ -455,6 +514,13 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                   const char *cipher, const char *tls_version) {
   int verify_server = SSL_VERIFY_NONE;
   int verify_client = SSL_VERIFY_NONE;
+
+#ifndef HAVE_WOLFSSL
+  if (configure_ssl_fips_mode(ssl_fips_mode) != 1) {
+    G_ERROR("Error setting the ssl fips mode");
+    goto error;
+  }
+#endif
 
   SSL_library_init();
   SSL_load_error_strings();

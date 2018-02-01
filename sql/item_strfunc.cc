@@ -202,10 +202,17 @@ String *Item_func_md5::val_str_ascii(String *str)
   str->set_charset(&my_charset_bin);
   if (sptr)
   {
-    uchar digest[MD5_HASH_SIZE];
+    uchar digest[MD5_HASH_SIZE]= {0};
 
     null_value=0;
-    compute_md5_hash((char *) digest, sptr->ptr(), sptr->length());
+    int retval= compute_md5_hash((char *) digest, sptr->ptr(), sptr->length());
+    if(retval == 1)
+    {
+      push_warning_printf(current_thd,
+      Sql_condition::SL_WARNING,
+      ER_SSL_FIPS_MODE_ERROR,
+      ER_THD(current_thd, ER_SSL_FIPS_MODE_ERROR), "FIPS mode ON/STRICT: MD5 digest is not supported.");
+    }
     if (str->alloc(32))				// Ensure that memory is free
     {
       null_value=1;
@@ -318,40 +325,22 @@ String *Item_func_sha2::val_str_ascii(String *str)
 #ifndef OPENSSL_NO_SHA512
   case 512:
     digest_length= SHA512_DIGEST_LENGTH;
-#ifdef HAVE_WOLFSSL
-    (void) SHA_HASH512(input_ptr, input_len, digest_buf);
-#else
-    (void) SHA512(input_ptr, input_len, digest_buf);
-#endif
+    (void) SHA_EVP512(input_ptr, input_len, digest_buf);
     break;
   case 384:
     digest_length= SHA384_DIGEST_LENGTH;
-#ifdef HAVE_WOLFSSL
-    (void) SHA_HASH384(input_ptr, input_len, digest_buf);
-#else
-    (void) SHA384(input_ptr, input_len, digest_buf);
-#endif
+    (void) SHA_EVP384(input_ptr, input_len, digest_buf);
     break;
 #endif
 #ifndef OPENSSL_NO_SHA256
   case 224:
-#ifdef HAVE_WOLFSSL
-    /* sha224 not supported in wolfSSL */
     digest_length= SHA224_DIGEST_LENGTH;
-    (void) SHA_HASH224(input_ptr, input_len, digest_buf);
-#else
-    digest_length= SHA224_DIGEST_LENGTH;
-    (void) SHA224(input_ptr, input_len, digest_buf);
-#endif
+    (void) SHA_EVP224(input_ptr, input_len, digest_buf);
     break;
   case 256:
   case 0: // SHA-256 is the default
     digest_length= SHA256_DIGEST_LENGTH;
-#ifdef HAVE_WOLFSSL
-    (void) SHA_HASH256(input_ptr, input_len, digest_buf);
-#else
-    (void) SHA256(input_ptr, input_len, digest_buf);
-#endif
+    (void) SHA_EVP256(input_ptr, input_len, digest_buf);
     break;
 #endif
   default:
@@ -4102,7 +4091,7 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 #include <fcntl.h>
 #include <limits.h>
 #include <stdlib.h>
-#include <string.h>
+#include <sys/stat.h>
 
 String *Item_load_file::val_str(String *str)
 {

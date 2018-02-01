@@ -34,6 +34,7 @@
 #include "my_md5.h"
 
 #include <openssl/md5.h>
+#include <openssl/crypto.h>
 
 static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len)
 {
@@ -49,8 +50,24 @@ static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len
     @param [out] digest Computed MD5 digest
     @param [in] buf     Message to be computed
     @param [in] len     Length of the message
+    @return             0 when MD5 hash function called successfully
+                        1 when MD5 hash function doesn't called because of fips mode (ON/STRICT)
 */
-void compute_md5_hash(char *digest, const char *buf, int len)
+int compute_md5_hash(char *digest, const char *buf, int len)
 {
-  my_md5_hash((unsigned char*)digest, (unsigned const char*)buf, len);
+  int retval= 0;
+  int fips_mode= 0;
+#if !defined(HAVE_WOLFSSL)
+  fips_mode= FIPS_mode();
+#endif /* HAVE_WOLFSSL */
+  /* If fips mode is ON/STRICT restricted method calls will result into abort, skipping call. */
+  if(fips_mode == 0)
+  {
+    my_md5_hash((unsigned char*)digest, (unsigned const char*)buf, len);
+  }
+  else
+  {
+    retval= 1;
+  }
+ return retval;
 }

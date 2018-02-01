@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -618,7 +618,7 @@ int validate_plugin_server_requirements(Trans_param *param)
   uint port;
   unsigned int server_version;
   st_server_ssl_variables server_ssl_variables=
-      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0};
 
   get_server_parameters(&hostname, &port, &uuid, &server_version,
                         &server_ssl_variables);

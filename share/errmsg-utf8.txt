@@ -12249,6 +12249,9 @@ ER_UNABLE_TO_SET_OPTION
 ER_RESERVED_TABLESPACE_NAME
   eng "The table '%-.192s' may not be created in the reserved tablespace '%-.192s'."
 
+ER_SSL_FIPS_MODE_ERROR
+   eng "SSL fips mode error: %s"
+
 ER_CONN_INIT_CONNECT_IGNORED
   eng "init_connect variable is ignored for user: %s host: %s due to expired password."
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,13 @@ xcl::XError Session_holder::setup_connection(const Connection_options &options) 
 }
 
 void Session_holder::setup_ssl(const Connection_options &options) {
+  auto error = m_session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Ssl_fips_mode,
+      options.ssl_fips_mode);
+
+  if (error)
+    throw error;
+
   auto ssl_mode = options.ssl_mode;
   if (ssl_mode.empty()) {
     if (options.is_ssl_set())
@@ -94,7 +101,7 @@ void Session_holder::setup_ssl(const Connection_options &options) {
       ssl_mode = "DISABLED";
   }
 
-  auto error = m_session->set_mysql_option(
+  error = m_session->set_mysql_option(
       xcl::XSession::Mysqlx_option::Ssl_mode,
       ssl_mode);
 

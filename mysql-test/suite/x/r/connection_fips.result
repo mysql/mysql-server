@@ -1,0 +1,12 @@
+##Test: Restart server and provide weak ssl-cipher at server startup
+in main, line 0:ERROR: Failed to set ciphers to use (code 2026)
+not ok
+RUN SHOW STATUS LIKE 'ssl_cipher'
+Variable_name	Value
+Ssl_cipher	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+##Cleanup: Restore ssl-cipher to default
