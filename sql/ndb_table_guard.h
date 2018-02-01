@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ public:
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     DBUG_VOID_RETURN;
   }
-  void reinit(const char *tabname= 0)
+  void reinit()
   {
     DBUG_ENTER("Ndb_table_guard::reinit");
     if (m_ndbtab)
@@ -68,9 +68,6 @@ public:
       m_ndbtab= NULL;
       m_invalidate= 0;
     }
-    if (tabname)
-      init(tabname);
-    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     DBUG_VOID_RETURN;
   }
   const NdbDictionary::Table *get_table() { return m_ndbtab; }
@@ -89,5 +86,4 @@ private:
   int m_invalidate;
 };
 
-/* NDB_TABLE_GUARD_H */
 #endif
