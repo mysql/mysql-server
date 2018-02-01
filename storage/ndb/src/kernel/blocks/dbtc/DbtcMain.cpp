@@ -734,72 +734,77 @@ void Dbtc::scan_for_read_backup(Signal *signal,
                                 Uint32 senderData,
                                 Uint32 senderRef)
 {
-  const Uint32 apiMaxIndex = capiConnectFilesize;
-  Uint32 api_ptr;
-
   Uint32 loop_count = 0;
-  for (api_ptr = start_api_ptr;
-       api_ptr < apiMaxIndex && loop_count++ < 256;
-       api_ptr++, loop_count++)
+  Uint32 api_ptr = start_api_ptr;
+  while (api_ptr != RNIL &&
+         loop_count < 256)
   {
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = api_ptr;
-    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+    ApiConnectRecordPtr ptrs[8];
+    Uint32 ptr_cnt =
+        c_apiConnectRecordPool.getUncheckedPtrs(&api_ptr,
+                                                ptrs,
+                                                NDB_ARRAY_SIZE(ptrs));
+    loop_count += NDB_ARRAY_SIZE(ptrs);
+    for (Uint32 i = 0; i < ptr_cnt; i++)
     {
-      continue;
-    }
-    ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-    switch (regApiPtr->apiConnectstate)
-    {
-      case CS_STARTED:
+      if (!Magic::match(ptrs[i].p->m_magic, ApiConnectRecord::TYPE_ID))
       {
-        if (regApiPtr->tcConnect.isEmpty())
+        continue;
+      }
+      ApiConnectRecordPtr const& apiConnectptr = ptrs[i];
+      ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+      switch (regApiPtr->apiConnectstate)
+      {
+        case CS_STARTED:
+        {
+          if (regApiPtr->tcConnect.isEmpty())
+          {
+            /**
+             * No transaction have started, safe to ignore these transactions.
+             * If it starts up the delayed commit flag will be set.
+             */
+            jam();
+          }
+          else
+          {
+            /* Transaction is ongoing, set delayed commit flag. */
+            jam();
+            regApiPtr->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+          }
+          break;
+        }
+        case CS_RECEIVING:
         {
           /**
-           * No transaction have started, safe to ignore these transactions.
-           * If it starts up the delayed commit flag will be set.
+           * Transaction is still ongoing and hasn't started commit, we will
+           * set delayed commit flag.
            */
           jam();
-        }
-        else
-        {
-          /* Transaction is ongoing, set delayed commit flag. */
-          jam();
           regApiPtr->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
+          break;
         }
-        break;
-      }
-      case CS_RECEIVING:
-      {
-        /**
-         * Transaction is still ongoing and hasn't started commit, we will
-         * set delayed commit flag.
-         */
-        jam();
-        regApiPtr->m_flags |= ApiConnectRecord::TF_LATE_COMMIT;
-        break;
-      }
-      default:
-      {
-        jam();
-        /**
-         * The transaction is either:
-         * 1) Committing
-         * 2) Scanning
-         * 3) Aborting
-         *
-         * In neither of those cases we want to set the delayed commit flag.
-         * Committing has already started, so we don't want to mix delayed
-         * and not delayed in the same transaction. Scanning has no commit
-         * phase so delayed commit flag is uninteresting. Aborting
-         * transactions have no impact on data, so thus no delayed commit
-         * is required.
-         */
-        break;
+        default:
+        {
+          jam();
+          /**
+           * The transaction is either:
+           * 1) Committing
+           * 2) Scanning
+           * 3) Aborting
+           *
+           * In neither of those cases we want to set the delayed commit flag.
+           * Committing has already started, so we don't want to mix delayed
+           * and not delayed in the same transaction. Scanning has no commit
+           * phase so delayed commit flag is uninteresting. Aborting
+           * transactions have no impact on data, so thus no delayed commit
+           * is required.
+           */
+          break;
+        }
       }
     }
   }
-  if (api_ptr == apiMaxIndex)
+  if (api_ptr == RNIL)
   {
     jam();
     /**
