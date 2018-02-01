@@ -801,6 +801,7 @@ void Dbtc::scan_for_read_backup(Signal *signal,
            */
           break;
         }
+// TODO ALLOW break out from for loop when loop count is high, need to set api_ptr to next ptrs not checked yet!! also in ::scan...read_backup
       }
     }
   }
@@ -1473,49 +1474,63 @@ Dbtc::handleFailedApiNode(Signal* signal,
                           UintR TapiFailedNode, 
                           UintR TapiConnectPtr)
 {
-  UintR TloopCount = 0;
   arrGuard(TapiFailedNode, MAX_NODES);
-  ApiConnectRecordPtr apiConnectptr;
-  do {
-    apiConnectptr.i = TapiConnectPtr;
+  Uint32 loop_count = 0;
+  Uint32 api_ptr = TapiConnectPtr;
+  while (api_ptr != RNIL &&
+         loop_count < 256)
+  {
     jam();
-    jamLine(apiConnectptr.i);
-    if (c_apiConnectRecordPool.getValidPtr(apiConnectptr) &&
-        !apiConnectptr.isNull() &&
-        apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_USER)
+    ApiConnectRecordPtr ptrs[8];
+    Uint32 ptr_cnt =
+        c_apiConnectRecordPool.getUncheckedPtrs(&api_ptr,
+                                                ptrs,
+                                                NDB_ARRAY_SIZE(ptrs));
+    loop_count += NDB_ARRAY_SIZE(ptrs);
+    for (Uint32 i = 0; i < ptr_cnt; i++)
     {
       jam();
-      const UintR TapiNode = refToNode(apiConnectptr.p->ndbapiBlockref);
-      if (TapiNode == TapiFailedNode)
+      if (!Magic::match(ptrs[i].p->m_magic, ApiConnectRecord::TYPE_ID))
       {
-        bool handled = handleFailedApiConnection(
-            signal, &TloopCount, TapiFailedNode, true, apiConnectptr);
-        if (!handled)
-        {
-          systemErrorLab(signal, __LINE__);
-          return;
-        }
+        continue;
       }
-      else
+      ApiConnectRecordPtr const& apiConnectptr = ptrs[i];
+      if (apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_USER)
       {
         jam();
-      }  // if
+        const UintR TapiNode = refToNode(apiConnectptr.p->ndbapiBlockref);
+        if (TapiNode == TapiFailedNode)
+        {
+          bool handled = handleFailedApiConnection(
+              signal, &loop_count, TapiFailedNode, true, apiConnectptr);
+          if (!handled)
+          {
+            systemErrorLab(signal, __LINE__);
+            return;
+          }
+        }
+        else
+        {
+          jam();
+        }  // if
+      }
+// TODO ALLOW break out from for loop when loop count is high, need to set api_ptr to next ptrs not checked yet!! also in ::scan...read_backup
     }
-    TapiConnectPtr++;
-    if (TapiConnectPtr >= capiConnectFilesize) {
-      jam();
-      /**
-       * Finished with scanning connection record
-       *
-       * Now scan markers
-       */
-      removeMarkerForFailedAPI(signal, TapiFailedNode, 0);
-      return;
-    }//if
-  } while (TloopCount++ < 256);
+  }
+  if (api_ptr == RNIL)
+  {
+    jam();
+    /**
+     * Finished with scanning connection record
+     *
+     * Now scan markers
+     */
+    removeMarkerForFailedAPI(signal, TapiFailedNode, 0);
+    return;
+  }//if
   signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE;
   signal->theData[1] = TapiFailedNode;
-  signal->theData[2] = TapiConnectPtr;
+  signal->theData[2] = api_ptr;
   sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
 }//Dbtc::handleFailedApiNode()
 
