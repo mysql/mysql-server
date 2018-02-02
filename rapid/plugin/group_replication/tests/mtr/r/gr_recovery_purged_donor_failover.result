@@ -17,6 +17,7 @@ FLUSH BINARY LOGS;
 include/stop_dump_threads.inc
 include/wait_for_file_closed.inc
 SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
 CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
