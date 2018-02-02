@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,18 @@ int Object_table_impl::field_number(int target_field_number,
   if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade())
     return m_actual_def.field_number(field_label);
   return target_field_number;
+}
+
+int Object_table_impl::field_number(const String_type &field_label) const
+{
+  /*
+    During upgrade, we must get the position of the field label from
+    the actual definition. Otherwise, we get the position from the
+    the target definition.
+  */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade())
+    return m_actual_def.field_number(field_label);
+  return m_target_def.field_number(field_label);
 }
 
 ///////////////////////////////////////////////////////////////////////////

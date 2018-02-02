@@ -45,8 +45,19 @@
 #include "sql/dd/impl/bootstrapper.h"      // dd::Bootstrapper
 #include "sql/dd/impl/cache/shared_dictionary_cache.h" // Shared_dictionary_cache
 #include "sql/dd/impl/system_registry.h"   // dd::System_tables
+#include "sql/dd/impl/tables/columns.h"    // dd::tables::Columns
 #include "sql/dd/impl/tables/dd_properties.h" // get_actual_dd_version()
+#include "sql/dd/impl/tables/indexes.h"    // dd::tables::Indexes
+#include "sql/dd/impl/tables/tables.h"     // dd::tables::Tables
+#include "sql/dd/impl/tables/table_partitions.h"// dd::tables::Table_partitions
+#include "sql/dd/impl/tables/tablespaces.h"// dd::tables::Tablespaces
 #include "sql/dd/info_schema/metadata.h"   // dd::info_schema::store_dynamic...
+#include "sql/dd/types/abstract_table.h"   // dd::Abstract_table::DD_table
+#include "sql/dd/types/column.h"           // dd::Column::DD_table
+#include "sql/dd/types/index.h"            // dd::Index::DD_table
+#include "sql/dd/types/partition.h"        // dd::Partition::DD_table
+#include "sql/dd/types/table.h"            // dd::Table::DD_table
+#include "sql/dd/types/tablespace.h"       // dd::Tablespace::DD_table
 #include "sql/dd/types/object_table_definition.h"
 #include "sql/dd/types/system_view.h"
 #include "sql/dd/upgrade/upgrade.h"        // dd::upgrade
@@ -690,4 +701,17 @@ bool reset_tables_and_tablespaces()
 
   return false;
 }
+
+
+template <typename Entity_object_type>
+const Object_table &get_dd_table()
+{ return Entity_object_type::DD_table::instance(); }
+
+
+template const Object_table &get_dd_table<dd::Column>();
+template const Object_table &get_dd_table<dd::Index>();
+template const Object_table &get_dd_table<dd::Partition>();
+template const Object_table &get_dd_table<dd::Table>();
+template const Object_table &get_dd_table<dd::Tablespace>();
+
 }

@@ -413,6 +413,19 @@ bool drop_native_table(THD *thd, const char* schema_name, const char* table_name
 */
 bool reset_tables_and_tablespaces();
 
+
+/**
+  Get the Object_table instance storing the given entity object type.
+
+  We can return this as a reference since all relevant types for which
+  this template is used will indeed have a corresponding object table.
+
+  @tparam Entity_object_type   Type for which to get the object table.
+
+  @returns reference to Object_table instance.
+*/
+template <typename Entity_object_type>
+const Object_table &get_dd_table();
 }
 
 #endif // DD__DICTIONARY_INCLUDED
