@@ -1824,9 +1824,23 @@ static Sys_var_enum Sys_event_scheduler(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
 
-static bool expire_logs_update(sys_var*, THD*, enum_var_type)
+static bool check_expire_logs_days(sys_var*, THD*, set_var* var)
 {
-  if (expire_logs_days && binlog_expire_logs_seconds)
+  ulong expire_logs_days_value= var->save_result.ulonglong_value;
+
+  if (expire_logs_days_value && binlog_expire_logs_seconds)
+  {
+    my_error(ER_BINLOG_EXPIRE_LOG_DAYS_AND_SECS_USED_TOGETHER, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+static bool check_expire_logs_seconds(sys_var*, THD*, set_var* var)
+{
+  ulong expire_logs_seconds_value= var->save_result.ulonglong_value;
+
+  if (expire_logs_days && expire_logs_seconds_value)
   {
     my_error(ER_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
     return true;
@@ -1837,21 +1851,26 @@ static bool expire_logs_update(sys_var*, THD*, enum_var_type)
 static Sys_var_ulong Sys_expire_logs_days(
        "expire_logs_days",
        "If non-zero, binary logs will be purged after expire_logs_days "
-       "days; given binlog_expire_logs_seconds is not set; possible purges"
-       " happen at startup and at binary log rotation",
+       "days; If this option alone is set on the command line or in a "
+       "configuration file, it overrides the default value for "
+       "binlog-expire-logs-seconds. If both options are set to nonzero values, "
+       "binlog-expire-logs-seconds takes priority. Possible purges happen at "
+       "startup and at binary log rotation.",
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS), VALID_RANGE(0, 99),
-       DEFAULT(30), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(expire_logs_update), DEPRECATED("binlog_expire_logs_seconds"));
+       DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_expire_logs_days),
+       ON_UPDATE(NULL), DEPRECATED("binlog_expire_logs_seconds"));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
        "binlog_expire_logs_seconds",
        "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"
-       " seconds; given expire_logs_days is not set; possible purges happen at"
-       " startup and at binary log rotation",
-       GLOBAL_VAR(binlog_expire_logs_seconds), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(expire_logs_update));
+       " seconds; If both this option and expire_logs_days are set to non-zero"
+       "  values, this option takes priority. Purges happen at"
+       " startup and at binary log rotation.",
+       GLOBAL_VAR(binlog_expire_logs_seconds),
+       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_EXPIRE_LOGS_SECONDS),
+       VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(2592000), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_expire_logs_seconds), ON_UPDATE(NULL));
 
 static Sys_var_bool Sys_flush(
        "flush", "Flush MyISAM tables to disk between SQL commands",

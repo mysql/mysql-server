@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@ enum options_mysqld
   OPT_BINLOG_IGNORE_DB,
   OPT_BINLOG_MAX_FLUSH_QUEUE_TIME,
   OPT_EXPIRE_LOGS_DAYS,
+  OPT_BINLOG_EXPIRE_LOGS_SECONDS,
   OPT_BIN_LOG,
   OPT_BOOTSTRAP,
   OPT_CONSOLE,

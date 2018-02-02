@@ -1227,6 +1227,12 @@ bool log_slave_updates_supplied= false;
 bool slave_preserve_commit_order_supplied= false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
+/*
+  True if expire_logs_days and binlog_expire_logs_seconds is set
+  explictly.
+*/
+bool expire_logs_days_supplied= false;
+bool binlog_expire_logs_seconds_supplied= false;
 /* Static variables */
 
 static bool opt_myisam_log;
@@ -5270,17 +5276,30 @@ static int init_server_components()
     mysql_mutex_unlock(log_lock);
   }
 
-  if (opt_bin_log && (expire_logs_days || binlog_expire_logs_seconds))
+  if (opt_bin_log)
   {
     time_t purge_time= 0;
 
-    if (binlog_expire_logs_seconds)
+    /*
+      When we pass non zero value for both expire_logs_days and
+      binlog_expire_logs_seconds at the server start up in that case the
+      of expire_logs_days will be ignored and only binlog_expire_logs_seconds
+      will be used.
+    */
+    if (binlog_expire_logs_seconds_supplied && expire_logs_days_supplied)
     {
-      LogErr(WARNING_LEVEL, ER_BINLOG_EXPIRAY_LOG_DAYS_AND_SECS_USED_TOGETHER);
-      purge_time= my_time(0) - binlog_expire_logs_seconds;
+      if (binlog_expire_logs_seconds != 0 && expire_logs_days != 0)
+      {
+        LogErr(WARNING_LEVEL, ER_EXPIRE_LOGS_DAYS_IGNORED);
+        expire_logs_days= 0;
+      }
     }
-    else
-      purge_time= my_time(0) - expire_logs_days * 24 * 60 * 60;
+    else if (expire_logs_days_supplied)
+      binlog_expire_logs_seconds= 0;
+
+    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0)
+      purge_time= my_time(0) - binlog_expire_logs_seconds -
+                  expire_logs_days * 24 * 60 * 60;
 
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time, true);
@@ -8774,6 +8793,10 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_EXPIRE_LOGS_DAYS:
     push_deprecated_warn(NULL, "expire-logs-days","binlog_expire_logs_seconds");
+    expire_logs_days_supplied= true;
+    break;
+  case OPT_BINLOG_EXPIRE_LOGS_SECONDS:
+    binlog_expire_logs_seconds_supplied= true;
     break;
 #if defined(HAVE_OPENSSL)
   case OPT_SSL_KEY:
