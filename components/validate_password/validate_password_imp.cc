@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql/components/services/mysql_rwlock.h"
 #include "mysql/components/library_mysys/my_memory.h"
+#include "mysqld_error.h"
 
 #define PSI_NOT_INSTRUMENTED 0
 const int MAX_DICTIONARY_FILE_LENGTH= (1024 * 1024);
@@ -166,8 +167,7 @@ static void read_dictionary_file()
       LogEvent().type(LOG_TYPE_ERROR)
                 .prio(WARNING_LEVEL)
                 .subsys("validate_password")
-                .verbatim("Since the validate_password_policy is mentioned "
-                          "as Strong, dictionary file must be specified");
+                .lookup(ER_VALIDATE_PWD_STRONG_POLICY_DICT_FILE_UNSPECIFIED);
     /* NULL is a valid value, despite the warning */
     dictionary_activate(&dict_words);
     return;
@@ -180,7 +180,7 @@ static void read_dictionary_file()
       LogEvent().type(LOG_TYPE_ERROR)
                 .prio(WARNING_LEVEL)
                 .subsys("validate_password")
-                .verbatim("Dictionary file open failed");
+                .lookup(ER_VALIDATE_PWD_DICT_FILE_OPEN_FAILED);
       return;
     }
     dictionary_stream.seekg(0, std::ios::end);
@@ -192,8 +192,7 @@ static void read_dictionary_file()
       LogEvent().type(LOG_TYPE_ERROR)
                 .prio(WARNING_LEVEL)
                 .subsys("validate_password")
-                .verbatim("Dictionary file size exceeded "
-                          "MAX_DICTIONARY_FILE_LENGTH, not loaded");
+                .lookup(ER_VALIDATE_PWD_DICT_FILE_TOO_BIG);
       return;
     }
     for (std::getline(dictionary_stream, words); dictionary_stream.good();
@@ -207,7 +206,7 @@ static void read_dictionary_file()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(WARNING_LEVEL)
               .subsys("validate_password")
-              .verbatim("Dictionary file not specified");
+              .lookup(ER_VALIDATE_PWD_DICT_FILE_NOT_SPECIFIED);
   }
 }
 
@@ -244,7 +243,7 @@ static int validate_dictionary_check(my_h_string password)
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("memory allocation failed for string handler");
+              .lookup(ER_VALIDATE_PWD_STRING_HANDLER_MEM_ALLOCATION_FAILED);
     return (0);
   }
   if (mysql_service_mysql_string_case->tolower(&lower_string_handle, password))
@@ -252,7 +251,7 @@ static int validate_dictionary_check(my_h_string password)
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("failed to convert the password string to lower case");
+              .lookup(ER_VALIDATE_PWD_STRING_CONV_TO_LOWERCASE_FAILED);
     return (0);
   }
   if (!(buffer= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
@@ -266,7 +265,7 @@ static int validate_dictionary_check(my_h_string password)
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("failed to convert the password string into a buffer");
+              .lookup(ER_VALIDATE_PWD_STRING_CONV_TO_BUFFER_FAILED);
     return (0);
   }
   length= strlen(buffer);
@@ -401,7 +400,7 @@ static bool is_valid_password_by_user_name(void *thd, my_h_string password)
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(WARNING_LEVEL)
               .subsys("validate_password")
-              .verbatim("Can't retrieve the security context");
+              .lookup(ER_VALIDATE_PWD_FAILED_TO_GET_SECURITY_CTX);
     return false;
   }
 
@@ -412,7 +411,7 @@ static bool is_valid_password_by_user_name(void *thd, my_h_string password)
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(WARNING_LEVEL)
               .subsys("validate_password")
-              .verbatim("convert_to_buffer service failed");
+              .lookup(ER_VALIDATE_PWD_CONVERT_TO_BUFFER_FAILED);
     return false;
   }
   length= strlen(buffer);
@@ -458,8 +457,7 @@ readjust_validate_password_length()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(WARNING_LEVEL)
               .subsys("validate_password")
-              .message("Effective value of validate_password_length is "
-                       "changed. New value is %d", policy_password_length);
+              .lookup(ER_VALIDATE_PWD_LENGTH_CHANGED, policy_password_length);
     validate_password_length= policy_password_length;
   }
 }
@@ -523,7 +521,7 @@ static int validate_password_policy_strength(void *thd,
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(WARNING_LEVEL)
               .subsys("validate_password")
-              .verbatim("given password string could be null");
+              .lookup(ER_VALIDATE_PWD_COULD_BE_NULL);
     return (0);
   }
   while(mysql_service_mysql_string_iterator->iterator_get_next(iter,
@@ -595,7 +593,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(WARNING_LEVEL)
               .subsys("validate_password")
-              .verbatim("given password string could be null");
+              .lookup(ER_VALIDATE_PWD_COULD_BE_NULL);
     return true;
   }
   while(mysql_service_mysql_string_iterator->iterator_get_next(iter,
@@ -649,8 +647,7 @@ int register_status_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password status variables "
-                       "registration failed.");
+              .lookup(ER_VALIDATE_PWD_STATUS_VAR_REGISTRATION_FAILED);
     return 1;
   }
   return 0;
@@ -673,8 +670,8 @@ int register_system_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password.length variable registration "
-                        "failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                      "validate_password.length");
     return 1;
   }
 
@@ -692,8 +689,8 @@ int register_system_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password.number_count variable "
-                        "registration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                      "validate_password.number_count");
     goto number_count;
   }
 
@@ -711,8 +708,8 @@ int register_system_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password.mixed_case_count variable "
-                        "registration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                      "validate_password.mixed_case_count");
     goto mixed_case_count;
   }
 
@@ -731,8 +728,8 @@ int register_system_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password.special_char_count variable "
-                        "registration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                      "validate_password.special_char_count");
     goto special_char_count;
   }
 
@@ -750,8 +747,8 @@ int register_system_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password.policy variable "
-                        "registration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                      "validate_password.policy");
     goto policy;
   }
 
@@ -768,8 +765,8 @@ int register_system_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password.dictionary_file variable "
-                        "registration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                      "validate_password.dictionary_file");
     goto dictionary_file;
   }
 
@@ -786,8 +783,8 @@ int register_system_variables()
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
               .subsys("validate_password")
-              .verbatim("validate_password.check_user_name variable "
-                        "registration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
+                      "validate_password.check_user_name");
     goto check_user_name;
   }
   return 0;  /* All system variables registered successfully */
@@ -825,8 +822,7 @@ int unregister_status_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password status variables "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_STATUS_VAR_UNREGISTRATION_FAILED);
     return 1;
   }
   return 0;
@@ -840,8 +836,8 @@ int unregister_system_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password.length variable "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                      "validate_password.length");
   }
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
@@ -850,8 +846,8 @@ int unregister_system_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password.number_count variable "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                      "validate_password.number_count");
   }
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
@@ -860,8 +856,8 @@ int unregister_system_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password.mixed_case_count variable "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                      "validate_password.mixed_case_count");
   }
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
@@ -870,8 +866,8 @@ int unregister_system_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password.special_char_count variable "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                      "validate_password.special_char_count");
   }
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
@@ -880,8 +876,8 @@ int unregister_system_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password.policy variable "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                      "validate_password.policy");
   }
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
@@ -890,8 +886,8 @@ int unregister_system_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password.dictionary_file variable "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                      "validate_password.dictionary_file");
   }
 
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
@@ -900,8 +896,8 @@ int unregister_system_variables()
   {
     LogEvent().type(LOG_TYPE_ERROR)
               .prio(ERROR_LEVEL)
-              .message("validate_password.check_user_name variable "
-                       "unregistration failed.");
+              .lookup(ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED,
+                      "validate_password.check_user_name");
   }
   return 0;
 }
