@@ -406,10 +406,6 @@ static synode_no
     last_config_modification_id; /*Last configuration change proposal*/
 static uint64_t lsn = 0;         /* Current log sequence number */
 
-uint32_t get_my_id(){
-	return my_id;
-}
-
 synode_no get_current_message() { return current_message; }
 
 static channel prop_input_queue; /* Proposer task input queue */
@@ -3751,9 +3747,6 @@ again:
       ceptor_learner_task.
     */
     ep->srv = get_server(site, ep->p->from);
-    if(ep->rfd.x_proto > x_1_2){ /* Ignore nodes which do not send ID */
-      update_xcom_id(ep->p->from, (uint32_t)ep->p->refcnt); /* Refcnt is really uuid */
-    }
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
@@ -3905,9 +3898,6 @@ int reply_handler_task(task_arg arg) {
       TASK_CALL(read_msg(&ep->s->con, ep->reply, ep->s, &n));
       ADD_EVENTS(add_event(string_arg("ep->s->con.fd"));
                  add_event(int_arg(ep->s->con.fd)););
-      if(ep->s->con.x_proto > x_1_2){ /* Ignore nodes which do not send ID */
-        update_xcom_id(ep->reply->from, (uint32_t)ep->reply->refcnt); /* Refcnt is really uuid */
-      }
       ep->reply->refcnt = 1; /* Refcnt from other end is void here */
       if (n <= 0) {
         shutdown_connection(&ep->s->con);
@@ -4192,6 +4182,9 @@ static void server_handle_need_snapshot(server *srv, site_def const *s,
   synode_no app_lsn = get_app_snap(&gs->app_snap);
   if (!synode_eq(null_synode, app_lsn) && synode_lt(app_lsn, gs->log_start)) {
     gs->log_start = app_lsn;
+  }
+  else if (!synode_eq(null_synode, last_config_modification_id)) {
+    gs->log_start = last_config_modification_id;
   }
 
   server_send_snapshot(srv, s, gs, node);
