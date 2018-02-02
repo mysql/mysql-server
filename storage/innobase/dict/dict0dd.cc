@@ -4227,6 +4227,13 @@ dd_startscan_system(
 	return(rec);
 }
 
+/**
+  All DD tables would contain DB_TRX_ID and DB_ROLL_PTR fields
+  before other fields. This offset indicates the position at
+  which the first DD column is located.
+*/
+static const int DD_FIELD_OFFSET= 2;
+
 /** Process one mysql.tables record and get the dict_table_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.tables record
@@ -4255,7 +4262,12 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
-	field = rec_get_nth_field(rec, offsets, 6, &len);
+        const dd::Object_table &dd_object_table= dd::get_dd_table<dd::Table>();
+
+	field = rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET,
+		&len);
 
 	/* If "engine" field is not "innodb", return. */
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
@@ -4265,7 +4277,10 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	}
 
 	/* Get the se_private_id field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_SE_PRIVATE_ID") + 
+		DD_FIELD_OFFSET, &len);
 
 	if (len != 8) {
 		*table = NULL;
@@ -4325,7 +4340,13 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
-	field = rec_get_nth_field(rec, offsets, 8, &len);
+        const dd::Object_table &dd_object_table= dd::get_dd_table<dd::Partition>();
+
+        /* Get the engine field. */
+	field = rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET,
+		&len);
 
 	/* If "engine" field is not "innodb", return. */
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
@@ -4335,7 +4356,10 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	}
 
 	/* Get the se_private_id field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 12, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_SE_PRIVATE_ID") + 
+		DD_FIELD_OFFSET, &len);
 	/* When table is partitioned table, the se_private_id is null. */
 	if (len != 8) {
 		*table = NULL;
@@ -4401,8 +4425,13 @@ dd_process_dd_columns_rec(
 	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
+        const dd::Object_table &dd_object_table= dd::get_dd_table<dd::Column>();
+
 	/* Get the hidden attribute, and skip if it's a hidden column. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET,
+		&len);
 	is_hidden = mach_read_from_1(field) & 0x01;
 	if (is_hidden) {
 		mtr_commit(mtr);
@@ -4410,11 +4439,17 @@ dd_process_dd_columns_rec(
 	}
 
 	/* Get the column name. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 4, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET,
+		&len);
 	*col_name = mem_heap_strdupl(heap, (const char*) field, len);
 
 	/* Get the position. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_ORDINAL_POSITION") + 
+		DD_FIELD_OFFSET, &len);
 	pos = mach_read_from_4(field) - 1;
 
 	/* Get the is_virtual attribute. */
@@ -4422,7 +4457,10 @@ dd_process_dd_columns_rec(
 	is_virtual = mach_read_from_1(field) & 0x01;
 
 	/* Get the se_private_data field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 27, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + 
+		DD_FIELD_OFFSET, &len);
 
 	if (len == 0 || len == UNIV_SQL_NULL) {
 		mtr_commit(mtr);
@@ -4548,8 +4586,13 @@ dd_process_dd_virtual_columns_rec(
 	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
+        const dd::Object_table &dd_object_table= dd::get_dd_table<dd::Column>();
+
 	/* Get the is_virtual attribute, and skip if it's not a virtual column. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 21, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_IS_VIRTUAL") + 
+		DD_FIELD_OFFSET, &len);
 	is_virtual = mach_read_from_1(field) & 0x01;
 	if (!is_virtual) {
 		mtr_commit(mtr);
@@ -4557,7 +4600,10 @@ dd_process_dd_virtual_columns_rec(
 	}
 
 	/* Get the hidden attribute, and skip if it's a hidden column. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET,
+		&len);
 	is_hidden = mach_read_from_1(field) & 0x01;
 	if (is_hidden) {
 		mtr_commit(mtr);
@@ -4565,11 +4611,17 @@ dd_process_dd_virtual_columns_rec(
 	}
 
 	/* Get the position. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_ORDINAL_POSITION") + 
+		DD_FIELD_OFFSET, &len);
 	origin_pos = mach_read_from_4(field) - 1;
 
 	/* Get the se_private_data field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 27, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + 
+		DD_FIELD_OFFSET, &len);
 
 	if (len == 0 || len == UNIV_SQL_NULL) {
 		mtr_commit(mtr);
@@ -4667,7 +4719,12 @@ dd_process_dd_indexes_rec(
 	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
-	field = rec_get_nth_field(rec, offsets, 16, &len);
+        const dd::Object_table &dd_object_table= dd::get_dd_table<dd::Index>();
+
+	field = rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET,
+		&len);
 
 	/* If "engine" field is not "innodb", return. */
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
@@ -4676,7 +4733,10 @@ dd_process_dd_indexes_rec(
 	}
 
 	/* Get the se_private_data field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + 
+		DD_FIELD_OFFSET, &len);
 
 	if (len == 0 || len == UNIV_SQL_NULL) {
 		mtr_commit(mtr);
@@ -4818,7 +4878,12 @@ dd_process_dd_indexes_rec_simple(
 	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
-	field = rec_get_nth_field(rec, offsets, 16, &len);
+        const dd::Object_table &dd_object_table= dd::get_dd_table<dd::Index>();
+
+	field = rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET,
+		&len);
 
 	/* If "engine" field is not "innodb", return. */
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
@@ -4826,7 +4891,10 @@ dd_process_dd_indexes_rec_simple(
 	}
 
 	/* Get the se_private_data field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + 
+		DD_FIELD_OFFSET, &len);
 
 	if (len == 0 || len == UNIV_SQL_NULL) {
 		return(false);
@@ -4891,7 +4959,12 @@ dd_process_dd_tablespaces_rec(
 	ulint*	offsets = rec_get_offsets(rec, dd_spaces->first_index(), NULL,
 		ULINT_UNDEFINED, &heap);
 
-	field = rec_get_nth_field(rec, offsets, 7, &len);
+        const dd::Object_table &dd_object_table= dd::get_dd_table<dd::Tablespace>();
+
+	field = rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET,
+		&len);
 
 	/* If "engine" field is not "innodb", return. */
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
@@ -4899,12 +4972,18 @@ dd_process_dd_tablespaces_rec(
 	}
 
 	/* Get name field. */
-	field = rec_get_nth_field(rec, offsets, 3, &len);
+	field = rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET,
+		&len);
 	*name = reinterpret_cast<char*>(mem_heap_zalloc(heap, len + 1));
 	memcpy(*name, field, len);
 
 	/* Get the se_private_data field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
+	field = (const byte*)rec_get_nth_field(
+		rec, offsets,
+		dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + 
+		DD_FIELD_OFFSET, &len);
 
 	if (len == 0 || len == UNIV_SQL_NULL) {
 		return(false);
