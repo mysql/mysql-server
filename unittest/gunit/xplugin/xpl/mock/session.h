@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -231,6 +231,7 @@ public:
   MOCK_METHOD1(handle_message, bool (Request &));
   MOCK_CONST_METHOD0(state, State ());
   MOCK_CONST_METHOD0(state_before_close, State ());
+  MOCK_METHOD0(get_status_variables, Session_status_variables &());
   MOCK_METHOD0(client, Client_interface &());
   MOCK_METHOD0(mark_as_tls_session, void ());
   MOCK_CONST_METHOD0(get_thd, THD* ());
@@ -291,7 +292,8 @@ public:
   MOCK_CONST_METHOD0(get_accept_time, ngs::chrono::time_point ());
   MOCK_CONST_METHOD0(get_state, Client_state ());
 
-  MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());
+  MOCK_METHOD0(session, ngs::Session_interface* ());
+  MOCK_METHOD0(session_smart_ptr, ngs::shared_ptr<ngs::Session_interface> ());
   MOCK_CONST_METHOD0(supports_expired_passwords, bool ());
 
   MOCK_CONST_METHOD0(is_interactive, bool ());

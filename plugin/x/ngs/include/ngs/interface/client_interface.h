@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,8 @@ public:
   virtual void set_read_timeout(const uint32_t) = 0;
   virtual void set_wait_timeout(const uint32_t) = 0;
 
-  virtual ngs::shared_ptr<Session_interface> session() = 0;
+  virtual Session_interface *session() = 0;
+  virtual ngs::shared_ptr<ngs::Session_interface> session_smart_ptr() = 0;
 
 public:
   virtual void on_session_reset(Session_interface &s) = 0;

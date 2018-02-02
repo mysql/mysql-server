@@ -174,7 +174,7 @@ void Client::set_capabilities(const Mysqlx::Connection::CapabilitiesSet &setcap)
 
 void Client::handle_message(Request &request)
 {
-  ngs::shared_ptr<Session_interface> s(session());
+  auto s(session());
 
   log_message_recv(request);
 
@@ -216,7 +216,6 @@ void Client::handle_message(Request &request)
       {
         log_debug("%s: Authenticating client...", client_id());
 
-        ngs::shared_ptr<Session_interface> s(session());
         // start redirecting incoming messages directly to the session
         if (s)
         {

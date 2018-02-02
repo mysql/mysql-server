@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,12 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/client_session.h"
+#include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/crud_cmd_handler.h"
 #include "plugin/x/src/expect/expect_stack.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
-#include "plugin/x/src/xpl_session_status_variables.h"
+
 
 namespace xpl
 {
@@ -78,18 +79,21 @@ public: // impl ngs::Session_interface
   ngs::Sql_session_interface &data_context() override { return m_sql; }
 
 public:
+  using Variable = ngs::Common_status_variables::Variable
+      ngs::Common_status_variables::*;
+
   Session_options &options() { return m_options; }
-  Session_status_variables &get_status_variables() { return m_status_variables; }
+  ngs::Session_status_variables &get_status_variables() override { return m_status_variables; }
 
   bool can_see_user(const std::string &user) const;
 
-  template<Common_status_variables::Variable Common_status_variables::*variable>
+  template<Variable variable>
   void update_status();
-  template<Common_status_variables::Variable Common_status_variables::*variable>
+
+  template<Variable variable>
   void update_status(long param);
 
-  void update_status(Common_status_variables::Variable
-                     Common_status_variables::*variable);
+  void update_status(Variable variable);
 
 private: // reimpl ngs::Session
   virtual void on_kill() override;
@@ -101,13 +105,13 @@ private:
   Expectation_stack m_expect_stack;
 
   Session_options m_options;
-  Session_status_variables m_status_variables;
+  ngs::Session_status_variables m_status_variables;
 
   bool m_was_authenticated;
 };
 
 
-template<Common_status_variables::Variable Common_status_variables::*variable>
+template<ngs::Common_status_variables::Variable ngs::Common_status_variables::*variable>
 void Session::update_status()
 {
   ++(m_status_variables.*variable);
@@ -115,7 +119,7 @@ void Session::update_status()
 }
 
 
-template<Common_status_variables::Variable Common_status_variables::*variable>
+template<ngs::Common_status_variables::Variable ngs::Common_status_variables::*variable>
 void Session::update_status(long param)
 {
   (m_status_variables.*variable) += param;

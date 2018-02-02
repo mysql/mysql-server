@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_context.h"
-#include "plugin/x/src/xpl_session_status_variables.h"
 
 
 namespace xpl
@@ -59,8 +59,8 @@ public:
                                     const Mysqlx::Crud::DropView &msg);
 
 private:
- typedef Common_status_variables::Variable
-     Common_status_variables::*Status_variable;
+ using Status_variable = ngs::Common_status_variables::Variable
+     ngs::Common_status_variables::*;
 
  template <typename B, typename M>
  ngs::Error_code execute(Session &session, const B &builder, const M &msg,

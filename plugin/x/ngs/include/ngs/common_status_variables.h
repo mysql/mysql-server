@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,28 +22,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_COMMON_STATUS_VARIABLES_H_
-#define _XPL_COMMON_STATUS_VARIABLES_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_STATUS_VARIABLES_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_STATUS_VARIABLES_H_
+
+#include <atomic>
 
 #include <my_inttypes.h>
 
-#include "plugin/x/ngs/include/ngs_common/atomic.h"
 
-namespace xpl
-{
+namespace ngs {
 
-class Common_status_variables
-{
+class Common_status_variables {
 public:
-  class Variable : private ngs::atomic<int64>
-  {
+  class Variable : private std::atomic<int64> {
   public:
-    Variable() : ngs::atomic<int64>(0) {}
+    Variable() : std::atomic<int64>(0) {}
     void operator=(const Variable& other) { store(other.load()); }
-    using ngs::atomic<int64>::operator++;
-    using ngs::atomic<int64>::operator--;
-    using ngs::atomic<int64>::operator+=;
-    using ngs::atomic<int64>::load;
+    using std::atomic<int64>::operator++;
+    using std::atomic<int64>::operator--;
+    using std::atomic<int64>::operator+=;
+    using std::atomic<int64>::load;
   };
 
   Common_status_variables() {}
@@ -84,8 +82,6 @@ private:
   Common_status_variables(const Common_status_variables &);
 };
 
+}  // namespace ngs
 
-} // namespace xpl
-
-
-#endif // _XPL_COMMON_STATUS_VARIABLES_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_STATUS_VARIABLES_H_

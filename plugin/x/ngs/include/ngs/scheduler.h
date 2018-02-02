@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,13 @@
 #ifndef _NGS_SCHEDULER_H_
 #define _NGS_SCHEDULER_H_
 
+#include <atomic>
 #include <list>
 #include <string>
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/atomic.h"
 
 
 namespace ngs
@@ -155,11 +155,11 @@ namespace ngs
     Mutex m_thread_exit_mutex;
     Cond m_thread_exit_cond;
     Mutex m_post_mutex;
-    volatile ngs::atomic<int32> m_is_running;
-    volatile ngs::atomic<int32> m_min_workers_count;
-    volatile ngs::atomic<int32> m_workers_count;
-    volatile ngs::atomic<int32> m_tasks_count;
-    volatile ngs::atomic<int64> m_idle_worker_timeout; // milliseconds
+    volatile std::atomic<int32> m_is_running;
+    volatile std::atomic<int32> m_min_workers_count;
+    volatile std::atomic<int32> m_workers_count;
+    volatile std::atomic<int32> m_tasks_count;
+    volatile std::atomic<int64> m_idle_worker_timeout; // milliseconds
     lock_list<Task *> m_tasks;
     lock_list<Thread_t> m_threads;
     lock_list<my_thread_t> m_terminating_workers;

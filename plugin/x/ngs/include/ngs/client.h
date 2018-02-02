@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
 #define RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
 
+#include <atomic>
 #include <string>
 
 #include "my_inttypes.h"
@@ -35,7 +36,6 @@
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
-#include "plugin/x/ngs/include/ngs_common/atomic.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
@@ -62,7 +62,8 @@ namespace ngs
     virtual ~Client();
 
     Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
-    ngs::shared_ptr<Session_interface> session() override { return m_session; }
+    Session_interface *session() override { return m_session.get(); }
+    ngs::shared_ptr<Session_interface> session_smart_ptr() override { return m_session; }
 
   public: // impl ngs::Client_interface
     void run(const bool skip_resolve_name) override;
@@ -125,8 +126,8 @@ namespace ngs
     std::string m_client_addr;
     std::string m_client_host;
     uint16      m_client_port;
-    ngs::atomic<Client_state> m_state;
-    ngs::atomic<bool> m_removed;
+    std::atomic<Client_state> m_state;
+    std::atomic<bool> m_removed;
 
     ngs::shared_ptr<Session_interface> m_session;
 

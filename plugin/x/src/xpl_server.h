@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,6 @@
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server.h"
-#include "plugin/x/ngs/include/ngs_common/atomic.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/sha256_password_cache.h"
@@ -80,7 +79,7 @@ public:
   template <typename ReturnType, xpl::Global_status_variables::Variable xpl::Global_status_variables::*variable>
   static void global_status_variable_server(THD *thd, SHOW_VAR *var, char *buff);
 
-  template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
+  template <typename ReturnType, ngs::Common_status_variables::Variable ngs::Common_status_variables::*variable>
   static void common_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
@@ -151,7 +150,7 @@ private:
   static MYSQL_PLUGIN plugin_ref;
 
   ngs::Client_interface::Client_id        m_client_id;
-  ngs::atomic<int>                        m_num_of_connections;
+  std::atomic<int>                        m_num_of_connections;
   ngs::shared_ptr<ngs::Protocol_config>   m_config;
   ngs::shared_ptr<ngs::Server_acceptors>  m_acceptors;
   ngs::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
@@ -248,7 +247,8 @@ void Server::global_status_variable_server(THD*, SHOW_VAR *var, char *buff)
 }
 
 
-template <typename ReturnType, xpl::Common_status_variables::Variable xpl::Common_status_variables::*variable>
+template <typename ReturnType, ngs::Common_status_variables::Variable
+  ngs::Common_status_variables::*variable>
 void Server::common_status_variable(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type = SHOW_UNDEF;
@@ -262,10 +262,15 @@ void Server::common_status_variable(THD *thd, SHOW_VAR *var, char *buff)
 
     if (client)
     {
-      ngs::shared_ptr<xpl::Session> client_session(client->get_session());
+      // Status can be queried from different thread than client is bound to.
+      // User can reset the session by sending SessionReset, to be secure for
+      // released session pointer, the code needs to hold current session by
+      // shared_ptr.
+      auto client_session(client->session_smart_ptr());
+
       if (client_session)
       {
-        Common_status_variables &common_status = client_session->get_status_variables();
+        auto &common_status = client_session->get_status_variables();
         ReturnType result = (common_status.*variable).load();
         mysqld::xpl_show_var(var).assign(result);
       }
@@ -273,7 +278,7 @@ void Server::common_status_variable(THD *thd, SHOW_VAR *var, char *buff)
     }
   }
 
-  Common_status_variables &common_status = Global_status_variables::instance();
+  ngs::Common_status_variables &common_status = Global_status_variables::instance();
   ReturnType result = (common_status.*variable).load();
   mysqld::xpl_show_var(var).assign(result);
 }

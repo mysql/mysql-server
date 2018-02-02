@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ ngs::Error_code Crud_command_handler::execute_crud_insert(
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Insert_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_insert,
+                 &ngs::Common_status_variables::m_crud_insert,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
@@ -144,7 +144,7 @@ ngs::Error_code Crud_command_handler::execute_crud_update(
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Update_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_update,
+                 &ngs::Common_status_variables::m_crud_update,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
@@ -181,7 +181,7 @@ ngs::Error_code Crud_command_handler::execute_crud_delete(
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Delete_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_delete,
+                 &ngs::Common_status_variables::m_crud_delete,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
@@ -200,7 +200,7 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
                            is_table_data_model(msg));
   Streaming_resultset rset(&session.proto(), false);
   return execute(session, Find_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_find,
+                 &ngs::Common_status_variables::m_crud_find,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
@@ -235,7 +235,7 @@ ngs::Error_code Crud_command_handler::execute_create_view(
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_create_view,
+                 &ngs::Common_status_variables::m_crud_create_view,
                  &ngs::Protocol_encoder_interface::send_ok);
 }
 
@@ -245,7 +245,7 @@ ngs::Error_code Crud_command_handler::execute_modify_view(
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_modify_view,
+                 &ngs::Common_status_variables::m_crud_modify_view,
                  &ngs::Protocol_encoder_interface::send_ok);
 }
 
@@ -255,7 +255,7 @@ ngs::Error_code Crud_command_handler::execute_drop_view(
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_drop_view,
+                 &ngs::Common_status_variables::m_crud_drop_view,
                  &ngs::Protocol_encoder_interface::send_ok);
 }
 

@@ -46,7 +46,6 @@ namespace ngs
     ~Session() override;
 
     Session_id session_id() const override { return m_id; }
-    virtual bool is_ready() const;
 
   public:
     void on_close(const bool update_old_state = false) override;
