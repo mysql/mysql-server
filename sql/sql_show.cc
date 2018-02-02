@@ -4812,8 +4812,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
                                 field_list, (ORDER*) 0, 0, 0, 
                                 select_lex->active_options() |
                                 TMP_TABLE_ALL_COLUMNS,
-                                HA_POS_ERROR, table_list->alias,
-                                TMP_WIN_NONE)))
+                                HA_POS_ERROR, table_list->alias)))
     DBUG_RETURN(0);
   my_bitmap_map* bitmaps=
     (my_bitmap_map*) thd->alloc(bitmap_buffer_size(field_count));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2167,8 +2167,7 @@ loop_end:
     tmp_param->group_length= table->file->ref_length;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,
-                                     TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "",
-                                     TMP_WIN_NONE);
+                                     TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
     if (!tmp_tables[cnt])
       DBUG_RETURN(1);
 

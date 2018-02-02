@@ -10033,7 +10033,17 @@ window_spec_details:
            opt_window_order_by_clause
            opt_window_frame_clause
            {
-             $$= NEW_PTN PT_window($2, $3, $4, $1);
+             auto frame= $4;
+             if (!frame) // build an equivalent frame spec
+             {
+               auto start_bound= NEW_PTN PT_border(WBT_UNBOUNDED_PRECEDING);
+               auto end_bound= NEW_PTN PT_border($3 ? WBT_CURRENT_ROW :
+                 WBT_UNBOUNDED_FOLLOWING);
+               auto bounds= NEW_PTN PT_borders(start_bound, end_bound);
+               frame= NEW_PTN PT_frame(WFU_RANGE, bounds, nullptr);
+               frame->m_originally_absent= true;
+             }
+             $$= NEW_PTN PT_window($2, $3, frame, $1);
            }
          ;
 

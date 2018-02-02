@@ -1616,9 +1616,14 @@ bool JOIN::destroy()
   if (tmp_all_fields != nullptr)
   {
     cleanup_item_list(tmp_all_fields[REF_SLICE_TMP1]);
+    cleanup_item_list(tmp_all_fields[REF_SLICE_TMP2]);
     cleanup_item_list(tmp_all_fields[REF_SLICE_TMP3]);
     for (uint widx= 0; widx < m_windows.elements; widx++)
+    {
       cleanup_item_list(tmp_all_fields[REF_SLICE_WIN_1 + widx]);
+      cleanup_item_list(tmp_all_fields[REF_SLICE_WIN_1 + widx +
+                                       m_windows.elements]); // frame buffer
+    }
   }
   destroy_sj_tmp_tables(this);
 
@@ -2564,8 +2569,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
                                 thd->variables.option_bits |
                                 TMP_TABLE_ALL_COLUMNS, 
                                 HA_POS_ERROR /* rows_limit */, 
-                                name,
-                                TMP_WIN_NONE)))
+                                name)))
     DBUG_RETURN(true); /* purecov: inspected */
   sjm_exec->table= table;
   map2table[tableno]= tab;
@@ -4284,8 +4288,7 @@ bool JOIN::make_tmp_tables_info()
 
     if (create_intermediate_table(&qep_tab[curr_tmp_table],
                                   &all_fields, tmp_group, 
-                                  group_list && simple_group,
-                                  TMP_WIN_NONE, false))
+                                  group_list && simple_group))
       DBUG_RETURN(true);
     exec_tmp_table= qep_tab[curr_tmp_table].table();
 
@@ -4338,8 +4341,7 @@ bool JOIN::make_tmp_tables_info()
     // Need to set them now for correct group_fields setup, reset at the end.
     set_ref_item_slice(REF_SLICE_TMP1);
     qep_tab[curr_tmp_table].ref_item_slice= REF_SLICE_TMP1;
-    setup_tmptable_write_func(&qep_tab[curr_tmp_table], REF_SLICE_TMP1,
-                              &trace_this_tbl);
+    setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
     last_slice_before_windowing= REF_SLICE_TMP1;
 
     /*
@@ -4449,8 +4451,7 @@ bool JOIN::make_tmp_tables_info()
       ORDER_with_src dummy= NULL; //TODO can use table->group here also
 
       if (create_intermediate_table(&qep_tab[curr_tmp_table],
-                                    curr_all_fields, dummy, true,
-                                    TMP_WIN_NONE, false))
+                                    curr_all_fields, dummy, true))
 	DBUG_RETURN(true);
 
       if (group_list)
@@ -4501,8 +4502,7 @@ bool JOIN::make_tmp_tables_info()
       curr_all_fields= &tmp_all_fields[REF_SLICE_TMP2];
       set_ref_item_slice(REF_SLICE_TMP2);
       qep_tab[curr_tmp_table].ref_item_slice= REF_SLICE_TMP2;
-      setup_tmptable_write_func(&qep_tab[curr_tmp_table], REF_SLICE_TMP2,
-                                &trace_this_tbl);
+      setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
       last_slice_before_windowing= REF_SLICE_TMP2;
     }
     if (qep_tab[curr_tmp_table].table()->distinct)
@@ -4774,9 +4774,9 @@ bool JOIN::make_tmp_tables_info()
       }
 
       /*
-       Allocate a slice of ref items that describe the items to be copied
-       from the next temporary table.
-       */
+        Allocate a slice of ref items that describe the items to be copied
+        from the next temporary table.
+      */
       const uint widx= REF_SLICE_WIN_1 + wno;
       const int fbidx= widx + m_windows.elements; // use far area
       m_windows[wno]->set_needs_restore_input_row(
@@ -4795,12 +4795,13 @@ bool JOIN::make_tmp_tables_info()
         */
         Temp_table_param *par=
           new (thd->mem_root) Temp_table_param(tmp_table_param);
+        par->m_window= nullptr; // Only OUT table needs access to Window
 
         List<Item> tmplist(*curr_all_fields, thd->mem_root);
         TABLE* table= create_tmp_table(thd, par, tmplist,
                                        nullptr, false,
                                        false, select_lex->active_options(),
-                                       HA_POS_ERROR, "", TMP_WIN_FRAME_BUFFER);
+                                       HA_POS_ERROR, "");
         if (table == nullptr)
           DBUG_RETURN(true);
 
@@ -4824,16 +4825,16 @@ bool JOIN::make_tmp_tables_info()
         add("adding_tmp_table_in_plan_at_position", curr_tmp_table).
         add_alnum("cause", "output_for_window_functions").
         add("with_buffer", m_windows[wno]->needs_buffering());
-      if (create_intermediate_table(&qep_tab[curr_tmp_table],
+      QEP_TAB *tab= &qep_tab[curr_tmp_table];
+      if (create_intermediate_table(tab,
                                     curr_all_fields, dummy,
-                                    false, TMP_WIN_CONDITIONAL,
-                                    m_windows[wno]->is_last()))
+                                    false))
         DBUG_RETURN(true);
 
-      m_windows[wno]->set_outtable_param(qep_tab[curr_tmp_table].tmp_table_param);
+      m_windows[wno]->set_outtable_param(tab->tmp_table_param);
 
       if (m_windows[wno]->make_special_rows_cache(thd,
-                                                  qep_tab[curr_tmp_table].table()))
+                                                  tab->table()))
         DBUG_RETURN(true);
 
       ORDER_with_src w_partition(m_windows[wno]->sorting_order(thd),
@@ -4846,12 +4847,26 @@ bool JOIN::make_tmp_tables_info()
           DBUG_RETURN(true);
       }
 
-      if (order != nullptr &&
-          m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
-          m_windows[wno]->is_last())
+      if (m_windows[wno]->is_last())
       {
-        if (add_sorting_to_table(curr_tmp_table, &order))
-          DBUG_RETURN(true);
+        if (order != nullptr &&
+            m_ordered_index_usage != ORDERED_INDEX_ORDER_BY)
+        {
+          if (add_sorting_to_table(curr_tmp_table, &order))
+            DBUG_RETURN(true);
+        }
+        if (!tab->filesort && !tab->table()->s->keys &&
+            (!(select_lex->active_options() & OPTION_BUFFER_RESULT) ||
+             need_tmp_before_win || wno >= 1))
+        {
+          /*
+            Last tmp table of execution; no sort, no duplicate elimination, no
+            buffering imposed by user (or it has already been implemented by
+            a previous tmp table): hence any row needn't be written to
+            tmp table's storage; send it out to query's result instead:
+          */
+          tab->tmp_table_param->m_window_short_circuit= true;
+        }
       }
 
       if (alloc_ref_item_slice(thd, widx))
@@ -4870,13 +4885,12 @@ bool JOIN::make_tmp_tables_info()
       curr_fields_list= &tmp_fields_list[widx];
       curr_all_fields= &tmp_all_fields[widx];
       set_ref_item_slice(widx);
-      qep_tab[curr_tmp_table].ref_item_slice= widx;
-      setup_tmptable_write_func(&qep_tab[curr_tmp_table], widx,
-                                &trace_this_tbl);
+      tab->ref_item_slice= widx;
+      setup_tmptable_write_func(tab, &trace_this_tbl);
 
       if (having_cond != nullptr)
       {
-        qep_tab[curr_tmp_table].having= having_cond;
+        tab->having= having_cond;
         having_cond= nullptr;
       }
 

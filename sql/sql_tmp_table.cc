@@ -338,7 +338,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     type= Item::FIELD_ITEM;
   }
 
-  bool is_wf= type == Item::SUM_FUNC_ITEM && item->real_item()->m_is_window_function;
+  bool is_wf= type == Item::SUM_FUNC_ITEM &&
+    item->real_item()->m_is_window_function;
 
   switch (type) {
   case Item::FIELD_ITEM:
@@ -935,8 +936,7 @@ TABLE *
 create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                  ORDER *group, bool distinct, bool save_sum_fields,
                  ulonglong select_options, ha_rows rows_limit,
-                 const char *table_alias,
-                 enum_tmpfile_windowing_action windowing)
+                 const char *table_alias)
 {
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
@@ -1092,16 +1092,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   {
     Field *new_field= NULL;
     Item::Type type= item->type();
-    const bool is_sum_func= type == Item::SUM_FUNC_ITEM && !item->m_is_window_function;
-
-    const Window *tmp_file_window= nullptr;
-
-    if (windowing != TMP_WIN_UNCONDITIONAL)
-    {
-      tmp_file_window= (item->m_is_window_function ?
-                        down_cast<Item_sum*>(item)->window() :
-                        nullptr);
-    }
+    const bool is_sum_func= type == Item::SUM_FUNC_ITEM &&
+      !item->m_is_window_function;
 
     if (type == Item::COPY_STR_ITEM)
     {
@@ -1126,38 +1118,42 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           goto update_hidden;
         }
       }
+      if (item->m_is_window_function)
+      {
+        if (!param->m_window)
+        {
+          /*
+            A pre-windowing table; no point in storing WF.
+            Or a window's frame buffer:
+            - the window's WFs cannot be calculated yet
+            - same for later windows' WFs
+            - previous windows' WFs are already replaced with Item_field (so
+            don't come here).
+          */
+          goto update_hidden;
+        }
+        if (param->m_window != down_cast<Item_sum*>(item)->window())
+        {
+          // A later window's WF: no point in storing it in this table.
+          goto update_hidden;
+        }
+      }
+      else if (item->has_wf())
+      {
+        /*
+          A non-WF expression containing a WF conservatively requires all
+          windows to have been processed, and is not stored in any of
+          windowing tables. Note that if the tmp table belongs to an even
+          later step - materialization of a query's result - then
+          not_all_columns==false and we store the expression.
+        */
+        goto update_hidden;
+      }
       if (item->const_item() && (int)hidden_field_count <= 0)
         continue; // We don't have to store this
     }
 
-    if ((item->m_is_window_function && (windowing == TMP_WIN_NONE ||
-                                        windowing == TMP_WIN_FRAME_BUFFER ||
-                                        ((windowing == TMP_WIN_CONDITIONAL) &&
-                                         (param->m_window != tmp_file_window))))
-        /*
-          we are not evaluating wf (or expression containing a wf)
-          for this window yet, i.e. it will happen in a later windowing step.
-        */
-        || (!item->m_is_window_function &&
-            windowing != TMP_WIN_UNCONDITIONAL && item->has_wf()))
-        /*
-          If this is not the last tmp table of windowing, this function of a
-          WF can, or cannot, be evaluated yet (it depends on if the WF's
-          window step has passed or not). So we do not evaluate it. Note that
-          it means that a function of a WF is always evaluated when we are at
-          the last tmp table of windowing, even though its WF has possibly
-          been evaluated earlier in a previous tmp table of windowing (that is
-          possible if we have 2 windows or more).
-
-          If this is a tmp table to store a query's result:
-          Query_result_union::create_result_table should always see the
-          evaluated field, not the expression function containing a wf, it is
-          already evaluated. And this field must be copied.
-        */
-    {
-      /* Do nothing */
-    }
-    else if (is_sum_func && !group && !save_sum_fields)
+    if (is_sum_func && !group && !save_sum_fields)
     {						/* Can't calc group yet */
       Item_sum *sum_item= down_cast<Item_sum *>(item);
       uint arg_count= sum_item->get_arg_count();
@@ -1241,7 +1237,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                          item->marker == Item::MARKER_BIT ||
                          param->bit_fields_as_long, //(2)
                          force_copy_fields,
-                         (windowing == TMP_WIN_CONDITIONAL && // (3)
+                         (param->m_window &&    // (3)
                           param->m_window->frame_buffer_param() &&
                           item->is_result_field()));
 
@@ -1256,9 +1252,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         But only for the group-by table. So do not set result_field if this is
         a tmp table for UNION or derived table materialization.
       */
-      if (type == Item::SUM_FUNC_ITEM &&
-          windowing != TMP_WIN_UNCONDITIONAL)
-	((Item_sum *) item)->result_field= new_field;
+      if (not_all_columns && type == Item::SUM_FUNC_ITEM)
+        ((Item_sum *) item)->result_field= new_field;
       tmp_from_field++;
       reclength+=new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG))

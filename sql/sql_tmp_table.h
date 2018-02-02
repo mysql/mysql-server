@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,32 +50,14 @@ struct ORDER;
 struct TABLE;
 template <class T> class List;
 
-
-/*
-   For global system variable internal_tmp_disk_storage_engine
- */
 enum enum_internal_tmp_disk_storage_engine { TMP_TABLE_MYISAM, TMP_TABLE_INNODB };
-
-/**
-  Determines the behavior of JOIN::create_intermediate_table/create_tmp_file.
-  If the tmp file step belongs to a window function, or TMP_WIN_UNCONDITIONAL is
-  given, evaluate it in this phase, else not yet or it already happened in a
-  preceding step, in which case it is now a (result) field anyway.
-*/
-enum enum_tmpfile_windowing_action {
-  TMP_WIN_NONE,
-  TMP_WIN_CONDITIONAL,
-  TMP_WIN_UNCONDITIONAL,
-  TMP_WIN_FRAME_BUFFER};
-
 enum enum_internal_tmp_mem_storage_engine { TMP_TABLE_MEMORY, TMP_TABLE_TEMPTABLE };
 
 TABLE *
 create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                  ORDER *group, bool distinct, bool save_sum_fields,
                  ulonglong select_options, ha_rows rows_limit,
-                 const char *table_alias,
-                 enum_tmpfile_windowing_action windowing);
+                 const char *table_alias);
 bool open_tmp_table(TABLE *table);
 TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                                     bool is_virtual= true,

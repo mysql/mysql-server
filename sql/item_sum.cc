@@ -421,8 +421,7 @@ bool Item_sum::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
     future rows, so don't need a frame buffer.
   */
   r->needs_buffer=
-    !(frame != nullptr &&
-      frame->m_unit == WFU_ROWS &&
+    !(frame->m_unit == WFU_ROWS &&
       frame->m_from->m_border_type == WBT_UNBOUNDED_PRECEDING &&
       frame->m_to->m_border_type == WBT_CURRENT_ROW);
 
@@ -870,7 +869,7 @@ bool Item_sum::reset_wf_state(uchar *arg)
   }
   else
   {
-    if (!framing() || needs_card())
+    if (!framing())
       clear();
   }
   DBUG_RETURN(false);
@@ -1089,7 +1088,7 @@ bool Aggregator_distinct::setup(THD *thd)
     }    
     if (!(table= create_tmp_table(thd, tmp_table_param, list, NULL, true, false,
                                   select_lex->active_options(),
-                                  HA_POS_ERROR, "", TMP_WIN_NONE)))
+                                  HA_POS_ERROR, "")))
       return true;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
     table->no_rows=1;
@@ -1886,9 +1885,9 @@ bool Item_sum_sum::check_wf_semantics(THD *thd, SELECT_LEX *select,
       user allowed it:
     */
     const PT_frame *f= m_window->frame();
-    if (f != nullptr && (f->m_from->m_border_type == WBT_VALUE_PRECEDING ||
-                         f->m_from->m_border_type == WBT_VALUE_FOLLOWING ||
-                         f->m_from->m_border_type == WBT_CURRENT_ROW))
+    if (f->m_from->m_border_type == WBT_VALUE_PRECEDING ||
+        f->m_from->m_border_type == WBT_VALUE_FOLLOWING ||
+        f->m_from->m_border_type == WBT_CURRENT_ROW)
     {
       r->row_optimizable&= !thd->variables.windowing_use_high_precision;
       r->range_optimizable&= !thd->variables.windowing_use_high_precision;
@@ -1959,9 +1958,6 @@ double Item_sum_sum::val_real()
   {
     if (wf_common_init())
       DBUG_RETURN(0.0);
-
-    if (m_window->dont_aggregate())
-      DBUG_RETURN(sum);
 
     if (hybrid_type == DECIMAL_RESULT)
     {
@@ -2056,9 +2052,6 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val)
       my_decimal_set_zero(val);
       return null_value ? nullptr : val;
     }
-
-    if (m_window->dont_aggregate())
-      return &dec_buffs[1];
 
     my_decimal * const argd= args[0]->val_decimal(&dec_buffs[0]);
 
@@ -2265,9 +2258,6 @@ longlong Item_sum_count::val_int()
     if (wf_common_init())
       DBUG_RETURN(0);
 
-    if (m_window->dont_aggregate())
-      DBUG_RETURN(count);
-
     DBUG_EXECUTE_IF(("enter"), {
       DBUG_PRINT("enter", ("Item_sum_count::val_int arg0 %p", args[0]));
       if (dynamic_cast<Item_field*>(args[0]))
@@ -2396,9 +2386,6 @@ double Item_sum_avg::val_real()
   {
     if (wf_common_init())
       return 0.0;
-    
-    if (m_window->dont_aggregate())
-      return m_avg;
 
     if (m_window->needs_buffering() && m_window->rowno_in_frame() == 1)
       m_frame_null_count= 0; // a new frame, so reset
@@ -2443,13 +2430,6 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
     {
       my_decimal_set_zero(val);
       DBUG_RETURN(null_value ? nullptr : val);
-    }
-
-    if (m_window->dont_aggregate())
-    {
-      my_decimal tmp(m_avg_dec);
-      tmp.swap(*val);
-      DBUG_RETURN(val);
     }
 
     if (m_window->needs_buffering() && m_window->rowno_in_frame() == 1)
@@ -2778,9 +2758,9 @@ bool Item_sum_variance::check_wf_semantics(THD *thd, SELECT_LEX *select,
   bool result=
     Item_sum::check_wf_semantics(thd, select, r);
   const PT_frame *f= m_window->frame();
-  if (f != nullptr && (f->m_from->m_border_type == WBT_VALUE_PRECEDING ||
-                       f->m_from->m_border_type == WBT_VALUE_FOLLOWING ||
-                       f->m_from->m_border_type == WBT_CURRENT_ROW))
+  if (f->m_from->m_border_type == WBT_VALUE_PRECEDING ||
+      f->m_from->m_border_type == WBT_VALUE_FOLLOWING ||
+      f->m_from->m_border_type == WBT_CURRENT_ROW)
   {
     optimize= !thd->variables.windowing_use_high_precision;
     r->row_optimizable&= optimize;
@@ -2890,20 +2870,6 @@ double Item_sum_variance::val_real()
   {
     if (wf_common_init())
       return 0.0;
-
-    if (m_window->dont_aggregate())
-    {
-      if (count <= sample)
-      {
-        null_value= true;
-        return 0.0;
-      }
-
-      null_value= false;
-      return  variance_fp_recurrence_result(recurrence_s, recurrence_s2, count,
-                                            sample, optimize);
-    }
-
     /*
       For a group aggregate function, add() is called by Aggregator* classes;
       for a window function, which does not use Aggregator, it has be called
@@ -2998,34 +2964,32 @@ bool Item_sum_hybrid::wf_semantics(THD *thd, SELECT_LEX *select,
                                    bool min)
 {
   bool result= Item_sum::check_wf_semantics(thd, select, r);
-  const PT_frame *f= m_window->frame();
 
-  if (f != nullptr)
+  const PT_order_list *order= m_window->effective_order_by();
+  if (order != nullptr)
   {
-    const PT_order_list *order= m_window->effective_order_by();
-    if (order != nullptr)
+    ORDER *o= order->value.first;
+    // The logic below (see class's doc) makes sense only for MIN and MAX
+    DBUG_ASSERT(sum_func() == MIN_FUNC || sum_func() == MAX_FUNC);
+    if (o->item_ptr->real_item()->eq(args[0]->real_item(),0))
     {
-      ORDER *o= order->value.first;
-      if (o->item_ptr->real_item()->eq(args[0]->real_item(),0))
+      if (r->row_optimizable || r->range_optimizable)
       {
-        if (r->row_optimizable || r->range_optimizable)
+        m_optimize= true;
+        value->setup(args[0]); // no comparisons needed
+        if (o->direction == ORDER_ASC)
         {
-          m_optimize= true;
-          value->setup(args[0]); // no comparisons needed
-          if (o->direction == ORDER_ASC)
-          {
-            r->opt_first_row= min ? true: r->opt_first_row;
-            r->opt_last_row= !min ? true: r->opt_last_row;
-            m_want_first= min;
-            m_nulls_first= true;
-          }
-          else
-          {
-            r->opt_last_row= min ? true : r->opt_last_row;
-            r->opt_first_row= !min ? true : r->opt_first_row;
-            m_want_first= !min;
-            m_nulls_first= false;
-          }
+          r->opt_first_row= min ? true: r->opt_first_row;
+          r->opt_last_row= !min ? true: r->opt_last_row;
+          m_want_first= min;
+          m_nulls_first= true;
+        }
+        else
+        {
+          r->opt_last_row= min ? true : r->opt_last_row;
+          r->opt_first_row= !min ? true : r->opt_first_row;
+          m_want_first= !min;
+          m_nulls_first= false;
         }
       }
     }
@@ -5097,8 +5061,7 @@ bool Item_func_group_concat::setup(THD *thd)
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
                                 NULL, false, true,
                                 aggr_select->active_options(),
-                                HA_POS_ERROR, (char*) "",
-                                TMP_WIN_NONE)))
+                                HA_POS_ERROR, (char*) "")))
     DBUG_RETURN(true);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
@@ -5439,7 +5402,8 @@ bool Item_cume_dist::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
                                         Window::Evaluation_requirements *r)
 {
   r->needs_buffer= true; // we need to know partition cardinality, so two passes
-  r->needs_peerset= true; //we need to know the number of peers
+  // Before we can compute for the current row we need the count of its peers
+  r->needs_peerset= true;
   // SQL2015 6.10 <window function> SR 6.h: don't require ORDER BY.
   return false;
 }
@@ -5494,7 +5458,18 @@ bool Item_percent_rank::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
                                            Window::Evaluation_requirements *r)
 {
   r->needs_buffer= true; // we need to know partition cardinality, so two passes
-  r->needs_peerset= true; //we need to know the number of peers
+  /*
+    The family of RANK functions doesn't need the peer set: even though they
+    give the same value to peers, that value can be computed for the first row
+    of the peer set without knowing how many peers it has. However, this family
+    needs detection of when the current row leaves the current peer set (to
+    increase the rank counter):
+    - RANK and DENSE_RANK do so internally with row comparison;
+    - but PERCENT_RANK, as it needs partition cardinality, requires buffering, so
+    it can simply pretend it needs_peerset() and then the buffering code will
+    detect the peer set's end and provide it in last_rowno_in_peerset().
+  */
+  r->needs_peerset= true;
 
   const PT_order_list *order= m_window->effective_order_by();
   // SQL2015 6.10 <window function> SR 6.g+6.a: require ORDER BY; we don't.
@@ -5789,6 +5764,7 @@ bool Item_first_last_value::compute()
            (!m_window->needs_buffering() &&
             ((m_is_first && cnt == 1) || !m_is_first)))
   {
+    // if() above says we are positioned at the proper first/last row of frame
     m_value->cache_value();
     null_value= m_value->null_value;
   }

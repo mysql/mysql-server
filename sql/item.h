@@ -2174,7 +2174,7 @@ public:
     Reset execution state for such window function types
     as determined by arg
 
-    @param arg   pointing to a bool which, if true, states reset state
+    @param arg   pointing to a bool which, if true, says to reset state
                  for framing window function, else for non-framing
   */
   virtual bool reset_wf_state(uchar *arg MY_ATTRIBUTE((unused))) { return false; }

@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,6 +155,8 @@ public:
   Class Item_sum is the base class used for special expressions that SQL calls
   'set functions'. These expressions are formed with the help of aggregate
   functions such as SUM, MAX, GROUP_CONCAT etc.
+  Class Item_sum is also the base class for Window functions; the text below
+  first documents set functions, then window functions.
 
  GENERAL NOTES
 
@@ -369,6 +371,18 @@ public:
   It is assumed that the nesting level of subqueries does not exceed 63
   (valid nesting levels are stored in a 64-bit bitmap called nesting_map).
   The assumption is enforced in LEX::new_query().
+
+  WINDOW FUNCTIONS
+
+  Most set functions (e.g. SUM, COUNT, AVG) can also be used as window
+  functions. In that case, notable differences compared to set functions are:
+  - not using any Aggregator
+  - not supporting DISTINCT
+  - val_*() does more than returning the function's current value: it
+  first accumulates the function's argument into the function's
+  state. Execution (e.g. end_write_wf()) manipulates temporary tables which
+  contain input for WFs; each input row is passed to copy_funcs() which calls
+  the WF's val_*() to accumulate it.
 */
 
 class Item_sum :public Item_result_field
@@ -700,6 +714,12 @@ public:
     return false.
   */
   virtual bool framing() const { return true; }
+
+  /**
+    Only for framing window functions. True if this function only needs to
+    read one row per frame.
+  */
+  virtual bool uses_only_one_row() const { return false; }
 
   /**
     Return true if we need to make two passes over the rows in the partition -
@@ -1484,9 +1504,11 @@ class Item_sum_hybrid : public Item_sum
 protected:
   /*
     For window functions MIN/MAX with optimized code path, no comparisons
-    are needed beyond NULL detection. For this case, 'value' is the value of
+    are needed beyond NULL detection: MIN/MAX are then roughly equivalent to
+    FIRST/LAST_VALUE. For this case, 'value' is the value of
     the window function a priori taken from args[0], while arg_cache is used to
-    remember the value from the previous row.
+    remember the value from the previous row. NULLs need a bit of careful
+    treatment.
   */
   Item_cache *value, *arg_cache;
   Arg_comparator *cmp;
@@ -1588,6 +1610,7 @@ public:
   bool any_value() { return was_values; }
   void no_rows_in_result() override;
   Field *create_tmp_field(bool group, TABLE *table) override;
+  bool uses_only_one_row() const override { return m_optimize; }
 };
 
 
@@ -2454,6 +2477,7 @@ public:
 
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
+  bool uses_only_one_row() const override { return true; }
 
 private:
   bool setup_first_last();
@@ -2525,6 +2549,7 @@ public:
 
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
+  bool uses_only_one_row() const override { return true; }
 
 private:
   /**

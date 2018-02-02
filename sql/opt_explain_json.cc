@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1366,8 +1366,7 @@ private:
         to.add(K_USING_TMP_TABLE, true);
         if (w->optimizable_range_aggregates() ||
             w->optimizable_row_aggregates() ||
-            w->static_aggregates() ||
-            w->has_dynamic_frame_upper_bound())
+            w->static_aggregates())
           to.add(K_OPTIMIZED_FRAME_EVALUATION, true);
       }
       Opt_trace_array wfs(json, K_FUNCTIONS);

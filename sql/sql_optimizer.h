@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -881,17 +881,12 @@ private:
     @param save_sum_fields  If true, do not replace Item_sum items in 
                             @c tmp_fields list with Item_field items referring 
                             to fields in temporary table.
-    @param windowing        informs on whether this call is made on behalf of
-                            a window function, and if so how to treat it.
-    @param last_window_step The tmp table represents the last windowing step
 
     @returns false on success, true on failure
   */
   bool create_intermediate_table(QEP_TAB *tab, List<Item> *tmp_table_fields,
                                  ORDER_with_src &tmp_table_group,
-                                 bool save_sum_fields,
-                                 enum_tmpfile_windowing_action windowing,
-                                 bool last_window_step);
+                                 bool save_sum_fields);
 
   /**
     Optimize distinct when used on a subset of the tables.

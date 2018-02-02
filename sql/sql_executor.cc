@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -326,18 +326,15 @@ bool
 JOIN::create_intermediate_table(QEP_TAB *const tab,
                                 List<Item> *tmp_table_fields,
                                 ORDER_with_src &tmp_table_group,
-                                bool save_sum_fields,
-                                enum_tmpfile_windowing_action waction,
-                                bool last_window)
+                                bool save_sum_fields)
 {
   DBUG_ENTER("JOIN::create_intermediate_table");
   THD_STAGE_INFO(thd, stage_creating_tmp_table);
   const bool windowing= m_windows.elements > 0;
   /*
     Pushing LIMIT to the temporary table creation is not applicable
-    when there is ORDER BY or GROUP BY or there is no GROUP BY, but
-    there are aggregate functions, because in all these cases we need
-    all result rows.
+    when there is ORDER BY or GROUP BY or aggregate/window functions, because
+    in all these cases we need all result rows.
   */
   ha_rows tmp_rows_limit= ((order == NULL || skip_sort_order) &&
                            !tmp_table_group &&
@@ -348,24 +345,19 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
   tab->tmp_table_param= new (thd->mem_root) Temp_table_param(tmp_table_param);
   tab->tmp_table_param->skip_create_table= true;
 
-  bool distinct_arg= select_distinct && !group_list;
-  if (windowing)
-  {
-    if (last_window && order == nullptr &&
-        !distinct_arg &&
-        !(select_lex->active_options() & OPTION_BUFFER_RESULT))
-      tab->tmp_table_param->m_window_short_circuit= true;
-
-    if (waction != TMP_WIN_CONDITIONAL)
-      distinct_arg= false; // We can only do DISTINCT in last tmp file step
-    else
-      distinct_arg= distinct_arg && last_window;
-  }
+  bool distinct_arg=
+    select_distinct &&
+    // GROUP BY is absent or has been done in a previous step
+    !group_list &&
+    // We can only do DISTINCT in last window's tmp table step
+    (!windowing ||
+     (tab->tmp_table_param->m_window &&
+      tab->tmp_table_param->m_window->is_last()));
 
   TABLE* table= create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
                                tmp_table_group, distinct_arg,
                                save_sum_fields, select_lex->active_options(),
-                               tmp_rows_limit, "", waction);
+                               tmp_rows_limit, "");
   if (!table)
     DBUG_RETURN(true);
   tmp_table_param.using_outer_summary_function=
@@ -379,11 +371,11 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
   tab->set_table(table);
 
   /**
-    If this is a windowing tmp table, any final DISTINCT, ORDER BY will lead to
+    If this is a window's OUT table, any final DISTINCT, ORDER BY will lead to
     windows showing use of tmp table in the final windowing step, so no
     need to signal use of tmp table unless we are here for another tmp table.
   */
-  if (waction != TMP_WIN_CONDITIONAL)
+  if (!tab->tmp_table_param->m_window)
   {
     if (table->group)
       explain_flags.set(tmp_table_group.src, ESP_USING_TMPTABLE);
@@ -392,16 +384,16 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
     else
     {
       /*
-        Try to find a cause for this table in EXPLAIN.
+        Try to find a reason for this table, to show in EXPLAIN.
         If there's no GROUP BY, no ORDER BY, no DISTINCT, it must be just a
         result buffer. If there's ORDER BY but there is also windowing
         then ORDER BY happens after windowing, and here we are before
-        windowing (per 'waction') so it's not for ORDER BY either.
+        windowing, so the table is not for ORDER BY either.
       */
       if ((!group_list && (!order || windowing) && !select_distinct) ||
-             (select_lex->active_options() &
-              (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)))
-      explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
+          (select_lex->active_options() &
+           (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)))
+        explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
     }
   }
   /* if group or order on first table, sort first */
@@ -734,6 +726,10 @@ copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type)
       do_copy= (f->m_is_window_function &&
                 down_cast<Item_sum *>(f)->needs_card());
       break;
+    case CFT_WF_USES_ONLY_ONE_ROW:
+      do_copy= (f->m_is_window_function &&
+                down_cast<Item_sum *>(f)->uses_only_one_row());
+      break;
     case CFT_NON_WF:
       do_copy= !f->m_is_window_function;
       if (do_copy) // copying an expression of a WF would be wrong:
@@ -980,14 +976,14 @@ return_zero_rows(JOIN *join, List<Item> &fields)
   is attached to the given join_tab will be used in the query.
 */
 
-void setup_tmptable_write_func(QEP_TAB *tab, uint phase,
-                               Opt_trace_object *trace)
+void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace)
 {
   DBUG_ENTER("setup_tmptable_write_func");
   JOIN *join= tab->join();
   TABLE *table= tab->table();
   QEP_tmp_table *op= (QEP_tmp_table *)tab->op;
   Temp_table_param *const tmp_tbl= tab->tmp_table_param;
+  uint phase= tab->ref_item_slice;
   const char *description= nullptr;
   DBUG_ASSERT(table && op);
 
@@ -3994,15 +3990,11 @@ swap_copy_field_direction(const Temp_table_param *param)
 
 
 /**
-  Save a window frame buffer to in-memory frame buffer cache and/or frame buffer
-  temporary table.
- 
+  Save a window frame buffer to frame buffer temporary table.
+
   @param thd      The current thread
   @param w        The current window
   @param rowno    The rowno in the current partition (1-based)
-                  Row number FBC_FIRST_IN_NEXT_PARTITION is treated
-                  specially: it is only saved in the in-memory cache, never to
-                  the frame buffer temporary table.
 */
 static bool
 buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
@@ -4011,23 +4003,33 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
   TABLE * const t= w->frame_buffer();
   uchar *record= t->record[0];
 
-  if (rowno == Window::FBC_FIRST_IN_NEXT_PARTITION)
-  {
-    w->save_special_record(rowno, t);
-    DBUG_RETURN(false); // special record, don't put in frame buffer
-  }
-  else if (w->needs_restore_input_row())
-  {
-    w->save_special_record(Window::FBC_LAST_BUFFERED_ROW, t);
-    // Also put in frame buffer
-  }
-
-
+  DBUG_ASSERT(rowno != Window::FBC_FIRST_IN_NEXT_PARTITION);
   DBUG_ASSERT(t->is_created());
 
   if (!t->file->inited)
   {
-    /* Start index scan in scanning mode */
+    /*
+      On the frame buffer table, t->file, we do several things in the
+      windowing code:
+      - read a row by position,
+      - read rows after that row,
+      - write a row,
+      - find the position of a just-written row, if it's first in partition.
+      To prepare for reads, we initialize a scan once for all with
+      ha_rnd_init(), with argument=true as we'll use ha_rnd_next().
+      To read a row, we use ha_rnd_pos() or ha_rnd_next().
+      To write, we use ha_write_row().
+      To find the position of a just-written row, we are in the following
+      conditions:
+      - the written row is first of its partition
+      - before writing it, we have processed the previous partition, and that
+      process ended with a read of the previous partition's last row
+      - so, before the write, the read cursor is already positioned on that
+      last row.
+      Then we do the write; the new row goes after the last row; then
+      ha_rnd_next() reads the row after the last row, i.e. reads the written
+      row. Then position() gives the position of the written row.
+    */
     int rc= t->file->ha_rnd_init(true);
     if (rc != 0)
     {
@@ -4044,7 +4046,7 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
     /* If this is a duplicate error, return immediately */
     if (t->file->is_ignorable_error(error))
       DBUG_RETURN(1);
- 
+
     /* Other error than duplicate error: Attempt to create a temporary table. */
     bool is_duplicate;
     if (create_ondisk_from_heap
@@ -4055,7 +4057,7 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
       DBUG_RETURN(-1);
 
     DBUG_ASSERT(t->s->db_type() == innodb_hton);
-    if (t->file->ha_rnd_init(false))
+    if (t->file->ha_rnd_init(true))
       return true;                                /* purecov: inspected */
 
     /*
@@ -4139,13 +4141,17 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
   @param thd                Current thread
   @param param              The temporary table parameter
 
-  @param[out] new_partition Set the bool pointed to to true if a new partition
-                            was found, buffering, as first row in partition
-                            didn't happen and must be repeated later.  We save
-                            away the row as rowno FBC_FIRST_IN_NEXT_PARTITION,
-                            then fetch it back later, cf. 
-                            reestablish_new_partition_row.  If nullptr, reset
-                            the frame buffer before buffering the record.
+  @param[in,out] new_partition If input is not nullptr:
+                            sets the bool pointed to to true if a new partition
+                            was found and there was a previous partition; if
+                            so the buffering of the first row in new
+                            partition isn't done and must be repeated
+                            later: we save away the row as rowno
+                            FBC_FIRST_IN_NEXT_PARTITION, then fetch it back
+                            later, cf. end_write_wf.
+                            If input is nullptr, this is the "later" call to
+                            buffer the first row of the new partition:
+                            buffer the row.
   @return true if error.
 */
 static bool
@@ -4154,27 +4160,21 @@ buffer_windowing_record(THD *thd, Temp_table_param *param, bool *new_partition)
   DBUG_ENTER("buffer_windowing_record");
   Window *w= param->m_window;
 
+  if (copy_fields(w->frame_buffer_param(), thd))
+    DBUG_RETURN(true);
+
   if (new_partition != nullptr)
   {
-    if (copy_fields(w->frame_buffer_param(), thd))
-      DBUG_RETURN(true);
-
     const bool first_partition= w->partition_rowno() == 0;
     w->check_partition_boundary();
 
     if (!first_partition && w->partition_rowno() == 1)
     {
       *new_partition= true;
-      if (buffer_record_somewhere(thd, w, Window::FBC_FIRST_IN_NEXT_PARTITION))
-        DBUG_RETURN(true);
+      w->save_special_record(Window::FBC_FIRST_IN_NEXT_PARTITION,
+                             w->frame_buffer());
       DBUG_RETURN(false);
     }
-  }
-  else
-  {
-    param->m_window->reset_partition_state();
-    if (copy_fields(w->frame_buffer_param(), thd))
-      DBUG_RETURN(true);
   }
 
   /*
@@ -4187,6 +4187,12 @@ buffer_windowing_record(THD *thd, Temp_table_param *param, bool *new_partition)
     read back row. That value for SUM will then be used for the current row
     output.
   */
+
+  if (w->needs_restore_input_row())
+  {
+    w->save_special_record(Window::FBC_LAST_BUFFERED_ROW,
+                           w->frame_buffer());
+  }
 
   if (buffer_record_somewhere(thd, w, w->partition_rowno()))
     DBUG_RETURN(true);
@@ -4203,7 +4209,7 @@ buffer_windowing_record(THD *thd, Temp_table_param *param, bool *new_partition)
 */
 static bool read_frame_buffer_row(int64 rowno,
                                   Window *w,
-#ifndef DBUG_OFF                                  
+#ifndef DBUG_OFF
                                   bool for_nth_value)
 #else
                                   bool for_nth_value MY_ATTRIBUTE((unused)))
@@ -4219,7 +4225,7 @@ static bool read_frame_buffer_row(int64 rowno,
     auto cand= w->m_frame_buffer_positions[i];
     if (cand.m_rowno == -1 || cand.m_rowno > rowno)
       continue;
-    
+
     if (rowno - cand.m_rowno < diff)
     {
       /* closest so far */
@@ -4227,20 +4233,20 @@ static bool read_frame_buffer_row(int64 rowno,
       use_idx= i;
     }
   }
-  
+
   auto cand= &w->m_frame_buffer_positions[use_idx];
-  
+
   int error= t->file->ha_rnd_pos(w->frame_buffer()->record[0], cand->m_position);
   if (error)
   {
     t->file->print_error(error, MYF(0));
     return true;
   }
-  
+
   if (rowno > cand->m_rowno)
   {
-    /* 
-      The saved position didn't correspond exactly yo where we want to go, but
+    /*
+      The saved position didn't correspond exactly to where we want to go, but
       is located one or more rows further out on the file, so read next to move
       forward to desired row.
     */
@@ -4256,7 +4262,6 @@ static bool read_frame_buffer_row(int64 rowno,
                 // unless we have a frame beyond the current row, 1. time
                 // in which case we need to do some scanning...
                 (w->last_row_output() == 0 &&
-                 w->frame() != nullptr &&
                  w->frame()->m_from->m_border_type ==
                  WBT_VALUE_FOLLOWING) ||
                 // or unless we are search for NTH_VALUE, which can be in the
@@ -4315,9 +4320,8 @@ void dbug_restore_all_columns(std::map<TABLE *, my_bitmap_map *> &map)
 #endif
 
 /**
-  Bring back buffered data to the record of qep_tab-1 [1], in preparation
-  for executing copy_field and/or some copy_* of data to the output record,
-  thereby achieving the window function evaluation.
+  Bring back buffered data to the record of qep_tab-1 [1], and optionally
+  execute copy_fields() to the OUT table.
  
   [1] This is not always the case. For the first window, if we have no
   PARTITION BY or ORDER BY in the window, and there is more than one table
@@ -4332,6 +4336,7 @@ void dbug_restore_all_columns(std::map<TABLE *, my_bitmap_map *> &map)
 
   @param thd       The current thread
   @param w         The current window
+  @param out_param OUT table; if not nullptr, does copy_fields() to OUT
   @param rowno     The row number (in the partition) to set up
   @param reason    What kind of row to retrieve
   @param fno       Used with NTH_VALUE and LEAD/LAG to specify which
@@ -4345,29 +4350,49 @@ void dbug_restore_all_columns(std::map<TABLE *, my_bitmap_map *> &map)
 static bool
 bring_back_frame_row(THD *thd,
                      Window &w,
+                     Temp_table_param *out_param,
                      int64 rowno,
                      enum Window::retrieve_cached_row_reason reason,
                      int fno= 0)
 {
   DBUG_ENTER("bring_back_frame_row");
+  DBUG_PRINT("enter", ("rowno: %lld reason: %d fno: %d", rowno, reason, fno));
   DBUG_ASSERT(reason == Window::REA_MISC_POSITIONS || fno == 0);
 
   uchar *fb_rec= w.frame_buffer()->record[0];
-  w.set_input_row_clobbered(rowno != w.last_rowno_in_cache() &&
-                            rowno != Window::FBC_LAST_BUFFERED_ROW);
 
-  if (rowno == Window::FBC_FIRST_IN_NEXT_PARTITION ||
-      rowno == Window::FBC_LAST_BUFFERED_ROW)
+  DBUG_ASSERT(rowno != 0);
+
+  /*
+    If requested row is the last we fetched from FB and copied to OUT, we
+    don't need to fetch and copy again.
+    Because "reason", "fno" may differ from the last call which fetched the
+    row, we still do the updates of w.m_frame_buffer_positions even if
+    do_fetch=false.
+  */
+  bool do_fetch;
+
+  if (rowno == Window::FBC_FIRST_IN_NEXT_PARTITION)
   {
+    do_fetch= true;
     w.restore_special_record(rowno, fb_rec);
+  }
+  else if (rowno == Window::FBC_LAST_BUFFERED_ROW)
+  {
+    do_fetch= w.row_has_fields_in_out_table() != w.last_rowno_in_cache();
+    if (do_fetch)
+      w.restore_special_record(rowno, fb_rec);
   }
   else
   {
     DBUG_ASSERT(reason != Window::REA_WONT_UPDATE_HINT);
+    do_fetch= w.row_has_fields_in_out_table() != rowno;
 
-    if (read_frame_buffer_row(rowno, &w, reason == Window::REA_MISC_POSITIONS))
+    if (do_fetch &&
+        read_frame_buffer_row(rowno, &w,
+                              reason == Window::REA_MISC_POSITIONS))
       DBUG_RETURN(true);
-    
+
     /* Got row rowno in record[0], remember position */
     const TABLE *const t= w.frame_buffer();
     t->file->position(fb_rec);
@@ -4375,6 +4400,11 @@ bring_back_frame_row(THD *thd,
                 t->file->ref, t->file->ref_length);
     w.m_frame_buffer_positions[reason + fno].m_rowno= rowno;
   }
+
+  w.set_diagnostics_rowno(thd->get_stmt_da(), rowno);
+
+  if (!do_fetch)
+    DBUG_RETURN(false);
 
   Temp_table_param * const fb_info= w.frame_buffer_param();
 
@@ -4406,7 +4436,18 @@ bring_back_frame_row(THD *thd,
   dbug_restore_all_columns(saved_map);
 #endif
 
-  w.set_diagnostics_rowno(thd->get_stmt_da(), rowno);
+  if (out_param)
+  {
+    if (copy_fields(out_param, thd))
+      return true;
+    // fields are in IN and in OUT
+    if (rowno >= 1)
+      w.set_row_has_fields_in_out_table(rowno);
+  }
+  else
+    // we only wrote IN record, so OUT and IN are inconsistent
+    w.set_row_has_fields_in_out_table(0);
+
   DBUG_RETURN(false);
 }
 
@@ -4417,6 +4458,7 @@ bring_back_frame_row(THD *thd,
 */
 void Window::save_special_record(uint64 special_rowno, TABLE *t)
 {
+  DBUG_PRINT("info", ("save_special_record: %llu", special_rowno));
   size_t l= t->s->reclength;
   DBUG_ASSERT(m_special_rows_cache_max_length >= l); // check room.
   // From negative enum, get proper array index:
@@ -4430,84 +4472,19 @@ void Window::save_special_record(uint64 special_rowno, TABLE *t)
 /**
   Restore row special_rowno into record from in-memory copy. Any fields not
   the result of window functions are not used, but they do tag along here
-  (unnecessary copying..). BLOBs: storage have storage in result_field of Item 
+  (unnecessary copying..). BLOBs: have storage in result_field of Item
   for the window function although the pointer is copied here. The
-  result field storage is is stable across reads from the frame buffer, so safe.
+  result field storage is stable across reads from the frame buffer, so safe.
 */
 void Window::restore_special_record(uint64 special_rowno, uchar *record)
 {
+  DBUG_PRINT("info", ("restore_special_record: %llu", special_rowno));
   int idx= FBC_FIRST_KEY - special_rowno;
   size_t l= m_special_rows_cache_length[idx];
   std::memcpy(record, m_special_rows_cache +
               idx * m_special_rows_cache_max_length, l);
-}
-
-
-/*
-  Determine if, given our current read and buffering state, we have enough
-  buffered rows to compute an output row.
- 
-  Example:
-  frame: [ROWS BETWEEN 1 PRECEDING and 3 FOLLOWING]
- 
-  State:
-  +---+-------------------------------+
-  |   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-  +---+-------------------------------+
-  ^    1?         ^
-  lower      last_rowno_in_cache
-  (0)             (4)
- 
-  This state means:
- 
-  We have read 4 rows, cf. value of last_rowno_in_cache.
-  We can now process row 1 since both lower (1-1=0) and upper (1+3=4) are less
-  than or equal to 4, the last row in the cache so far.
- 
-  We can not process row 2 since: !4 >= 2 + 3 and we haven't seen the last row
-  in partition which mean that the frame may not be full yet.
- 
-  If we have no frame, default is [UNBOUNDED PRECEDING, UNBOUNDED FOLLOWING],
-  and we can only output iff new_partition_or_eof is true, that is, we have
-  read a full partition into the buffer.
-
-  If we have a two-pass window function, i.e. one that needs to know the
-  partition cardinality before computing any wf value, we also must buffer all
-  records of the partition before processing.
-
-  If we have a frame like [.. and UNBOUNDED FOLLOWING], we can only output
-  iff new_partition_or_eof is true.
- 
-  If we have a frame with ROWS mode but only a from border (i.e. not a
-  BETWEEN), the default upper border is the current row, so we always have
-  enough cache so we can output all rows in cache but not yet output.
- 
-  FOR RANGE bounds we also need to consider peer rows, see calls to before_frame
-  and after_frame and the logic in process_buffered_windowing_record.
-
-  Also, some window functions force us to read the entire partition because the
-  evaluation of any require us to know the cardinality of the partition, e.g.
-  NTILE.
-
-  @param w                     The window
-  @param last_row_in_cache     The row number of the last row we buffered so far
-                               in this partition
-  @param lower                 The row number of the first row considered for
-                               the window frame of the current row
-  @param upper                 The row number of the last row considered for
-                               the window frame of the current row
-  @param new_partition_or_eof  True if we have read all the rows in a partition
-*/
-static bool
-exists_computable_row(Window &w,
-                      const int64 last_row_in_cache,
-                      const int64 lower,
-                      const int64 upper,
-                      const bool new_partition_or_eof)
-{
-  return ( (lower <= last_row_in_cache && upper <= last_row_in_cache &&
-            !w.some_wf_needs_frame_card()) || /* we have cached enough rows */
-          new_partition_or_eof /* we have cached all rows, so proceed */);
+  // Sometimes, "record" points to IN record
+  set_row_has_fields_in_out_table(0);
 }
 
 
@@ -4552,10 +4529,8 @@ bool process_wfs_needing_card(THD *thd,
 
       if (rowno_to_visit >= 1 && rowno_to_visit <= w.last_rowno_in_cache())
       {
-        bring_back_frame_row(thd, w, rowno_to_visit,
-                             Window::REA_MISC_POSITIONS, nths + fno++);
-
-        if (copy_fields(param, thd))
+        if (bring_back_frame_row(thd, w, param, rowno_to_visit,
+                                 Window::REA_MISC_POSITIONS, nths + fno++))
           return true;
       }
 
@@ -4563,8 +4538,7 @@ bool process_wfs_needing_card(THD *thd,
         return true;
     }
     /* Bring back the fields for the output row */
-    bring_back_frame_row(thd, w, current_row, current_row_reason);
-    if (copy_fields(param, thd))
+    if (bring_back_frame_row(thd, w, param, current_row, current_row_reason))
       return true;
   }
 
@@ -4611,7 +4585,7 @@ bool process_wfs_needing_card(THD *thd,
   The is a special optimized code path for *static aggregates*: when the window
   frame is the default, e.g. the entire partition and there is no ORDER BY
   specified, the value of the framing window functions, i.e. SUM, AVG,
-  FIRST_VALUE, LAST_VALUE can be evaluated once and for and all and saved when
+  FIRST_VALUE, LAST_VALUE can be evaluated once and for all and saved when
   we visit and evaluate the first row of the partition. For later rows we
   restore the aggregate values and just fill in the other fields and evaluate
   non-framing window functions for the row.
@@ -4619,22 +4593,12 @@ bool process_wfs_needing_card(THD *thd,
   The code paths both for naive execution and optimized execution differ
   depending on whether we have ROW or RANGE boundaries in a explicit frame.
 
-  Another special optimized code path ("dynamic_upper_optimizable") exists for
-  the case where we have a dynamic upper frame limit based on the value of the
-  current rows ORDER BY expression, but otherwise have no explicit frame: in
-  this case the last row in the frame is the last peer row of the current row,
-  which can be many rows out. In that case also, we save the evaluated
-  aggregates and restore them for the next row, as long as we haven't left
-  the peer set. Once we do, we add all the new contributions and make a new
-  saved result for the new peer set. This code shares some mechanisms with the
-  optimized aggregates path for RANGE frames.
-
-  A word on BLOBs. Below we make copies of rows' records into the frame buffer.
+  A word on BLOBs. Below we make copies of rows into the frame buffer.
   This is a temporary table, so BLOBs get copied in the normal way.
 
   Sometimes we save records containing already computed framing window
   functions away into memory only: is the lifetime of the referenced BLOBs long
-  enough?  We have two cases:
+  enough? We have two cases:
 
   BLOB results from wfs: Any BLOB results will reside in the copies in result
   fields of the Items ready for the out file, so they no longer need any BLOB
@@ -4653,35 +4617,44 @@ bool process_wfs_needing_card(THD *thd,
   until after we start processing the next partition and save the saved away
   next partition row to the frame buffer.
 
+  Note that the logic of this function is centered around the window, not
+  around the window function. It is about putting rows in a partition,
+  in a frame, in a set of peers, and passing this information to all window
+  functions attached to this window; each function looks at the partition,
+  frame, or peer set in its own particular way (for example RANK looks at the
+  partition, SUM looks at the frame).
+
   @param thd                    Current thread
   @param param                  Current temporary table
   @param out_table              Results of this windowing step go here
-  @param new_partition_or_eof   True if we are about to start a new partition,
-                                or eof
-  @param[out] output_row_ready  True if there is a row record ready to write.
+  @param new_partition_or_eof   True if (we are about to start a new partition
+                                and there was a previous partition) or eof
+  @param[out] output_row_ready  True if there is a row record ready to write
+                                to the out table
 
   @return true if error
 */
 static bool
 process_buffered_windowing_record(THD *thd,
                                   Temp_table_param *param,
-                                  TABLE *out_table,
                                   const bool new_partition_or_eof,
                                   bool *output_row_ready)
 {
-  DBUG_ENTER("process_buffered_record");
+  DBUG_ENTER("process_buffered_windowing_record");
   /**
     The current window
   */
   Window &w= *param->m_window;
 
   /**
-    The frame, if any
+    The frame
   */
   const PT_frame *f= w.frame();
 
+  *output_row_ready= false;
+
   /**
-    This is the row we are currently considering for processing and getting 
+    This is the row we are currently considering for processing and getting
     ready for output, cf. output_row_ready.
   */
   const int64 current_row= w.last_row_output() + 1;
@@ -4690,6 +4663,9 @@ process_buffered_windowing_record(THD *thd,
     This is the row number of the last row we have buffered so far.
   */
   const int64 last_rowno_in_cache= w.last_rowno_in_cache();
+
+  if (current_row > last_rowno_in_cache) // already sent all buffered rows
+    DBUG_RETURN(false);
 
   /**
     If true, use code path for static aggregates
@@ -4706,10 +4682,8 @@ process_buffered_windowing_record(THD *thd,
   */
   const bool range_optimizable= w.optimizable_range_aggregates();
 
-  /**
-    If true, use code path for dynamic upper bound frame
-  */
-  const bool dynamic_upper_optimizable= w.has_dynamic_frame_upper_bound();
+  // These three strategies are mutually exclusive:
+  DBUG_ASSERT((static_aggregate + row_optimizable + range_optimizable) <= 1);
 
   /**
     We need to evaluate FIRST_VALUE, or optimized MIN/MAX
@@ -4729,60 +4703,62 @@ process_buffered_windowing_record(THD *thd,
   /**
     We need to evaluate LEAD/LAG rows
   */
+
   const Window::st_lead_lag &have_lead_lag= w.opt_lead_lag();
 
   /**
-    True if one of the optimization strategies is used. For common
+    True if an inversion optimization strategy is used. For common
     code paths.
   */
-  const bool optimizable= (row_optimizable || range_optimizable ||
-                           dynamic_upper_optimizable);
-  
+  const bool optimizable= (row_optimizable || range_optimizable);
+
   /**
     RANGE was specified as the bounds unit for the frame
   */
-  const bool range_frame= (f != nullptr && f->m_unit == WFU_RANGE);
+  const bool range_frame= f->m_unit == WFU_RANGE;
 
+  const bool range_to_current_row=
+    range_frame && f->m_to->m_border_type == WBT_CURRENT_ROW;
+
+  const bool range_from_first_to_current_row=
+    range_to_current_row &&
+    f->m_from->m_border_type == WBT_UNBOUNDED_PRECEDING;
   /**
     UNBOUNDED FOLLOWING was specified for the frame
   */
   bool unbounded_following= false;
 
   /**
-    Row_number of the first row in the frame. Invariant:lower_limit >= 1
+    Row_number of the first row in the frame. Invariant: lower_limit >= 1
     after initialization.
   */
   int64 lower_limit= 1;
 
   /**
-    Row_number of the logically last row to be computed in the frame, may be 
-    higher than the number of rows in the partition. The actual highest row 
+    Row_number of the logically last row to be computed in the frame, may be
+    higher than the number of rows in the partition. The actual highest row
     number is computed later, see upper below.
   */
   int64 upper_limit= 0;
 
   /**
-    needs peerset of current row to evaluate a wf for the current row, currently
-    CUME_DIST.
+    needs peerset of current row to evaluate a wf for the current row.
   */
   bool needs_peerset= w.needs_peerset();
-  
-  if (f == nullptr && !new_partition_or_eof)
-  {
-    // No explicit frame: always buffer all the rows in the partition first
-    *output_row_ready= false;
-    DBUG_RETURN(false);
-  }
+
+  DBUG_PRINT("enter", ("current_row: %lld, new_partition_or_eof: %d",
+                       current_row, new_partition_or_eof));
 
   /* Compute lower_limit, upper_limit and possibly unbounded_following */
-  if (f == nullptr)
-  {
-    upper_limit= last_rowno_in_cache;
-  }
-  else if (f->m_unit == WFU_RANGE)
+  if (f->m_unit == WFU_RANGE)
   {
     lower_limit= w.first_rowno_in_range_frame();
-    upper_limit= last_rowno_in_cache;
+    /*
+      For RANGE frame, we first buffer all the rows in the partition due to the
+      need to find last peer before first can be processed. This can be optimized,
+      FIXME.
+    */
+    upper_limit= INT64_MAX;
   }
   else
   {
@@ -4820,6 +4796,7 @@ process_buffered_windowing_record(THD *thd,
       switch (f->m_to->m_border_type)
       {
         case WBT_CURRENT_ROW:
+          // we always have enough cache
           upper_limit= current_row;
           break;
         case WBT_VALUE_PRECEDING:
@@ -4830,12 +4807,7 @@ process_buffered_windowing_record(THD *thd,
           break;
         case WBT_UNBOUNDED_FOLLOWING:
           unbounded_following= true;
-          if (!new_partition_or_eof)
-          {
-            *output_row_ready= false;
-            DBUG_RETURN(false);
-          }
-          upper_limit= static_cast<int64>(last_rowno_in_cache);
+          upper_limit= INT64_MAX;               // need whole partition
           break;
         case WBT_UNBOUNDED_PRECEDING:
           DBUG_ASSERT(false);
@@ -4843,78 +4815,95 @@ process_buffered_windowing_record(THD *thd,
       }
     }
   }
-  
-  if (current_row > last_rowno_in_cache ||
-      !exists_computable_row(w, last_rowno_in_cache, lower_limit, upper_limit,
-                            new_partition_or_eof))
-  {
-    // We haven't read enough rows yet, so return
-     *output_row_ready= false;
-    DBUG_RETURN(false);
-  }
+
+  /*
+    Determine if, given our current read and buffering state, we have enough
+    buffered rows to compute an output row.
+
+    Example: ROWS BETWEEN 1 PRECEDING and 3 FOLLOWING
+
+    State:
+    +---+-------------------------------+
+    |   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+    +---+-------------------------------+
+    ^    1?         ^
+    lower      last_rowno_in_cache
+    (0)             (4)
+
+    This state means:
+
+    We have read 4 rows, cf. value of last_rowno_in_cache.
+    We can now process row 1 since both lower (1-1=0) and upper (1+3=4) are less
+    than or equal to 4, the last row in the cache so far.
+
+    We can not process row 2 since: !(4 >= 2 + 3) and we haven't seen the last
+    row in partition which means that the frame may not be full yet.
+
+    If we have a window function that needs to know the partition cardinality,
+    we also must buffer all records of the partition before processing.
+  */
+
+  if(! ((lower_limit <= last_rowno_in_cache &&
+         upper_limit <= last_rowno_in_cache &&
+         !w.needs_card()) || /* we have cached enough rows */
+        new_partition_or_eof /* we have cached all rows */))
+    DBUG_RETURN(false);      // We haven't read enough rows yet, so return
 
   w.set_rowno_in_partition(current_row);
   w.set_diagnostics_rowno(thd->get_stmt_da(), current_row);
 
-  if ((range_optimizable || dynamic_upper_optimizable) &&
-      current_row != 1)
-  {
-    /*
-      We have already saved the computed results for previous current row's
-      range framing aggregates. Prime the out-record with its values, since
-      there may be no new rows to aggregate for this current row, e.g. if
-      it has the same value in the order by expression so that the row is in
-      the same peer set.  Fields and other window functions need to be
-      moved/computed as always.
-    */
-    w.restore_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
-                             out_table->record[0]);
-  }
-    
+  /*
+    By default, we must:
+    - if we are the first row of a partition, reset values for both
+    non-framing and framing WFs
+    - reset values for framing WFs (new current row = new frame = new
+    values for WFs).
+
+    Both resettings require restoring the row from the FB. And, as we have
+    restored this row, we use this opportunity to compute non-framing
+    does-not-need-card functions.
+
+    The meaning of if statements below is that in some cases, we can avoid
+    this default behaviour.
+
+    For example, if we have static framing WFs, and this is not the
+    partition's first row: the previous row's framing-WF values should be
+    reused without change, so all the above resetting must be skipped;
+    so row restoration isn't immediately needed; that and the computation of
+    non-framing functions is then done in another later block of code.
+    Likewise, if we have framing WFs with inversion, and it's not the
+    first row of the partition, we must skip the resetting of framing WFs.
+  */
   if (!static_aggregate || current_row == 1)
   {
-    /* Set up the correct non-wf fields for copying to the output row */
-    bring_back_frame_row(thd, w, current_row, Window::REA_CURRENT);
-
-    if (copy_fields(param, thd))
+    /*
+      We need to reset functions. As part of it, their comparators need to
+      update themselves to use the new row as base line. So, restore it:
+    */
+    if (bring_back_frame_row(thd, w, param, current_row, Window::REA_CURRENT))
       DBUG_RETURN(true);
 
-    if (current_row == 1)
-    {
-      // Can't do this earlier; comparator resets require copy_fields done above
+    if (current_row == 1) // new partition
       reset_non_framing_wf_state(param->items_to_copy);
-      reset_framing_wf_states(param->items_to_copy);
-    }
-    else if (!optimizable ||
-             (current_row == lower_limit && !w.aggregates_primed()))
+    if (!optimizable || current_row == 1) // new frame
     {
       reset_framing_wf_states(param->items_to_copy);
-    } // else for optimizable we remember state and update it for row 2..N
+    } // else we remember state and update it for row 2..N
 
-    /* E.g. ROW_NUMBER, RANK, RANK_DENSE */
+    /* E.g. ROW_NUMBER, RANK, DENSE_RANK */
     if (copy_funcs(param, thd, CFT_WF_NON_FRAMING))
       DBUG_RETURN(true);
-
-    if (!optimizable || (current_row == lower_limit && !w.aggregates_primed()))
+    if (!optimizable || current_row == 1)
     {
-      /* a priori NULL aggregation result if frame is empty */
+      /*
+        So far frame is empty; set up a flag which makes framing WFs set
+        themselves to NULL in OUT.
+      */
       w.set_do_copy_null(true);
       if (copy_funcs(param, thd, CFT_WF_FRAMING))
         DBUG_RETURN(true);
       w.set_do_copy_null(false);
-    } // else Just initialized aggr the aggregates with previous row above
-  }
-
-  if (static_aggregate && current_row != 1)
-  {
-    /*
-      We have already saved the computed results for the framing aggregates so
-      no need to compute it again. Prime the out-record with its values.
-      Fields and other window functions need to be moved/computed as always.
-      Save this result row since the aggregates do not change.
-    */
-    w.restore_special_record(Window::FBC_FIRST_IN_STATIC_RANGE,
-                             out_table->record[0]);
+    } // else aggregates keep value of previous row, and we'll do inversion
   }
 
   if (range_frame)
@@ -4922,35 +4911,26 @@ process_buffered_windowing_record(THD *thd,
     /* establish current row as base-line for RANGE computation */
     w.reset_order_by_peer_set();
   }
-    
+
   bool first_row_in_range_frame_seen= false;
 
   /**
     For optimized strategy we want to save away the previous aggregate result
-    and reuse in later round by inversion. This keep track of whether we managed
+    and reuse in later round by inversion. This keeps track of whether we managed
     to compute results for this current row (result are "primed"), so we can use
     inversion in later rows. Cf Window::m_aggregates_primed.
   */
   bool optimizable_primed= false;
 
   /**
-    Possible adjustment of the logical upper_limit: no rows exist in beyond
+    Possible adjustment of the logical upper_limit: no rows exist beyond
     last_rowno_in_cache.
   */
   const int64 upper= min(upper_limit, last_rowno_in_cache);
 
   /*
-    When we have a mix of two-pass wfs and framing wfs, we evaluate the
-    two-pass wfs as part of evaluating the framing wfs iff the frame
-    encompasses the current row. If not, we must make sure we evaluate the two
-    wfs separately later. This variable keeps track of the whether the former
-    took place.
-  */
-  bool two_pass_done= false;
-
-  /*
     Optimization: we evaluate the peer set of the current row potentially
-    several times. Window functions like CUME_DIST sets needs_peerset and
+    several times. Window functions like CUME_DIST sets needs_peerset and is
     evaluated last, so if any other wf evaluation led to finding the peer set
     of the current row, make a note of it, so we can skip doing it twice.
   */
@@ -4960,20 +4940,20 @@ process_buffered_windowing_record(THD *thd,
        (optimizable && !w.aggregates_primed()) ||  // skip for 2..N in frame
        (!static_aggregate && !optimizable) )       // normal: no skip
   {
-    /*
-      For ROWS frames, we can compute and output at least one row, i.e.
-      current_row. For RANGE frames, it depends...
-    */
+    // Compute and output current_row.
     int64 rowno;      ///< iterates over rows in a frame
     int64 skipped= 0; ///< RANGE: # of visited rows seen before the frame
-    bool range_did_aggregate= false;
 
     for (rowno= lower_limit; rowno <= upper; rowno++)
     {
       if (optimizable)
         optimizable_primed= true;
 
-      /* Set window frame state before computing framing window function */
+      /*
+        Set window frame state before computing framing window function.
+        'n' is the number of row #rowno relative to the beginning of the
+        frame, 1-based.
+      */
       const int64 n= rowno - lower_limit + 1 - skipped;
 
       w.set_rowno_in_frame(n);
@@ -4988,10 +4968,7 @@ process_buffered_windowing_record(THD *thd,
       w.save_pos(reason);
 
       /* Set up the non-wf fields for aggregating to the output row. */
-      if (bring_back_frame_row(thd, w, rowno, reason))
-        DBUG_RETURN(true);
-
-      if (copy_fields(param, thd)) // wfs read args fields from outfile record
+      if (bring_back_frame_row(thd, w, param, rowno, reason))
         DBUG_RETURN(true);
 
       if (range_frame)
@@ -5001,17 +4978,13 @@ process_buffered_windowing_record(THD *thd,
           skipped++;
           continue;
         }
-        else if (w.after_frame())
+        if (w.after_frame())
         {
-          if (optimizable && !range_did_aggregate)
-          {
-            w.save_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
-                                  out_table);
-          }
-
           w.set_last_rowno_in_range_frame(rowno - 1);
+
           if (!first_row_in_range_frame_seen)
-            w.set_first_rowno_in_range_frame(rowno); // empty frame
+            // empty frame, optimize starting point for next row
+            w.set_first_rowno_in_range_frame(rowno);
           w.restore_pos(reason);
           break;
         } // else: row is within range, process
@@ -5027,33 +5000,9 @@ process_buffered_windowing_record(THD *thd,
         }
       }
 
-      if (w.has_dynamic_frame_upper_bound() && rowno >= current_row)
-      {
-        /*
-          Aggregate with order by and no framing requires we determine peer of
-          current row
-        */
-        if (rowno == current_row)
-        {
-          /* establish current row as base-line for peer set */
-          w.reset_order_by_peer_set();
-        }
-        else if (w.in_new_order_by_peer_set())
-        {
-          w.set_last_rowno_in_range_frame(rowno - 1);
-          w.set_last_rowno_in_peerset(rowno - 1);
-          have_peers_current_row= true;
-          break; // we have accumulated all rows in the peer set
-        }
-
-        /*
-          We are still in the peer set of the current row, so continue
-          accumulating
-        */
-      }
-
       /*
-        SUM, AVG etc. For the case of has_dynamic_frame_upper_bound and RANGE
+        Compute framing WFs. For ROWS frame, "upper" is exactly the frame's
+        last row; but for the case of RANGE
         we can't be sure that this is indeed the last row, but we must make a
         pessimistic assumption. If it is not the last, the final row
         calculation, if any, as for AVG, will be repeated for the next peer
@@ -5061,51 +5010,24 @@ process_buffered_windowing_record(THD *thd,
         For optimized MIN/MAX [1], we do this to make sure we have a non-NULL
         last value (if one exists) for the initial frame.
       */
-      if (rowno == upper || w.has_dynamic_frame_upper_bound() ||
-          range_frame || have_last_value /* [1] */)
+      const bool setstate= (rowno == upper || range_frame
+                            || have_last_value /* [1] */);
+      if (setstate)
         w.set_is_last_row_in_frame(true); // temporary state for next call
 
+      // Accumulate frame's row into WF's value for current_row:
       if (copy_funcs(param, thd, CFT_WF_FRAMING))
         DBUG_RETURN(true);
 
-      if (rowno == upper || w.has_dynamic_frame_upper_bound() ||
-          range_frame)
+      if (setstate)
         w.set_is_last_row_in_frame(false); // undo temporary state
 
-      /* NTILE and other two-pass wfs which do not need peerset */
-      if (w.some_wf_needs_frame_card() && new_partition_or_eof && !needs_peerset
-          && rowno == current_row)
-      {
-        if (process_wfs_needing_card(thd, param, have_nth_value, have_lead_lag,
-                                     current_row, w,
-                                     n == 1 ?
-                                     Window::REA_FIRST_IN_FRAME :
-                                     Window::REA_LAST_IN_FRAME))
-            DBUG_RETURN(true);
-
-        two_pass_done= true;
-      }
-
-      if (range_optimizable || dynamic_upper_optimizable)
-      {
-        range_did_aggregate= true;
-        w.save_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
-                              out_table);
-      }
     }
 
-    if ((range_frame || w.has_dynamic_frame_upper_bound()) &&
-        rowno > upper) // no more rows in partition
+    if (range_frame || rowno > upper) // no more rows in partition
     {
       if (range_frame)
       {
-        /*
-          For a range frame, if we did not aggregate above, save the
-          record from table->record[0] for restoration later.
-        */
-        if (optimizable && !range_did_aggregate)
-          w.save_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
-                                out_table);
         if (!first_row_in_range_frame_seen)
         {
           /*
@@ -5116,33 +5038,33 @@ process_buffered_windowing_record(THD *thd,
         }
       }
       w.set_last_rowno_in_range_frame(rowno - 1);
+      if (range_to_current_row)
+      {
+        w.set_last_rowno_in_peerset(w.last_rowno_in_range_frame());
+        have_peers_current_row= true;
+      }
     } // else: we already set it before breaking out of loop
   }
 
-  bool out_fields_ready= false;
-
-  if (static_aggregate)
+  /*
+    While the block above was for the default execution method, below we have
+    alternative blocks for optimized methods: static framing WFs and
+    inversion, when current_row isn't first; i.e. we can use the previous
+    row's value of framing WFs as a base.
+    In the row buffer of OUT, after the previous row was emitted, these values
+    of framing WFs are still present, as no copy_funcs(CFT_WF_FRAMING) was run
+    for our new row yet.
+  */
+  if (static_aggregate && current_row != 1)
   {
-    if (current_row == 1)
-    {
-      /* Save this result row since the aggregates do not change. */
-      w.save_special_record(Window::FBC_FIRST_IN_STATIC_RANGE,
-                            out_table);
-    }
-    else
-    {
-      /* Set up the correct non-wf fields for copying to the output row */
-      bring_back_frame_row(thd, w, current_row, Window::REA_CURRENT);
-        
-      if (copy_fields(param, thd))
-        DBUG_RETURN(true);
-        
-      /* E.g. ROW_NUMBER, RANK, RANK_DENSE */
-      if (copy_funcs(param, thd, CFT_WF_NON_FRAMING))
-        DBUG_RETURN(true);
+    /* Set up the correct non-wf fields for copying to the output row */
+    if (bring_back_frame_row(thd, w, param, current_row,
+                             Window::REA_CURRENT))
+      DBUG_RETURN(true);
 
-      out_fields_ready= true;
-    }
+    /* E.g. ROW_NUMBER, RANK, DENSE_RANK */
+    if (copy_funcs(param, thd, CFT_WF_NON_FRAMING))
+      DBUG_RETURN(true);
   }
   else if (row_optimizable && w.aggregates_primed())
   {
@@ -5160,11 +5082,8 @@ process_buffered_windowing_record(THD *thd,
     /* possibly subtract: early in partition there may not be any */
     if (remove_previous_first_row)
     {
-      if (bring_back_frame_row(thd, w, lower_limit - 1,
+      if (bring_back_frame_row(thd, w, param, lower_limit - 1,
                                Window::REA_FIRST_IN_FRAME))
-        DBUG_RETURN(true);
-        
-      if (copy_fields(param, thd)) // wfs read args fields from outfile record
         DBUG_RETURN(true);
         
       w.set_inverse(true);
@@ -5184,62 +5103,44 @@ process_buffered_windowing_record(THD *thd,
         if (copy_funcs(param, thd, CFT_WF_FRAMING))
           DBUG_RETURN(true);
       }
-        
+
       w.set_inverse(false);
-    }
-
-    if (!remove_previous_first_row && !new_last_row)
-    {
-      /*
-        Make sure aggregates get initialized correctly even if they do not
-        change. Redundant if we call copy_funcs(.., CFT_WF_FRAMING) due to
-        FIRST_VALUE, LAST_VALUE or NTH_VALUE below, but cheap, so we don't
-        optimize this away for now.
-      */
-      w.set_dont_aggregate(true);
-
-      if (copy_funcs(param, thd, CFT_WF_FRAMING))
-        DBUG_RETURN(true);
-
-      w.set_dont_aggregate(false);
     }
 
     if (have_first_value && (lower_limit <= last_rowno_in_cache))
     {
-      if (bring_back_frame_row(thd, w, lower_limit, Window::REA_FIRST_IN_FRAME))
+      // We have seen first row of frame, FIRST_VALUE can be computed:
+      if (bring_back_frame_row(thd, w, param, lower_limit,
+                               Window::REA_FIRST_IN_FRAME))
         DBUG_RETURN(true);
 
-      if (copy_fields(param, thd)) // wfs read args fields from outfile record
+      w.set_rowno_in_frame(1);
+
+      /*
+        Framing WFs which accumulate (SUM, COUNT, AVG) shouldn't accumulate
+        this row again as they have done so already. Evaluate only
+        X_VALUE/MIN/MAX.
+      */
+      if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
         DBUG_RETURN(true);
-
-      w.set_rowno_in_frame(1).
-        set_dont_aggregate(true);
-
-      if (copy_funcs(param, thd, CFT_WF_FRAMING))
-        DBUG_RETURN(true);
-
-      w.set_dont_aggregate(false);
     }
 
     if (have_last_value && !new_last_row)
     {
-      if (bring_back_frame_row(thd, w, upper, Window::REA_LAST_IN_FRAME))
+      // We have seen last row of frame, LAST_VALUE can be computed:
+      if (bring_back_frame_row(thd, w, param, upper,
+                               Window::REA_LAST_IN_FRAME))
         DBUG_RETURN(true);
 
-      if (copy_fields(param, thd)) // wfs read args fields from outfile record
-        DBUG_RETURN(true);
-
-      w.set_rowno_in_frame(rn_in_frame).
-        set_dont_aggregate(true);
+      w.set_rowno_in_frame(rn_in_frame);
 
       if (rn_in_frame > 0)
         w.set_is_last_row_in_frame(true);
 
-      if (copy_funcs(param, thd, CFT_WF_FRAMING))
+      if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
         DBUG_RETURN(true);
 
-      w.set_dont_aggregate(false).
-        set_is_last_row_in_frame(false);
+      w.set_is_last_row_in_frame(false);
     }
 
     if (!have_nth_value.m_offsets.empty())
@@ -5249,32 +5150,24 @@ process_buffered_windowing_record(THD *thd,
       {
         if (lower_limit + nth.m_rowno - 1 <= upper)
         {
-          if (bring_back_frame_row(thd, w, lower_limit + nth.m_rowno - 1,
+          if (bring_back_frame_row(thd, w, param,
+                                   lower_limit + nth.m_rowno - 1,
                                    Window::REA_MISC_POSITIONS, fno++))
             DBUG_RETURN(true);
 
-          if (copy_fields(param, thd)) // wfs read args fields from outfile record
+          w.set_rowno_in_frame(nth.m_rowno);
+
+          if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
             DBUG_RETURN(true);
-
-          w.set_rowno_in_frame(nth.m_rowno).
-            set_dont_aggregate(true);
-
-          if (copy_funcs(param, thd, CFT_WF_FRAMING))
-            DBUG_RETURN(true);
-
-          w.set_dont_aggregate(false);
         }
       }
     }
 
-    if (new_last_row)
+    if (new_last_row) // Add new last row to framing WF's value
     {
-      if (bring_back_frame_row(thd, w, upper, Window::REA_LAST_IN_FRAME))
+      if (bring_back_frame_row(thd, w, param, upper, Window::REA_LAST_IN_FRAME))
         DBUG_RETURN(true);
-        
-      if (copy_fields(param, thd)) // wfs read args fields from outfile record
-        DBUG_RETURN(true);
-        
+
       w.set_rowno_in_frame(upper - lower_limit + 1).
         set_is_last_row_in_frame(true); // temporary states for next copy
       w.set_rowno_being_visited(upper);
@@ -5290,251 +5183,222 @@ process_buffered_windowing_record(THD *thd,
     /*
       Peer sets 2..N in partition: we still have state from previous current
       row's frame computation, now adjust by possibly subtracting rows no
-      longer in frame and possibly adding new rows now within range
+      longer in frame and possibly adding new rows now within range.
     */
     const int64 prev_last_rowno_in_frame= w.last_rowno_in_range_frame();
     const int64 prev_first_rowno_in_frame= w.first_rowno_in_range_frame();
 
-    /**
-      Whether we know the start of the frame yet. The a priori setting is
-      inherited from the previous current row.
+    /*
+      As an optimization, if:
+      - RANGE frame specification ends at CURRENT ROW and
+      - current_row belongs to frame of previous row,
+      then both rows are peers, so have the same frame: nothing changes.
     */
-    bool found_first= (prev_first_rowno_in_frame <= prev_last_rowno_in_frame);
-    int64 new_first_rowno_in_frame= prev_first_rowno_in_frame; // a priori
-
-    int64 inverted= 0; // Number of rows inverted when moving frame
-    int64 rowno;      // Partition relative, loop counter
-
-    for (rowno= lower_limit;
-         (rowno <= upper &&
-          prev_first_rowno_in_frame <= prev_last_rowno_in_frame);
-         rowno++)
+    if (range_to_current_row &&
+        current_row >= prev_first_rowno_in_frame &&
+        current_row <= prev_last_rowno_in_frame)
     {
-      /* Set up the non-wf fields for aggregating to the output row. */
-      if (bring_back_frame_row(thd, w, rowno, Window::REA_FIRST_IN_FRAME))
-        DBUG_RETURN(true);
-        
-      if (copy_fields(param, thd)) // wfs read args fields from outfile record
-        DBUG_RETURN(true);
+      // Peer set should already have been determined:
+      DBUG_ASSERT(w.last_rowno_in_peerset() >= current_row);
+      have_peers_current_row= true;
+    }
+    else
+    {
+      /**
+         Whether we know the start of the frame yet. The a priori setting is
+         inherited from the previous current row.
+      */
+      bool found_first= (prev_first_rowno_in_frame <= prev_last_rowno_in_frame);
+      int64 new_first_rowno_in_frame= prev_first_rowno_in_frame; // a priori
 
-      if (w.before_frame())
+      int64 inverted= 0; // Number of rows inverted when moving frame
+      int64 rowno;       // Partition relative, loop counter
+
+      if (range_from_first_to_current_row)
       {
-        w.set_inverse(true).
-          /*
-            The next setting sets the logical last row number in the frame after
-            inversion, so that final actions can do the right thing, e.g.  AVG
-            needs to know the updated cardinality. The aggregates consults
-            m_rowno_in_frame for that, so set it accordingly.
-          */
-          set_rowno_in_frame(prev_last_rowno_in_frame -
-                             prev_first_rowno_in_frame + 1 -
-                             ++inverted).
-          set_is_last_row_in_frame(true); // pessimistic assumption
-
-        if (copy_funcs(param, thd, CFT_WF_FRAMING))
-          DBUG_RETURN(true);
-
-        w.set_inverse(false).
-          set_is_last_row_in_frame(false);
-        found_first= false;
+        /*
+          No need to locate frame's start, it's first row of partition. No
+          need to recompute FIRST_VALUE, it's same as for previous row.
+          So we just have to accumulate new rows.
+        */
+        DBUG_ASSERT(current_row > prev_last_rowno_in_frame &&
+                    lower_limit == 1 && prev_first_rowno_in_frame == 1 &&
+                    found_first);
       }
       else
       {
-        if (w.after_frame())
+        for (rowno= lower_limit;
+             (rowno <= upper &&
+              prev_first_rowno_in_frame <= prev_last_rowno_in_frame);
+             rowno++)
         {
-          found_first= false;
-        }
-        else
-        {
-          w.set_first_rowno_in_range_frame(rowno);
-          found_first= true;
-          new_first_rowno_in_frame= rowno;
-          w.set_rowno_in_frame(1);
+          /* Set up the non-wf fields for aggregating to the output row. */
+          if (bring_back_frame_row(thd, w, param, rowno,
+                                   Window::REA_FIRST_IN_FRAME))
+            DBUG_RETURN(true);
+
+          if (w.before_frame())
+          {
+            w.set_inverse(true).
+              /*
+                The next setting sets the logical last row number in the frame after
+                inversion, so that final actions can do the right thing, e.g.  AVG
+                needs to know the updated cardinality. The aggregates consults
+                m_rowno_in_frame for that, so set it accordingly.
+              */
+              set_rowno_in_frame(prev_last_rowno_in_frame -
+                                 prev_first_rowno_in_frame + 1 -
+                                 ++inverted).
+              set_is_last_row_in_frame(true); // pessimistic assumption
+
+            if (copy_funcs(param, thd, CFT_WF_FRAMING))
+              DBUG_RETURN(true);
+
+            w.set_inverse(false).
+              set_is_last_row_in_frame(false);
+            found_first= false;
+          }
+          else
+          {
+            if (w.after_frame())
+            {
+              found_first= false;
+            }
+            else
+            {
+              w.set_first_rowno_in_range_frame(rowno);
+              found_first= true;
+              new_first_rowno_in_frame= rowno;
+              w.set_rowno_in_frame(1);
+            }
+
+            break;
+          }
         }
 
-        break;
+        if ((have_first_value || have_last_value) &&
+            (rowno <= last_rowno_in_cache) && found_first)
+        {
+          /*
+             We have FIRST_VALUE or LAST_VALUE and have a new first row; make it last
+             also until we find something better.
+          */
+          w.set_is_last_row_in_frame(true);
+          w.set_rowno_being_visited(rowno);
+
+          if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
+            DBUG_RETURN(true);
+          w.set_is_last_row_in_frame(false);
+
+          if (have_last_value && w.last_rowno_in_range_frame() > rowno)
+          {
+            /* Set up the non-wf fields for aggregating to the output row. */
+            if (bring_back_frame_row(thd, w, param,
+                                     w.last_rowno_in_range_frame(),
+                                     Window::REA_LAST_IN_FRAME))
+              DBUG_RETURN(true);
+
+            w.set_rowno_in_frame(w.last_rowno_in_range_frame() -
+                                 w.first_rowno_in_range_frame() + 1).
+              set_is_last_row_in_frame(true);
+            w.set_rowno_being_visited(w.last_rowno_in_range_frame());
+            if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
+              DBUG_RETURN(true);
+            w.set_is_last_row_in_frame(false);
+          }
+        }
       }
-    }
 
-    if ((have_first_value || have_last_value) &&
-        (rowno <= last_rowno_in_cache) && found_first)
-    {
-      /* 
-        We have FIRST_VALUE or LAST_VALUE and have a new first row; make it last
-        also until we find something better.
+      /*
+        We last evaluated last_rowno_in_range_frame for the previous current
+        row. Now evaluate over any new rows within range of the current row.
       */
-      w.set_dont_aggregate(true).
-        set_is_last_row_in_frame(true);
-      w.set_rowno_being_visited(rowno);
+      const int64 first= w.last_rowno_in_range_frame() + 1;
+      bool row_added= false;
 
-      if (copy_funcs(param, thd, CFT_WF_FRAMING))
-        DBUG_RETURN(true);
-      w.set_dont_aggregate(false).
-        set_is_last_row_in_frame(false);
-
-      if (have_last_value && w.last_rowno_in_range_frame() > rowno)
-      {
-        /* Set up the non-wf fields for aggregating to the output row. */
-        if (bring_back_frame_row(thd, w, w.last_rowno_in_range_frame(),
-                                 Window::REA_LAST_IN_FRAME))
-          DBUG_RETURN(true);
-
-        if (copy_fields(param, thd)) // wfs read args fields from outfile record
-          DBUG_RETURN(true);
-
-        w.set_rowno_in_frame(w.last_rowno_in_range_frame() -
-                             w.first_rowno_in_range_frame() + 1).
-          set_dont_aggregate(true).
-          set_is_last_row_in_frame(true);
-        w.set_rowno_being_visited(w.last_rowno_in_range_frame());
-        if (copy_funcs(param, thd, CFT_WF_FRAMING))
-          DBUG_RETURN(true);
-        w.set_dont_aggregate(false).
-          set_is_last_row_in_frame(false);
-      }
-    }
-
-    /*
-      We last evaluated last_rowno_in_range_frame for the previous current
-      row. Now evaluate over any new rows within range of the current row.
-    */
-    const int64 first= w.last_rowno_in_range_frame() + 1;
-    bool row_added= false;
-
-    for (rowno= first; rowno <= upper; rowno++)
-    {
-      w.save_pos(Window::REA_LAST_IN_FRAME);
-      if (bring_back_frame_row(thd, w, rowno, Window::REA_LAST_IN_FRAME))
-        DBUG_RETURN(true);
-
-      if (copy_fields(param, thd)) // wfs read args fields from outfile record
-        DBUG_RETURN(true);
-
-      if (w.before_frame())
-      {
-        if (!found_first)
-          new_first_rowno_in_frame++;
-        continue;
-      }
-      else if (w.after_frame())
-      {
-        w.set_last_rowno_in_range_frame(rowno - 1);
-        if (!found_first)
-          w.set_first_rowno_in_range_frame(rowno);
-        w.restore_pos(Window::REA_LAST_IN_FRAME);
-        break;
-      } // else: row is within range, process
-
-      const int64 rowno_in_frame= rowno - new_first_rowno_in_frame + 1;
-
-      if (rowno_in_frame == 1 && !found_first)
-      {
-        found_first= true;
-        w.set_first_rowno_in_range_frame(rowno);
-        // Found the first row in this range frame. Make a note in the hint.
-        w.copy_pos(Window::REA_LAST_IN_FRAME, Window::REA_FIRST_IN_FRAME);
-      }
-      w.set_rowno_in_frame(rowno_in_frame).
-        set_is_last_row_in_frame(true); // pessimistic assumption
-      w.set_rowno_being_visited(rowno);
-
-      if (copy_funcs(param, thd, CFT_WF_FRAMING))
-        DBUG_RETURN(true);
-        
-      w.set_is_last_row_in_frame(false); // undo temporary states
-      row_added= true;
-    }
-      
-    if (rowno > upper && row_added)
-      w.set_last_rowno_in_range_frame(rowno - 1);
-
-    if (found_first && !have_nth_value.m_offsets.empty())
-    {
-      // frame is non-empty, so we might find NTH_VALUE
-      DBUG_ASSERT(w.first_rowno_in_range_frame() <=
-                  w.last_rowno_in_range_frame());
-      int fno= 0;
-      for (auto nth : have_nth_value.m_offsets)
-      {
-        const int64 row_to_get= w.first_rowno_in_range_frame() + nth.m_rowno - 1;
-        if (row_to_get <= w.last_rowno_in_range_frame())
-        {
-          if (bring_back_frame_row(thd, w, row_to_get,
-                                   Window::REA_MISC_POSITIONS, fno++))
-            DBUG_RETURN(true);
-
-          if (copy_fields(param, thd)) // wfs read args fields from outfile record
-            DBUG_RETURN(true);
-
-          w.set_rowno_in_frame(nth.m_rowno).
-            set_dont_aggregate(true);
-
-          if (copy_funcs(param, thd, CFT_WF_FRAMING))
-            DBUG_RETURN(true);
-
-          w.set_dont_aggregate(false);
-        }
-      }
-    }
-
-    w.save_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
-                          out_table);
-  }
-  else if (w.has_dynamic_frame_upper_bound() && w.aggregates_primed())
-  {
-    /*
-      Aggregate with ORDER BY and no framing requires we determine peer of
-      the current row
-    */
-    int64 first= w.last_rowno_in_range_frame() + 1;
-
-    if (current_row >= first)
-    {
-      int64 rowno;
       for (rowno= first; rowno <= upper; rowno++)
       {
-        if (bring_back_frame_row(thd, w, rowno,
-                                 rowno == first ?
-                                 Window::REA_FIRST_IN_FRAME :
+        w.save_pos(Window::REA_LAST_IN_FRAME);
+        if (bring_back_frame_row(thd, w, param, rowno,
                                  Window::REA_LAST_IN_FRAME))
           DBUG_RETURN(true);
-          
-        if (copy_fields(param, thd)) // wfs read args fields from outfile record
-          DBUG_RETURN(true);
 
-        if (rowno == first)
+        if (w.before_frame())
         {
-          /* establish current row as base-line for peer set */
-          w.reset_order_by_peer_set();
+          if (!found_first)
+            new_first_rowno_in_frame++;
+          continue;
         }
-        else if (w.in_new_order_by_peer_set())
+        else if (w.after_frame())
         {
           w.set_last_rowno_in_range_frame(rowno - 1);
-          break; // we have accumulated all rows in the peer set
-        }
+          if (!found_first)
+            w.set_first_rowno_in_range_frame(rowno);
+          if (!range_to_current_row)
+          {
+            /*
+              If range_to_current_row, this first row out of frame will be
+              necessary soon, so keep its position.
+            */
+            w.restore_pos(Window::REA_LAST_IN_FRAME);
+          }
+          break;
+        } // else: row is within range, process
 
-        w.set_rowno_in_frame(rowno).
-          /*
-            We are still in the peer set of the current row, so continue
-            accumulating. Pessimistic assumption: this might be the last row in
-            the peer set, se we need to perform any final aggregate action.
-          */
-          set_is_last_row_in_frame(true); // temporary state for next call
+        const int64 rowno_in_frame= rowno - new_first_rowno_in_frame + 1;
+
+        if (rowno_in_frame == 1 && !found_first)
+        {
+          found_first= true;
+          w.set_first_rowno_in_range_frame(rowno);
+          // Found the first row in this range frame. Make a note in the hint.
+          w.copy_pos(Window::REA_LAST_IN_FRAME, Window::REA_FIRST_IN_FRAME);
+        }
+        w.set_rowno_in_frame(rowno_in_frame).
+          set_is_last_row_in_frame(true); // pessimistic assumption
+        w.set_rowno_being_visited(rowno);
 
         if (copy_funcs(param, thd, CFT_WF_FRAMING))
           DBUG_RETURN(true);
-
-        w.set_is_last_row_in_frame(false); // undo temporary state
+        
+        w.set_is_last_row_in_frame(false); // undo temporary states
+        row_added= true;
       }
-      if (rowno > upper)
+      
+      if (rowno > upper && row_added)
         w.set_last_rowno_in_range_frame(rowno - 1);
-      w.set_last_rowno_in_peerset(w.last_rowno_in_range_frame());
-      have_peers_current_row= true;
-    }
 
-    w.save_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
-                          out_table);
+      if (range_to_current_row)
+      {
+        w.set_last_rowno_in_peerset(w.last_rowno_in_range_frame());
+        have_peers_current_row= true;
+      }
+
+      if (found_first && !have_nth_value.m_offsets.empty())
+      {
+        // frame is non-empty, so we might find NTH_VALUE
+        DBUG_ASSERT(w.first_rowno_in_range_frame() <=
+                    w.last_rowno_in_range_frame());
+        int fno= 0;
+        for (auto nth : have_nth_value.m_offsets)
+        {
+          const int64 row_to_get= w.first_rowno_in_range_frame() + nth.m_rowno - 1;
+          if (row_to_get <= w.last_rowno_in_range_frame())
+          {
+            if (bring_back_frame_row(thd, w, param, row_to_get,
+                                     Window::REA_MISC_POSITIONS, fno++))
+              DBUG_RETURN(true);
+
+            w.set_rowno_in_frame(nth.m_rowno);
+
+            if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
+              DBUG_RETURN(true);
+          }
+        }
+      }
+    }
   }
+
   /* We need the peer of the current row to evaluate the row. */
   if (needs_peerset && !have_peers_current_row)
   {
@@ -5548,10 +5412,8 @@ process_buffered_windowing_record(THD *thd,
       int64 rowno;
       for (rowno= current_row; rowno <= last_rowno_in_cache; rowno++)
       {
-        if (bring_back_frame_row(thd, w, rowno, Window::REA_LAST_IN_PEERSET))
-          DBUG_RETURN(true);
-
-        if (copy_fields(param, thd)) // wfs read args fields from outfile record
+        if (bring_back_frame_row(thd, w, param, rowno,
+                                 Window::REA_LAST_IN_PEERSET))
           DBUG_RETURN(true);
 
         if (rowno == current_row)
@@ -5574,64 +5436,22 @@ process_buffered_windowing_record(THD *thd,
   if (optimizable && optimizable_primed)
     w.set_aggregates_primed(true);
 
-  /* NTILE and other non-frame wfs */
-  if (w.some_wf_needs_frame_card() && !two_pass_done)
+  if (bring_back_frame_row(thd, w, param, current_row,
+                           Window::REA_CURRENT))
+    DBUG_RETURN(true);
+
+  /* NTILE and other non-framing wfs */
+  if (w.needs_card())
   {
     /* Set up the non-wf fields for aggregating to the output row. */
-    if (bring_back_frame_row(thd, w, current_row, Window::REA_CURRENT))
-      DBUG_RETURN(true);
-      
-    if (copy_fields(param, thd)) // wfs read args fields from outfile record
-      DBUG_RETURN(true);
-
     if (process_wfs_needing_card(thd, param, have_nth_value, have_lead_lag,
                                  current_row, w,  Window::REA_CURRENT))
-        DBUG_RETURN(true);
-
-    out_fields_ready= true;
-  }
-
-  /*
-    All wf values are now computed, restore current row's fields before
-    output can be done, if necessary
-  */
-  if (!out_fields_ready)
-  {
-    if (bring_back_frame_row(thd, w, current_row, Window::REA_CURRENT))
-      DBUG_RETURN(true);
-    if (copy_fields(param, thd))
       DBUG_RETURN(true);
   }
 
   *output_row_ready= true;
   w.set_last_row_output(current_row);
-
-
-  DBUG_RETURN(false);
-}
-
-/**
-  Frame processing will clobber the current input row. So, when a new partition
-  is detected, and we need to process any remaining non-processed row from the
-  previous partition, we need to save away the first row in the next partition,
-  cf. buffer_record. This method brings it back from our temporary frame
-  storage to the current input row.  Cf. buffer_row.
-
-  @param w                 Current window
-  @param thd               Current thread
-
-  @return true if error
-*/
-static bool
-reestablish_new_partition_row(Window &w,
-                              THD *thd)
-{
-  DBUG_ENTER("reestablish_new_partition_row");
-
-  /* bring back saved row for next partition */
-  if (bring_back_frame_row(thd, w, Window::FBC_FIRST_IN_NEXT_PARTITION,
-                           Window::REA_WONT_UPDATE_HINT))
-    DBUG_RETURN(true);
+  DBUG_PRINT("info", ("sent row: %lld", current_row));
 
   DBUG_RETURN(false);
 }
@@ -5651,8 +5471,7 @@ static inline enum_nested_loop_state
 write_or_send_row(JOIN *join,
                   QEP_TAB *const qep_tab,
                   TABLE *const table,
-                  Temp_table_param *const out_tbl,
-                  bool &do_continue)
+                  Temp_table_param *const out_tbl)
 {
   if (out_tbl->m_window_short_circuit)
   {
@@ -5666,10 +5485,7 @@ write_or_send_row(JOIN *join,
   if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (table->file->is_ignorable_error(error))
-    {
-      do_continue= true;
       return NESTED_LOOP_OK;
-    }
 
     /*
       - Convert to disk-based table,
@@ -5766,7 +5582,6 @@ end:
 static enum_nested_loop_state
 end_write_wf(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 {
-  TABLE *const table= qep_tab->table();
   DBUG_ENTER("end_write_wf");
   THD* const thd= join->thd;
 
@@ -5818,8 +5633,6 @@ end_write_wf(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     in the join, the logical input can consist of more than one table 
     (qep_tab-1 .. qep_tab-n). 
 
-
-
     The first thing we do in this function, is:
     we copy fields from IN to OUT (copy_fields), and evaluate non-WF functions
     (copy_funcs): those functions then read their arguments from IN and store
@@ -5869,6 +5682,9 @@ end_write_wf(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   Window *const win= out_tbl->m_window;
   const bool window_buffering= win->needs_buffering();
 
+  if (end_of_records && !window_buffering)
+    DBUG_RETURN(NESTED_LOOP_OK);
+
   /*
     All evaluations of functions, done in process_buffered_windowing_record()
     and copy_funcs(), are using values of the out table, so we must use its
@@ -5878,128 +5694,128 @@ end_write_wf(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   DBUG_ASSERT(qep_tab-1 != join->before_ref_item_slice_tmp3 &&
               qep_tab != join->before_ref_item_slice_tmp3);
 
-  if (!end_of_records || window_buffering)
+  TABLE *const table= qep_tab->table();
+  if (window_buffering)
   {
-    if (window_buffering)
-    {
-      bool new_partition= false;
-      if (!end_of_records)
-      {
-        if (copy_fields(out_tbl, thd))
-          DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-
-        if (copy_funcs(out_tbl, thd, CFT_NON_WF))
-          DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-
-        if (!having_is_true(qep_tab->having))
-          goto end;                              // Didn't match having, skip it
-
-        if (buffer_windowing_record(thd, out_tbl, &new_partition))
-          DBUG_RETURN(NESTED_LOOP_ERROR);
-
-        join->found_records++;
-      }
-
-    repeat:
-      while (true)
-      {
-        bool output_row_ready= false;
-        if (process_buffered_windowing_record(thd,
-                                              out_tbl,
-                                              table,
-                                              new_partition || end_of_records,
-                                              &output_row_ready))
-          DBUG_RETURN(NESTED_LOOP_ERROR);
-
-        if (!output_row_ready)
-          break;
-
-        if (!check_unique_constraint(table))
-          continue; // skip it
-
-        bool dummy= false;
-        enum_nested_loop_state result;
-        if ((result= write_or_send_row(join, qep_tab, table, out_tbl,
-                                       dummy /* inout */)))
-          DBUG_RETURN(result);        // Not a table_is_full error
-
-        if (thd->killed)		  // Aborted by user
-        {
-          thd->send_kill_message();
-          DBUG_RETURN(NESTED_LOOP_KILLED);
-        }
-      }
-
-      if (new_partition)
-      {
-        /*
-          We didn't really buffer this row yet since, we found a partition
-          change so we had to finalize the previous partition first.
-        */
-        if (reestablish_new_partition_row(*win, thd))
-          DBUG_RETURN(NESTED_LOOP_ERROR);
-
-        if (copy_fields(out_tbl, thd))
-          DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-
-        if (buffer_windowing_record(thd, out_tbl,
-                                    nullptr /* first in new partition */))
-          DBUG_RETURN(NESTED_LOOP_ERROR);
-        new_partition= false;
-        goto repeat;
-      }
-      else if (end_of_records)
-      {
-        out_tbl->m_window->reset_partition_state();
-      }
-      else if (win->input_row_clobbered() &&
-               win->needs_restore_input_row())
-      {
-        /*
-          Reestablish last row read from input table in case it is needed again
-          before reading a new row. May be necessary if this is the first window
-          following after a join, cf. the caching presumption in join_read_key.
-          This logic can be removed if we move to copying between out
-          tmp record and frame buffer record, instead of involving the in
-          record. FIXME.
-        */
-        if (bring_back_frame_row(thd, *win, Window::FBC_LAST_BUFFERED_ROW,
-                                 Window::REA_WONT_UPDATE_HINT))
-          DBUG_RETURN(NESTED_LOOP_ERROR);
-      }
-    }
-    else
+    bool new_partition= false;
+    if (!end_of_records)
     {
       if (copy_fields(out_tbl, thd))
         DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
+      /*
+        This saves the values of non-WF functions for the row. For example,
+        1+t.a. But also 1+LEAD. Even though at this point we lack data to
+        compute LEAD; the saved value is thus incorrect; later, when the row
+        is fully computable, we will re-evaluate the CFT_NON_WF to get a
+        correct value for 1+LEAD.
+      */
       if (copy_funcs(out_tbl, thd, CFT_NON_WF))
         DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
       if (!having_is_true(qep_tab->having))
         goto end;                              // Didn't match having, skip it
 
-      win->check_partition_boundary();
-
-      if (copy_funcs(out_tbl, thd, CFT_WF))
-        DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+      if (buffer_windowing_record(thd, out_tbl, &new_partition))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
 
       join->found_records++;
-
-      if (!check_unique_constraint(table))
-        goto end; // skip it
-
-      DBUG_PRINT("info", ("end_write: writing record at %p", table->record[0]));
-
-      bool do_continue= false;
-      enum_nested_loop_state result;
-      if ((result= write_or_send_row(join, qep_tab, table, out_tbl,
-                                     do_continue /* inout */)))
-        DBUG_RETURN(result);        // Not a table_is_full error
-      
-      if (do_continue)
-        goto end;
     }
+
+repeat:
+    while (true)
+    {
+      bool output_row_ready= false;
+      if (process_buffered_windowing_record(thd,
+                                            out_tbl,
+                                            new_partition || end_of_records,
+                                            &output_row_ready))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+
+      if (!output_row_ready)
+        break;
+
+      if (!check_unique_constraint(table)) // In case of SELECT DISTINCT
+        continue; // skip it
+
+      enum_nested_loop_state result;
+      if ((result= write_or_send_row(join, qep_tab, table, out_tbl)))
+        DBUG_RETURN(result);        // Not a table_is_full error
+
+      if (thd->killed)		  // Aborted by user
+      {
+        thd->send_kill_message();
+        DBUG_RETURN(NESTED_LOOP_KILLED);
+      }
+    }
+
+    if (new_partition)
+    {
+      /*
+        We didn't really buffer this row yet since, we found a partition
+        change so we had to finalize the previous partition first.
+        Bring back saved row for next partition.
+      */
+      if (bring_back_frame_row(thd, *win, out_tbl,
+                               Window::FBC_FIRST_IN_NEXT_PARTITION,
+                               Window::REA_WONT_UPDATE_HINT))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+
+      /*
+        copy_funcs(CFT_NON_WF) is not necessary: a non-WF function was
+        calculated and saved in OUT, then this OUT column was copied to
+        special record, then restored to OUT column.
+      */
+
+      win->reset_partition_state();
+      if (buffer_windowing_record(thd, out_tbl,
+                                  nullptr /* first in new partition */))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+      new_partition= false;
+      goto repeat;
+    }
+    if (!end_of_records && win->needs_restore_input_row())
+    {
+      /*
+        Reestablish last row read from input table in case it is needed again
+        before reading a new row. May be necessary if this is the first window
+        following after a join, cf. the caching presumption in join_read_key.
+        This logic can be removed if we move to copying between out
+        tmp record and frame buffer record, instead of involving the in
+        record. FIXME.
+      */
+      if (bring_back_frame_row(thd, *win, nullptr /* no copy to OUT */,
+                               Window::FBC_LAST_BUFFERED_ROW,
+                               Window::REA_WONT_UPDATE_HINT))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+    }
+  }
+  else
+  {
+    if (copy_fields(out_tbl, thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+
+    if (copy_funcs(out_tbl, thd, CFT_NON_WF))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+
+    if (!having_is_true(qep_tab->having))
+      goto end;                              // Didn't match having, skip it
+
+    win->check_partition_boundary();
+
+    if (copy_funcs(out_tbl, thd, CFT_WF))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+
+    join->found_records++;
+
+    if (!check_unique_constraint(table)) // In case of SELECT DISTINCT
+      goto end; // skip it
+
+    DBUG_PRINT("info", ("end_write: writing record at %p", table->record[0]));
+
+    enum_nested_loop_state result;
+    if ((result= write_or_send_row(join, qep_tab, table, out_tbl)))
+      DBUG_RETURN(result);        // Not a table_is_full error
   }
 end:
   DBUG_RETURN(NESTED_LOOP_OK);

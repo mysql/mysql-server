@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,7 +158,8 @@ public:
   bool can_use_pk_for_unique;
 
   bool m_window_short_circuit; ///< (Last) window's tmp file step can be skipped
-  Window *m_window; ///< The window, if any,  dedicated to this tmp table
+  /// If this is the out table of a window: the said window
+  Window *m_window;
 
   Temp_table_param()
     :copy_field(NULL), copy_field_end(NULL),

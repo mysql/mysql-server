@@ -116,6 +116,12 @@ protected:
   bool m_needs_peerset;
 
   /**
+    (At least) one window function needs the cardinality of the partition of
+    the current row to evaluate the wf for the current row
+  */
+  bool m_needs_card;
+
+  /**
     The functions are optimizable with ROW unit. For example SUM is, MAX is
     not always optimizable. Optimized means we can use the optimized evaluation
     path in process_buffered_windowing_record which uses inversion to avoid
@@ -132,21 +138,21 @@ protected:
   bool m_range_optimizable;
 
   /**
-    The aggregates can be evaluated once for a partition, since it is static,
-    i.e. all rows will have the same value for the aggregates, e.g.
+    The aggregates (SUM, etc) can be evaluated once for a partition, since it
+    is static, i.e. all rows will have the same value for the aggregates, e.g.
     ROWS/RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING.
   */
   bool m_static_aggregates;
 
   /**
     Window equires re-evaluation of the first row in optimized moving frame mode
-    e.g. FIRST_VALUE. See also m_dont_aggregate.
+    e.g. FIRST_VALUE.
   */
   bool m_opt_first_row;
 
   /**
     Window requires re-evaluation of the last row in optimized moving frame mode
-    e.g. LAST_VALUE. See also m_dont_aggregate.
+    e.g. LAST_VALUE.
   */
   bool m_opt_last_row;
 
@@ -199,7 +205,7 @@ protected:
 
   /**
     Window requires re-evaluation of the Nth row in optimized moving frame mode
-    e.g. NTH_VALUE. See also m_dont_aggregate.
+    e.g. NTH_VALUE.
   */
   st_nth m_opt_nth_row;
   st_lead_lag m_opt_lead_lag;
@@ -244,7 +250,7 @@ public:
   struct Frame_buffer_position {
     ///< The size of the file position is determined by handler::ref_length
     uchar *m_position;
-    ///< Row number in partition, 0-based
+    ///< Row number in partition, 1-based
     int64 m_rowno;
     Frame_buffer_position(uchar *position, int64 rowno)
       : m_position(position), m_rowno(rowno) {}
@@ -343,12 +349,8 @@ public:
      the partition, and restore it later.
     */
     FBC_FIRST_IN_NEXT_PARTITION= -1,
-    /// An already prepared output row whose result we want to reuse.
-    FBC_FIRST_IN_STATIC_RANGE= -2,
-    /// An already prepared output row whose result we want to reuse.
-    FBC_LAST_RESULT_OPTIMIZED_RANGE= -3,
     /// The last row cached in the frame buffer; needed to resurrect input row
-    FBC_LAST_BUFFERED_ROW= -4,
+    FBC_LAST_BUFFERED_ROW= -2,
     // Insert new values here.
     // And keep the ones below up to date.
     FBC_FIRST_KEY= FBC_FIRST_IN_NEXT_PARTITION,
@@ -392,6 +394,16 @@ protected:
   int64 m_frame_buffer_partition_offset;
 
   /**
+     If >=1: the row with this number (1-based, relative to start of
+     partition) currently has its fields in the record buffer of the IN table
+     and of the OUT table. 0 means "unset".
+     Usable only with buffering. Set and read by bring_back_frame_row(), so
+     that multiple successive calls to it for same row do only one read from
+     FB (optimization).
+  */
+  int64 m_row_has_fields_in_out_table;
+
+  /**
     Holds a fixed number of copies of special rows; each copy can use up to
     #m_special_rows_cache_max_length bytes.
     cf. the Special_keys enumeration.
@@ -404,7 +416,8 @@ protected:
 
   /**
     Execution state: used iff m_needs_frame_buffering. Holds the row
-    number of the last row (hitherto) saved in the frame buffer
+    number (in the partition) of the last row (hitherto) saved in the frame
+    buffer
   */
   int64 m_last_rowno_in_cache;
 
@@ -429,9 +442,9 @@ protected:
   bool m_partition_border;
 
   /**
-    Execution state: The number of the last output row, i.e.
-    the row number of the last row hitherto evaluated and output to the next
-    phase for the current partition.
+    Execution state: The number, in the current partition, of the last output
+    row, i.e. the row number of the last row hitherto evaluated and output to
+    the next phase.
   */
   int64 m_last_row_output;
 
@@ -553,29 +566,6 @@ protected:
   */
   bool m_inverse_aggregation;
 
-  /**
-    Execution state: process a selected row conditionally if the visited row is
-    either the first, the last, or the nth by consulting m_rowno_in_frame in
-    frame and m_is_last_row_in_frame.  This is used for optimized FIRST_VALUE,
-    LAST_VALUE, NTH_VALUE and MIN/MAX.
-
-    For other framing wfs, skip evaluation, just reuse current result,
-    i.e. after inversion of row N-1, we do not want to aggregate again at N,
-    since that value is already in the "sum"; but we do want to visit if for
-    setting FIRST_VALUE (or MIN/MAX depending on sort order), nor do we want to
-    aggregate again if we visit the nth row in a frame; again, it is already
-    included.
-  */
-  bool m_dont_aggregate;
-
-  /*
-    When we bring back rows from the frame buffer to the input row,
-    we destroy its contents, unless the row we bring back is
-    m_last_rowno_in_cache. True if we last brought back something else.
-    Set by bring_back_frame_row. Used to determine if we need to resurrect
-    row m_last_rowno_in_cache when needed.
-   */
-  bool m_input_row_clobbered;
   /*------------------------------------------------------------------------
    *
    * Constructors
@@ -599,6 +589,7 @@ private:
       m_is_reference(is_reference),
       m_needs_frame_buffering(false),
       m_needs_peerset(false),
+      m_needs_card(false),
       m_row_optimizable(true),
       m_range_optimizable(true),
       m_static_aggregates(false),
@@ -613,6 +604,7 @@ private:
       m_frame_buffer(nullptr),
       m_frame_buffer_total_rows(0),
       m_frame_buffer_partition_offset(0),
+      m_row_has_fields_in_out_table(0),
       m_special_rows_cache_max_length(0),
       m_last_rowno_in_cache(0),
       m_last_rowno_in_peerset(0),
@@ -627,9 +619,7 @@ private:
       m_last_rowno_in_range_frame(0),
       m_is_last_row_in_frame(false),
       m_do_copy_null(false),
-      m_inverse_aggregation(false),
-      m_dont_aggregate(false),
-      m_input_row_clobbered(false)
+      m_inverse_aggregation(false)
   {
     m_opt_nth_row.m_offsets.init_empty_const();
     m_opt_lead_lag.m_offsets.init_empty_const();
@@ -968,16 +958,24 @@ public:
   }
 
   /**
-    If we cannot compute the window function without looking at succeeding
+    If we cannot compute one of window functions without looking at succeeding
     rows, return true, else false.
   */
   bool needs_buffering() const { return m_needs_frame_buffering; }
 
   /**
-    If we cannot compute the window function without looking at all the
-    rows in the peerset of the current row, return true, else false.
+    If we cannot compute one of window functions without looking at all
+    rows in the peerset of the current row, return true, else
+    false. E.g. CUME_DIST.
   */
   bool needs_peerset() const { return m_needs_peerset; }
+
+  /**
+    If we need to read the entire partition before we can evaluate
+    some window function(s) on this window,
+    @returns true if that is the case, else false
+  */
+  bool needs_card() const { return m_needs_card; }
 
   /**
     Return true if the set of window functions are all ROW unit optimizable.
@@ -1067,16 +1065,6 @@ public:
     partition.
   */
   int64 partition_rowno() const { return m_part_row_number; }
-
-  /**
-    If there is no explicit frame and an ORDER BY exists, aggregate wfs
-    has an upper frame bound determined by the last peer of the current row,
-    i.e. a dynamic distance above the current row. This is similar
-    to the case for RANGE upper bound. In general, we don't
-    currently support dynamic (relative to current row) bounds based on the
-    value of the current row.
-  */
-  bool has_dynamic_frame_upper_bound() const;
 
   /**
     Allocate the cache for special rows
@@ -1171,30 +1159,6 @@ public:
   void set_aggregates_primed(bool b) { m_aggregates_primed= b; }
 
   /**
-    See #m_dont_aggregate
-  */
-  bool dont_aggregate() const { return m_dont_aggregate; }
-
-  /**
-    See #m_dont_aggregate
-  */
-  Window &set_dont_aggregate(bool b)
-  {
-    m_dont_aggregate= b;
-    return *this;
-  }
-
-  /**
-    See #m_input_row_clobbered
-  */
-  bool input_row_clobbered() const { return m_input_row_clobbered; }
-
-  /**
-    See #m_input_row_clobbered
-  */
-  void set_input_row_clobbered(bool b) { m_input_row_clobbered= b; }
-
-  /**
     See #m_is_last_row_in_frame
   */
   bool is_last_row_in_frame() const
@@ -1284,6 +1248,22 @@ public:
   }
 
   /**
+    See #m_row_has_fields_in_out_table
+  */
+  int64 row_has_fields_in_out_table() const
+  {
+    return m_row_has_fields_in_out_table;
+  }
+
+  /**
+    See #m_row_has_fields_in_out_table
+  */
+  void set_row_has_fields_in_out_table(int64 rowno)
+  {
+    m_row_has_fields_in_out_table= rowno;
+  }
+
+  /**
     Set the current row number for diagnostics. This should be the
     absolute row number across all partitions in the windowing step, i.e.
     after ordering the row if applicable.
@@ -1296,14 +1276,6 @@ public:
     da->set_current_row_for_condition(rowno_in_partition +
                                       m_frame_buffer_partition_offset - 1);
   }
-
-  /**
-    Determine if we need to read the entire partition before we can evaluate
-    some window function(s) on this window.
-
-    @returns true if that is the case, else false
-  */
-  bool some_wf_needs_frame_card();
 
   /**
     Free up any resource used to process the window functions of this window,
@@ -1358,7 +1330,7 @@ public:
     */
     bool needs_buffer;
     /**
-      Set to true if we need peerset for evaluation(CUME_DIST)
+      Set to true if we need peerset for evaluation (e.g. CUME_DIST)
     */
     bool needs_peerset;
     /**
@@ -1431,7 +1403,7 @@ private:
 
   /**
     Return true of the physical[1] sort orderings for the two windows are the
-    same and all ordering expressions are fields (columns), cf. guarantee of
+    same, cf. guarantee of
     SQL 2014 4.15.15 Windowed tables bullet two: The windowing functions are
     computed using the same row ordering if they specify the same ordering.
 

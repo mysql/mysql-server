@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2044,6 +2044,9 @@ public:
   PT_border *m_to;
 
   PT_exclusion *m_exclusion;
+
+  /// If true, this is an artificial frame, not specified by the user
+  bool m_originally_absent= false;
 
   PT_frame(enum_window_frame_unit unit, PT_borders *from_to,
            PT_exclusion *exclusion)

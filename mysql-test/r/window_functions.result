@@ -7026,6 +7026,10 @@ SELECT ROW_NUMBER() OVER w
 FROM t1
 WINDOW w AS (w2), w1 AS (w), w2 as (w1);
 ERROR HY000: There is a circularity in the window dependency graph.
+SELECT ROW_NUMBER() OVER w
+FROM t1
+WINDOW w AS (w1), w1 AS (w2), w2 as (w1);
+ERROR HY000: There is a circularity in the window dependency graph.
 SELECT ROW_NUMBER() OVER w FROM t1 WINDOW w AS (w);
 ERROR HY000: There is a circularity in the window dependency graph.
 SELECT ROW_NUMBER() OVER w

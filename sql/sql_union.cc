@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,8 +200,7 @@ bool Query_result_union::create_result_table(THD *thd_arg,
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  NULL, is_union_distinct, true,
-                                 options, HA_POS_ERROR, (char*) table_alias,
-                                 TMP_WIN_UNCONDITIONAL)))
+                                 options, HA_POS_ERROR, (char*) table_alias)))
     return true;
   if (create_table)
   {
