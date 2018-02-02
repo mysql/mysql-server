@@ -118,6 +118,10 @@ void Dbtc::initRecords()
   c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, UINT32_MAX);
   c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 0, UINT32_MAX);
   c_gcpRecordList.init();
+  GcpRecordPtr gcpRecordptr;
+  // Make sure that there is at least one page of GcpRecord
+  ndbrequire(c_gcpRecordPool.seize(gcpRecordptr));
+  c_gcpRecordPool.release(gcpRecordptr);
   c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 0, UINT32_MAX);
   c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 0, UINT32_MAX);
   c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 0, UINT32_MAX);
