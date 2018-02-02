@@ -9,7 +9,11 @@
 # Prepare
 #
 
-SET @initial_isolation = @@SESSION.transaction_isolation;
+--echo # Connection default:
+connection default;
+    SET @initial_isolation = @@SESSION.transaction_isolation;
+
+    SET DEBUG_SYNC='reset';
 
 --echo # Connection con1:
 connect(con1,localhost,root,,test);
@@ -56,12 +60,10 @@ connection default;
     --error ER_INVALID_JSON_BINARY_DATA
     SELECT * FROM t WHERE vj LIKE 'the_hash_%';
     SET DEBUG_SYNC='now SIGNAL s2';
-    SET DEBUG_SYNC='reset';
 
 --echo # Connection con1:
 connection con1;
     reap;
-    SET DEBUG_SYNC='reset';
     ROLLBACK;
 
 #
@@ -76,7 +78,7 @@ connection con1;
     SET DEBUG_SYNC='blob_write_middle_after_check SIGNAL s1 WAIT_FOR s2 EXECUTE 2';
     BEGIN;
     --echo # Sending:
-    SEND UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
+    send UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
 
 --echo # Connection default:
 connection default;
@@ -85,12 +87,10 @@ connection default;
     --error ER_INVALID_JSON_BINARY_DATA
     SELECT vj FROM t WHERE c LIKE 'aaaa1234%';
     SET DEBUG_SYNC='now SIGNAL s2';
-    SET DEBUG_SYNC='reset';
 
 --echo # Connection con1:
 connection con1;
-    REAP;
-    SET DEBUG_SYNC='reset';
+    reap;
     ROLLBACK;
 
 #
@@ -98,9 +98,11 @@ connection con1;
 #
 --echo # Connection default:
 connection default;
-    DISCONNECT con1;
+    disconnect con1;
 
     DROP TABLE t;
+
+    SET DEBUG_SYNC='reset';
 
     SET SESSION transaction_isolation = @initial_isolation;
 
