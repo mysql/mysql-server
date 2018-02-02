@@ -190,6 +190,7 @@
    - @subpage page_protocol_com_debug
    - @subpage page_protocol_com_ping
    - @subpage page_protocol_com_change_user
+   - @subpage page_protocol_com_reset_connection
 */
 
 
@@ -201,6 +202,21 @@
 
 /**
   @page page_protocol_command_phase_ps Prepared Statements
+
+  The prepared statement protocol was introduced in MySQL 4.1 and adds a
+  few new commands:
+    - @subpage page_protocol_com_stmt_prepare
+    - @subpage page_protocol_com_stmt_execute
+    - @subpage page_protocol_com_stmt_close
+    - @subpage page_protocol_com_stmt_reset
+    - @subpage page_protocol_com_stmt_send_long_data
+
+  It also defines a more compact resultset format that is used instead of
+  @ref page_protocol_com_query_response_text_resultset to return the results.
+
+  @note Keep in mind that not all SQL statements can be prepared.
+
+  @sa [WL#2871](https://dev.mysql.com/worklog/task/?id=2871)
 */
 
 /**
@@ -1820,6 +1836,603 @@ int Protocol_classic::read_packet()
 
   @sa mysql_ping, dispatch_command
 */
+
+/**
+  @page page_protocol_com_reset_connection COM_RESET_CONNECTION
+
+  @brief Resets the session state
+
+  A more lightweightt version of ::COM_CHANGE_USER that does
+  about the same to clean up the session state, but:
+  - it does not re-authenticate (and do the extra client/server
+    exchange for that)
+  - it does not close the connection
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>command</td>
+      <td>0x1F: COM_RESET_CONNECTION</td></tr>
+  </table>
+
+  @return @ref page_protocol_basic_ok_packet
+
+  @sa ::mysql_reset_connection, THD::cleanup_connection,
+  ::dispatch_command
+*/
+
+/**
+  @page page_protocol_com_stmt_prepare COM_STMT_PREPARE
+
+  @brief Creates a prepared statement for the passed query string.
+
+  The server returns a @ref sect_protocol_com_stmt_prepare_response which
+  contains a `statement-id` which is ised to identify the prepared statement.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>command</td>
+      <td>0x16: COM_STMT_PREPARE</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>query</td>
+      <td>The query to prepare</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~
+  1c 00 00 00 16 53 45 4c    45 43 54 20 43 4f 4e 43    .....SELECT CONC
+  41 54 28 3f 2c 20 3f 29    20 41 53 20 63 6f 6c 31    AT(?, ?) AS col1
+  ~~~~~~~
+
+  @return @ref sect_protocol_com_stmt_prepare_response_ok on success,
+     @ref page_protocol_basic_err_packet otherwise
+
+  @sa ::mysqld_stmt_prepare, ::mysql_stmt_precheck, ::Prepared_statement,
+  ::mysql_stmt_prepare, ::mysql_stmt_init
+
+  @note As LOAD DATA isn't supported by ::COM_STMT_PREPARE yet, no
+  @ref page_protocol_com_query_response_local_infile_request is expected here.
+  This is unlike @ref page_protocol_com_query_response.
+
+
+  @section sect_protocol_com_stmt_prepare_response COM_STMT_PREPARE Response
+
+  If ::COM_STMT_PREPARE succeeded, it sends a
+  @ref sect_protocol_com_stmt_prepare_response_ok
+
+
+  @subsection sect_protocol_com_stmt_prepare_response_ok COM_STMT_PREPARE_OK
+
+  <table>
+  <caption>Payload of the first packet</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>0x00: OK: Ignored by ::cli_read_prepare_result</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>statement_id</td>
+      <td>statement ID</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>num_columns</td>
+      <td>Number of columns</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>num_params</td>
+      <td>Number of parameters</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>reserved_1</td>
+      <td>[00] filler</td></tr>
+  <tr><td colspan="3">if (packet_lenght > 12) {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>warning_count</td>
+      <td>Number of warnings</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_OPTIONAL_RESULTSET_METADATA {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>metadata_follows</td>
+      <td>Flag specifying if metadata are skipped or not.
+      See @ref enum_resultset_metadata</td></tr>
+  <tr><td colspan="3">} -- ::CLIENT_OPTIONAL_RESULTSET_METADATA {</td></tr>
+  <tr><td colspan="3">} -- packet_lenght > 12</td></tr>
+  </table>
+
+  if `num_params` > 0 and ::CLIENT_OPTIONAL_RESULTSET_METADATA is not set or
+  if `medatdata_follows` is ::RESULTSET_METADATA_FULL `num_params` packets will
+  follow. Then a @ref page_protocol_basic_eof_packet will be transmitted,
+  provided that ::CLIENT_DEPRECATE_EOF is not set.
+
+  <table>
+  <caption>Parameter definition block</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td colspan="3">`num_params` *
+    @ref page_protocol_com_query_response_text_resultset_column_definition</td></tr>
+  <tr><td colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF) {</td></tr>
+  <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
+  <tr><td colspan="3">} --::CLIENT_DEPRECATE_EOF</td></tr>
+  </table>
+
+  if `num_columns` > 0 and ::CLIENT_OPTIONAL_RESULTSET_METADATA is not set or
+  if `medatdata_follows` is ::RESULTSET_METADATA_FULL `num_columns` packets will
+  follow. Then a @ref page_protocol_basic_eof_packet will be transmitted,
+  provided that ::CLIENT_DEPRECATE_EOF is not set.
+
+  <table>
+  <caption>Column definition block</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td colspan="3">`num_columns` *
+  @ref page_protocol_com_query_response_text_resultset_column_definition</td></tr>
+  <tr><td colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF) {</td></tr>
+  <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
+  <tr><td colspan="3">} --::CLIENT_DEPRECATE_EOF</td></tr>
+  </table>
+
+  @par Example
+  for a prepared query like  SELECT CONCAT(?, ?) AS col1 and no ::CLIENT_OPTIONAL_RESULTSET_METADATA
+  ~~~~~~~~~~~
+  0c 00 00 01 00 01 00 00    00 01 00 02 00 00 00 00|   ................
+  17 00 00 02 03 64 65 66    00 00 00 01 3f 00 0c 3f    .....def....?..?
+  00 00 00 00 00 fd 80 00    00 00 00|17 00 00 03 03    ................
+  64 65 66 00 00 00 01 3f    00 0c 3f 00 00 00 00 00    def....?..?.....
+  fd 80 00 00 00 00|05 00    00 04 fe 00 00 02 00|1a    ................
+  00 00 05 03 64 65 66 00    00 00 04 63 6f 6c 31 00    ....def....col1.
+  0c 3f 00 00 00 00 00 fd    80 00 1f 00 00|05 00 00    .?..............
+  06 fe 00 00 02 00                                     ...
+  ~~~~~~~~~~~
+
+  @par Example
+  for a a query without parameters and resultset like DO 1 and no ::CLIENT_OPTIONAL_RESULTSET_METADATA :
+  ~~~~~~~~~~~
+  0c 00 00 01 00 01 00 00    00 00 00 00 00 00 00 00
+  ~~~~~~~~~~~
+
+  @sa ::cli_read_prepare_result, mysql_stmt_prepare, ::send_statement,
+  THD::send_result_metadata
+*/
+
+/**
+  @page page_protocol_com_stmt_send_long_data COM_STMT_SEND_LONG_DATA
+
+  @brief Sends the data for a parameter.
+
+  Repeating to send it, appends the data to the parameter.
+
+  No response is sent back to the client
+
+  @startuml
+  Client -> Server : COM_STMT_SEND_LONG_DATA
+  @enduml
+
+  @return None
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x18] COM_STMT_SEND_LONG_DATA</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;4&gt;"</td>
+      <td>statement_id</td>
+      <td>ID of the statement</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>param_id</td>
+      <td>The parameter to supply data to</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>data</td>
+      <td>The actual payload to send</td></tr>
+  </table>
+
+  @note ::COM_STMT_SEND_LONG_DATA has to be sent before ::COM_STMT_EXECUTE
+*/
+
+/**
+  @page page_protocol_com_stmt_execute COM_STMT_EXECUTE
+
+  ::COM_STMT_EXECUTE asks the server to execute a prepared statement as
+  identified by `statement_id`.
+
+  It sends the values for the placeholders of the prepared statement
+  (if it contained any) in @ref sect_protocol_binary_resultset_row_value
+  form. The type of each parameter is made up of two bytes:
+    - the type as in @ref enum_field_types
+    - a flag byte which has the highest bit set if the type is unsigned [80]
+
+  The `num_params` used for this packet has to match the `num_params` of the
+  @ref sect_protocol_com_stmt_prepare_response_ok of the corresponsing prepared
+  statement.
+
+  @return @subpage page_protocol_com_stmt_execute_response
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x17] COM_STMT_EXECUTE</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>statement_id</td>
+      <td>ID of the prepared statement to execute</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>flags</td>
+      <td>Flags. See ::enum_cursor_type</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>iteration_count</td>
+      <td>Number of times to execute the statement. Currently always 1.</td></tr>
+  <tr><td colspan="3">if num_params > 0 {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>null_bitmap</td>
+      <td>NULL bitmap, length= (num_params + 7) / 8</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>new_params_bind_flag</td>
+      <td>Flag if parameters must be re-bound</td></tr>
+  <tr><td colspan="3">if new_params_bind_flag {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>parameter_types</td>
+      <td>Type of each parameter, length: num_params * 2</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>parameter_values</td>
+      <td>value of each parameter</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~~
+  12 00 00 00 17 01 00 00    00 00 01 00 00 00 00 01    ................
+  0f 00 03 66 6f 6f                                     ...foo
+  ~~~~~~~~~
+
+  `null_bitmap` is like the NULL-bitmap for the
+  @ref sect_protocol_binary_resultset_row just that it has a bit_offset of 0.
+
+  @sa ::mysql_stmt_execute, ::cli_stmt_execute, ::mysql_stmt_precheck,
+  ::mysqld_stmt_execute
+*/
+
+/**
+  @page page_protocol_com_stmt_execute_response COM_STMT_EXECUTE Response
+
+  Similar to the @ref page_protocol_com_query_response a ::COM_STMT_EXECUTE
+  returns either:
+    - a @ref page_protocol_basic_ok_packet
+    - a @ref page_protocol_basic_err_packet
+    - @subpage page_protocol_binary_resultset
+*/
+
+/**
+  @page page_protocol_binary_resultset Binary Protocol Resultset
+
+  Binary Protocol Resultset is similar to the
+  @ref page_protocol_com_query_response_text_resultset.
+  It just contains the rows in @ref sect_protocol_binary_resultset_row
+  format.
+
+  <table>
+  <caption>ProtocolBinary::Resultset:</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+    <td>column_count</td>
+    <td>always grater than 0</td></tr>
+  <tr><td colspan="3">`column_count` *
+    @ref page_protocol_com_query_response_text_resultset_column_definition</td></tr>
+  <tr><td colspan="3">None or many
+    @ref sect_protocol_binary_resultset_row</td></tr>
+  <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
+  </table>
+
+  @note if ::CLIENT_DEPRECATE_EOF client capability flag is set,
+  @ref page_protocol_basic_ok_packet is sent, else
+  @ref page_protocol_basic_eof_packet is sent.
+
+  @par Example
+  ~~~~~~~
+  01 00 00 01 01|1a 00 00    02 03 64 65 66 00 00 00    ..........def...
+  04 63 6f 6c 31 00 0c 08    00 06 00 00 00 fd 00 00    .col1...........
+  1f 00 00|05 00 00 03 fe    00 00 02 00|09 00 00 04    ................
+  00 00 06 66 6f 6f 62 61    72|05 00 00 05 fe 00 00    ...foobar.......
+  02 00
+  ~~~~~~~
+
+
+  @section sect_protocol_binary_resultset_row Binary Protocol Resultset Row
+
+  A Binary Protocol Resultset Row is made up of a `NULL bitmap` containing as
+  many bits as we have columns in the resultset + 2 and the `values` for
+  columns that are not NULL in the @ref sect_protocol_binary_resultset_row_value
+  format.
+
+  <table>
+  <caption>ProtocolBinary::ResultsetRow:</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>packet_header</td>
+      <td>[0x00] packer header</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+    <td>null_bitmap</td>
+    <td>NULL bitmap, length= (column_count + 7 + 2) / 8</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+    <td>values</td>
+    <td>values for non-null columns</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  09 00 00 04 00 00 06 66 6f 6f 62 61 72
+  ~~~~~~~~
+
+
+  @subsection sect_protocol_binary_resultset_row_null_bitmap NULL-Bitmap
+
+  The binary protocol sends NULL values as bits inside a bitmap instead of a
+  full byte as the @ref page_protocol_com_query_response_text_resultset_row
+  does. If many NULL values are sent, it is more efficient than the old way.
+
+  @par Caution
+  For the @ref sect_protocol_binary_resultset_row the num_fields
+  and the field_pos need to add a offset of 2. For ::COM_STMT_EXECUTE
+  this offset is 0.
+
+  The NULL-bitmap needs enough space to store a possible NULL bit for each
+  column that is sent. Its space is calculated with:
+  ~~~~~
+  NULL-bitmap-bytes = (num_fields + 7 + offset) / 8
+  ~~~~~
+
+  resulting in:
+
+  <table>
+  <tr><th>num_fields+offset</th><th>NULL_bitmap bytes</th></tr>
+  <tr><td>0</td><td>0</td></tr>
+  <tr><td>1</td><td>1</td></tr>
+  <tr><td>[...]</td><td>[...]</td></tr>
+  <tr><td>8</td><td>1</td></tr>
+  <tr><td>9</td><td>2</td></tr>
+  <tr><td>[...]</td><td>[...]</td></tr>
+  </table>
+
+  To store a NULL bit in the bitmap, you need to calculate the bitmap-byte
+  (starting with 0) and the bitpos (starting with 0) in that byte from the
+  index_field (starting with 0):
+
+  ~~~~~~~~~~
+  NULL-bitmap-byte = ((field-pos + offset) / 8)
+  NULL-bitmap-bit  = ((field-pos + offset) % 8)
+  ~~~~~~~~~~
+
+  @par Example
+  ~~~~~~~~~~
+  Resultset Row, 9 fields, 9th field is a NULL (9th field -> field-index == 8, offset == 2)
+
+  nulls -> [00] [00]
+
+  byte_pos = (10 / 8) = 1
+  bit_pos  = (10 % 8) = 2
+
+  nulls[byte_pos] |= 1 << bit_pos
+  nulls[1] |= 1 << 2;
+
+  nulls -> [00] [04]
+  ~~~~~~~~~~
+
+  @section sect_protocol_binary_resultset_row_value Binary Protocol Value
+
+  @subsection sect_protocol_binary_resultset_row_value_string ProtocolBinary::MYSQL_TYPE_STRING, ProtocolBinary::MYSQL_TYPE_VARCHAR, ProtocolBinary::MYSQL_TYPE_VAR_STRING, ProtocolBinary::MYSQL_TYPE_ENUM, ProtocolBinary::MYSQL_TYPE_SET, ProtocolBinary::MYSQL_TYPE_LONG_BLOB, ProtocolBinary::MYSQL_TYPE_MEDIUM_BLOB, ProtocolBinary::MYSQL_TYPE_BLOB, ProtocolBinary::MYSQL_TYPE_TINY_BLOB, ProtocolBinary::MYSQL_TYPE_GEOMETRY, ProtocolBinary::MYSQL_TYPE_BIT, ProtocolBinary::MYSQL_TYPE_DECIMAL, ProtocolBinary::MYSQL_TYPE_NEWDECIMAL:
+
+  <table>
+  <caption>::MYSQL_TYPE_STRING</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+    <td>value</td>
+    <td>String</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  03 66 6f 6f -- string = "foo"
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_longlong ProtocolBinary::MYSQL_TYPE_LONGLONG
+
+  <table>
+  <caption>::MYSQL_TYPE_LONGLONG</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int8 "int&lt;8&gt;"</td>
+      <td>value</td>
+      <td>integer</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  01 00 00 00 00 00 00 00 -- int64 = 1
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_long ProtocolBinary::MYSQL_TYPE_LONG, ProtocolBinary::MYSQL_TYPE_INT24
+
+  <table>
+  <caption>::MYSQL_TYPE_LONG, ::MYSQL_TYPE_INT24</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>value</td>
+    <td>integer</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  01 00 00 00 -- int32 = 1
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_short ProtocolBinary::MYSQL_TYPE_SHORT, ProtocolBinary::MYSQL_TYPE_YEAR
+
+  <table>
+  <caption>::MYSQL_TYPE_SHORT, ::MYSQL_TYPE_YEAR</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>value</td>
+    <td>integer</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  01 00 -- int16 = 1
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_tiny ProtocolBinary::MYSQL_TYPE_TINY
+
+  <table>
+  <caption>::MYSQL_TYPE_TINY</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>value</td>
+    <td>integer</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  01 -- int8 = 1
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_double ProtocolBinary::MYSQL_TYPE_DOUBLE
+
+  MYSQL_TYPE_DOUBLE stores a floating point in IEEE 754 double precision format.
+
+  First byte is the last byte of the significant as stored in C.
+
+  <table>
+  <caption>::MYSQL_TYPE_DOUBLE</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[8]"</td>
+    <td>value</td>
+    <td>a IEEE 754 double precision format (8 bytes) double</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  66 66 66 66 66 66 24 40 -- double = 10.2
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_float ProtocolBinary::MYSQL_TYPE_FLOAT
+
+  MYSQL_TYPE_FLOAT stores a floating point in IEEE 754 single precision format.
+
+  <table>
+  <caption>::MYSQL_TYPE_FLOAT</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[4]"</td>
+    <td>value</td>
+    <td>a IEEE 754 single precision format (4 bytes) float</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  33 33 23 41 -- float = 10.2
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_date ProtocolBinary::MYSQL_TYPE_DATE, ProtocolBinary::MYSQL_TYPE_DATETIME, ProtocolBinary::MYSQL_TYPE_TIMESTAMP:
+
+  Type to store a ::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and
+  ::MYSQL_TYPE_TIMESTAMP fields in the binary protocol.
+
+  To save space the packet can be compressed:
+    - if year, month, day, hour, minutes, seconds and microseconds are all 0,
+      length is 0 and no other field is sent.
+    - if hour, seconds and microseconds are all 0, length is 4 and no other
+      field is sent.
+    - if microseconds is 0, length is 7 and micro_seconds is not sent.
+    - otherwise the length is 11
+
+
+  <table>
+  <caption>::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and ::MYSQL_TYPE_TIMESTAMP</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>length</td>
+    <td>number of bytes following (valid values: 0, 4, 7, 11)</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>year</td>
+    <td>year</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>month</td>
+    <td>month</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>day</td>
+    <td>day</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>hour</td>
+    <td>hour</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>minute</td>
+    <td>minute</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>second</td>
+    <td>second</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>microsecond</td>
+    <td>micro seconds</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  0b da 07 0a 11 13 1b 1e 01 00 00 00 -- datetime 2010-10-17 19:27:30.000 001
+  04 da 07 0a 11                      -- date = 2010-10-17
+  0b da 07 0a 11 13 1b 1e 01 00 00 00 -- timestamp
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_time ProtocolBinary::MYSQL_TYPE_TIME
+
+  Type to store a ::MYSQL_TYPE_TIME field in the binary protocol.
+
+  To save space the packet can be compressed:
+  - if day, hour, minutes, seconds and microseconds are all 0,
+  length is 0 and no other field is sent.
+  - if microseconds is 0, length is 8 and micro_seconds is not sent.
+  - otherwise the length is 12
+
+
+  <table>
+  <caption>::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and ::MYSQL_TYPE_TIMESTAMP</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <td>length</td>
+  <td>number of bytes following (valid values: 0, 8, 12)</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <td>is_negative</td>
+  <td>1 if minus, 0 for plus</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+  <td>days</td>
+  <td>days</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <td>hour</td>
+  <td>hour</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <td>minute</td>
+  <td>minute</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <td>second</td>
+  <td>second</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+  <td>microsecond</td>
+  <td>micro seconds</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~
+  0c 01 78 00 00 00 13 1b 1e 01 00 00 00 -- time  -120d 19:27:30.000 001
+  08 01 78 00 00 00 13 1b 1e             -- time  -120d 19:27:30
+  01                                     -- time     0d 00:00:00
+  ~~~~~~~~
+
+  @subsection sect_protocol_binary_resultset_row_value_null ProtocolBinary::MYSQL_TYPE_NULL
+
+  stored in the @ref sect_protocol_binary_resultset_row_null_bitmap only
+ */
+
+/**
+  @page page_protocol_com_stmt_reset COM_STMT_RESET
+*/
+
+
+/**
+  @page page_protocol_com_stmt_close COM_STMT_CLOSE
+*/
+
 
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd)
