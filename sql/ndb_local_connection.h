@@ -25,6 +25,7 @@
 #ifndef NDB_LOCAL_CONNECTION_H
 #define NDB_LOCAL_CONNECTION_H
 
+#include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 
 class THD;
@@ -69,10 +70,10 @@ public:
 
 private:
   bool execute_query(MYSQL_LEX_STRING sql_text,
-                     const unsigned int* ignore_mysql_errors,
+                     const uint* ignore_mysql_errors,
                      const class Suppressor* suppressor = NULL);
   bool execute_query_iso(MYSQL_LEX_STRING sql_text,
-                         const unsigned int* ignore_mysql_errors,
+                         const uint* ignore_mysql_errors,
                          const class Suppressor* suppressor = NULL);
 private:
   THD* m_thd;

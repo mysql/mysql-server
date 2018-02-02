@@ -34,6 +34,7 @@
 #include "sql/ndb_share.h"
 #include "sql/ndb_thd.h"
 #include "sql/ndb_thd_ndb.h"
+#include "sql/ndb_schema_dist_table.h"
 
 static const std::string NDB_SCHEMA_TABLE_DB = NDB_REP_DB;
 static const std::string NDB_SCHEMA_TABLE_NAME = NDB_SCHEMA_TABLE;
@@ -89,6 +90,15 @@ bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
   // Save the prepared "keys"(which are used when communicating with
   // the other MySQL Servers), they should match the keys used in later calls.
   m_prepared_keys.add_key(db, tabname);
+
+  Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
+  if (!schema_dist_table.open()) {
+    DBUG_RETURN(false);
+  }
+
+  if (!schema_dist_table.check_schema()) {
+    DBUG_RETURN(false);
+  }
 
   // Schema distribution is ready
   DBUG_RETURN(true);
