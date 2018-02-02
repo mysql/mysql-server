@@ -1381,6 +1381,8 @@ SET @@session.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
+SELECT @@global.binlog_expire_logs_seconds INTO @old_seconds;
+SET @@global.binlog_expire_logs_seconds = 0;
 SELECT @@global.expire_logs_days INTO @old_eld;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
@@ -1433,6 +1435,7 @@ Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future 
 SET GLOBAL expire_logs_days = @old_eld;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+SET GLOBAL binlog_expire_logs_seconds= @old_seconds;
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'

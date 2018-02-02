@@ -51,7 +51,7 @@ SELECT @@global.binlog_expire_logs_seconds;
 ###############################################
 
 SET @@global.binlog_expire_logs_seconds = @start_value_sec;
-SELECT @@global.binlog_expire_logs_seconds = 0;
+SELECT @@global.binlog_expire_logs_seconds = 2592000;
 
 ##################################################################################
 #        Change the value of binlog_expire_logs_seconds to a valid value         #

@@ -58,7 +58,7 @@ SELECT @@global.expire_logs_days;
 #     Verify default value of variable        #
 ############################################### 
 
-SET @@global.expire_logs_days = @start_value_sec;
+SET @@global.expire_logs_days = @start_value;
 SELECT @@global.expire_logs_days = 0;
 
 --echo '#--------------------FN_DYNVARS_029_03_01------------------------#'
@@ -176,8 +176,8 @@ SELECT expire_logs_days = @@session.expire_logs_days;
 #   Restore initial value    #
 ##############################
 
-SET @@global.binlog_expire_logs_seconds = @start_value_sec;
-SELECT @@global.binlog_expire_logs_seconds;
-
 SET @@global.expire_logs_days = @start_value;
 SELECT @@global.expire_logs_days;
+
+SET @@global.binlog_expire_logs_seconds = @start_value_sec;
+SELECT @@global.binlog_expire_logs_seconds;

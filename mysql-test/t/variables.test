@@ -1203,6 +1203,11 @@ SET @@global.thread_stack= 7;
 # Bug #40657 - assertion with out of range variables and traditional sql_mode
 #
 
+SELECT @@global.binlog_expire_logs_seconds INTO @old_seconds;
+
+# Set binlog_expire_logs_seconds to 0 in order to test expire_logs_days
+# or we will get error while setting expire_logs_days
+SET @@global.binlog_expire_logs_seconds = 0;
 SELECT @@global.expire_logs_days INTO @old_eld;
 
 SET GLOBAL expire_logs_days = -1;
@@ -1229,6 +1234,7 @@ SELECT @@global.expire_logs_days;
 
 # cleanup
 SET GLOBAL expire_logs_days = @old_eld;
+SET GLOBAL binlog_expire_logs_seconds= @old_seconds;
 
 # show that warning uses underscore (sysvar-name), not hyphens (option-name)
 SET GLOBAL auto_increment_offset=-1;

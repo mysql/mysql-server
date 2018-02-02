@@ -8295,7 +8295,7 @@ ER_SCHEMA_DIR_UNKNOWN
 ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326 22S00
   eng "Function %.192s is only defined for SRID 0 and SRID 4326."
 
-ER_EXPIRE_LOGS_DAYS_IGNORED
+ER_BINLOG_EXPIRE_LOG_DAYS_AND_SECS_USED_TOGETHER
   eng "The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)"
 
 #
@@ -11670,7 +11670,7 @@ ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE
 ER_DROP_DATABASE_FAILED_RMDIR_MANUALLY
   eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
 
-ER_BINLOG_EXPIRAY_LOG_DAYS_AND_SECS_USED_TOGETHER
+ER_EXPIRE_LOGS_DAYS_IGNORED
   eng "The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. Therefore, value of expire_logs_days is ignored."
 
 ER_BINLOG_MALFORMED_OR_OLD_RELAY_LOG
