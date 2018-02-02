@@ -75,6 +75,7 @@ FLUSH BINARY LOGS;
 --enable_query_log
 
 SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;

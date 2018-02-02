@@ -129,6 +129,10 @@ FLUSH BINARY LOGS;
 --replace_result $server_binlog_file_cur CURRENT_BINLOG_FILE
 --eval PURGE BINARY LOGS TO '$server_binlog_file_cur'
 
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
+SET SESSION sql_log_bin= 1;
+
 --echo
 --echo #############################################################
 --echo # 3.2 Try to make server3 to join the group for up to 3 times
