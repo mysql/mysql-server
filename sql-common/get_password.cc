@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,6 +215,11 @@ char *get_tty_password(const char *opt_message)
     fputc('\n',stdout);
 #endif /* HAVE_GETPASS */
 
+  /*
+    If the password is 79 bytes or longer, terminate the password by
+    setting the last but one character to the null character.
+  */
+  buff[sizeof(buff)-1] = '\0';
   DBUG_RETURN(my_strdup(PSI_NOT_INSTRUMENTED,
                         buff,MYF(MY_FAE)));
 }
