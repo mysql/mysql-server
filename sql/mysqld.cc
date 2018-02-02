@@ -9967,14 +9967,10 @@ static void create_pid_file()
         is_path_accessible= 0;
         break;
       case -1:
-        sql_print_error("Can't start server: can't check PID filepath: %s",
-                        strerror(errno));
+        LogErr(ERROR_LEVEL, ER_CANT_CHECK_PID_PATH, strerror(errno));
         exit(MYSQLD_ABORT_EXIT);
       case 1:
-        sql_print_warning("Insecure configuration for --pid-file: Location "
-                          "'%s' in the path is accessible to all OS users. "
-                          "Consider choosing a different directory.",
-                          pid_filepath);
+        LogErr(WARNING_LEVEL, ER_PID_FILE_PRIV_DIRECTORY_INSECURE, pid_filepath);
         check_parent_path= 0;
         break;
       case 0:

@@ -13842,6 +13842,45 @@ ER_LDAP_AUTH_CONNECTION_POOL_REINIT_ENTER
 ER_FOUND_MISSING_GTIDS
   eng "Cannot replicate to server with server_uuid='%.36s' because the present server has purged required binary logs. The connecting server needs to replicate the missing transactions from elsewhere, or be replaced by a new server created from a more recent backup. To prevent this error in the future, consider increasing the binary log expiration period on the present server. The missing transactions are '%s'."
 
+ER_PID_FILE_PRIV_DIRECTORY_INSECURE
+  eng "Insecure configuration for --pid-file: Location '%s' in the path is accessible to all OS users. Consider choosing a different directory."
+
+ER_CANT_CHECK_PID_PATH
+  eng "Can't start server: can't check PID filepath: %s"
+
+ER_VALIDATE_PWD_STATUS_VAR_REGISTRATION_FAILED
+  eng "validate_password status variables registration failed."
+
+ER_VALIDATE_PWD_STATUS_VAR_UNREGISTRATION_FAILED
+  eng "validate_password status variables unregistration failed."
+
+ER_VALIDATE_PWD_DICT_FILE_OPEN_FAILED
+  eng "Dictionary file open failed"
+
+ER_VALIDATE_PWD_COULD_BE_NULL
+  eng "given password string could be null"
+
+ER_VALIDATE_PWD_STRING_CONV_TO_LOWERCASE_FAILED
+  eng "failed to convert the password string to lower case"
+
+ER_VALIDATE_PWD_STRING_CONV_TO_BUFFER_FAILED
+  eng "failed to convert the password string into a buffer"
+
+ER_VALIDATE_PWD_STRING_HANDLER_MEM_ALLOCATION_FAILED
+  eng "memory allocation failed for string handler"
+
+ER_VALIDATE_PWD_STRONG_POLICY_DICT_FILE_UNSPECIFIED
+  eng "Since the validate_password_policy is mentioned as Strong, dictionary file must be specified"
+
+ER_VALIDATE_PWD_CONVERT_TO_BUFFER_FAILED
+  eng "convert_to_buffer service failed"
+
+ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED
+  eng "%s variable registration failed."
+
+ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED
+  eng "%s variable unregistration failed."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
