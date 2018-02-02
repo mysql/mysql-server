@@ -390,7 +390,7 @@ sleep 2;
 let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result
---source include/stop_slave.inc
+--source include/stop_slave_io.inc
 DELETE FROM t1;
 --source include/start_slave.inc
 --connection master

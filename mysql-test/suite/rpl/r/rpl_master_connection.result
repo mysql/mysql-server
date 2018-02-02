@@ -235,29 +235,39 @@ include/wait_for_slave_io_error.inc [errno=1593]
 include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE USER='root' PASSWORD='secret';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 START SLAVE USER = 'root' PASSWORD = '<secret>';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 START SLAVE IO_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 START SLAVE IO_THREAD USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 START SLAVE IO_THREAD, SQL_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 START SLAVE IO_THREAD, SQL_THREAD USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 START SLAVE IO_THREAD, SQL_THREAD UNTIL MASTER_LOG_FILE='dummy-log.000001', MASTER_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 START SLAVE IO_THREAD, SQL_THREAD UNTIL MASTER_LOG_FILE = 'dummy-log.000001', MASTER_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 START SLAVE IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 START SLAVE IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE = 'dummy-log.000001', RELAY_LOG_POS = 116 USER = 'root' PASSWORD = '<secret>' DEFAULT_AUTH = 'auth_test_plugin' PLUGIN_DIR = 'PLUGIN_AUTH_DIR';
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1045]
+include/stop_slave_sql.inc
 SET GLOBAL log_output= @old_log_output;
 TRUNCATE mysql.general_log;
 include/start_slave.inc

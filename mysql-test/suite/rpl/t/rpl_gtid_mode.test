@@ -377,6 +377,7 @@ START SLAVE IO_THREAD;
 --source include/rpl_connection_master.inc
 DROP TABLE t3;
 
+--let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/rpl_reset.inc
 
 --echo #
