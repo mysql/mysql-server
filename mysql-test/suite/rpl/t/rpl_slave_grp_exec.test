@@ -68,7 +68,7 @@ call mtr.add_suppression("Slave SQL.*Table .test.t3. doesn.t exist.* Error_code:
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # in MTS case error is either of two:
-#--let $slave_sql_errno= 1146,1593
+--let $slave_sql_errno= 1146,1593
 # whereas in the single-threaded case:
 # 1146 = ER_NO_SUCH_TABLE
 #--let $slave_sql_errno= 1146
