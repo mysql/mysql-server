@@ -2991,3 +2991,11 @@ ALGORITHM=COPY;
 ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
 DROP SCHEMA mysqltest;
 DROP TABLES t6, t3, t2, t1;
+#
+# Initial version of the fix triggered asserts in the below statements.
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE T2 (fk INT);
+ALTER TABLE T2 ADD FOREIGN KEY (fk) REFERENCES t1 (pk);
+RENAME TABLE T2 TO T3;
+DROP TABLES T3, t1;

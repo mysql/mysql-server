@@ -7557,6 +7557,16 @@ bool collect_fk_names_for_new_fks(THD *thd,
                                   uint fk_max_generated_name_number,
                                   MDL_request_list *mdl_requests)
 {
+  char table_name_lc[NAME_LEN + 1];
+  strmake(table_name_lc, table_name, NAME_LEN);
+  /*
+    Prepare lowercase version of table name unless it is in lower case
+    already. It is to be used for producing lowercase version of FK name
+    for acquiring metadata lock on it.
+  */
+  if (lower_case_table_names == 0)
+    my_casedn_str(system_charset_info, table_name_lc);
+
   for (size_t i= 0; i < alter_info->key_list.size(); i++)
   {
     const Key_spec *key= alter_info->key_list[i];
@@ -7590,13 +7600,13 @@ bool collect_fk_names_for_new_fks(THD *thd,
         /*
           Note that the below code is in sync with generate_fk_name().
 
-          There is no need to lowercase generated foreign key name as the table
-          name is already in lower case.
+          Use lower-cased version of table name to generate foreign key
+          name in lower-case.
 
           Here we truncate generated name if it is too long. This is sufficient
           for MDL purposes. Error will be reported later in this case.
         */
-        generate_fk_name(fk_name, sizeof(fk_name), table_name,
+        generate_fk_name(fk_name, sizeof(fk_name), table_name_lc,
                          &fk_max_generated_name_number);
 
         MDL_request *mdl_request= new (thd->mem_root) MDL_request;
@@ -10335,13 +10345,17 @@ collect_fk_names_for_rename_table(THD *thd,
 
   char old_table_name_norm[NAME_LEN + 1];
   strmake(old_table_name_norm, table_name, NAME_LEN);
-  // With LCTN = 2, we are using lower-case tablename for FK name.
   if (lower_case_table_names == 2)
     my_casedn_str(system_charset_info, old_table_name_norm);
-  char new_table_name_norm[NAME_LEN + 1];
-  strmake(new_table_name_norm, new_table_name, NAME_LEN);
-  if (lower_case_table_names == 2)
-     my_casedn_str(system_charset_info, new_table_name_norm);
+  char new_table_name_lc[NAME_LEN + 1];
+  strmake(new_table_name_lc, new_table_name, NAME_LEN);
+  /*
+    Unless new table name in lower case already we need to lowercase
+    it, so it can be used to construct lowercased version of FK name
+    for acquiring metadata lock.
+  */
+  if (lower_case_table_names != 1)
+     my_casedn_str(system_charset_info, new_table_name_lc);
   size_t old_table_name_norm_len= strlen(old_table_name_norm);
 
   for (const dd::Foreign_key *fk : table_def->foreign_keys())
@@ -10375,7 +10389,7 @@ collect_fk_names_for_rename_table(THD *thd,
         is too long. This is sufficient for MDL purposes. Error will be
         reported later in this case.
       */
-      strxnmov(new_fk_name, NAME_LEN, new_table_name_norm,
+      strxnmov(new_fk_name, NAME_LEN, new_table_name_lc,
                fk->name().c_str() + old_table_name_norm_len,
                NullS);
 
