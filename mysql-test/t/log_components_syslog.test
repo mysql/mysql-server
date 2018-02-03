@@ -50,15 +50,16 @@ SELECT @@global.log_error_services;
 SELECT "*** SWITCHING ERROR LOG TO SYSEVENTLOG ***";
 INSTALL COMPONENT "file://component_log_sink_syseventlog";
 
-SET @start_value= @@global.log_syslog_tag;
+--error ER_WRONG_ARGUMENTS
 SET @@global.log_syslog_tag="wl9343";
 
 SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_syseventlog";
+SET @@global.log_syslog_tag="wl9343";
 SELECT "logging to syslog";
+# need to unset this while service is still active.
+SET @@global.log_syslog_tag=DEFAULT;
 SET @@global.log_error_services="log_filter_internal; log_sink_internal";
 
-# need to unset this while service is still loaded. doesn't need to be stacked.
-SET @@global.log_syslog_tag=DEFAULT;
 UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
 --echo
 

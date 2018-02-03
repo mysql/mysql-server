@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -97,13 +97,6 @@ any service.
 #include <mysql/components/services/log_service.h>
 
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
-
-#define log_service_release(srv)                             \
-    if ((srv) != nullptr)                                    \
-    {                                                        \
-      mysql_service_registry->release((my_h_service) (srv)); \
-      (srv) = nullptr;                                       \
-    }
 
 class log_service_imp
 {

@@ -38,7 +38,7 @@ namespace keyring
     void log(longlong level, longlong errcode, ...)
     {
       char buf[LOG_BUFF_MAX];
-      const char *fmt= get_server_errmsgs(errcode);
+      const char *fmt= error_message_for_error_log(errcode);
 
       va_list vl;
       va_start(vl, errcode);

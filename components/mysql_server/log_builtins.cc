@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/log.h"          // make_iso8601_timestamp, log_write_errstream,
                               // log_get_thread_id, mysql_errno_to_symbol,
                               // mysql_symbol_to_errno, log_vmessage,
-                              // get_server_errmsgs, LogVar
+                              // error_message_for_error_log, LogVar
 #include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
 #include "sql/sql_class.h"    // THD
 
@@ -1325,146 +1325,153 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
 }
 
 
-typedef int (*broadcast_callback_wrapper) (my_h_service service, log_line *ll);
-
 /**
-  Broadcast: Call "wrapper" on all non-default services matching "mask"
-  with "ll" for parameters.
+  Broadcast: Call variable set or update function for all active log services.
 
-  @param   mask     select all non-default services matching "pattern"
-                    Caveat:  due to a bug for now, we need to use
-                    "pattern", then filter out the default below.
-                    Later, we will be able to use "pattern." to
-                    exlude the default service.
-  @param   wrapper  a wrapper calling an individual service of a given type
-  @param   ll       log-line data for the service to operate on
-  @param   stop_on_fail
-                    if false, broadcast to all matching services.  ("update")
-                    if true,  stop broadcasting after one matching
-                              service returns > 0  ("check" mode)
+  @param   ll       log-line data for the service to operate on:
 
-  @retval           "check"  mode: number of services that voted "deny"
+                    If ll->item[1] has a key of LOG_VAR_KEY_CHECK and a
+                    value of 1, we submit the data (in item[0]) to the
+                    log-services for validation:
+
+                      If a service either flags the value as invalid,
+                      or indicates an internal error (out of memory etc.,
+                      in which case it cannot ascertain whether the value
+                      is valid), processing is aborted, and an error response
+                      to the user's SET is sent.
+                      If all services have no objections (because they
+                      consider the value correct or another service's business),
+                      the value is considered acceptable.
+
+                    Otherwise, we submit the data in item[0] to the
+                    log-services for them to update themselves accordingly:
+
+                      The value will be offered to each service in turn,
+                      even if one flags an internal error (out of the return
+                      states of, "updated", "ignored", "update attempted and
+                      failed").
+
+  @retval           "check"  mode: number of services that failed or voted "deny"
   @retval           "update" mode: number of services that successfully updated
 */
-static int log_broadcast(const char *mask,
-                         broadcast_callback_wrapper wrapper,
-                         log_line *ll, bool stop_on_fail)
+static int log_broadcast_sys_var_set(log_line *ll)
 {
-  my_h_service_iterator  it;
-  const char            *sname= nullptr;
-  size_t                 mlen= strlen(mask);
-  my_h_service           service, default_service= nullptr;
   int                    count= 0;
+  log_item              *li;
+  bool                   validate_only;
 
-  imp_mysql_server_registry.acquire(mask, &default_service);
+  DBUG_ASSERT(ll        != nullptr);
+  DBUG_ASSERT(ll->count >= 2);
 
-  if (!mysql_registry_imp::iterator_create(mask, &it))
+  /*
+    Changing the variable e.g. for Windows eventlog tag calls some Win
+    functions that are marked not thread-safe, so we serialize them here.
+    It's a service we provide to all services (even the ones that consider
+    themselves thread-safe), as this section isn't performance critical --
+    we wouldn't normally expect even just 2 sessions concurrently setting
+    log_stack or log-variables, much less dozens or hundreds of sessions.
+    Therefore, our concern here is to be robust.
+  */
+
+  mysql_rwlock_wrlock(&THR_LOCK_log_stack);
+
+  /*
+    log_line:
+    ll[0] contains the variable key and value
+    ll[1] contains the action name (check or update)
+  */
+  li= &ll->item[1];
+  validate_only= !strcmp(li->key, LOG_VAR_KEY_CHECK) &&
+                 (li->data.data_integer != 0);
+
+  for (auto &log_service_cache_element : *log_service_cache)
   {
+    log_service_cache_entry *sce= log_service_cache_element.second.get();
+
     /*
-      is_valid() returns true if it ISN'T valid. (Bug#24421348)
+      We only broadcast updates of system variables.
+      As such, we only need to broadcast to external
+      (loaded, not built-in) services, as we can handle
+      the built-in ones directly.
+      It is expected that eventually, services will be
+      either internal, or use pluggable system-variables
+      through the appropriate component framework functionality;
+      once that is achieved, this broadcast function may
+      be removed.
     */
-    while (!mysql_registry_imp::iterator_is_valid(it))
+    if (sce->type == LOG_SERVICE_BUILTIN_TYPE_NONE)
     {
-      /*
-        get_service_iterator() doesn't let us scan for non-default
-        services only by ending in a period, even though it should
-        (Bug#24421421).  This kludge will achieve the same effect
-        until it is fixed.
-      */
-      mysql_registry_imp::iterator_get(it, &sname);
-
-      /*
-        If the leftmost part of the current name matches
-        our mask + a '.', and if we can acquire that service ...
-      */
-      if ((sname != nullptr) &&
-          (0 == strncmp(sname, mask, mlen)) &&
-          (sname[mlen] == '.') &&
-          !imp_mysql_server_registry.acquire(sname, &service))
+      if (sce->service != nullptr)
       {
-        if (service != nullptr)
-        {
-          /*
-            The component framework returns the default service
-            twice; we only want to broadcast to it once, so we
-            skip the duplicate here.
-          */
-          if (service == default_service)
-          {
-            imp_mysql_server_registry.release(default_service);
-            default_service= nullptr;
-          }
-          else
-          {
-            int result= wrapper(service, ll);
+        /*
+          result:
+          -1 if any of the parameters were nonsense; otherwise
+          the return value of the service we queried;
+          by convention:
 
-            // variable checking fails as soon as one service says it does
-            if (stop_on_fail)
-            {
-              if (result != 0)
-              {
-                imp_mysql_server_registry.release(service);
-                count++;
-                break;
-              }
-            }
-            /*
-              Variable updating tries all services, even if some fail
-              (which they really shouldn't, they had time to complain
-              during the check phase).
-            */
-            else if (result > 0)
-            {
-              count++;
-            }
-          }
+          variable check:  <0 failure; 0 proceed; >0 value invalid
+
+            - failure: we tried to run our checks, but failed
+            - proceed: we checked the value, and it is valid
+            - invalid: we checked the value, and it is invalid
+
+          variable update: <0 failure; 0 not processed; >0 processed
+
+            - failure:       we tried to update the value, but failed
+            - not processed: no service chose to update itself (as
+                             opposed to "tried to do so, but failed", above)
+            - processed:     one (or more) services updated themselves
+        */
+        int result;
+        SERVICE_TYPE(log_service) *ls;
+
+        ls= reinterpret_cast<SERVICE_TYPE(log_service)*>(sce->service);
+
+        /*
+          If we can't get the pointer, this service counts as failed.
+        */
+        if (ls == nullptr)
+          result= -1;
+
+        /*
+          Call check function or update function in service depending
+          on the parameters we received (in the log_line).
+        */
+        else
+        {
+          result= validate_only ? ls->variable_check(ll)
+                                : ls->variable_update(ll);
         }
 
-        imp_mysql_server_registry.release(service);
+        /*
+          Variable checking fails as soon as a single service says it does,
+          or as soon as one fails internally (as this is our opportunity to
+          throw an error to the client for it)
+        */
+        if (validate_only)
+        {
+          if (result != 0)
+          {
+            count++;
+            break;
+          }
+        }
+        /*
+          Variable updating tries all services, even if some fail
+          (which they normally shouldn't, they had time to complain
+          during the check phase).
+        */
+        else if (result > 0)
+        {
+          count++;
+        }
       }
-
-      mysql_registry_imp::iterator_next(it);
     }
-
-    mysql_registry_imp::iterator_release(it);
-
-    DBUG_ASSERT(default_service == nullptr);
   }
 
+  mysql_rwlock_unlock(&THR_LOCK_log_stack);
+
   return count;
-}
-
-
-/**
-  Process a configuration variable check or update in a single log service.
-
-  @param  service  the log_service we offer the variable to
-  @param  ll       the log_line.
-                   ll[0] contains the variable key and value
-                   ll[1] contains the action name (check or update)
-
-  @retval -1       if any of the parameters were nonsense
-  @retval          otherwise, the return value of the service we queried;
-                   by convention:
-                   variable check:  <0 failure; 0 proceed; >0 value invalid
-                   variable update: <0 failure; 0 not processed; >0 processed
-*/
-static int log_service_var_one(my_h_service service, log_line *ll)
-{
-  log_item                  *li;
-  SERVICE_TYPE(log_service) *ls= nullptr;
-
-  ls= reinterpret_cast<SERVICE_TYPE(log_service)*>(service);
-
-  if ((ls == nullptr) || (ll == nullptr))
-    return -1;
-
-  li= &ll->item[1];
-  if (!strcmp(li->key, LOG_VAR_KEY_CHECK) &&
-      li->data.data_integer)
-    return ls->variable_check(ll);
-  else
-    return ls->variable_update(ll);
 }
 
 
@@ -1486,7 +1493,18 @@ static int log_service_var_one(my_h_service service, log_line *ll)
 */
 int log_line_submit(log_line *ll)
 {
+  log_item_iter iter_save;
+
   DBUG_ENTER("log_line_submit");
+
+  /*
+    The log-services we'll call below are likely to change the default
+    iter. Since log-services are allowed to call the logger, we'll save
+    the iter on entry and restore it on exit to be properly re-entrant in
+    that regard.
+  */
+  iter_save=   ll->iter;
+  ll->iter.ll= nullptr;
 
   /*
     If anything of what was submitted survived, proceed ...
@@ -1683,6 +1701,8 @@ int log_line_submit(log_line *ll)
     log_line_item_free_all(ll);
   }
 
+  ll->iter= iter_save;
+
   DBUG_RETURN(ll->count);
 }
 
@@ -1824,12 +1844,14 @@ static my_h_service log_service_get_by_name(const char *name, size_t len,
 void log_service_cache_entry_free::operator()
   (log_service_cache_entry *sce) const
 {
-  if (sce == nullptr) return;
+  if (sce == nullptr)
+    return;
 
   if (sce->name != nullptr)
     my_free(sce->name);
 
   assert(sce->opened == 0);
+
   if (sce->service != nullptr)
     imp_mysql_server_registry.release(sce->service);
 
@@ -1951,7 +1973,7 @@ fail:
 */
 static void log_service_instance_release_all()
 {
-  log_service_instance    *lsi, *lsi_next;
+  log_service_instance  *lsi, *lsi_next;
 
   lsi=                   log_service_instances;
   log_service_instances= nullptr;
@@ -2060,10 +2082,11 @@ int log_builtins_error_stack(const char *conf, bool check_only)
   }
 
   lsi= nullptr;
-  while((len= log_builtins_stack_get_service_from_var(&start, &end)) > 0)
+  while ((len= log_builtins_stack_get_service_from_var(&start, &end)) > 0)
   {
     log_service_builtin_type srvtype= LOG_SERVICE_BUILTIN_TYPE_NONE;
 
+    // find current service name in service-cache
     auto it= log_service_cache->find(string(start, len));
 
     // not found in cache; ask component framework
@@ -2135,7 +2158,7 @@ int log_builtins_error_stack(const char *conf, bool check_only)
       // actually setting this config, so open this instance!
       lsi_new= log_service_instance_new(sce, nullptr);
 
-      if (lsi_new != nullptr)
+      if (lsi_new != nullptr)  // add to chain of instances
       {
         if (log_service_instances == nullptr)
           log_service_instances= lsi_new;
@@ -2147,12 +2170,22 @@ int log_builtins_error_stack(const char *conf, bool check_only)
 
         lsi= lsi_new;
       }
-      else
+      else // could not make new instance entry; fail
       {
         rr= (int) -(start - conf + 1);
         goto done;
       }
     }
+
+    /*
+      If neither branch was true, we're in set mode, but the set-up
+      is invalid (i.e. we're trying to multi-open a singleton). As
+      this should have been caught in the check phase, we don't
+      specfically handle it here; the invalid element is skipped and
+      note added to the instance list; that way, we'll get as close
+      to a working configuration as possible in our attempt to fail
+      somewhat gracefully.
+    */
 
     start= end;
   }
@@ -2691,6 +2724,10 @@ DEFINE_METHOD(log_item_iter *,  log_builtins_imp::line_item_iter_acquire,
   if (ll == nullptr)
     return nullptr;
 
+  // If the default iter has already been claimed, refuse to overwrite it.
+  if (ll->iter.ll != nullptr)
+    return nullptr;
+
   ll->iter.ll=    ll;
   ll->iter.index= -1;
 
@@ -2941,7 +2978,7 @@ DEFINE_METHOD(int,              log_builtins_imp::sanitize, (log_item *li))
 DEFINE_METHOD(const char *, log_builtins_imp::errmsg_by_errcode,
                (int mysql_errcode))
 {
-  return get_server_errmsgs(mysql_errcode);
+  return error_message_for_error_log(mysql_errcode);
 }
 
 
@@ -3635,13 +3672,15 @@ int LogVar::check()
   int      rr;
   log_line ll;
 
+  memset((void *) &ll, 0, sizeof(log_line));
+
   ll.count=   1;
   ll.item[0]= this->lv;
 
   log_line_item_set_with_key(&ll, LOG_ITEM_GEN_INTEGER, LOG_VAR_KEY_CHECK,
                              LOG_ITEM_FREE_NONE)->data_integer= 1;
 
-  rr= log_broadcast("log_service", log_service_var_one, &ll, true);
+  rr= log_broadcast_sys_var_set(&ll);
 
   log_line_item_free_all(&ll);
 
@@ -3660,13 +3699,15 @@ int LogVar::update()
   int            rr;
   log_line       ll;
 
+  memset((void *) &ll, 0, sizeof(log_line));
+
   ll.count=   1;
   ll.item[0]= this->lv;
 
   log_line_item_set_with_key(&ll, LOG_ITEM_GEN_INTEGER, LOG_VAR_KEY_CHECK,
                              LOG_ITEM_FREE_NONE)->data_integer= 0;
 
-  rr= log_broadcast("log_service", log_service_var_one, &ll, false);
+  rr= log_broadcast_sys_var_set(&ll);
 
   log_line_item_free_all(&ll);
 

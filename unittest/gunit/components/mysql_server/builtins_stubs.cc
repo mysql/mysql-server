@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,8 @@ ulong              opt_log_timestamps= 0;
 char              *opt_log_error_services= NULL;
 const char        *log_error_dest= "stderr";
 
+void THD::debug_assert_query_locked() const {}
+
 my_thread_id log_get_thread_id(THD *thd MY_ATTRIBUTE((unused)))
 { return -1; }
 
@@ -61,7 +63,7 @@ int         log_message(int log_type MY_ATTRIBUTE((unused)), ...)
 { return -1;   }
 
 C_MODE_START
-const char *get_server_errmsgs(int mysql_errcode MY_ATTRIBUTE((unused)))
+const char *error_message_for_error_log(int mysql_errno MY_ATTRIBUTE((unused)))
 { return NULL; }
 C_MODE_END
 

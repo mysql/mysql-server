@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/auth/sql_security_ctx.h" // Security_context
-#include "sql/derror.h"                  // get_server_errmsgs
+#include "sql/derror.h"                // error_message_for_error_log()
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 

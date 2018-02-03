@@ -108,9 +108,13 @@ static char *log_error_filter_rules= nullptr; ///< sysvar containing rules
 #include <m_string.h>
 
 
-static my_h_service                bls=      nullptr;
 static bool                        inited=   false;
 static int                         opened= 0;
+
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_filter);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_tmp);
 
 SERVICE_TYPE(log_builtins)        *log_bi=   nullptr; ///< accessor built-ins
 SERVICE_TYPE(log_builtins_string) *log_bs=   nullptr; ///< string   built-ins
@@ -1826,14 +1830,8 @@ mysql_service_status_t log_filter_exit()
                                 LOG_BUILTINS_LOCK_EXCLUSIVE);
     log_bf->filter_ruleset_free(&log_filter_dragnet_rules);
 
-    log_service_release(log_bi);
-    log_service_release(log_bs);
-    log_service_release(log_bf);
-    log_service_release(log_bt);
-
-    bls= nullptr;
-    inited= false;
-    opened= 0;
+    inited=                 false;
+    opened=                 0;
     log_error_filter_rules= nullptr;
 
     return false;
@@ -1863,19 +1861,13 @@ mysql_service_status_t log_filter_init()
 
   sys_var_filter_rules.def_val= (char *) LOG_FILTER_DEFAULT_RULES;
 
-  if (mysql_service_registry->acquire("log_builtins", &bls)
-      || ((log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins)*>(bls)) ==
-          nullptr)
-      || mysql_service_registry->acquire("log_builtins_string", &bls)
-      || ((log_bs= reinterpret_cast<SERVICE_TYPE(log_builtins_string)*>(bls)) ==
-          nullptr)
-      || mysql_service_registry->acquire("log_builtins_tmp", &bls)
-      || ((log_bt= reinterpret_cast<SERVICE_TYPE(log_builtins_tmp)*>(bls)) ==
-          nullptr)
-      || mysql_service_registry->acquire("log_builtins_filter", &bls)
-      || ((log_bf= reinterpret_cast<SERVICE_TYPE(log_builtins_filter)*>(bls)) ==
-          nullptr)
-      || ((log_filter_dragnet_rules= log_bf->filter_ruleset_new(&rule_tag_dragnet, 0)) == nullptr)
+  log_bi= mysql_service_log_builtins;
+  log_bs= mysql_service_log_builtins_string;
+  log_bf= mysql_service_log_builtins_filter;
+  log_bt= mysql_service_log_builtins_tmp;
+
+  if (((log_filter_dragnet_rules= log_bf->filter_ruleset_new(&rule_tag_dragnet,
+                                                             0)) == nullptr)
       || mysql_service_component_sys_variable_register->register_variable(
                  LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME,
                  PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
@@ -1929,6 +1921,9 @@ mysql_service_status_t log_filter_init()
             log_bs->free((void *) old);
           goto success;
         }
+
+        // if we failed to copy the default, restore the previous value
+        log_error_filter_rules= old;
       }
 
       LogErr(ERROR_LEVEL, ER_WRONG_VALUE_FOR_VAR,
@@ -1963,10 +1958,14 @@ BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)
   PROVIDES_SERVICE(log_filter_dragnet, log_service)
 END_COMPONENT_PROVIDES()
 
-/* component requires: n/a */
+/* component requires: pluggable system variables, log-builtins */
 BEGIN_COMPONENT_REQUIRES(log_filter_dragnet)
   REQUIRES_SERVICE(component_sys_variable_register)
   REQUIRES_SERVICE(component_sys_variable_unregister)
+  REQUIRES_SERVICE(log_builtins)
+  REQUIRES_SERVICE(log_builtins_string)
+  REQUIRES_SERVICE(log_builtins_filter)
+  REQUIRES_SERVICE(log_builtins_tmp)
 END_COMPONENT_REQUIRES()
 
 /* component description */

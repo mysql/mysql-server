@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -511,12 +511,12 @@ err:
   if (strcmp(opt_slow_logname, name) == 0)
   {
     strcpy(log_open_file_error_message,
-           get_server_errmsgs(ER_LOG_SLOW_CANNOT_OPEN));
+           error_message_for_error_log(ER_LOG_SLOW_CANNOT_OPEN));
   }
   else if (strcmp(opt_general_logname, name) == 0)
   {
     strcpy(log_open_file_error_message,
-           get_server_errmsgs(ER_LOG_GENERAL_CANNOT_OPEN));
+           error_message_for_error_log(ER_LOG_GENERAL_CANNOT_OPEN));
   }
 
   char errbuf[MYSYS_STRERROR_SIZE];
@@ -2144,7 +2144,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili)
     if (ll.item[ll.count].type == LOG_ITEM_LOG_LOOKUP)
     {
       size_t      ec=  ll.item[ll.count].data.data_integer;
-      const char *msg= get_server_errmsgs(ec),
+      const char *msg= error_message_for_error_log(ec),
                  *key= log_item_wellknown_get_name(
                          log_item_wellknown_by_type(LOG_ITEM_LOG_MESSAGE));
 
