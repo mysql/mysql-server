@@ -7,8 +7,6 @@ include/assert.inc ['Expect 0 persisted variables.']
 #    variables.
 CALL mtr.add_suppression("Unsafe statement written to the binary log");
 # Install semi-sync related plugins
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
-INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so';
 CREATE TABLE rplvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), varvalue VARCHAR(256));
 INSERT INTO rplvars (varname, varvalue)
 SELECT * FROM performance_schema.global_variables

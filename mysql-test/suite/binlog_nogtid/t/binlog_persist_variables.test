@@ -31,8 +31,10 @@
 CALL mtr.add_suppression("Unsafe statement written to the binary log");
 
 --echo # Install semi-sync related plugins
+--disable_query_log
 eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
 eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+--enable_query_log
 
 CREATE TABLE rplvars (id INT PRIMARY KEY AUTO_INCREMENT, varname VARCHAR(64), varvalue VARCHAR(256));
 # Disable warning to avoid printing of ER_BINLOG_UNSAFE_STATEMENT
