@@ -1652,7 +1652,8 @@ innobase_start_or_create_for_mysql(void)
 			    /* FTS Parallel Sort */
 			    + fts_sort_pll_degree * FTS_NUM_AUX_INDEX
 			      * max_connections;
-
+	ib::info(SLOG) << "srv_n_read_io_threads="<< srv_n_read_io_threads<<", srv_n_write_io_threads="<< srv_n_write_io_threads<<", srv_n_purge_threads"
+		<< srv_n_purge_threads<<", srv_n_page_cleaners"<< srv_n_page_cleaners;
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 
 		if (srv_buf_pool_instances == srv_buf_pool_instances_default) {
@@ -1705,7 +1706,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);
-
+	ib::info(SLOG) << "srv_buf_pool_instances="<< srv_buf_pool_instances<<", srv_buf_pool_size="<< srv_buf_pool_size;
 	if (srv_n_page_cleaners > srv_buf_pool_instances) {
 		/* limit of page_cleaner parallelizability
 		is number of buffer pool instances. */
