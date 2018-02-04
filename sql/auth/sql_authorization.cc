@@ -2471,38 +2471,6 @@ bool is_granted_table_access(THD *thd, ulong required_acl,
 ****************************************************************************/
 
 
-/*
-  Return 1 if we are allowed to create new users
-  the logic here is: INSERT_ACL is sufficient.
-  It's also a requirement in opt_safe_user_create,
-  otherwise CREATE_USER_ACL is enough.
-*/
-
-static bool test_if_create_new_users(THD *thd)
-{
-  Security_context *sctx= thd->security_context();
-  bool create_new_users= sctx->check_access(INSERT_ACL) ||
-                         (!opt_safe_user_create &&
-                          sctx->check_access(CREATE_USER_ACL));
-  if (!create_new_users)
-  {
-    TABLE_LIST tl;
-    ulong db_access;
-    tl.init_one_table(C_STRING_WITH_LEN("mysql"),
-                      C_STRING_WITH_LEN("user"), "user", TL_WRITE);
-    create_new_users= 1;
-
-    db_access= acl_get(thd, sctx->host().str, sctx->ip().str,
-                       sctx->priv_user().str, tl.db, 0);
-    if (!(db_access & INSERT_ACL))
-    {
-      if (check_grant(thd, INSERT_ACL, &tl, false, UINT_MAX, true))
-        create_new_users=0;
-    }
-  }
-  return create_new_users;
-}
-
 bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
                               const LEX_CSTRING &role_host)
 {
@@ -2566,11 +2534,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   List_iterator <LEX_USER> str_list (user_list);
   LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
-  bool create_new_users= false;
   const char *db_name, *table_name;
   bool transactional_tables;
   ulong what_to_set= 0;
-  bool is_privileged_user= false;
   bool result= false;
   int ret= 0;
   std::set<LEX_USER *> existing_users;
@@ -2706,11 +2672,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(ret != 1);                          /* purecov: deadcode */
   }
 
-  if (!revoke_grant)
-    create_new_users= test_if_create_new_users(thd);
-
-  is_privileged_user= is_privileged_user_for_credential_change(thd);
-
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
   grant_version++;
@@ -2727,7 +2688,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
 
     if (set_and_validate_user_attributes(thd, Str, what_to_set,
-                                         is_privileged_user, false,
+                                         false, false,
                                          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
                                          revoke_grant?"REVOKE":"GRANT"))
     {
@@ -2739,17 +2700,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     if (this_user && (what_to_set & PLUGIN_ATTR))
       existing_users.insert(tmp_Str);
 
-    /* Create user if needed */
-    if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
-                                  0, revoke_grant, create_new_users,
-                                  what_to_set)))
-    {
-      result= true;
-      if (error < 0)
-        break;
-
-      continue;
-    }
     db_name= table_list->get_db_name();
     thd->add_to_binlog_accessed_dbs(db_name); // collecting db:s for MTS
     table_name= table_list->get_table_name();
@@ -2903,11 +2853,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   List_iterator <LEX_USER> str_list (user_list);
   LEX_USER *Str, *tmp_Str;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
-  bool create_new_users= false;
   const char *db_name, *table_name;
   bool transactional_tables;
   ulong what_to_set= 0;
-  bool is_privileged_user= false;
   bool result= false;
   int ret;
   std::set<LEX_USER *> existing_users;
@@ -2949,10 +2897,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
 
-  if (!revoke_grant)
-    create_new_users= test_if_create_new_users(thd);
-
-  is_privileged_user= is_privileged_user_for_credential_change(thd);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
 
@@ -2970,7 +2914,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     if (set_and_validate_user_attributes(thd, Str, what_to_set,
-                                         is_privileged_user, false,
+                                         false, false,
                                          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
                                          revoke_grant?"REVOKE":"GRANT"))
     {
@@ -2982,17 +2926,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     if (this_user && (what_to_set & PLUGIN_ATTR))
       existing_users.insert(tmp_Str);
 
-    /* Create user if needed */
-    if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
-                                   0, revoke_grant, create_new_users,
-                                   what_to_set)))
-    {
-      result= true;                             // Remember error
-      if (error < 0)
-        break;
-
-      continue;
-    }
     db_name= table_list->db;
     if (write_to_binlog)
       thd->add_to_binlog_accessed_dbs(db_name);
@@ -3335,11 +3268,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *user, *target_user, *proxied_user= NULL;
   char tmp_db[NAME_LEN+1];
-  bool create_new_users= false;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
   ulong what_to_set= 0;
-  bool is_privileged_user= false;
   bool error= false;
   int ret;
   TABLE *dynpriv_table;
@@ -3383,10 +3314,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
 
-  if (!revoke_grant)
-    create_new_users= test_if_create_new_users(thd);
-
-  is_privileged_user= is_privileged_user_for_credential_change(thd);
   /* go through users in user_list */
   grant_version++;
   dynpriv_table= tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
@@ -3399,7 +3326,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     }
 
     if (set_and_validate_user_attributes(thd, user, what_to_set,
-                                         is_privileged_user, false,
+                                         false, false,
                                          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
                                          revoke_grant?"REVOKE":"GRANT"))
     {
@@ -3426,7 +3353,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
     if ((ret= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
                                  user, (!db ? rights : 0), revoke_grant,
-                                 create_new_users,
+                                 false,
                                  (what_to_set | ACCESS_RIGHTS_ATTR))))
     {
       error= true;
@@ -5563,7 +5490,6 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   combo->auth= EMPTY_CSTR;
   combo->uses_identified_by_clause= false;
   combo->uses_identified_with_clause= false;
-  combo->uses_identified_by_password_clause= false;
   combo->uses_authentication_string_clause= false;
 
   if (user_list.push_back(combo))

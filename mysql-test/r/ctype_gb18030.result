@@ -1067,8 +1067,6 @@ HEX(WEIGHT_STRING(CAST(0x81309D3081309D3081309D30 AS CHAR), 25, 4, 0xC0))
 # INETTO_NTOA + MULTIBYTE CHARSET.
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT is_ipv4(inet_ntoa('1'));
 is_ipv4(inet_ntoa('1'))
 1

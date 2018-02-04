@@ -3,8 +3,6 @@ set end_markers_in_json=on;
 set optimizer_trace="enabled=on";
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#16021396 ONLY_FULL_GROUP_BY REJECTS VALID QUERY USING VIEW
 #

@@ -4062,20 +4062,6 @@ mysql_execute_command(THD *thd, bool first_level)
                           lex->dynamic_privileges,
                           lex->all_privileges);
       }
-      if (!res)
-      {
-	if (lex->sql_command == SQLCOM_GRANT)
-	{
-	  List_iterator <LEX_USER> str_list(lex->users_list);
-	  LEX_USER *user, *tmp_user;
-	  while ((tmp_user=str_list++))
-          {
-            if (!(user= get_current_user(thd, tmp_user)))
-              goto error;
-	    reset_mqh(thd, user, 0);
-          }
-	}
-      }
     }
     break;
   }
@@ -4753,8 +4739,7 @@ mysql_execute_command(THD *thd, bool first_level)
       if (is_self &&
           (user->uses_identified_by_clause ||
            user->uses_identified_with_clause ||
-           user->uses_authentication_string_clause ||
-           user->uses_identified_by_password_clause))
+           user->uses_authentication_string_clause))
       {
         changing_own_password= true;
         break;
@@ -7121,7 +7106,6 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->uses_identified_with_clause= false;
   definer->uses_identified_by_clause= false;
   definer->uses_authentication_string_clause= false;
-  definer->uses_identified_by_password_clause= false;
   definer->alter_status.update_password_expired_column= false;
   definer->alter_status.use_default_password_lifetime= true;
   definer->alter_status.expire_after_days= 0;
@@ -7183,8 +7167,6 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
         user->uses_authentication_string_clause;
       default_definer->uses_identified_by_clause=
         user->uses_identified_by_clause;
-      default_definer->uses_identified_by_password_clause=
-        user->uses_identified_by_password_clause;
       default_definer->uses_identified_with_clause=
         user->uses_identified_with_clause;
       default_definer->plugin.str= user->plugin.str;

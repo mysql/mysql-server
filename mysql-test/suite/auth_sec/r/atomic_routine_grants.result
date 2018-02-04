@@ -26,127 +26,17 @@ GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userZ`@`%`
 # This event sequence pattern MUST be present in binlog: !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userY.*userZ.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
-# Case 2 : Create new user through grant
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userX, userA IDENTIFIED BY 'abcd';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userA
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userA`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userA.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 3 : With NO_AUTO_CREATE_USER off
-set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set @orig_sql_mode_session= @@SESSION.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userY, userB;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userB
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userB
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userY`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userB`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userY.*userB.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-# Case 4 : Credential change using grant
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userA IDENTIFIED BY 'hoho', userB IDENTIFIED BY 'haha';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-# Must show updated grants
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userA`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userB`@`%`
-# Must show password for both users
-SHOW CREATE USER userA;
-CREATE USER for userA@%
-CREATE USER 'userA'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-SHOW CREATE USER userB;
-CREATE USER for userB@%
-CREATE USER 'userB'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-# This event sequence pattern MUST be present in binlog: !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userA.*IDENTIFIED WITH.*AS.*,.*userB.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 5 : Non-existing user with NO_AUTO_CREATE_USER on
-REVOKE ALL ON PROCEDURE db1.proc1 FROM userX, userY, userZ;
-include/save_binlog_position.inc
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userX, userY, userZ, userC, userD;
-ERROR 42000: Can't find any matching row in the user table
-# Grants must remain unchanged
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userY.*userZ.*userC.*userD.*)
-include/assert_binlog_events.inc
 # Case 6 : Create new user with an account without CREATE USER privilege
-REVOKE ALL ON PROCEDURE db1.proc1 FROM userA, userB;
+CREATE USER userA, userB;
 GRANT EXECUTE ON PROCEDURE db1.proc1 to userX WITH GRANT OPTION;
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
+GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userZ`@`%`
 SHOW GRANTS FOR userA;
 Grants for userA@%
 GRANT USAGE ON *.* TO `userA`@`%`
@@ -157,7 +47,7 @@ include/save_binlog_position.inc
 # should succeed
 GRANT EXECUTE ON PROCEDURE db1.proc1 TO userY, userZ;
 # should fail
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userA, userB, userC IDENTIFIED BY 'haha';
+GRANT EXECUTE ON PROCEDURE db1.proc1 TO userA, userB, userC;
 ERROR 42000: You are not allowed to create a user with GRANT
 # Must show updated grants
 SHOW GRANTS FOR userY;

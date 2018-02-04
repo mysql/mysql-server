@@ -683,7 +683,6 @@ SELECT regexp_substr ( 'a', 'a', 1, 0, NULL );
 
 SELECT regexp_like( reverse(''), 123 );
 SELECT regexp_like( soundex(@v1), 'abc' );
-SELECT regexp_like( password(@v1), 'abc' );
 SELECT regexp_like( left('', ''), 'abc' );
 SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
 

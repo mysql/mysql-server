@@ -2,8 +2,6 @@
 # Loads the plugin when there is no query_rewrite database
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CALL mtr.add_suppression("Plugin rewriter reported: " ||
 "'Wrong column count or names when loading rules.'");
 INSTALL PLUGIN rewriter SONAME 'rewriter.xxx';

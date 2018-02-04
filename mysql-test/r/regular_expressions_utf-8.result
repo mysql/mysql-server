@@ -334,8 +334,6 @@ ab
 SELECT regexp_substr('a', '[[:invalid_bracket_expression:]]');
 ERROR HY000: Illegal argument to a regular expression.
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t2 ( g GEOMETRY NOT NULL );
 INSERT INTO t2 VALUES ( POINT(1,2) );
 SELECT concat( regexp_like(g, g), 'x' ) FROM t2;
@@ -800,9 +798,6 @@ regexp_like( reverse(''), 123 )
 SELECT regexp_like( soundex(@v1), 'abc' );
 regexp_like( soundex(@v1), 'abc' )
 NULL
-SELECT regexp_like( password(@v1), 'abc' );
-regexp_like( password(@v1), 'abc' )
-0
 SELECT regexp_like( left('', ''), 'abc' );
 regexp_like( left('', ''), 'abc' )
 0

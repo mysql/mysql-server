@@ -31,10 +31,7 @@ DROP USER mysqltest1@'%';
 --echo #   TRIGGER privilege on given table
 --echo #
 
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-GRANT USAGE ON *.* TO 'user3'@'%';
-SET sql_mode= @orig_sql_mode;
+CREATE USER 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 --echo Run mysql_upgrade with all privileges on a user
 # Filter out ndb_binlog_index to mask differences due to running with or

@@ -238,8 +238,6 @@ A2E6
 FEF7
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (s1 varchar(5) character set euckr);
 insert into t1 values (0xA141);
 insert into t1 values (0xA15A);
@@ -305,8 +303,6 @@ DROP TABLE t1;
 # euckr valid codes are now [81..FE][41..5A,61..7A,81..FE]
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a binary(1), key(a));
 CREATE TABLE t2 (s VARCHAR(4), a VARCHAR(1) CHARACTER SET euckr);
 INSERT INTO t2
@@ -24280,8 +24276,6 @@ End of 5.4 tests
 # Testing WL#4583 Case conversion in Asian character sets 
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES utf8;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

@@ -166,7 +166,8 @@ select 1;	-- To test that the previous command didn't cause problems
 #
 create database mysqltest1;
 begin;
-grant usage on mysqltest1.* to test6123 identified by 'magic123';
+create user test6123 identified by 'magic123';
+grant usage on mysqltest1.* to test6123;
 commit;
 select host,db,user,select_priv,insert_priv from mysql.db where db="mysqltest1";
 delete from mysql.user where user='test6123';
@@ -241,7 +242,8 @@ drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
 begin;
-grant usage on *.* to mysqltest_1@localhost identified by "password";
+create user mysqltest_1@localhost identified by "password";
+grant usage on *.* to mysqltest_1@localhost;
 grant select, update, insert on test.* to mysqltest_1@localhost;
 commit;
 show grants for mysqltest_1@localhost;

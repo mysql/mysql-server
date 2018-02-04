@@ -648,9 +648,6 @@ DO UNIX_TIMESTAMP(
 DO LAST_DAY(SQRT(CAST((LAG(REPEAT('B',64),91)OVER())AS DATETIME)));
 --echo We Must disable warning for next statement because we get two instead of
 --echo one with -ps protocol vs plain protocol.
---disable_warnings
-DO CAST((LAG(CHAR(PASSWORD('* $')USING SJIS),223)OVER())AS DATETIME);
---enable_warnings
 DO CAST((LEAD(-197994311,60)OVER())AS DATETIME);
 DO IFNULL((NULL ),(UNIX_TIMESTAMP(LEAD(NULL,12)RESPECT NULLS OVER())));
 

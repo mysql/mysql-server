@@ -172,7 +172,6 @@ command ok
 Query
 CREATE USER 'unpriv'@'localhost' IDENTIFIED WITH 'mysql_native_password'
 SET PASSWORD FOR `unpriv`@`localhost`=<secret>
-SHOW WARNINGS
 0 rows affected
 ######### kill_client #########
 connecting...

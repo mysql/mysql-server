@@ -72,8 +72,6 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 #
 # Show replication filters for channel 'ch1' and 'ch2' at beginning.
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'global_db'
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -81,10 +79,6 @@ Replicate_Ignore_Table = ''
 Replicate_Wild_Do_Table = 'global_db.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'global_db'
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -92,8 +86,6 @@ Replicate_Ignore_Table = ''
 Replicate_Wild_Do_Table = 'global_db.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 6
@@ -113,8 +105,6 @@ RESET SLAVE FOR CHANNEL "ch1";
 # Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" retains
 # replication filters of the channel.
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'global_db'
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -122,8 +112,6 @@ Replicate_Ignore_Table = ''
 Replicate_Wild_Do_Table = 'global_db.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 6
@@ -144,8 +132,6 @@ RESET SLAVE;
 # Verify that "RESET SLAVE" retains all replication filters from
 # all replication channels.
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'global_db'
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -153,10 +139,6 @@ Replicate_Ignore_Table = ''
 Replicate_Wild_Do_Table = 'global_db.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'global_db'
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -164,8 +146,6 @@ Replicate_Ignore_Table = ''
 Replicate_Wild_Do_Table = 'global_db.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 6
@@ -219,8 +199,6 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
 ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'No such row'
 Replicate_Ignore_DB = 'No such row'
 Replicate_Do_Table = 'No such row'
@@ -228,8 +206,6 @@ Replicate_Ignore_Table = 'No such row'
 Replicate_Wild_Do_Table = 'No such row'
 Replicate_Wild_Ignore_Table = 'No such row'
 Replicate_Rewrite_DB = 'No such row'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Verify that default channel would copy global replication filters
 # to its per-channel replication filters if there are no per-channel
@@ -248,8 +224,6 @@ CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
 ch2	REPLICATE_DO_DB	global_db	STARTUP_OPTIONS	0
 ch2	REPLICATE_WILD_DO_TABLE	global_db.t1%	STARTUP_OPTIONS	0
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'global_db'
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -257,8 +231,6 @@ Replicate_Ignore_Table = ''
 Replicate_Wild_Do_Table = 'global_db.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Verify that "RESET SLAVE ALL" with no FOR CHANNEL clause removes all
 # replication channels, so it shall remove all per-channel replication

@@ -62,8 +62,10 @@ GRANT ALL ON *.* TO xuser_cache2@localhost;
 -->callmacro Login_failed	DISABLED	memory	xuser_native	native
 
 -->callmacro Login_ok	DISABLED	memory	xuser_sha256	sha256
--->stmtsql GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost' IDENTIFIED BY 'sha256_new';
--->recvresult
+-->sql
+GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost';
+SET PASSWORD FOR 'xuser_sha256'@'localhost' = 'sha256_new';
+-->endsql
 -->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256
 -->callmacro Login_failed	DISABLED	memory	xuser_sha256	sha256_new
 EOF

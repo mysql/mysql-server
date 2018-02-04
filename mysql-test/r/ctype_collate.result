@@ -670,8 +670,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
 a

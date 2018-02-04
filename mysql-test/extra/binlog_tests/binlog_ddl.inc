@@ -56,7 +56,7 @@
 
 --let $id_string='abcdef'
 --let $old_auth_str=`SELECT authentication_string FROM mysql.user WHERE user LIKE 'user1'`
---let $ddl_query=SET PASSWORD FOR user1=PASSWORD($id_string)
+--let $ddl_query=SET PASSWORD FOR user1=$id_string
 --let $pre_binlog_crash_check=SELECT authentication_string = '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
 --let $post_binlog_crash_check=SELECT authentication_string != '$old_auth_str' FROM mysql.user WHERE user LIKE 'user1'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc

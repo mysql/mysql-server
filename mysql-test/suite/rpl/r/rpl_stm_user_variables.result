@@ -212,8 +212,6 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW SET @aux = -1 ;
 SET @aux = 10294947273192243200;

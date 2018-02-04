@@ -243,8 +243,6 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SET @@SESSION.sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 EXPLAIN SELECT DISTINCT col_int
 FROM t1
 WHERE col_varchar_key <> 'c'

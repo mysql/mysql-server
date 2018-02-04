@@ -4958,14 +4958,14 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 !print_event_info->sql_mode_inited)))
   {
     /*
-      All the SQL_MODEs included in 0x3ff00 were removed in 8.0.5. The upgrade
+      All the SQL_MODEs included in 0x1003ff00 were removed in 8.0.5. The upgrade
       procedure clears these bits. So the bits can only be set on older binlogs.
       Therefore, we generate this version-conditioned expression that masks out
       the removed modes in case this is executed on 8.0.5 or later.
     */
     const char *mask= "";
-    if (sql_mode & 0x3ff00)
-      mask= "/*!80005 &~0x3ff00*/";
+    if (sql_mode & 0x1003ff00)
+      mask= "/*!80005 &~0x1003ff00*/";
     my_b_printf(file,"SET @@session.sql_mode=%lu%s%s\n",
                 (ulong)sql_mode, mask, print_event_info->delimiter);
     print_event_info->sql_mode= sql_mode;
@@ -5279,7 +5279,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (sql_mode_inited)
       {
         /*
-          All the SQL_MODEs included in 0x3ff00 were removed in 8.0.5.
+          All the SQL_MODEs included in 0x1003ff00 were removed in 8.0.5.
           The upgrade procedure clears these bits. So the bits can only be set
           when replicating from an older server. We consider it safe to clear
           the bits, because:

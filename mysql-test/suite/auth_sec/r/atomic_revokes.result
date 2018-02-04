@@ -85,9 +85,9 @@ GRANT USAGE ON *.* TO `userX`@`%`
 GRANT SELECT, INSERT (`c1`, `c2`) ON `db1`.`table1` TO `userX`@`%`
 # Case 1 : Revoke from non-existing user
 REVOKE SELECT ON db1.table1 FROM userX, userZ;
-ERROR 42000: There is no such grant defined for user 'userZ' on host '%'
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%' on table 'table1'
 REVOKE INSERT(c1, c2) ON db1.table1 FROM userX, userZ;
-ERROR 42000: There is no such grant defined for user 'userZ' on host '%'
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%' on table 'table1'
 # userX's grants must not have changed
 SHOW GRANTS FOR userX;
 Grants for userX@%
@@ -145,7 +145,7 @@ GRANT USAGE ON *.* TO `userX`@`%`
 GRANT EXECUTE ON PROCEDURE `db1`.`proc1` TO `userX`@`%`
 Case 1 : Revoke from non-existing user
 REVOKE EXECUTE ON PROCEDURE db1.proc1 FROM userX, userZ;
-ERROR 42000: There is no such grant defined for user 'userZ' on host '%'
+ERROR 42000: There is no such grant defined for user 'userZ' on host '%' on routine 'proc1'
 # userX's grants must not have changed
 SHOW GRANTS FOR userX;
 Grants for userX@%

@@ -155,8 +155,6 @@ i	d	dn
 6	0000-00-00 00:00:00	0000-00-00 00:00:00
 drop table bug20691;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table bug20691 (
 a set('one', 'two', 'three') not null,
 b enum('small', 'medium', 'large', 'enormous', 'ellisonego') not null,

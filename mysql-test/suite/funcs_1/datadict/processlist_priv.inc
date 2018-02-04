@@ -183,7 +183,7 @@ eval SELECT $columns FROM $table $select_where ORDER BY id;
 --echo   connection default (user=root)
 --echo ####################################################################################
 connection default;
-GRANT PROCESS ON *.* TO ddicttestuser1@'localhost' IDENTIFIED BY 'ddictpass';
+GRANT PROCESS ON *.* TO ddicttestuser1@'localhost';
 --real_sleep 0.3
 
 --echo ####################################################################################
@@ -226,10 +226,8 @@ SELECT * FROM information_schema.processlist;
 --echo   connection default (user=root)
 --echo ####################################################################################
 connection default;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER ''@'localhost';
 GRANT PROCESS ON *.* TO ''@'localhost';
-set sql_mode= @orig_sql_mode;
 --real_sleep 0.3
 
 --echo ####################################################################################

@@ -1544,6 +1544,7 @@ use test;
 
 create database mysqldump_test_db;
 
+create user user1, user2;
 grant all privileges on mysqldump_test_db.*  to user1;
 grant all privileges on mysqldump_test_db.*  to user2;
 
@@ -2259,6 +2260,7 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 --echo # Test to check 'Insufficient privileges' error.
 --echo
 
+CREATE USER user1;
 GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
 
 connect (conn_1, localhost, user1, , BUG52792, $MASTER_MYPORT, $MASTER_MYSOCK);

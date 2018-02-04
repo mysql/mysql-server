@@ -40,11 +40,7 @@ uncompress_ops	0
 BEGIN;
 COMMIT;
 ALTER TABLE t DROP INDEX c;
-GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
-Warnings:
-Level	Warning
-Code	1287
-Message	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
 FLUSH PRIVILEGES;
 SELECT * FROM information_schema.innodb_cmp_per_index;
 ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation

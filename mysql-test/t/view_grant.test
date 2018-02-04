@@ -4,16 +4,14 @@
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 --disable_warnings
 drop database if exists mysqltest;
 drop view if exists v1,v2,v3;
 --enable_warnings
 
-
 # simple test of grants
+create user test@localhost;
 grant create view on test.* to test@localhost;
 show grants for test@localhost;
 revoke create view on test.* from test@localhost;
@@ -30,7 +28,7 @@ create database mysqltest;
 
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
-
+create user mysqltest_1@localhost;
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 grant create view,select on test.* to mysqltest_1@localhost;
 
@@ -112,6 +110,8 @@ connection root;
 revoke all privileges on mysqltest.v1 from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
+flush privileges;
+create user mysqltest_1@localhost;
 
 #
 # EXPLAIN rights
@@ -223,9 +223,11 @@ explain select c from mysqltest.v4;
 show create view mysqltest.v4;
 
 connection root;
-revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+revoke all privileges, grant option from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
+flush privileges;
+create user mysqltest_1@localhost;
 
 #
 # UPDATE privileges on VIEW columns and whole VIEW
@@ -644,6 +646,7 @@ delete from mysql.user where user='';
 flush privileges;
 
 # Create the test user
+create user 'test14256'@'%';
 grant all on test.* to 'test14256'@'%';
 
 connect (test14256,localhost,test14256,,test);
@@ -1151,6 +1154,8 @@ INSERT INTO mysqltest1.t2 VALUES (21), (22), (23), (24);
 INSERT INTO mysqltest1.t3 VALUES (31), (32), (33), (34);
 INSERT INTO mysqltest1.t4 VALUES (41), (42), (43), (44);
 
+CREATE USER mysqltest_u1@localhost;
+
 GRANT SELECT ON mysqltest1.t1 TO mysqltest_u1@localhost;
 GRANT INSERT ON mysqltest1.t2 TO mysqltest_u1@localhost;
 GRANT SELECT, UPDATE ON mysqltest1.t3 TO mysqltest_u1@localhost;
@@ -1225,7 +1230,7 @@ CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1(f1 INT, f2 INT);
 CREATE VIEW v1 AS SELECT f1, f2 FROM t1;
-
+CREATE USER foo;
 GRANT SELECT (f1) ON t1 TO foo;
 GRANT SELECT (f1) ON v1 TO foo;
 

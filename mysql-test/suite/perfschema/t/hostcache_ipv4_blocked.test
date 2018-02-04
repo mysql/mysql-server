@@ -18,10 +18,8 @@ select @@global.max_connect_errors into @saved_max_connect_errors;
 
 set global max_connect_errors = 3;
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user 'root'@'santa.claus.ipv4.example.com';
 grant select on test.* to 'root'@'santa.claus.ipv4.example.com';
-set sql_mode= @orig_sql_mode;
 
 create user 'quota'@'santa.claus.ipv4.example.com' identified with 'mysql_native_password';
 grant select on test.* to 'quota'@'santa.claus.ipv4.example.com';

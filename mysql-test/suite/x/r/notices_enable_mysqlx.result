@@ -1,11 +1,3 @@
-check with password function which is deprecated
-1/0	1/0	password('test')	password('')
-null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
-0 rows affected
-Warnings generated:
-WARNING | 1681 | 'PASSWORD' is deprecated and will be removed in a future release.
-WARNING | 1365 | Division by 0
-WARNING | 1365 | Division by 0
 check with dropping db which doesn't exists
 
 0 rows affected
@@ -115,8 +107,6 @@ checking character data type
 Error is returned instead of warning for insert operation with xplugin
 
 0 rows affected
-Warnings generated:
-WARNING | 3090 | Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 0 rows affected
 Statement prepared
@@ -1154,7 +1144,6 @@ setting back to default of sql_mode
 0 rows affected
 Warnings generated:
 WARNING | 3135 | 'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-WARNING | 3090 | Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 checking with group by where both error and warnings expected with default sql_mode
 
 0 rows affected
@@ -1297,8 +1286,8 @@ default_storage_engine	InnoDB
 Try to enable fixed notice, should be ok
 
 command ok
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 168]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 864]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 167]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 857]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -1471,14 +1460,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-check with password function which is deprecated
-1/0	1/0	password('test')	password('')
-null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
-0 rows affected
-Warnings generated:
-WARNING | 1681 | 'PASSWORD' is deprecated and will be removed in a future release.
-WARNING | 1365 | Division by 0
-WARNING | 1365 | Division by 0
 
 0 rows affected
 
@@ -1490,9 +1471,6 @@ seems like some problem with these stats, need to change values once issues fixe
 disable warnings notice and observe stats
 
 command ok
-1/0	1/0	password('test')	password('')
-null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
-0 rows affected
 enable account_expired notice and check stats
 
 command ok
@@ -1515,8 +1493,8 @@ generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 2]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 2]
@@ -1525,39 +1503,25 @@ Mysqlx.Ok {
 }
 ok
 # restart: 
-1/0	1/0	password('test')	password('')
-null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
-0 rows affected
-Warnings generated:
-WARNING | 1681 | 'PASSWORD' is deprecated and will be removed in a future release.
-WARNING | 1365 | Division by 0
-WARNING | 1365 | Division by 0
 
 0 rows affected
 
 0 rows affected
 Warnings generated:
 NOTE | 1051 | Unknown table 'mysql.t1'
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 # restart: 
 create user noti@localhost identified by 'noti';
-1/0	1/0	password('test')	password('')
-null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
-0 rows affected
-Warnings generated:
-WARNING | 1681 | 'PASSWORD' is deprecated and will be removed in a future release.
-WARNING | 1365 | Division by 0
-WARNING | 1365 | Division by 0
 While executing use mysql:
 Got expected error: Access denied for user 'noti'@'localhost' to database 'mysql' (code 1044)
 Got expected error: No database selected (code 1046)
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 2]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]

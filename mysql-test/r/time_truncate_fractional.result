@@ -1,6 +1,4 @@
 SET sql_mode=time_truncate_fractional;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Testing time_truncate_fractional from VARCHAR and TIME(6) to TIME(N)
 #

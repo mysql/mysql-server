@@ -1089,18 +1089,8 @@ int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length)
 
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
 
-#if defined(HAVE_OPENSSL)
-  if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
-  {
-    /*
-      Adjust default password algorithm to fit the default authentication
-      method.
-    */
-    global_system_variables.old_passwords= 2;
-  }
-  else
-#endif /* HAVE_OPENSSL */
-  if (default_auth_plugin_name.str != native_password_plugin_name.str &&
+  if (default_auth_plugin_name.str != sha256_password_plugin_name.str &&
+      default_auth_plugin_name.str != native_password_plugin_name.str &&
       default_auth_plugin_name.str != caching_sha2_password_plugin_name.str)
     return 1;
 
@@ -3269,13 +3259,6 @@ acl_authenticate(THD *thd, enum_server_command command)
                               mpvio.acl_user->plugin.str));
     auth_plugin_name= mpvio.acl_user->plugin;
     res= do_auth_once(thd, auth_plugin_name, &mpvio);
-    if (res <= CR_OK)
-    {
-      if (auth_plugin_name.str == native_password_plugin_name.str)
-        thd->variables.old_passwords= 0;
-      if (auth_plugin_name.str == sha256_password_plugin_name.str)
-        thd->variables.old_passwords= 2;
-    }
   }
 
   server_mpvio_update_thd(thd, &mpvio);

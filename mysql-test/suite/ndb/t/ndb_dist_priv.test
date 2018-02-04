@@ -32,7 +32,8 @@ CREATE USER 'user'@'localhost' IDENTIFIED by 'mypass';
 GRANT UPDATE ON t1 TO 'user'@'localhost';
 SET PASSWORD FOR 'user'@'localhost'= 'newpass';
 RENAME USER 'user'@'localhost' TO 'newuser'@'localhost';
-GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2';
+ALTER USER 'newuser'@'localhost' IDENTIFIED by 'mypass2';
+GRANT SELECT ON test.* TO 'newuser'@'localhost';
 CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
 GRANT SELECT ON test.t1 TO 'user2'@'localhost';
 select distinct User,Authentication_string from mysql.user order by User;
@@ -131,10 +132,8 @@ DROP USER 'billy1'@'127.0.0.1';
 connection server1;
 # Remove NO_AUTO_CREATE_USER sql mode since this part of the
 # test is written to explcitly create a user with GRANT
-set @orig_sql_mode= @@sql_mode;
-set SESSION sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER 'billy2'@'127.0.0.1';
 GRANT ALL ON *.* TO 'billy2'@'127.0.0.1';
-set SESSION sql_mode = @orig_sql_mode;
 
 connect (server2_as_billy2,127.0.0.1,billy2,,test,$MASTER_MYPORT1,);
 connection server2_as_billy2;

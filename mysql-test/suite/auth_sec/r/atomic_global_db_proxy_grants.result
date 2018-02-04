@@ -14,30 +14,7 @@ Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
 # Case 1 : Trying to create user with empty password
 GRANT SUPER ON *.* TO userX, userY, userA;
-ERROR 42000: Can't find any matching row in the user table
-# Grants for userX, userY, userZ should not have changed
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-# Check mysql.user table too
-SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
-user	Super_priv
-userX	N
-userY	N
-userZ	N
-# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SUPER ON.*userX.*userY.*userA.*)
-include/assert_binlog_events.inc
-# Case 2 : Provide invalid password hash
-GRANT SUPER ON *.* TO userX, userY,
-userA IDENTIFIED WITH 'caching_sha2_password'
-					  AS 'hahaha';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+ERROR 42000: You are not allowed to create a user with GRANT
 # Grants for userX, userY, userZ should not have changed
 SHOW GRANTS FOR userX;
 Grants for userX@%
@@ -65,7 +42,7 @@ FLUSH PRIVILEGES;
 include/save_binlog_position.inc
 # Attempt to GRANT privileges to userW
 GRANT SUPER ON *.* TO userX, userW, userY;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 Grants for userX, userY, userZ should not have changed
 SHOW GRANTS FOR userX;
 Grants for userX@%
@@ -95,7 +72,7 @@ GRANT SUPER ON *.* TO userSUPER WITH GRANT OPTION;
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
 include/save_binlog_position.inc
-GRANT SUPER ON *.* TO userX, userY, userA IDENTIFIED BY 'abcd', userB;
+GRANT SUPER ON *.* TO userX, userY, userA , userB;
 ERROR 42000: You are not allowed to create a user with GRANT
 Grants for userX, userY, userZ should not have changed
 SHOW GRANTS FOR userX;
@@ -164,7 +141,7 @@ Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
 # Case 1 : Trying to create user with empty password
 GRANT SELECT ON mysql.* TO userX, userY, userA;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 # Grants for userX, userY, userZ should not have changed
 SHOW GRANTS FOR userX;
 Grants for userX@%
@@ -182,28 +159,6 @@ user	db	Insert_priv	Select_priv
 userX	mysql	Y	N
 # This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userA)
 include/assert_binlog_events.inc
-# Case 2 : Provide invalid password hash
-GRANT SELECT ON mysql.* TO userX, userY,
-userA IDENTIFIED WITH 'caching_sha2_password'
-					       AS 'hahaha';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
-# Grants for userX, userY, userZ should not have changed
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT INSERT ON `mysql`.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-# Check mysql.db table too
-SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
-user	db	Insert_priv	Select_priv
-userX	mysql	Y	N
-# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userA.*)
-include/assert_binlog_events.inc
 # Case 3 : GRANT to a user with empty plugin
 # Create userW and get rid of the plugin value for userW
 CREATE USER userW IDENTIFIED BY 'abcd';
@@ -213,7 +168,7 @@ FLUSH PRIVILEGES;
 include/save_binlog_position.inc
 # Attempt to GRANT privileges to userW
 GRANT SELECT ON mysql.* TO userX, userW, userY;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 Grants for userX, userY, userZ should show SUPER
 SHOW GRANTS FOR userX;
 Grants for userX@%
@@ -238,7 +193,7 @@ FLUSH PRIVILEGES;
 CREATE USER userSELECT;
 GRANT SELECT ON mysql.* TO userSELECT WITH GRANT OPTION;
 include/save_binlog_position.inc
-GRANT SELECT ON mysql.* TO userX, userY, userA IDENTIFIED BY 'abcd', userB;
+GRANT SELECT ON mysql.* TO userX, userY, userA , userB;
 ERROR 42000: You are not allowed to create a user with GRANT
 Grants for userX, userY, userZ should show SUPER
 SHOW GRANTS FOR userX;
@@ -327,7 +282,7 @@ Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
 # Case 1 : Trying to create user with empty password
 GRANT PROXY ON proxied TO userX, userY, userA;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 # Grants for userX, userY, userZ should not have changed
 SHOW GRANTS FOR userX;
 Grants for userX@%
@@ -340,23 +295,6 @@ Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
 # This event sequence pattern MUST NOT be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userZ.*)
 include/assert_binlog_events.inc
-# Case 2 : Provide invalid password hash
-GRANT PROXY ON proxied TO userX, userY,
-userA IDENTIFIED WITH 'caching_sha2_password'
-					      AS 'hahaha';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
-# Grants for userX, userY, userZ should not have changed
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userA.*)
-include/assert_binlog_events.inc
 # Case 3 : GRANT to a user with empty plugin
 # Create userW and get rid of the plugin value for userW
 CREATE USER userW IDENTIFIED BY 'abcd';
@@ -366,7 +304,7 @@ FLUSH PRIVILEGES;
 include/save_binlog_position.inc
 # Attempt to GRANT privileges to userW
 GRANT PROXY ON proxied TO userX, userW, userY;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 Grants for userX, userY, userZ should show SUPER
 SHOW GRANTS FOR userX;
 Grants for userX@%
@@ -387,7 +325,7 @@ include/save_binlog_position.inc
 CREATE USER userPROXY;
 GRANT PROXY ON proxied TO userPROXY WITH GRANT OPTION;
 include/save_binlog_position.inc
-GRANT PROXY ON proxied TO userX, userY, userA IDENTIFIED BY 'abcd', userB;
+GRANT PROXY ON proxied TO userX, userY, userA, userB;
 ERROR 42000: You are not allowed to create a user with GRANT
 Grants for userX, userY, userZ should show SUPER
 SHOW GRANTS FOR userX;

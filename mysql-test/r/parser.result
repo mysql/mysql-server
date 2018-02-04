@@ -1,7 +1,5 @@
 SET @save_sql_mode=@@sql_mode;
 set SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table ADDDATE(a int);
 drop table ADDDATE;
 create table ADDDATE (a int);
@@ -313,8 +311,6 @@ Field	Type	Null	Key	Default	Extra
 DROP TABLE table_25930_a;
 DROP TABLE table_25930_b;
 SET @@sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP PROCEDURE IF EXISTS p26030;
 select "non terminated"$$
 non terminated
@@ -576,8 +572,6 @@ select atan(10 AS p1, 20 AS p2);
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 DROP TABLE IF EXISTS t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
 22:10:00
@@ -2154,8 +2148,6 @@ DROP TABLE t1;
 #
 SET @save_sql_mode=@@sql_mode;
 SET sql_mode='IGNORE_SPACE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Expected error line number is 2:
 CREATE
 TABLE;
@@ -2204,8 +2196,6 @@ ERROR 42000: Incorrect table name ''
 LOAD INDEX INTO CACHE ``;
 ERROR 42000: Incorrect table name ''
 SET @@sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#24756971: REMOVE OBSOLETE LEXER HACK AROUND SELECT LIST
 #

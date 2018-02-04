@@ -9,7 +9,7 @@ SELECT user FROM mysql.user where user='u1';
 user
 u1
 GRANT SELECT(a) ON t1 TO u1@h, u2@h;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 #
 # u1@h should not have been granted any permission
 #

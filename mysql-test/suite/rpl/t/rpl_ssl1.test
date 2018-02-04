@@ -9,10 +9,8 @@ source include/master-slave.inc;
 # preparing playground
 connection master;
 SET SQL_LOG_BIN= 0;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-grant replication slave on *.* to replssl@localhost require ssl;
-set sql_mode= @orig_sql_mode;
+create user replssl@localhost require ssl;
+grant replication slave on *.* to replssl@localhost;
 SET SQL_LOG_BIN= 1;
 create table t1 (t int);
 

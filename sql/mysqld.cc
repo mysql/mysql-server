@@ -893,7 +893,6 @@ bool opt_large_pages= 0;
 bool opt_super_large_pages= 0;
 bool opt_myisam_use_mmap= 0;
 bool offline_mode= 0;
-bool opt_log_builtin_as_identified_by_password= 0;
 uint   opt_large_page_size= 0;
 uint default_password_lifetime= 0;
 
@@ -9298,25 +9297,6 @@ mysql_getopt_value(const char *keyname, size_t key_length,
 C_MODE_END
 
 /**
-  Ensure all the deprecared options with 1 possible value are
-  within acceptable range.
-
-  @retval true error in the values set
-  @retval false all checked
-*/
-static bool check_ghost_options()
-{
-  if (global_system_variables.old_passwords == 1)
-  {
-    LogErr(ERROR_LEVEL, ER_OLD_PASSWORDS_NO_MIDDLE_GROUND);
-    return true;
-  }
-
-  return false;
-}
-
-
-/**
   Get server options from the command line,
   and perform related server initializations.
   @param [in, out] argc_ptr       command line options (count)
@@ -9436,9 +9416,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if (opt_skip_show_db)
     opt_specialflag|= SPECIAL_SKIP_SHOW_DB;
 
-  if (check_ghost_options())
-    return 1;
-
   if (myisam_flush)
     flush_time= 0;
 
@@ -9466,11 +9443,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode, NULL);
-
-  if (!(global_system_variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
-  {
-    LogErr(WARNING_LEVEL, ER_CREDENTIALLESS_AUTO_USER_BAD);
-  }
 
   if (!my_enable_symlinks)
     have_symlink= SHOW_OPTION_DISABLED;

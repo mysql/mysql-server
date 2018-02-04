@@ -7955,7 +7955,7 @@ DROP FUNCTION f1;
 --disable_warnings ONCE
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x3ff00;
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
@@ -9369,10 +9369,8 @@ SET sql_mode = default;
 drop procedure if exists bug15298_1;
 drop procedure if exists bug15298_2;
 --enable_warnings
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user 'mysqltest_1'@'localhost';
 grant all privileges on test.* to 'mysqltest_1'@'localhost';
-set sql_mode= @orig_sql_mode;
 create procedure 15298_1 () sql security definer show grants for current_user;
 create procedure 15298_2 () sql security definer show grants;
 

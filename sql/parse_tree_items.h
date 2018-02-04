@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,28 +346,6 @@ public:
 
   
   virtual bool itemize(Parse_context *pc, Item **res);
-};
-
-
-class PTI_password : public Parse_tree_item
-{
-  typedef Parse_tree_item super;
-
-  Item *expr;
-
-public:
-  PTI_password(const POS &pos, Item *expr_arg) : super(pos), expr(expr_arg) {}
-
-  virtual bool itemize(Parse_context *pc, Item **res)
-  {
-    if (super::itemize(pc, res) || expr->itemize(pc, &expr))
-      return true;
-
-    THD *thd= pc->thd;
-    thd->lex->contains_plaintext_password= true;
-    *res= new (pc->mem_root) Item_func_password(expr);
-    return *res == NULL;
-  }
 };
 
 

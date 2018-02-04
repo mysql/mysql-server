@@ -30,7 +30,6 @@
 #include <algorithm>
 
 #include "control_events.h"
-#include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -602,32 +601,6 @@ class Item_func_rtrim final : public Item_func_trim
 public:
   Item_func_rtrim(const POS &pos, Item *a) : Item_func_trim(pos, a, TRIM_RTRIM)
   {}
-};
-
-
-/*
-  Item_func_password -- new (4.1.1) PASSWORD() function implementation.
-  Returns strcat('*', octet2hex(sha1(sha1(password)))). '*' stands for new
-  password format, sha1(sha1(password) is so-called hash_stage2 value.
-  Length of returned string is always 41 byte. To find out how entire
-  authentication procedure works, see comments in password.c.
-*/
-
-class Item_func_password :public Item_str_ascii_func
-{
-  char m_hashed_password_buffer[CRYPT_MAX_PASSWORD_SIZE + 1];
-  unsigned int m_hashed_password_buffer_len;
-  bool m_recalculate_password;
-public:
-  Item_func_password(Item *a) : Item_str_ascii_func(a)
-  {
-    m_hashed_password_buffer_len= 0;
-    m_recalculate_password= false;
-  }
-  String *val_str_ascii(String *str) override;
-  bool resolve_type(THD *thd) override;
-  const char *func_name() const override { return "password"; }
-  bool is_deprecated() const override { return true; }
 };
 
 

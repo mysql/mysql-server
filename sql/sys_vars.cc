@@ -2931,23 +2931,6 @@ static Sys_var_bool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(false));
 
-static bool old_passwords_check(sys_var *self  MY_ATTRIBUTE((unused)),
-                                THD *thd,
-                                set_var *var)
-{
-  push_deprecated_warn_no_replacement(thd, "old_passwords");
-  /* 1 used to be old passwords */
-  return var->save_result.ulonglong_value == 1;
-}
-
-static Sys_var_uint Sys_old_passwords(
-       "old_passwords",
-       "Determine which hash algorithm to use when generating passwords using "
-       "the PASSWORD() function",
-       SESSION_VAR(old_passwords), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 2), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(old_passwords_check));
-
 static Sys_var_ulong Sys_open_files_limit(
        "open_files_limit",
        "If this is not 0, then mysqld will use this value to reserve file "
@@ -4387,7 +4370,7 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER |
+                MODE_ERROR_FOR_DIVISION_BY_ZERO |
                 MODE_NO_ENGINE_SUBSTITUTION);
 
   check_sub_modes_of_strict_mode(sql_mode, thd);
@@ -4398,20 +4381,6 @@ static bool check_sql_mode(sys_var*, THD *thd, set_var *var)
   const sql_mode_t candidate_mode=
     expand_sql_mode(var->save_result.ulonglong_value, thd);
   var->save_result.ulonglong_value= candidate_mode;
-
-  /* Warning displayed only if the non default sql_mode is specified. */
-  if (var->value)
-  {
-    /* Check if the NO_AUTO_CREATE_USER flag has been swapped. */
-    if ((thd->variables.sql_mode ^ candidate_mode) &
-        MODE_NO_AUTO_CREATE_USER)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SQLMODE,
-                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
-                          "NO_AUTO_CREATE_USER");
-    }
-  }
 
   if (candidate_mode & ~MODE_ALLOWED_MASK)
   {
@@ -4451,7 +4420,7 @@ static const char *sql_mode_names[]=
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
   "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE", "NO_ZERO_DATE",
   "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO", "TRADITIONAL",
-  "NO_AUTO_CREATE_USER", "HIGH_NOT_PRECEDENCE", "NO_ENGINE_SUBSTITUTION",
+  "NOT_USED_29", "HIGH_NOT_PRECEDENCE", "NO_ENGINE_SUBSTITUTION",
   "PAD_CHAR_TO_FULL_LENGTH", "TIME_TRUNCATE_FRACTIONAL",
   0
 };
@@ -4477,8 +4446,7 @@ static Sys_var_set Sys_sql_mode(
                MODE_STRICT_TRANS_TABLES |
                MODE_NO_ZERO_IN_DATE |
                MODE_NO_ZERO_DATE |
-               MODE_ERROR_FOR_DIVISION_BY_ZERO |
-               MODE_NO_AUTO_CREATE_USER),
+               MODE_ERROR_FOR_DIVISION_BY_ZERO),
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
@@ -6446,13 +6414,6 @@ static Sys_var_bool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(false),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
-
-static Sys_var_bool Sys_log_builtin_as_identified_by_password(
-       "log_builtin_as_identified_by_password",
-       "Controls logging of CREATE/ALTER/GRANT and SET PASSWORD user statements "
-       "in replication binlogs, general query logs and audit logs.",
-       GLOBAL_VAR(opt_log_builtin_as_identified_by_password),
-       CMD_LINE(OPT_ARG), DEFAULT(false));
 
 static Sys_var_bool Sys_avoid_temporal_upgrade(
        "avoid_temporal_upgrade",

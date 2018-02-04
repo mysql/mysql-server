@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id mediumint unsigned NOT NULL auto_increment,
 tag char(6) NOT NULL default '',

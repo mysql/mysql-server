@@ -3,103 +3,7 @@ CALL mtr.add_suppression("The plugin 'new_plugin_server' used to authenticate us
 CREATE DATABASE test_user_db;
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
-========== test 1.1.3.2 ====================================
-CREATE USER plug_user IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT PROXY ON plug_dest TO plug_user;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
-mysql: [Warning] Using a password on the command line interface can be insecure.
-current_user()
-plug_dest@%
-user()
-plug_user@localhost
-Tables_in_test_user_db
-t1
-REVOKE PROXY ON plug_dest FROM plug_user;
-mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
-DROP USER plug_user,plug_dest;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
-IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-GRANT PROXY ON plug_dest TO plug_user;
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
-user	plugin
-plug_dest	caching_sha2_password
-plug_user	test_plugin_server
-1)
-mysql: [Warning] Using a password on the command line interface can be insecure.
-current_user()
-plug_dest@%
-user()
-plug_user@localhost
-Tables_in_test_user_db
-t1
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
-                         IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH test_plugin_server AS 'plug_dest'' at line 2
-2)
-mysql: [Warning] Using a password on the command line interface can be insecure.
-current_user()
-plug_dest@%
-user()
-plug_user@localhost
-Tables_in_test_user_db
-t1
-REVOKE PROXY ON plug_dest FROM plug_user;
-3)
-mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
-DROP USER plug_user,plug_dest;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
-IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
-1)
-mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
-GRANT PROXY ON plug_dest TO plug_user;
-2)
-mysql: [Warning] Using a password on the command line interface can be insecure.
-current_user()
-plug_dest@%
-user()
-plug_user@localhost
-Tables_in_test_user_db
-t1
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
-                         IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED WITH test_plugin_server AS 'plug_dest'' at line 2
-DROP USER plug_user,plug_dest;
 ========== test 1.2 ========================================
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
-IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT PROXY ON plug_dest TO plug_user;
-mysql: [Warning] Using a password on the command line interface can be insecure.
-current_user()
-plug_dest@%
-user()
-plug_user@localhost
-RENAME USER plug_dest TO new_dest;
-mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
-GRANT PROXY ON new_dest TO plug_user;
-mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1045 (28000): Access denied for user 'plug_user'@'localhost' (using password: YES)
-SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
-user	plugin
-new_dest	caching_sha2_password
-plug_user	test_plugin_server
-DROP USER plug_user,new_dest;
 CREATE USER plug_user
 IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
@@ -214,7 +118,7 @@ USER()	CURRENT_USER()
 new_dest@localhost	new_dest@%
 connection default;
 disconnect plug_user;
-DROP USER new_user,new_dest,plug_dest;
+DROP USER plug_user, new_user,new_dest,plug_dest;
 ========== test 2, 2.1, 2.2 ================================
 CREATE USER ''@'' IDENTIFIED WITH test_plugin_server AS 'proxied_user';
 CREATE USER proxied_user IDENTIFIED BY 'proxied_user_passwd';
@@ -252,10 +156,8 @@ SELECT @@proxy_user;
 connection default;
 disconnect proxy_con;
 DROP USER ''@'',proxied_user;
-GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'' 
-IDENTIFIED WITH test_plugin_server AS 'proxied_user';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER ''@'' IDENTIFIED WITH test_plugin_server AS 'proxied_user';
+GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'';
 CREATE USER proxied_user IDENTIFIED BY 'proxied_user_passwd';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
@@ -355,13 +257,4 @@ disconnect proxy_con_3;
 disconnect proxy_con_4;
 disconnect proxy_con_5;
 DROP USER ''@'',proxied_user_1,proxied_user_2,proxied_user_3,proxied_user_4,proxied_user_5;
-========== test 3 ==========================================
-GRANT ALL PRIVILEGES ON *.* TO plug_user
-IDENTIFIED WITH test_plugin_server AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-GRANT PROXY ON plug_dest TO plug_user;
-FLUSH PRIVILEGES;
-DROP USER plug_user, plug_dest;
 DROP DATABASE test_user_db;

@@ -3,12 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user replicate@localhost identified by 'aaaaaaaaaaaaaaab',
+replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
+grant replication slave on *.* to replicate@localhost;
+grant replication slave on *.* to replicate@127.0.0.1;
 include/start_slave.inc
 create table t1(n int);
 insert into t1 values(24);

@@ -924,50 +924,6 @@ u6@localhost, u7@localhost, u8@localhost, u9@localhost, u10@localhost,
 u11@localhost, u12@localhost, u13@localhost, u14@localhost,
 u15@localhost, u16@localhost, u17@localhost, u18@localhost,
 u19@localhost;
-# test general log with log_builtin_as_identified_by_password ON
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
-# restarting the server with log_builtin_as_identified_by_password ON
-# Restart server.
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	ON
-TRUNCATE TABLE mysql.general_log;
---------------- general log ---------------------------------------
-SET @old_log_output=          @@global.log_output;
-SET @old_general_log=         @@global.general_log;
-SET @old_general_log_file=    @@global.general_log_file;
-SET GLOBAL general_log_file = '.../log/rewrite_general.log';
-SET GLOBAL log_output =       'FILE,TABLE';
-SET GLOBAL general_log=       'ON';
-CREATE USER u1 IDENTIFIED WITH 'mysql_native_password' BY 'azundris1';
-CREATE USER u2@localhost IDENTIFIED BY 'meow';
-GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1' WITH GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SET PASSWORD FOR u3@localhost = 'def';
-CREATE TABLE test_log (argument TEXT);
-LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
-     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
-Show what is logged:
------- rewrite ------
-SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
-command_type NOT LIKE 'Prepare';
-COUNT(*)
-2
-SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
-COUNT(*)
-1
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND
-command_type NOT LIKE 'Prepare';
-argument
-GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' WITH GRANT OPTION
------- done ------
-DROP USER u1, 'u2'@'localhost', 'u3'@'localhost';
-SET GLOBAL general_log_file=  @old_general_log_file;
-SET GLOBAL general_log=       @old_general_log;
-SET GLOBAL log_output=        @old_log_output;
 #
 # Bug #20553132 USER WITH EXPIRED PASSWORD ABLE TO EXECUTE
 #               ALTER USER .. PASSWORD EXPIRE COMMAND
@@ -1011,24 +967,24 @@ ALTER USER BUT DOESN\'T WORK
 
 CREATE USER u1;
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       PASSWORD EXPIRE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       PASSWORD EXPIRE' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-      WITH MAX_QUERIES_PER_HOUR 2 MA' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      WITH MAX_QUERIES_PER_' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-      REQUIRE CIPHER "DHE-RSA-AES256' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      REQUIRE CIPHER "DHE-R' at line 1
 ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
       PASSWORD EXPIRE DEFAULT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-      PASSWORD EXPIRE DEFAULT' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      PASSWORD EXPIRE DEFAU' at line 1
 DROP USER u1;
 
 Bug #20634154 GRANT/ALTER USER CLEARS PASSWORD EXPIRE.

@@ -71,6 +71,9 @@
   - WL#8383 and WL#9465: Removed obsolete SQL modes from enums in 'events',
     'routines' and 'triggers'.
 
+  - WL#10774 removed NO_AUTO_CREATE_USER as a valid sql mode value.
+    As a result events, routines and triggers table are updated.
+
   If a new DD version is published in a MRU, that version may or may not
   be possible to downgrade to previous MRUs within the same GA. If
   downgrade is supported, the constant DD_VERSION_MINOR_DOWNGRADE_THRESHOLD

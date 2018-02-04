@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,6 @@
 #include "sql/auth/auth_internal.h"
 #include "sql/handler.h"
 #include "sql/log_event.h"  // append_query_string
-#include "sql/mysqld.h"     // opt_log_builtin_as_identified_by_password
 #include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 #include "sql/set_var.h"
 #include "sql/sql_class.h"  // THD
@@ -446,10 +445,7 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   {
     if ((user_name= get_current_user(thd, tmp_user_name)))
     {
-      if (opt_log_builtin_as_identified_by_password)
-        append_user(thd, rlb, user_name, comma, true);
-      else
-        append_user_new(thd, rlb, user_name, comma);
+      append_user_new(thd, rlb, user_name, comma);
       comma= true;
     }
   }
@@ -526,31 +522,18 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
       {
         auth_str= String(user->auth.str, user->auth.length, system_charset_info);
       }
-      if (opt_log_builtin_as_identified_by_password)
-      {
-        /* Construct : SET PASSWORD FOR '<user>'@'<host'>='<HASH>' */
-        rlb->append(STRING_WITH_LEN("SET PASSWORD FOR "));
-        append_query_string(thd, system_charset_info, &current_user, rlb);
-        rlb->append(STRING_WITH_LEN("@"));
-        append_query_string(thd, system_charset_info, &current_host, rlb);
-        rlb->append(STRING_WITH_LEN("="));
-        append_query_string(thd, system_charset_info, &auth_str, rlb);
-      }
-      else
-      {
-        /*
-          Construct :
-          ALTER USER '<user>'@'<host>' IDENTIFIED WITH '<plugin>' AS '<HASH>'
-        */
-        rlb->append(STRING_WITH_LEN("ALTER USER "));
-        append_query_string(thd, system_charset_info, &current_user, rlb);
-        rlb->append(STRING_WITH_LEN("@"));
-        append_query_string(thd, system_charset_info, &current_host, rlb);
-        rlb->append(STRING_WITH_LEN(" IDENTIFIED WITH '"));
-        rlb->append(user->plugin.str);
-        rlb->append(STRING_WITH_LEN("' AS "));
-        append_query_string(thd, system_charset_info, &auth_str, rlb);
-      }
+      /*
+        Construct :
+        ALTER USER '<user>'@'<host>' IDENTIFIED WITH '<plugin>' AS '<HASH>'
+      */
+      rlb->append(STRING_WITH_LEN("ALTER USER "));
+      append_query_string(thd, system_charset_info, &current_user, rlb);
+      rlb->append(STRING_WITH_LEN("@"));
+      append_query_string(thd, system_charset_info, &current_host, rlb);
+      rlb->append(STRING_WITH_LEN(" IDENTIFIED WITH '"));
+      rlb->append(user->plugin.str);
+      rlb->append(STRING_WITH_LEN("' AS "));
+      append_query_string(thd, system_charset_info, &auth_str, rlb);
     }
   }
 }
@@ -595,11 +578,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
       continue;
     if ((user_name= get_current_user(thd, tmp_user_name)))
     {
-      if (opt_log_builtin_as_identified_by_password &&
-          thd->lex->sql_command != SQLCOM_ALTER_USER)
-        append_user(thd, rlb, user_name, comma, true);
-      else
-        append_user_new(thd, rlb, user_name, comma);
+      append_user_new(thd, rlb, user_name, comma);
       comma= true;
     }
   }

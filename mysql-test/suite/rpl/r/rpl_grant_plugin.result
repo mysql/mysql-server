@@ -5,10 +5,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 include/assert.inc [Logged query must match the one issued.]
 include/sync_slave_sql_with_master.inc
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-include/assert.inc [Logged query must match the one issued.]
-include/sync_slave_sql_with_master.inc
 include/assert.inc [Logged query must match the one issued but properly escaped.]
 include/sync_slave_sql_with_master.inc
 include/sync_slave_sql_with_master.inc

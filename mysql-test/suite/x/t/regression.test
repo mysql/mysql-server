@@ -109,7 +109,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
-    stmt: "set password=password('a')"
+    stmt: "set password='a'"
 }
 -->recvresult
 

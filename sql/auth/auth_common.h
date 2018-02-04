@@ -702,8 +702,7 @@ void mysql_rewrite_set_password(THD *thd, String *rlb,
                                 bool for_binlog= false);
 
 /* sql_user */
-void append_user(THD *thd, String *str, LEX_USER *user,
-                 bool comma, bool ident);
+void log_user(THD *thd, String *str, LEX_USER *user, bool comma);
 void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma);
 int check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,

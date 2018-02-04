@@ -313,12 +313,6 @@ DROP USER u3@localhost;
 #
 # Bug #20814051 CREATE USER BINLOG EVENTS INCLUDE NEW ACCOUNT KEYWORD
 #
-# test general log with log_builtin_as_identified_by_password ON
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
-# SHOW CREATE USER should always show ACCOUNT LOCK clause
-SET GLOBAL log_builtin_as_identified_by_password = ON;
 CREATE USER u1 IDENTIFIED BY 'pass';
 SHOW CREATE USER u1;
 CREATE USER for u1@%
@@ -328,11 +322,7 @@ SHOW CREATE USER u1;
 CREATE USER for u1@%
 CREATE USER 'u1'@'%' IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 DROP USER u1;
-# restarting the server with log_builtin_as_identified_by_password ON
 # Restart server.
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	ON
 TRUNCATE TABLE mysql.general_log;
 --------------- general log ---------------------------------------
 SET @old_log_output=          @@global.log_output;
@@ -351,17 +341,14 @@ ALTER USER u1 IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
 # BUG #20996273 ALTER USER REWRITE CAUSES DIFFERENCES ON SLAVE
 #
 ALTER USER u2 IDENTIFIED BY 'pass';
-CREATE TABLE test_log (argument TEXT);
-LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
-     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 Show what is logged:
 ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
 command_type NOT LIKE 'Prepare';
 argument
-CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'u2'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7' ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'u3'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7' ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u2'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u3'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %'AND
 command_type NOT LIKE 'Prepare';
 argument

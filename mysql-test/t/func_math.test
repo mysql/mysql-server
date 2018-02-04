@@ -580,7 +580,7 @@ select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 
 CREATE TABLE t1(a DOUBLE);
 
-SET sql_mode='NO_AUTO_CREATE_USER';
+SET sql_mode='';
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 INSERT INTO t1 VALUES (ln(-1));
@@ -610,7 +610,7 @@ SELECT * FROM t1 ORDER BY a;
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='NO_AUTO_CREATE_USER';
+SET sql_mode='';
 UPDATE t1 SET a = ln(0);
 SELECT * FROM t1 ORDER BY a;
 
@@ -619,7 +619,7 @@ SET sql_mode=default;
 DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
 
-SET sql_mode='NO_AUTO_CREATE_USER';
+SET sql_mode='';
 DELETE FROM t1 WHERE a <=> ln(0);
 SELECT * FROM t1 ORDER BY a;
 

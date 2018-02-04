@@ -100,11 +100,8 @@
   @param str     A String to store the user list.
   @param user    A LEX_USER which will be appended into user list.
   @param comma   If true, append a ',' before the the user.
-  @param ident   If true, append ' IDENTIFIED BY/WITH...' after the user,
-                 if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
-void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
-                 bool ident= false)
+void log_user(THD *thd, String *str, LEX_USER *user, bool comma= true)
 {
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
@@ -116,68 +113,6 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
   append_query_string(thd, system_charset_info, &from_user, str);
   str->append(STRING_WITH_LEN("@"));
   append_query_string(thd, system_charset_info, &from_host, str);
-
-  if (ident)
-  {
-    if (user->plugin.str && (user->plugin.length > 0) &&
-        memcmp(user->plugin.str, native_password_plugin_name.str,
-               user->plugin.length))
-    {
-      /**
-          The plugin identifier is allowed to be specified,
-          both with and without quote marks. We log it with
-          quotes always.
-        */
-      str->append(STRING_WITH_LEN(" IDENTIFIED WITH "));
-      append_query_string(thd, system_charset_info, &from_plugin, str);
-
-      if (user->auth.str && (user->auth.length > 0))
-      {
-        str->append(STRING_WITH_LEN(" AS "));
-        append_query_string(thd, system_charset_info, &from_auth, str);
-      }
-    }
-    else if (user->auth.str)
-    {
-      str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      if (user->uses_identified_by_password_clause ||
-          user->uses_authentication_string_clause)
-      {
-        str->append(user->auth.str, user->auth.length);
-        str->append("'");
-      }
-      else
-      {
-        /*
-          Password algorithm is chosen based on old_passwords variable or
-          TODO the new password_algorithm variable.
-          It is assumed that the variable hasn't changed since parsing.
-        */
-        if (thd->variables.old_passwords == 0)
-        {
-          /*
-            my_make_scrambled_password_sha1() requires a target buffer size of
-            SCRAMBLED_PASSWORD_CHAR_LENGTH + 1.
-            The extra character is for the probably originate from either '\0'
-            or the initial '*' character.
-          */
-          char tmp[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
-          my_make_scrambled_password_sha1(tmp, user->auth.str,
-                                          user->auth.length);
-          str->append(tmp);
-        }
-        else
-        {
-          /*
-            With old_passwords == 2 the scrambled password will be binary.
-          */
-          DBUG_ASSERT(thd->variables.old_passwords = 2);
-          str->append("<secret>");
-        }
-        str->append("'");
-      }
-    }
-  }
 }
 
 void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true)
@@ -219,8 +154,7 @@ void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true)
   else
   {
     if (user->uses_identified_by_clause ||
-        user->uses_identified_with_clause ||
-        user->uses_identified_by_password_clause)
+        user->uses_identified_with_clause)
     {
       str->append(STRING_WITH_LEN(" IDENTIFIED WITH "));
       if (user->plugin.length > 0)
@@ -329,7 +263,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   if (!(acl_user= find_acl_user(user_name->host.str, user_name->user.str, true)))
   {
     String wrong_users;
-    append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, false);
+    log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
     my_error(ER_CANNOT_USER, MYF(0), "SHOW CREATE USER",
              wrong_users.c_ptr_safe());
     DBUG_RETURN(true);
@@ -340,7 +274,6 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   user_name->plugin= acl_user->plugin;
   user_name->uses_identified_by_clause= true;
   user_name->uses_identified_with_clause= false;
-  user_name->uses_identified_by_password_clause= false;
   user_name->uses_authentication_string_clause= false;
 
   /* make a copy of user resources, ssl and password expire attributes */
@@ -905,7 +838,6 @@ bool set_and_validate_user_attributes(THD *thd,
     *history_check_done= false;
   /* update plugin,auth str attributes */
   if (Str->uses_identified_by_clause ||
-      Str->uses_identified_by_password_clause ||
       Str->uses_identified_with_clause ||
       Str->uses_authentication_string_clause)
     what_to_set|= PLUGIN_ATTR;
@@ -924,6 +856,17 @@ bool set_and_validate_user_attributes(THD *thd,
 
   /* copy password expire attributes to individual user */
   Str->alter_status= thd->lex->alter_password;
+
+  if (command == SQLCOM_GRANT || command == SQLCOM_REVOKE)
+  {
+    what_to_set|= NONE_ATTR;
+    if (command == SQLCOM_GRANT && !user_exists)
+    {
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
+      return true;
+    }
+    return false;
+  }
 
   mysql_mutex_lock(&LOCK_password_history);
   Str->alter_status.password_history_length= Str->alter_status.use_default_password_history ?
@@ -1008,7 +951,6 @@ bool set_and_validate_user_attributes(THD *thd,
           Str->plugin= acl_user->plugin;
           /* set auth str from cache when not specified for existing user */
           if (!(Str->uses_identified_by_clause ||
-                Str->uses_identified_by_password_clause ||
                 Str->uses_authentication_string_clause))
           {
             Str->auth.str= acl_user->auth_string.str;
@@ -1062,45 +1004,6 @@ bool set_and_validate_user_attributes(THD *thd,
     /* set default plugin for new users if not specified */
     if (!Str->uses_identified_with_clause)
       Str->plugin= default_auth_plugin_name;
-  }
-
-  if (!user_exists &&
-      Str->uses_identified_by_password_clause)
-  {
-    bool found_plugin= false;
-    for (std::string one_plugin : builtin_auth_plugins)
-    {
-      LEX_CSTRING auth_plugin;
-      auth_plugin.str= one_plugin.c_str();
-      auth_plugin.length= one_plugin.length();
-      plugin= my_plugin_lock_by_name(0, auth_plugin,
-                                     MYSQL_AUTHENTICATION_PLUGIN);
-      if (!plugin)
-      {
-        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), auth_plugin.str);
-        return 1;
-      }
-      st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-      if (auth->validate_authentication_string((char*)Str->auth.str,
-                                               Str->auth.length))
-      {
-        plugin_unlock(0, plugin);
-        continue;
-      }
-
-      Str->plugin.str= auth_plugin.str;
-      Str->plugin.length= auth_plugin.length;
-      optimize_plugin_compare_by_pointer(&Str->plugin);
-      found_plugin= true;
-      plugin_unlock(0, plugin);
-      break;
-    }
-
-    if (!found_plugin)
-    {
-      my_error(ER_PASSWORD_FORMAT, MYF(0));
-      return 1;
-    }
   }
 
   optimize_plugin_compare_by_pointer(&Str->plugin);
@@ -1241,7 +1144,7 @@ bool set_and_validate_user_attributes(THD *thd,
       if (!thd->is_error())
       {
         String error_user;
-        append_user(thd, &error_user, Str, false, false);
+        log_user(thd, &error_user, Str, false);
         my_error(ER_CANNOT_USER, MYF(0), cmd, error_user.c_ptr_safe());
       }
       return(1);
@@ -1265,8 +1168,7 @@ bool set_and_validate_user_attributes(THD *thd,
   }
 
   /* Validate hash string */
-  if((Str->uses_identified_by_password_clause ||
-      Str->uses_authentication_string_clause))
+  if(Str->uses_authentication_string_clause)
   {
     /*
       The statement CREATE ROLE calls mysql_create_user() with a set of
@@ -1405,21 +1307,11 @@ bool change_password(THD *thd, const char *host, const char *user,
   combo->auth.length= new_password_len;
   combo->uses_identified_by_clause= true;
   combo->uses_identified_with_clause= false;
-  combo->uses_identified_by_password_clause= false;
   combo->uses_authentication_string_clause= false;
   /* set default values */
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   memset(&(thd->lex->mqh), 0, sizeof(thd->lex->mqh));
   thd->lex->alter_password.cleanup();
-
-  /*
-    When @@log-backward-compatible-user-definitions variable is ON
-    and its a slave thread, then the password is already hashed. So
-    do not generate another hash.
-  */
-  if (opt_log_builtin_as_identified_by_password &&
-      thd->slave_thread)
-    combo->uses_identified_by_clause= false;
 
   if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false,
                                        &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
@@ -1979,6 +1871,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   ulong what_to_update= 0;
   bool is_anonymous_user= false;
   std::set<LEX_USER *> extra_users;
+  std::set<LEX_USER *> reset_users;
   DBUG_ENTER("mysql_create_user");
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
@@ -2008,8 +1901,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
     if (!(user_name= get_current_user(thd, tmp_user_name)))
     {
       result= 1;
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
-                  false);
+      log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
       continue;
     }
     if (set_and_validate_user_attributes(thd, user_name, what_to_update, true,
@@ -2019,8 +1911,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
                                          "CREATE USER"))
     {
       result= 1;
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
-                  false);
+      log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
       continue;
     }
     if (!strcmp(user_name->user.str,"") &&
@@ -2056,7 +1947,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       if (if_not_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_name, false, false);
+        log_user(thd, &warn_user, user_name, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_USER_ALREADY_EXISTS,
                             ER_THD(thd, ER_USER_ALREADY_EXISTS),
@@ -2074,8 +1965,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       }
       else
       {
-        append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
-                    false);
+        log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
         result= 1;
       }
       continue;
@@ -2088,8 +1978,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       if (ret < 0)
         break;
 
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
-                  false);
+      log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
 
       continue;
     }
@@ -2158,6 +2047,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
                                   default_roles);
     }
 
+    /* For connection resources */
+    reset_users.insert(tmp_user_name);
+
   } // END while tmp_user_name= user_lists++
   /* In case of SE error, we would have raised error before reaching here. */
   if (result && !thd->is_error())
@@ -2170,6 +2062,18 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
   }
 
   result= log_and_commit_acl_ddl(thd, transactional_tables, &extra_users);
+
+  {
+    if (!result)
+    {
+      LEX_USER * reset_user;
+      for (LEX_USER * one_user : reset_users)
+      if ((reset_user= get_current_user(thd, one_user)))
+      {
+        reset_mqh(thd, reset_user, 0);
+      }
+    }
+  }
 
   DBUG_RETURN(result);
 }
@@ -2266,7 +2170,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       if (if_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_name, false, false);
+        log_user(thd, &warn_user, user_name, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_USER_DOES_NOT_EXIST,
                             ER_THD(thd, ER_USER_DOES_NOT_EXIST),
@@ -2274,7 +2178,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       }
       else
       {
-        append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, false);
+        log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
         result= 1;
       }
       continue;
@@ -2415,8 +2319,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
         break;
       }
 
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                  false);
+      log_user(thd, &wrong_users, user_from, wrong_users.length() > 0);
       result= 1;
       continue;
     }
@@ -2431,7 +2334,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
         break;
       }
 
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0, false);
+      log_user(thd, &wrong_users, user_from, wrong_users.length() > 0);
       result= 1;
       continue;
     }
@@ -2515,6 +2418,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   ACL_USER *self= NULL;
   bool password_expire_undo= false;
   std::set<LEX_USER *> audit_users;
+  std::set<LEX_USER *> reset_users;
 
   DBUG_ENTER("mysql_alter_user");
 
@@ -2550,8 +2454,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     /* add the defaults where needed */
     if (!(user_from= get_current_user(thd, tmp_user_from)))
     {
-      append_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0,
-                  false);
+      log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
       result= 1;
       continue;
     }
@@ -2577,8 +2480,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
         !auth_plugin_supports_expiration(user_from->plugin.str))
     {
       result= 1;
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                  false);
+      log_user(thd, &wrong_users, user_from, wrong_users.length() > 0);
       continue;
     }
 
@@ -2631,7 +2533,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       if (if_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_from, false, false);
+        log_user(thd, &warn_user, user_from, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
           ER_USER_DOES_NOT_EXIST,
           ER_THD(thd, ER_USER_DOES_NOT_EXIST),
@@ -2648,8 +2550,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       }
       else
       {
-        append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                    false);
+        log_user(thd, &wrong_users, user_from, wrong_users.length() > 0);
         result= 1;
       }
       continue;
@@ -2668,7 +2569,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       if (if_exists)
       {
         String warn_user;
-        append_user(thd, &warn_user, user_from, false, false);
+        log_user(thd, &warn_user, user_from, false);
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_USER_DOES_NOT_EXIST,
                             ER_THD(thd, ER_USER_DOES_NOT_EXIST),
@@ -2685,8 +2586,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       }
       else
       {
-        append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                    false);
+        log_user(thd, &wrong_users, user_from, wrong_users.length() > 0);
         result= 1;
       }
       continue;
@@ -2704,6 +2604,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     */
     if (what_to_alter & PLUGIN_ATTR)
       audit_users.insert(tmp_user_from);
+
+    if (what_to_alter & RESOURCE_ATTR)
+      reset_users.insert(tmp_user_from);
   }
 
   clear_and_init_db_cache();             // Clear locked hostname cache
@@ -2734,6 +2637,18 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
                            audit_user->plugin.str,
                            is_role_id(audit_user),
                            NULL, NULL);
+    }
+
+    if (!result)
+    {
+      LEX_USER * extra_user;
+      for (LEX_USER * one_user : reset_users)
+      {
+        if ((extra_user= get_current_user(thd, one_user)))
+        {
+          reset_mqh(thd, extra_user, 0);
+        }
+      }
     }
   }
 

@@ -1447,8 +1447,6 @@ DROP TABLESPACE ts1;
 # Bug#22444530 - GCOLS + PARTITIONED TABLE, CRASH IN
 #
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t (
 a int not null,
 b int generated always as (1) virtual not null,

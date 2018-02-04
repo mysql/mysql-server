@@ -137,5 +137,3 @@ SELECT @@session.completion_type;
 @@session.completion_type
 NO_CHAIN
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

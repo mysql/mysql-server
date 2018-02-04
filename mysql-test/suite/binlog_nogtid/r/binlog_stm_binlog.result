@@ -409,8 +409,8 @@ create table if not exists t2 select * from t1;
 create temporary table tt1 (a int);
 create table if not exists t3 like tt1;
 USE mysql;
-INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string=password('Just a test');
-UPDATE user SET authentication_string=password('Another password') WHERE host='localhost' AND user='@#@';
+INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string='*1111111111111111111111111111111111111111';
+UPDATE user SET authentication_string='*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WHERE host='localhost' AND user='@#@';
 DELETE FROM user WHERE host='localhost' AND user='@#@';
 use test;
 include/show_binlog_events.inc
@@ -427,10 +427,10 @@ binlog.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t3` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB
 binlog.000001	#	Query	#	#	BEGIN
-binlog.000001	#	Query	#	#	use `mysql`; INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string=password('Just a test')
+binlog.000001	#	Query	#	#	use `mysql`; INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string='*1111111111111111111111111111111111111111'
 binlog.000001	#	Xid	#	#	COMMIT /* XID */
 binlog.000001	#	Query	#	#	BEGIN
-binlog.000001	#	Query	#	#	use `mysql`; UPDATE user SET authentication_string=password('Another password') WHERE host='localhost' AND user='@#@'
+binlog.000001	#	Query	#	#	use `mysql`; UPDATE user SET authentication_string='*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' WHERE host='localhost' AND user='@#@'
 binlog.000001	#	Xid	#	#	COMMIT /* XID */
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'

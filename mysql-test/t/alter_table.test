@@ -8,7 +8,7 @@ drop table if exists t1,t2;
 drop database if exists mysqltest;
 --enable_warnings
 
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 SET SESSION information_schema_stats_expiry=0;
 

@@ -119,7 +119,7 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 -->callmacro Drop_table
 -->sql
 CREATE USER unpriv;
-SET PASSWORD FOR unpriv = PASSWORD('x');
+SET PASSWORD FOR unpriv = 'x';
 GRANT SELECT ON xtest.* TO unpriv;
 -->endsql
 -->newsession unable_to_create	unpriv	x

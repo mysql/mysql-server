@@ -283,10 +283,8 @@ create database db37908;
 --enable_warnings
 create table db37908.t1(f1 int);
 insert into db37908.t1 values(1);
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user mysqltest_1@localhost;
 grant usage,execute on test.* to mysqltest_1@localhost;
-set sql_mode= @orig_sql_mode;
 delimiter |;
 create procedure proc37908() begin select 1; end |
 create function func37908() returns int sql security invoker

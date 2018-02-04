@@ -50,7 +50,6 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "myisam.h"
 #include "myisammrg.h"
 #include "mysql/plugin.h"
-#include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
@@ -1450,7 +1449,7 @@ void warn_about_deprecated_national(THD *thd)
 %type <keyword> ident_keyword label_keyword role_keyword
         role_or_label_keyword role_or_ident_keyword
 
-%type <lex_user> user grant_user user_func role
+%type <lex_user> user create_or_alter_user user_func role
 
 %type <charset>
         opt_collate
@@ -2701,7 +2700,7 @@ create:
           }
         | CREATE view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER opt_if_not_exists grant_list default_role_clause
+        | CREATE USER opt_if_not_exists create_or_alter_user_list default_role_clause
                       require_clause connect_options
                       opt_account_lock_password_expire_options
           {
@@ -7323,7 +7322,7 @@ alter_server_stmt:
         ;
 
 alter_user_stmt:
-          alter_user_command grant_list require_clause
+          alter_user_command create_or_alter_user_list require_clause
           connect_options opt_account_lock_password_expire_options
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
           {
@@ -9587,10 +9586,6 @@ function_call_conflict:
         | MOD_SYM '(' expr ',' expr ')'
           {
             $$= NEW_PTN Item_func_mod(@$, $3, $5);
-          }
-        | PASSWORD '(' expr ')'
-          {
-            $$= NEW_PTN PTI_password(@$, $3);
           }
         | QUARTER_SYM '(' expr ')'
           {
@@ -14084,24 +14079,9 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_option_value_no_option_type_password($3, @3);
           }
-        | PASSWORD equal PASSWORD '(' password ')'
-          {
-            push_deprecated_warn(YYTHD, "SET PASSWORD = "
-                                 "PASSWORD('<plaintext_password>')",
-                                 "SET PASSWORD = '<plaintext_password>'");
-            $$= NEW_PTN PT_option_value_no_option_type_password($5, @5);
-          }
         | PASSWORD FOR_SYM user equal password
           {
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5, @5);
-          }
-        | PASSWORD FOR_SYM user equal PASSWORD '(' password ')'
-          {
-            push_deprecated_warn(YYTHD, "SET PASSWORD FOR <user> = "
-                                 "PASSWORD('<plaintext_password>')",
-                                 "SET PASSWORD FOR <user> = "
-                                 "'<plaintext_password>'");
-            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $7, @7);
           }
         ;
 
@@ -14656,8 +14636,8 @@ grant:
             auto *tmp= NEW_PTN PT_grant_roles($2, $4, $5);
             MAKE_CMD(tmp);
           }
-        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM grant_list
-          require_clause grant_options
+        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM user_list
+          grant_options
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -14670,14 +14650,14 @@ grant:
               MYSQL_YYABORT;
             }
             lex->type= static_cast<ulong>($4);
+            lex->users_list= *$7;
           }
         | GRANT ALL opt_privileges
           {
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident TO_SYM grant_list
-          require_clause grant_options
+          ON_SYM opt_acl_type grant_ident TO_SYM user_list grant_options
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -14687,13 +14667,15 @@ grant:
               MYSQL_YYABORT;
             }
             lex->type= static_cast<ulong>($6);
+            lex->users_list= *$9;
           }
-        | GRANT PROXY_SYM ON_SYM user TO_SYM grant_list opt_grant_option
+        | GRANT PROXY_SYM ON_SYM user TO_SYM user_list opt_grant_option
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
             if ($7)
               lex->grant |= GRANT_ACL;
+            lex->users_list= *$6;
             lex->users_list.push_front ($4);
             lex->type= TYPE_ENUM_PROXY;
           }
@@ -14945,20 +14927,20 @@ role_list:
           }
         ;
 
-grant_list:
-          grant_user
+create_or_alter_user_list:
+          create_or_alter_user
           {
             if (Lex->users_list.push_back($1))
               MYSQL_YYABORT;
           }
-        | grant_list ',' grant_user
+        | create_or_alter_user_list ',' create_or_alter_user
           {
             if (Lex->users_list.push_back($3))
               MYSQL_YYABORT;
           }
         ;
 
-grant_user:
+create_or_alter_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
             $$=$1;
@@ -14966,21 +14948,6 @@ grant_user:
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
             Lex->contains_plaintext_password= true;
-          }
-        | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
-          {
-            $$= $1;
-            $1->auth.str= $5.str;
-            $1->auth.length= $5.length;
-            $1->uses_identified_by_password_clause= true;
-            if (Lex->sql_command == SQLCOM_ALTER_USER)
-            {
-              YYTHD->syntax_error();
-              MYSQL_YYABORT;
-            }
-            else
-              push_deprecated_warn(YYTHD, "IDENTIFIED BY PASSWORD",
-                                   "IDENTIFIED WITH <plugin> AS <hash>");
           }
         | user IDENTIFIED_SYM WITH ident_or_text
           {
@@ -15060,45 +15027,13 @@ require_clause:
 
 grant_options:
           /* empty */ {}
-        | WITH grant_option_list
+        | WITH GRANT OPTION
+          { Lex->grant |= GRANT_ACL;}
         ;
 
 opt_grant_option:
           /* empty */       { $$= false; }
         | WITH GRANT OPTION { $$= true; }
-        ;
-
-grant_option_list:
-          grant_option_list grant_option {}
-        | grant_option {}
-        ;
-
-grant_option:
-          GRANT OPTION { Lex->grant |= GRANT_ACL;}
-        | MAX_QUERIES_PER_HOUR ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.questions=$2;
-            lex->mqh.specified_limits|= USER_RESOURCES::QUERIES_PER_HOUR;
-          }
-        | MAX_UPDATES_PER_HOUR ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.updates=$2;
-            lex->mqh.specified_limits|= USER_RESOURCES::UPDATES_PER_HOUR;
-          }
-        | MAX_CONNECTIONS_PER_HOUR ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.conn_per_hour= $2;
-            lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
-          }
-        | MAX_USER_CONNECTIONS_SYM ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.user_conn= $2;
-            lex->mqh.specified_limits|= USER_RESOURCES::USER_CONNECTIONS;
-          }
         ;
 
 begin_stmt:

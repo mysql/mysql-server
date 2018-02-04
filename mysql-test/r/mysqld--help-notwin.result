@@ -454,10 +454,6 @@ The following options may be given as the first argument:
  row based binary log.  If equal to 0, then the latest
  version of events are written.  This option is useful
  during some upgrades.
- --log-builtin-as-identified-by-password 
- Controls logging of CREATE/ALTER/GRANT and SET PASSWORD
- user statements in replication binlogs, general query
- logs and audit logs.
  --log-error[=name]  Error log file
  --log-error-services=name 
  Services that should be called when an error event is
@@ -672,8 +668,6 @@ The following options may be given as the first argument:
  --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
- --old-passwords=#   Determine which hash algorithm to use when generating
- passwords using the PASSWORD() function
  --old-style-user-limits 
  Enable old-style user limits (before 5.0.3, user
  resources were counted per each user+host vs. per
@@ -1435,7 +1429,6 @@ log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
-log-builtin-as-identified-by-password FALSE
 log-error stderr
 log-error-services log_filter_internal; log_sink_internal
 log-error-verbosity 2
@@ -1509,7 +1502,6 @@ no-dd-upgrade FALSE
 offline-mode FALSE
 old FALSE
 old-alter-table FALSE
-old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
@@ -1648,7 +1640,7 @@ slow-launch-time 2
 slow-query-log FALSE
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 stored-program-definition-cache 256
 super-read-only FALSE

@@ -263,7 +263,6 @@ CREATE TABLE t2(c1 VARCHAR(10));
 SET sql_mode='STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug24577194.txt' INTO TABLE t2 FIELDS TERMINATED BY ',';
 ERROR 01000: Row 1 was truncated; it contained more data than there were input columns
 DROP TABLE t1,t2;

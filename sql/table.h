@@ -2269,7 +2269,6 @@ struct LEX_USER
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
-  bool uses_identified_by_password_clause;
   LEX_ALTER alter_status;
 
   static LEX_USER *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);

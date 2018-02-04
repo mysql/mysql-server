@@ -1526,8 +1526,6 @@ ERROR HY000: Could not parse argument to digest function: "You have an error in 
 SELECT statement_digest( statement_digest( 'SELECT ?' ) );
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( g GEOMETRY NOT NULL );
 INSERT INTO t1 VALUES ( POINT(1,2) );
 SELECT concat( statement_digest(g), 'x' ) FROM t1;
@@ -1538,9 +1536,6 @@ DROP TABLE t1;
 SELECT statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" );
 statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" )
 e8055293a3d5e4859175a0b1f34f15aa68491c502afc95477b90ce9c19465ce5
-SELECT statement_digest( "SET PASSWORD = PASSWORD('foo')" );
-statement_digest( "SET PASSWORD = PASSWORD('foo')" )
-d5076b934abf42ee7389ca68fccd43d3b5798f25eee0ce76ebcf7e23f3a37c1e
 #
 # Test queries.
 #
@@ -1701,8 +1696,6 @@ ERROR HY000: Could not parse argument to digest function: "You have an error in 
 SELECT statement_digest_text( statement_digest_text( 'SELECT ?' ) );
 ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( g GEOMETRY NOT NULL );
 INSERT INTO t1 VALUES ( POINT(1,2) );
 SELECT concat( statement_digest_text(g), 'x' ) FROM t1;
@@ -1713,9 +1706,6 @@ DROP TABLE t1;
 SELECT statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" );
 statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" )
 INSERT DELAYED INTO `t1` VALUES (?) 
-SELECT statement_digest_text( "SET PASSWORD = PASSWORD('foo')" );
-statement_digest_text( "SET PASSWORD = PASSWORD('foo')" )
-SET PASSWORD = PASSWORD (?) 
 #
 # Test queries.
 #
@@ -1947,8 +1937,6 @@ statement_digest( "LOCK TABLE t1 READ" ) IS NULL
 #  M_ACTIVE_OPTIONS == 0' FAILED
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT statement_digest( " CREATE ALGORITHM = MERGE VIEW v1 AS " ||
 "SELECT a FROM ( SELECT a1 FROM v2 ) AS SELECT1" );
 statement_digest( " CREATE ALGORITHM = MERGE VIEW v1 AS " ||

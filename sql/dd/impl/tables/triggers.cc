@@ -114,7 +114,7 @@ Triggers::Triggers()
                          "'INVALID_DATES',\n"
                          "'ERROR_FOR_DIVISION_BY_ZERO',\n"
                          "'TRADITIONAL',\n"
-                         "'NO_AUTO_CREATE_USER',\n"
+                         "'NOT_USED_29',\n"
                          "'HIGH_NOT_PRECEDENCE',\n"
                          "'NO_ENGINE_SUBSTITUTION',\n"
                          "'PAD_CHAR_TO_FULL_LENGTH') NOT NULL");

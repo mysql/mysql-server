@@ -542,8 +542,6 @@ SELECT * FROM t1;
 a	b	c
 1	1	1
 SET SQL_MODE=PIPES_AS_CONCAT;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1;
 a	b	c
 1	1	1
@@ -576,8 +574,6 @@ DROP TABLE t1;
 # Bug#22018999: gcols: assertion failed: !error
 SET @save_old_sql_mode= @@sql_mode;
 SET sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t (a INTEGER AS (SUBSTR('','a',1))) engine=innodb;
 ERROR 22007: Truncated incorrect INTEGER value: 'a'
 CREATE TABLE t (a INTEGER) engine=innodb;
@@ -585,8 +581,6 @@ ALTER TABLE t ADD b INTEGER AS (SUBSTR('','a',1));
 ERROR 22007: Truncated incorrect INTEGER value: 'a'
 DROP TABLE t;
 set sql_mode= @save_old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#22157531 WITH NO MORE .FRM 64K LIMIT WE CAN CREATE MASSIVE TABLES,
 #              BUT TOO SLOWLY..
@@ -656,8 +650,6 @@ KEY(b)
 );
 SET @old_sql_mode=@@sql_mode;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t VALUES();
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
@@ -668,8 +660,6 @@ DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a = d2.b;
 ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
 DROP TABLE t;
 SET sql_mode=@old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t (
 a INT,
 b INT GENERATED ALWAYS AS (1),
@@ -683,15 +673,11 @@ DROP TABLE t;
 # Bug#22748217 gcols: assert in Item_func_in::resolve_type
 SET @old_sql_mode= @@sql_mode;
 SET sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
 ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
 ERROR 22007: Incorrect datetime value: '1' for column 'a' at row 1
 DROP TABLE t;
 SET sql_mode= @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#22987899: ALTER TABLE MODIFY COLUMN DOES NOT SET
 #               ALTER_CHANGE_COLUMN_DEFAULT FLAG

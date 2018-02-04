@@ -7912,7 +7912,6 @@ LEX_USER::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   ret->auth= NULL_CSTR;
   ret->uses_identified_by_clause= false;
   ret->uses_identified_with_clause= false;
-  ret->uses_identified_by_password_clause= false;
   ret->uses_authentication_string_clause= false;
   ret->alter_status.account_locked= false;
   ret->alter_status.expire_after_days= 0;

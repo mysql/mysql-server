@@ -3,24 +3,20 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user 'user_foo'@'%' identified by 'user_foopass';
+grant select on *.* to 'user_foo'@'%';
 revoke select on *.* from 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* master:must be N */;
 select_priv
 N
 include/sync_slave_sql_with_master.inc
-grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user 'user_foo'@'%' identified by 'user_foopass';
+grant select on *.* to 'user_foo'@'%';
 revoke select on *.* from 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* slave:must be N */;
 select_priv
 N
-grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+grant select on *.* to 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* slave:must be Y */;
 select_priv
 Y

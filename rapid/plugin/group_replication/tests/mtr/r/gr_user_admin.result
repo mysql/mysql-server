@@ -9,10 +9,8 @@ ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
 create user 'foo'@'fakehost', 'bar'@'fakehost';
 ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
 create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
-  IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
+  IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111',
 'foo3'@'fakehost';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 include/sync_slave_sql_with_master.inc
 select Host,User from mysql.user where Host='fakehost';
 Host	User

@@ -569,10 +569,8 @@ use db_bug7787|
 CREATE PROCEDURE p1()
   SHOW ENGINE INNODB STATUS; |
 
-SET @orig_sql_mode= @@sql_mode|
-SET sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''))|
+CREATE USER user_bug7787@localhost|
 GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost|
-SET sql_mode= @orig_sql_mode|
 
 # Cleanup.
 

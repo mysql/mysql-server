@@ -6809,8 +6809,6 @@ Bug#25835149
 
 SET @savmode=@@SESSION.SQL_MODE;
 SET SESSION SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE `test`(
 `pk` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 `dt` DATETIME DEFAULT NULL,
@@ -6880,8 +6878,6 @@ NULL	00:00:00
 2006-10-06 00:00:00	00:00:00
 2008-07-07 00:00:00	00:00:00
 SET SESSION SQL_MODE=@savmode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE `test`;
 
 Bug#25835329
@@ -7182,8 +7178,6 @@ KEY col_varchar_key (col_varchar_key,col_int_key)
 INSERT INTO D VALUES
 (1,5,4,4090.3920,5170.7060,'q','q'),(2,8,3,2634.3480,695.3360,'e','e');
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE
 D AS OUTR1 LEFT JOIN D AS OUTR2
 ON ( OUTR1 . pk = OUTR2 . col_int_key )
@@ -7285,8 +7279,6 @@ DROP TABLE t;
 # Bug#25886572 WL#9603: SIG11 AT ITEM_REF::VAL_INT IN SQL/ITEM.CC
 #
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t (a int, b int);
 INSERT INTO t values (1,2),(3,4);
 SELECT RANK() OVER w1 AS rnk FROM t
@@ -7357,8 +7349,6 @@ DROP TABLE a, b;
 # Bug#25907063 WL#9603:ASSERT `INITED == INDEX' AT HANDLER::HA_INDEX_READ_MAP IN SQL/HANDLER.CC
 #
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -8296,8 +8286,6 @@ DROP TABLE te2;
 # Bug#26129809 WL#9603: VALGRIND REPORTS INVALID READ AT MY_STRNNCOLLSP_SIMPLE|CTYPE-SIMPLE.CC
 #
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE `A` (
 `col_varchar_10_utf8` varchar(10) CHARACTER SET utf8 DEFAULT NULL,
 `col_varchar_10_latin1_key` varchar(10) DEFAULT NULL,
@@ -8825,8 +8813,6 @@ DROP VIEW view_E;
 #
 SET @savmode=@@SESSION.SQL_MODE;
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t(a JSON NOT NULL);
 INSERT INTO t VALUES();
 Warnings:
@@ -8835,8 +8821,6 @@ SELECT PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW) FROM t;
 PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW)
 0
 SET SESSION SQL_MODE=@savmode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t;
 # End of test for Bug#26496733
 #
@@ -9003,11 +8987,6 @@ REPEAT('1',32))IS NOT FALSE;
 FROM_UNIXTIME(FIRST_VALUE(@b)RESPECT NULLS OVER(),
 REPEAT('1',32))IS NOT FALSE
 1
-SELECT NULLIF((PASSWORD(FROM_UNIXTIME(NTH_VALUE(@b, 3) RESPECT NULLS
-OVER(),(NOT(@f))))),(CURRENT_TIME()));
-NULLIF((PASSWORD(FROM_UNIXTIME(NTH_VALUE(@b, 3) RESPECT NULLS
-OVER(),(NOT(@f))))),(CURRENT_TIME()))
-
 SELECT ((NTILE(70)OVER())<<(FROM_UNIXTIME(LEAD('',67) RESPECT NULLS
 OVER(),SHA(''))));
 ((NTILE(70)OVER())<<(FROM_UNIXTIME(LEAD('',67) RESPECT NULLS

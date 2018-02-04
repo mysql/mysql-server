@@ -12,11 +12,7 @@ if (!$require_case_insensitive_file_system)
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-#
-# Remove NO_AUTO_CREATE_USER sql mode (default since 5.7).
-#
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 
 # Test for information_schema.schemata &
 # show databases
@@ -36,6 +32,7 @@ select table_name, data_type, column_type from information_schema.columns  where
 --disable_warnings
 show variables where variable_name like "skip_show_database";
 --enable_warnings
+create user mysqltest_1@localhost, mysqltest_2@localhost;
 grant select, update, execute on test.* to mysqltest_2@localhost;
 grant select, update on test.* to mysqltest_1@localhost;
 create user mysqltest_3@localhost;
@@ -280,6 +277,7 @@ create table t1(a int);
 create view v1 (c) as select a from t1 with check option;
 create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
+create user joe@localhost;
 select * from information_schema.views where table_schema !=
 'sys' order by table_name;
 grant select (a) on test.t1 to joe@localhost with grant option;
@@ -548,6 +546,7 @@ drop table t1;
 # Bug#10261 INFORMATION_SCHEMA.COLUMNS, incomplete result for non root user
 #
 
+create user mysqltest_4@localhost;
 grant select on test.* to mysqltest_4@localhost;
 connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
@@ -614,6 +613,7 @@ drop table t1;
 create database mysqltest;
 create table mysqltest.t1 (f1 int, f2 int);
 create table mysqltest.t2 (f1 int);
+create user user1@localhost, user2@localhost, user3@localhost, user4@localhost;
 grant select (f1) on mysqltest.t1 to user1@localhost;
 grant select on mysqltest.t2 to user2@localhost;
 grant select on mysqltest.* to user3@localhost;
@@ -872,6 +872,7 @@ drop table t1;
 #
 # Bug#16681 information_schema shows forbidden VIEW details
 #
+create user mysqltest_1@localhost;
 grant select on test.* to mysqltest_1@localhost;
 create table t1 (id int);
 create view v1 as select * from t1;
@@ -1068,6 +1069,7 @@ alter database test;
 # Bug#27629 Possible security flaw in INFORMATION_SCHEMA and SHOW statements
 #
 
+create user mysqltest_1@localhost;
 create database mysqltest;
 create table mysqltest.t1(a int, b int, c int);
 create trigger mysqltest.t1_ai after insert on mysqltest.t1
@@ -1152,6 +1154,7 @@ select * from information_schema.engines WHERE ENGINE="MyISAM";
 # INFORMATION_SCHEMA.PROCESSLIST
 #
 
+create user user3148@localhost;
 grant select on *.* to user3148@localhost;
 connect (con3148,localhost,user3148,,test);
 connection con3148;

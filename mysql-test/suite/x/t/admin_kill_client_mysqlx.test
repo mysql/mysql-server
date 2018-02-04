@@ -4,7 +4,7 @@
 --source include/xplugin_create_user.inc
 
 create user unpriv@localhost;
-set password for unpriv@localhost = password('x');
+set password for unpriv@localhost = 'x';
 
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.tmp

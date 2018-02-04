@@ -1069,15 +1069,14 @@ bool log_and_commit_acl_ddl(THD *thd,
           /*
             Consider for warning if one of the following is true:
             1. If SQLCOM_CREATE_USER, IDENTIFIED WITH clause is not used
-            2. If SQLCOM_ALTER_USER, IDENTIFIED WITH cluase is not used
-            but IDENTIFIED BY/IDENTIFIED BY PASSWORD is used.
+            2. If SQLCOM_ALTER_USER, IDENTIFIED WITH clause is not used
+            but IDENTIFIED BY is used.
           */
           if (!extra_user->uses_identified_with_clause &&
             (command == SQLCOM_CREATE_USER ||
-             extra_user->uses_identified_by_clause ||
-             extra_user->uses_identified_by_password_clause))
+             extra_user->uses_identified_by_clause))
           {
-            append_user(thd, &warn_user, extra_user, comma, false);
+            log_user(thd, &warn_user, extra_user, comma);
             comma= true;
             log_warning= true;
           }
@@ -1317,22 +1316,9 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     if (thd->lex->sql_command == SQLCOM_GRANT)
     {
-      /*
-        If NO_AUTO_CREATE_USER SQL mode is set and GRANT is not specified
-        with authentication information or the authentication_string
-        is empty then report error
-      */
-      if ((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
-          ((what_to_replace & DEFAULT_AUTH_ATTR) || !combo->auth.length))
-      {
-        my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
-        error= 1;
-        goto end;
-      }
-      push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                   "Using GRANT for creating new user is deprecated "
-                   "and will be removed in future release. "
-                   "Create new user with CREATE USER statement.");
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
+      error= 1;
+      goto end;
     }
     old_row_exists = 0;
     restore_record(table,s->default_values);
@@ -1390,18 +1376,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
         !lex->mqh.specified_limits && !revoke_grant &&
         (!builtin_plugin || !update_password))
     {
-      DBUG_PRINT("info", ("Proxy user exit path"));
+      DBUG_PRINT("info", ("Dynamic privileges exit path"));
       DBUG_RETURN(0);
-    }
-    /* GRANT will be used only to specify access rights for existing user */
-    if ((thd->lex->sql_command == SQLCOM_GRANT) &&
-        (what_to_replace & ~(DEFAULT_AUTH_ATTR | ACCESS_RIGHTS_ATTR | DIFFERENT_PLUGIN_ATTR)))
-    {
-      push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                     "Using GRANT statement to modify existing user's "
-                     "properties other than privileges is deprecated and "
-                     "will be removed in future release. "
-                     "Use ALTER USER statement for this operation.");
     }
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6937,6 +6937,11 @@ static void test_prepare_grant()
   rc= mysql_query(mysql, "CREATE TABLE test_grant(a tinyint primary key auto_increment)");
   myquery(rc);
 
+  strxmov(query, "CREATE USER 'test_grant'@",
+          opt_host ? opt_host : "'localhost'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+
   strxmov(query, "GRANT INSERT, UPDATE, SELECT ON ", current_db,
                 ".test_grant TO 'test_grant'@",
                 opt_host ? opt_host : "'localhost'", NullS);
@@ -7316,6 +7321,10 @@ static void test_drop_temp()
   myquery(rc);
 
   rc= mysql_query(mysql, "delete from mysql.db where Db='test_drop_temp_db'");
+  myquery(rc);
+
+  strxmov(query, "CREATE USER test_temp@", opt_host ? opt_host : "localhost");
+  rc= mysql_query(mysql, query);
   myquery(rc);
 
   strxmov(query, "GRANT SELECT, USAGE, DROP ON test_drop_temp_db.* TO test_temp@",
@@ -16004,9 +16013,6 @@ static void test_change_user()
                          opt_unix_socket, 0);
   DIE_UNLESS(l_mysql != 0);
 
-  rc = mysql_query(l_mysql, "set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''))");
-  myquery2(l_mysql, rc);
-
   /* Prepare environment */
   sprintf(buff, "drop database if exists %s", db);
   rc= mysql_query(l_mysql, buff);
@@ -16017,16 +16023,7 @@ static void test_change_user()
   myquery2(l_mysql, rc);
 
   sprintf(buff,
-          "grant select on %s.* to %s@'%%' identified by '%s'",
-          db,
-          user_pw,
-          pw);
-  rc= mysql_query(l_mysql, buff);
-  myquery2(l_mysql, rc);
-
-  sprintf(buff,
-          "grant select on %s.* to %s@'localhost' identified by '%s'",
-          db,
+          "create user %s@'%%' identified by '%s'",
           user_pw,
           pw);
   rc= mysql_query(l_mysql, buff);
@@ -16035,6 +16032,39 @@ static void test_change_user()
   sprintf(buff,
           "grant select on %s.* to %s@'%%'",
           db,
+          user_pw);
+  rc= mysql_query(l_mysql, buff);
+  myquery2(l_mysql, rc);
+
+  sprintf(buff,
+          "create user %s@'localhost' identified by '%s'",
+          user_pw,
+          pw);
+  rc= mysql_query(l_mysql, buff);
+  myquery2(l_mysql, rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'localhost'",
+          db,
+          user_pw);
+  rc= mysql_query(l_mysql, buff);
+  myquery2(l_mysql, rc);
+
+  sprintf(buff,
+          "create user %s@'%%'",
+          user_no_pw);
+  rc= mysql_query(l_mysql, buff);
+  myquery2(l_mysql, rc);
+
+  sprintf(buff,
+          "grant select on %s.* to %s@'%%'",
+          db,
+          user_no_pw);
+  rc= mysql_query(l_mysql, buff);
+  myquery2(l_mysql, rc);
+
+  sprintf(buff,
+          "create user %s@'localhost'",
           user_no_pw);
   rc= mysql_query(l_mysql, buff);
   myquery2(l_mysql, rc);
@@ -17985,6 +18015,8 @@ static void test_bug53371()
   rc= mysql_query(mysql, "DROP DATABASE IF EXISTS bug53371");
   myquery(rc);
   rc= mysql_query(mysql, "DROP USER 'testbug'@localhost");
+  rc= mysql_query(mysql, "CREATE USER 'testbug'@localhost");
+  myquery(rc);
 
   rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
   myquery(rc);
@@ -18714,6 +18746,13 @@ static void test_bug13001491()
   MYSQL *c;
 
   myheader("test_bug13001491");
+
+  snprintf(query, MAX_TEST_QUERY_LENGTH,
+           "CREATE USER mysqltest_u1@%s",
+           opt_host ? opt_host : "'localhost'");
+
+  rc= mysql_query(mysql, query);
+  myquery(rc);
 
   snprintf(query, MAX_TEST_QUERY_LENGTH,
            "GRANT ALL PRIVILEGES ON *.* TO mysqltest_u1@%s",

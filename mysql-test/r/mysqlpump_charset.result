@@ -1,8 +1,6 @@
 #
 # WL#7755  mysqlpump: Extend mysqldump functionalities
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE DATABASE db1_std_csets;
 USE db1_std_csets;
 SET NAMES cp1251;

@@ -5,10 +5,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 **** Test case for BUG#16487 ****
 **** Master ****
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE test.t4 (a int);
 CREATE TABLE test.t1 (a int);
 UPDATE test.t4 NATURAL JOIN test.t1 SET t1.a=5;
@@ -21,33 +17,28 @@ DROP TABLE t4;
 **** Adding GRANTS on master ****
 create table test.t1(a int);
 create table test.t4(a int);
+CREATE USER mysqltest1@localhost;
 GRANT SELECT ON test.t1 TO mysqltest1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER mysqltest2@localhost;
 GRANT INSERT ON test.t4 TO mysqltest2@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT select, update, insert, references on t1
 to mysqltest2@localhost;
+CREATE USER mysqltest3@localhost;
 GRANT SELECT ON test.* TO mysqltest3@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT INSERT ON test.t4 TO mysqltest3@localhost;
 GRANT select(a), update(a), insert(a), references(a) on t4
 to mysqltest3@localhost;
 create database mysqltest2;
 create table mysqltest2.t2 (id int);
-GRANT SELECT ON mysqltest2.t2 TO mysqltest4@localhost IDENTIFIED BY 'pass';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER mysqltest4@localhost IDENTIFIED BY 'pass';
+GRANT SELECT ON mysqltest2.t2 TO mysqltest4@localhost;
 insert ignore into mysql.user (user, host) values ("mysqltest5", "somehost");
 Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+CREATE USER mysqltest6@localhost;
 GRANT SELECT ON *.* TO mysqltest6@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT INSERT ON *.* TO mysqltest6@localhost;
 GRANT INSERT ON test.* TO mysqltest6@localhost;
 GRANT INSERT ON test.t1 TO mysqltest6@localhost;
@@ -100,7 +91,8 @@ Grants for mysqltest6@localhost
 GRANT SELECT, INSERT ON *.* TO `mysqltest6`@`localhost`
 GRANT INSERT ON `test`.* TO `mysqltest6`@`localhost`
 show grants for mysqltest1@localhost;
-ERROR 42000: There is no such grant defined for user 'mysqltest1' on host 'localhost'
+Grants for mysqltest1@localhost
+GRANT USAGE ON *.* TO `mysqltest1`@`localhost`
 **** Revoking grants on master ****
 REVOKE SELECT ON test.t1 FROM mysqltest1@localhost;
 REVOKE SELECT ON mysqltest2.t2 FROM mysqltest4@localhost;
@@ -119,7 +111,8 @@ Grants for mysqltest4@localhost
 GRANT USAGE ON *.* TO `mysqltest4`@`localhost`
 **** Checking grants on slave ****
 show grants for mysqltest1@localhost;
-ERROR 42000: There is no such grant defined for user 'mysqltest1' on host 'localhost'
+Grants for mysqltest1@localhost
+GRANT USAGE ON *.* TO `mysqltest1`@`localhost`
 show grants for mysqltest3@localhost;
 Grants for mysqltest3@localhost
 GRANT USAGE ON *.* TO `mysqltest3`@`localhost`

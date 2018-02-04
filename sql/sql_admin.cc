@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1737,7 +1737,6 @@ bool Sql_cmd_create_role::execute(THD *thd)
   while((role= it++))
   {
     role->uses_identified_by_clause= false;
-    role->uses_identified_by_password_clause= false;
     role->uses_identified_with_clause= false;
     role->uses_authentication_string_clause= false;
     role->alter_status.expire_after_days= 0;

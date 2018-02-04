@@ -1846,8 +1846,6 @@ DROP TABLE t1,t2;
 # Bug#19055268 ASSERT `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET,...) FAILED
 #
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 col_int_nokey int(11) NOT NULL,

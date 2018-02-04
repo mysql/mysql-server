@@ -8,8 +8,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #               BREAKS RBR 
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #After the patch, the display width is set to a default
 #value of 21.
 CREATE TABLE t1 AS SELECT REPEAT('A', 1000) DIV 1 AS a;

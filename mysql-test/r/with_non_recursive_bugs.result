@@ -593,8 +593,6 @@ DROP TABLE c,d,a;
 # Bug#23738507 WL883:INNODB: ASSERTION FAILURE SHARE->IDX_TRANS_TBL.INDEX_COUNT == MYSQL_NUM_IN
 #
 SET @@SESSION.sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE a (
 col_int int(11) DEFAULT NULL,
 col_time_key time DEFAULT NULL,

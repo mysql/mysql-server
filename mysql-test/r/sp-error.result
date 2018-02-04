@@ -1687,8 +1687,6 @@ DROP PROCEDURE IF EXISTS p4;
 DROP PROCEDURE IF EXISTS p5;
 DROP PROCEDURE IF EXISTS p6;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE p1()
 BEGIN
 SELECT CAST('10 ' as unsigned integer);
@@ -1859,8 +1857,6 @@ DROP PROCEDURE p1;
 # Bug#5889: Exit handler for a warning doesn't hide the warning in trigger
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT, b INT);
 INSERT INTO t1 VALUES (1, 2);
 CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
@@ -1916,8 +1912,6 @@ SET sql_mode = @sql_mode_saved;
 # Bug#55850: Trigger warnings not cleared.
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP PROCEDURE IF EXISTS p1;
@@ -2538,8 +2532,6 @@ DROP PROCEDURE p13;
 # Bug#12731619: NESTED SP HANDLERS CAN TRIGGER ASSERTION
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP FUNCTION IF EXISTS f1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(msg VARCHAR(255));
@@ -2757,8 +2749,6 @@ SET sql_mode = default;
 # are declared.
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 CREATE PROCEDURE p1()

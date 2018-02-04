@@ -170,8 +170,6 @@ select @@version_tokens_session;
 NULL
 
 set @@version_tokens_session= "token111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111=abc;;";
-set @@old_passwords= 0;
-ERROR 42000: Lengthy version token name encountered.  Maximum length allowed for a token name is 64 characters.
 
 # Connection: con1 refreshed
 
@@ -188,8 +186,6 @@ set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;   =  ;;;;
 # Connection: con1 refreshed
 
 set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;  sdf =  ;;;;";
-set @@old_passwords= 0;
-ERROR 42000: Empty version token name/value encountered
 
 # Connection: con1 refreshed
 

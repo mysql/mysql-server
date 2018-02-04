@@ -344,8 +344,6 @@ Testcase 3.5.8.5-case:
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create trigger trg3 before insert on tb3 for each row
 BEGIN
 SET new.f120=char(ascii(new.f120)-32);

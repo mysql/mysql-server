@@ -1,6 +1,4 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
 drop view if exists v1;
@@ -1267,16 +1265,12 @@ CREATE TABLE t3(c1 DATETIME NOT NULL) ENGINE=MYISAM;
 INSERT INTO t3 VALUES (0);
 
 SET sql_mode = TRADITIONAL;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 ALTER TABLE t3 ADD INDEX(c1);
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
 
 # -- Cleanup.
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

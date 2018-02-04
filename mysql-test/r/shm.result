@@ -2164,8 +2164,6 @@ t2	0	fld1	1	fld1	A	#	NULL	NULL		BTREE			YES
 t2	1	fld3	1	fld3	A	#	NULL	NULL		BTREE			YES
 drop table t4, t3, t2, t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 cont_nr int(11) NOT NULL auto_increment,
 ver_nr int(11) NOT NULL default '0',
