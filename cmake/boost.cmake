@@ -30,7 +30,7 @@
 # If WITH_BOOST is *not* set, or is set to the special value "system",
 # we assume that the correct version (see below)
 # is installed on the compile host in the standard location.
-
+SET(WITH_BOOST "D:\\MyFile\\boost_1_59_0")
 SET(BOOST_PACKAGE_NAME "boost_1_59_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL

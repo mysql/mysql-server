@@ -1,4 +1,4 @@
-/*****************************************************************************
+﻿/*****************************************************************************
 
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
@@ -464,14 +464,18 @@ ut_print_buf_hex(
 
 	UNIV_MEM_ASSERT_RW(buf, len);
 
-	o << "(0x";
+	o << "[0x";
 
 	for (data = static_cast<const byte*>(buf), i = 0; i < len; i++) {
 		byte	b = *data++;
 		o << hexdigit[(int) b >> 4] << hexdigit[b & 0x0F];
+		if (i + 1 < len)
+		{
+			o << " ";
+		}
 	}
 
-	o << ")";
+	o << "]";
 }
 
 /*************************************************************//**
@@ -492,8 +496,18 @@ ut_print_buf(
 		int	c = static_cast<int>(*data++);
 		o << (isprint(c) ? static_cast<char>(c) : ' ');
 	}
-
+	o << "\n";
 	ut_print_buf_hex(o, buf, len);
+}
+
+/*************************************************************//**
+Prints the contents of a redo buffer in hex and ascii. */
+void
+ut_print_redolog(const byte* buf, ulint len)
+{
+	std::ostringstream os;
+	ut_print_buf(os, buf, len);
+	ib::info(SLOG) << "len=" << len << ", 1st byte=" << int(*buf) << ", log:\n" << os.str();
 }
 
 /*************************************************************//**
@@ -921,24 +935,71 @@ ut_basename_noext(
 
 namespace ib {
 
+logger::logger()
+{ }
+
+logger::logger(const char* file, int line, const char* func)
+{
+	m_str += "[Innodb][";
+	const int head_size = m_str.size();
+	m_str += file;
+	int pos = m_str.rfind("\\");
+	if (-1 != pos)
+	{
+		m_str.erase(head_size, pos + 1 - head_size);
+	}
+	m_str += " ";
+	m_str += std::to_string(line);
+	m_str += " ";
+	m_str += func;
+	m_str += "]";
+}
+
+info::info()
+{}
+
+info::info(const char* file, int line, const char* func):logger(file, line, func)
+{
+}
+
 info::~info()
 {
-	sql_print_information("InnoDB: %s", m_oss.str().c_str());
+	sql_print_information("%s %s", m_str.c_str(), m_oss.str().c_str());
+}
+
+warn::warn()
+{}
+
+warn::warn(const char* file, int line, const char* func) :logger(file, line, func)
+{
 }
 
 warn::~warn()
 {
-	sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+	sql_print_warning("%s %s", m_str.c_str(), m_oss.str().c_str());
 }
+
+error::error()
+{}
+
+error::error(const char* file, int line, const char* func) :logger(file, line, func)
+{}
 
 error::~error()
 {
-	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	sql_print_error("%s %s", m_str.c_str(), m_oss.str().c_str());
+}
+
+fatal::fatal()
+{}
+
+fatal::fatal(const char* file, int line, const char* func) :logger(file, line, func)
+{
 }
 
 fatal::~fatal()
 {
-	sql_print_error("[FATAL] InnoDB: %s", m_oss.str().c_str());
+	sql_print_error("[FATAL] %s %s", m_str.c_str(), m_oss.str().c_str());
 	ut_error;
 }
 

@@ -899,6 +899,8 @@ mtr_t::Command::finish_write(
 			front->begin(), len, &m_start_lsn);
 
 		if (m_end_lsn > 0) {
+			ib::info(SLOG)<<"m_start_lsn="<< m_start_lsn<<"m_end_lsn="<< m_end_lsn;
+			ut_print_redolog(front->begin(), len);
 			return;
 		}
 	}

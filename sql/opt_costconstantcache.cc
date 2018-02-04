@@ -189,11 +189,11 @@ static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
   switch(error)
   {
   case UNKNOWN_COST_NAME:
-    sql_print_warning("Unknown cost constant \"%s\" in mysql.server_cost table\n",
+    sql_print_warning("Unknown cost constant \"%s\" in mysql.server_cost table",
                       cost_name.str);
     break;
   case INVALID_COST_VALUE:
-    sql_print_warning("Invalid value for cost constant \"%s\" in mysql.server_cost table: %.1f\n",
+    sql_print_warning("Invalid value for cost constant \"%s\" in mysql.server_cost table: %.1f",
                       cost_name.str, value);
     break;
   default:
@@ -223,19 +223,19 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
   switch(error)
   {
   case UNKNOWN_COST_NAME:
-    sql_print_warning("Unknown cost constant \"%s\" in mysql.engine_cost table\n",
+    sql_print_warning("Unknown cost constant \"%s\" in mysql.engine_cost table",
                       cost_name.str);
     break;
   case UNKNOWN_ENGINE_NAME:
-    sql_print_warning("Unknown storage engine \"%s\" in mysql.engine_cost table\n",
+    sql_print_warning("Unknown storage engine \"%s\" in mysql.engine_cost table",
                       se_name.str);
     break;
   case INVALID_DEVICE_TYPE:
-    sql_print_warning("Invalid device type %d for \"%s\" storage engine for cost constant \"%s\" in mysql.engine_cost table\n",
+    sql_print_warning("Invalid device type %d for \"%s\" storage engine for cost constant \"%s\" in mysql.engine_cost table",
                       storage_category, se_name.str, cost_name.str);
     break;
   case INVALID_COST_VALUE:
-    sql_print_warning("Invalid value for cost constant \"%s\" for \"%s\" storage engine and device type %d in mysql.engine_cost table: %.1f\n",
+    sql_print_warning("Invalid value for cost constant \"%s\" for \"%s\" storage engine and device type %d in mysql.engine_cost table: %.1f",
                       cost_name.str, se_name.str, storage_category, value);
     break;
   default:

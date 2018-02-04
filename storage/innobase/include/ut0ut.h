@@ -1,4 +1,4 @@
-/*****************************************************************************
+﻿/*****************************************************************************
 
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
@@ -359,6 +359,13 @@ ut_print_buf(
 	ulint		len)	/*!< in: length of the buffer */
 	MY_ATTRIBUTE((nonnull));
 
+/*************************************************************//**
+Prints the contents of a redo log in hex and ascii. */
+void
+ut_print_redolog(
+	const byte*	buf,	/*!< in: redo log */
+	ulint		len);	/*!< in: length of the log */
+
 #ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_t;
@@ -515,6 +522,8 @@ operator<<(
 	return(lhs);
 }
 
+#define SLOG __FILE__,__LINE__,__FUNCTION__
+
 /** The class logger is the base class of all the error log related classes.
 It contains a std::ostringstream object.  The main purpose of this class is
 to forward operator<< to the underlying std::ostringstream object.  Do not
@@ -553,10 +562,12 @@ public:
 	}
 
 	std::ostringstream	m_oss;
+	std::string m_str;
 protected:
 	/* This class must not be used directly, hence making the default
 	constructor protected. */
-	logger() {}
+	logger();
+	logger(const char* file, int line, const char* func);
 };
 
 /** The class info is used to emit informational log messages.  It is to be
@@ -572,6 +583,8 @@ statement.  If a named object is created, then the log message will be emitted
 only when it goes out of scope or destroyed. */
 class info : public logger {
 public:
+	info(const char* file, int line, const char* func);
+	info();
 	~info();
 };
 
@@ -579,6 +592,8 @@ public:
 class info for further details. */
 class warn : public logger {
 public:
+	warn(const char* file, int line, const char* func);
+	warn();
 	~warn();
 };
 
@@ -586,6 +601,8 @@ public:
 documentation of class info for further details. */
 class error : public logger {
 public:
+	error(const char* file, int line, const char* func);
+	error();
 	~error();
 };
 
@@ -594,6 +611,8 @@ by crashing it.  Use this class when MySQL server needs to be stopped
 immediately.  Refer to the documentation of class info for usage details. */
 class fatal : public logger {
 public:
+	fatal(const char* file, int line, const char* func);
+	fatal();
 	~fatal();
 };
 

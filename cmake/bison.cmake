@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA 
 
-FIND_PROGRAM(BISON_EXECUTABLE bison DOC "path to the bison executable")
+FIND_PROGRAM(BISON_EXECUTABLE bison "D:\\Programs\\GnuWin32\\bin" DOC "path to the bison executable")
 MARK_AS_ADVANCED(BISON_EXECUTABLE "")
 
 IF(NOT BISON_EXECUTABLE)
