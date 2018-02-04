@@ -108,6 +108,10 @@
 #define SOCKET_ERROR -1
 #endif
 
+#ifdef HAVE_OPENSSL
+#include <openssl/x509v3.h>
+#endif
+
 #include <mysql/client_plugin.h>
 #include <new>
 
@@ -2811,12 +2815,14 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
 {
   SSL *ssl;
   X509 *server_cert= NULL;
-  char *cn= NULL;
+  int ret_validation= 1;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   int cn_loc= -1;
+  char *cn= NULL;
   ASN1_STRING *cn_asn1= NULL;
   X509_NAME_ENTRY *cn_entry= NULL;
   X509_NAME *subject= NULL;
-  int ret_validation= 1;
+#endif
 
   DBUG_ENTER("ssl_verify_server_cert");
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
@@ -2850,13 +2856,17 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     are what we expect.
   */
 
-  /*
-   Some notes for future development
-   We should check host name in alternative name first and then if needed check in common name.
-   Currently yssl doesn't support alternative name.
-   openssl 1.0.2 support X509_check_host method for host name validation, we may need to start using
-   X509_check_host in the future.
-  */
+  /* Use OpenSSL host check instead of our own if we have OpenSSL 1.1.0 or newer */
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  if (X509_check_host(server_cert, server_hostname, strlen(server_hostname), X509_CHECK_FLAG_NO_WILDCARDS, 0) != 1)
+  {
+    *errptr= "Failed to verify the server certificate via X509_check_host";
+    goto error;
+  } else {
+    /* Success */
+    ret_validation= 0;
+  }
+#else
 
   subject= X509_get_subject_name((X509 *) server_cert);
   // Find the CN location in the subject
@@ -2903,6 +2913,7 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     ret_validation= 0;
   }
 
+#endif
   *errptr= "SSL certificate validation failure";
 
 error:
