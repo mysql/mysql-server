@@ -148,22 +148,6 @@ bool ndb_is_load_default_arg_separator(const char* arg)
   return FALSE;
 }
 
-extern "C"
-int
-ndb_load_defaults(const char* conf_file, const char** groups,
-                  int *argc, char*** argv)
-{
-  return my_load_defaults(conf_file ? conf_file : MYSQL_CONFIG_NAME,
-                          groups, argc, argv, NULL);
-}
-
-extern "C"
-void
-ndb_free_defaults(char** argv)
-{
-  free_defaults(argv);
-}
-
 static Ndb_opts * registeredNdbOpts;
 
 static void ndb_opts_usage()
@@ -203,7 +187,7 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
 Ndb_opts::~Ndb_opts()
 {
   Ndb_opts::release();
-  ndb_free_defaults(defaults_argv);
+  free_defaults(defaults_argv);
 }
 
 int Ndb_opts::handle_options(bool (*get_opt_fn)
