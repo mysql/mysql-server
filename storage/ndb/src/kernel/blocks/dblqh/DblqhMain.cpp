@@ -17594,7 +17594,6 @@ void Dblqh::perform_fragment_checkpoint(Signal *signal)
       SET_ERROR_INSERT_VALUE(5027);
       sendSignalWithDelay(reference(), GSN_START_RECREQ, signal, 10000, 1);
     }
-    else
     {
       BlockReference backupRef = calcInstanceBlockRef(BACKUP);
       sendSignal(backupRef, GSN_BACKUP_FRAGMENT_REQ, signal, 
