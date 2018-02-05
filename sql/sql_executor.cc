@@ -4427,8 +4427,7 @@ bring_back_frame_row(THD *thd,
   */
   swap_copy_field_direction(fb_info);
 
-  if (copy_fields(fb_info, thd))
-    DBUG_RETURN(true);
+  bool rc= copy_fields(fb_info, thd);
 
   swap_copy_field_direction(fb_info); // reset original direction
 
@@ -4436,19 +4435,22 @@ bring_back_frame_row(THD *thd,
   dbug_restore_all_columns(saved_map);
 #endif
 
-  if (out_param)
+  if (!rc)
   {
-    if (copy_fields(out_param, thd))
-      return true;
-    // fields are in IN and in OUT
-    if (rowno >= 1)
-      w.set_row_has_fields_in_out_table(rowno);
+    if (out_param)
+    {
+      if (copy_fields(out_param, thd))
+        DBUG_RETURN(true);
+      // fields are in IN and in OUT
+      if (rowno >= 1)
+        w.set_row_has_fields_in_out_table(rowno);
+    }
+    else
+      // we only wrote IN record, so OUT and IN are inconsistent
+      w.set_row_has_fields_in_out_table(0);
   }
-  else
-    // we only wrote IN record, so OUT and IN are inconsistent
-    w.set_row_has_fields_in_out_table(0);
 
-  DBUG_RETURN(false);
+  DBUG_RETURN(rc);
 }
 
 
