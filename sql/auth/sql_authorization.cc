@@ -1712,7 +1712,7 @@ bool check_routine_access(THD *thd, ulong want_access, const char *db,
   DBUG_ENTER("check_routine_access");
   TABLE_LIST tables[1];
 
-  memset(tables, 0, sizeof(TABLE_LIST));
+  new (&tables[0]) TABLE_LIST();
   tables->db = db;
   tables->db_length = strlen(db);
   tables->table_name = tables->alias = name;
@@ -4746,7 +4746,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 found_acl:
   acl_cache_lock.unlock();
 
-  memset(tables, 0, sizeof(TABLE_LIST));
+  new (&tables[0]) TABLE_LIST();
   user_list.empty();
 
   tables->db = (char *)sp_db;

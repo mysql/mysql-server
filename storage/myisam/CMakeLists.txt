@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,14 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
     myisamlog.cc
     myisampack.cc
     COMPILE_FLAGS "-Wno-class-memaccess")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+IF(HAVE_CAST_FUNCTION_TYPE)
+  ADD_COMPILE_FLAGS(
+    mi_write.cc
+    myisamlog.cc
+    COMPILE_FLAGS "-Wno-cast-function-type")
 ENDIF()
 
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 

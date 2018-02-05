@@ -3293,7 +3293,7 @@ done:
 static bool dump_column_statistics_for_table(char *table_name, char *db_name) {
   char name_buff[NAME_LEN * 4 + 3];
   char column_buffer[NAME_LEN * 4 + 3];
-  char query_buff[QUERY_LENGTH];
+  char query_buff[QUERY_LENGTH * 3 / 2];
   bool old_ansi_quotes_mode = ansi_quotes_mode;
   char *quoted_table;
   MYSQL_RES *column_statistics_rs;

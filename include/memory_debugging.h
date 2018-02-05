@@ -1,4 +1,4 @@
-/* Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,9 +69,10 @@
 */
 #define TRASH(A, B)              \
   do {                           \
+    void *p = (A);               \
     const size_t l = (B);        \
     MEM_CHECK_ADDRESSABLE(A, l); \
-    memset(A, 0x8F, l);          \
+    memset(p, 0x8F, l);          \
     MEM_UNDEFINED(A, l);         \
   } while (0)
 

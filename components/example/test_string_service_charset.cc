@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ FILE *outfile;
 // Value must be a multiple of 16 (or TEST_TEXT_LIT_LENGTH)
 #define MAX_BUFFER_LENGTH 128
 int log_text_len = 0;
-char log_text[MAX_BUFFER_LENGTH];
+char log_text[MAX_BUFFER_LENGTH + 16];
 
 //  strcpy (log_text, lit_log_text);
 

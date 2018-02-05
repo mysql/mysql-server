@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -364,6 +364,7 @@
 #include <boost/concept/usage.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/type_index/type_index_facade.hpp>
+#include <memory>
 #include <vector>
 
 #include "boost/algorithm/string/detail/classification.hpp"
@@ -415,15 +416,15 @@ using std::min;
         with these functions.
 */
 struct st_debug_sync_action {
-  ulong activation_count; /* max(hit_limit, execute) */
-  ulong hit_limit;        /* hits before kill query */
-  ulong execute;          /* executes before self-clear */
-  ulong timeout;          /* wait_for timeout */
-  String signal;          /* signal to emit */
-  String wait_for;        /* signal to wait for */
-  String sync_point;      /* sync point name */
-  bool need_sort;         /* if new action, array needs sort */
-  bool clear_event;       /* do not clear signal if false */
+  ulong activation_count = 0; /* max(hit_limit, execute) */
+  ulong hit_limit = 0;        /* hits before kill query */
+  ulong execute = 0;          /* executes before self-clear */
+  ulong timeout = 0;          /* wait_for timeout */
+  String signal;              /* signal to emit */
+  String wait_for;            /* signal to wait for */
+  String sync_point;          /* sync point name */
+  bool need_sort = false;     /* if new action, array needs sort */
+  bool clear_event = false;   /* do not clear signal if false */
 };
 
 /* Debug sync control. Referenced by THD. */
@@ -968,34 +969,23 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
   */
   if (ds_control->ds_active > dsp_idx) {
     /*
-      Do not make save_action an object of class st_debug_sync_action.
-      Its destructor would tamper with the String pointers.
-    */
-    uchar save_action[sizeof(st_debug_sync_action)];
-
-    /*
       Copy the to-be-removed action object to temporary storage before
-      the shift copies the string pointers over. Do not use assignment
-      because it would use assignment operator methods for the Strings.
-      This would copy the strings. The shift below overwrite the string
-      pointers without freeing them first. By using memmove() we save
-      the pointers, which are overwritten by the shift.
+      the left-shift below.
     */
-    memmove(save_action, action, sizeof(st_debug_sync_action));
+    st_debug_sync_action save_action = std::move(*action);
 
     /* Move actions down. */
-    memmove(ds_control->ds_action + dsp_idx,
-            ds_control->ds_action + dsp_idx + 1,
-            (ds_control->ds_active - dsp_idx) * sizeof(st_debug_sync_action));
+    st_debug_sync_action *dest_action = ds_control->ds_action + dsp_idx;
+    st_debug_sync_action *src_action = ds_control->ds_action + dsp_idx + 1;
+    uint num_actions = ds_control->ds_active - dsp_idx;
+
+    std::move(src_action, src_action + num_actions, dest_action);
 
     /*
-      Copy back the saved action object to the now free array slot. This
-      replaces the double references of String pointers that have been
-      produced by the shift. Again do not use an assignment operator to
-      avoid string allocation/copy.
+      Copy back the saved action object to the now free array slot.
     */
-    memmove(ds_control->ds_action + ds_control->ds_active, save_action,
-            sizeof(st_debug_sync_action));
+    dest_action = ds_control->ds_action + ds_control->ds_active;
+    *dest_action = std::move(save_action);
   }
 
   DBUG_VOID_RETURN;
@@ -1050,24 +1040,37 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
     if (ds_control->ds_active > ds_control->ds_allocated) {
       uint new_alloc = ds_control->ds_active + 3;
       void *new_action =
-          my_realloc(key_debug_sync_action, ds_control->ds_action,
-                     new_alloc * sizeof(st_debug_sync_action),
-                     MYF(MY_WME | MY_ALLOW_ZERO_PTR));
+          my_malloc(key_debug_sync_action,
+                    new_alloc * sizeof(st_debug_sync_action), MYF(MY_WME));
       if (!new_action) {
         /* Error is reported by my_malloc(). */
-        goto err; /* purecov: tested */
+        DBUG_RETURN(nullptr); /* purecov: tested */
       }
+      // Move objects into newly allocated memory.
+      // TODO: use std::uninitialized_move in C++17
+      if (ds_control->ds_action != nullptr) {
+        st_debug_sync_action *d_first =
+            static_cast<st_debug_sync_action *>(new_action);
+        for (int ix = 0; ix < dsp_idx; ++ix) {
+          st_debug_sync_action *src = ds_control->ds_action + ix;
+          st_debug_sync_action *dst = d_first + ix;
+          new (dst) st_debug_sync_action(std::move(*src));
+        }
+        my_free(ds_control->ds_action);
+      }
+
       ds_control->ds_action = (st_debug_sync_action *)new_action;
       ds_control->ds_allocated = new_alloc;
-      /* Clear memory as we do not run string constructors here. */
-      memset((ds_control->ds_action + dsp_idx), 0,
-             (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
+      /* Clear new entries. */
+      st_debug_sync_action *dest_action = ds_control->ds_action + dsp_idx;
+      std::uninitialized_fill_n(dest_action, (new_alloc - dsp_idx),
+                                st_debug_sync_action());
     }
     DBUG_PRINT("debug_sync", ("added action idx: %u", dsp_idx));
     action = ds_control->ds_action + dsp_idx;
     if (action->sync_point.copy(dsp_name, name_len, system_charset_info)) {
       /* Error is reported by my_malloc(). */
-      goto err; /* purecov: tested */
+      DBUG_RETURN(nullptr); /* purecov: tested */
     }
     action->need_sort = true;
   }
@@ -1077,11 +1080,6 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
                             ds_control->ds_action, ds_control->ds_active));
 
   DBUG_RETURN(action);
-
-  /* purecov: begin tested */
-err:
-  DBUG_RETURN(NULL);
-  /* purecov: end */
 }
 
 /**

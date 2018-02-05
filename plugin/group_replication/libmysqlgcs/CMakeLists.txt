@@ -120,6 +120,12 @@ IF(WITH_SSL MATCHES "bundled")
                       "-DYASSL_MYSQL_COMPATIBLE")
 ENDIF()
 
+MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+IF(HAVE_CAST_FUNCTION_TYPE)
+  ADD_COMPILE_FLAGS(src/bindings/xcom/xcom/xcom_transport.c
+                    COMPILE_FLAGS "-Wno-cast-function-type")
+ENDIF()
+
 # add the definition to build XCom with SSL support
 ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 

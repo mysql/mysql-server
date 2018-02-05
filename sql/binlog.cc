@@ -6511,7 +6511,7 @@ end:
        - ...
     */
     if (binlog_error_action == ABORT_SERVER) {
-      char abort_msg[ERR_CLOSE_MSG_LEN];
+      char abort_msg[ERR_CLOSE_MSG_LEN + 48];
       memset(abort_msg, 0, sizeof abort_msg);
       snprintf(abort_msg, sizeof abort_msg,
                "%s, while rotating the binlog. "
@@ -8593,7 +8593,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
       thd->commit_error == THD::CE_FLUSH_ERROR ? "flush" : "sync",
       binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER) {
-    char err_buff[MYSQL_ERRMSG_SIZE];
+    char err_buff[MYSQL_ERRMSG_SIZE + 27];
     sprintf(err_buff, "%s Hence aborting the server.", errmsg);
     exec_binlog_error_action_abort(err_buff);
   } else {
