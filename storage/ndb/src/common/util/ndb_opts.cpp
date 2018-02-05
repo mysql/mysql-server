@@ -194,7 +194,6 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
   options(long_options),
   short_usage_fn(g_ndb_opt_short_usage)
 {
-  NDB_INIT(argv_ref[0]);   // ndb_init() can safely be called more than once
   my_load_defaults(MYSQL_CONFIG_NAME,  mycnf_default_groups,
                    main_argc_ptr, main_argv_ptr, NULL);
   Ndb_opts::registerUsage(this);
@@ -205,7 +204,6 @@ Ndb_opts::~Ndb_opts()
 {
   Ndb_opts::release();
   ndb_free_defaults(defaults_argv);
-  ndb_end(0);  // ndb_end() can safely be called more than once
 }
 
 int Ndb_opts::handle_options(bool (*get_opt_fn)
