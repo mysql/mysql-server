@@ -3769,9 +3769,9 @@ bool subselect_hash_sj_engine::exec() {
       res = thd->is_error();
     }
 
-    /* Set tmp_param only if its usable, i.e. tmp_param->copy_field != NULL. */
+    /* Set tmp_param only if its usable, i.e. there are Copy_field's. */
     tmp_param = &(item_in->unit->outer_select()->join->tmp_table_param);
-    if (tmp_param && !tmp_param->copy_field) tmp_param = NULL;
+    if (tmp_param && tmp_param->copy_fields.empty()) tmp_param = nullptr;
 
   err:
     thd->lex->set_current_select(save_select);

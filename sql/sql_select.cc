@@ -1432,11 +1432,6 @@ bool JOIN::destroy() {
   // Run Cached_item DTORs!
   group_fields.destroy_elements();
 
-  /*
-    We can't call delete_elements() on copy_funcs as this will cause
-    problems in free_elements() as some of the elements are then deleted.
-  */
-  tmp_table_param.copy_funcs.empty();
   tmp_table_param.cleanup();
 
   /* Cleanup items referencing temporary table columns */
@@ -3705,42 +3700,6 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
 }
 
 /**
-  todo: remove this explanation after reviewers have seen it.
-  More info about the problem that required this function:
-  select from (select WF1 over w1, WF2 over w2) dt;
-  where "dt" is materialized. First the "dt" table structure is created with
-  create_tmp_table() and that sets WF{1,2}->result_field (pointing into
-  columns of "dt"). Then the inner subquery is optimized, that calls
-  create_tmp_table() for the two windows. First for w1: WF1 is to be
-  calculated in w1 so a column is added for its result in the tmp table; so
-  its result_field gets re-set to point there, all fine. Continuing with the
-  creation of wf1, WF2 is skipped. Then change_to_use_tmp_fields() sees that
-  WF1 and WF2 have a result_field (see test
-  'else if ((field= item->get_tmp_table_field()))'), so concludes that the ref
-  slice used to read the tmp table of w1 should contain Item_fields for WF1
-  and WF2; that's incorrect for WF2, and leads to WF2 never being calculated.
-  My fix: in create_tmp_table(), when the destination table is to materialize
-  a derived table / UNION (i.e. is not a group-by/windowing table), there's no
-  reason to set result_field (results are not saved by this means anyway, but
-  by Query_result_union::send_data() which reads the last table of the query
-  and writes that to the materialized table), so don't set it.
-
-  In subqueries, this state may not be clean before we start creating tmp files
-  for windowing passes. This is needed because only the first window gets its
-  result field set in the first tmp file pass, other result fields should be
-  empty until the corresponding windowing tmp file pass happens, and an outer
-  query breaks this presumption unless we reset.
-  For example this query would have already set the result fields before we
-  set up the windowing:
-
-  SELECT * FROM (SELECT COUNT(*) OVER (), SUM(c) OVER () AS sum1, a FROM t) AS
-  alias;
-
-  causing the second windowing to fail, i.e. SUM.
-*/
-// static void reset_wf_result_fields(List<Item> *curr_all_fields)
-
-/**
   Init tmp tables usage info.
 
   @details
@@ -4075,7 +4034,7 @@ bool JOIN::make_tmp_tables_info() {
     tmp_table_param.field_count = tmp_table_param.sum_func_count =
         tmp_table_param.func_count = 0;
 
-    tmp_table_param.copy_field = tmp_table_param.copy_field_end = 0;
+    tmp_table_param.cleanup();
     first_record = sort_and_group = 0;
 
     if (!group_optimized_away) {
