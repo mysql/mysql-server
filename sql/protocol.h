@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,6 @@
 #include "my_decimal.h"                         /* my_decimal */
 
 #include "violite.h"                            /* SSL && enum_vio_type */
-#ifdef HAVE_OPENSSL
-#define SSL_handle SSL*
-#else
-#define SSL_handle void*
-#endif
 
 #ifdef __cplusplus
 class THD;
@@ -202,14 +197,6 @@ public:
   */
   virtual int shutdown(bool server_shutdown= false)= 0;
 
-  /**
-    Returns pointer to the SSL object/struct
-
-    @return
-      @retval SSL*    The SSL struct/object
-      @retval NULL    If HAVE_OPENSSL is not defined
-  */
-  virtual SSL_handle get_ssl()= 0;
   /**
     Returns the read/writing status
 

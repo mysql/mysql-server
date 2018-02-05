@@ -158,7 +158,6 @@ public:
   virtual void end_partial_result_set();
   virtual int shutdown(bool server_shutdown= false);
   virtual bool connection_alive();
-  virtual SSL_handle get_ssl();
   virtual void start_row();
   virtual bool end_row();
   virtual void abort_row(){};
@@ -4548,11 +4547,6 @@ int
 Protocol_local::shutdown(bool server_shutdown)
 {
   return 0;
-}
-
-SSL_handle Protocol_local::get_ssl()
-{
-  return NULL;
 }
 
 /**

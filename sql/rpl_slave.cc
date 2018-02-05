@@ -9867,21 +9867,18 @@ bool start_slave(THD* thd,
 
   mi->channel_wrlock();
 
+#if !defined(EMBEDDED_LIBRARY)
   if (connection_param->user ||
       connection_param->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    if (!thd->get_protocol()->get_ssl())
+    if (!thd->get_ssl())
+    {
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER(ER_INSECURE_PLAIN_TEXT));
-#endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    push_warning(thd, Sql_condition::SL_NOTE,
-                 ER_INSECURE_PLAIN_TEXT,
-                 ER(ER_INSECURE_PLAIN_TEXT));
-#endif
+    }
   }
+#endif
 
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
@@ -10654,16 +10651,13 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
 
   if (lex_mi->user || lex_mi->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    if (!thd->get_protocol()->get_ssl())
+#if !defined(EMBEDDED_LIBRARY)
+    if (!thd->get_ssl())
+    {
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER(ER_INSECURE_PLAIN_TEXT));
-#endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    push_warning(thd, Sql_condition::SL_NOTE,
-                 ER_INSECURE_PLAIN_TEXT,
-                 ER(ER_INSECURE_PLAIN_TEXT));
+    }
 #endif
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_CHANGE_MASTER,

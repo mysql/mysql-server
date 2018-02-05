@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3298,8 +3298,10 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
   {
     /* Block the Performance Schema from accessing THD::variables. */
     mysql_mutex_lock(&thd->LOCK_thd_data);
-    
+
     plugin_var_memalloc_free(&thd->variables);
+    /* Remove references to session_sysvar_res_mgr memory before freeing it. */
+    thd->variables.track_sysvars_ptr = NULL;
     thd->session_sysvar_res_mgr.deinit();
   }
   DBUG_ASSERT(vars->table_plugin == NULL);
