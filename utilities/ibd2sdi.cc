@@ -41,6 +41,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <iostream>
 #include <map>
 
+#include "my_rapidjson_size_t.h"
+
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/filewritestream.h>
@@ -57,7 +59,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_getopt.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_rapidjson_size_t.h"
 #include "print_version.h"
 #include "storage/innobase/include/btr0cur.h"
 #include "storage/innobase/include/dict0sdi-decompress.h"
