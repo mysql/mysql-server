@@ -920,6 +920,7 @@ doall()
 int
 main(int argc, char** argv)
 {
+  NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage);
   if (opts.handle_options() != 0)
