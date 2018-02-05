@@ -1,0 +1,19 @@
+#
+# Bug#25609945: GR SHOULD BLOCK OPERATIONS ON NON-COMPLAINT TABLES IN GR+ASYNC SETUP
+# Bug#25828806: GR ALLOWS OPERATIONS ON NON-COMPLAINT TABLES THROUGH MYSQLBINLOG
+#
+# This test verifies that statements which does not obey GR requirements:
+# - tables having no primary keys
+# - tables using non-innodb storage engine
+# - tables with foreign key with cascade clause
+# are not allowed to be applied on the slave, running group replication,
+# through mysqlbinlog.
+
+--let $rpl_mysqlbinlog=1
+--let $rpl_binlog_format=STATEMENT
+--let $slave_sql_errno=convert_error(ER_BEFORE_DML_VALIDATION_ERROR)
+--let $slave_sql_error= The table does not comply with the requirements by an external plugin
+--let $rpl_error_log= $MYSQLTEST_VARDIR/tmp/gr_sbr_verifications_mysqlbinlog.err
+--let $gr_test_name= gr_sbr_verifications_mysqlbinlog
+
+--source ../include/gr_binlog_events_verifications.test

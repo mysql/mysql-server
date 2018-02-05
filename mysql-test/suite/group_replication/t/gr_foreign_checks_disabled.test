@@ -1,0 +1,76 @@
+################################################################################
+# Bug#24916351 GR KEY GENERATION FOR FOREIGN KEY SHOULD BE IGNORED IF PARENT IS
+#              NOT YET CREATED
+# Problem: When foreign key checks are disabled, user can create a foreign key
+#          in child table by referring a parent table that does not exists.
+#          Inserting a tuple into such child table is bringing GR server down.
+# Test Steps:
+# 0> Test requires only one server.
+# 1> Disable foreign key checks.
+# 2> Check that we should be able to
+#    2.1> Create a child table with a foreign key which refers a table
+#         which does not exist.
+#    2.2> Insert a value in child table even when the parent table
+#         does not exist.
+# 3> Create the parent table.
+# 4> Check that we should be able to insert a value in child table even
+#    when that value is not there in the parent table.
+# 5> Enable foreign key checks
+# 6> After restoring the foreign key checks check that old behaviour
+#    is restored.
+#    6.1> Throwing error if the value is not present in the parent table
+#    6.2> Should able to insert the value if the value is present in the
+#         parent table.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo #########################################################################
+--echo # 1. Disable foreign key checks
+SET foreign_key_checks=0;
+
+--echo #########################################################################
+--echo # 2.1. Should be able to create a table with a foreign key
+--echo #      which refers a table which does not exist.
+CREATE TABLE child_table (c1 INT PRIMARY KEY,
+                          FOREIGN KEY (c1) REFERENCES parent_table(c1));
+
+--echo #########################################################################
+--echo # 2.2. Should be able to insert a value in child table even
+--echo #      when the parent table does not exists because foreign
+--echo #      key checks are disabled.
+INSERT INTO child_table VALUES(1);
+
+--echo #########################################################################
+--echo # 3. Create parent table.
+CREATE TABLE parent_table (c1 INT PRIMARY KEY);
+
+--echo #########################################################################
+--echo # 4. Should be able to insert a value into child table even
+--echo #    when that value is not there in the parent table
+--echo #    because foreign key checks are disabled.
+INSERT INTO child_table VALUES(2);
+
+--echo #########################################################################
+--echo # 5. Enable foreign_key_checks
+SET foreign_key_checks=1;
+
+--echo #########################################################################
+--echo # 6.1. Foreign key checks are enabled. Now inserting a value into
+--echo # child table that does not exists in parent table should
+--echo # throw error.
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child_table VALUES(3);
+
+--echo #########################################################################
+--echo # 6.2. Insert a tuple into parent_table. Inserting that value
+--echo # into child table should be allowed now.
+INSERT INTO parent_table VALUES(3);
+INSERT INTO child_table VALUES(3);
+
+--echo #########################################################################
+--echo # 7. Clean up.
+DROP TABLE child_table;
+DROP TABLE parent_table;
+
+--source include/group_replication_end.inc

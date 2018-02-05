@@ -1,0 +1,124 @@
+#
+# Test case to verify that asynchronous replication channel can be started
+# on primary, while group replication is running on single-primary mode.
+#
+# Test:
+#
+# 1. Start GR on server1 & 2.
+# 2. Add some data to server1 & 3.
+# 3. Create new channel ch3_1: server1(slave), server3(master).
+# 4. Verify channel ch3_1 IO and SQL THREADS are ON
+# 5. Verify data is replicated to server1 & 2
+# 6. Clean up.
+#
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start GR on server1 & 2
+
+# Boostrap start GR on server1 (Primary)
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+# Start GR on server2 (Secondary)
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Add some data to server1 & 3
+
+# server1: create table t1 and add data
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+
+# server3: create table t2 and add data
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t2 VALUES (1);
+
+
+--echo
+--echo # 3. Create and start new channel ch3_1: server1(slave), server3(master)
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
+
+--let $rpl_channel_name='ch3_1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--echo
+--echo # 4. Verify channel ch3_1 IO and SQL THREADS are ON
+--let $assert_text= Verify channel ch3_1 IO_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name = \'ch3_1\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch3_1 SQL_THREAD is ON
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name = \'ch3_1\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--echo
+--echo # 5. Verify data is replicated to server1 & 2
+
+# Sync slave(server1) with master(server3)
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch3_1'
+--let $sync_slave_connection=server1
+--source include/sync_slave_sql_with_master.inc
+--let $rpl_channel_name=
+
+# Wait for all servers to be in sync
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= Verify two tables (t1 & t2) are present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Verify test.t2 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t2, COUNT, 1]" = "1"
+--source include/assert.inc
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= Verify two tables (t1 & t2) are present in test database
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "2"
+--source include/assert.inc
+
+--let $assert_text= Verify test.t2 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t2, COUNT, 1]" = "1"
+--source include/assert.inc
+
+
+--echo
+--echo # 6. Clean Up
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP SLAVE FOR CHANNEL 'ch3_1';
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+DROP TABLE test.t2;
+
+--source include/group_replication_end.inc

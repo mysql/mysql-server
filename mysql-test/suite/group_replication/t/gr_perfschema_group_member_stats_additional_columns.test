@@ -1,0 +1,489 @@
+################################################################################
+# Verify performance_schema.replication_group_member_stats for new columns
+#
+# Test:
+# 0.  Start GR on two servers
+# 1.  With both members ONLINE. Execute some transactions on server1.
+# 1A. Assert values are correct in table replication_group_member_stats.
+# 2.  Testing of column COUNT_TRANSACTIONS_LOCAL_ROLLBACK.
+# 2A. Force negative certification outcome of the next transaction using DEBUG
+#     sync point.
+# 2B. Assert values are correct in table replication_group_member_stats.
+# 3.  Testing of column COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE.
+# 3A. Execute 10 transactions on M2 and block them before commiting.
+# 3B. Assert values are correct in table replication_group_member_stats.
+# 4.  Assert values are correct in table replication_group_member_stats.
+# 5.  Clean up(debug flag and tables).
+################################################################################
+
+--echo
+--echo ############################################################
+--echo # 0.  Start GR on two servers
+--echo ############################################################
+
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo #####################################################################
+--echo # 1.  With both members ONLINE. Execute some transactions on server1.
+--echo #####################################################################
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid= `SELECT @@server_uuid`
+
+############################################################
+# 1A. Assert values are correct in table replication_group_member_stats.
+############################################################
+
+## Connect to server1 and confirm flow control has been exchanged.
+## Flow control is exchanged every 1 second interval and GTIDs 30 seconds
+## Else assert will fail for remote member information
+## Member join adds to remote applied
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 3 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
+--source include/wait_condition.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 0 on server 1
+--let $transaction_remote_applied_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
+--let $assert_cond= $transaction_remote_applied_1= 0
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 3 on server 2
+--let $transaction_remote_applied_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2'
+--let $assert_cond= $transaction_remote_applied_2= 3
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 2 on server 1
+--let $transaction_local_proposed_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 2 on server 1'
+--let $assert_cond= $transaction_local_proposed_1= 2
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 0 on server 2
+--let $transaction_local_proposed_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2'
+--let $assert_cond= $transaction_local_proposed_2= 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+## Wait for flow control exchange
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED = 2 from performance_schema.replication_group_member_stats where member_id='$server1_uuid';
+--source include/wait_condition.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 0 on server 1
+--let $transaction_remote_applied_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
+--let $assert_cond= $transaction_remote_applied_1= 0
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 3 on server 2
+--let $transaction_remote_applied_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 3 on server 2'
+--let $assert_cond= $transaction_remote_applied_2= 3
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 2 on server 1
+--let $transaction_local_proposed_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 2 on server 1'
+--let $assert_cond= $transaction_local_proposed_1= 2
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 0 on server 2
+--let $transaction_local_proposed_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2'
+--let $assert_cond= $transaction_local_proposed_2= 0
+--source include/assert.inc
+
+--echo
+--echo #####################################################################
+--echo # 2.  Testing of column COUNT_TRANSACTIONS_LOCAL_ROLLBACK.
+--echo #####################################################################
+
+############################################################
+# 2A. Force negative certification outcome of the next transaction using DEBUG
+#     sync point.
+############################################################
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+
+## First insert will be aborted
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+--source include/rpl_sync.inc
+
+## Connect to server1 and confirm flow control has been exchanged
+## Flow control is exchanged every 1 second interval, GTID 30 seconds
+## Else assert will fail for remote member assert checks
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 4 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
+--source include/wait_condition.inc
+
+############################################################
+# 2B. Assert values are correct in table replication_group_member_stats.
+############################################################
+
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 0 on server 1
+--let $transaction_remote_applied_2_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
+--let $assert_cond= $transaction_remote_applied_2_1= 0
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+--let $transaction_remote_applied_2_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
+--let $assert_cond= $transaction_remote_applied_2_2= 4
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1
+--let $transaction_local_proposed_2_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1'
+--let $assert_cond= $transaction_local_proposed_2_1= 4
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 0 on server 2
+--let $transaction_local_proposed_2_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2'
+--let $assert_cond= $transaction_local_proposed_2_2= 0
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 1 on server 1
+--let $transaction_local_rollback_2_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1'
+--let $assert_cond= $transaction_local_rollback_2_1= 1
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 0 on server 2
+--let $transaction_local_rollback_2_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2'
+--let $assert_cond= $transaction_local_rollback_2_2= 0
+--source include/assert.inc
+
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 1
+--let $transaction_conflict_detected_2_1= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1'
+--let $assert_cond= $transaction_conflict_detected_2_1= 1
+--source include/assert.inc
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 2
+--let $transaction_conflict_detected_2_2= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2'
+--let $assert_cond= $transaction_conflict_detected_2_2= 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED = 4 from performance_schema.replication_group_member_stats where member_id='$server1_uuid';
+--source include/wait_condition.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 0 on server 1
+--let $_transaction_remote_applied_= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 0 on server 1'
+--let $assert_cond= $_transaction_remote_applied_= 0
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+--let $_transaction_remote_applied_= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
+--let $assert_cond= $_transaction_remote_applied_= 4
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1
+--let $_transaction_local_proposed_= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1'
+--let $assert_cond= $_transaction_local_proposed_= 4
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 0 on server 2
+--let $_transaction_local_proposed_= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 0 on server 2'
+--let $assert_cond= $_transaction_local_proposed_= 0
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 1 on server 1
+--let $_transaction_local_rollback_= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1'
+--let $assert_cond= $_transaction_local_rollback_= 1
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 0 on server 2
+--let $_transaction_local_rollback_= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2'
+--let $assert_cond= $_transaction_local_rollback_= 0
+--source include/assert.inc
+
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 1
+--let $_transaction_conflict_detected_= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1'
+--let $assert_cond= $_transaction_conflict_detected_= 1
+--source include/assert.inc
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 2
+--let $_transaction_conflict_detected_= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2'
+--let $assert_cond= $_transaction_conflict_detected_= 1
+--source include/assert.inc
+
+--echo
+--echo #####################################################################
+--echo # 3.  Testing of column COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE.
+--echo #####################################################################
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_stop_applier_sql_thread.inc
+
+############################################################
+# 3A. Execute 10 transactions on M2 and block them before commiting.
+############################################################
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--disable_query_log
+--let $i=101
+while($i <= 110)
+{
+    --EVAL INSERT INTO t1 VALUES ($i)
+    --inc $i
+}
+--enable_query_log
+
+############################################################
+# 3B. Assert values are correct in table replication_group_member_stats.
+############################################################
+
+## NOTE: Server2 will commit and clear queue, so test cannot be done for server2
+## For server1 we have stopped applier, hence it will work.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 10 from performance_schema.replication_group_member_stats where member_id='$server1_uuid';
+--source include/wait_condition.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 10 on server 1
+--let $transaction_remote_in_applier_queue_3_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 10 on server 1'
+--let $assert_cond= $transaction_remote_in_applier_queue_3_1= 10
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on server 2
+--let $transaction_remote_in_applier_queue_3_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2'
+--let $assert_cond= $transaction_remote_in_applier_queue_3_2= 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 10 from performance_schema.replication_group_member_stats where member_id='$server1_uuid';
+--source include/wait_condition.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 10 on server 1
+--let $transaction_remote_in_applier_queue_3_3= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 10 on server 1'
+--let $assert_cond= $transaction_remote_in_applier_queue_3_3= 10
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on server 2
+--let $transaction_remote_in_applier_queue_3_4= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2'
+--let $assert_cond= $transaction_remote_in_applier_queue_3_4= 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_start_applier_sql_thread.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/rpl_sync.inc
+
+--echo
+--echo #####################################################################
+--echo # 4.  Assert values are correct in table replication_group_member_stats.
+--echo #####################################################################
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED = 10 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
+--source include/wait_condition.inc
+
+
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on server 1
+--let $transaction_remote_in_applier_queue_4_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 1'
+--let $assert_cond= $transaction_remote_in_applier_queue_4_1= 0
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on server 2
+--let $transaction_remote_in_applier_queue_4_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2'
+--let $assert_cond= $transaction_remote_in_applier_queue_4_2= 0
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 10 on server 1
+--let $transaction_remote_applied_4_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1'
+--let $assert_cond= $transaction_remote_applied_4_1= 10
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+--let $transaction_remote_applied_4_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
+--let $assert_cond= $transaction_remote_applied_4_2= 4
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1
+--let $transaction_local_proposed_4_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1'
+--let $assert_cond= $transaction_local_proposed_4_1= 4
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 10 on server 2
+--let $transaction_local_proposed_4_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 10 on server 2'
+--let $assert_cond= $transaction_local_proposed_4_2= 10
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 1 on server 1
+--let $transaction_local_rollback_4_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1'
+--let $assert_cond= $transaction_local_rollback_4_1= 1
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 0 on server 2
+--let $transaction_local_rollback_4_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2'
+--let $assert_cond= $transaction_local_rollback_4_2= 0
+--source include/assert.inc
+
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 1
+--let $_transaction_conflict_detected_= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1'
+--let $assert_cond= $_transaction_conflict_detected_= 1
+--source include/assert.inc
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 2
+--let $_transaction_conflict_detected_= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2'
+--let $assert_cond= $_transaction_conflict_detected_= 1
+--source include/assert.inc
+
+###############################################################################
+## Assert table replication_group_member_stats has same information on server 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+## Wait for flow control exchange
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 10 from performance_schema.replication_group_member_stats where member_id='$server1_uuid';
+--source include/wait_condition.inc
+
+#--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED = 4 from performance_schema.replication_group_member_stats where member_id='$server2_uuid';
+#--source include/wait_condition.inc
+
+
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on server 1
+--let $transaction_remote_in_applier_queue_5_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 1'
+--let $assert_cond= $transaction_remote_in_applier_queue_5_1= 0
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is 0 on server 2
+--let $transaction_remote_in_applier_queue_5_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE should be 0 on server 2'
+--let $assert_cond= $transaction_remote_in_applier_queue_5_2= 0
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 10 on server 1
+--let $transaction_remote_applied_5_1= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 10 on server 1'
+--let $assert_cond= $transaction_remote_applied_5_1= 10
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_REMOTE_APPLIED is 4 on server 2
+--let $transaction_remote_applied_5_2= query_get_value(SELECT COUNT_TRANSACTIONS_REMOTE_APPLIED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_REMOTE_APPLIED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_REMOTE_APPLIED should be 4 on server 2'
+--let $assert_cond= $transaction_remote_applied_5_2= 4
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 4 on server 1
+--let $transaction_local_proposed_5_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 4 on server 1'
+--let $assert_cond= $transaction_local_proposed_5_1= 4
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_PROPOSED is 10 on server 2
+--let $transaction_local_proposed_5_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_PROPOSED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_PROPOSED, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_PROPOSED should be 10 on server 2'
+--let $assert_cond= $transaction_local_proposed_5_2= 10
+--source include/assert.inc
+
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 1 on server 1
+--let $transaction_local_rollback_5_1= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 1 on server 1'
+--let $assert_cond= $transaction_local_rollback_5_1= 1
+--source include/assert.inc
+## Assert COUNT_TRANSACTIONS_LOCAL_ROLLBACK is 0 on server 2
+--let $transaction_local_rollback_5_2= query_get_value(SELECT COUNT_TRANSACTIONS_LOCAL_ROLLBACK FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_TRANSACTIONS_LOCAL_ROLLBACK, 1)
+--let $assert_text= 'The value of COUNT_TRANSACTIONS_LOCAL_ROLLBACK should be 0 on server 2'
+--let $assert_cond= $transaction_local_rollback_5_2= 0
+--source include/assert.inc
+
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 1
+--let $_transaction_conflict_detected_= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server1_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 1'
+--let $assert_cond= $_transaction_conflict_detected_= 1
+--source include/assert.inc
+## Assert COUNT_CONFLICTS_DETECTED is 1 on server 2
+--let $_transaction_conflict_detected_= query_get_value(SELECT COUNT_CONFLICTS_DETECTED FROM performance_schema.replication_group_member_stats where member_id='$server2_uuid', COUNT_CONFLICTS_DETECTED, 1)
+--let $assert_text= 'The value of COUNT_CONFLICTS_DETECTED should be 1 on server 2'
+--let $assert_cond= $_transaction_conflict_detected_= 1
+--source include/assert.inc
+
+## Validate diff of table
+--let $wait_timeout= 150
+--let $wait_condition= SELECT COUNT(*)=1 from performance_schema.replication_group_member_stats where member_id='$server1_uuid' and (transactions_committed_all_members like '%:1-5:1000002-1000011' or transactions_committed_all_members like '%:1-15') and count_transactions_rows_validating=0;
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_timeout= 150
+--let $wait_condition= SELECT COUNT(*)=1 from performance_schema.replication_group_member_stats where member_id='$server2_uuid' and (transactions_committed_all_members like '%:1-5:1000002-1000011' or transactions_committed_all_members like '%:1-15') and count_transactions_rows_validating=0;
+--source include/wait_condition.inc
+
+--let $diff_tables= server1:performance_schema.replication_group_member_stats, server2:performance_schema.replication_group_member_stats
+--source include/diff_tables.inc
+
+--echo
+--echo #####################################################################
+--echo # 5.  Clean up(debug flag and tables).
+--echo #####################################################################
+
+## Cleanup of debug flags
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+## Cleanup tables
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+## Shutdown group
+--source include/group_replication_end.inc

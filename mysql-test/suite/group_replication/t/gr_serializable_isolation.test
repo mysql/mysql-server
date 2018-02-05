@@ -1,0 +1,122 @@
+################################################################################
+# Aim of the testcase is to check that GR successfully blocks the DMLs run with
+# 'SERIALIZABLE' isolation mode.
+# Test:
+# 0. Start a server with GR.
+# 1. Create table t1, temporary table temp1
+# 2. Set isolation level to 'SERIALIZABLE'
+# 3. Verify that DDLs are not blocked irrespective of trasaction isolation.
+# 4. Verify that DMLs are blocked if isolation level is 'SERIALIZABLE'
+# 5. Set isolation level to 'REPEATABLE-READ' and check that DMLs are allowed.
+# 6. Clean-up
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+--echo #
+--echo # Bug#21225075 GROUP REPLICATION MAY CAUSE INCONSISTENCIES IF SERIALIZABLE IS ENABLED
+--echo #
+# Check that Group Replication does not allow any DML transactions if they are run with
+# serializable isolation mode.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Transaction isolation level \\(tx_isolation\\) is set to SERIALIZABLE, which is not compatible with Group Replication");
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo ## 1. Create table and insert some sample data to do some DML operations
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUE (1);
+CREATE TEMPORARY TABLE temp1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO temp1 VALUE (1);
+
+--echo
+--echo ## 2. Change Isolation level to SERIALIZABLE.
+SET @transaction_isolation_orig = @@session.transaction_isolation;
+SET SESSION transaction_isolation='SERIALIZABLE';
+
+--echo
+--echo ## 3. DDLs are allowed irrespective of transaction isolation value
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--echo
+--echo ## 4. DMLs should be blocked if isolation level is SERIALIZABLE.
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT INTO t1 VALUES (2);
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+UPDATE t1 SET c1=c1+1;
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+DELETE FROM t1;
+
+# Check that even DML operations on temporary tables are disallowed
+# when isolation level is SERIALIZABLE
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT INTO temp1 VALUES (2);
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+UPDATE temp1 SET c1=c1+1;
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+DELETE FROM temp1;
+
+DELIMITER |;
+
+# Verify that if a procedure/function contains restricted DML operation, it
+# will also throw error
+CREATE PROCEDURE dml_procedure()
+  BEGIN
+  INSERT INTO t1 VALUES (2);
+END |
+
+CREATE FUNCTION dml_function() RETURNS INTEGER MODIFIES SQL DATA
+  BEGIN
+  INSERT INTO t1 VALUES (2);
+  RETURN 1;
+END|
+
+DELIMITER ;|
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+CALL dml_procedure();
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+SELECT dml_function();
+
+
+START TRANSACTION;
+SET SESSION transaction_isolation='REPEATABLE-READ';
+# Isolation value change is effective only from the next transaction.
+# So this insert should be disallowed as the current transaction's
+# isolation level is 'SERIALIZABLE';
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT INTO t1 VALUES (2);
+COMMIT;
+
+--let $assert_text= 'transaction_isolation should be REPEATABLE-READ'
+--let $assert_cond= "[SELECT @@SESSION.transaction_isolation]" = "REPEATABLE-READ";
+--source include/assert.inc
+
+START TRANSACTION;
+SET SESSION transaction_isolation='SERIALIZABLE';
+--echo
+--echo ## 5. Isolation value change is effective only from the next transaction.
+--echo ##    So this insert should be allowed as the current transaction's
+--echo ##    isolation level is 'REPEATABLE-READ';
+INSERT INTO t1 VALUES (2);
+COMMIT;
+
+--echo
+--echo ## 6. Cleaning up
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE temp1;
+DROP PROCEDURE dml_procedure;
+DROP FUNCTION dml_function;
+SET SESSION transaction_isolation=@transaction_isolation_orig;
+
+--source include/group_replication_end.inc

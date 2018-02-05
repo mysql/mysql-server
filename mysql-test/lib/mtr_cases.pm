@@ -1408,6 +1408,7 @@ my @tags=
 
  # Tests with below .inc file are considered to be group replication tests
  ["have_group_replication_plugin_base.inc", "grp_rpl_test", 1],
+ ["have_group_replication_plugin.inc", "grp_rpl_test", 1],
 
  # Tests with below .inc file are considered to be xplugin tests
  ["include/have_mysqlx_plugin.inc", "xplugin_test", 1],

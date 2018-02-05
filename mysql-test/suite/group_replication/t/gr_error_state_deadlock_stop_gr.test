@@ -1,0 +1,90 @@
+################################################################################
+# This test evaluates that group replication STOP GR is safe in error state.
+#
+# The test guide is:
+# 0. A two member group with started plugins.
+# 1. Create a table on server 1 and replicate
+# 2. Insert a row on server 2 with log to the binlog disabled.
+# 3. Insert record in server1 to put server2 in error state.
+#    Server2 will go in ERROR state due to PRIMARY key violation.
+# 4. Stop GR should succed when member is in ERROR state.
+# 5. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Create a table on server 1 and replicate.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo
+--echo # 2. Insert a row on server 2 with log to the binlog disabled.
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_applier_thread_wait_kill_pending_transaction';
+
+SET SESSION sql_log_bin= 0;
+
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table .*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+
+INSERT INTO t1 VALUES (1);
+
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo # 3. Insert record in server1 to put server2 in error state.
+--echo #    Server2 will go in ERROR state due to PRIMARY key violation.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 4. Stop GR should succed when member is in ERROR state.
+--echo
+
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= @debug_save;
+SET @@GLOBAL.DEBUG='+d,group_replication_continue_kill_pending_transaction';
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 5. Clean up.
+--echo
+
+SET @@GLOBAL.DEBUG= @debug_save;
+SET GLOBAL read_only= 0;
+SET SESSION sql_log_bin= 0;
+DELETE from t1;
+SET SESSION sql_log_bin= 1;
+--source include/start_group_replication.inc
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

@@ -1,0 +1,160 @@
+################################################################################
+# Base test to verify the basic SSL options functioning and their manipulation
+#
+# Basically, it tests those options that require openssl.
+#
+# The rest of the tests are done in group_replication_ssl_options
+# test file.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Set ssl related global variables and do initial setup.
+# 2. Setup the first member (M1) with a recovery user that requires SSL.
+# 3. Add some data and bootstrap start a group on M1.
+# 4. Configure joining member (M2) to use SSL options on recovery. Engage
+#    recovery using the CRL options set. Start GR on M2.
+# 5. Check the data is there on M2.
+# 6. Clean up.
+################################################################################
+
+--source include/have_openssl.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+##
+## Global variables and initial setup
+##
+
+--let $tmpdir_name=`SELECT UUID()`
+--let $tmpdir=$MYSQLTEST_VARDIR/tmp/$tmpdir_name
+--let $CERTDIR_LOCATION=$tmpdir/certs
+--let $CADIR_LOCATION=$tmpdir/certs/cacerts
+--let $CRLDIR_LOCATION=$tmpdir/certs/crldir
+
+--error 0, 1
+--rmdir $CADIR_LOCATION
+--error 0, 1
+--rmdir $CERTDIR_LOCATION
+--error 0, 1
+--rmdir $CRLDIR_LOCATION
+--error 0, 1
+--rmdir $tmpdir
+
+--mkdir $tmpdir
+--mkdir $CERTDIR_LOCATION
+--mkdir $CADIR_LOCATION
+--mkdir $CRLDIR_LOCATION
+
+--copy_file $MYSQL_TEST_DIR/std_data/crl-ca-cert.pem $CADIR_LOCATION/crl-ca-cert.pem
+--copy_file $MYSQL_TEST_DIR/std_data/crl-client-cert.pem $CERTDIR_LOCATION/crl-client-cert.pem
+--copy_file $MYSQL_TEST_DIR/std_data/crl-client-key.pem $CERTDIR_LOCATION/crl-client-key.pem
+--copy_file $MYSQL_TEST_DIR/std_data/crl-client-revoked.crl $CRLDIR_LOCATION/crl-client-revoked.crl
+
+##
+## End of setup
+##
+
+--echo #
+--echo # Setup the first member with a recovery user that requires SSL
+--echo #
+
+--connection server1
+--echo server1
+
+# create a user for replication that requires ssl encryption
+set session sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+set session sql_log_bin=1;
+
+--echo #
+--echo # Add some data and start the first member
+--echo #
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--connection server2
+--echo server2
+
+--let $conf_rec_use_ssl= `SELECT @@GLOBAL.group_replication_recovery_use_ssl;`
+
+--let $conf_rec_ssl_ca= `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
+--let $conf_rec_ssl_capath= `SELECT @@GLOBAL.group_replication_recovery_ssl_capath;`
+--let $conf_rec_ssl_cert= `SELECT @@GLOBAL.group_replication_recovery_ssl_cert;`
+--let $conf_rec_ssl_key= `SELECT @@GLOBAL.group_replication_recovery_ssl_key;`
+--let $conf_rec_ssl_crl= `SELECT @@GLOBAL.group_replication_recovery_ssl_crl;`
+--let $conf_rec_ssl_crlpath= `SELECT @@GLOBAL.group_replication_recovery_ssl_crlpath;`
+
+##
+##  Engage recovery using the CRL options set
+##
+
+SET GLOBAL group_replication_recovery_use_ssl=1;
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_ca= '$CADIR_LOCATION/crl-ca-cert.pem'
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_capath= ''
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_cert= '$CERTDIR_LOCATION/crl-client-cert.pem'
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_key= '$CERTDIR_LOCATION/crl-client-key.pem'
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_crl= '$CRLDIR_LOCATION/crl-client-revoked.crl'
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_crlpath= '$CRLDIR_LOCATION'
+
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Check the data is there
+--echo #
+
+--source include/rpl_sync.inc
+
+--let $assert_text= On the recovered member, the table should exist and have 1 elements;
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+# No need to print this to the result file
+
+--disable_result_log
+--eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
+
+--eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$conf_rec_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$conf_rec_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$conf_rec_ssl_cert"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$conf_rec_ssl_key"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_crl= "$conf_rec_ssl_crl"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_crlpath= "$conf_rec_ssl_crlpath"
+--enable_result_log
+
+--connection server1
+--echo server1
+
+set session sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+set session sql_log_bin=1;
+
+DROP TABLE t1;
+
+#
+# Finally remove the temporary directory
+#
+--error 0, 1
+--rmdir $tmpdir
+
+--source include/group_replication_end.inc

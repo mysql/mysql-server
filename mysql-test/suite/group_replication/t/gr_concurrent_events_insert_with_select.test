@@ -1,0 +1,233 @@
+# This test emulates a scenario of concurrent writes with selects using events.
+# Each group member has an event that writes to a single table concurrently.
+#
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo #
+--echo # Create the test table on server 1
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE IF NOT EXISTS t1 (a INT PRIMARY KEY);
+
+--source include/rpl_sync.inc
+
+--echo #
+--echo # Create the events in each member.
+--echo #
+
+SET @old_event_scheduler= @@global.event_scheduler;
+SET SESSION sql_log_bin= 0;
+delimiter |;
+
+SET GLOBAL event_scheduler=on|
+CREATE EVENT IF NOT EXISTS test.event1
+ ON SCHEDULE
+  EVERY 1 SECOND
+   STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+   ENDS CURRENT_TIMESTAMP + INTERVAL 30 SECOND
+ ON COMPLETION PRESERVE
+ DISABLE
+ COMMENT 'Test with events'
+ DO
+ BEGIN
+  DECLARE v INTEGER;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+
+  SET v=0;
+  WHILE v < 1000
+  DO
+   SELECT max(a) + 1 INTO v FROM t1;
+   INSERT INTO t1 values (v);
+   SET v = v+1;
+ END WHILE;
+END|
+
+delimiter ;|
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @old_event_scheduler= @@global.event_scheduler;
+SET SESSION sql_log_bin= 0;
+delimiter |;
+
+SET GLOBAL event_scheduler=on|
+CREATE EVENT IF NOT EXISTS test.event2
+ ON SCHEDULE
+  EVERY 1 SECOND
+   STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+   ENDS CURRENT_TIMESTAMP + INTERVAL 30 SECOND
+ ON COMPLETION PRESERVE
+ DISABLE
+ COMMENT 'Test with events'
+ DO
+ BEGIN
+  DECLARE v INTEGER;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+
+  SET v=0;
+  WHILE v < 1000
+  DO
+   SELECT max(a) + 1 INTO v FROM t1;
+   INSERT INTO t1 values (v);
+   SET v = v+1;
+ END WHILE;
+END|
+
+delimiter ;|
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET @old_event_scheduler= @@global.event_scheduler;
+SET SESSION sql_log_bin= 0;
+delimiter |;
+
+SET GLOBAL event_scheduler=on|
+CREATE EVENT IF NOT EXISTS test.event3
+ ON SCHEDULE
+  EVERY 1 SECOND
+   STARTS CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+   ENDS CURRENT_TIMESTAMP + INTERVAL 30 SECOND
+ ON COMPLETION PRESERVE
+ DISABLE
+ COMMENT 'Test with events'
+ DO
+ BEGIN
+  DECLARE v INTEGER;
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+
+  SET v=0;
+  WHILE v < 1000
+  DO
+   SELECT max(a) + 1 INTO v FROM t1;
+   INSERT INTO t1 values (v);
+   SET v = v+1;
+ END WHILE;
+END|
+
+delimiter ;|
+SET SESSION sql_log_bin= 1;
+
+--echo #
+--echo # Start the events in each member.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event1 ENABLE;
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event2 ENABLE;
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event3 ENABLE;
+SET SESSION sql_log_bin= 1;
+
+--echo #
+--echo # Wait for the events to be disabled
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_timeout= 60
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="event1"
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="event2"
+--source include/wait_condition_or_abort.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="event3"
+--source include/wait_condition_or_abort.inc
+
+--echo #
+--echo # Check the members are still operational
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'The group replication applier channel is ON'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_applier" and SERVICE_STATE="ON", count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'The group replication applier channel is ON'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_applier" and SERVICE_STATE="ON", count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'The group replication applier channel is ON'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_applier" and SERVICE_STATE="ON", count, 1] = 1
+--source include/assert.inc
+
+--echo #
+--echo # Remove the events and the data
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+DROP EVENT IF EXISTS test.event1;
+SET SESSION sql_log_bin= 1;
+
+SET GLOBAL event_scheduler= @old_event_scheduler;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+DROP EVENT IF EXISTS test.event2;
+SET SESSION sql_log_bin= 1;
+
+SET GLOBAL event_scheduler= @old_event_scheduler;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+DROP EVENT IF EXISTS test.event3;
+SET SESSION sql_log_bin= 1;
+
+SET GLOBAL event_scheduler= @old_event_scheduler;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

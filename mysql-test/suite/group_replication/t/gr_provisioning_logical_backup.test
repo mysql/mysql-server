@@ -1,0 +1,109 @@
+######################################################################################################
+# Create a backup from a member of GR group , which at later point can be restored successfully.
+#
+# 0. Start GR on with 2 servers
+# 1. Perform some DDL/DML operations on a member
+# 2. Verify if the available backup (binlog file) can be later restored successfully on a non-member
+# 3. Verify if that non-member can then be added to the GR group
+# 4. Perform some DDL/DML operations to the group
+# 5. Check mysqlbinlog output to test View Change Log events are written properly.
+# 6. Cleanup
+######################################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+# Start group replication on two servers
+
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Make sure number of servers in the group is 2
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+# Create a table and insert data into it.
+USE test;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1=2 WHERE c1=0;
+
+# Get the binlog file
+--let $server2_datadir= `SELECT @@DATADIR`
+--let $server2_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+# Restore the backup onto a 3rd server outside the GR group
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# Setting the arguments to connect to server3#
+--let $server3_connection_args= --user=root --host=127.0.0.1 --port=$SERVER_MYPORT_3
+# Restoring the backup file on server3 using mysqlbinlog client and the connection arguments set above
+--exec $MYSQL_BINLOG $server2_datadir/$server2_binlog_file | $MYSQL $server3_connection_args
+
+# See if the data has been properly restored on server3
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM test.t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM test.t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+
+# Add server3 to GR group
+--source include/start_group_replication.inc
+
+# Make sure number of servers in the group is 3
+--let $group_replication_number_of_members= 3
+--source include/gr_wait_for_number_of_members.inc
+
+# Create a table and insert data into it.
+USE test;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0);
+INSERT INTO t2 VALUES (1);
+UPDATE t2 SET c1=2 WHERE c1=0;
+--source include/rpl_sync.inc
+
+# See if data has been successfully replicated across the group
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the number of records in test.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 2
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the number of records in test.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 2
+--source include/assert.inc
+
+# Get the binlog file
+--let $server2_datadir= `SELECT @@DATADIR`
+--let $server2_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+# Record the binlog file
+--exec $MYSQL_BINLOG $server2_datadir/$server2_binlog_file > $MYSQL_TMP_DIR/binlog_output
+
+# Verifying the output of mysqlbinlog for VCLE
+--let $grep_pattern= View_change_log_event
+--let $grep_file= $MYSQL_TMP_DIR/binlog_output
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# Drop table
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+
+--source include/group_replication_end.inc

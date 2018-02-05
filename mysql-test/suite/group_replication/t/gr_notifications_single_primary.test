@@ -1,0 +1,251 @@
+################################################################################
+#
+# WL#10412: GR: notify listener services on relevant group events
+#
+# This test case checks that the correct notifications are
+# triggered to the listeners registered in the service registry.
+#
+# For that it relies on a table that is updated by a listener
+# through the SQL service API.
+#
+# This file covers a few scenarios specific to Single Primary mode.
+#
+# |------------+----+---------------------------------------------+------------+--------|
+# | Tested     |    | Scenario\Where                              |            |        |
+# | in this    |    |                                             | Server     | Others |
+# | file       |    |                                             | triggering |        |
+# |            |    |                                             | event      |        |
+# |------------+----+---------------------------------------------+------------+--------|
+# |            |  1 | SERVER BOOTSTRAPS GROUP                     | VC,2xSC    | N/A    |
+# |            |  2 | SERVER JOINS and STARTS RECOVERY            | VC,SC      | VC,SC  |
+# |            |  3 | SERVER RECOVERED                            | SC         | SC     |
+# |            |  4 | SERVER LEAVES(ERROR), SERVER LEAVES(OFFLINE)| VC,SC      | VC     |
+# |------------+----+---------------------------------------------+------------+--------|
+# | x          |  5 | SERVER BOOTSTRAPS+RECOVERS+PRIMARY ELECTION | VC,RC,2xSC |        |
+# | x          |  6 | PRIMARY LEAVES                              | VC,SC,RC   | VC,RC  |
+# |------------+----+---------------------------------------------+------------+--------|
+# |            |  7 | A SERVER BECOMES UNREACHABLE                | SC, VC     | N/A    |
+# |            |  8 | MAJORITY UNREACHABLE                        | QL, SC     | N/A    |
+# |            |  9 | MAJORITY UNREACHABLE+FORCE MEMBERS          | VC         | N/A    |
+# |            | 10 | MAJORITY UNREACHABLE+STOP                   | VC, SC     | N/A    |
+# |------------+----+---------------------------------------------+------------+--------|
+#
+# Legend:
+# - QL - Quorum Lost event
+# - VC - View Changed event
+# - RC - Role Changed event
+# - SC - State Changed event
+#
+# To test the cases above, the test sets up a group of
+# 3 servers in multi-master mode and proceeds to testing
+# the different scenarios. These are highlighted in the
+# test file.
+################################################################################
+
+--source include/have_debug.inc
+--source include/force_restart.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+###
+### Sets up the group with three servers: server1, server2 and server3
+###
+
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# server 1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+SET GLOBAL group_replication_single_primary_mode= ON;
+SET GLOBAL group_replication_force_members='';
+
+# server 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+SET GLOBAL group_replication_single_primary_mode= ON;
+SET GLOBAL group_replication_force_members='';
+
+# server 3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/add_debug_point.inc
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE test.gms_listener_example(log_message TEXT);
+SET SQL_LOG_BIN=1;
+
+SET GLOBAL group_replication_enforce_update_everywhere_checks= OFF;
+SET GLOBAL group_replication_single_primary_mode= ON;
+SET GLOBAL group_replication_force_members='';
+
+
+--echo ### Scenario 5: SERVER BOOTSTRAPS+RECOVERS+PRIMARY ELECTION
+--echo ### Expected:
+--echo ### - Myself: 1 VIEW CHANGE, 2 STATE CHANGED, 1 ROLE CHANGED
+--echo ### - Others: N/A
+--echo ##################################################################
+
+# start the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+# view change + server moved from recovering to online
+--let $expected_notifications= 1,VIEW %:1|2,STATE %:1|1,ROLE %:1
+--source ../include/assert_notifications.inc
+
+--echo ### Scenario 6: PRIMARY LEAVES the GROUP
+--echo ### Expected:
+--echo ### - Myself (old primary): 1 VIEW CHANGED, 1 STATE CHANGED, 1 ROLE CHANGED
+--echo ### - Others (new primary): 1 VIEW CHANGED, 1 ROLE CHANGED
+--echo ### - Others (secondary):   1 VIEW CHANGED, 1 ROLE CHANGED
+--echo ##################################################################
+
+# server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+# server2 joins and as such, it changes its state to online
+--let $expected_notifications= 1,VIEW %:2|2,STATE %:2
+--source ../include/assert_notifications.inc
+
+# server3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+# server3 joins and as such, it changes its state to online
+--let $expected_notifications= 1,VIEW %:3|2,STATE %:3
+--source ../include/assert_notifications.inc
+
+# server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $expected_notifications= 1,VIEW %2|1,VIEW %:3|2,STATE %:2|2,STATE %:3
+--source ../include/assert_notifications.inc
+
+--disable_query_log
+TRUNCATE gms_listener_example;
+--source include/rpl_sync.inc
+--enable_query_log
+
+# this will cause the primary to switch
+--source include/stop_group_replication.inc
+
+# server1 installs leave view, its state change and its
+# role changed as well.
+--let $expected_notifications= 1,VIEW %: |1,STATE %: |1,ROLE %:%
+--source ../include/assert_notifications.inc
+
+# server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# wait for the group to rearrange itself
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+# server2 installs new view and a notification about
+# primary change and the notifications about server3
+# joining as well
+--let $expected_notifications= 1,VIEW %:4|1,ROLE %:4
+--source ../include/assert_notifications.inc
+
+# server3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+# wait for the group to rearrange itself
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+# server3 installs new view and a notification about
+# primary change
+--let $expected_notifications= 1,VIEW %:4|1,ROLE %:4
+--source ../include/assert_notifications.inc
+
+###
+### Clean up and bail out
+###
+
+# server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+#server3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+# server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/remove_debug_point.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+# server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/remove_debug_point.inc
+
+--source include/start_group_replication.inc
+
+# server3
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $debug_point= register_gms_listener_example
+--source include/remove_debug_point.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE gms_listener_example;
+--source include/rpl_sync.inc
+
+--source include/group_replication_end.inc

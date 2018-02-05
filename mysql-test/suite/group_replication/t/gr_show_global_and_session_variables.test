@@ -1,0 +1,818 @@
+#######################################################################################
+# Basic test to check the consistency of the values of GLOBAL and SESSION GR VARIABLES.
+#
+# Test:
+# 0. This test requires one server.
+# 1. Basic check that there are 43 GR variables.
+# 2. Verify that all the group replication variables are GLOBAL variables.
+# 3. Verify values of GLOBAL and SESSION variables using below commands:-
+#  - SHOW GLOBAL VARIABLES LIKE 'group_replication_..'
+#  - SHOW SESSION VARIABLES LIKE 'group_replication_..'
+#  - SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=
+#    'group_replication..'
+#  - SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=
+#    'group_replication..'
+# 4. Clean-up
+#######################################################################################
+
+--source include/big_test.inc
+--let $group_replication_group_name= aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--source include/stop_group_replication.inc
+
+--sleep 30
+
+--echo
+--echo # Test#1: Basic check that there are 44 GR variables.
+
+# Note: If a new GR variable is added or an old GR variable is removed, then
+# update this testcase for the sanity check.
+--let $assert_text= There are 44 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 44
+--source include/assert.inc
+
+# Take backup of GR variables
+--disable_query_log
+--let $saved_gr_allow_local_lower_version_join = `SELECT @@GLOBAL.group_replication_allow_local_lower_version_join;`
+--let $saved_gr_auto_increment_increment = `SELECT @@GLOBAL.group_replication_auto_increment_increment;`
+--let $saved_gr_bootstrap_group = `SELECT @@GLOBAL.group_replication_bootstrap_group;`
+--let $saved_gr_components_stop_timeout = `SELECT @@GLOBAL.group_replication_components_stop_timeout;`
+--let $saved_gr_compression_threshold = `SELECT @@GLOBAL.group_replication_compression_threshold;`
+--let $saved_gr_enforce_update_everywhere_checks = `SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks;`
+--let $saved_gr_force_members = `SELECT @@GLOBAL.group_replication_force_members;`
+--let $saved_gr_group_name = `SELECT @@GLOBAL.group_replication_group_name;`
+--let $saved_gr_gtid_assignment_block_size = `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
+--let $saved_gr_ip_whitelist = `SELECT @@GLOBAL.group_replication_ip_whitelist;`
+--let $saved_gr_local_address = `SELECT @@GLOBAL.group_replication_local_address;`
+--let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
+--let $saved_gr_poll_spin_loops = `SELECT @@GLOBAL.group_replication_poll_spin_loops;`
+--let $saved_gr_recovery_complete_at = `SELECT @@GLOBAL.group_replication_recovery_complete_at;`
+--let $saved_gr_recovery_reconnect_interval = `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval;`
+--let $saved_gr_recovery_retry_count = `SELECT @@GLOBAL.group_replication_recovery_retry_count;`
+--let $saved_gr_recovery_ssl_ca = `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
+--let $saved_gr_recovery_ssl_capath = `SELECT @@GLOBAL.group_replication_recovery_ssl_capath;`
+--let $saved_gr_recovery_ssl_cert = `SELECT @@GLOBAL.group_replication_recovery_ssl_cert;`
+--let $saved_gr_recovery_ssl_cipher = `SELECT @@GLOBAL.group_replication_recovery_ssl_cipher;`
+--let $saved_gr_recovery_ssl_crl = `SELECT @@GLOBAL.group_replication_recovery_ssl_crl;`
+--let $saved_gr_recovery_ssl_crlpath = `SELECT @@GLOBAL.group_replication_recovery_ssl_crlpath;`
+--let $saved_gr_recovery_ssl_key = `SELECT @@GLOBAL.group_replication_recovery_ssl_key;`
+--let $saved_gr_recovery_ssl_verify_server_cert = `SELECT @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;`
+--let $saved_gr_single_primary_mode = `SELECT @@GLOBAL.group_replication_single_primary_mode;`
+--let $saved_gr_recovery_use_ssl = `SELECT @@GLOBAL.group_replication_recovery_use_ssl;`
+--let $saved_gr_ssl_mode = `SELECT @@GLOBAL.group_replication_ssl_mode;`
+--let $saved_gr_start_on_boot = `SELECT @@GLOBAL.group_replication_start_on_boot;`
+--let $saved_gr_transaction_size_limit = `SELECT @@GLOBAL.group_replication_transaction_size_limit;`
+--let $saved_gr_communication_debug_options = `SELECT @@GLOBAL.group_replication_communication_debug_options;`
+--let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
+--let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
+--let $saved_gr_recovery_public_key_path = `SELECT @@GLOBAL.group_replication_recovery_public_key_path;`
+--let $saved_gr_recovery_get_public_key = `SELECT @@GLOBAL.group_replication_recovery_get_public_key;`
+--enable_query_log
+
+--echo
+--echo # Test#2: Verify that all the group replication variables are GLOBAL variables.
+
+# GR variables cannot be set at SESSION level.
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_auto_increment_increment= 7;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_bootstrap_group= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_components_stop_timeout= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_compression_threshold= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_enforce_update_everywhere_checks= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_force_members= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_group_name= "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_gtid_assignment_block_size= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_ip_whitelist= "AUTOMATIC";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_local_address= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_group_seeds= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_poll_spin_loops= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_complete_at= "TRANSACTIONS_APPLIED";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_reconnect_interval= 10;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_retry_count= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_ca= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_capath= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_cert= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_cipher= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_crl= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_crlpath= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_key= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_ssl_verify_server_cert= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_use_ssl= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_single_primary_mode= 0;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_ssl_mode= "REQUIRED";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_start_on_boot= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_transaction_size_limit= 10240;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_communication_debug_options= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_member_weight= 80;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_public_key_path= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_recovery_get_public_key= 1;
+
+# GR variables should be set at GLOBAL level.
+# Set values to GLOBAL GR variables to test further.
+--disable_query_log
+SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+SET GLOBAL group_replication_auto_increment_increment= 5;
+SET GLOBAL group_replication_bootstrap_group= ON;
+SET GLOBAL group_replication_components_stop_timeout= 10;
+SET GLOBAL group_replication_compression_threshold= 10;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= ON;
+SET GLOBAL group_replication_force_members= "";
+SET GLOBAL group_replication_group_name= "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa";
+SET GLOBAL group_replication_gtid_assignment_block_size= 2;
+SET GLOBAL group_replication_ip_whitelist= "AUTOMATIC";
+eval SET GLOBAL group_replication_local_address= "$saved_gr_local_address";
+eval SET GLOBAL group_replication_group_seeds= "$saved_gr_group_seeds";
+SET GLOBAL group_replication_poll_spin_loops= 10;
+SET GLOBAL group_replication_recovery_complete_at= "TRANSACTIONS_CERTIFIED";
+SET GLOBAL group_replication_recovery_reconnect_interval= 20;
+SET GLOBAL group_replication_recovery_retry_count= 5;
+eval SET GLOBAL group_replication_recovery_ssl_ca= '$MYSQL_TEST_DIR/std_data/cacert.pem';
+eval SET GLOBAL group_replication_recovery_ssl_capath= '';
+eval SET GLOBAL group_replication_recovery_ssl_cert= '$MYSQL_TEST_DIR/std_data/client-cert.pem';
+SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA';
+SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
+eval SET GLOBAL group_replication_recovery_ssl_crlpath= '';
+eval SET GLOBAL group_replication_recovery_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem';
+SET GLOBAl group_replication_recovery_ssl_verify_server_cert= ON;
+SET GLOBAl group_replication_single_primary_mode= OFF;
+SET GLOBAL group_replication_recovery_use_ssl= ON;
+SET GLOBAL group_replication_ssl_mode= "REQUIRED";
+SET GLOBAL group_replication_start_on_boot= ON;
+SET GLOBAL group_replication_transaction_size_limit= 100000;
+SET GLOBAL group_replication_communication_debug_options= "GCS_DEBUG_ALL";
+SET GLOBAL group_replication_unreachable_majority_timeout= 100000;
+SET GLOBAL group_replication_member_weight= 70;
+eval SET GLOBAL group_replication_recovery_public_key_path= '$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+SET GLOBAL group_replication_recovery_get_public_key= ON;
+
+--enable_query_log
+
+--echo
+--echo # Test#3: Verify GLOBAL and SESSION variables
+# Start GR
+--source include/start_group_replication.inc
+
+# Assert the values of the variables set
+# group_replication_allow_local_lower_version_join
+--let $assert_text= Verify GLOBAL value of group_replication_allow_local_lower_version_join
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_allow_local_lower_version_join\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_allow_local_lower_version_join
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_allow_local_lower_version_join\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_allow_local_lower_version_join
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_allow_local_lower_version_join\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_allow_local_lower_version_join
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_allow_local_lower_version_join\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+# group_replication_auto_increment_increment
+--let $assert_text= Verify GLOBAL value of group_replication_auto_increment_increment
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_auto_increment_increment\', Value, 1]" = 5
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_auto_increment_increment
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_auto_increment_increment\', VARIABLE_VALUE, 1]" = 5
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_auto_increment_increment
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_auto_increment_increment\', Value, 1]" = 5
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_auto_increment_increment
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_auto_increment_increment\', VARIABLE_VALUE, 1]" = 5
+--source include/assert.inc
+
+# group_replication_bootstrap_group
+--let $assert_text= Verify GLOBAL value of group_replication_bootstrap_group
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_bootstrap_group\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_bootstrap_group
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_bootstrap_group\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_bootstrap_group
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_bootstrap_group\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_bootstrap_group
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_bootstrap_group\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+# group_replication_components_stop_timeout
+--let $assert_text= Verify GLOBAL value of group_replication_components_stop_timeout
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_components_stop_timeout\', Value, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_components_stop_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_components_stop_timeout\', VARIABLE_VALUE, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_components_stop_timeout
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_components_stop_timeout\', Value, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_components_stop_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_components_stop_timeout\', VARIABLE_VALUE, 1]" = 10
+--source include/assert.inc
+
+# group_replication_compression_threshold
+--let $assert_text= Verify GLOBAL value of group_replication_compression_threshold
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_compression_threshold\', Value, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_compression_threshold
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_compression_threshold\', VARIABLE_VALUE, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_compression_threshold
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_compression_threshold\', Value, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_compression_threshold
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_compression_threshold\', VARIABLE_VALUE, 1]" = 10
+--source include/assert.inc
+
+# group_replication_enforce_update_everywhere_checks
+--let $assert_text= Verify GLOBAL value of group_replication_enforce_update_everywhere_checks
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_enforce_update_everywhere_checks\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_enforce_update_everywhere_checks
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_enforce_update_everywhere_checks\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_enforce_update_everywhere_checks
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_enforce_update_everywhere_checks\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_enforce_update_everywhere_checks
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_enforce_update_everywhere_checks\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+# group_replication_force_members
+--let $assert_text= Verify GLOBAL value of group_replication_force_members
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_force_members\', Value, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_force_members
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_force_members\', VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_force_members
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_force_members\', Value, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_force_members
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_force_members\', VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+# group_replication_group_name
+--let $assert_text= Verify GLOBAL value of group_replication_group_name
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_group_name\', Value, 1]" = "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_group_name
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_group_name\', VARIABLE_VALUE, 1]" = "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_group_name
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_group_name\', Value, 1]" = "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_group_name
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_group_name\', VARIABLE_VALUE, 1]" = "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa"
+--source include/assert.inc
+
+# group_replication_gtid_assignment_block_size
+--let $assert_text= Verify GLOBAL value of group_replication_gtid_assignment_block_size
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_gtid_assignment_block_size\', Value, 1]" = 2
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_gtid_assignment_block_size
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_gtid_assignment_block_size\', VARIABLE_VALUE, 1]" = 2
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_gtid_assignment_block_size
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_gtid_assignment_block_size\', Value, 1]" = 2
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_gtid_assignment_block_size
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_gtid_assignment_block_size\', VARIABLE_VALUE, 1]" = 2
+--source include/assert.inc
+
+# group_replication_ip_whitelist
+--let $assert_text= Verify GLOBAL value of group_replication_ip_whitelist
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_ip_whitelist\', Value, 1]" = "AUTOMATIC"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_ip_whitelist
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_ip_whitelist\', VARIABLE_VALUE, 1]" = "AUTOMATIC"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_ip_whitelist
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_ip_whitelist\', Value, 1]" = "AUTOMATIC"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_ip_whitelist
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_ip_whitelist\', VARIABLE_VALUE, 1]" = "AUTOMATIC"
+--source include/assert.inc
+
+# group_replication_local_address
+--let $assert_text= Verify GLOBAL value of group_replication_local_address
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_local_address\', Value, 1]" = "$saved_gr_local_address"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_local_address
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_local_address\', VARIABLE_VALUE, 1]" = "$saved_gr_local_address"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_local_address
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_local_address\', Value, 1]" = "$saved_gr_local_address"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_local_address
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_local_address\', VARIABLE_VALUE, 1]" = "$saved_gr_local_address"
+--source include/assert.inc
+
+# group_replication_group_seeds
+--let $assert_text= Verify GLOBAL value of group_replication_group_seeds
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_group_seeds\', Value, 1]" = "$saved_gr_group_seeds"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_group_seeds
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_group_seeds\', VARIABLE_VALUE, 1]" = "$saved_gr_group_seeds"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_group_seeds
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_group_seeds\', Value, 1]" = "$saved_gr_group_seeds"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_group_seeds
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_group_seeds\', VARIABLE_VALUE, 1]" = "$saved_gr_group_seeds"
+--source include/assert.inc
+
+# group_replication_poll_spin_loops
+--let $assert_text= Verify GLOBAL value of group_replication_poll_spin_loops
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_poll_spin_loops\', Value, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_poll_spin_loops
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_poll_spin_loops\', VARIABLE_VALUE, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_poll_spin_loops
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_poll_spin_loops\', Value, 1]" = 10
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_poll_spin_loops
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_poll_spin_loops\', VARIABLE_VALUE, 1]" = 10
+--source include/assert.inc
+
+# group_replication_recovery_complete_at
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_complete_at
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_complete_at\', Value, 1]" = "TRANSACTIONS_CERTIFIED"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_complete_at
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_complete_at\', VARIABLE_VALUE, 1]" = "TRANSACTIONS_CERTIFIED"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_complete_at
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_complete_at\', Value, 1]" = "TRANSACTIONS_CERTIFIED"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_complete_at
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_complete_at\', VARIABLE_VALUE, 1]" = "TRANSACTIONS_CERTIFIED"
+--source include/assert.inc
+
+# group_replication_recovery_reconnect_interval
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_reconnect_interval
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_reconnect_interval\', Value, 1]" = 20
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_reconnect_interval
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_reconnect_interval\', VARIABLE_VALUE, 1]" = 20
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_reconnect_interval
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_reconnect_interval\', Value, 1]" = 20
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_reconnect_interval
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_reconnect_interval\', VARIABLE_VALUE, 1]" = 20
+--source include/assert.inc
+
+# group_replication_recovery_retry_count
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_retry_count
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_retry_count\', Value, 1]" = 5
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_retry_count
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_retry_count\', VARIABLE_VALUE, 1]" = 5
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_retry_count
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_retry_count\', Value, 1]" = 5
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_retry_count
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_retry_count\', VARIABLE_VALUE, 1]" = 5
+--source include/assert.inc
+
+# group_replication_recovery_ssl_ca
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_ca
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_ca\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/cacert.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_ca
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_ca\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/cacert.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_ca
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_ca\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/cacert.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_ca
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_ca\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/cacert.pem"
+--source include/assert.inc
+
+# group_replication_recovery_ssl_capath
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_capath
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_capath\', Value, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_capath
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_capath\', VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_capath
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_capath\', Value, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_capath
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_capath\', VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_cert
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_cert
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_cert\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/client-cert.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_cert
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_cert\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/client-cert.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_cert
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_cert\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/client-cert.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_cert
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_cert\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/client-cert.pem"
+--source include/assert.inc
+
+# group_replication_recovery_ssl_cipher
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_cipher
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_cipher\', Value, 1]" = "DHE-RSA-AES256-SHA"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_cipher
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_cipher\', VARIABLE_VALUE, 1]" = "DHE-RSA-AES256-SHA"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_cipher
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_cipher\', Value, 1]" = "DHE-RSA-AES256-SHA"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_cipher
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_cipher\', VARIABLE_VALUE, 1]" = "DHE-RSA-AES256-SHA"
+--source include/assert.inc
+
+# group_replication_recovery_ssl_crl
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_crl
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_crl\', Value, 1]" = "crl-client-revoked.crl"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_crl
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_crl\', VARIABLE_VALUE, 1]" = "crl-client-revoked.crl"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_crl
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_crl\', Value, 1]" = "crl-client-revoked.crl"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_crl
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_crl\', VARIABLE_VALUE, 1]" = "crl-client-revoked.crl"
+--source include/assert.inc
+
+# group_replication_recovery_ssl_crlpath
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_crlpath
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_crlpath\', Value, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_crlpath
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_crlpath\', VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_crlpath
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_crlpath\', Value, 1]" = ""
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_crlpath
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_crlpath\', VARIABLE_VALUE, 1]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_key
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_key
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_key\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/client-key.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_key
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_key\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/client-key.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_key
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_key\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/client-key.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_key
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_key\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/client-key.pem"
+--source include/assert.inc
+
+# group_replication_recovery_ssl_verify_server_cert
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_verify_server_cert
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_ssl_verify_server_cert\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_ssl_verify_server_cert
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_verify_server_cert\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_verify_server_cert
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_ssl_verify_server_cert\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_ssl_verify_server_cert
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_ssl_verify_server_cert\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+# group_replication_recovery_use_ssl
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_use_ssl
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_use_ssl\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_use_ssl
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_use_ssl\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_use_ssl
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_use_ssl\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_use_ssl
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_use_ssl\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+# group_replication_single_primary_mode
+--let $assert_text= Verify GLOBAL value of group_replication_single_primary_mode
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_single_primary_mode\', Value, 1]" = "OFF"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_single_primary_mode
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_single_primary_mode\', VARIABLE_VALUE, 1]" = "OFF"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_single_primary_mode
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_single_primary_mode\', Value, 1]" = "OFF"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_single_primary_mode
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_single_primary_mode\', VARIABLE_VALUE, 1]" = "OFF"
+--source include/assert.inc
+
+# group_replication_ssl_mode
+--let $assert_text= Verify GLOBAL value of group_replication_ssl_mode
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_ssl_mode\', Value, 1]" = "REQUIRED"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_ssl_mode
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_ssl_mode\', VARIABLE_VALUE, 1]" = "REQUIRED"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_ssl_mode
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_ssl_mode\', Value, 1]" = "REQUIRED"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_ssl_mode
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_ssl_mode\', VARIABLE_VALUE, 1]" = "REQUIRED"
+--source include/assert.inc
+
+# group_replication_start_on_boot
+--let $assert_text= Verify GLOBAL value of group_replication_start_on_boot
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_start_on_boot\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_start_on_boot
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_start_on_boot\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_start_on_boot
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_start_on_boot\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_start_on_boot
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_start_on_boot\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+# group_replication_transaction_size_limit
+--let $assert_text= Verify GLOBAL value of group_replication_transaction_size_limit
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_transaction_size_limit\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_transaction_size_limit
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_transaction_size_limit\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_transaction_size_limit
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_transaction_size_limit\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_transaction_size_limit
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_transaction_size_limit\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+# group_replication_communication_debug_options
+--let $assert_text= Verify GLOBAL value of group_replication_communication_debug_options
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_communication_debug_options\', Value, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_communication_debug_options
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_communication_debug_options\', VARIABLE_VALUE, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_communication_debug_options
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_communication_debug_options\', Value, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_communication_debug_options
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_communication_debug_options\', VARIABLE_VALUE, 1]" = "GCS_DEBUG_ALL"
+--source include/assert.inc
+
+# group_replication_unreachable_majority_timeout
+--let $assert_text= Verify GLOBAL value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_unreachable_majority_timeout\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_unreachable_majority_timeout\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_unreachable_majority_timeout\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_unreachable_majority_timeout\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+# group_replication_member_weight
+--let $assert_text= Verify GLOBAL value of group_replication_member_weight
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_member_weight\', Value, 1]" = 70
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_member_weight
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_member_weight\', VARIABLE_VALUE, 1]" = 70
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_member_weight
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_member_weight\', Value, 1]" = 70
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_member_weight
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_member_weight\', VARIABLE_VALUE, 1]" = 70
+--source include/assert.inc
+
+# group_replication_recovery_public_key_path
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_public_key_path
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_public_key_path\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_public_key_path
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_public_key_path\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_public_key_path
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_public_key_path\', Value, 1]" = "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_public_key_path
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_public_key_path\', VARIABLE_VALUE, 1]" = "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
+--source include/assert.inc
+
+# group_replication_recovery_get_public_key
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_get_public_key
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_recovery_get_public_key\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_recovery_get_public_key
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_recovery_get_public_key\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_get_public_key
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_recovery_get_public_key\', Value, 1]" = "ON"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_recovery_get_public_key
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_get_public_key\', VARIABLE_VALUE, 1]" = "ON"
+--source include/assert.inc
+
+--echo
+--echo # Clean up
+--source include/stop_group_replication.inc
+
+# No need to print this into result file.
+--disable_query_log
+--eval SET @@GLOBAL.group_replication_allow_local_lower_version_join= $saved_gr_allow_local_lower_version_join
+--eval SET @@GLOBAL.group_replication_auto_increment_increment= $saved_gr_auto_increment_increment
+--eval SET @@GLOBAL.group_replication_bootstrap_group= $saved_gr_bootstrap_group
+--eval SET @@GLOBAL.group_replication_components_stop_timeout= $saved_gr_components_stop_timeout
+--eval SET @@GLOBAL.group_replication_compression_threshold= $saved_gr_compression_threshold
+--eval SET @@GLOBAL.group_replication_single_primary_mode= $saved_gr_single_primary_mode
+--eval SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= $saved_gr_enforce_update_everywhere_checks
+--eval SET @@GLOBAL.group_replication_force_members= "$saved_gr_force_members"
+--eval SET @@GLOBAL.group_replication_group_name= "$saved_gr_group_name"
+--eval SET @@GLOBAL.group_replication_gtid_assignment_block_size= $saved_gr_gtid_assignment_block_size
+--eval SET @@GLOBAL.group_replication_ip_whitelist= "$saved_gr_ip_whitelist"
+--eval SET @@GLOBAL.group_replication_local_address= "$saved_gr_local_address"
+--eval SET @@GLOBAL.group_replication_group_seeds= "$saved_gr_group_seeds"
+--eval SET @@GLOBAL.group_replication_poll_spin_loops= $saved_gr_poll_spin_loops
+--eval SET @@GLOBAL.group_replication_recovery_complete_at= "$saved_gr_recovery_complete_at"
+--eval SET @@GLOBAL.group_replication_recovery_reconnect_interval= $saved_gr_recovery_reconnect_interval
+--eval SET @@GLOBAL.group_replication_recovery_retry_count= $saved_gr_recovery_retry_count
+--eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$saved_gr_recovery_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$saved_gr_recovery_ssl_capath"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$saved_gr_recovery_ssl_cert"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cipher= "$saved_gr_recovery_ssl_cipher"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_crl= "$saved_gr_recovery_ssl_crl"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_crlpath= "$saved_gr_recovery_ssl_crlpath"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$saved_gr_recovery_ssl_key"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= $saved_gr_recovery_ssl_verify_server_cert
+--eval SET @@GLOBAL.group_replication_recovery_use_ssl= $saved_gr_recovery_use_ssl
+--eval SET @@GLOBAL.group_replication_ssl_mode= $saved_gr_ssl_mode
+--eval SET @@GLOBAL.group_replication_start_on_boot= $saved_gr_start_on_boot
+--eval SET @@GLOBAL.group_replication_transaction_size_limit= $saved_gr_transaction_size_limit
+--eval SET @@GLOBAL.group_replication_communication_debug_options= "$saved_gr_communication_debug_options"
+--eval SET @@GLOBAL.group_replication_unreachable_majority_timeout= $saved_gr_unreachable_majority_timeout
+--eval SET @@GLOBAL.group_replication_member_weight= $saved_gr_member_weight
+--eval SET @@GLOBAL.group_replication_recovery_public_key_path= "$saved_gr_recovery_public_key_path"
+--eval SET @@GLOBAL.group_replication_recovery_get_public_key= $saved_gr_recovery_get_public_key
+--enable_query_log
+
+--source include/group_replication_end.inc
+

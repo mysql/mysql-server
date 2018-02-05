@@ -1,0 +1,132 @@
+#
+# Validate that Group Replication ssl mode works properly.
+#
+# Steps:
+#   1. Start one member with GCS SSL enabled.
+#   2. Start a second member with GCS SSL disabled, the member
+#      will fail to join the group.
+#   3. Start the second member with GCS SSL enabled, the member
+#      will be able to join the group.
+#   4. Start the second member with GCS SSL enabled and
+#      validating server certificate against the CA, the
+#      member will be able to join the group.
+#   5. Start the second member with GCS SSL enabled and
+#      validating server certificate against the CA plus
+#      validating that server hostname matches server
+#      certificate hostname, the member will be able to join
+#      the group.
+#   6. Clean up.
+#
+--source include/big_test.inc
+--source include/have_ssl_crypto_functs.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start one member with GCS SSL enabled.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode.1.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Start a second member with GCS SSL disabled, the member
+--echo #    will fail to join the group.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
+--enable_query_log
+
+SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET GLOBAL group_replication_ssl_mode= DISABLED;
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode.2.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "DISABLED"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Start the second member with GCS SSL enabled, the member
+--echo #    will be able to join the group.
+SET GLOBAL group_replication_ssl_mode= REQUIRED;
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode.2.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Start the second member with GCS SSL enabled and
+--echo #    validating server certificate against the CA, the
+--echo #    member will be able to join the group.
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode.2.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Start the second member with GCS SSL enabled and
+--echo #    validating server certificate against the CA plus
+--echo #    validating that server hostname matches server
+--echo #    certificate hostname, the member will be able to join
+--echo #    the group.
+SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+--source include/start_group_replication.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode.2.err
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_IDENTITY"
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
+
+--source include/group_replication_end.inc

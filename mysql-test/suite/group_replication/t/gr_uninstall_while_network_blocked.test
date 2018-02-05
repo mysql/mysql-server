@@ -1,0 +1,119 @@
+################################################################################
+# When we try to shutdown server through mysqladmin and GR plugin is
+# busy (in deleted state), it returns and error that STOP GROUP_REPLICATION
+# need to be executed before that.
+# Executing mysqladmin shutdown will shutdown the server.
+#
+# Test:
+# 0. The test requires two servers
+# 1. Kill and restart server 2
+# 2. Wait until server2 is marked as UNREACHABLE
+# 3. Execute query that will be blocked and leave the group plugin busy
+# 4. Uninstall plugin will return error due plugin being in use
+# 5. Call mysqladmin to shutdown server
+# 6. Clean up
+
+# This test does crashes servers, hence we skip it on asan and valgrind.
+--source include/not_asan.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+
+# Create table
+CREATE TABLE t1 (a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Save the variables, for server restart.
+--let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 1. Kill and restart server 2
+--let $restart_parameters=restart:--group_replication_local_address=$member2_group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS2 $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/kill_and_restart_mysqld.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo
+--echo # 2. Wait until server2 is marked as UNREACHABLE
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 3. Execute query that will be blocked and leave the group plugin busy
+--send INSERT INTO test.t1 VALUES(11)
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Group Replication plugin is busy, it cannot be uninstalled. To force");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+set session sql_log_bin=1;
+
+# Wait for INSERT to be blocked
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='query end' AND info='INSERT INTO test.t1 VALUES(11)'
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. Uninstall plugin will return error due plugin being in use
+--error ER_PLUGIN_CANNOT_BE_UNINSTALLED
+UNINSTALL PLUGIN group_replication;
+
+--echo
+--echo # 5. Call mysqladmin to shutdown server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_result_log
+--replace_regex /.*mysqladmin.*: /mysqladmin: /
+--exec $MYSQLADMIN -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT shutdown 2>&1
+--enable_result_log
+
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo # 6. Clean-up
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $rpl_server_number= 1
+--source include/rpl_start_server.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+# terminate send calling reap
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+--reap
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE test.t1;
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE test.t1;
+
+--source include/group_replication_end.inc
