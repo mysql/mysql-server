@@ -44,20 +44,20 @@ Created 2013-7-26 by Kevin Lewis
 # include "fil0fil.h"
 # include "fsp0types.h"
 
-/** MEB routine to get the tables' encryption key. MEB will
-extract the encryption key from the backup.
-@param[in]	space_id	sace_id of the tablespace for which
-encryption-key is needed.
-@param[out]	encryption_key	The encryption-key of the tablespace.
-@param[out]	encryption_iv	The encryption-iv to be used with the
-encryption-key.
-@return	true	if the encryption-key/iv for the given space_id
-is found, false otherwise. */
-extern bool
-meb_get_encryption_key(
-	ulint	space_id,
-	byte*	encryption_key,
-	byte*	encryption_iv);
+/** MEB routine to get the master key. MEB will extract
+the key from the keyring encrypted file stored in backup.
+@param[in]	key_id		the id of the master key
+@param[in]	key_type	master key type
+@param[out]	key		the master key being returned
+@param[out]	key_length	the length of the returned key
+@retval	0 if the key is being returned, 1 otherwise. */
+extern int
+meb_key_fetch(
+	const char*	key_id,
+	char**		key_type,
+	const char*	user_id,
+	void**		key,
+	size_t*		key_length);
 #endif /* UNIV_HOTBACKUP */
 
 /** Types of raw partitions in innodb_data_file_path */

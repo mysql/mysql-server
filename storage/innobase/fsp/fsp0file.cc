@@ -704,16 +704,6 @@ Datafile::validate_first_page(
 		fprintf(stderr, "Got from file %lu:", m_space_id);
 #endif
 
-#ifdef UNIV_HOTBACKUP
-		if (!meb_get_encryption_key(m_space_id,
-					    m_encryption_key,
-					    m_encryption_iv)) {
-			ib::fatal()
-				<< "Encryption information in"
-				<< " datafile: " << m_filepath
-				<< " cannot be decrypted.\n"
-				<< "MEB cannot proceed with the operation.";
-#else /* UNIV_HOTBACKUP */
 		if (!fsp_header_get_encryption_key(m_flags,
 						   m_encryption_key,
 						   m_encryption_iv,
@@ -725,7 +715,6 @@ Datafile::validate_first_page(
 				<< " , please confirm the keyfile"
 				<< " is match and keyring plugin"
 				<< " is loaded.";
-#endif /* UNIV_HOTBACKUP */
 
 			m_is_valid = false;
 			free_first_page();
