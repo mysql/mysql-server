@@ -29,42 +29,35 @@
 #include "my_io.h"
 #include "storage/myisam/fulltext.h"
 
-int mi_delete_table(const char *name)
-{
+int mi_delete_table(const char *name) {
   char from[FN_REFLEN];
   DBUG_ENTER("mi_delete_table");
 
 #ifdef EXTRA_DEBUG
-  check_table_is_closed(name,"delete");
+  check_table_is_closed(name, "delete");
 #endif
 
-  fn_format(from,name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from))
-  {
+  fn_format(from, name, "", MI_NAME_IEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from)) {
     /*
       Symlink is pointing to file in data directory.
       Remove symlink, keep file.
     */
     if (mysql_file_delete(mi_key_file_kfile, from, MYF(MY_WME)))
       DBUG_RETURN(my_errno());
-  }
-  else
-  {
+  } else {
     if (mysql_file_delete_with_symlink(mi_key_file_kfile, from, MYF(MY_WME)))
       DBUG_RETURN(my_errno());
   }
-  fn_format(from,name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from))
-  {
+  fn_format(from, name, "", MI_NAME_DEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+  if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from)) {
     /*
       Symlink is pointing to file in data directory.
       Remove symlink, keep file.
     */
     if (mysql_file_delete(mi_key_file_dfile, from, MYF(MY_WME)))
       DBUG_RETURN(my_errno());
-  }
-  else
-  {
+  } else {
     if (mysql_file_delete_with_symlink(mi_key_file_dfile, from, MYF(MY_WME)))
       DBUG_RETURN(my_errno());
   }

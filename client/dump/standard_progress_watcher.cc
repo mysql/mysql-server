@@ -29,15 +29,15 @@
 using namespace Mysql::Tools::Dump;
 
 void Standard_progress_watcher::process_progress_step(
-  Abstract_progress_watcher::Progress_data&)
-{
+    Abstract_progress_watcher::Progress_data &) {
   std::cerr << "Dump progress: " << m_last_progress.m_table_count << "/"
-    << m_total.m_table_count << " tables, " << m_last_progress.m_row_count
-    << "/" << m_total.m_row_count << " rows" << std::endl;
+            << m_total.m_table_count << " tables, "
+            << m_last_progress.m_row_count << "/" << m_total.m_row_count
+            << " rows" << std::endl;
 }
 
 Standard_progress_watcher::Standard_progress_watcher(
-  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator)
-  : Abstract_progress_watcher(message_handler, object_id_generator)
-{}
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler,
+    Simple_id_generator *object_id_generator)
+    : Abstract_progress_watcher(message_handler, object_id_generator) {}

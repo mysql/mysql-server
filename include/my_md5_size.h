@@ -31,4 +31,4 @@
 
 #define MD5_HASH_SIZE 16 /* Hash size in bytes */
 
-#endif // MY_MD5_SIZE_INCLUDED
+#endif  // MY_MD5_SIZE_INCLUDED

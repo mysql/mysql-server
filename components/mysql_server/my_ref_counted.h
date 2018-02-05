@@ -30,17 +30,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
   Helper class for reference counting.
 */
-class my_ref_counted
-{
-public:
+class my_ref_counted {
+ public:
   my_ref_counted();
   my_ref_counted(my_ref_counted &other);
   virtual ~my_ref_counted();
   uint64 add_reference();
-  bool release_reference(uint64* new_count= NULL);
+  bool release_reference(uint64 *new_count = NULL);
   uint64 get_reference_count() const;
 
-private:
+ private:
   /** the reference count value */
   std::atomic<uint64> m_count;
 };

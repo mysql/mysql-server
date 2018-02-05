@@ -33,22 +33,16 @@ struct TABLE;
 
 struct MY_BITMAP;
 
-enum class enum_row_image_type
-{
-  WRITE_AI,
-  UPDATE_BI, UPDATE_AI,
-  DELETE_BI
-};
+enum class enum_row_image_type { WRITE_AI, UPDATE_BI, UPDATE_AI, DELETE_BI };
 
 #if defined(MYSQL_SERVER)
-size_t pack_row(TABLE* table, MY_BITMAP const* cols,
-                uchar *row_data, const uchar *data,
-                enum_row_image_type row_image_type,
-                ulonglong value_options= 0);
+size_t pack_row(TABLE *table, MY_BITMAP const *cols, uchar *row_data,
+                const uchar *data, enum_row_image_type row_image_type,
+                ulonglong value_options = 0);
 
-bool unpack_row(Relay_log_info const *rli,
-                TABLE *table, uint const master_column_count,
-                uchar const *const row_data, MY_BITMAP const *column_image,
+bool unpack_row(Relay_log_info const *rli, TABLE *table,
+                uint const master_column_count, uchar const *const row_data,
+                MY_BITMAP const *column_image,
                 uchar const **const row_image_end_p,
                 uchar const *const event_end,
                 enum_row_image_type row_image_type,
@@ -61,15 +55,15 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check);
 /**
   Template base class of Bit_reader / Bit_writer.
 */
-template<typename T, typename UT>
-class Bit_stream_base
-{
-protected:
+template <typename T, typename UT>
+class Bit_stream_base {
+ protected:
   /// Pointer to beginning of buffer where bits are read or written.
   T *m_ptr;
   /// Current position in buffer.
   uint m_current_bit;
-public:
+
+ public:
   /**
     Construct a new Bit_stream (either reader or writer).
     @param ptr Pointer where bits will be read or written.
@@ -80,12 +74,12 @@ public:
     Set the buffer pointer.
     @param ptr Pointer where bits will be read or written.
   */
-  void set_ptr(T *ptr) { m_ptr= ptr; }
+  void set_ptr(T *ptr) { m_ptr = ptr; }
   /**
     Set the buffer pointer, using an unsigned datatype.
     @param ptr Pointer where bits will be read or written.
   */
-  void set_ptr(UT *ptr) { m_ptr= (T *)ptr; }
+  void set_ptr(UT *ptr) { m_ptr = (T *)ptr; }
 
   /// @return the current position.
   uint tell() const { return m_current_bit; }
@@ -102,25 +96,23 @@ public:
 
   Call set() to write a bit and move the position one bit foward.
 */
-class Bit_writer : public Bit_stream_base<char, uchar>
-{
-public:
-  Bit_writer(char *ptr= nullptr) : Bit_stream_base<char, uchar>(ptr) {}
+class Bit_writer : public Bit_stream_base<char, uchar> {
+ public:
+  Bit_writer(char *ptr = nullptr) : Bit_stream_base<char, uchar>(ptr) {}
   Bit_writer(uchar *ptr) : Bit_writer((char *)ptr) {}
 
   /**
     Write the next bit and move the write position one bit forward.
     @param set_to_on If true, set the bit to 1, otherwise set it to 0.
   */
-  void set(bool set_to_on)
-  {
-    uint byte= m_current_bit / 8;
-    uint bit_within_byte= m_current_bit % 8;
+  void set(bool set_to_on) {
+    uint byte = m_current_bit / 8;
+    uint bit_within_byte = m_current_bit % 8;
     m_current_bit++;
     if (bit_within_byte == 0)
-      m_ptr[byte]= set_to_on ? 1 : 0;
+      m_ptr[byte] = set_to_on ? 1 : 0;
     else if (set_to_on)
-      m_ptr[byte]|= 1 << bit_within_byte;
+      m_ptr[byte] |= 1 << bit_within_byte;
   }
 };
 
@@ -129,25 +121,22 @@ public:
 
   Call get() to read a bit and move the position one bit foward.
 */
-class Bit_reader : public Bit_stream_base<const char, const uchar>
-{
-public:
-  Bit_reader(const char *ptr= nullptr) :
-    Bit_stream_base<const char, const uchar>(ptr) {}
+class Bit_reader : public Bit_stream_base<const char, const uchar> {
+ public:
+  Bit_reader(const char *ptr = nullptr)
+      : Bit_stream_base<const char, const uchar>(ptr) {}
   Bit_reader(const uchar *ptr) : Bit_reader((const char *)ptr) {}
 
   /**
     Read the next bit and move the read position one bit forward.
     @return true if the bit was 1, false if the bit was 0.
   */
-  bool get()
-  {
-    uint byte= m_current_bit / 8;
-    uint bit_within_byte= m_current_bit % 8;
+  bool get() {
+    uint byte = m_current_bit / 8;
+    uint bit_within_byte = m_current_bit % 8;
     m_current_bit++;
     return (m_ptr[byte] & (1 << bit_within_byte)) != 0;
   }
 };
 
-
-#endif // ifdef RPL_RECORD_H
+#endif  // ifdef RPL_RECORD_H

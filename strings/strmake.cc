@@ -39,8 +39,7 @@
 #include <stddef.h>
 #include "m_string.h"  // IWYU pragma: keep
 
-char *strmake(char *dst, const char *src, size_t length)
-{
+char *strmake(char *dst, const char *src, size_t length) {
 #ifdef EXTRA_DEBUG
   /*
     'length' is the maximum length of the string; the buffer needs
@@ -53,14 +52,14 @@ char *strmake(char *dst, const char *src, size_t length)
     write a character rather than '\0' as this makes spotting these
     problems in the results easier.
   */
-  uint n= 0;
-  while (n < length && src[n++]);
-  memset(dst + n, (int) 'Z', length - n + 1);
+  uint n = 0;
+  while (n < length && src[n++])
+    ;
+  memset(dst + n, (int)'Z', length - n + 1);
 #endif
 
   while (length--)
-    if (! (*dst++ = *src++))
-      return dst-1;
-  *dst=0;
+    if (!(*dst++ = *src++)) return dst - 1;
+  *dst = 0;
   return dst;
 }

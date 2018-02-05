@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef SEMISYNC_SLAVE_H
 #define SEMISYNC_SLAVE_H
 
@@ -31,33 +30,24 @@
 /**
    The extension class for the slave of semi-synchronous replication
 */
-class ReplSemiSyncSlave
-  :public ReplSemiSyncBase {
-public:
- ReplSemiSyncSlave()
-   :slave_enabled_(false)
-  {}
+class ReplSemiSyncSlave : public ReplSemiSyncBase {
+ public:
+  ReplSemiSyncSlave() : slave_enabled_(false) {}
   ~ReplSemiSyncSlave() {}
 
-  void setTraceLevel(unsigned long trace_level) {
-    trace_level_ = trace_level;
-  }
+  void setTraceLevel(unsigned long trace_level) { trace_level_ = trace_level; }
 
   /* Initialize this class after MySQL parameters are initialized. this
    * function should be called once at bootstrap time.
    */
   int initObject();
 
-  bool getSlaveEnabled() {
-    return slave_enabled_;
-  }
-  void setSlaveEnabled(bool enabled) {
-    slave_enabled_ = enabled;
-  }
+  bool getSlaveEnabled() { return slave_enabled_; }
+  void setSlaveEnabled(bool enabled) { slave_enabled_ = enabled; }
 
   /* A slave reads the semi-sync packet header and separate the metadata
    * from the payload data.
-   * 
+   *
    * Input:
    *  header      - (IN)  packet header pointer
    *  total_len   - (IN)  total packet length: metadata + payload
@@ -68,13 +58,14 @@ public:
    * Return:
    *  0: success;  non-zero: error
    */
-  int slaveReadSyncHeader(const char *header, unsigned long total_len, bool *need_reply,
-                          const char **payload, unsigned long *payload_len);
+  int slaveReadSyncHeader(const char *header, unsigned long total_len,
+                          bool *need_reply, const char **payload,
+                          unsigned long *payload_len);
 
   /* A slave replies to the master indicating its replication process.  It
    * indicates that the slave has received all events before the specified
    * binlog position.
-   * 
+   *
    * Input:
    *  mysql            - (IN)  the mysql network connection
    *  binlog_filename  - (IN)  the reply point's binlog file name
@@ -89,13 +80,12 @@ public:
   int slaveStart(Binlog_relay_IO_param *param);
   int slaveStop(Binlog_relay_IO_param *param);
 
-private:
+ private:
   /* True when initObject has been called */
   bool init_done_ = false;
-  bool slave_enabled_ = false;        /* semi-sycn is enabled on the slave */
-  MYSQL *mysql_reply = nullptr;         /* connection to send reply */
+  bool slave_enabled_ = false;  /* semi-sycn is enabled on the slave */
+  MYSQL *mysql_reply = nullptr; /* connection to send reply */
 };
-
 
 /* System and status variables for the slave component */
 extern bool rpl_semi_sync_slave_enabled;

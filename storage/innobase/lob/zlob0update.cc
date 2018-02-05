@@ -24,18 +24,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include <memory>
 #include <table.h>
+#include <memory>
 #include "db0err.h"
+#include "field.h"
 #include "fil0fil.h"
-#include "trx0trx.h"
 #include "fut0lst.h"
+#include "lob0impl.h"
 #include "lob0lob.h"
 #include "row0upd.h"
-#include "lob0impl.h"
+#include "trx0trx.h"
 #include "zlob0first.h"
 #include "zlob0read.h"
-#include "field.h"
 
 namespace lob {
 
@@ -47,36 +47,23 @@ namespace lob {
 @param[in]	first_page	the first page of the LOB.
 @param[in]	offset		replace the LOB from the given offset.
 @param[in]	len		the length of LOB data that needs to be
-				replaced.
+                                replaced.
 @param[in]	buf		the buffer (owned by caller) with new data
-				(len bytes).
+                                (len bytes).
 @return DB_SUCCESS on success, error code on failure. */
-static
-dberr_t
-z_replace(
-	InsertContext&	ctx,
-	trx_t*		trx,
-	dict_index_t*	index,
-	ref_t		ref,
-	z_first_page_t&	first_page,
-	ulint		offset,
-	ulint		len,
-	byte*		buf);
+static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
+                         ref_t ref, z_first_page_t &first_page, ulint offset,
+                         ulint len, byte *buf);
 
 #ifdef UNIV_DEBUG
 /** Print an information message in the server log file, informing
 that the ZLOB partial update feature code is hit.
 @param[in]	uf	the update field information
 @param[in]	index	index where partial update happens.*/
-static
-void
-z_print_partial_update_hit(
-	upd_field_t*	uf,
-	dict_index_t*	index)
-{
-	ib::info() << "ZLOB partial update of field=("
-		<< uf->mysql_field->field_name << ") on index=("
-		<< index->name << ") in table=(" << index->table_name << ")";
+static void z_print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
+  ib::info() << "ZLOB partial update of field=(" << uf->mysql_field->field_name
+             << ") on index=(" << index->name << ") in table=("
+             << index->table_name << ")";
 }
 #endif /* UNIV_DEBUG */
 
@@ -86,64 +73,54 @@ z_print_partial_update_hit(
 @param[in] upd       update vector
 @param[in] field_no  the LOB field number
 @return DB_SUCCESS on success, error code on failure. */
-dberr_t
-z_update(
-	InsertContext&	ctx,
-	trx_t*		trx,
-	dict_index_t*	index,
-	const upd_t*	upd,
-	ulint		field_no,
-	ref_t		blobref)
-{
-	DBUG_ENTER("lob::z_update");
-	dberr_t err = DB_SUCCESS;
-	mtr_t* mtr = ctx.get_mtr();
+dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
+                 const upd_t *upd, ulint field_no, ref_t blobref) {
+  DBUG_ENTER("lob::z_update");
+  dberr_t err = DB_SUCCESS;
+  mtr_t *mtr = ctx.get_mtr();
 
-	const Binary_diff_vector* bdiff_vector
-		= upd->get_binary_diff_by_field_no(field_no);
+  const Binary_diff_vector *bdiff_vector =
+      upd->get_binary_diff_by_field_no(field_no);
 
-	upd_field_t* uf = upd->get_field_by_field_no(field_no, index);
+  upd_field_t *uf = upd->get_field_by_field_no(field_no, index);
 
 #ifdef UNIV_DEBUG
-	/* Print information on server error log file, which can be
-	used to confirm if InnoDB did partial update or not. */
-	DBUG_EXECUTE_IF("zlob_print_partial_update_hit",
-			z_print_partial_update_hit(uf, index););
+  /* Print information on server error log file, which can be
+  used to confirm if InnoDB did partial update or not. */
+  DBUG_EXECUTE_IF("zlob_print_partial_update_hit",
+                  z_print_partial_update_hit(uf, index););
 #endif /* UNIV_DEBUG */
-	page_no_t first_page_no = blobref.page_no();
-	space_id_t space_id = blobref.space_id();
-	const page_size_t page_size = dict_table_page_size(index->table);
-	const page_id_t first_page_id(space_id, first_page_no);
+  page_no_t first_page_no = blobref.page_no();
+  space_id_t space_id = blobref.space_id();
+  const page_size_t page_size = dict_table_page_size(index->table);
+  const page_id_t first_page_id(space_id, first_page_no);
 
-	z_first_page_t first_page(mtr, index);
-	first_page.load_x(first_page_id, page_size);
+  z_first_page_t first_page(mtr, index);
+  first_page.load_x(first_page_id, page_size);
 
-	ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
+  ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
-	const uint32_t lob_version = first_page.incr_lob_version();
+  const uint32_t lob_version = first_page.incr_lob_version();
 
-	for (Binary_diff_vector::const_iterator iter = bdiff_vector->begin();
-	     iter != bdiff_vector->end(); ++iter) {
+  for (Binary_diff_vector::const_iterator iter = bdiff_vector->begin();
+       iter != bdiff_vector->end(); ++iter) {
+    const Binary_diff *bdiff = iter;
 
-		const Binary_diff* bdiff = iter;
+    err = z_replace(ctx, trx, index, blobref, first_page, bdiff->offset(),
+                    bdiff->length(), (byte *)bdiff->new_data(uf->mysql_field));
 
-		err = z_replace(ctx, trx, index, blobref, first_page,
-				bdiff->offset(),
-				bdiff->length(),
-				(byte*) bdiff->new_data(uf->mysql_field));
+    if (err != DB_SUCCESS) {
+      break;
+    }
+  }
 
-		if (err != DB_SUCCESS) {
-			break;
-		}
-	}
+  blobref.set_offset(lob_version, 0);
 
-	blobref.set_offset(lob_version, 0);
+  if (!ctx.is_bulk()) {
+    ctx.zblob_write_blobref(field_no, ctx.m_mtr);
+  }
 
-	if (!ctx.is_bulk()) {
-		ctx.zblob_write_blobref(field_no, ctx.m_mtr);
-	}
-
-	DBUG_RETURN(err);
+  DBUG_RETURN(err);
 }
 
 /** Find the location of the given offset within LOB.
@@ -153,40 +130,33 @@ z_update(
 @param[in,out]	offset		the requested offset.
 @param[in]	mtr		mini-transaction context.
 @return the file address of requested offset or fil_addr_null. */
-fil_addr_t
-z_find_offset(
-	trx_t*		trx,
-	dict_index_t*	index,
-	fil_addr_t	node_loc,
-	ulint&		offset,
-	mtr_t*		mtr)
-{
-	space_id_t space = dict_index_get_space(index);
-	const page_size_t page_size = dict_table_page_size(index->table);
+fil_addr_t z_find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
+                         ulint &offset, mtr_t *mtr) {
+  space_id_t space = dict_index_get_space(index);
+  const page_size_t page_size = dict_table_page_size(index->table);
 
-	while (!fil_addr_is_null(node_loc)) {
+  while (!fil_addr_is_null(node_loc)) {
+    flst_node_t *node =
+        fut_get_ptr(space, page_size, node_loc, RW_X_LATCH, mtr);
 
-		flst_node_t* node = fut_get_ptr(
-			space, page_size, node_loc, RW_X_LATCH, mtr);
+    z_index_entry_t entry(node, mtr, index);
 
-		z_index_entry_t entry(node, mtr, index);
+    /* Get the amount of data */
+    ulint data_len = entry.get_data_len();
 
-		/* Get the amount of data */
-		ulint data_len = entry.get_data_len();
+    if (offset < data_len) {
+      break;
+    }
 
-		if (offset < data_len) {
-			break;
-		}
+    offset -= data_len;
 
-		offset -= data_len;
+    /* The next node should not be the same as the current node. */
+    ut_ad(!node_loc.is_equal(entry.get_next()));
 
-		/* The next node should not be the same as the current node. */
-		ut_ad(!node_loc.is_equal(entry.get_next()));
+    node_loc = flst_get_next_addr(node, mtr);
+  }
 
-		node_loc = flst_get_next_addr(node, mtr);
-	}
-
-	return(node_loc);
+  return (node_loc);
 }
 
 /** Replace a large object (LOB) with the given new data.
@@ -197,172 +167,153 @@ z_find_offset(
 @param[in]	first_page	the first page of the LOB.
 @param[in]	offset		replace the LOB from the given offset.
 @param[in]	len		the length of LOB data that needs to be
-				replaced.
+                                replaced.
 @param[in]	buf		the buffer (owned by caller) with new data
-				(len bytes).
+                                (len bytes).
 @return DB_SUCCESS on success, error code on failure. */
-static
-dberr_t
-z_replace(
-	InsertContext&	ctx,
-	trx_t*		trx,
-	dict_index_t*	index,
-	ref_t		ref,
-	z_first_page_t&	first_page,
-	ulint		offset,
-	ulint		len,
-	byte*		buf)
-{
-	DBUG_ENTER("lob::z_replace");
-	uint32_t new_entries = 0;
-	trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
-	const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no-1);
-	const uint32_t lob_version = first_page.get_lob_version();
+static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
+                         ref_t ref, z_first_page_t &first_page, ulint offset,
+                         ulint len, byte *buf) {
+  DBUG_ENTER("lob::z_replace");
+  uint32_t new_entries = 0;
+  trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
+  const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
+  const uint32_t lob_version = first_page.get_lob_version();
 
-	ut_ad(offset < ref.length());
+  ut_ad(offset < ref.length());
 
-	ut_ad(dict_table_is_comp(index->table));
+  ut_ad(dict_table_is_comp(index->table));
 
 #ifdef LOB_DEBUG
-	std::cout << "thread=" << std::this_thread::get_id()
-		<< ", lob::z_replace(): table=" << index->table->name
-		<< ", ref=" << ref
-		<< ", trx->id=" << trx->id
-		<< std::endl;
+  std::cout << "thread=" << std::this_thread::get_id()
+            << ", lob::z_replace(): table=" << index->table->name
+            << ", ref=" << ref << ", trx->id=" << trx->id << std::endl;
 #endif /* LOB_DEBUG */
 
-	mtr_t* mtr = ctx.get_mtr();
+  mtr_t *mtr = ctx.get_mtr();
 
-	page_no_t first_page_no = ref.page_no();
-	space_id_t space_id = ref.space_id();
-	const page_id_t first_page_id(space_id, first_page_no);
+  page_no_t first_page_no = ref.page_no();
+  space_id_t space_id = ref.space_id();
+  const page_id_t first_page_id(space_id, first_page_no);
 
-	first_page.set_last_trx_id(trx->id);
-	first_page.set_last_trx_undo_no(undo_no);
+  first_page.set_last_trx_id(trx->id);
+  first_page.set_last_trx_undo_no(undo_no);
 
-	ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
+  ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
-	flst_base_node_t* base_node = first_page.index_list();
-	fil_addr_t node_loc = flst_get_first(base_node, mtr);
+  flst_base_node_t *base_node = first_page.index_list();
+  fil_addr_t node_loc = flst_get_first(base_node, mtr);
 
-	ulint yet_to_skip = offset;
-	node_loc = z_find_offset(trx, index, node_loc, yet_to_skip, mtr);
+  ulint yet_to_skip = offset;
+  node_loc = z_find_offset(trx, index, node_loc, yet_to_skip, mtr);
 
-	ut_ad(!node_loc.is_null());
+  ut_ad(!node_loc.is_null());
 
-	/* The current entry - it is the latest version. */
-	z_index_entry_t cur_entry(mtr, index);
-	z_index_entry_t new_entry(mtr, index);
+  /* The current entry - it is the latest version. */
+  z_index_entry_t cur_entry(mtr, index);
+  z_index_entry_t new_entry(mtr, index);
 
-	/* The cur_entry points to the chunk that needs to be
-	partially replaced. */
-	std::unique_ptr<byte[]> tmp(new byte[Z_CHUNK_SIZE]);
-	byte* chunk = tmp.get();
-	ut_ad(yet_to_skip < Z_CHUNK_SIZE);
+  /* The cur_entry points to the chunk that needs to be
+  partially replaced. */
+  std::unique_ptr<byte[]> tmp(new byte[Z_CHUNK_SIZE]);
+  byte *chunk = tmp.get();
+  ut_ad(yet_to_skip < Z_CHUNK_SIZE);
 
-	byte* ptr = chunk;
-	byte* from_ptr = buf;
-	ulint replace_len = len; /* bytes remaining to be replaced. */
+  byte *ptr = chunk;
+  byte *from_ptr = buf;
+  ulint replace_len = len; /* bytes remaining to be replaced. */
 
-	/* Replace remaining. */
-	while (replace_len > 0 && !fil_addr_is_null(node_loc)) {
+  /* Replace remaining. */
+  while (replace_len > 0 && !fil_addr_is_null(node_loc)) {
+    cur_entry.load_x(node_loc);
 
-		cur_entry.load_x(node_loc);
+    ulint size = cur_entry.get_data_len();
+    ut_ad(size > yet_to_skip);
+    ulint avail = size - yet_to_skip;
 
-		ulint size = cur_entry.get_data_len();
-		ut_ad(size > yet_to_skip);
-		ulint avail = size - yet_to_skip;
+    if (yet_to_skip > 0 || replace_len < avail) {
+      /* Only partial chunk is to be replaced. Read old
+      data. */
+      ulint read_len = size;
+      ptr = chunk;
 
-		if (yet_to_skip > 0 || replace_len < avail) {
+      ulint len1 = z_read_chunk(index, cur_entry, 0, read_len, ptr, mtr);
 
-			/* Only partial chunk is to be replaced. Read old
-			data. */
-			ulint read_len = size;
-			ptr = chunk;
+      ut_ad(len1 == cur_entry.get_data_len());
+      ut_ad(read_len == 0);
+      ut_ad(len1 == size);
 
-			ulint len1 = z_read_chunk(index, cur_entry, 0,
-						  read_len, ptr, mtr);
-
-			ut_ad(len1 == cur_entry.get_data_len());
-			ut_ad(read_len == 0);
-			ut_ad(len1 == size);
-
-			ptr = chunk;
-			ptr += yet_to_skip;
-			const ulint can_replace = (replace_len > avail
-						   ? avail : replace_len);
-			memcpy(ptr, from_ptr, can_replace);
-			replace_len -= can_replace;
-			from_ptr += can_replace;
-			ptr += can_replace;
+      ptr = chunk;
+      ptr += yet_to_skip;
+      const ulint can_replace = (replace_len > avail ? avail : replace_len);
+      memcpy(ptr, from_ptr, can_replace);
+      replace_len -= can_replace;
+      from_ptr += can_replace;
+      ptr += can_replace;
 
 #ifdef UNIV_DEBUG
-			if (can_replace < avail) {
-				const ulint rest_of_data = avail - can_replace;
-				ut_ad(size == (yet_to_skip + can_replace
-					       + rest_of_data));
-			} else {
-
-				ut_ad(size == (yet_to_skip + can_replace));
-			}
+      if (can_replace < avail) {
+        const ulint rest_of_data = avail - can_replace;
+        ut_ad(size == (yet_to_skip + can_replace + rest_of_data));
+      } else {
+        ut_ad(size == (yet_to_skip + can_replace));
+      }
 #endif /* UNIV_DEBUG */
 
-			ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
+      ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
-			/* Chunk now contains new data to be inserted. */
-			z_insert_chunk(index, first_page, trx, ref, chunk,
-				       len1, &new_entry, mtr, false);
+      /* Chunk now contains new data to be inserted. */
+      z_insert_chunk(index, first_page, trx, ref, chunk, len1, &new_entry, mtr,
+                     false);
 
-			cur_entry.insert_after(base_node, new_entry);
-			cur_entry.remove(base_node);
-			cur_entry.set_trx_id_modifier(trxid);
-			cur_entry.set_trx_undo_no_modifier(undo_no);
-			new_entry.set_old_version(cur_entry);
-			new_entry.set_lob_version(lob_version);
-			new_entries++;
-			yet_to_skip = 0;
+      cur_entry.insert_after(base_node, new_entry);
+      cur_entry.remove(base_node);
+      cur_entry.set_trx_id_modifier(trxid);
+      cur_entry.set_trx_undo_no_modifier(undo_no);
+      new_entry.set_old_version(cur_entry);
+      new_entry.set_lob_version(lob_version);
+      new_entries++;
+      yet_to_skip = 0;
 
-		} else {
+    } else {
+      ut_ad(yet_to_skip == 0);
+      ut_ad(replace_len >= avail);
+      ut_ad(avail == size);
 
-			ut_ad(yet_to_skip == 0);
-			ut_ad(replace_len >= avail);
-			ut_ad(avail == size);
+      /* Full chunk is to be replaced. No need to read
+      old data. */
+      z_insert_chunk(index, first_page, trx, ref, from_ptr, size, &new_entry,
+                     mtr, false);
 
-			/* Full chunk is to be replaced. No need to read
-			old data. */
-			z_insert_chunk(index, first_page, trx, ref,
-				       from_ptr, size, &new_entry,
-				       mtr, false);
+      ut_ad(new_entry.get_trx_id() == trx->id);
 
-			ut_ad(new_entry.get_trx_id() == trx->id);
+      from_ptr += size;
+      ut_a(size <= replace_len);
+      replace_len -= size;
 
-			from_ptr += size;
-			ut_a(size <= replace_len);
-			replace_len -= size;
+      cur_entry.set_trx_id_modifier(trxid);
+      cur_entry.set_trx_undo_no_modifier(undo_no);
+      cur_entry.insert_after(base_node, new_entry);
+      cur_entry.remove(base_node);
+      new_entry.set_old_version(cur_entry);
+      new_entry.set_lob_version(lob_version);
+      new_entries++;
+    }
 
-			cur_entry.set_trx_id_modifier(trxid);
-			cur_entry.set_trx_undo_no_modifier(undo_no);
-			cur_entry.insert_after(base_node, new_entry);
-			cur_entry.remove(base_node);
-			new_entry.set_old_version(cur_entry);
-			new_entry.set_lob_version(lob_version);
-			new_entries++;
-		}
+    node_loc = new_entry.get_next();
+    new_entry.reset(nullptr);
+    cur_entry.reset(nullptr);
+  }
 
-		node_loc = new_entry.get_next();
-		new_entry.reset(nullptr);
-		cur_entry.reset(nullptr);
-	}
-
-	ut_ad(replace_len == 0);
-	ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
+  ut_ad(replace_len == 0);
+  ut_ad(first_page.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
 #ifdef LOB_DEBUG
-	first_page.print_index_entries(std::cout);
-	ut_ad(first_page.validate());
+  first_page.print_index_entries(std::cout);
+  ut_ad(first_page.validate());
 #endif /* LOB_DEBUG */
 
-	DBUG_RETURN(DB_SUCCESS);
+  DBUG_RETURN(DB_SUCCESS);
 }
 
 }; /* namespace lob */

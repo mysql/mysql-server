@@ -28,11 +28,11 @@
 #include <new>
 
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/collation.h"           // dd::Collation
+#include "sql/dd/types/collation.h"  // dd::Collation
 
 namespace dd {
 
@@ -43,20 +43,16 @@ class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Collation_impl : public Entity_object_impl,
-                       public Collation
-{
-public:
+class Collation_impl : public Entity_object_impl, public Collation {
+ public:
   Collation_impl()
-   :m_is_compiled(false),
-    m_sort_length(0),
-    m_charset_id(INVALID_OBJECT_ID)
-  { }
+      : m_is_compiled(false),
+        m_sort_length(0),
+        m_charset_id(INVALID_OBJECT_ID) {}
 
-  virtual ~Collation_impl()
-  { }
+  virtual ~Collation_impl() {}
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
@@ -67,73 +63,72 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // Character set.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id charset_id() const
-  { return m_charset_id; }
+  virtual Object_id charset_id() const { return m_charset_id; }
 
-  virtual void set_charset_id(Object_id charset_id)
-  { m_charset_id= charset_id; }
+  virtual void set_charset_id(Object_id charset_id) {
+    m_charset_id = charset_id;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // compiled
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_compiled() const
-  { return m_is_compiled; }
+  virtual bool is_compiled() const { return m_is_compiled; }
 
-  virtual void set_is_compiled(bool is_compiled)
-  { m_is_compiled= is_compiled; }
+  virtual void set_is_compiled(bool is_compiled) {
+    m_is_compiled = is_compiled;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // sort_length
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint sort_length() const
-  { return m_sort_length; }
+  virtual uint sort_length() const { return m_sort_length; }
 
-  virtual void set_sort_length(uint sort_length)
-  { m_sort_length= sort_length; }
+  virtual void set_sort_length(uint sort_length) {
+    m_sort_length = sort_length;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // pad_attribute
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &pad_attribute() const
-  { return m_pad_attribute; }
+  virtual const String_type &pad_attribute() const { return m_pad_attribute; }
 
-  virtual void set_pad_attribute(const String_type &pad_attribute)
-  { m_pad_attribute= pad_attribute; }
-
-  // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl()
-  { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const
-  { return Entity_object_impl::impl(); }
-  virtual Object_id id() const
-  { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const
-  { return Entity_object_impl::is_persistent(); }
-  virtual const String_type &name() const
-  { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name)
-  { Entity_object_impl::set_name(name); }
-
-public:
-  virtual void debug_print(String_type &outb) const
-  {
-    char outbuf[1024];
-    sprintf(outbuf, "COLLATION OBJECT: id= {OID: %lld}, name= %s,"
-      "charset_id= {OID: %lld}, is_compiled= %d, sort_length= %u",
-      id(), name().c_str(), m_charset_id,
-      m_is_compiled, m_sort_length);
-    outb= String_type(outbuf);
+  virtual void set_pad_attribute(const String_type &pad_attribute) {
+    m_pad_attribute = pad_attribute;
   }
 
-private:
+  // Fix "inherits ... via dominance" warnings
+  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const {
+    return Entity_object_impl::impl();
+  }
+  virtual Object_id id() const { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const {
+    return Entity_object_impl::is_persistent();
+  }
+  virtual const String_type &name() const { return Entity_object_impl::name(); }
+  virtual void set_name(const String_type &name) {
+    Entity_object_impl::set_name(name);
+  }
+
+ public:
+  virtual void debug_print(String_type &outb) const {
+    char outbuf[1024];
+    sprintf(outbuf,
+            "COLLATION OBJECT: id= {OID: %lld}, name= %s,"
+            "charset_id= {OID: %lld}, is_compiled= %d, sort_length= %u",
+            id(), name().c_str(), m_charset_id, m_is_compiled, m_sort_length);
+    outb = String_type(outbuf);
+  }
+
+ private:
   // Fields
   bool m_is_compiled;
   uint m_sort_length;
@@ -142,14 +137,11 @@ private:
   // References to other objects
   Object_id m_charset_id;
 
-  Collation *clone() const
-  {
-    return new Collation_impl(*this);
-  }
+  Collation *clone() const { return new Collation_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__COLLATION_IMPL_INCLUDED
+#endif  // DD__COLLATION_IMPL_INCLUDED

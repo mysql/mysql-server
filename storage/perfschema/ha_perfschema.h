@@ -33,8 +33,7 @@
 
 class PFS_engine_table;
 class THD;
-namespace dd
-{
+namespace dd {
 class Table;
 }  // namespace dd
 /**
@@ -53,9 +52,8 @@ struct TABLE_SHARE;
 extern const char *pfs_engine_name;
 
 /** A handler for a PERFORMANCE_SCHEMA table. */
-class ha_perfschema : public handler
-{
-public:
+class ha_perfschema : public handler {
+ public:
   /**
     Create a new performance schema table handle on a table.
     @param hton storage engine handler singleton
@@ -65,20 +63,14 @@ public:
 
   ~ha_perfschema();
 
-  const char *
-  table_type(void) const
-  {
-    return pfs_engine_name;
-  }
+  const char *table_type(void) const { return pfs_engine_name; }
 
   const char *index_type(uint key_number);
 
   const char **bas_ext(void) const;
 
   /** Capabilities of the performance schema tables. */
-  ulonglong
-  table_flags(void) const
-  {
+  ulonglong table_flags(void) const {
     /*
       About HA_FAST_KEY_READ:
 
@@ -109,62 +101,30 @@ public:
   */
   ulong index_flags(uint idx, uint part, bool all_parts) const;
 
-  enum ha_key_alg
-  get_default_index_algorithm() const
-  {
+  enum ha_key_alg get_default_index_algorithm() const {
     return HA_KEY_ALG_HASH;
   }
 
-  uint
-  max_supported_record_length(void) const
-  {
-    return HA_MAX_REC_LENGTH;
-  }
+  uint max_supported_record_length(void) const { return HA_MAX_REC_LENGTH; }
 
-  uint
-  max_supported_keys(void) const
-  {
-    return MAX_KEY;
-  }
+  uint max_supported_keys(void) const { return MAX_KEY; }
 
-  uint
-  max_supported_key_parts(void) const
-  {
-    return MAX_REF_PARTS;
-  }
+  uint max_supported_key_parts(void) const { return MAX_REF_PARTS; }
 
-  uint
-  max_supported_key_length(void) const
-  {
-    return MAX_KEY_LENGTH;
-  }
+  uint max_supported_key_length(void) const { return MAX_KEY_LENGTH; }
 
-  uint
-  max_supported_key_part_length() const
-  {
-    return MAX_KEY_LENGTH;
-  }
+  uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
 
   int index_init(uint index, bool sorted);
   int index_end();
-  int index_read(uchar *buf,
-                 const uchar *key,
-                 uint key_len,
+  int index_read(uchar *buf, const uchar *key, uint key_len,
                  enum ha_rkey_function find_flag);
   int index_next(uchar *buf);
   int index_next_same(uchar *buf, const uchar *key, uint keylen);
 
-  ha_rows
-  estimate_rows_upper_bound(void)
-  {
-    return HA_POS_ERROR;
-  }
+  ha_rows estimate_rows_upper_bound(void) { return HA_POS_ERROR; }
 
-  double
-  scan_time(void)
-  {
-    return 1.0;
-  }
+  double scan_time(void) { return 1.0; }
 
   /**
     Open a performance schema table.
@@ -174,9 +134,7 @@ public:
     @param table_def unused
     @return 0 on success
   */
-  int open(const char *name,
-           int mode,
-           uint test_if_locked,
+  int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def);
 
   /**
@@ -246,23 +204,18 @@ public:
 
   int delete_table(const char *from, const dd::Table *table_def);
 
-  int rename_table(const char *from,
-                   const char *to,
-                   const dd::Table *from_table_def,
-                   dd::Table *to_table_def);
+  int rename_table(const char *from, const char *to,
+                   const dd::Table *from_table_def, dd::Table *to_table_def);
 
-  int create(const char *name,
-             TABLE *form,
-             HA_CREATE_INFO *create_info,
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def);
 
-  THR_LOCK_DATA **store_lock(THD *thd,
-                             THR_LOCK_DATA **to,
+  THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 
   virtual void print_error(int error, myf errflags);
 
-private:
+ private:
   /**
      Check if the caller is a replication thread or the caller is called
      by a client thread executing base64 encoded BINLOG statement.

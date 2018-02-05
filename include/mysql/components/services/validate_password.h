@@ -39,33 +39,31 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
      as the user enters a password.
 */
 BEGIN_SERVICE_DEFINITION(validate_password)
-  /**
-    Checks if a password is valid by the password policy.
+/**
+  Checks if a password is valid by the password policy.
 
-    @param thd MYSQL THD object
-    @param password Given Password
-    @return Status of performed operation
-    @return false success (valid password)
-    @return true failure (invalid password)
-  */
-  DECLARE_BOOL_METHOD(validate,
-                      (void *thd, my_h_string password));
+  @param thd MYSQL THD object
+  @param password Given Password
+  @return Status of performed operation
+  @return false success (valid password)
+  @return true failure (invalid password)
+*/
+DECLARE_BOOL_METHOD(validate, (void *thd, my_h_string password));
 
-  /**
-    Calculates the strength of a password in the scale of 0 to 100.
+/**
+  Calculates the strength of a password in the scale of 0 to 100.
 
-    @param thd MYSQL THD object
-    @param password Given Password
-    @param [out] strength pointer to handle the strength of the given password.
-                 in the range of [0-100], where 0 is week password and
-                 100 is strong password
-    @return Status of performed operation
-    @return false success
-    @return true failure
-  */
-  DECLARE_BOOL_METHOD(get_strength,
-                      (void *thd, my_h_string password,
-                       unsigned int *strength));
+  @param thd MYSQL THD object
+  @param password Given Password
+  @param [out] strength pointer to handle the strength of the given password.
+               in the range of [0-100], where 0 is week password and
+               100 is strong password
+  @return Status of performed operation
+  @return false success
+  @return true failure
+*/
+DECLARE_BOOL_METHOD(get_strength,
+                    (void *thd, my_h_string password, unsigned int *strength));
 
 END_SERVICE_DEFINITION(validate_password)
 

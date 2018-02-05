@@ -24,55 +24,46 @@
 #include "mysql/plugin.h"
 #include "mysql/service_security_context.h"
 
-
-my_svc_bool thd_get_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT*)
-{
+my_svc_bool thd_get_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT *) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT)
-{
+my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT*)
-{
+my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT)
-{
+my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT, MYSQL_SECURITY_CONTEXT*)
-{
+my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT,
+                                  MYSQL_SECURITY_CONTEXT *) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT,
-                                    const char*, const char*,
-                                    const char*, const char*)
-{
+my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT, const char *,
+                                    const char *, const char *, const char *) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT,
-                                        const char*, void*)
-{
+my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT, const char *,
+                                        void *) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT,
-                                        const char*, void*)
-{
+my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT, const char *,
+                                        void *) {
   DBUG_ASSERT(0);
   return 0;
 }

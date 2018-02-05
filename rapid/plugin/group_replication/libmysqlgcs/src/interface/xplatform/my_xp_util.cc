@@ -26,8 +26,7 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
-void My_xp_util::sleep_seconds(unsigned int seconds)
-{
+void My_xp_util::sleep_seconds(unsigned int seconds) {
 #ifdef _WIN32
   Sleep(seconds * 1000);
 #else
@@ -35,76 +34,68 @@ void My_xp_util::sleep_seconds(unsigned int seconds)
 #endif
 }
 
-void My_xp_util::init_time()
-{
+void My_xp_util::init_time() {
 #ifdef _WIN32
   win_init_time();
 #endif
 }
 
 #ifdef _WIN32
-uint64_t My_xp_util::query_performance_frequency= 0;
-uint64_t My_xp_util::query_performance_offset= 0;
+uint64_t My_xp_util::query_performance_frequency = 0;
+uint64_t My_xp_util::query_performance_offset = 0;
 
-void My_xp_util::win_init_time()
-{
+void My_xp_util::win_init_time() {
   /* The following is used by time functions */
   FILETIME ft;
   LARGE_INTEGER li, t_cnt;
 
-  if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
-    query_performance_frequency= 0;
-  else
-  {
+  if (QueryPerformanceFrequency(
+          (LARGE_INTEGER *)&query_performance_frequency) == 0)
+    query_performance_frequency = 0;
+  else {
     GetSystemTimeAsFileTime(&ft);
-    li.LowPart=  ft.dwLowDateTime;
-    li.HighPart= ft.dwHighDateTime;
-    query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+    li.LowPart = ft.dwLowDateTime;
+    li.HighPart = ft.dwHighDateTime;
+    query_performance_offset = li.QuadPart - OFFSET_TO_EPOC;
     QueryPerformanceCounter(&t_cnt);
-    query_performance_offset-= (t_cnt.QuadPart /
-                                query_performance_frequency * MS +
-                                t_cnt.QuadPart %
-                                query_performance_frequency * MS /
-                                query_performance_frequency);
+    query_performance_offset -=
+        (t_cnt.QuadPart / query_performance_frequency * MS +
+         t_cnt.QuadPart % query_performance_frequency * MS /
+             query_performance_frequency);
   }
 }
 
 #endif
 
-
-uint64_t My_xp_util::getsystime()
-{
+uint64_t My_xp_util::getsystime() {
 #ifdef _WIN32
   LARGE_INTEGER t_cnt;
-  if (query_performance_frequency)
-  {
+  if (query_performance_frequency) {
     QueryPerformanceCounter(&t_cnt);
     return ((t_cnt.QuadPart / query_performance_frequency * 10000000) +
             ((t_cnt.QuadPart % query_performance_frequency) * 10000000 /
-             query_performance_frequency) + query_performance_offset);
+             query_performance_frequency) +
+            query_performance_offset);
   }
   return 0;
 #else
   /* TODO: check for other possibilities for hi-res timestamping */
   struct timeval tv;
-  gettimeofday(&tv,NULL);
-  return (uint64_t)tv.tv_sec*10000000+(uint64_t)tv.tv_usec*10;
+  gettimeofday(&tv, NULL);
+  return (uint64_t)tv.tv_sec * 10000000 + (uint64_t)tv.tv_usec * 10;
 #endif
 }
 
-
-int My_xp_socket_util_impl::disable_nagle_in_socket(int fd)
-{
-  int ret= -1;
-  if(fd != -1)
-  {
-    int optval= 1;
+int My_xp_socket_util_impl::disable_nagle_in_socket(int fd) {
+  int ret = -1;
+  if (fd != -1) {
+    int optval = 1;
     /* Casting optval to char * so Windows does not complain. */
-    ret= setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *) &optval,
-                    static_cast<socklen_t>(sizeof(int)));
+    ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval,
+                     static_cast<socklen_t>(sizeof(int)));
   }
   if (ret < 0)
-    MYSQL_GCS_LOG_ERROR("Error manipulating a connection's socket. Error: "
-                        << errno)
+    MYSQL_GCS_LOG_ERROR(
+        "Error manipulating a connection's socket. Error: " << errno)
   return ret;
 }

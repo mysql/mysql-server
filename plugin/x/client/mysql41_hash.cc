@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -24,9 +24,9 @@
 
 #include "plugin/x/client/mysql41_hash.h"
 
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/sha.h>
 #include <wolfssl_fix_namespace_pollution.h>
+#include <wolfssl_fix_namespace_pollution_pre.h>
 
 int mysql_mysql41_hash_reset(SHA_CTX *context) { return SHA1_Init(context); }
 
@@ -39,7 +39,6 @@ int mysql_mysql41_hash_result(SHA_CTX *context,
                               uint8_t Message_Digest[MYSQL41_HASH_SIZE]) {
   return SHA1_Final(Message_Digest, context);
 }
-
 
 /**
   Wrapper function to compute mysql41_hash message digest.
@@ -70,8 +69,9 @@ void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
 
   @return              void
 */
-void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1, unsigned len1,
-                                const char *buf2, unsigned len2) {
+void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1,
+                                unsigned len1, const char *buf2,
+                                unsigned len2) {
   SHA_CTX mysql41_hash_context;
 
   mysql_mysql41_hash_reset(&mysql41_hash_context);

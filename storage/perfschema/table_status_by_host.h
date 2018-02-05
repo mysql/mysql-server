@@ -53,8 +53,7 @@ struct THR_LOCK;
   A row of table
   PERFORMANCE_SCHEMA.STATUS_BY_HOST.
 */
-struct row_status_by_host
-{
+struct row_status_by_host {
   /** Column HOST */
   PFS_host_row m_host;
   /** Column VARIABLE_NAME. */
@@ -69,51 +68,37 @@ struct row_status_by_host
   Index 1 on host (0 based)
   Index 2 on status variable (0 based)
 */
-struct pos_status_by_host : public PFS_double_index
-{
-  pos_status_by_host() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_status_by_host : public PFS_double_index {
+  pos_status_by_host() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline bool
-  has_more_host(void)
-  {
+  inline bool has_more_host(void) {
     return (m_index_1 < global_host_container.get_row_count());
   }
 
-  inline void
-  next_host(void)
-  {
+  inline void next_host(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
-class PFS_index_status_by_host : public PFS_engine_index
-{
-public:
+class PFS_index_status_by_host : public PFS_engine_index {
+ public:
   PFS_index_status_by_host()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("HOST"),
-      m_key_2("VARIABLE_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("HOST"),
+        m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_status_by_host()
-  {
-  }
+  ~PFS_index_status_by_host() {}
 
   virtual bool match(PFS_host *pfs);
   virtual bool match(const Status_variable *pfs);
 
-private:
+ private:
   PFS_key_host m_key_1;
   PFS_key_variable_name m_key_2;
 };
@@ -122,24 +107,19 @@ private:
   Store and retrieve table state information for queries that reinstantiate
   the table object.
 */
-class table_status_by_host_context : public PFS_table_context
-{
-public:
+class table_status_by_host_context : public PFS_table_context {
+ public:
   table_status_by_host_context(ulonglong current_version, bool restore)
-    : PFS_table_context(current_version,
-                        global_host_container.get_row_count(),
-                        restore,
-                        THR_PFS_SBH)
-  {
-  }
+      : PFS_table_context(current_version,
+                          global_host_container.get_row_count(), restore,
+                          THR_PFS_SBH) {}
 };
 
 /** Table PERFORMANCE_SCHEMA.STATUS_BY_HOST. */
-class table_status_by_host : public PFS_engine_table
-{
+class table_status_by_host : public PFS_engine_table {
   typedef pos_status_by_host pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -155,22 +135,18 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_status_by_host();
 
-public:
-  ~table_status_by_host()
-  {
-  }
+ public:
+  ~table_status_by_host() {}
 
-protected:
+ protected:
   int make_row(PFS_host *pfs_host, const Status_variable *status_var);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

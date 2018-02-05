@@ -36,6 +36,6 @@ namespace xpl {
 std::string quote_json(const std::string &s);
 std::string quote_json_if_needed(const std::string &s);
 bool is_id_in_json(const std::string &s);
-}
+}  // namespace xpl
 
 #endif  // PLUGIN_X_SRC_JSON_UTILS_H_

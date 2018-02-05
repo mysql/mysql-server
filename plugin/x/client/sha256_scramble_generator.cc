@@ -33,8 +33,8 @@
 
 #include <openssl/evp.h>
 
-#include "my_dbug.h"                    /* DBUG instrumentation */
-#include "my_inttypes.h"                /* typedefs */
+#include "my_dbug.h"     /* DBUG instrumentation */
+#include "my_inttypes.h" /* typedefs */
 
 namespace xcl {
 namespace sha256_password {
@@ -48,17 +48,12 @@ namespace sha256_password {
   If m_ok is set to false at the end,
   it indicates a problem in initialization.
 */
-SHA256_digest::SHA256_digest()
-    : m_ok(false) {
-  init();
-}
+SHA256_digest::SHA256_digest() : m_ok(false) { init(); }
 
 /**
   Release acquired memory
 */
-SHA256_digest::~SHA256_digest() {
-  deinit();
-}
+SHA256_digest::~SHA256_digest() { deinit(); }
 
 /**
   Update digest with plaintext
@@ -104,7 +99,7 @@ bool SHA256_digest::retrieve_digest(unsigned char *digest,
   m_ok = EVP_DigestFinal_ex(md_context, m_digest, nullptr);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_MD_CTX_cleanup(md_context);
-#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_MD_CTX_reset(md_context);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   memcpy(digest, m_digest, length);
@@ -134,8 +129,8 @@ void SHA256_digest::init() {
     DBUG_VOID_RETURN;
   }
 
-  m_ok = static_cast<bool>(EVP_DigestInit_ex(md_context, EVP_sha256(),
-                                             nullptr));
+  m_ok =
+      static_cast<bool>(EVP_DigestInit_ex(md_context, EVP_sha256(), nullptr));
 
   if (!m_ok) {
     EVP_MD_CTX_destroy(md_context);
@@ -149,8 +144,7 @@ void SHA256_digest::init() {
   Release allocated memory for digest context
 */
 void SHA256_digest::deinit() {
-  if (md_context)
-    EVP_MD_CTX_destroy(md_context);
+  if (md_context) EVP_MD_CTX_destroy(md_context);
   md_context = nullptr;
   m_ok = false;
 }
@@ -162,21 +156,17 @@ void SHA256_digest::deinit() {
   @param [in] rnd    Salt
   @param [in] digest_type Digest type
 */
-Generate_scramble::Generate_scramble(const std::string &source,
-    const std::string &rnd,
+Generate_scramble::Generate_scramble(
+    const std::string &source, const std::string &rnd,
     Digest_info digest_type) /*  = Digest_info::SHA256_DIGEST */
-  : m_src(source),
-    m_rnd(rnd),
-    m_digest_type(digest_type) {
+    : m_src(source), m_rnd(rnd), m_digest_type(digest_type) {
   switch (m_digest_type) {
     case Digest_info::SHA256_DIGEST: {
       m_digest_generator.reset(new SHA256_digest());
       m_digest_length = CACHING_SHA2_DIGEST_LENGTH;
       break;
     }
-    default: {
-       DBUG_ASSERT(false);
-    }
+    default: { DBUG_ASSERT(false); }
   }
 }
 
@@ -206,8 +196,7 @@ bool Generate_scramble::scramble(unsigned char *out_scramble,
   if (!out_scramble || scramble_length != m_digest_length) {
     DBUG_PRINT("info", ("Unexpected scrable length"
                         "Expected: %d, Actual: %d",
-                        m_digest_length,
-                        !out_scramble ? 0 : scramble_length));
+                        m_digest_length, !out_scramble ? 0 : scramble_length));
     DBUG_RETURN(true);
   }
 
@@ -239,7 +228,7 @@ bool Generate_scramble::scramble(unsigned char *out_scramble,
   if (m_digest_generator->update_digest(digest_stage1, m_digest_length) ||
       m_digest_generator->retrieve_digest(digest_stage2, m_digest_length)) {
     DBUG_PRINT("info",
-        ("Failed to generate digest_stage2: SHA2(digest_stage1)"));
+               ("Failed to generate digest_stage2: SHA2(digest_stage1)"));
     DBUG_RETURN(true);
   }
 
@@ -254,7 +243,7 @@ bool Generate_scramble::scramble(unsigned char *out_scramble,
   }
 
   /* XOR(digest_stage1, scramble_stage1) => out_scramble */
-  for (uint i =0; i < m_digest_length; ++i)
+  for (uint i = 0; i < m_digest_length; ++i)
     out_scramble[i] = (digest_stage1[i] ^ scramble_stage1[i]);
 
   DBUG_RETURN(false);
@@ -284,9 +273,9 @@ bool Generate_scramble::scramble(unsigned char *out_scramble,
 
 */
 bool generate_sha256_scramble(unsigned char *out_scramble,
-                              const std::size_t scramble_size,
-                              const char *src, const std::size_t src_size,
-                              const char *salt, const std::size_t salt_size) {
+                              const std::size_t scramble_size, const char *src,
+                              const std::size_t src_size, const char *salt,
+                              const std::size_t salt_size) {
   DBUG_ENTER("generate_scramble");
   std::string source(src, src_size);
   std::string random(salt, salt_size);

@@ -27,17 +27,16 @@
 
 #include "client/base/abstract_value_option.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Option class to get string parameter value and set to char* type object.
  */
-class Char_array_option : public Abstract_value_option<char*>
-{
-public:
+class Char_array_option : public Abstract_value_option<char *> {
+ public:
   /**
     Constructs new string option.
     @param value Pointer to char* object to receive option value.
@@ -47,19 +46,19 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  Char_array_option(
-    char** value, bool allocated, std::string name, std::string description);
+  Char_array_option(char **value, bool allocated, std::string name,
+                    std::string description);
 
   /**
     Sets value for this option. If it is specified before handling commandline
     options then supplied value is used as default value of this option.
    */
-  Char_array_option* set_value(char* value);
+  Char_array_option *set_value(char *value);
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,7 +34,6 @@
 #include "mysqlxclient/xdecimal.h"
 #include "mysqlxclient/xmessage.h"
 
-
 namespace xcl {
 
 /**
@@ -45,8 +44,8 @@ namespace row_decoder {
 using Row_str = const char *;
 using Row_set = std::set<std::string>;
 
-bool buffer_to_u64(const std::string &buffer, uint64_t  *out_result);
-bool buffer_to_s64(const std::string &buffer, int64_t   *out_result);
+bool buffer_to_u64(const std::string &buffer, uint64_t *out_result);
+bool buffer_to_s64(const std::string &buffer, int64_t *out_result);
 bool buffer_to_float(const std::string &buffer, float *out_result);
 bool buffer_to_double(const std::string &buffer, double *out_result);
 bool buffer_to_time(const std::string &buffer, Time *out_time);
@@ -83,20 +82,20 @@ enum class Column_type {
   This structure is a compact version of "Mysqlx::Resultset::ColumnMetaData".
 */
 struct Column_metadata {
-    Column_type type;
-    std::string name;
-    std::string original_name;
-    std::string table;
-    std::string original_table;
-    std::string schema;
-    std::string catalog;
+  Column_type type;
+  std::string name;
+  std::string original_name;
+  std::string table;
+  std::string original_table;
+  std::string schema;
+  std::string catalog;
 
-    bool     has_content_type;
-    uint64_t collation;
-    uint32_t fractional_digits;
-    uint32_t length;
-    uint32_t flags;
-    uint32_t content_type;
+  bool has_content_type;
+  uint64_t collation;
+  uint32_t fractional_digits;
+  uint32_t length;
+  uint32_t flags;
+  uint32_t content_type;
 };
 
 /**
@@ -111,7 +110,7 @@ struct Column_metadata {
 class XRow {
  public:
   /** Alias for Row protobuf message. */
-  using Row        = ::Mysqlx::Resultset::Row;
+  using Row = ::Mysqlx::Resultset::Row;
   /** Alias for set of strings used for MySQL "SET" type. */
   using String_set = std::set<std::string>;
 
@@ -252,8 +251,7 @@ class XRow {
       @retval == true     OK
       @retval == false    getter failed
   */
-  virtual bool get_string(const int32_t field_index,
-                          const char **out_data,
+  virtual bool get_string(const int32_t field_index, const char **out_data,
                           size_t *out_data_length) const = 0;
 
   /**
@@ -314,8 +312,7 @@ class XRow {
       @retval == true     OK
       @retval == false    getter failed
   */
-  virtual bool get_enum(const int32_t field_index,
-                        const char **out_data,
+  virtual bool get_enum(const int32_t field_index, const char **out_data,
                         size_t *out_data_length) const = 0;
 
   /**
@@ -435,7 +432,7 @@ class XRow {
       @retval == false    getter failed
   */
   virtual bool get_field_as_string(const int32_t field_index,
-                                   std::string *out_data) const  = 0;
+                                   std::string *out_data) const = 0;
 };
 
 }  // namespace xcl

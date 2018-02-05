@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,12 +27,11 @@
 
 #include <functional>
 
-namespace ngs
-{
+namespace ngs {
 namespace placeholders = std::placeholders;
 using std::bind;
 using std::function;
 using std::ref;
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_BIND_H_
+#endif  // _NGS_BIND_H_

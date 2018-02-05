@@ -24,62 +24,33 @@
 
 #ifndef XCOM_STANDALONE
 My_xp_mutex_server::My_xp_mutex_server()
-  :m_mutex(static_cast<mysql_mutex_t *>(malloc(sizeof(*m_mutex))))
-{}
+    : m_mutex(static_cast<mysql_mutex_t *>(malloc(sizeof(*m_mutex)))) {}
 
+My_xp_mutex_server::~My_xp_mutex_server() { free(m_mutex); }
 
-My_xp_mutex_server::~My_xp_mutex_server()
-{
-  free(m_mutex);
-}
+mysql_mutex_t *My_xp_mutex_server::get_native_mutex() { return m_mutex; }
 
-
-mysql_mutex_t *My_xp_mutex_server::get_native_mutex()
-{
-  return m_mutex;
-}
-
-
-int My_xp_mutex_server::init(PSI_mutex_key key, const native_mutexattr_t *attr)
-{
-  if (m_mutex == NULL)
-    return -1;
+int My_xp_mutex_server::init(PSI_mutex_key key,
+                             const native_mutexattr_t *attr) {
+  if (m_mutex == NULL) return -1;
 
   return mysql_mutex_init(key, m_mutex, attr);
 }
 
+int My_xp_mutex_server::destroy() { return mysql_mutex_destroy(m_mutex); }
 
-int My_xp_mutex_server::destroy()
-{
-  return mysql_mutex_destroy(m_mutex);
-}
+int My_xp_mutex_server::lock() { return mysql_mutex_lock(m_mutex); }
 
+int My_xp_mutex_server::trylock() { return mysql_mutex_trylock(m_mutex); }
 
-int My_xp_mutex_server::lock()
-{
-  return mysql_mutex_lock(m_mutex);
-}
-
-
-int My_xp_mutex_server::trylock()
-{
-  return mysql_mutex_trylock(m_mutex);
-}
-
-
-int My_xp_mutex_server::unlock()
-{
-  return mysql_mutex_unlock(m_mutex);
-}
+int My_xp_mutex_server::unlock() { return mysql_mutex_unlock(m_mutex); }
 #endif
 
-
-int My_xp_mutex_util::attr_init(native_mutexattr_t *attr)
-{
-  /*
-    On Windows there is no initialization of mutex attributes.
-    Therefore, we simply return 0.
-  */
+int My_xp_mutex_util::attr_init(native_mutexattr_t *attr) {
+/*
+  On Windows there is no initialization of mutex attributes.
+  Therefore, we simply return 0.
+*/
 #ifdef _WIN32
   return 0;
 #else
@@ -87,13 +58,11 @@ int My_xp_mutex_util::attr_init(native_mutexattr_t *attr)
 #endif
 }
 
-
-int My_xp_mutex_util::attr_destroy(native_mutexattr_t *attr)
-{
-  /*
-    On Windows there is no destruction of mutex attributes.
-    Therefore, we simply return 0.
-  */
+int My_xp_mutex_util::attr_destroy(native_mutexattr_t *attr) {
+/*
+  On Windows there is no destruction of mutex attributes.
+  Therefore, we simply return 0.
+*/
 #ifdef _WIN32
   return 0;
 #else

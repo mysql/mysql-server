@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef CHANNEL_OBSERVATION_MANAGER_INCLUDE
-#define	CHANNEL_OBSERVATION_MANAGER_INCLUDE
+#define CHANNEL_OBSERVATION_MANAGER_INCLUDE
 
 #include <mysql/group_replication_priv.h>
 #include <list>
@@ -34,30 +34,25 @@ class Channel_observation_manager;
 /**
   A interface class to code channel state response methods
 */
-class Channel_state_observer
-{
-public:
-  virtual ~Channel_state_observer()= 0;
-  virtual int thread_start(Binlog_relay_IO_param *param)= 0;
-  virtual int thread_stop(Binlog_relay_IO_param *param)= 0;
-  virtual int applier_start(Binlog_relay_IO_param *param)= 0;
-  virtual int applier_stop(Binlog_relay_IO_param *param, bool aborted)= 0;
+class Channel_state_observer {
+ public:
+  virtual ~Channel_state_observer() = 0;
+  virtual int thread_start(Binlog_relay_IO_param *param) = 0;
+  virtual int thread_stop(Binlog_relay_IO_param *param) = 0;
+  virtual int applier_start(Binlog_relay_IO_param *param) = 0;
+  virtual int applier_stop(Binlog_relay_IO_param *param, bool aborted) = 0;
   virtual int before_request_transmit(Binlog_relay_IO_param *param,
-                                      uint32 flags)= 0;
-  virtual int after_read_event(Binlog_relay_IO_param *param,
-                               const char *packet, unsigned long len,
-                               const char **event_buf,
-                               unsigned long *event_len)= 0;
+                                      uint32 flags) = 0;
+  virtual int after_read_event(Binlog_relay_IO_param *param, const char *packet,
+                               unsigned long len, const char **event_buf,
+                               unsigned long *event_len) = 0;
   virtual int after_queue_event(Binlog_relay_IO_param *param,
-                                const char *event_buf,
-                                unsigned long event_len,
-                                uint32 flags)= 0;
-  virtual int after_reset_slave(Binlog_relay_IO_param *param)= 0;
+                                const char *event_buf, unsigned long event_len,
+                                uint32 flags) = 0;
+  virtual int after_reset_slave(Binlog_relay_IO_param *param) = 0;
   virtual int applier_log_event(Binlog_relay_IO_param *param,
-                                Trans_param *trans_param,
-                                int& out)= 0;
+                                Trans_param *trans_param, int &out) = 0;
 };
-
 
 /**
   A class to hold different channel observation manager.
@@ -66,9 +61,8 @@ public:
         serves different purposes and can interfere with one another.
         For that reason they are separated here.
 */
-class Channel_observation_manager_list
-{
-public:
+class Channel_observation_manager_list {
+ public:
   /**
     Constructor.
     Initializes the given number of channel observation manager
@@ -77,8 +71,7 @@ public:
     @param plugin_info  The plugin info to register the hooks
     @param num_managers The number of channel observation manager instantiated
   */
-  Channel_observation_manager_list(MYSQL_PLUGIN plugin_info,
-                                   uint num_managers);
+  Channel_observation_manager_list(MYSQL_PLUGIN plugin_info, uint num_managers);
 
   /**
     Destructor.
@@ -93,7 +86,7 @@ public:
 
     @param manager A channel observation manager implementation.
   */
-  void add_channel_observation_manager(Channel_observation_manager* manager);
+  void add_channel_observation_manager(Channel_observation_manager *manager);
 
   /**
     A method to remove a channel observation manager from
@@ -101,15 +94,15 @@ public:
 
     @param manager A channel observation manager implementation.
   */
-  void remove_channel_observation_manager(Channel_observation_manager* manager);
+  void remove_channel_observation_manager(Channel_observation_manager *manager);
 
   /**
     Get all the channel observation manager
 
     @return The list of all channel observation manager
   */
-  std::list<Channel_observation_manager*>&
-    get_channel_observation_manager_list();
+  std::list<Channel_observation_manager *>
+      &get_channel_observation_manager_list();
 
   /**
     Get particular channel observation manager
@@ -117,10 +110,10 @@ public:
     @param  position get iterator value at position
     @return The channel observation manager
   */
-  Channel_observation_manager*
-    get_channel_observation_manager(uint position= 0);
+  Channel_observation_manager *get_channel_observation_manager(
+      uint position = 0);
 
-private:
+ private:
   /** Server relay log observer struct */
   Binlog_relay_IO_observer server_channel_state_observers;
 
@@ -128,16 +121,14 @@ private:
   MYSQL_PLUGIN group_replication_plugin_info;
 
   /** list of channel observation manager */
-  std::list<Channel_observation_manager*> channel_observation_manager;
+  std::list<Channel_observation_manager *> channel_observation_manager;
 };
-
 
 /**
   A class to register observers for channel state events.
 */
-class Channel_observation_manager
-{
-public:
+class Channel_observation_manager {
+ public:
   /**
     Initialize the class.
   */
@@ -154,14 +145,14 @@ public:
 
     @param observer A channel state observer implementation.
   */
-  void register_channel_observer(Channel_state_observer* observer);
+  void register_channel_observer(Channel_state_observer *observer);
 
   /**
     A method to remove a channel state observer.
 
     @param observer A channel state observer implementation.
   */
-  void unregister_channel_observer(Channel_state_observer* observer);
+  void unregister_channel_observer(Channel_state_observer *observer);
 
   /**
     Get all registered observers
@@ -171,7 +162,7 @@ public:
 
     @return The list of all registered observers
   */
-  std::list<Channel_state_observer*>& get_channel_state_observers();
+  std::list<Channel_state_observer *> &get_channel_state_observers();
 
   /** Locks the observer list for reads */
   void read_lock_channel_list();
@@ -180,11 +171,11 @@ public:
   /** Unlocks the observer list */
   void unlock_channel_list();
 
-private:
+ private:
   /** list of channel state observer */
-  std::list<Channel_state_observer*> channel_observers;
+  std::list<Channel_state_observer *> channel_observers;
 
-  //run conditions and locks
+  // run conditions and locks
   Checkable_rwlock *channel_list_lock;
 };
 

@@ -39,16 +39,16 @@
 
 #include "lex_string.h"
 #include "my_psi_config.h"
-#include "my_sqlcommand.h"    // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
-#include "sql/mdl.h"          // enum_mdl_type
-#include "sql/sql_cmd.h"      // Sql_cmd
+#include "my_sqlcommand.h"  // SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER
+#include "sql/mdl.h"        // enum_mdl_type
+#include "sql/sql_cmd.h"    // Sql_cmd
 
 class THD;
 struct TABLE;
 struct TABLE_LIST;
 
 namespace dd {
-  class Table;
+class Table;
 }
 ///////////////////////////////////////////////////////////////////////////
 
@@ -70,12 +70,9 @@ namespace dd {
     @retval true  Otherwise.
 */
 
-bool get_table_for_trigger(THD *thd,
-                           const LEX_CSTRING &db_name,
+bool get_table_for_trigger(THD *thd, const LEX_CSTRING &db_name,
                            const LEX_STRING &trigger_name,
-                           bool continue_if_not_exist,
-                           TABLE_LIST **table);
-
+                           bool continue_if_not_exist, TABLE_LIST **table);
 
 /**
   Drop all triggers for table.
@@ -89,10 +86,7 @@ bool get_table_for_trigger(THD *thd,
     @retval true  Failure
 */
 
-bool drop_all_triggers(THD *thd,
-                       const char *db_name,
-                       const char *table_name);
-
+bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name);
 
 /**
   Check for table with triggers that old database name and new database name
@@ -117,7 +111,6 @@ bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
                                                      const dd::Table &table,
                                                      const char *new_db_name);
 
-
 /**
   Reload triggers from DD for specified table.
 
@@ -139,13 +132,10 @@ bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
     @retval true  Failure
 */
 
-bool reload_triggers_for_table(THD *thd,
-                               const char *db_name,
-                               const char *table_alias,
-                               const char *table_name,
+bool reload_triggers_for_table(THD *thd, const char *db_name,
+                               const char *table_alias, const char *table_name,
                                const char *new_db_name,
                                const char *new_table_name);
-
 
 /**
   Acquire either exclusive or shared MDL lock for a trigger
@@ -161,10 +151,8 @@ bool reload_triggers_for_table(THD *thd,
     @retval true  Failure
 */
 
-bool acquire_mdl_for_trigger(THD *thd, const char *db,
-                             const char *trg_name,
+bool acquire_mdl_for_trigger(THD *thd, const char *db, const char *trg_name,
                              enum_mdl_type trigger_name_mdl_type);
-
 
 /**
   Acquire exclusive MDL lock for a trigger in specified schema.
@@ -179,11 +167,9 @@ bool acquire_mdl_for_trigger(THD *thd, const char *db,
 */
 
 inline bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
-                                              const char *trg_name)
-{
+                                              const char *trg_name) {
   return acquire_mdl_for_trigger(thd, db, trg_name, MDL_EXCLUSIVE);
 }
-
 
 /**
   Acquire shared MDL lock for a trigger in specified schema.
@@ -198,20 +184,18 @@ inline bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
 */
 
 inline bool acquire_shared_mdl_for_trigger(THD *thd, const char *db,
-                                           const char *trg_name)
-{
+                                           const char *trg_name) {
   return acquire_mdl_for_trigger(thd, db, trg_name, MDL_SHARED_HIGH_PRIO);
 }
 
+  /**
+    Drop statistics from performance schema for every trigger
+    associated with a table.
 
-/**
-  Drop statistics from performance schema for every trigger
-  associated with a table.
-
-  @param schema_name Name of schema containing the table.
-  @param table       Table reference, for that associated
-                     triggers statistics has to be deleted.
-*/
+    @param schema_name Name of schema containing the table.
+    @param table       Table reference, for that associated
+                       triggers statistics has to be deleted.
+  */
 
 #ifdef HAVE_PSI_SP_INTERFACE
 void remove_all_triggers_from_perfschema(const char *schema_name,
@@ -219,35 +203,26 @@ void remove_all_triggers_from_perfschema(const char *schema_name,
 #endif
 ///////////////////////////////////////////////////////////////////////////
 
-
 /**
   This class has common code for CREATE/DROP TRIGGER statements.
 */
 
-class Sql_cmd_ddl_trigger_common : public Sql_cmd
-{
-public:
-
+class Sql_cmd_ddl_trigger_common : public Sql_cmd {
+ public:
   /**
     Set a table associated with a trigger.
 
     @param trigger_table  a table associated with a trigger.
   */
 
-  void set_table(TABLE_LIST *trigger_table)
-  {
-    m_trigger_table= trigger_table;
-  }
+  void set_table(TABLE_LIST *trigger_table) { m_trigger_table = trigger_table; }
 
-protected:
-  Sql_cmd_ddl_trigger_common()
-  : m_trigger_table(nullptr)
-  {}
+ protected:
+  Sql_cmd_ddl_trigger_common() : m_trigger_table(nullptr) {}
 
   bool check_trg_priv_on_subj_table(THD *thd, TABLE_LIST *table) const;
-  TABLE* open_and_lock_subj_table(THD *thd, TABLE_LIST *tables,
+  TABLE *open_and_lock_subj_table(THD *thd, TABLE_LIST *tables,
                                   MDL_ticket **mdl_ticket) const;
-
 
   /**
     Restore original state of meta-data locks.
@@ -261,42 +236,34 @@ protected:
   TABLE_LIST *m_trigger_table;
 };
 
-
 /**
   This class implements the CREATE TRIGGER statement.
 */
 
-class Sql_cmd_create_trigger : public Sql_cmd_ddl_trigger_common
-{
-public:
-
+class Sql_cmd_create_trigger : public Sql_cmd_ddl_trigger_common {
+ public:
   /**
     Return the command code for CREATE TRIGGER
   */
 
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_CREATE_TRIGGER;
   }
 
   virtual bool execute(THD *thd);
 };
 
-
 /**
   This class implements the DROP TRIGGER statement.
 */
 
-class Sql_cmd_drop_trigger : public Sql_cmd_ddl_trigger_common
-{
-public:
-
+class Sql_cmd_drop_trigger : public Sql_cmd_ddl_trigger_common {
+ public:
   /**
     Return the command code for DROP TRIGGER
   */
 
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_DROP_TRIGGER;
   }
 

@@ -31,17 +31,16 @@
 #include "my_getopt.h"
 #include "nullable.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   String value option.
  */
-class String_option : public Abstract_string_option<String_option>
-{
-public:
+class String_option : public Abstract_string_option<String_option> {
+ public:
   /**
     Constructs new string option.
     @param value Pointer to string object to receive option value.
@@ -49,13 +48,13 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  String_option(
-    Nullable<std::string>* value, std::string name, std::string description);
+  String_option(Nullable<std::string> *value, std::string name,
+                std::string description);
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -20,7 +20,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   @brief
 
@@ -62,14 +61,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   (Otherwise, again, we'd throw an error.)
 */
 
-
 #include "log_service_imp.h"
 
-#define LOG_FILTER_DUMP_BUFF_SIZE  8192
-#define LOG_FILTER_LANGUAGE_NAME  "dragnet"
-#define LOG_FILTER_VARIABLE_NAME  "log_error_filter_rules"
-#define LOG_FILTER_DEFAULT_RULES  "IF prio>=INFORMATION THEN drop. IF " \
-                                  "EXISTS source_line THEN unset source_line."
+#define LOG_FILTER_DUMP_BUFF_SIZE 8192
+#define LOG_FILTER_LANGUAGE_NAME "dragnet"
+#define LOG_FILTER_VARIABLE_NAME "log_error_filter_rules"
+#define LOG_FILTER_DEFAULT_RULES        \
+  "IF prio>=INFORMATION THEN drop. IF " \
+  "EXISTS source_line THEN unset source_line."
 
 #include <mysqld_error.h>
 #include "../sql/sql_error.h"
@@ -85,9 +84,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 
-STR_CHECK_ARG(str) sys_var_filter_rules;      ///< limits and default for sysvar
+STR_CHECK_ARG(str) sys_var_filter_rules;  ///< limits and default for sysvar
 
-static char *log_error_filter_rules= nullptr; ///< sysvar containing rules
+static char *log_error_filter_rules = nullptr;  ///< sysvar containing rules
 
 /*
   Accessors for log items etc.
@@ -107,193 +106,172 @@ static char *log_error_filter_rules= nullptr; ///< sysvar containing rules
 */
 #include <m_string.h>
 
-
-static bool                        inited=   false;
-static int                         opened= 0;
+static bool inited = false;
+static int opened = 0;
 
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_filter);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_tmp);
 
-SERVICE_TYPE(log_builtins)        *log_bi=   nullptr; ///< accessor built-ins
-SERVICE_TYPE(log_builtins_string) *log_bs=   nullptr; ///< string   built-ins
-SERVICE_TYPE(log_builtins_filter) *log_bf=   nullptr; ///< filter   built-ins
-SERVICE_TYPE(log_builtins_tmp)    *log_bt=   nullptr; ///< notify   built-in
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;         ///< accessor built-ins
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;  ///< string   built-ins
+SERVICE_TYPE(log_builtins_filter) *log_bf = nullptr;  ///< filter   built-ins
+SERVICE_TYPE(log_builtins_tmp) *log_bt = nullptr;     ///< notify   built-in
 
-log_filter_tag rule_tag_dragnet= { "log_filter_" LOG_FILTER_LANGUAGE_NAME,
-                                    nullptr };
-log_filter_ruleset
-      *log_filter_dragnet_rules= nullptr;
-
+log_filter_tag rule_tag_dragnet = {"log_filter_" LOG_FILTER_LANGUAGE_NAME,
+                                   nullptr};
+log_filter_ruleset *log_filter_dragnet_rules = nullptr;
 
 /**
   Flags to use in log_filter_xlate_by_name() / log_filter_xlate_by_opcode()
   when looking up a token by its opcode, or vice versa.
  */
-typedef enum enum_log_filter_xlate_flags
-{
-  LOG_FILTER_XLATE_NONE=     0,    ///< we don't know what it is
-  LOG_FILTER_XLATE_COND=     1,    ///< it's a condition
-  LOG_FILTER_XLATE_REF=      2,    ///< needs reference item to compare with
-  LOG_FILTER_XLATE_PREFIX=   4,    ///< prefix rather than infix, no ref item
-  LOG_FILTER_XLATE_LITERAL=  8,    ///< operator only (no field-name)
+typedef enum enum_log_filter_xlate_flags {
+  LOG_FILTER_XLATE_NONE = 0,     ///< we don't know what it is
+  LOG_FILTER_XLATE_COND = 1,     ///< it's a condition
+  LOG_FILTER_XLATE_REF = 2,      ///< needs reference item to compare with
+  LOG_FILTER_XLATE_PREFIX = 4,   ///< prefix rather than infix, no ref item
+  LOG_FILTER_XLATE_LITERAL = 8,  ///< operator only (no field-name)
 
-  LOG_FILTER_XLATE_VERB=     32,   ///< it's an action
-  LOG_FILTER_XLATE_AUXNAME=  64,   ///< aux item name  required
-  LOG_FILTER_XLATE_AUXVAL=   128,  ///< aux item value required
+  LOG_FILTER_XLATE_VERB = 32,     ///< it's an action
+  LOG_FILTER_XLATE_AUXNAME = 64,  ///< aux item name  required
+  LOG_FILTER_XLATE_AUXVAL = 128,  ///< aux item value required
 
-  LOG_FILTER_XLATE_FLOW=    1024,  ///< if/then/else/...
-  LOG_FILTER_XLATE_CHAIN=   2048   ///< or/and
+  LOG_FILTER_XLATE_FLOW = 1024,  ///< if/then/else/...
+  LOG_FILTER_XLATE_CHAIN = 2048  ///< or/and
 } log_filter_xlate_flags;
-
 
 /**
   What kind of token should log_filter_get_token() look for?
 */
-typedef enum enum_log_filter_token_flags
-{
-  LOG_FILTER_TOKEN_NONE=     0,  ///< undef
-  LOG_FILTER_TOKEN_NAME=     1,  ///< grab a field name
-  LOG_FILTER_TOKEN_NUMERIC=  2,  ///< grab a number
-  LOG_FILTER_TOKEN_COMP=     4,  ///< grab a known comparator
-  LOG_FILTER_TOKEN_ARG=      32, ///< grab an argument, possibly quoted
-  LOG_FILTER_TOKEN_ACTION=   64, ///< part of action,    ultimately ends in .
-  LOG_FILTER_TOKEN_KEYWORD= 128  ///< if/else/etc.
+typedef enum enum_log_filter_token_flags {
+  LOG_FILTER_TOKEN_NONE = 0,      ///< undef
+  LOG_FILTER_TOKEN_NAME = 1,      ///< grab a field name
+  LOG_FILTER_TOKEN_NUMERIC = 2,   ///< grab a number
+  LOG_FILTER_TOKEN_COMP = 4,      ///< grab a known comparator
+  LOG_FILTER_TOKEN_ARG = 32,      ///< grab an argument, possibly quoted
+  LOG_FILTER_TOKEN_ACTION = 64,   ///< part of action,    ultimately ends in .
+  LOG_FILTER_TOKEN_KEYWORD = 128  ///< if/else/etc.
 } log_filter_token_flags;
-
 
 /**
   Element in an array of known tokens in the filter configuration language
 */
-typedef struct
-{
-  uint                   item;   ///< opcode. may be shared by several entries.
-  uint                   flags;  ///< bit vector of log_filter_xlate_flags
-  const char            *name;   ///< operator name (string literal)
-  size_t                 len;    ///< name's length
+typedef struct {
+  uint item;         ///< opcode. may be shared by several entries.
+  uint flags;        ///< bit vector of log_filter_xlate_flags
+  const char *name;  ///< operator name (string literal)
+  size_t len;        ///< name's length
 } log_filter_xlate_key;
-
 
 /**
   A few keywords that we look for while parsing, but that do not
   necessarily generate an opcode in the rule-set.
 */
-typedef enum enum_log_filter_syntax
-{
-  LOG_FILTER_WORD_NONE=   0,    ///< no previous statement, or stmt complete
-  LOG_FILTER_WORD_IF=     1,    ///< "if"
-  LOG_FILTER_WORD_THEN=   2,    ///< "then"
-  LOG_FILTER_WORD_ELSEIF= 3,    ///< "elseif"
-  LOG_FILTER_WORD_ELSE=   4,    ///< "else"
+typedef enum enum_log_filter_syntax {
+  LOG_FILTER_WORD_NONE = 0,    ///< no previous statement, or stmt complete
+  LOG_FILTER_WORD_IF = 1,      ///< "if"
+  LOG_FILTER_WORD_THEN = 2,    ///< "then"
+  LOG_FILTER_WORD_ELSEIF = 3,  ///< "elseif"
+  LOG_FILTER_WORD_ELSE = 4,    ///< "else"
 } log_filter_syntax;
 
 /**
   Array of known tokens in the filter configuration language
 */
-static const log_filter_xlate_key log_filter_xlate_keys[]=
-{
-  // keywords. order matters: we want to dump "else if" as "elseif" etc.
-  { LOG_FILTER_WORD_IF,      LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("IF") },
-  { LOG_FILTER_WORD_ELSEIF,  LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("ELSEIF") },
-  { LOG_FILTER_WORD_ELSEIF,  LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("ELSE IF") },
-  { LOG_FILTER_WORD_ELSEIF,  LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("ELSIF") },               /* PL/SQL style */
-  { LOG_FILTER_WORD_ELSE,    LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("ELSE") },
+static const log_filter_xlate_key log_filter_xlate_keys[] = {
+    // keywords. order matters: we want to dump "else if" as "elseif" etc.
+    {LOG_FILTER_WORD_IF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("IF")},
+    {LOG_FILTER_WORD_ELSEIF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("ELSEIF")},
+    {LOG_FILTER_WORD_ELSEIF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("ELSE IF")},
+    {LOG_FILTER_WORD_ELSEIF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("ELSIF")}, /* PL/SQL style */
+    {LOG_FILTER_WORD_ELSE, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("ELSE")},
 
-  { LOG_FILTER_WORD_THEN,    LOG_FILTER_XLATE_FLOW,
-    C_STRING_WITH_LEN("THEN") },
+    {LOG_FILTER_WORD_THEN, LOG_FILTER_XLATE_FLOW, C_STRING_WITH_LEN("THEN")},
 
-  // conditions
+    // conditions
 
-  // absence required
-  { LOG_FILTER_COND_ABSENT,  LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("NOT EXISTS") },
-  { LOG_FILTER_COND_ABSENT,  LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("NOT") },
+    // absence required
+    {LOG_FILTER_COND_ABSENT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("NOT EXISTS")},
+    {LOG_FILTER_COND_ABSENT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("NOT")},
 
-  // presence required
-  { LOG_FILTER_COND_PRESENT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
-    C_STRING_WITH_LEN("EXISTS") },
+    // presence required
+    {LOG_FILTER_COND_PRESENT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
+     C_STRING_WITH_LEN("EXISTS")},
 
-  { LOG_FILTER_COND_EQ,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN("==") },
+    {LOG_FILTER_COND_EQ, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN("==")},
 
-  { LOG_FILTER_COND_NE,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN("!=") },
-  { LOG_FILTER_COND_NE,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN("<>") },
+    {LOG_FILTER_COND_NE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN("!=")},
+    {LOG_FILTER_COND_NE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN("<>")},
 
-  { LOG_FILTER_COND_LT,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN("<") },
+    {LOG_FILTER_COND_LT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN("<")},
 
-  { LOG_FILTER_COND_LE,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN("<=") },
-  { LOG_FILTER_COND_LE,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN("=<") },
+    {LOG_FILTER_COND_LE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN("<=")},
+    {LOG_FILTER_COND_LE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN("=<")},
 
-  { LOG_FILTER_COND_GE,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN(">=") },
-  { LOG_FILTER_COND_GE,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN("=>") },
+    {LOG_FILTER_COND_GE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN(">=")},
+    {LOG_FILTER_COND_GE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN("=>")},
 
-  { LOG_FILTER_COND_GT,   LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-    C_STRING_WITH_LEN(">") },
+    {LOG_FILTER_COND_GT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
+     C_STRING_WITH_LEN(">")},
 
-  // verbs/actions
+    // verbs/actions
 
-  { LOG_FILTER_DROP,      LOG_FILTER_XLATE_VERB,
-    C_STRING_WITH_LEN("drop") },
-  { LOG_FILTER_THROTTLE,  LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXVAL,
-    C_STRING_WITH_LEN("throttle") },
-  { LOG_FILTER_ITEM_SET,  LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXNAME |
-                          LOG_FILTER_XLATE_AUXVAL,
-    C_STRING_WITH_LEN("set") },
-  { LOG_FILTER_ITEM_DEL,  LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXNAME,
-    C_STRING_WITH_LEN("unset") },
+    {LOG_FILTER_DROP, LOG_FILTER_XLATE_VERB, C_STRING_WITH_LEN("drop")},
+    {LOG_FILTER_THROTTLE, LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXVAL,
+     C_STRING_WITH_LEN("throttle")},
+    {LOG_FILTER_ITEM_SET,
+     LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXNAME | LOG_FILTER_XLATE_AUXVAL,
+     C_STRING_WITH_LEN("set")},
+    {LOG_FILTER_ITEM_DEL, LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXNAME,
+     C_STRING_WITH_LEN("unset")},
 
-  { LOG_FILTER_CHAIN_AND, LOG_FILTER_XLATE_CHAIN,
-    C_STRING_WITH_LEN("AND") },
-  { LOG_FILTER_CHAIN_OR,  LOG_FILTER_XLATE_CHAIN,
-    C_STRING_WITH_LEN("OR") }
-};
-
+    {LOG_FILTER_CHAIN_AND, LOG_FILTER_XLATE_CHAIN, C_STRING_WITH_LEN("AND")},
+    {LOG_FILTER_CHAIN_OR, LOG_FILTER_XLATE_CHAIN, C_STRING_WITH_LEN("OR")}};
 
 /**
   result codes used in dumping/decompiling rules
 */
-typedef enum enum_log_filter_result
-{
-  LOG_FILTER_LANGUAGE_OK=                0, ///< processed without error
-  LOG_FILTER_LANGUAGE_DK_COND=           1, ///< don't know condition
-  LOG_FILTER_LANGUAGE_DK_VERB=           2, ///< don't know verb
-  LOG_FILTER_LANGUAGE_DK_CLASS=          3, ///< don't know class
-  LOG_FILTER_LANGUAGE_OOM=               4, ///< out of memory
-  LOG_FILTER_LANGUAGE_GET_FAILED=        5, ///< filter_ruleset_get() failed
-  LOG_FILTER_LANGUAGE_CHAIN=             6  ///< chain conditions (AND/OR)
+typedef enum enum_log_filter_result {
+  LOG_FILTER_LANGUAGE_OK = 0,          ///< processed without error
+  LOG_FILTER_LANGUAGE_DK_COND = 1,     ///< don't know condition
+  LOG_FILTER_LANGUAGE_DK_VERB = 2,     ///< don't know verb
+  LOG_FILTER_LANGUAGE_DK_CLASS = 3,    ///< don't know class
+  LOG_FILTER_LANGUAGE_OOM = 4,         ///< out of memory
+  LOG_FILTER_LANGUAGE_GET_FAILED = 5,  ///< filter_ruleset_get() failed
+  LOG_FILTER_LANGUAGE_CHAIN = 6        ///< chain conditions (AND/OR)
 } log_filter_result;
-
 
 /**
   result codes of log_filter_set_arg()
 */
-typedef enum enum_set_arg_result
-{
-  SET_ARG_SUCCESS=             0, ///< argument was assigned
-  SET_ARG_OOM    =            -1, ///< out of memory while assigning argument
-  SET_ARG_MALFORMED_FLOAT=    -2, ///< too many decimal points
-  SET_ARG_DK_CLASS=           -3, ///< unhandled class
-  SET_ARG_UNWANTED_NUMERIC=   -4, ///< numeric value found for non-numeric item
-  SET_ARG_UNWANTED_STRING=    -5, ///< string  value found for non-string  item
-  SET_ARG_MALFORMED_VALUE=    -6, ///< malformed value
-  SET_ARG_UNWANTED_FLOAT=     -7, ///< float   value found for non-float   item
-  SET_ARG_FRACTION_FOUND=     -8  ///< fraction found. may or may not be legal
+typedef enum enum_set_arg_result {
+  SET_ARG_SUCCESS = 0,            ///< argument was assigned
+  SET_ARG_OOM = -1,               ///< out of memory while assigning argument
+  SET_ARG_MALFORMED_FLOAT = -2,   ///< too many decimal points
+  SET_ARG_DK_CLASS = -3,          ///< unhandled class
+  SET_ARG_UNWANTED_NUMERIC = -4,  ///< numeric value found for non-numeric item
+  SET_ARG_UNWANTED_STRING = -5,   ///< string  value found for non-string  item
+  SET_ARG_MALFORMED_VALUE = -6,   ///< malformed value
+  SET_ARG_UNWANTED_FLOAT = -7,    ///< float   value found for non-float   item
+  SET_ARG_FRACTION_FOUND = -8     ///< fraction found. may or may not be legal
 } set_arg_result;
-
 
 /**
   Find a given token in log_filter_xlate_keys[], the table of known
@@ -309,24 +287,20 @@ typedef enum enum_set_arg_result
   @retval <0    token not found
   @retval >=0   index into log_filter_xlate_keys[]
 */
-static int log_filter_xlate_by_name(const char *token, size_t len, uint flags)
-{
+static int log_filter_xlate_by_name(const char *token, size_t len, uint flags) {
   uint c;
 
-  for (c= 0;
+  for (c = 0;
        (c < (sizeof(log_filter_xlate_keys) / sizeof(log_filter_xlate_key)));
-       c++)
-  {
+       c++) {
     if (((log_filter_xlate_keys[c].flags & flags) == flags) &&
         (len == log_filter_xlate_keys[c].len) &&
-        (0   == log_bs->compare(log_filter_xlate_keys[c].name, token,
-                                len, true)))
+        (0 == log_bs->compare(log_filter_xlate_keys[c].name, token, len, true)))
       return c;
   }
 
   return -1;
 }
-
 
 /**
   Find a given opcode in log_filter_xlate_keys[], the table of known
@@ -341,15 +315,13 @@ static int log_filter_xlate_by_name(const char *token, size_t len, uint flags)
   @retval -1    opcode not found
   @retval >=0   index into log_filter_xlate_keys[]
 */
-static int log_filter_xlate_by_opcode(uint opcode, uint flags)
-{
+static int log_filter_xlate_by_opcode(uint opcode, uint flags) {
   uint c;
 
   // optimize and safeify lookup
-  for (c= 0;
+  for (c = 0;
        (c < (sizeof(log_filter_xlate_keys) / sizeof(log_filter_xlate_key)));
-       c++)
-  {
+       c++) {
     if ((log_filter_xlate_keys[c].item == opcode) &&
         ((log_filter_xlate_keys[c].flags & flags) != 0))
       return c;
@@ -357,7 +329,6 @@ static int log_filter_xlate_by_opcode(uint opcode, uint flags)
 
   return -1;
 }
-
 
 /**
   Helper for dumping filter rules.  Append a string literal to a buffer.
@@ -367,17 +338,15 @@ static int log_filter_xlate_by_opcode(uint opcode, uint flags)
   @param out_siz  size of that buffer
   @param str      NTBS to append to that buffer
 */
-static void log_filter_append(char *out_buf, size_t out_siz, const char *str)
-{
-  size_t  out_used=     log_bs->length(out_buf);
-  size_t  out_left=     out_siz - out_used;
-  char   *out_writepos= out_buf + out_used;
-  size_t  out_needed=   log_bs->substitute(out_writepos, out_left, "%s", str);
+static void log_filter_append(char *out_buf, size_t out_siz, const char *str) {
+  size_t out_used = log_bs->length(out_buf);
+  size_t out_left = out_siz - out_used;
+  char *out_writepos = out_buf + out_used;
+  size_t out_needed = log_bs->substitute(out_writepos, out_left, "%s", str);
 
-  if (out_needed >= out_left)     /* buffer exhausted. '\0' terminate */
-    out_buf[out_siz - 1]= '\0';   /* purecov: inspected */
+  if (out_needed >= out_left)    /* buffer exhausted. '\0' terminate */
+    out_buf[out_siz - 1] = '\0'; /* purecov: inspected */
 }
-
 
 /**
   Helper for dumping filter rules.  Append an item's data/value to a buffer.
@@ -388,66 +357,57 @@ static void log_filter_append(char *out_buf, size_t out_siz, const char *str)
   @param li       log-item whose value to append to that buffer
 */
 static void log_filter_append_item_value(char *out_buf, size_t out_siz,
-                                         log_item *li)
-{
-  size_t  len=          log_bs->length(out_buf); // used bytes
-  size_t  out_left=     out_siz - len;
-  char   *out_writepos= out_buf + len;
+                                         log_item *li) {
+  size_t len = log_bs->length(out_buf);  // used bytes
+  size_t out_left = out_siz - len;
+  char *out_writepos = out_buf + len;
 
   if (li->item_class == LOG_FLOAT)
-    len= log_bs->substitute(out_writepos, out_left,
-                            "%lf", li->data.data_float);
+    len =
+        log_bs->substitute(out_writepos, out_left, "%lf", li->data.data_float);
 
-  else if (li->item_class == LOG_INTEGER)
-  {
-    if (li->type == LOG_ITEM_LOG_PRIO)
-    {
+  else if (li->item_class == LOG_INTEGER) {
+    if (li->type == LOG_ITEM_LOG_PRIO) {
       switch (li->data.data_integer) {
-      case ERROR_LEVEL:
-        len= log_bs->substitute(out_writepos, out_left, "ERROR");
-        break;
-      case WARNING_LEVEL:
-        len= log_bs->substitute(out_writepos, out_left, "WARNING");
-        break;
-      case INFORMATION_LEVEL:
-        len= log_bs->substitute(out_writepos, out_left, "INFORMATION");
-        break;
-      default:
-        /*
-          We have no idea what this is (either breakage, or new
-          severities were added to the server that we don't yet
-          know about. That's OK though, we can still write the
-          numeric value and thereby generate a valid config.
-        */
-        len= log_bs->substitute(out_writepos, out_left,
-                                "%lld", li->data.data_integer);
+        case ERROR_LEVEL:
+          len = log_bs->substitute(out_writepos, out_left, "ERROR");
+          break;
+        case WARNING_LEVEL:
+          len = log_bs->substitute(out_writepos, out_left, "WARNING");
+          break;
+        case INFORMATION_LEVEL:
+          len = log_bs->substitute(out_writepos, out_left, "INFORMATION");
+          break;
+        default:
+          /*
+            We have no idea what this is (either breakage, or new
+            severities were added to the server that we don't yet
+            know about. That's OK though, we can still write the
+            numeric value and thereby generate a valid config.
+          */
+          len = log_bs->substitute(out_writepos, out_left, "%lld",
+                                   li->data.data_integer);
       }
-    }
-    else
-    {
-      len= log_bs->substitute(out_writepos, out_left,
-                              "%lld", li->data.data_integer);
+    } else {
+      len = log_bs->substitute(out_writepos, out_left, "%lld",
+                               li->data.data_integer);
     }
   }
 
   else if (log_bi->item_string_class(li->item_class) &&
-           (li->data.data_string.str != nullptr))
-  {
-    len= log_bs->substitute(out_writepos, out_left, "\"%.*s\"",
-                            (int) li->data.data_string.length,
-                            li->data.data_string.str);
-  }
-  else
-  {
+           (li->data.data_string.str != nullptr)) {
+    len = log_bs->substitute(out_writepos, out_left, "\"%.*s\"",
+                             (int)li->data.data_string.length,
+                             li->data.data_string.str);
+  } else {
     // unknown item class
     log_filter_append(out_writepos, out_left, "???");
     return;
   }
 
-  if (len >= out_left)          /* buffer exhausted. '\0' terminate */
-    out_buf[out_siz - 1]= '\0'; /* purecov: inspected */
+  if (len >= out_left)           /* buffer exhausted. '\0' terminate */
+    out_buf[out_siz - 1] = '\0'; /* purecov: inspected */
 }
-
 
 /**
   Decompile an individual rule.
@@ -469,62 +429,58 @@ static void log_filter_append_item_value(char *out_buf, size_t out_siz,
 */
 static log_filter_result log_filter_rule_dump(log_filter_rule *rule,
                                               log_filter_result state,
-                                              char *out_buf, size_t out_size)
-{
-  log_filter_result           ret= LOG_FILTER_LANGUAGE_OK;
-  int                         cond;
-  int                         verb;
+                                              char *out_buf, size_t out_size) {
+  log_filter_result ret = LOG_FILTER_LANGUAGE_OK;
+  int cond;
+  int verb;
   const log_filter_xlate_key *token;
 
   DBUG_ASSERT(out_buf != nullptr);
 
-  out_buf[0]= '\0';
+  out_buf[0] = '\0';
 
   if ((state != LOG_FILTER_LANGUAGE_CHAIN) &&
       (rule->cond != LOG_FILTER_COND_NONE))
     log_filter_append(out_buf, out_size, "IF ");
 
-  if (rule->cond != LOG_FILTER_COND_NONE)
-  {
+  if (rule->cond != LOG_FILTER_COND_NONE) {
     // find cond opcode
-    if ((cond= log_filter_xlate_by_opcode(rule->cond,
-                                          LOG_FILTER_XLATE_COND)) < 0)
-      return LOG_FILTER_LANGUAGE_DK_COND;  /* purecov: inspected */
+    if ((cond = log_filter_xlate_by_opcode(rule->cond, LOG_FILTER_XLATE_COND)) <
+        0)
+      return LOG_FILTER_LANGUAGE_DK_COND; /* purecov: inspected */
 
     // write condition
 
-    token= &log_filter_xlate_keys[cond];
+    token = &log_filter_xlate_keys[cond];
 
-    if (token->flags & LOG_FILTER_XLATE_PREFIX)              // prefix, if any
+    if (token->flags & LOG_FILTER_XLATE_PREFIX)  // prefix, if any
     {
       log_filter_append(out_buf, out_size, token->name);
       log_filter_append(out_buf, out_size, " ");
     }
-    if (!(token->flags & LOG_FILTER_XLATE_LITERAL))          // field name
+    if (!(token->flags & LOG_FILTER_XLATE_LITERAL))  // field name
       log_filter_append(out_buf, out_size, rule->match.key);
-    if (token->flags & LOG_FILTER_XLATE_REF)                 // infix
+    if (token->flags & LOG_FILTER_XLATE_REF)  // infix
     {
-      log_filter_append(out_buf, out_size, token->name);     // comparator
+      log_filter_append(out_buf, out_size, token->name);  // comparator
       log_filter_append_item_value(out_buf, out_size, &rule->match);
     }
   }
 
   // write action
 
-  verb= log_filter_xlate_by_opcode(rule->verb,
-                                   LOG_FILTER_XLATE_VERB |
-                                   LOG_FILTER_XLATE_CHAIN);
+  verb = log_filter_xlate_by_opcode(
+      rule->verb, LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_CHAIN);
 
-  if (verb < 0)
-    return LOG_FILTER_LANGUAGE_DK_VERB; /* purecov: inspected */
+  if (verb < 0) return LOG_FILTER_LANGUAGE_DK_VERB; /* purecov: inspected */
 
-  token= &log_filter_xlate_keys[verb];
+  token = &log_filter_xlate_keys[verb];
 
-  if ((token->item == LOG_FILTER_CHAIN_AND) ||         // AND
-      (token->item == LOG_FILTER_CHAIN_OR))            // OR
+  if ((token->item == LOG_FILTER_CHAIN_AND) ||  // AND
+      (token->item == LOG_FILTER_CHAIN_OR))     // OR
   {
     log_filter_append(out_buf, out_size, " ");
-    log_filter_append(out_buf, out_size, token->name); // verb name
+    log_filter_append(out_buf, out_size, token->name);  // verb name
     log_filter_append(out_buf, out_size, " ");
     return LOG_FILTER_LANGUAGE_CHAIN;
   }
@@ -532,44 +488,43 @@ static log_filter_result log_filter_rule_dump(log_filter_rule *rule,
   if (rule->cond != LOG_FILTER_COND_NONE)
     log_filter_append(out_buf, out_size, " THEN ");  // THEN
   else
-    log_filter_append(out_buf, out_size, " ");       // space after ELSE
+    log_filter_append(out_buf, out_size, " ");  // space after ELSE
 
-  log_filter_append(out_buf, out_size, token->name); // verb name
+  log_filter_append(out_buf, out_size, token->name);  // verb name
 
-  if (token->flags & (LOG_FILTER_XLATE_AUXNAME|LOG_FILTER_XLATE_AUXVAL))
-    log_filter_append(out_buf, out_size, " "); // space, if needed
+  if (token->flags & (LOG_FILTER_XLATE_AUXNAME | LOG_FILTER_XLATE_AUXVAL))
+    log_filter_append(out_buf, out_size, " ");  // space, if needed
 
-  if (token->flags & LOG_FILTER_XLATE_AUXNAME) // aux item name, if needed
+  if (token->flags & LOG_FILTER_XLATE_AUXNAME)  // aux item name, if needed
   {
-    log_filter_append(out_buf, out_size, rule->aux.key); // name
+    log_filter_append(out_buf, out_size, rule->aux.key);  // name
     if (token->flags & LOG_FILTER_XLATE_AUXVAL)
-      log_filter_append(out_buf, out_size, ":="); // assignment operator
+      log_filter_append(out_buf, out_size, ":=");  // assignment operator
   }
 
   if (token->flags & LOG_FILTER_XLATE_AUXVAL)  // aux item value, if needed
   {
     log_filter_append_item_value(out_buf, out_size, &rule->aux);
 
-    if (token->item == LOG_FILTER_THROTTLE)    // denominator of "throttle 5/30"
+    if (token->item == LOG_FILTER_THROTTLE)  // denominator of "throttle 5/30"
     {
       log_item dli;
       memset(&dli, 0, sizeof(log_item));
-      dli.data.data_integer= (long long) rule->throttle_window_size;
-      dli.item_class= LOG_INTEGER;
-      dli.type=       LOG_ITEM_GEN_INTEGER;
+      dli.data.data_integer = (long long)rule->throttle_window_size;
+      dli.item_class = LOG_INTEGER;
+      dli.type = LOG_ITEM_GEN_INTEGER;
       log_filter_append(out_buf, out_size, "/");
       log_filter_append_item_value(out_buf, out_size, &dli);
     }
   }
 
   if (rule->jump != 0)
-    log_filter_append(out_buf, out_size, " ELSE"); // ELSE/ELSEIF
+    log_filter_append(out_buf, out_size, " ELSE");  // ELSE/ELSEIF
   else
-    log_filter_append(out_buf, out_size, ". ");    // end statement
+    log_filter_append(out_buf, out_size, ". ");  // end statement
 
   return ret;
 }
-
 
 /**
   Dump an entire filter rule-set.
@@ -583,17 +538,16 @@ static log_filter_result log_filter_rule_dump(log_filter_rule *rule,
   @retval  LOG_FILTER_LANGUAGE_OOM         supplied buffer too small
 */
 log_filter_result log_filter_ruleset_dump(log_filter_ruleset *ruleset,
-                                          char *ruleset_buf, size_t siz)
-{
-  log_filter_result   rr=   LOG_FILTER_LANGUAGE_OK; ///< return this result
-  uint32              rule_index;                   ///< index of current rule
-  log_filter_rule    *rule;                         ///< rule to decompile
-  char                rule_buf[LOG_BUFF_MAX];       ///< current decompiled rule
-  char               *out_writepos= ruleset_buf;    ///< write pointer
-  size_t              out_left=     siz - 1;        ///< bytes left (out buffer)
-  size_t              len;                          ///< bytes used in a buffer
+                                          char *ruleset_buf, size_t siz) {
+  log_filter_result rr = LOG_FILTER_LANGUAGE_OK;  ///< return this result
+  uint32 rule_index;                              ///< index of current rule
+  log_filter_rule *rule;                          ///< rule to decompile
+  char rule_buf[LOG_BUFF_MAX];                    ///< current decompiled rule
+  char *out_writepos = ruleset_buf;               ///< write pointer
+  size_t out_left = siz - 1;                      ///< bytes left (out buffer)
+  size_t len;                                     ///< bytes used in a buffer
 
-  ruleset_buf[0]= '\0';
+  ruleset_buf[0] = '\0';
 
   // get and lock rule-set
 
@@ -604,32 +558,28 @@ log_filter_result log_filter_ruleset_dump(log_filter_ruleset *ruleset,
     return LOG_FILTER_LANGUAGE_GET_FAILED; /* purecov: inspected */
 
   // dump each rule (if no parse-errors and enough memory)
-  for (rule_index= 0; rule_index < ruleset->count; rule_index++)
-  {
-    rule= &ruleset->rule[rule_index];
-    rr=   log_filter_rule_dump(rule, rr, rule_buf, sizeof(rule_buf));
+  for (rule_index = 0; rule_index < ruleset->count; rule_index++) {
+    rule = &ruleset->rule[rule_index];
+    rr = log_filter_rule_dump(rule, rr, rule_buf, sizeof(rule_buf));
 
     if ((rr != LOG_FILTER_LANGUAGE_OK) && (rr != LOG_FILTER_LANGUAGE_CHAIN))
       goto done;
 
-    len= log_bs->length(rule_buf);
-    if (len >= out_left)
-    {
-      rr= LOG_FILTER_LANGUAGE_OOM;
+    len = log_bs->length(rule_buf);
+    if (len >= out_left) {
+      rr = LOG_FILTER_LANGUAGE_OOM;
       goto done;
     }
 
     strcpy(out_writepos, rule_buf);
-    out_writepos+= len;
-    out_left-=     len;
+    out_writepos += len;
+    out_left -= len;
   }
 
   // remove trailing whitespace generated by log_filter_rule_dump()
-  if ((len= log_bs->length(ruleset_buf)) > 0)
-  {
-    do
-    {
-      ruleset_buf[len--]= '\0';
+  if ((len = log_bs->length(ruleset_buf)) > 0) {
+    do {
+      ruleset_buf[len--] = '\0';
     } while (isspace(ruleset_buf[len]));
   }
 
@@ -639,19 +589,15 @@ done:
   return rr;
 }
 
-
 /**
   Skip whitespace. Helper for parsing.
   Advances a read-pointer to the next non-space character.
 
   @param[in,out]  inp_readpos  Pointer to a NTBS.
 */
-static inline void log_filter_skip_white(const char **inp_readpos)
-{
-  while (isspace(**inp_readpos))
-    (*inp_readpos)++;
+static inline void log_filter_skip_white(const char **inp_readpos) {
+  while (isspace(**inp_readpos)) (*inp_readpos)++;
 }
-
 
 /**
   Gets a token from a filter configuration.
@@ -671,26 +617,21 @@ static inline void log_filter_skip_white(const char **inp_readpos)
   @retval -1  incorrect quotation
   @retval -2  unknown values for 'types'
 */
-static int log_filter_get_token(const char **inp_readpos,
-                                const char **token, size_t *len,
-                                uint types)
-{
+static int log_filter_get_token(const char **inp_readpos, const char **token,
+                                size_t *len, uint types) {
   log_filter_skip_white(inp_readpos);
 
-  *token= *inp_readpos;
-  *len=    0;
+  *token = *inp_readpos;
+  *len = 0;
 
   // get (quoted) argument
   if ((types & LOG_FILTER_TOKEN_ARG) &&
-      ((**inp_readpos == '\"') || (**inp_readpos == '\'')))
-  {
+      ((**inp_readpos == '\"') || (**inp_readpos == '\''))) {
     // Remember what quotation mark was used to start quotation
-    const char *delim= *inp_readpos;
+    const char *delim = *inp_readpos;
 
-    for (++(*inp_readpos);
-         (**inp_readpos != '\0') && (**inp_readpos != *delim);
-         (*inp_readpos)++)
-    {
+    for (++(*inp_readpos); (**inp_readpos != '\0') && (**inp_readpos != *delim);
+         (*inp_readpos)++) {
       // skip escaped characters
       if ((**inp_readpos == '\\') && (*(*inp_readpos + 1) != '\0'))
         ++(*inp_readpos);
@@ -699,25 +640,22 @@ static int log_filter_get_token(const char **inp_readpos,
     // If all went well, opening quotation mark == closing one
     if (**inp_readpos == *delim)
       ++(*inp_readpos);
-    else
-    {
+    else {
       // on failure, rewind
-      *inp_readpos= *token;
+      *inp_readpos = *token;
       return -1;
     }
   }
 
   // get (unquoted) argument
-  else if (types & LOG_FILTER_TOKEN_ARG)
-  {
+  else if (types & LOG_FILTER_TOKEN_ARG) {
     // parse up to ' ', '.' (unless part of float value)
-    while (( **inp_readpos != '\0') && (!isspace(**inp_readpos)) &&
-           ((**inp_readpos != '.')  || isdigit(*(*inp_readpos + 1))))
+    while ((**inp_readpos != '\0') && (!isspace(**inp_readpos)) &&
+           ((**inp_readpos != '.') || isdigit(*(*inp_readpos + 1))))
       (*inp_readpos)++;
   }
   // get a comparator
-  else if (types & LOG_FILTER_TOKEN_COMP)
-  {
+  else if (types & LOG_FILTER_TOKEN_COMP) {
     // stop parsing at digit, for space-less ("field<1" type) rules
     while ((**inp_readpos != '\0') && (!isspace(**inp_readpos)) &&
            (**inp_readpos != '\"') && (**inp_readpos != '\'') &&
@@ -725,29 +663,23 @@ static int log_filter_get_token(const char **inp_readpos,
       (*inp_readpos)++;
   }
   // get a field name
-  else if (types & LOG_FILTER_TOKEN_NAME)
-  {
+  else if (types & LOG_FILTER_TOKEN_NAME) {
     // field names may contain underscores '_'
-    while (isalnum(**inp_readpos) || (**inp_readpos == '_'))
-      (*inp_readpos)++;
+    while (isalnum(**inp_readpos) || (**inp_readpos == '_')) (*inp_readpos)++;
   }
   // get a keyword
-  else if (types & LOG_FILTER_TOKEN_KEYWORD)
-  {
-    while (isalpha(**inp_readpos))
-      (*inp_readpos)++;
-  }
-  else
-  {
-    *inp_readpos= *token;
+  else if (types & LOG_FILTER_TOKEN_KEYWORD) {
+    while (isalpha(**inp_readpos)) (*inp_readpos)++;
+  } else {
+    *inp_readpos = *token;
     return -2;
   }
 
-  *len= *inp_readpos - *token;
+  *len = *inp_readpos - *token;
 
   if (*len < 1)  // Empty argument not allowed. Even "" has length 2!
   {
-    *inp_readpos= *token;
+    *inp_readpos = *token;
     return -2;
   }
 
@@ -755,7 +687,6 @@ static int log_filter_get_token(const char **inp_readpos,
 
   return 0;
 }
-
 
 /**
   Set up a log-item from filtering rules.
@@ -769,29 +700,27 @@ static int log_filter_get_token(const char **inp_readpos,
   @retval -2     copy failed (out of memory?)
 */
 static int log_filter_make_field(const char **name, const size_t *len,
-                                 log_item *li)
-{
-  int              wellknown= log_bi->wellknown_by_name(*name, *len);
-  log_item_type    item_type;
-  char            *key= nullptr;
+                                 log_item *li) {
+  int wellknown = log_bi->wellknown_by_name(*name, *len);
+  log_item_type item_type;
+  char *key = nullptr;
 
-  if (wellknown == LOG_ITEM_TYPE_RESERVED)
-    return -1;
+  if (wellknown == LOG_ITEM_TYPE_RESERVED) return -1;
 
-  if (wellknown != LOG_ITEM_TYPE_NOT_FOUND)            // it's a well-known type
-    item_type= log_bi->wellknown_get_type(wellknown);  // get type
-  else if ((key= log_bs->strndup(*name, *len)) == nullptr) // generic; copy key
-    return -2;                                         /* purecov: inspected */
-  else // it's important that "unknown key" sets a generic type (but not which)
-    item_type= LOG_ITEM_GEN_LEX_STRING;
+  if (wellknown != LOG_ITEM_TYPE_NOT_FOUND)  // it's a well-known type
+    item_type = log_bi->wellknown_get_type(wellknown);  // get type
+  else if ((key = log_bs->strndup(*name, *len)) ==
+           nullptr)  // generic; copy key
+    return -2;       /* purecov: inspected */
+  else  // it's important that "unknown key" sets a generic type (but not which)
+    item_type = LOG_ITEM_GEN_LEX_STRING;
 
-  log_bi->item_set_with_key(li, item_type, key,
-                            (key == nullptr) ? LOG_ITEM_FREE_NONE
-                                             : LOG_ITEM_FREE_KEY);
+  log_bi->item_set_with_key(
+      li, item_type, key,
+      (key == nullptr) ? LOG_ITEM_FREE_NONE : LOG_ITEM_FREE_KEY);
 
   return 0;
 }
-
 
 /**
   Helper: Does a field require a certain data class, or can it morph
@@ -805,11 +734,9 @@ static int log_filter_make_field(const char **name, const size_t *len,
   @retval  true  if field is of generic type or no type
   @retval  false otherwise
 */
-static inline bool log_filter_generic_type(log_item_type type)
-{
+static inline bool log_filter_generic_type(log_item_type type) {
   return (type == LOG_ITEM_END) || log_bi->item_generic_type(type);
 }
-
 
 /**
   Set argument (i.e., the value) on a list-item.
@@ -829,149 +756,132 @@ static inline bool log_filter_generic_type(log_item_type type)
   @return        set_arg_result; 0 for success, !0 for failure
 */
 static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
-                                         log_item *li, const char **state)
-{
-  char            *val;
-  size_t           val_len;
+                                         log_item *li, const char **state) {
+  char *val;
+  size_t val_len;
 
   // sanity check
   DBUG_ASSERT(!(li->alloc & LOG_ITEM_FREE_VALUE));
-  if (li->alloc & LOG_ITEM_FREE_VALUE)
-  {
-    log_bs->free((void *) li->data.data_string.str);
-    li->data.data_string.str=  nullptr;
-    li->alloc&=               ~LOG_ITEM_FREE_VALUE;
+  if (li->alloc & LOG_ITEM_FREE_VALUE) {
+    log_bs->free((void *)li->data.data_string.str);
+    li->data.data_string.str = nullptr;
+    li->alloc &= ~LOG_ITEM_FREE_VALUE;
   }
 
-  *state= "Setting argument ...";
+  *state = "Setting argument ...";
 
   // ER_* -- convenience: we convert symbol(ER_STARTUP) -> int(1234)
-  if (log_bs->compare(*token, "ER_", 3, false) == 0)
-  {
-    char     *sym=     log_bs->strndup(*token, *len);
-    longlong  errcode= 0;
+  if (log_bs->compare(*token, "ER_", 3, false) == 0) {
+    char *sym = log_bs->strndup(*token, *len);
+    longlong errcode = 0;
 
-    *state= "Resolving ER_symbol ...";
+    *state = "Resolving ER_symbol ...";
 
-    if (sym == nullptr)
-      return SET_ARG_OOM;    /* purecov: inspected */
+    if (sym == nullptr) return SET_ARG_OOM; /* purecov: inspected */
 
-    errcode= log_bi->errcode_by_errsymbol(sym);
+    errcode = log_bi->errcode_by_errsymbol(sym);
     log_bs->free(sym);
 
-    if (errcode < 0)
-    {
-      *state= "unknown ER_code";
+    if (errcode < 0) {
+      *state = "unknown ER_code";
       return SET_ARG_MALFORMED_VALUE;
     }
 
     // if it's any ad hoc type, we set it to "ad hoc int"
-    if (log_filter_generic_type(li->type))
-    {
-      li->type=       LOG_ITEM_GEN_INTEGER;
-      li->item_class= LOG_INTEGER;
+    if (log_filter_generic_type(li->type)) {
+      li->type = LOG_ITEM_GEN_INTEGER;
+      li->item_class = LOG_INTEGER;
     }
     // if it's a well-known type, but not errcode, we fail
-    else if (li->type != LOG_ITEM_SQL_ERRCODE)
-    {
-      *state= "\'err_code\' is the only built-in field-type "
-              "we will resolve ER_symbols for";
+    else if (li->type != LOG_ITEM_SQL_ERRCODE) {
+      *state =
+          "\'err_code\' is the only built-in field-type "
+          "we will resolve ER_symbols for";
       return SET_ARG_UNWANTED_NUMERIC;
     }
 
-    li->data.data_integer= errcode;
+    li->data.data_integer = errcode;
 
     return SET_ARG_SUCCESS;
   }
 
   // prio -- convenience: we convert ERROR / WARNING / INFO -> int
-  else if ((li->type == LOG_ITEM_LOG_PRIO) && !isdigit(**token))
-  {
-    int prio= -1;
+  else if ((li->type == LOG_ITEM_LOG_PRIO) && !isdigit(**token)) {
+    int prio = -1;
 
-    *state= "Resolving prio ...";
+    *state = "Resolving prio ...";
 
     if (log_bs->compare(*token, "ERROR", 5, true) == 0)
-      prio= ERROR_LEVEL;
+      prio = ERROR_LEVEL;
     else if (log_bs->compare(*token, "WARNING", 7, true) == 0)
-      prio= WARNING_LEVEL;
+      prio = WARNING_LEVEL;
     else if ((log_bs->compare(*token, "NOTE", 4, true) == 0) ||
              (log_bs->compare(*token, "INFO", 4, true) == 0) ||
              (log_bs->compare(*token, "INFORMATION", 11, true) == 0))
-      prio= INFORMATION_LEVEL;
-    else
-    {
-      *state= "unknown prio";
+      prio = INFORMATION_LEVEL;
+    else {
+      *state = "unknown prio";
       return SET_ARG_MALFORMED_VALUE;
     }
 
-    li->data.data_integer= prio;
+    li->data.data_integer = prio;
 
     return SET_ARG_SUCCESS;
   }
 
   // quoted string
-  else if (((**token == '\"') || (**token == '\'')))
-  {
-    *state= "setting quoted string argument";
+  else if (((**token == '\"') || (**token == '\''))) {
+    *state = "setting quoted string argument";
 
     // if it's any ad hoc type, we set it to "ad hoc string"
-    if (log_filter_generic_type(li->type))
-    {
-      li->type=       LOG_ITEM_GEN_LEX_STRING;
-      li->item_class= LOG_LEX_STRING;
+    if (log_filter_generic_type(li->type)) {
+      li->type = LOG_ITEM_GEN_LEX_STRING;
+      li->item_class = LOG_LEX_STRING;
     }
     // if it's a well-known type, but not a string type, we fail
-    else if (!log_bi->item_string_class(li->item_class))
-    {
-      *state= "Argument is of string type, field is not.";
+    else if (!log_bi->item_string_class(li->item_class)) {
+      *state = "Argument is of string type, field is not.";
       return SET_ARG_UNWANTED_STRING;
     }
 
-    val_len=  *len - 1;
+    val_len = *len - 1;
 
-    if ((val= log_bs->strndup(*token + 1, val_len)) == nullptr)
-      return SET_ARG_OOM;  /* purecov: inspected */
+    if ((val = log_bs->strndup(*token + 1, val_len)) == nullptr)
+      return SET_ARG_OOM; /* purecov: inspected */
 
     DBUG_ASSERT(val_len > 0);
-    val[--val_len]= '\0';  // cut trailing quotation mark
+    val[--val_len] = '\0';  // cut trailing quotation mark
 
-    li->data.data_string.str=    val;
-    li->data.data_string.length= val_len;
-    li->alloc|=                  LOG_ITEM_FREE_VALUE;
+    li->data.data_string.str = val;
+    li->data.data_string.length = val_len;
+    li->alloc |= LOG_ITEM_FREE_VALUE;
 
     return SET_ARG_SUCCESS;
   }
 
   // numeric
-  else
-  {
-    set_arg_result  ret= SET_ARG_SUCCESS;
-    const char     *num_read;
-    uint            dots= 0;
+  else {
+    set_arg_result ret = SET_ARG_SUCCESS;
+    const char *num_read;
+    uint dots = 0;
 
-    num_read= *token;
-    val_len=  *len;
+    num_read = *token;
+    val_len = *len;
 
-    if ((val_len > 0) && ((*num_read == '+')||(*num_read == '-')))
-    {
+    if ((val_len > 0) && ((*num_read == '+') || (*num_read == '-'))) {
       val_len--;
       num_read++;
     }
 
-    while (val_len > 0)
-    {
+    while (val_len > 0) {
       if (*num_read == '.')
         dots++;
-      else if (*num_read == '/')
-      {
-        *state= "fraction found";
-        ret= SET_ARG_FRACTION_FOUND;
+      else if (*num_read == '/') {
+        *state = "fraction found";
+        ret = SET_ARG_FRACTION_FOUND;
         break;
-      }
-      else if (!isdigit(*num_read))
-      {
-        *state= "malformed number";
+      } else if (!isdigit(*num_read)) {
+        *state = "malformed number";
         return SET_ARG_MALFORMED_VALUE;
       }
       num_read++;
@@ -979,61 +889,53 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
     }
 
     // floats should not contain multiple decimal points
-    if (dots > 1)
-    {
-      *state= "There should only be one decimal point "
-              "in a floating point number.";
+    if (dots > 1) {
+      *state =
+          "There should only be one decimal point "
+          "in a floating point number.";
       return SET_ARG_MALFORMED_FLOAT;
     }
 
-    if ((val= log_bs->strndup(*token, *len - val_len)) == nullptr)
+    if ((val = log_bs->strndup(*token, *len - val_len)) == nullptr)
       return SET_ARG_OOM;
 
     // found integer
-    if (dots == 0)
-    {
+    if (dots == 0) {
       long long num_temp;
 
       // if it's any ad hoc type, we set it to "ad hoc int"
-      if (log_filter_generic_type(li->type))
-      {
-        li->type=       LOG_ITEM_GEN_INTEGER;
-        li->item_class= LOG_INTEGER;
+      if (log_filter_generic_type(li->type)) {
+        li->type = LOG_ITEM_GEN_INTEGER;
+        li->item_class = LOG_INTEGER;
       }
 
-      num_temp= (long long) atoll(val);
+      num_temp = (long long)atoll(val);
 
       if (li->item_class == LOG_FLOAT)
-        li->data.data_float= (double) num_temp;
+        li->data.data_float = (double)num_temp;
       else if (li->item_class == LOG_INTEGER)
-        li->data.data_integer= num_temp;
+        li->data.data_integer = num_temp;
       // if it's a well-known type, but not a numeric type, we fail
-      else
-      {
-        *state= "Argument is of numeric type, field is not.";
-        ret= SET_ARG_UNWANTED_NUMERIC;
+      else {
+        *state = "Argument is of numeric type, field is not.";
+        ret = SET_ARG_UNWANTED_NUMERIC;
       }
     }
 
     // found float
-    else
-    {
+    else {
       // if it's any ad hoc type, we set it to "ad hoc float"
-      if (log_filter_generic_type(li->type))
-      {
-        li->type=       LOG_ITEM_GEN_FLOAT;
-        li->item_class= LOG_FLOAT;
+      if (log_filter_generic_type(li->type)) {
+        li->type = LOG_ITEM_GEN_FLOAT;
+        li->item_class = LOG_FLOAT;
       }
 
       // if it's a well-known type, but not of float class, we fail
-      if (li->item_class != LOG_FLOAT)
-      {
-        *state= "Argument is of float type, field is not.";
-        ret= SET_ARG_UNWANTED_FLOAT;
-      }
-      else
-      {
-        li->data.data_float= atof(val);
+      if (li->item_class != LOG_FLOAT) {
+        *state = "Argument is of float type, field is not.";
+        ret = SET_ARG_UNWANTED_FLOAT;
+      } else {
+        li->data.data_float = atof(val);
       }
     }
 
@@ -1043,10 +945,9 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
   }
 
   // unhandled class
-  *state= "argument is of unhandled class";
+  *state = "argument is of unhandled class";
   return SET_ARG_DK_CLASS;
 }
-
 
 /**
   Set filtering rules from human-readable configuration string.
@@ -1063,57 +964,51 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
   @retval    >0  parse problem at this index in rule string
 */
 static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
-                                  const char *rules, const char **state)
-{
-  log_filter_rule    *rule;                ///< current  rule
-  log_filter_rule    *rule_prvs= nullptr;  ///< previous rule, if any
-  const char         *inp_readpos= rules;  ///< read position in submitted rules
-  const char         *backtrack;           ///< retry from here on misparse
-  const char         *token;               ///< current token in input
-  size_t              len;                 ///< token's length
-  int                 c;                   ///< counter
-  int                 rr= 0;               ///< return code for caller
-  int                 flow_old,            ///< previous flow control command
-                      flow_new= 0,         ///< current flow control command
-                      flow_first= 0;       ///< rule that had the opening IF
-  int                 cond_count;          ///< number of conditions in branch
-  log_filter_ruleset *tmp_filter_rules;    ///< the rule-set we're creating
-  log_item           *delete_item= nullptr;///< implicit item for "unset"
-  bool                inflight= false;     ///< have half-finished rule?
+                                  const char *rules, const char **state) {
+  log_filter_rule *rule;                 ///< current  rule
+  log_filter_rule *rule_prvs = nullptr;  ///< previous rule, if any
+  const char *inp_readpos = rules;       ///< read position in submitted rules
+  const char *backtrack;                 ///< retry from here on misparse
+  const char *token;                     ///< current token in input
+  size_t len;                            ///< token's length
+  int c;                                 ///< counter
+  int rr = 0;                            ///< return code for caller
+  int flow_old,                          ///< previous flow control command
+      flow_new = 0,                      ///< current flow control command
+      flow_first = 0;                    ///< rule that had the opening IF
+  int cond_count;                        ///< number of conditions in branch
+  log_filter_ruleset *tmp_filter_rules;  ///< the rule-set we're creating
+  log_item *delete_item = nullptr;       ///< implicit item for "unset"
+  bool inflight = false;                 ///< have half-finished rule?
 
-  *state= nullptr;
+  *state = nullptr;
 
-  if (ruleset == nullptr)
-    return -3;                             /* purecov: inspected */
+  if (ruleset == nullptr) return -3; /* purecov: inspected */
 
-  tmp_filter_rules= log_bf->filter_ruleset_new(&rule_tag_dragnet, 0);
+  tmp_filter_rules = log_bf->filter_ruleset_new(&rule_tag_dragnet, 0);
 
-  if (tmp_filter_rules == nullptr)
-    return -2;                             /* purecov: inspected */
+  if (tmp_filter_rules == nullptr) return -2; /* purecov: inspected */
 
   log_bf->filter_ruleset_lock(tmp_filter_rules, LOG_BUILTINS_LOCK_EXCLUSIVE);
 
-  if (inp_readpos == nullptr) // if given a nullptr, we drop the rule-set
+  if (inp_readpos == nullptr)  // if given a nullptr, we drop the rule-set
     goto done;
 
-  while (*inp_readpos)
-  {
-    cond_count=  0;
-    flow_old=    flow_new;
+  while (*inp_readpos) {
+    cond_count = 0;
+    flow_old = flow_new;
 
-    rule= (log_filter_rule *) log_bf->filter_rule_init(tmp_filter_rules);
+    rule = (log_filter_rule *)log_bf->filter_rule_init(tmp_filter_rules);
 
-    if (rule == nullptr)
-    {
-      *state= "failed to allocate a rule in the current rule-set ...";
+    if (rule == nullptr) {
+      *state = "failed to allocate a rule in the current rule-set ...";
       goto parse_error;
-    }
-    else
-      inflight= true;
+    } else
+      inflight = true;
 
     // --1--  expecting IF/ELSE/...
 
-    *state= "getting first token ...";
+    *state = "getting first token ...";
 
     // get token
     if (log_filter_get_token(&inp_readpos, &token, &len,
@@ -1121,60 +1016,55 @@ static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
       goto parse_error;
 
     // match token
-    if ((c= log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_FLOW |
-                                     LOG_FILTER_XLATE_PREFIX)) < 0)
+    if ((c = log_filter_xlate_by_name(
+             token, len, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX)) < 0)
       goto parse_error;
 
-    *state= "identified first token ...";
+    *state = "identified first token ...";
 
-    flow_new= log_filter_xlate_keys[c].item;
+    flow_new = log_filter_xlate_keys[c].item;
 
     // IF statement must start with IF (not ELSE/ELSEIF/...)
-    if (flow_old == LOG_FILTER_WORD_NONE)
-    {
-      if (flow_new != LOG_FILTER_WORD_IF)
-      {
-        *state= "IF expected";
+    if (flow_old == LOG_FILTER_WORD_NONE) {
+      if (flow_new != LOG_FILTER_WORD_IF) {
+        *state = "IF expected";
         goto parse_error;
       }
 
-      flow_first= tmp_filter_rules->count; // remember where we opened the IF
+      flow_first = tmp_filter_rules->count;  // remember where we opened the IF
     }
 
     // ELSE takes no condition => go straight to action
-    if (flow_new == LOG_FILTER_WORD_ELSE)
-    {
+    if (flow_new == LOG_FILTER_WORD_ELSE) {
       // ELSE unexpected here?
-      if (flow_old == LOG_FILTER_WORD_ELSE)
-      {
-        *state= "ELSE not expected here ...";
+      if (flow_old == LOG_FILTER_WORD_ELSE) {
+        *state = "ELSE not expected here ...";
         goto parse_error;
       }
 
-      rule_prvs->jump= 1;
-      rule->cond=      LOG_FILTER_COND_NONE;
+      rule_prvs->jump = 1;
+      rule->cond = LOG_FILTER_COND_NONE;
 
       // test for ELSE IF
-      backtrack= inp_readpos;
+      backtrack = inp_readpos;
       // get token
       if (log_filter_get_token(&inp_readpos, &token, &len,
-                               LOG_FILTER_TOKEN_KEYWORD) < 0)
-      {
-        *state= "failed to get token after ELSE ...";
+                               LOG_FILTER_TOKEN_KEYWORD) < 0) {
+        *state = "failed to get token after ELSE ...";
         goto parse_error;
       }
 
       // match token
-      if (((c= log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_FLOW |
-                                        LOG_FILTER_XLATE_PREFIX)) >= 0) &&
+      if (((c = log_filter_xlate_by_name(
+                token, len, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX)) >=
+           0) &&
           (log_filter_xlate_keys[c].item == LOG_FILTER_WORD_IF))
-        flow_new= LOG_FILTER_WORD_ELSEIF;
+        flow_new = LOG_FILTER_WORD_ELSEIF;
 
-      else
-      {
-        inp_readpos= backtrack;
-        *state= "ELSE needs no condition, parsing action-verb next ...";
-        goto parse_action;    // skip over cond parsing
+      else {
+        inp_readpos = backtrack;
+        *state = "ELSE needs no condition, parsing action-verb next ...";
+        goto parse_action;  // skip over cond parsing
       }
     }
 
@@ -1182,22 +1072,19 @@ static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
       If it's not ELSE, reset implicit UNSET item here;
       it should be set up when the condition is parsed.
     */
-    delete_item= nullptr;
+    delete_item = nullptr;
 
-    if (flow_new == LOG_FILTER_WORD_ELSEIF)
-    {
+    if (flow_new == LOG_FILTER_WORD_ELSEIF) {
       // ELSEIF unexpected here?
-      if (flow_old == LOG_FILTER_WORD_ELSE)
-      {
-        *state= "ELSEIF not expected here ...";
+      if (flow_old == LOG_FILTER_WORD_ELSE) {
+        *state = "ELSEIF not expected here ...";
         goto parse_error;
       }
 
-      rule_prvs->jump= 1;
+      rule_prvs->jump = 1;
     }
 
-
-    *state= "testing for prefix";
+    *state = "testing for prefix";
 
   parse_cond:
 
@@ -1205,97 +1092,88 @@ static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
 
     log_filter_get_token(&inp_readpos, &token, &len, LOG_FILTER_TOKEN_KEYWORD);
 
-    backtrack= token; // save in case it's not actually a prefix
+    backtrack = token;  // save in case it's not actually a prefix
 
-    if ((c= log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_COND |
-                                                 LOG_FILTER_XLATE_PREFIX)) >= 0)
-    {
+    if ((c = log_filter_xlate_by_name(
+             token, len, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX)) >=
+        0) {
       // ok, we matched a prefix operator
-      rule->cond= (log_filter_cond) log_filter_xlate_keys[c].item;
+      rule->cond = (log_filter_cond)log_filter_xlate_keys[c].item;
 
       // "NOT EXISTS" is special as it's multi-word
-      if (rule->cond == LOG_FILTER_COND_ABSENT)
-      {
+      if (rule->cond == LOG_FILTER_COND_ABSENT) {
         size_t len_not_exists;
-        int    i= 0;
+        int i = 0;
 
         // find full "NOT EXISTS" record, no matter which one we matched
-        while (log_filter_xlate_keys[i].item != LOG_FILTER_COND_ABSENT)
-          i++;
+        while (log_filter_xlate_keys[i].item != LOG_FILTER_COND_ABSENT) i++;
 
         // make sure we've actually got both words
-        len_not_exists= log_filter_xlate_keys[i].len;
-        if ((log_bs->compare(log_filter_xlate_keys[i].name,
-                             token, len_not_exists, true) != 0) ||
-            (!isspace(token[len_not_exists])))
-        {
-          *state= "NOT requires EXISTS";
+        len_not_exists = log_filter_xlate_keys[i].len;
+        if ((log_bs->compare(log_filter_xlate_keys[i].name, token,
+                             len_not_exists, true) != 0) ||
+            (!isspace(token[len_not_exists]))) {
+          *state = "NOT requires EXISTS";
           goto parse_error;
         }
 
         // if so, hooray, skip over them
-        inp_readpos= token + len_not_exists;
+        inp_readpos = token + len_not_exists;
       }
 
       // field name
       if (log_filter_get_token(&inp_readpos, &token, &len,
-                               LOG_FILTER_TOKEN_NAME) < 0)
-      {
-        *state= "field name missing or invalid after EXISTS";
+                               LOG_FILTER_TOKEN_NAME) < 0) {
+        *state = "field name missing or invalid after EXISTS";
         goto parse_error;
       }
 
-      if (log_filter_make_field(&token, &len, &rule->match) < 0)
-      {
-        *state= "could not set up field for EXISTS";
+      if (log_filter_make_field(&token, &len, &rule->match) < 0) {
+        *state = "could not set up field for EXISTS";
         goto parse_error;
       }
 
-      delete_item= &rule->match;
+      delete_item = &rule->match;
     }
 
     // --3--  infix conditional
-    else
-    {
-      inp_readpos= backtrack;
+    else {
+      inp_readpos = backtrack;
 
       // field name
       if (log_filter_get_token(&inp_readpos, &token, &len,
-                               LOG_FILTER_TOKEN_NAME))
-      {
-        *state= "field name missing or invalid before comparator";
+                               LOG_FILTER_TOKEN_NAME)) {
+        *state = "field name missing or invalid before comparator";
         goto parse_error;
       }
 
-      if (log_filter_make_field(&token, &len, &rule->match) < 0)
-      {
-        *state= "could not set up field before comparator";
+      if (log_filter_make_field(&token, &len, &rule->match) < 0) {
+        *state = "could not set up field before comparator";
         goto parse_error;
       }
 
-      delete_item= &rule->match;
+      delete_item = &rule->match;
 
       // comparator (infix)
       log_filter_get_token(&inp_readpos, &token, &len, LOG_FILTER_TOKEN_COMP);
-      if ((c= log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_REF)) < 0)
-      {
-        *state= "unknown comparator";
-        inp_readpos= token;
+      if ((c = log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_REF)) <
+          0) {
+        *state = "unknown comparator";
+        inp_readpos = token;
         goto parse_error;
       }
 
-      rule->cond= (log_filter_cond) log_filter_xlate_keys[c].item;
+      rule->cond = (log_filter_cond)log_filter_xlate_keys[c].item;
 
       // condition value
-      if (log_filter_get_token(&inp_readpos, &token, &len, LOG_FILTER_TOKEN_ARG))
-      {
-        inp_readpos= token;
+      if (log_filter_get_token(&inp_readpos, &token, &len,
+                               LOG_FILTER_TOKEN_ARG)) {
+        inp_readpos = token;
         goto parse_error;
       }
 
-      if (log_filter_set_arg(&token, &len, &rule->match, state) < 0)
-      {
-        inp_readpos= token;
+      if (log_filter_set_arg(&token, &len, &rule->match, state) < 0) {
+        inp_readpos = token;
         goto parse_error;
       }
     }
@@ -1303,32 +1181,29 @@ static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
     cond_count++;
 
     // expect THEN
-    *state= "looking for THEN";
+    *state = "looking for THEN";
 
     log_filter_get_token(&inp_readpos, &token, &len, LOG_FILTER_TOKEN_KEYWORD);
-    if (((c= log_filter_xlate_by_name(token, len,
-                                      LOG_FILTER_XLATE_FLOW)) < 0) ||
-        (log_filter_xlate_keys[c].item != LOG_FILTER_WORD_THEN))
-    {
+    if (((c = log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_FLOW)) <
+         0) ||
+        (log_filter_xlate_keys[c].item != LOG_FILTER_WORD_THEN)) {
       // THEN not found, try AND or OR
-      if ((c= log_filter_xlate_by_name(token, len,
-                                       LOG_FILTER_XLATE_CHAIN)) < 0)
-      {
-        inp_readpos= token;
+      if ((c = log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_CHAIN)) <
+          0) {
+        inp_readpos = token;
         goto parse_error;
       }
 
       // AND/OR found
-      rule->verb= (log_filter_verb) log_filter_xlate_keys[c].item;
+      rule->verb = (log_filter_verb)log_filter_xlate_keys[c].item;
 
-      rule_prvs= rule;
+      rule_prvs = rule;
       tmp_filter_rules->count++;
-      rule=      (log_filter_rule *) log_bf->filter_rule_init(tmp_filter_rules);
+      rule = (log_filter_rule *)log_bf->filter_rule_init(tmp_filter_rules);
 
-      if (rule == nullptr)
-      {
-        *state= "failed to allocate a rule in the current rule-set ...";
-        inflight= false;
+      if (rule == nullptr) {
+        *state = "failed to allocate a rule in the current rule-set ...";
+        inflight = false;
         goto parse_error;
       }
 
@@ -1338,8 +1213,6 @@ static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
 
     // THEN found, parse action.
 
-
-
   parse_action:
 
     /*
@@ -1347,157 +1220,142 @@ static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
       conditional, or we've just seen either a THEN or an ELSE.
     */
 
-    *state= "looking for action verb";
+    *state = "looking for action verb";
 
     // verb
-    if (log_filter_get_token(&inp_readpos, &token, &len,
-                             LOG_FILTER_TOKEN_NAME))
+    if (log_filter_get_token(&inp_readpos, &token, &len, LOG_FILTER_TOKEN_NAME))
       goto parse_error;
 
-    if ((c= log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_VERB)) < 0)
-    {
-      inp_readpos= token;
+    if ((c = log_filter_xlate_by_name(token, len, LOG_FILTER_XLATE_VERB)) < 0) {
+      inp_readpos = token;
       goto parse_error;
     }
 
-    rule->verb= (log_filter_verb) log_filter_xlate_keys[c].item;
+    rule->verb = (log_filter_verb)log_filter_xlate_keys[c].item;
 
     // aux name
-    if (log_filter_xlate_keys[c].flags & LOG_FILTER_XLATE_AUXNAME)
-    {
-      *state= "looking for action's field name";
+    if (log_filter_xlate_keys[c].flags & LOG_FILTER_XLATE_AUXNAME) {
+      *state = "looking for action's field name";
 
       // convenience: if item_del has no object, it uses the one from cond
       if ((log_filter_xlate_keys[c].item == LOG_FILTER_ITEM_DEL) &&
-          (*inp_readpos == '.')) // end of statement reached, unset had no arg.
+          (*inp_readpos == '.'))  // end of statement reached, unset had no arg.
       {
-        int              c;
-        char            *n;
-        size_t           key_len;
+        int c;
+        char *n;
+        size_t key_len;
 
-        if ((cond_count != 1) || (delete_item == nullptr))
-        {
-          *state= "implicit field name only allowed for "
-                  "IFs with exactly 1 condition.";
+        if ((cond_count != 1) || (delete_item == nullptr)) {
+          *state =
+              "implicit field name only allowed for "
+              "IFs with exactly 1 condition.";
           goto parse_error;
         }
 
         // see whether it's a well-known type
-        c= log_bi->wellknown_by_name(delete_item->key,
-                                     (key_len= log_bs->length(rule->match.key)));
+        c = log_bi->wellknown_by_name(
+            delete_item->key, (key_len = log_bs->length(rule->match.key)));
 
         // for ad-hoc names, copy the key; otherwise use well-known record.
         if (c != LOG_ITEM_TYPE_NOT_FOUND)
-          n= nullptr;
-        else if ((n= log_bs->strndup(rule->match.key, key_len)) == nullptr)
-        {
-          rr= -2;     /* purecov: inspected */
+          n = nullptr;
+        else if ((n = log_bs->strndup(rule->match.key, key_len)) == nullptr) {
+          rr = -2; /* purecov: inspected */
           goto done;
         }
 
-        log_bi->item_set_with_key(&rule->aux, rule->match.type, n,
-                                  (n == nullptr) ? LOG_ITEM_FREE_NONE
-                                                 : LOG_ITEM_FREE_KEY);
-      }
-      else   // explicit aux name required
+        log_bi->item_set_with_key(
+            &rule->aux, rule->match.type, n,
+            (n == nullptr) ? LOG_ITEM_FREE_NONE : LOG_ITEM_FREE_KEY);
+      } else  // explicit aux name required
       {
         if (log_filter_get_token(&inp_readpos, &token, &len,
                                  LOG_FILTER_TOKEN_NAME) < 0)
           goto parse_error;
 
-        if (log_filter_make_field(&token, &len, &rule->aux) < 0)
-        {
-          *state= "could not set up field in action";
+        if (log_filter_make_field(&token, &len, &rule->aux) < 0) {
+          *state = "could not set up field in action";
           goto parse_error;
         }
       }
 
       // skip optional assignment operator (:= or =)
-      if (log_filter_xlate_keys[c].flags & LOG_FILTER_XLATE_AUXVAL)
-      {
-        if ((*inp_readpos == ':') && (inp_readpos[1] == '='))
-        {
-          inp_readpos+= 2;
+      if (log_filter_xlate_keys[c].flags & LOG_FILTER_XLATE_AUXVAL) {
+        if ((*inp_readpos == ':') && (inp_readpos[1] == '=')) {
+          inp_readpos += 2;
           log_filter_skip_white(&inp_readpos);
-        }
-        else if ((*inp_readpos == '=') && (inp_readpos[1] != '='))
-        {
+        } else if ((*inp_readpos == '=') && (inp_readpos[1] != '=')) {
           inp_readpos++;
           log_filter_skip_white(&inp_readpos);
         }
       }
     }
 
-    if (log_filter_xlate_keys[c].flags & LOG_FILTER_XLATE_AUXVAL)
-    {
-      *state= "looking for action field's value";
+    if (log_filter_xlate_keys[c].flags & LOG_FILTER_XLATE_AUXVAL) {
+      *state = "looking for action field's value";
 
       // aux value
       if (log_filter_get_token(&inp_readpos, &token, &len,
-                               LOG_FILTER_TOKEN_ARG))
-      {
-        inp_readpos= token;
+                               LOG_FILTER_TOKEN_ARG)) {
+        inp_readpos = token;
         goto parse_error;
       }
 
       {
-        int auxval_success= log_filter_set_arg(&token, &len, &rule->aux, state);
+        int auxval_success =
+            log_filter_set_arg(&token, &len, &rule->aux, state);
 
         if ((rule->verb == LOG_FILTER_THROTTLE) &&
-            ((auxval_success  == SET_ARG_SUCCESS) ||
-             (auxval_success  == SET_ARG_FRACTION_FOUND)))
-        {
-          if (rule->aux.item_class != LOG_INTEGER)
-          {
-            *state= "action \"throttle\" requires integer or fraction";
-            inp_readpos= token;
+            ((auxval_success == SET_ARG_SUCCESS) ||
+             (auxval_success == SET_ARG_FRACTION_FOUND))) {
+          if (rule->aux.item_class != LOG_INTEGER) {
+            *state = "action \"throttle\" requires integer or fraction";
+            inp_readpos = token;
             goto parse_error;
           }
 
           // handle denominator
-          else if (auxval_success == SET_ARG_FRACTION_FOUND)
-          {
-            ulong       window_size;
-            const char *denominator= log_bs->find_first(token, '/');
-            const char *fail= "failed to parse denominator of fraction "
-                              "(0 < integer number of seconds <= 604800)";
+          else if (auxval_success == SET_ARG_FRACTION_FOUND) {
+            ulong window_size;
+            const char *denominator = log_bs->find_first(token, '/');
+            const char *fail =
+                "failed to parse denominator of fraction "
+                "(0 < integer number of seconds <= 604800)";
 
-            if (denominator != nullptr)
-            {
-              log_item  dli;
+            if (denominator != nullptr) {
+              log_item dli;
 
               memset(&dli, 0, sizeof(log_item));
               denominator++;
-              len= len - (denominator - token);
+              len = len - (denominator - token);
 
               if ((log_filter_set_arg(&denominator, &len, &dli, state) < 0) ||
                   (dli.type != LOG_ITEM_GEN_INTEGER) ||
                   (dli.data.data_integer <= 0) ||
-                  (dli.data.data_integer > 604800)) // 7 days * 60 minutes * 60s
+                  (dli.data.data_integer >
+                   604800))  // 7 days * 60 minutes * 60s
               {
-                *state= fail;
-                inp_readpos= denominator;
+                *state = fail;
+                inp_readpos = denominator;
                 goto parse_error;
               }
-              window_size= (ulong) dli.data.data_integer;
+              window_size = (ulong)dli.data.data_integer;
 
-              rule->throttle_window_size= window_size;
+              rule->throttle_window_size = window_size;
             }
           }
 
           // check numerator
-          if (rule->aux.data.data_integer <= 0)
-          {
-            *state= "numerator must be larger than 0";
-            inp_readpos= token;
+          if (rule->aux.data.data_integer <= 0) {
+            *state = "numerator must be larger than 0";
+            inp_readpos = token;
             goto parse_error;
           }
         }
 
         // not throttle
-        else if (auxval_success < 0)
-        {
-          inp_readpos= token;
+        else if (auxval_success < 0) {
+          inp_readpos = token;
           goto parse_error;
         }
       }
@@ -1505,53 +1363,49 @@ static int log_filter_dragnet_set(log_filter_ruleset *ruleset,
 
     log_filter_skip_white(&inp_readpos);
 
-    if (*inp_readpos == '.')
-    {
+    if (*inp_readpos == '.') {
       inp_readpos++;
       log_filter_skip_white(&inp_readpos);
-      flow_new= LOG_FILTER_WORD_NONE;
+      flow_new = LOG_FILTER_WORD_NONE;
 
-      { // add relative jumps to the end of all blocks in THEN/ELSEIF
-        int flow_last= tmp_filter_rules->count;
-        for (c= flow_first; c <= flow_last; c++)
-        {
+      {  // add relative jumps to the end of all blocks in THEN/ELSEIF
+        int flow_last = tmp_filter_rules->count;
+        for (c = flow_first; c <= flow_last; c++) {
           if (tmp_filter_rules->rule[c].jump != 0)
-            tmp_filter_rules->rule[c].jump= flow_last - c + 1;
+            tmp_filter_rules->rule[c].jump = flow_last - c + 1;
         }
       }
     }
 
-    rule_prvs= rule;
+    rule_prvs = rule;
 
     tmp_filter_rules->count++;
-    inflight= false;
+    inflight = false;
   }
 
-  if (flow_new != LOG_FILTER_WORD_NONE)
-  {
-    *state= "statement incomplete";
+  if (flow_new != LOG_FILTER_WORD_NONE) {
+    *state = "statement incomplete";
     goto parse_error;
   }
 
   goto done;
 
 parse_error:
-  if (inflight)                                   // make sure we also remove
-    tmp_filter_rules->count++;                    // the half-finished rule!
+  if (inflight)                 // make sure we also remove
+    tmp_filter_rules->count++;  // the half-finished rule!
 
-  rr= (int) (inp_readpos + 1 - rules);
-  log_bf->filter_ruleset_free(&tmp_filter_rules); // discard incomplete ruleset
+  rr = (int)(inp_readpos + 1 - rules);
+  log_bf->filter_ruleset_free(&tmp_filter_rules);  // discard incomplete ruleset
   return rr;
 
 done:
   log_bf->filter_ruleset_lock(ruleset, LOG_BUILTINS_LOCK_EXCLUSIVE);
   log_bf->filter_ruleset_move(tmp_filter_rules, ruleset);
-  log_bf->filter_ruleset_free(&tmp_filter_rules); // free old ruleset
+  log_bf->filter_ruleset_free(&tmp_filter_rules);  // free old ruleset
   log_bf->filter_ruleset_unlock(ruleset);
 
   return rr;
 }
-
 
 /**
   Variable listener.  This is a temporary solution until we have
@@ -1571,8 +1425,7 @@ done:
   @retval  >0  deny (user input rejected)
 */
 DEFINE_METHOD(int, log_service_imp::variable_check,
-              (log_line *ll MY_ATTRIBUTE((unused))))
-{
+              (log_line * ll MY_ATTRIBUTE((unused)))) {
   /*
     We allow changing this even when we're not in the error "stack",
     so users can configure this service, then enable it, rather than
@@ -1581,8 +1434,6 @@ DEFINE_METHOD(int, log_service_imp::variable_check,
   */
   return 0;
 }
-
-
 
 /**
   Variable listener.  This is a temporary solution until we have
@@ -1605,71 +1456,59 @@ DEFINE_METHOD(int, log_service_imp::variable_check,
   @retval >0  for success (at least one item was updated)
 */
 DEFINE_METHOD(int, log_service_imp::variable_update,
-              (log_line *ll MY_ATTRIBUTE((unused))))
-{
+              (log_line * ll MY_ATTRIBUTE((unused)))) {
   return 0;
 }
 
-
 static int check_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                                  SYS_VAR *self
-                                    MY_ATTRIBUTE((unused)),
-                                  void *save
-                                    MY_ATTRIBUTE((unused)),
-                                  struct st_mysql_value *value)
-{
-  int                 ret;
+                                  SYS_VAR *self MY_ATTRIBUTE((unused)),
+                                  void *save MY_ATTRIBUTE((unused)),
+                                  struct st_mysql_value *value) {
+  int ret;
   log_filter_ruleset *log_filter_temp_rules;
-  const char         *state= nullptr;
+  const char *state = nullptr;
 
-  char                notify_buffer[LOG_FILTER_DUMP_BUFF_SIZE];
-  int                 value_len= 0;
-  const char         *proposed_rules;
+  char notify_buffer[LOG_FILTER_DUMP_BUFF_SIZE];
+  int value_len = 0;
+  const char *proposed_rules;
 
-  if (value == nullptr)
-    return true;
+  if (value == nullptr) return true;
 
-  proposed_rules= value->val_str(value, nullptr, &value_len);
+  proposed_rules = value->val_str(value, nullptr, &value_len);
 
-  if (proposed_rules == nullptr)
-    return true;
+  if (proposed_rules == nullptr) return true;
 
   DBUG_ASSERT(proposed_rules[value_len] == '\0');
 
-  log_filter_temp_rules= log_bf->filter_ruleset_new(&rule_tag_dragnet, 0);
+  log_filter_temp_rules = log_bf->filter_ruleset_new(&rule_tag_dragnet, 0);
 
-  if (log_filter_temp_rules == nullptr)
-    return true;                         /* purecov: inspected */
+  if (log_filter_temp_rules == nullptr) return true; /* purecov: inspected */
 
-  ret= log_filter_dragnet_set(log_filter_temp_rules, proposed_rules, &state);
+  ret = log_filter_dragnet_set(log_filter_temp_rules, proposed_rules, &state);
 
   if (ret > 0)
-    log_bt->notify_client(thd, Sql_condition::SL_WARNING,
-                          ER_COMPONENT_FILTER_FLABBERGASTED,
-                          notify_buffer, sizeof(notify_buffer) - 1,
-                          "The log-filter component \"%s\" got confused at "
-                          "\"%s\" (state: %s) ...",
-                          LOG_FILTER_LANGUAGE_NAME,
-                          &proposed_rules[ret - 1], state);
-  else if (ret == 0)
-  {
-    char                 dump_buff[LOG_FILTER_DUMP_BUFF_SIZE]; ///< buffer
-    log_filter_result    dump_result;     ///< result code from dump
+    log_bt->notify_client(
+        thd, Sql_condition::SL_WARNING, ER_COMPONENT_FILTER_FLABBERGASTED,
+        notify_buffer, sizeof(notify_buffer) - 1,
+        "The log-filter component \"%s\" got confused at "
+        "\"%s\" (state: %s) ...",
+        LOG_FILTER_LANGUAGE_NAME, &proposed_rules[ret - 1], state);
+  else if (ret == 0) {
+    char dump_buff[LOG_FILTER_DUMP_BUFF_SIZE];  ///< buffer
+    log_filter_result dump_result;              ///< result code from dump
 
-    *static_cast<const char**>(save) = proposed_rules;
+    *static_cast<const char **>(save) = proposed_rules;
 
-    dump_result= log_filter_ruleset_dump(log_filter_temp_rules,
-                                         dump_buff, sizeof(dump_buff));
+    dump_result = log_filter_ruleset_dump(log_filter_temp_rules, dump_buff,
+                                          sizeof(dump_buff));
 
-    if (dump_result == LOG_FILTER_LANGUAGE_OK)
-    {
-      log_bt->notify_client(thd, Sql_condition::SL_NOTE,
-                            ER_COMPONENT_FILTER_DIAGNOSTICS,
-                            notify_buffer, sizeof(notify_buffer) - 1,
-                            "filter configuration accepted: "
-                            "SET @@global.%s.%s='%s';",
-                            LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME,
-                            dump_buff);
+    if (dump_result == LOG_FILTER_LANGUAGE_OK) {
+      log_bt->notify_client(
+          thd, Sql_condition::SL_NOTE, ER_COMPONENT_FILTER_DIAGNOSTICS,
+          notify_buffer, sizeof(notify_buffer) - 1,
+          "filter configuration accepted: "
+          "SET @@global.%s.%s='%s';",
+          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME, dump_buff);
     }
   }
 
@@ -1688,24 +1527,19 @@ static int check_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param  var_ptr  where to save the resulting (char *) value
   @param  save     pointer to the new value (see check function)
 */
-static void update_var_filter_rules(MYSQL_THD thd
-                                      MY_ATTRIBUTE((unused)),
-                                    SYS_VAR *self
-                                      MY_ATTRIBUTE((unused)),
-                                    void *var_ptr,
-                                    const void *save)
-{
-  const char          *state= nullptr;
-  const char          *new_val= *((const char **) save);
+static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                    SYS_VAR *self MY_ATTRIBUTE((unused)),
+                                    void *var_ptr, const void *save) {
+  const char *state = nullptr;
+  const char *new_val = *((const char **)save);
 
-  if ((log_filter_dragnet_set(log_filter_dragnet_rules, new_val, &state) == 0)
-      && (var_ptr != nullptr))
-  {
+  if ((log_filter_dragnet_set(log_filter_dragnet_rules, new_val, &state) ==
+       0) &&
+      (var_ptr != nullptr)) {
     // the caller will free the old value, don't double free it here!
-    *((const char **) var_ptr)= new_val;
+    *((const char **)var_ptr) = new_val;
   }
 }
-
 
 /**
   services: log filter: basic filtering
@@ -1727,12 +1561,10 @@ static void update_var_filter_rules(MYSQL_THD thd
 
   @retval          int                  number of matched rules
 */
-DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
-                                          log_line *ll))
-{
+DEFINE_METHOD(int, log_service_imp::run,
+              (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
   return log_bf->filter_run(log_filter_dragnet_rules, ll);
 }
-
 
 /**
   Open a new instance.
@@ -1752,19 +1584,16 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
   @retval  <0        a new instance could not be created
   @retval  =0        success, returned hande is valid
 */
-DEFINE_METHOD(int, log_service_imp::open, (log_line *ll MY_ATTRIBUTE((unused)),
-                                           void **instance))
-{
-  if (instance == nullptr)
-    return -1;
+DEFINE_METHOD(int, log_service_imp::open,
+              (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
+  if (instance == nullptr) return -1;
 
-  *instance= nullptr;
+  *instance = nullptr;
 
   opened++;
 
   return 0;
 }
-
 
 /**
   Close and release an instance. Flushes any buffers.
@@ -1777,18 +1606,15 @@ DEFINE_METHOD(int, log_service_imp::open, (log_line *ll MY_ATTRIBUTE((unused)),
   @retval  <0        an error occurred
   @retval  =0        success
 */
-DEFINE_METHOD(int, log_service_imp::close, (void **instance))
-{
-  if (instance == nullptr)
-    return -1;
+DEFINE_METHOD(int, log_service_imp::close, (void **instance)) {
+  if (instance == nullptr) return -1;
 
-  *instance= nullptr;
+  *instance = nullptr;
 
   opened--;
 
   return 0;
 }
-
 
 /**
   Flush any buffers.  This function will be called by the server
@@ -1806,11 +1632,9 @@ DEFINE_METHOD(int, log_service_imp::close, (void **instance))
   @retval  >0        flush completed without incident
 */
 DEFINE_METHOD(int, log_service_imp::flush,
-              (void **instance  MY_ATTRIBUTE((unused))))
-{
+              (void **instance MY_ATTRIBUTE((unused)))) {
   return 0;
 }
-
 
 /**
   De-initialization method for Component used when unloading the Component.
@@ -1819,20 +1643,18 @@ DEFINE_METHOD(int, log_service_imp::flush,
   @retval false success
   @retval true failure
 */
-mysql_service_status_t log_filter_exit()
-{
-  if (inited)
-  {
+mysql_service_status_t log_filter_exit() {
+  if (inited) {
     mysql_service_component_sys_variable_unregister->unregister_variable(
-                 LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME);
+        LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME);
 
     log_bf->filter_ruleset_lock(log_filter_dragnet_rules,
                                 LOG_BUILTINS_LOCK_EXCLUSIVE);
     log_bf->filter_ruleset_free(&log_filter_dragnet_rules);
 
-    inited=                 false;
-    opened=                 0;
-    log_error_filter_rules= nullptr;
+    inited = false;
+    opened = 0;
+    log_error_filter_rules = nullptr;
 
     return false;
   }
@@ -1846,145 +1668,122 @@ mysql_service_status_t log_filter_exit()
   @retval false success
   @retval true failure
 */
-mysql_service_status_t log_filter_init()
-{
-  const char *state=     nullptr;
-  char       *var_value;
-  size_t      var_len=   0;
-  int         rr=        -1;
+mysql_service_status_t log_filter_init() {
+  const char *state = nullptr;
+  char *var_value;
+  size_t var_len = 0;
+  int rr = -1;
 
-  if (inited)
-    return true;     /* purecov: inspected */
+  if (inited) return true; /* purecov: inspected */
 
-  inited= true;
-  var_value= new char[LOG_FILTER_DUMP_BUFF_SIZE];
+  inited = true;
+  var_value = new char[LOG_FILTER_DUMP_BUFF_SIZE];
 
-  sys_var_filter_rules.def_val= (char *) LOG_FILTER_DEFAULT_RULES;
+  sys_var_filter_rules.def_val = (char *)LOG_FILTER_DEFAULT_RULES;
 
-  log_bi= mysql_service_log_builtins;
-  log_bs= mysql_service_log_builtins_string;
-  log_bf= mysql_service_log_builtins_filter;
-  log_bt= mysql_service_log_builtins_tmp;
+  log_bi = mysql_service_log_builtins;
+  log_bs = mysql_service_log_builtins_string;
+  log_bf = mysql_service_log_builtins_filter;
+  log_bt = mysql_service_log_builtins_tmp;
 
-  if (((log_filter_dragnet_rules= log_bf->filter_ruleset_new(&rule_tag_dragnet,
-                                                             0)) == nullptr)
-      || mysql_service_component_sys_variable_register->register_variable(
-                 LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME,
-                 PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
-                 "Error log filter rules (for the dragnet filter "
-                 "configuration language)",
-                 check_var_filter_rules, update_var_filter_rules,
-                 (void *) &sys_var_filter_rules,
-                 (void *) &log_error_filter_rules)
-      || mysql_service_component_sys_variable_register->get_variable(
-                                LOG_FILTER_LANGUAGE_NAME,
-                                LOG_FILTER_VARIABLE_NAME,
-                                (void **) &var_value, &var_len)
-      || ((rr= log_filter_dragnet_set(log_filter_dragnet_rules,
-                                      var_value, &state)) != 0)
-      )
-  {
+  if (((log_filter_dragnet_rules =
+            log_bf->filter_ruleset_new(&rule_tag_dragnet, 0)) == nullptr) ||
+      mysql_service_component_sys_variable_register->register_variable(
+          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME,
+          PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
+          "Error log filter rules (for the dragnet filter "
+          "configuration language)",
+          check_var_filter_rules, update_var_filter_rules,
+          (void *)&sys_var_filter_rules, (void *)&log_error_filter_rules) ||
+      mysql_service_component_sys_variable_register->get_variable(
+          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME,
+          (void **)&var_value, &var_len) ||
+      ((rr = log_filter_dragnet_set(log_filter_dragnet_rules, var_value,
+                                    &state)) != 0)) {
     /*
       If the actual setup worked, but we were passed an invalid value
       for the variable, try to throw diagnostics!
     */
 
-    if ((rr > 0) && (log_bs != nullptr))
-    {
+    if ((rr > 0) && (log_bs != nullptr)) {
       rr--;
-      if (var_value[rr] == '\0')
-        rr= 0;
+      if (var_value[rr] == '\0') rr = 0;
 
       LogErr(ERROR_LEVEL, ER_WRONG_VALUE_FOR_VAR,
              LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_VARIABLE_NAME,
-             (var_value == nullptr)
-             ? "<NULL>"
-             : (const char *) var_value);
+             (var_value == nullptr) ? "<NULL>" : (const char *)var_value);
 
       if (var_value != nullptr)
         LogErr(WARNING_LEVEL, ER_COMPONENT_FILTER_CONFUSED,
-               LOG_FILTER_LANGUAGE_NAME,
-               &var_value[rr], state);
+               LOG_FILTER_LANGUAGE_NAME, &var_value[rr], state);
 
       // try to set default value. if that fails as well, refuse to load.
-      if ((rr= log_filter_dragnet_set(log_filter_dragnet_rules,
-                                      sys_var_filter_rules.def_val,
-                                      &state)) == 0)
-      {
-        char *old= log_error_filter_rules;
-        if ((log_error_filter_rules=
-             log_bs->strndup(sys_var_filter_rules.def_val,
-                             log_bs->length(sys_var_filter_rules.def_val) + 1))
-            != nullptr)
-        {
-          if (old != nullptr)
-            log_bs->free((void *) old);
+      if ((rr = log_filter_dragnet_set(log_filter_dragnet_rules,
+                                       sys_var_filter_rules.def_val, &state)) ==
+          0) {
+        char *old = log_error_filter_rules;
+        if ((log_error_filter_rules = log_bs->strndup(
+                 sys_var_filter_rules.def_val,
+                 log_bs->length(sys_var_filter_rules.def_val) + 1)) !=
+            nullptr) {
+          if (old != nullptr) log_bs->free((void *)old);
           goto success;
         }
 
         // if we failed to copy the default, restore the previous value
-        log_error_filter_rules= old;
+        log_error_filter_rules = old;
       }
 
       LogErr(ERROR_LEVEL, ER_WRONG_VALUE_FOR_VAR,
-             LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_VARIABLE_NAME,
-             "DEFAULT");
+             LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_VARIABLE_NAME, "DEFAULT");
     }
 
-    delete []var_value;  /* purecov: begin inspected */
+    delete[] var_value; /* purecov: begin inspected */
     log_filter_exit();
-    return true;         /* purecov: end */
+    return true; /* purecov: end */
   }
 
 success:
   DBUG_ASSERT(var_value[var_len] == '\0');
-  delete []var_value;
+  delete[] var_value;
   return false;
 }
 
-
 /* implementing a service: log_filter */
 BEGIN_SERVICE_IMPLEMENTATION(log_filter_dragnet, log_service)
-  log_service_imp::run,
-  log_service_imp::flush,
-  nullptr,
-  nullptr,
-  log_service_imp::variable_check,
-  log_service_imp::variable_update
-END_SERVICE_IMPLEMENTATION()
+log_service_imp::run, log_service_imp::flush, nullptr, nullptr,
+    log_service_imp::variable_check,
+    log_service_imp::variable_update END_SERVICE_IMPLEMENTATION()
 
-/* component provides: just the log_filter service, for now */
-BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)
-  PROVIDES_SERVICE(log_filter_dragnet, log_service)
-END_COMPONENT_PROVIDES()
+    /* component provides: just the log_filter service, for now */
+    BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)
+        PROVIDES_SERVICE(log_filter_dragnet, log_service)
+            END_COMPONENT_PROVIDES()
 
-/* component requires: pluggable system variables, log-builtins */
-BEGIN_COMPONENT_REQUIRES(log_filter_dragnet)
-  REQUIRES_SERVICE(component_sys_variable_register)
-  REQUIRES_SERVICE(component_sys_variable_unregister)
-  REQUIRES_SERVICE(log_builtins)
-  REQUIRES_SERVICE(log_builtins_string)
-  REQUIRES_SERVICE(log_builtins_filter)
-  REQUIRES_SERVICE(log_builtins_tmp)
-END_COMPONENT_REQUIRES()
+    /* component requires: pluggable system variables, log-builtins */
+    BEGIN_COMPONENT_REQUIRES(log_filter_dragnet)
+        REQUIRES_SERVICE(component_sys_variable_register)
+            REQUIRES_SERVICE(component_sys_variable_unregister)
+                REQUIRES_SERVICE(log_builtins)
+                    REQUIRES_SERVICE(log_builtins_string)
+                        REQUIRES_SERVICE(log_builtins_filter)
+                            REQUIRES_SERVICE(log_builtins_tmp)
+                                END_COMPONENT_REQUIRES()
 
-/* component description */
-BEGIN_COMPONENT_METADATA(log_filter_dragnet)
-  METADATA("mysql.author",  "Oracle Corporation")
-  METADATA("mysql.license", "GPL")
-  METADATA("log_service_type", "filter")
-END_COMPONENT_METADATA()
+    /* component description */
+    BEGIN_COMPONENT_METADATA(log_filter_dragnet)
+        METADATA("mysql.author", "Oracle Corporation")
+            METADATA("mysql.license", "GPL")
+                METADATA("log_service_type", "filter") END_COMPONENT_METADATA()
 
-/* component declaration */
-DECLARE_COMPONENT(log_filter_dragnet, "mysql:log_filter_dragnet")
-  log_filter_init,
-  log_filter_exit
-END_DECLARE_COMPONENT()
+    /* component declaration */
+    DECLARE_COMPONENT(log_filter_dragnet,
+                      "mysql:log_filter_dragnet") log_filter_init,
+    log_filter_exit END_DECLARE_COMPONENT()
 
-/* components contained in this library.
-   for now assume that each library will have exactly one component. */
-DECLARE_LIBRARY_COMPONENTS
-  &COMPONENT_REF(log_filter_dragnet)
-END_DECLARE_LIBRARY_COMPONENTS
+    /* components contained in this library.
+       for now assume that each library will have exactly one component. */
+    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(log_filter_dragnet)
+        END_DECLARE_LIBRARY_COMPONENTS
 
-/* EOT */
+    /* EOT */

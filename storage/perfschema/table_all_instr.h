@@ -43,75 +43,35 @@
 
 /** Position of a cursor on table_all_instr. */
 struct pos_all_instr : public PFS_double_index,
-                       public PFS_instrument_view_constants
-{
-  pos_all_instr() : PFS_double_index(FIRST_VIEW, 0)
-  {
-  }
+                       public PFS_instrument_view_constants {
+  pos_all_instr() : PFS_double_index(FIRST_VIEW, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = FIRST_VIEW;
     m_index_2 = 0;
   }
 
-  inline bool
-  has_more_view(void)
-  {
-    return (m_index_1 <= LAST_VIEW);
-  }
+  inline bool has_more_view(void) { return (m_index_1 <= LAST_VIEW); }
 
-  inline void
-  next_view(void)
-  {
+  inline void next_view(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
-class PFS_index_all_instr : public PFS_engine_index
-{
-public:
-  PFS_index_all_instr(PFS_engine_key *key_1) : PFS_engine_index(key_1)
-  {
-  }
+class PFS_index_all_instr : public PFS_engine_index {
+ public:
+  PFS_index_all_instr(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_all_instr()
-  {
-  }
+  ~PFS_index_all_instr() {}
 
-  virtual bool
-  match(PFS_mutex *)
-  {
-    return false;
-  }
-  virtual bool
-  match(PFS_rwlock *)
-  {
-    return false;
-  }
-  virtual bool
-  match(PFS_cond *)
-  {
-    return false;
-  }
-  virtual bool
-  match(PFS_file *)
-  {
-    return false;
-  }
-  virtual bool
-  match(PFS_socket *)
-  {
-    return false;
-  }
+  virtual bool match(PFS_mutex *) { return false; }
+  virtual bool match(PFS_rwlock *) { return false; }
+  virtual bool match(PFS_cond *) { return false; }
+  virtual bool match(PFS_file *) { return false; }
+  virtual bool match(PFS_socket *) { return false; }
   /* All views match by default. */
-  virtual bool
-  match_view(uint view MY_ATTRIBUTE((unused)))
-  {
-    return true;
-  }
+  virtual bool match_view(uint view MY_ATTRIBUTE((unused))) { return true; }
 };
 
 /**
@@ -123,30 +83,23 @@ public:
   - a view on all file instances,
   - a view on all socket instances
 */
-class table_all_instr : public PFS_engine_table
-{
-public:
+class table_all_instr : public PFS_engine_table {
+ public:
   static ha_rows get_row_count();
 
-  virtual int
-  index_init(uint, bool)
-  {
-    return 0;
-  }
+  virtual int index_init(uint, bool) { return 0; }
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
   virtual int index_next(void);
 
-protected:
+ protected:
   table_all_instr(const PFS_engine_table_share *share);
 
-public:
-  ~table_all_instr()
-  {
-  }
+ public:
+  ~table_all_instr() {}
 
-protected:
+ protected:
   /**
     Build a row in the mutex instance view.
     @param pfs                        the mutex instance

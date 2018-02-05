@@ -25,7 +25,6 @@
 
 #include "sql/sql_cmd.h"  // Sql_cmd
 
-
 #ifndef _WIN32
 /**
   Check if mysqld is managed by an external supervisor.
@@ -36,20 +35,16 @@
 bool is_mysqld_managed();
 #endif  // _WIN32
 
-
 /**
   Sql_cmd_restart_server represents the RESTART server statement.
 */
 
-class Sql_cmd_restart_server : public Sql_cmd
-{
-public:
+class Sql_cmd_restart_server : public Sql_cmd {
+ public:
   bool execute(THD *thd) override;
-  enum_sql_command sql_command_code() const override
-  {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_RESTART_SERVER;
   }
 };
 
-
-#endif // SQL_RESTART_SERVER_H_
+#endif  // SQL_RESTART_SERVER_H_

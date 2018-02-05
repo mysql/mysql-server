@@ -51,9 +51,8 @@
   We will revisit this decision in the future if any of the choices become a
   problem and when we start using C++ 11.
 */
-class Gcs_xcom_notification
-{
-public:
+class Gcs_xcom_notification {
+ public:
   /**
     Constructor for Gcs_xcom_notification which an abstract class
     that represents notifications sent from XCOM to MySQL GCS.
@@ -66,41 +65,37 @@ public:
     execution returns true.
   */
 
-  explicit Gcs_xcom_notification() { }
-
+  explicit Gcs_xcom_notification() {}
 
   /**
     Task implemented by this notification which calls do_execute.
   */
 
-  virtual bool operator()()= 0;
-
+  virtual bool operator()() = 0;
 
   /**
     Destructor for the Gcs_xcom_notification.
   */
 
-  virtual ~Gcs_xcom_notification() { }
+  virtual ~Gcs_xcom_notification() {}
 
-private:
+ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_notification(Gcs_xcom_notification const&);
-  Gcs_xcom_notification& operator=(Gcs_xcom_notification const&);
+  Gcs_xcom_notification(Gcs_xcom_notification const &);
+  Gcs_xcom_notification &operator=(Gcs_xcom_notification const &);
 };
 
-typedef void (xcom_initialize_functor)();
-typedef void (xcom_finalize_functor)();
-class Gcs_xcom_engine
-{
-public:
+typedef void(xcom_initialize_functor)();
+typedef void(xcom_finalize_functor)();
+class Gcs_xcom_engine {
+ public:
   /**
     Constructor for Gcs_xcom_engine.
   */
 
   explicit Gcs_xcom_engine();
-
 
   /**
     Destructor for Gcs_xcom_engine.
@@ -108,14 +103,12 @@ public:
 
   ~Gcs_xcom_engine();
 
-
   /**
     Start the notification processing by spwaning a thread that will be
     responsible for reading all incoming notifications.
   */
 
   void initialize(xcom_initialize_functor *functor);
-
 
   /**
     Finalize the notification processing by stopping the thread that is
@@ -132,7 +125,6 @@ public:
 
   void finalize(xcom_finalize_functor *functor);
 
-
   /**
     Process notifications from the incoming queue until an empty
     notifications comes in.
@@ -140,14 +132,12 @@ public:
 
   void process();
 
-
   /**
     Clean up the notification queue and also forbid any incoming
     notitification to be added to the queue.
   */
 
   void cleanup();
-
 
   /**
     Push a notification to the queue.
@@ -161,7 +151,7 @@ public:
 
   bool push(Gcs_xcom_notification *notification);
 
-private:
+ private:
   /*
     Condition variable used to inform when there are new
     notifications in the queue.
@@ -192,10 +182,9 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_engine(Gcs_xcom_engine const&);
-  Gcs_xcom_engine& operator=(Gcs_xcom_engine const&);
+  Gcs_xcom_engine(Gcs_xcom_engine const &);
+  Gcs_xcom_engine &operator=(Gcs_xcom_engine const &);
 };
-
 
 /**
   Template that defines whether a notification shall make the
@@ -211,22 +200,19 @@ private:
   }
 */
 template <bool stop>
-class Parameterized_notification : public Gcs_xcom_notification
-{
-public:
+class Parameterized_notification : public Gcs_xcom_notification {
+ public:
   /**
     Constructor for Parameterized_notification.
   */
 
-  explicit Parameterized_notification() { }
-
+  explicit Parameterized_notification() {}
 
   /**
     Destructor for Parameterized_notification.
   */
 
-  virtual ~Parameterized_notification() { }
-
+  virtual ~Parameterized_notification() {}
 
   /**
     Task implemented by this notification which calls do_execute.
@@ -234,35 +220,32 @@ public:
     Return whether the notification should stop the engine or not.
   */
 
-  bool operator()()
-  {
+  bool operator()() {
     do_execute();
 
     return stop;
   }
 
-private:
+ private:
   /**
     Method that must be implemented buy the different types of
     notifications.
   */
 
-  virtual void do_execute()=0;
+  virtual void do_execute() = 0;
 
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Parameterized_notification(Parameterized_notification const&);
-  Parameterized_notification& operator=(Parameterized_notification const&);
+  Parameterized_notification(Parameterized_notification const &);
+  Parameterized_notification &operator=(Parameterized_notification const &);
 };
-
 
 /**
    Notification used to stop the Gcs_xcom_engine.
 */
-class Finalize_notification : public Parameterized_notification<true>
-{
-public:
+class Finalize_notification : public Parameterized_notification<true> {
+ public:
   /**
     Constructor for Finalize_notification.
 
@@ -271,10 +254,8 @@ public:
                     core of the execution.
   */
 
-  explicit Finalize_notification(
-    Gcs_xcom_engine *gcs_engine, xcom_finalize_functor *functor
-  );
-
+  explicit Finalize_notification(Gcs_xcom_engine *gcs_engine,
+                                 xcom_finalize_functor *functor);
 
   /**
     Destructor for Finalize_notification.
@@ -282,7 +263,7 @@ public:
 
   ~Finalize_notification();
 
-private:
+ private:
   /**
     Task implemented by this notification.
   */
@@ -303,14 +284,12 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Finalize_notification(Finalize_notification const&);
-  Finalize_notification& operator=(Finalize_notification const&);
+  Finalize_notification(Finalize_notification const &);
+  Finalize_notification &operator=(Finalize_notification const &);
 };
 
-
-class Initialize_notification : public Parameterized_notification<false>
-{
-public:
+class Initialize_notification : public Parameterized_notification<false> {
+ public:
   /**
     Constructor for Initialize_notification.
 
@@ -318,10 +297,7 @@ public:
                     core of the execution.
   */
 
-  explicit Initialize_notification(
-    xcom_initialize_functor *functor
-  );
-
+  explicit Initialize_notification(xcom_initialize_functor *functor);
 
   /**
     Destructor for Initialize_notification.
@@ -329,7 +305,7 @@ public:
 
   ~Initialize_notification();
 
-private:
+ private:
   /**
     Task implemented by this notification.
   */
@@ -345,19 +321,17 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Initialize_notification(Initialize_notification const&);
-  Initialize_notification& operator=(Initialize_notification const&);
+  Initialize_notification(Initialize_notification const &);
+  Initialize_notification &operator=(Initialize_notification const &);
 };
 
-
-
-typedef void (xcom_receive_data_functor)(synode_no, Gcs_xcom_nodes *, u_int, char *);
+typedef void(xcom_receive_data_functor)(synode_no, Gcs_xcom_nodes *, u_int,
+                                        char *);
 /**
   Notification used to inform that data has been totally ordered.
 */
-class Data_notification : public Parameterized_notification<false>
-{
-public:
+class Data_notification : public Parameterized_notification<false> {
+ public:
   /**
     Constructor for Data_notification.
 
@@ -371,18 +345,16 @@ public:
   */
 
   explicit Data_notification(xcom_receive_data_functor *functor,
-                             synode_no message_id,
-                             Gcs_xcom_nodes *xcom_nodes,
+                             synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
                              u_int size, char *data);
 
-
-   /**
-     Destructor for Data_notification
-   */
+  /**
+    Destructor for Data_notification
+  */
 
   ~Data_notification();
 
-private:
+ private:
   /**
     Task implemented by this notification which calls the functor
     with the parameters provided in the contructor.
@@ -420,19 +392,17 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Data_notification(Data_notification const&);
-  Data_notification& operator=(Data_notification const&);
+  Data_notification(Data_notification const &);
+  Data_notification &operator=(Data_notification const &);
 };
 
-
-typedef void (xcom_status_functor)(int);
+typedef void(xcom_status_functor)(int);
 /**
   Notification used to inform that has been a change in XCOM's state
   machine such as it has started up or shut down.
 */
-class Status_notification : public Parameterized_notification<false>
-{
-public:
+class Status_notification : public Parameterized_notification<false> {
+ public:
   /**
     Constructor for Status_notification.
 
@@ -443,14 +413,13 @@ public:
 
   explicit Status_notification(xcom_status_functor *functor, int status);
 
-
   /**
     Destructor for Status_notification.
   */
 
   ~Status_notification();
 
-private:
+ private:
   /**
     Task implemented by this notification.
   */
@@ -461,7 +430,7 @@ private:
     Pointer to a function that contains that actual core of the
     execution.
   */
-  xcom_status_functor* m_functor;
+  xcom_status_functor *m_functor;
 
   /*
     XCOM's status.
@@ -471,19 +440,17 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Status_notification(Status_notification const&);
-  Status_notification& operator=(Status_notification const&);
+  Status_notification(Status_notification const &);
+  Status_notification &operator=(Status_notification const &);
 };
 
-
-typedef void (xcom_global_view_functor)(synode_no, synode_no, Gcs_xcom_nodes *);
+typedef void(xcom_global_view_functor)(synode_no, synode_no, Gcs_xcom_nodes *);
 /**
   Notification used to inform there have been change to the configuration,
   i.e. nodes have been added, removed or considered dead/faulty.
 */
-class Global_view_notification : public Parameterized_notification<false>
-{
-public:
+class Global_view_notification : public Parameterized_notification<false> {
+ public:
   /**
     Constructor for Global_view_notification.
 
@@ -496,11 +463,9 @@ public:
                        to deliver the message.
   */
 
-  explicit Global_view_notification(xcom_global_view_functor* functor,
-                               synode_no config_id,
-                               synode_no message_id,
-                               Gcs_xcom_nodes *xcom_nodes);
-
+  explicit Global_view_notification(xcom_global_view_functor *functor,
+                                    synode_no config_id, synode_no message_id,
+                                    Gcs_xcom_nodes *xcom_nodes);
 
   /**
     Destructor for Global_view_notification.
@@ -508,7 +473,7 @@ public:
 
   ~Global_view_notification();
 
-private:
+ private:
   /**
     Task implemented by this notification.
   */
@@ -541,18 +506,16 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Global_view_notification(Global_view_notification const&);
-  Global_view_notification& operator=(Global_view_notification const&);
+  Global_view_notification(Global_view_notification const &);
+  Global_view_notification &operator=(Global_view_notification const &);
 };
 
-
-typedef void (xcom_local_view_functor)(synode_no, Gcs_xcom_nodes *);
+typedef void(xcom_local_view_functor)(synode_no, Gcs_xcom_nodes *);
 /**
   Notification used to provide hints on nodes' availability.
 */
-class Local_view_notification : public Parameterized_notification<false>
-{
-public:
+class Local_view_notification : public Parameterized_notification<false> {
+ public:
   /**
     Constructor for Local_view_notification.
 
@@ -563,17 +526,16 @@ public:
                        happened.
   */
 
-  explicit Local_view_notification(xcom_local_view_functor* functor,
+  explicit Local_view_notification(xcom_local_view_functor *functor,
                                    synode_no message_id,
                                    Gcs_xcom_nodes *xcom_nodes);
-
 
   /**
     Destructor for Local_view_notification.
   */
   ~Local_view_notification();
 
-private:
+ private:
   /**
     Task implemented by this notification.
   */
@@ -599,19 +561,17 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Local_view_notification(Local_view_notification const&);
-  Local_view_notification& operator=(Local_view_notification const&);
+  Local_view_notification(Local_view_notification const &);
+  Local_view_notification &operator=(Local_view_notification const &);
 };
 
-
-typedef void (xcom_control_functor)(Gcs_control_interface *);
+typedef void(xcom_control_functor)(Gcs_control_interface *);
 /**
   Notification used to make a node join or leave the cluster, provided
   the system was already initialized.
 */
-class Control_notification : public Parameterized_notification<false>
-{
-public:
+class Control_notification : public Parameterized_notification<false> {
+ public:
   /**
     Constructor for Control_notification.
 
@@ -621,15 +581,14 @@ public:
   */
 
   explicit Control_notification(xcom_control_functor *functor,
-                             Gcs_control_interface *control_if);
-
+                                Gcs_control_interface *control_if);
 
   /**
     Destructor for Control_notification.
   */
   ~Control_notification();
 
-private:
+ private:
   /**
     Task implemented by this notification.
   */
@@ -651,7 +610,7 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Control_notification(Control_notification const&);
-  Control_notification& operator=(Control_notification const&);
+  Control_notification(Control_notification const &);
+  Control_notification &operator=(Control_notification const &);
 };
-#endif // GCS_XCOM_NOTIFICATION_INCLUDED
+#endif  // GCS_XCOM_NOTIFICATION_INCLUDED

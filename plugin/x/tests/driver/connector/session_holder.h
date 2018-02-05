@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -37,11 +37,10 @@
 #include "plugin/x/client/mysqlxclient/xsession.h"
 #include "plugin/x/tests/driver/formatters/console.h"
 
-
 struct Connection_options {
   std::string socket;
   std::string host;
-  int         port { 0 };
+  int port{0};
 
   std::string user;
   std::string password;
@@ -55,21 +54,17 @@ struct Connection_options {
   std::string ssl_cipher;
   std::string ssl_key;
   std::string allowed_tls;
-  int64_t     io_timeout { -1 };
-  bool        dont_wait_for_disconnect { false };
-  bool        trace_protocol { false };
-  xcl::Internet_protocol ip_mode { xcl::Internet_protocol::V4 };
-  bool        compatible { false };
+  int64_t io_timeout{-1};
+  bool dont_wait_for_disconnect{false};
+  bool trace_protocol{false};
+  xcl::Internet_protocol ip_mode{xcl::Internet_protocol::V4};
+  bool compatible{false};
 
   bool is_ssl_set() const {
-    return !ssl_ca.empty() ||
-        !ssl_ca_path.empty() ||
-        !ssl_cert.empty() ||
-        !ssl_cipher.empty() ||
-        !ssl_key.empty();
+    return !ssl_ca.empty() || !ssl_ca_path.empty() || !ssl_cert.empty() ||
+           !ssl_cipher.empty() || !ssl_key.empty();
   }
 };
-
 
 class Session_holder {
  private:
@@ -82,7 +77,7 @@ class Session_holder {
   xcl::XSession *get_session();
 
   bool try_get_number_of_received_messages(const std::string message_name,
-                               uint64_t *value) const;
+                                           uint64_t *value) const;
   xcl::XError setup_session(const Connection_options &options);
   xcl::XError setup_connection(const Connection_options &options);
   void setup_ssl(const Connection_options &options);
@@ -106,21 +101,18 @@ class Session_holder {
       const xcl::XProtocol::Server_message_type_id msg_id,
       const xcl::XProtocol::Message &msg);
 
-  xcl::Handler_result dump_notices(
-      const xcl::XProtocol *protocol,
-      const bool is_global,
-      const Frame_type type,
-      const char *data,
-      const uint32_t data_length);
+  xcl::Handler_result dump_notices(const xcl::XProtocol *protocol,
+                                   const bool is_global, const Frame_type type,
+                                   const char *data,
+                                   const uint32_t data_length);
 
-  void print_message(
-      const std::string &direction,
-      const xcl::XProtocol::Message &msg);
+  void print_message(const std::string &direction,
+                     const xcl::XProtocol::Message &msg);
 
-  xcl::XProtocol::Handler_id      m_handler_id{-1};
-  std::unique_ptr<xcl::XSession>  m_session;
+  xcl::XProtocol::Handler_id m_handler_id{-1};
+  std::unique_ptr<xcl::XSession> m_session;
   std::map<std::string, uint64_t> m_received_msg_counters;
-  const Console                  &m_console;
+  const Console &m_console;
 };
 
 #endif  // X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_

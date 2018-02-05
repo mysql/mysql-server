@@ -34,29 +34,24 @@ namespace log_throttle_unittest {
 
 using my_testing::Server_initializer;
 
-int summary_count= 0;
+int summary_count = 0;
 char last_query[10];
 
-static bool slow_logger(THD*, const char *query, size_t)
-{
+static bool slow_logger(THD *, const char *query, size_t) {
   summary_count++;
   strcpy(last_query, query);
   return false;
 }
 
-
-class LogThrottleTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp()
-  {
+class LogThrottleTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
     initializer.SetUp();
     mysql_mutex_init(0, &m_mutex, MY_MUTEX_INIT_FAST);
-    summary_count= 0;
+    summary_count = 0;
   }
 
-  virtual void TearDown()
-  {
+  virtual void TearDown() {
     initializer.TearDown();
     mysql_mutex_destroy(&m_mutex);
   }
@@ -67,17 +62,15 @@ protected:
   mysql_mutex_t m_mutex;
 };
 
-
 // Slow_log_throttles test cases starts from here.
 
 /*
   Test basic functionality - throttling, eligibility, printing of summary of
                              Slow_log_throttle.
 */
-TEST_F(LogThrottleTest, SlowLogBasic)
-{
-  ulong threshold= 2;
-  ulong window= 1000000;
+TEST_F(LogThrottleTest, SlowLogBasic) {
+  ulong threshold = 2;
+  ulong window = 1000000;
   Slow_log_throttle throttle(&threshold, &m_mutex, window, slow_logger, "%lu");
 
   // Should not be throttled
@@ -110,12 +103,10 @@ TEST_F(LogThrottleTest, SlowLogBasic)
   EXPECT_EQ(2, summary_count);
 }
 
-
 // Test changes to the threshold level of slow logger
-TEST_F(LogThrottleTest, SlowLogThresholdChange)
-{
-  ulong threshold= 2;
-  ulong window= 1000000;
+TEST_F(LogThrottleTest, SlowLogThresholdChange) {
+  ulong threshold = 2;
+  ulong window = 1000000;
   Slow_log_throttle throttle(&threshold, &m_mutex, window, slow_logger, "%lu");
 
   // Reach threshold
@@ -127,12 +118,12 @@ TEST_F(LogThrottleTest, SlowLogThresholdChange)
   EXPECT_EQ(0, summary_count);
 
   // Reduce threshold, flush and check that summary was printed
-  threshold= 1;
+  threshold = 1;
   EXPECT_TRUE(throttle.flush(thd()));
   EXPECT_EQ(1, summary_count);
 
   // Increase threshold and reach it
-  threshold= 3;
+  threshold = 3;
   EXPECT_FALSE(throttle.log(thd(), true));
   EXPECT_FALSE(throttle.log(thd(), true));
   EXPECT_FALSE(throttle.log(thd(), true));
@@ -142,12 +133,10 @@ TEST_F(LogThrottleTest, SlowLogThresholdChange)
   EXPECT_EQ(1, summary_count);
 }
 
-
 // Test number of suppressed messages written by slow logger
-TEST_F(LogThrottleTest, SlowLogSuppressCount)
-{
-  ulong threshold= 1;
-  ulong window= 1000000;
+TEST_F(LogThrottleTest, SlowLogSuppressCount) {
+  ulong threshold = 1;
+  ulong window = 1000000;
   Slow_log_throttle throttle(&threshold, &m_mutex, window, slow_logger, "%lu");
 
   // Suppress 3 events
@@ -169,6 +158,6 @@ TEST_F(LogThrottleTest, SlowLogSuppressCount)
   EXPECT_EQ(2, summary_count);
   EXPECT_STREQ("2", last_query);
 }
-//End of Slow_log_throttles test cases.
+// End of Slow_log_throttles test cases.
 
-}
+}  // namespace log_throttle_unittest

@@ -23,10 +23,9 @@
 #ifndef DD__FOREIGN_KEY_INCLUDED
 #define DD__FOREIGN_KEY_INCLUDED
 
-
-#include "sql/dd/collection.h"         // dd::Collection
-#include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/collection.h"           // dd::Collection
+#include "sql/dd/sdi_fwd.h"              // dd::Sdi_wcontext
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 #include "sql/dd/types/object_table.h"
 
 namespace dd {
@@ -39,38 +38,34 @@ class Index;
 class Table;
 
 namespace tables {
-  class Foreign_keys;
+class Foreign_keys;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key : virtual public Entity_object
-{
-public:
-  typedef Collection<Foreign_key_element*> Foreign_key_elements;
+class Foreign_key : virtual public Entity_object {
+ public:
+  typedef Collection<Foreign_key_element *> Foreign_key_elements;
   typedef Foreign_key_impl Impl;
   typedef tables::Foreign_keys DD_table;
 
-public:
-  enum enum_rule
-  {
-    RULE_NO_ACTION= 1,
+ public:
+  enum enum_rule {
+    RULE_NO_ACTION = 1,
     RULE_RESTRICT,
     RULE_CASCADE,
     RULE_SET_NULL,
     RULE_SET_DEFAULT
   };
 
-  enum enum_match_option
-  {
-    OPTION_NONE= 1,
+  enum enum_match_option {
+    OPTION_NONE = 1,
     OPTION_PARTIAL,
     OPTION_FULL,
   };
 
-public:
-  virtual ~Foreign_key()
-  { };
+ public:
+  virtual ~Foreign_key(){};
 
   /////////////////////////////////////////////////////////////////////////
   // parent table.
@@ -144,7 +139,6 @@ public:
 
   virtual Foreign_key_elements *elements() = 0;
 
-
   /**
     Converts *this into json.
 
@@ -158,7 +152,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -185,48 +178,44 @@ public:
 // Class to hold de-normalized information about FKs to be added
 // to dd::Table objects representing FK parents.
 
-class Foreign_key_parent
-{
-public:
-  Foreign_key_parent():
-    m_child_schema_name(),
-    m_child_table_name(),
-    m_fk_name(),
-    m_update_rule(Foreign_key::enum_rule::RULE_NO_ACTION),
-    m_delete_rule(Foreign_key::enum_rule::RULE_NO_ACTION)
-  { };
+class Foreign_key_parent {
+ public:
+  Foreign_key_parent()
+      : m_child_schema_name(),
+        m_child_table_name(),
+        m_fk_name(),
+        m_update_rule(Foreign_key::enum_rule::RULE_NO_ACTION),
+        m_delete_rule(Foreign_key::enum_rule::RULE_NO_ACTION){};
 
-  const String_type &child_schema_name() const
-  { return m_child_schema_name; }
+  const String_type &child_schema_name() const { return m_child_schema_name; }
 
-  void set_child_schema_name(const String_type &child_schema_name)
-  { m_child_schema_name= child_schema_name; }
+  void set_child_schema_name(const String_type &child_schema_name) {
+    m_child_schema_name = child_schema_name;
+  }
 
-  const String_type &child_table_name() const
-  { return m_child_table_name; }
+  const String_type &child_table_name() const { return m_child_table_name; }
 
-  void set_child_table_name(const String_type &child_table_name)
-  { m_child_table_name= child_table_name; }
+  void set_child_table_name(const String_type &child_table_name) {
+    m_child_table_name = child_table_name;
+  }
 
-  const String_type &fk_name() const
-  { return m_fk_name; }
+  const String_type &fk_name() const { return m_fk_name; }
 
-  void set_fk_name(const String_type &fk_name)
-  { m_fk_name= fk_name; }
+  void set_fk_name(const String_type &fk_name) { m_fk_name = fk_name; }
 
-  Foreign_key::enum_rule update_rule() const
-  { return m_update_rule; }
+  Foreign_key::enum_rule update_rule() const { return m_update_rule; }
 
-  void set_update_rule(Foreign_key::enum_rule update_rule)
-  { m_update_rule= update_rule; }
+  void set_update_rule(Foreign_key::enum_rule update_rule) {
+    m_update_rule = update_rule;
+  }
 
-  Foreign_key::enum_rule delete_rule() const
-  { return m_delete_rule; }
+  Foreign_key::enum_rule delete_rule() const { return m_delete_rule; }
 
-  void set_delete_rule(Foreign_key::enum_rule delete_rule)
-  { m_delete_rule= delete_rule; }
+  void set_delete_rule(Foreign_key::enum_rule delete_rule) {
+    m_delete_rule = delete_rule;
+  }
 
-private:
+ private:
   String_type m_child_schema_name;
   String_type m_child_table_name;
   String_type m_fk_name;
@@ -236,6 +225,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__FOREIGN_KEY_INCLUDED
+#endif  // DD__FOREIGN_KEY_INCLUDED

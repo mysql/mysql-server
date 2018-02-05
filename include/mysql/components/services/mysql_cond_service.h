@@ -23,41 +23,32 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_MYSQL_COND_SERVICE_H
 #define COMPONENTS_SERVICES_MYSQL_COND_SERVICE_H
 
-#include <mysql/components/services/mysql_cond_bits.h>
-#include <mysql/components/services/psi_cond_bits.h>
-#include <mysql/components/services/mysql_mutex_bits.h>
 #include <mysql/components/service.h>
+#include <mysql/components/services/mysql_cond_bits.h>
+#include <mysql/components/services/mysql_mutex_bits.h>
+#include <mysql/components/services/psi_cond_bits.h>
 
-typedef void (*mysql_cond_register_t)(const char *category,
-                                      PSI_cond_info *info,
+typedef void (*mysql_cond_register_t)(const char *category, PSI_cond_info *info,
                                       int count);
 
-typedef int (*mysql_cond_init_t)(PSI_cond_key key,
-                                 mysql_cond_t *that,
-                                 const char *src_file,
-                                 unsigned int src_line);
+typedef int (*mysql_cond_init_t)(PSI_cond_key key, mysql_cond_t *that,
+                                 const char *src_file, unsigned int src_line);
 
-typedef int (*mysql_cond_destroy_t)(mysql_cond_t *that,
-                                    const char *src_file,
+typedef int (*mysql_cond_destroy_t)(mysql_cond_t *that, const char *src_file,
                                     unsigned int src_line);
 
-typedef int (*mysql_cond_wait_t)(mysql_cond_t *that,
-                                 mysql_mutex_t *mutex,
-                                 const char *src_file,
-                                 unsigned int src_line);
+typedef int (*mysql_cond_wait_t)(mysql_cond_t *that, mysql_mutex_t *mutex,
+                                 const char *src_file, unsigned int src_line);
 
-typedef int (*mysql_cond_timedwait_t)(mysql_cond_t *that,
-                                      mysql_mutex_t *mutex,
+typedef int (*mysql_cond_timedwait_t)(mysql_cond_t *that, mysql_mutex_t *mutex,
                                       const struct timespec *abstime,
                                       const char *src_file,
                                       unsigned int src_line);
 
-typedef int (*mysql_cond_signal_t)(mysql_cond_t *that,
-                                   const char *src_file,
+typedef int (*mysql_cond_signal_t)(mysql_cond_t *that, const char *src_file,
                                    unsigned int src_line);
 
-typedef int (*mysql_cond_broadcast)(mysql_cond_t *that,
-                                    const char *src_file,
+typedef int (*mysql_cond_broadcast)(mysql_cond_t *that, const char *src_file,
                                     unsigned int src_line);
 
 BEGIN_SERVICE_DEFINITION(mysql_cond_v1)

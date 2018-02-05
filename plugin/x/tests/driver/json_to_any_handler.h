@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,11 +34,11 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
-
-class Json_to_any_handler : public rapidjson::BaseReaderHandler<
-                                   rapidjson::UTF8<>, Json_to_any_handler> {
+class Json_to_any_handler
+    : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
+                                          Json_to_any_handler> {
  public:
-  using Any    = ::Mysqlx::Datatypes::Any;
+  using Any = ::Mysqlx::Datatypes::Any;
   using Scalar = ::Mysqlx::Datatypes::Scalar;
 
  public:

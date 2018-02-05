@@ -31,29 +31,33 @@
 */
 
 #ifdef HAVE_VALGRIND
-# include <valgrind/valgrind.h>
+#include <valgrind/valgrind.h>
 
-# define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
-# define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
-# include <valgrind/memcheck.h>
+#define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) \
+  VALGRIND_MALLOCLIKE_BLOCK(p1, p2, p3, p4)
+#define MEM_FREELIKE_BLOCK(p1, p2) VALGRIND_FREELIKE_BLOCK(p1, p2)
+#include <valgrind/memcheck.h>
 
-# define MEM_UNDEFINED(a,len) VALGRIND_MAKE_MEM_UNDEFINED(a,len)
-# define MEM_DEFINED_IF_ADDRESSABLE(a,len) \
-    VALGRIND_MAKE_MEM_DEFINED_IF_ADDRESSABLE(a,len)
-# define MEM_NOACCESS(a,len) VALGRIND_MAKE_MEM_NOACCESS(a,len)
-# define MEM_CHECK_ADDRESSABLE(a,len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a,len)
+#define MEM_UNDEFINED(a, len) VALGRIND_MAKE_MEM_UNDEFINED(a, len)
+#define MEM_DEFINED_IF_ADDRESSABLE(a, len) \
+  VALGRIND_MAKE_MEM_DEFINED_IF_ADDRESSABLE(a, len)
+#define MEM_NOACCESS(a, len) VALGRIND_MAKE_MEM_NOACCESS(a, len)
+#define MEM_CHECK_ADDRESSABLE(a, len) VALGRIND_CHECK_MEM_IS_ADDRESSABLE(a, len)
 
 #else /* HAVE_VALGRIND */
 
-# define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) do {} while (0)
-# define MEM_FREELIKE_BLOCK(p1, p2) do {} while (0)
-# define MEM_UNDEFINED(a,len) ((void) 0)
-# define MEM_DEFINED_IF_ADDRESSABLE(a,len) ((void) 0)
-# define MEM_NOACCESS(a,len) ((void) 0)
-# define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
+#define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) \
+  do {                                       \
+  } while (0)
+#define MEM_FREELIKE_BLOCK(p1, p2) \
+  do {                             \
+  } while (0)
+#define MEM_UNDEFINED(a, len) ((void)0)
+#define MEM_DEFINED_IF_ADDRESSABLE(a, len) ((void)0)
+#define MEM_NOACCESS(a, len) ((void)0)
+#define MEM_CHECK_ADDRESSABLE(a, len) ((void)0)
 
 #endif
-
 
 #if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
 
@@ -63,16 +67,19 @@
   We cache value of B because if B is expression which depends on A, memset()
   trashes value of B.
 */
-#define TRASH(A,B) do {                                                 \
-    const size_t l= (B);                                                \
-    MEM_CHECK_ADDRESSABLE(A, l);                                        \
-    memset(A, 0x8F, l);                                                 \
-    MEM_UNDEFINED(A, l);                                                \
+#define TRASH(A, B)              \
+  do {                           \
+    const size_t l = (B);        \
+    MEM_CHECK_ADDRESSABLE(A, l); \
+    memset(A, 0x8F, l);          \
+    MEM_UNDEFINED(A, l);         \
   } while (0)
 
 #else
 
-#define TRASH(A,B) do {} while(0)
+#define TRASH(A, B) \
+  do {              \
+  } while (0)
 
 #endif
 

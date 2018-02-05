@@ -29,14 +29,12 @@
 namespace dd {
 namespace system_views {
 
-const Schemata &Schemata::instance()
-{
-  static Schemata *s_instance= new Schemata();
+const Schemata &Schemata::instance() {
+  static Schemata *s_instance = new Schemata();
   return *s_instance;
 }
 
-Schemata::Schemata()
-{
+Schemata::Schemata() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_CATALOG_NAME, "CATALOG_NAME",
@@ -45,19 +43,21 @@ Schemata::Schemata()
                          "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_DEFAULT_CHARACTER_SET_NAME,
                          "DEFAULT_CHARACTER_SET_NAME", "cs.name");
-  m_target_def.add_field(FIELD_DEFAULT_COLLATION_NAME,
-                         "DEFAULT_COLLATION_NAME", "col.name");
+  m_target_def.add_field(FIELD_DEFAULT_COLLATION_NAME, "DEFAULT_COLLATION_NAME",
+                         "col.name");
   m_target_def.add_field(FIELD_SQL_PATH, "SQL_PATH", "NULL");
 
   m_target_def.add_from("mysql.schemata sch");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
-  m_target_def.add_from("JOIN mysql.collations col ON "
-                        "sch.default_collation_id = col.id");
-  m_target_def.add_from("JOIN mysql.character_sets cs ON "
-                        "col.character_set_id= cs.id");
+  m_target_def.add_from(
+      "JOIN mysql.collations col ON "
+      "sch.default_collation_id = col.id");
+  m_target_def.add_from(
+      "JOIN mysql.character_sets cs ON "
+      "col.character_set_id= cs.id");
 
   m_target_def.add_where("CAN_ACCESS_DATABASE(sch.name)");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

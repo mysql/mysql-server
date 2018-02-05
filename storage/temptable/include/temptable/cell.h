@@ -29,9 +29,9 @@ TempTable Cell declaration. */
 #include <algorithm> /* std::min */
 #include <cstdint>   /* uint32_t */
 
-#include "m_ctype.h"               /* CHARSET_INFO, my_charpos() */
-#include "my_murmur3.h"            /* murmur3_32() */
-#include "sql/field.h"             /* Field */
+#include "m_ctype.h"    /* CHARSET_INFO, my_charpos() */
+#include "my_murmur3.h" /* murmur3_32() */
+#include "sql/field.h"  /* Field */
 #include "storage/temptable/include/temptable/indexed_column.h" /* temptable::Indexed_column */
 
 namespace temptable {
@@ -56,7 +56,7 @@ class Cell {
       /** [in] Pointer to the user data. It is not copied inside this newly
        * created Cell object, so it must remain valid for the lifetime of this
        * object. */
-      const unsigned char* data);
+      const unsigned char *data);
 
   /** Check if this cell is NULL.
    * @return true if NULL */
@@ -68,14 +68,14 @@ class Cell {
 
   /** Get a pointer to the user data inside the row.
    * @return a pointer */
-  const unsigned char* data() const;
+  const unsigned char *data() const;
 
   /** Hash this cell.
    * @return a hash number */
   size_t hash(
       /** [in] Describes the column that holds this cell. Used for dealing with
        * charsets. */
-      const Indexed_column& indexed_column) const;
+      const Indexed_column &indexed_column) const;
 
   /** Compare to another cell.
    * @retval <0 if this < rhs
@@ -84,9 +84,9 @@ class Cell {
   int compare(
       /** [in] Defines how to compare this cell with other cells (in a
        * given index). */
-      const Indexed_column& indexed_column,
+      const Indexed_column &indexed_column,
       /** [in] The other cell to compare to. */
-      const Cell& rhs) const;
+      const Cell &rhs) const;
 
   /** Compare to another cell.
    * @retval <0 if this < rhs
@@ -95,9 +95,9 @@ class Cell {
   int compare(
       /** [in] Auxiliary structure that describes the MySQL column that holds
        * this cell. */
-      const Field& mysql_field,
+      const Field &mysql_field,
       /** [in] The other cell to compare to. */
-      const Cell& rhs) const;
+      const Cell &rhs) const;
 
  private:
   /** Compare to another cell.
@@ -107,12 +107,12 @@ class Cell {
   int compare(
       /** [in] Auxiliary structure that describes the MySQL column that holds
        * this cell. */
-      const Field& mysql_field,
+      const Field &mysql_field,
       /** [in] Charset which should be used while comparing this cell with
        * other cells, or nullptr if we should use mysql_field->key_cmp. */
-      const CHARSET_INFO* cs,
+      const CHARSET_INFO *cs,
       /** [in] The other cell to compare to. */
-      const Cell& rhs) const;
+      const Cell &rhs) const;
 
   /** Designate whether the cell is NULL. */
   const bool m_is_null;
@@ -121,21 +121,21 @@ class Cell {
   const uint32_t m_data_length;
 
   /** User data. */
-  const unsigned char* const m_data;
+  const unsigned char *const m_data;
 };
 
 /* Implementation of inlined methods. */
 
-inline Cell::Cell(bool is_null, uint32_t data_length, const unsigned char* data)
+inline Cell::Cell(bool is_null, uint32_t data_length, const unsigned char *data)
     : m_is_null(is_null), m_data_length(data_length), m_data(data) {}
 
 inline bool Cell::is_null() const { return m_is_null; }
 
 inline uint32_t Cell::data_length() const { return m_data_length; }
 
-inline const unsigned char* Cell::data() const { return m_data; }
+inline const unsigned char *Cell::data() const { return m_data; }
 
-inline size_t Cell::hash(const Indexed_column& indexed_column) const {
+inline size_t Cell::hash(const Indexed_column &indexed_column) const {
   if (m_is_null) {
     return 1;
   }
@@ -162,7 +162,7 @@ inline size_t Cell::hash(const Indexed_column& indexed_column) const {
   and compiled with "Studio 12.5 Sun C++ 5.14 SunOS_sparc 2016/05/31" !!!
   So we use if-else instead of switch below. */
 
-  const auto& hf = indexed_column.cell_hash_function();
+  const auto &hf = indexed_column.cell_hash_function();
 
   if (hf == Cell_hash_function::CHARSET) {
     length = m_data_length;
@@ -177,12 +177,12 @@ inline size_t Cell::hash(const Indexed_column& indexed_column) const {
     abort();
   }
 
-  const CHARSET_INFO* cs = indexed_column.charset();
+  const CHARSET_INFO *cs = indexed_column.charset();
 
   if (cs->pad_attribute == NO_PAD) {
     /* Strip trailing spaces. */
     length =
-        cs->cset->lengthsp(cs, reinterpret_cast<const char*>(m_data), length);
+        cs->cset->lengthsp(cs, reinterpret_cast<const char *>(m_data), length);
   }
 
   unsigned long h1 = 1;
@@ -191,18 +191,18 @@ inline size_t Cell::hash(const Indexed_column& indexed_column) const {
   return h1;
 }
 
-inline int Cell::compare(const Indexed_column& indexed_column,
-                         const Cell& rhs) const {
+inline int Cell::compare(const Indexed_column &indexed_column,
+                         const Cell &rhs) const {
   return compare(indexed_column.field(), indexed_column.charset(), rhs);
 }
 
-inline int Cell::compare(const Field& mysql_field, const Cell& rhs) const {
+inline int Cell::compare(const Field &mysql_field, const Cell &rhs) const {
   return compare(mysql_field, Indexed_column::field_charset(mysql_field), rhs);
 }
 
-inline int Cell::compare(const Field& field, const CHARSET_INFO* cs,
-                         const Cell& rhs) const {
-  const Cell& lhs = *this;
+inline int Cell::compare(const Field &field, const CHARSET_INFO *cs,
+                         const Cell &rhs) const {
+  const Cell &lhs = *this;
 
   if (lhs.m_is_null) {
     if (rhs.m_is_null) {
@@ -236,15 +236,15 @@ inline int Cell::compare(const Field& field, const CHARSET_INFO* cs,
     if (cs->pad_attribute == NO_PAD) {
       /* Strip trailing spaces. */
       lhs_length = cs->cset->lengthsp(
-          cs, reinterpret_cast<const char*>(lhs.m_data), lhs_length);
+          cs, reinterpret_cast<const char *>(lhs.m_data), lhs_length);
       rhs_length = cs->cset->lengthsp(
-          cs, reinterpret_cast<const char*>(rhs.m_data), rhs_length);
+          cs, reinterpret_cast<const char *>(rhs.m_data), rhs_length);
     }
 
     return cs->coll->strnncollsp(cs, lhs.m_data, lhs_length, rhs.m_data,
                                  rhs_length);
   } else {
-    return const_cast<Field*>(&field)->key_cmp(lhs.m_data, rhs.m_data);
+    return const_cast<Field *>(&field)->key_cmp(lhs.m_data, rhs.m_data);
   }
 }
 

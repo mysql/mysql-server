@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef _typelib_h
 #define _typelib_h
 
@@ -32,8 +31,7 @@
 
 struct MEM_ROOT;
 
-struct TYPELIB
-{     /* Different types saved here */
+struct TYPELIB { /* Different types saved here */
   /*
     These constructors are no longer needed when we go to C++14, where
     aggregate initialization is allowed on classes that have default
@@ -41,42 +39,43 @@ struct TYPELIB
   */
   TYPELIB() {}
 
-  TYPELIB(size_t count_arg, const char *name_arg,
-          const char **type_names_arg, unsigned int *type_lengths_arg)
-    : count(count_arg), name(name_arg),
-      type_names(type_names_arg), type_lengths(type_lengths_arg)
-  {
-  }
+  TYPELIB(size_t count_arg, const char *name_arg, const char **type_names_arg,
+          unsigned int *type_lengths_arg)
+      : count(count_arg),
+        name(name_arg),
+        type_names(type_names_arg),
+        type_lengths(type_lengths_arg) {}
 
-  size_t count{0};                 /* How many types */
-  const char *name{nullptr};             /* Name of typelib */
+  size_t count{0};           /* How many types */
+  const char *name{nullptr}; /* Name of typelib */
   const char **type_names{nullptr};
   unsigned int *type_lengths{nullptr};
 };
 
-extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,int *error_position);
+extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,
+                                 int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
                              const char *option);
-#define FIND_TYPE_BASIC           0
+#define FIND_TYPE_BASIC 0
 /** makes @c find_type() require the whole name, no prefix */
-#define FIND_TYPE_NO_PREFIX      (1 << 0)
+#define FIND_TYPE_NO_PREFIX (1 << 0)
 /** always implicitely on, so unused, but old code may pass it */
-#define FIND_TYPE_NO_OVERWRITE   (1 << 1)
+#define FIND_TYPE_NO_OVERWRITE (1 << 1)
 /** makes @c find_type() accept a number */
-#define FIND_TYPE_ALLOW_NUMBER   (1 << 2)
+#define FIND_TYPE_ALLOW_NUMBER (1 << 2)
 /** makes @c find_type() treat ',' as terminator */
-#define FIND_TYPE_COMMA_TERM     (1 << 3)
+#define FIND_TYPE_COMMA_TERM (1 << 3)
 
 extern int find_type(const char *x, const TYPELIB *typelib, unsigned int flags);
-extern void make_type(char *to,unsigned int nr,TYPELIB *typelib);
-extern const char *get_type(TYPELIB *typelib,unsigned int nr);
+extern void make_type(char *to, unsigned int nr, TYPELIB *typelib);
+extern const char *get_type(TYPELIB *typelib, unsigned int nr);
 extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
 
 extern TYPELIB sql_protocol_typelib;
 
 my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
-                              my_ulonglong cur_set, my_ulonglong default_set,
-                              const char *str, unsigned int length,
-                              char **err_pos, unsigned int *err_len);
+                                 my_ulonglong cur_set, my_ulonglong default_set,
+                                 const char *str, unsigned int length,
+                                 char **err_pos, unsigned int *err_len);
 
 #endif /* _typelib_h */

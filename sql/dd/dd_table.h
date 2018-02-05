@@ -24,15 +24,15 @@
 #define DD_TABLE_INCLUDED
 
 #include <sys/types.h>
-#include <memory>                    // std:unique_ptr
+#include <memory>  // std:unique_ptr
 #include <string>
 
-#include "binary_log_types.h"        // enum_field_types
+#include "binary_log_types.h"  // enum_field_types
 #include "my_inttypes.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/column.h"     // dd::enum_column_types
-#include "sql/handler.h"             // legacy_db_type
-#include "sql/sql_alter.h"           // Alter_info::enum_enable_or_disable
+#include "sql/dd/types/column.h"  // dd::enum_column_types
+#include "sql/handler.h"          // legacy_db_type
+#include "sql/sql_alter.h"        // Alter_info::enum_enable_or_disable
 #include "sql/system_variables.h"
 
 class Create_field;
@@ -45,19 +45,20 @@ class Schema;
 struct TABLE;
 
 struct HA_CREATE_INFO;
-template <class T> class List;
+template <class T>
+class List;
 
 namespace dd {
-  class Abstract_table;
-  class Foreign_key;
-  class Table;
+class Abstract_table;
+class Foreign_key;
+class Table;
 
-  namespace cache {
-    class Dictionary_client;
-  }
+namespace cache {
+class Dictionary_client;
+}
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
-static const char FOREIGN_KEY_NAME_SUBSTR[]= "_ibfk_";
+static const char FOREIGN_KEY_NAME_SUBSTR[] = "_ibfk_";
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -78,18 +79,12 @@ static const char FOREIGN_KEY_NAME_SUBSTR[]= "_ibfk_";
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
-std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
-                              const dd::Schema &sch_obj,
-                              const dd::String_type &table_name,
-                              HA_CREATE_INFO *create_info,
-                              const List<Create_field> &create_fields,
-                              const KEY *keyinfo,
-                              uint keys,
-                              Alter_info::enum_enable_or_disable keys_onoff,
-                              const FOREIGN_KEY *fk_keyinfo,
-                              uint fk_keys,
-                              handler *file);
-
+std::unique_ptr<dd::Table> create_dd_user_table(
+    THD *thd, const dd::Schema &sch_obj, const dd::String_type &table_name,
+    HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
+    const KEY *keyinfo, uint keys,
+    Alter_info::enum_enable_or_disable keys_onoff,
+    const FOREIGN_KEY *fk_keyinfo, uint fk_keys, handler *file);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output
@@ -103,23 +98,19 @@ std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   @param keyinfo            Array with descriptions of keys for the table.
   @param keys               Number of keys.
   @param keys_onoff         Enable or disable keys.
-  @param fk_keyinfo         Array with descriptions of foreign keys for the table.
+  @param fk_keyinfo         Array with descriptions of foreign keys for the
+  table.
   @param fk_keys            Number of foreign keys.
   @param file               handler instance for the table.
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
-std::unique_ptr<dd::Table> create_table(THD *thd,
-                              const dd::Schema &sch_obj,
-                              const dd::String_type &table_name,
-                              HA_CREATE_INFO *create_info,
-                              const List<Create_field> &create_fields,
-                              const KEY *keyinfo, uint keys,
-                              Alter_info::enum_enable_or_disable keys_onoff,
-                              const FOREIGN_KEY *fk_keyinfo,
-                              uint fk_keys,
-                              handler *file);
-
+std::unique_ptr<dd::Table> create_table(
+    THD *thd, const dd::Schema &sch_obj, const dd::String_type &table_name,
+    HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
+    const KEY *keyinfo, uint keys,
+    Alter_info::enum_enable_or_disable keys_onoff,
+    const FOREIGN_KEY *fk_keyinfo, uint fk_keys, handler *file);
 
 /**
   Prepares a dd::Table object for a temporary table from
@@ -138,14 +129,11 @@ std::unique_ptr<dd::Table> create_table(THD *thd,
 
   @returns Constructed dd::Table object, or nullptr in case of an error.
 */
-std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
-                             const dd::Schema &sch_obj,
-                             const dd::String_type &table_name,
-                             HA_CREATE_INFO *create_info,
-                             const List<Create_field> &create_fields,
-                             const KEY *keyinfo, uint keys,
-                             Alter_info::enum_enable_or_disable keys_onoff,
-                             handler *file);
+std::unique_ptr<dd::Table> create_tmp_table(
+    THD *thd, const dd::Schema &sch_obj, const dd::String_type &table_name,
+    HA_CREATE_INFO *create_info, const List<Create_field> &create_fields,
+    const KEY *keyinfo, uint keys,
+    Alter_info::enum_enable_or_disable keys_onoff, handler *file);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects
@@ -184,11 +172,8 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
   @retval      true         Failure (error has been reported).
   @retval      false        Success.
 */
-bool table_exists(dd::cache::Dictionary_client *client,
-                  const char *schema_name,
-                  const char *name,
-                  bool *exists);
-
+bool table_exists(dd::cache::Dictionary_client *client, const char *schema_name,
+                  const char *name, bool *exists);
 
 /**
   Checking if the table is being created in a restricted
@@ -202,8 +187,7 @@ bool table_exists(dd::cache::Dictionary_client *client,
   @retval  true         Invalid usage (error has been reported).
   @retval  false        Success, no invalid usage.
 */
-bool invalid_tablespace_usage(THD *thd,
-                              const dd::String_type &schema_name,
+bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
                               const dd::String_type &table_name,
                               const HA_CREATE_INFO *create_info);
 
@@ -224,7 +208,6 @@ bool is_generated_foreign_key_name(const char *table_name,
                                    size_t table_name_length,
                                    const dd::Foreign_key &fk);
 
-
 /**
   Rename foreign keys which have generated names to
   match the new name of the table.
@@ -241,9 +224,9 @@ bool is_generated_foreign_key_name(const char *table_name,
   @returns true if error, false otherwise.
 */
 
-bool rename_foreign_keys(THD *thd,
-                         const char *old_db, const char *old_table_name,
-                         const char *new_db, dd::Table *new_tab);
+bool rename_foreign_keys(THD *thd, const char *old_db,
+                         const char *old_table_name, const char *new_db,
+                         dd::Table *new_tab);
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of
@@ -268,8 +251,7 @@ bool rename_foreign_keys(THD *thd,
   @retval     false           Success
 */
 bool table_legacy_db_type(THD *thd, const char *schema_name,
-                          const char *table_name,
-                          enum legacy_db_type *db_type);
+                          const char *table_name, enum legacy_db_type *db_type);
 
 /**
   Get the storage engine handlerton for the given table.
@@ -284,8 +266,7 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
   @retval     true            Error
   @retval     false           Success
 */
-bool table_storage_engine(THD *thd, const dd::Table *table,
-                          handlerton **hton);
+bool table_storage_engine(THD *thd, const dd::Table *table, handlerton **hton);
 
 /**
   Regenerate a metadata locked table.
@@ -302,19 +283,15 @@ bool table_storage_engine(THD *thd, const dd::Table *table,
   @retval       false       Success
   @retval       true        Error
 */
-bool recreate_table(THD *thd, const char *schema_name,
-                    const char *table_name);
+bool recreate_table(THD *thd, const char *schema_name, const char *table_name);
 
 /**
   Function prepares string representing columns data type.
   This is required for IS implementation which uses views on DD tables
 */
-String_type get_sql_type_by_field_info(THD *thd,
-                                       enum_field_types field_type,
-                                       uint32 field_length,
-                                       uint32 decimals,
-                                       bool maybe_null,
-                                       bool is_unsigned,
+String_type get_sql_type_by_field_info(THD *thd, enum_field_types field_type,
+                                       uint32 field_length, uint32 decimals,
+                                       bool maybe_null, bool is_unsigned,
                                        const CHARSET_INFO *field_charset);
 
 /**
@@ -358,11 +335,9 @@ bool fix_row_type(THD *thd, dd::Table *table, row_type correct_row_type);
   @retval  true             On error.
 */
 
-bool
-fill_dd_columns_from_create_fields(THD *thd,
-                                   Abstract_table *tab_obj,
-                                   const List<Create_field> &create_fields,
-                                   handler *file);
+bool fill_dd_columns_from_create_fields(THD *thd, Abstract_table *tab_obj,
+                                        const List<Create_field> &create_fields,
+                                        handler *file);
 
 /**
   @brief Function returns string representing column type by Create_field.
@@ -375,9 +350,7 @@ fill_dd_columns_from_create_fields(THD *thd,
   @return dd::String_type representing column type.
 */
 
-dd::String_type get_sql_type_by_create_field(TABLE *table,
-                                             Create_field *field);
-
+dd::String_type get_sql_type_by_create_field(TABLE *table, Create_field *field);
 
 /**
   Helper method to get numeric scale for types using Create_field type
@@ -392,7 +365,6 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
 
 bool get_field_numeric_scale(Create_field *field, uint *scale);
 
-
 /**
   Helper method to get numeric precision for types using Create_field type
   object.
@@ -404,9 +376,7 @@ bool get_field_numeric_scale(Create_field *field, uint *scale);
   @retval true   If numeric precision is not calculated;
 */
 
-bool get_field_numeric_precision(Create_field *field,
-                                 uint *numeric_precision);
-
+bool get_field_numeric_precision(Create_field *field, uint *numeric_precision);
 
 /**
   Helper method to get datetime precision for types using Create_field type
@@ -421,5 +391,5 @@ bool get_field_numeric_precision(Create_field *field,
 
 bool get_field_datetime_precision(Create_field *field,
                                   uint *datetime_precision);
-} // namespace dd
-#endif // DD_TABLE_INCLUDED
+}  // namespace dd
+#endif  // DD_TABLE_INCLUDED

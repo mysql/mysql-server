@@ -34,20 +34,19 @@
 #include "my_getopt.h"
 #include "mysql/service_mysql_alloc.h"
 
-
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 class Abstract_options_provider;
 
 /**
   Abstract base with common option functionalities.
  */
-template<typename T_type> class Abstract_option : public I_option
-{
-public:
+template <typename T_type>
+class Abstract_option : public I_option {
+ public:
   virtual ~Abstract_option();
 
   /**
@@ -56,15 +55,15 @@ public:
     I_Callable can be replaced with std::Function<void(char*)> once we get
     one.
    */
-  void add_callback(std::function<void(char*)>* callback);
+  void add_callback(std::function<void(char *)> *callback);
 
   /**
     Sets optid to given character to make possible usage of short option
     alternative.
    */
-  T_type* set_short_character(char code);
+  T_type *set_short_character(char code);
 
-protected:
+ protected:
   /**
     Constructs new option.
     @param value Pointer to object to receive option value.
@@ -75,8 +74,8 @@ protected:
     @param default_value default value to be supplied to internal option
       data structure.
    */
-  Abstract_option(void* value, ulong var_type, std::string name,
-    std::string description, longlong default_value);
+  Abstract_option(void *value, ulong var_type, std::string name,
+                  std::string description, longlong default_value);
 
   /**
     Returns my_getopt internal option data structure representing this option.
@@ -89,118 +88,112 @@ protected:
     Method to set listener on option changed events.
     For use from Abstract_options_provider class only.
    */
-  void set_option_changed_listener(I_option_changed_listener* listener);
+  void set_option_changed_listener(I_option_changed_listener *listener);
 
   my_option m_option_structure;
 
-private:
-  void call_callbacks(char* argument);
+ private:
+  void call_callbacks(char *argument);
 
-  std::vector<std::function<void(char*)>*> m_callbacks;
-  I_option_changed_listener* m_option_changed_listener;
+  std::vector<std::function<void(char *)> *> m_callbacks;
+  I_option_changed_listener *m_option_changed_listener;
 
   friend class Abstract_options_provider;
 };
 
-template<typename T_type> Abstract_option<T_type>::~Abstract_option()
-{
-  my_free((void*)this->m_option_structure.name);
-  my_free((void*)this->m_option_structure.comment);
+template <typename T_type>
+Abstract_option<T_type>::~Abstract_option() {
+  my_free((void *)this->m_option_structure.name);
+  my_free((void *)this->m_option_structure.comment);
 
-  for (std::vector<std::function<void(char*)>*>::iterator
-    it= this->m_callbacks.begin();
-    it != this->m_callbacks.end();
-    it++)
-  {
+  for (std::vector<std::function<void(char *)> *>::iterator it =
+           this->m_callbacks.begin();
+       it != this->m_callbacks.end(); it++) {
     delete *it;
   }
 }
 
-template<typename T_type> void Abstract_option<T_type>::add_callback(
-  std::function<void(char*)>* callback)
-{
+template <typename T_type>
+void Abstract_option<T_type>::add_callback(
+    std::function<void(char *)> *callback) {
   this->m_callbacks.push_back(callback);
 }
 
-template<typename T_type> T_type* Abstract_option<T_type>::set_short_character(
-  char code)
-{
+template <typename T_type>
+T_type *Abstract_option<T_type>::set_short_character(char code) {
   // Change optid to new one
-  uint32 old_optid= this->m_option_structure.id;
-  this->m_option_structure.id= (int)code;
+  uint32 old_optid = this->m_option_structure.id;
+  this->m_option_structure.id = (int)code;
 
   // Inform that it has changed
-  if (this->m_option_changed_listener != NULL)
-  {
-    this->m_option_changed_listener->notify_option_optid_changed(
-      this, old_optid);
+  if (this->m_option_changed_listener != NULL) {
+    this->m_option_changed_listener->notify_option_optid_changed(this,
+                                                                 old_optid);
   }
 
-  return (T_type*)this;
+  return (T_type *)this;
 }
 
-template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
-    ulong var_type, std::string name, std::string description,
-    longlong default_value)
-  : m_option_changed_listener(NULL)
-{
-  this->m_option_structure.block_size= 0;
-  this->m_option_structure.max_value= 0;
-  this->m_option_structure.min_value= 0;
-  this->m_option_structure.typelib= NULL;
-  this->m_option_structure.u_max_value= NULL;
+template <typename T_type>
+Abstract_option<T_type>::Abstract_option(void *value, ulong var_type,
+                                         std::string name,
+                                         std::string description,
+                                         longlong default_value)
+    : m_option_changed_listener(NULL) {
+  this->m_option_structure.block_size = 0;
+  this->m_option_structure.max_value = 0;
+  this->m_option_structure.min_value = 0;
+  this->m_option_structure.typelib = NULL;
+  this->m_option_structure.u_max_value = NULL;
 
-  this->m_option_structure.app_type= this;
-  this->m_option_structure.arg_type= REQUIRED_ARG;
-  this->m_option_structure.comment= my_strdup(
-    PSI_NOT_INSTRUMENTED, description.c_str(), MYF(MY_FAE));
+  this->m_option_structure.app_type = this;
+  this->m_option_structure.arg_type = REQUIRED_ARG;
+  this->m_option_structure.comment =
+      my_strdup(PSI_NOT_INSTRUMENTED, description.c_str(), MYF(MY_FAE));
   // This in future can be changed to atomic operation (compare_and_exchange)
-  this->m_option_structure.id= Abstract_option::last_optid;
+  this->m_option_structure.id = Abstract_option::last_optid;
   Abstract_option::last_optid++;
   ;
-  this->m_option_structure.def_value= default_value;
+  this->m_option_structure.def_value = default_value;
 
-  this->m_option_structure.name= my_strdup(
-    PSI_NOT_INSTRUMENTED, name.c_str(), MYF(MY_FAE));
+  this->m_option_structure.name =
+      my_strdup(PSI_NOT_INSTRUMENTED, name.c_str(), MYF(MY_FAE));
   /*
    TODO mbabij 15-04-2014: this is based on previous usages of my_option.
    Everyone sets this the same as my_option::value, explain why.
    */
-  this->m_option_structure.u_max_value= value;
+  this->m_option_structure.u_max_value = value;
 
-  this->m_option_structure.value= value;
-  this->m_option_structure.var_type= var_type;
-  this->m_option_structure.arg_source= 0;
+  this->m_option_structure.value = value;
+  this->m_option_structure.var_type = var_type;
+  this->m_option_structure.arg_source = 0;
 }
 
-template<typename T_type> my_option Abstract_option<T_type>::get_my_option()
-{
+template <typename T_type>
+my_option Abstract_option<T_type>::get_my_option() {
   return this->m_option_structure;
 }
 
-template<typename T_type> void
-  Abstract_option<T_type>::set_option_changed_listener(
-    I_option_changed_listener* listener)
-{
+template <typename T_type>
+void Abstract_option<T_type>::set_option_changed_listener(
+    I_option_changed_listener *listener) {
   DBUG_ASSERT(this->m_option_changed_listener == NULL);
 
-  this->m_option_changed_listener= listener;
+  this->m_option_changed_listener = listener;
 }
 
-template<typename T_type> void Abstract_option<T_type>::call_callbacks(
-  char* argument)
-{
-  std::vector<std::function<void(char*)>*>::iterator callback_it;
-  for (callback_it= this->m_callbacks.begin();
-    callback_it != this->m_callbacks.end(); callback_it++)
-  {
+template <typename T_type>
+void Abstract_option<T_type>::call_callbacks(char *argument) {
+  std::vector<std::function<void(char *)> *>::iterator callback_it;
+  for (callback_it = this->m_callbacks.begin();
+       callback_it != this->m_callbacks.end(); callback_it++) {
     (**callback_it)(argument);
   }
 }
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

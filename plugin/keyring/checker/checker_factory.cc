@@ -29,13 +29,12 @@
 
 namespace keyring {
 
-Checker* CheckerFactory::getCheckerForVersion(std::string version)
-{
-  if(version == keyring_file_version_1_0)
+Checker *CheckerFactory::getCheckerForVersion(std::string version) {
+  if (version == keyring_file_version_1_0)
     return new CheckerVer_1_0();
   else if (version == keyring_file_version_2_0)
     return new CheckerVer_2_0();
   return NULL;
 }
 
-}//namespace keyring
+}  // namespace keyring

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,10 +28,9 @@
 #include "m_ctype.h"
 #include "my_sys.h"
 
-const CHARSET_INFO *data_ctx_charset= &my_charset_utf8mb4_general_ci;
+const CHARSET_INFO *data_ctx_charset = &my_charset_utf8mb4_general_ci;
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
   my_init();

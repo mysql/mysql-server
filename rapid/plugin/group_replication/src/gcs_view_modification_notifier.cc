@@ -28,117 +28,101 @@
 #include "my_systime.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-
 Plugin_gcs_view_modification_notifier::Plugin_gcs_view_modification_notifier()
-  :view_changing(false), cancelled_view_change(false),
-   injected_view_modification(false), error(0)
-{
+    : view_changing(false),
+      cancelled_view_change(false),
+      injected_view_modification(false),
+      error(0) {
   mysql_cond_init(key_GR_COND_view_modification_wait, &wait_for_view_cond);
   mysql_mutex_init(key_GR_LOCK_view_modification_wait, &wait_for_view_mutex,
                    MY_MUTEX_INIT_FAST);
 }
 
-Plugin_gcs_view_modification_notifier::~Plugin_gcs_view_modification_notifier()
-{
+Plugin_gcs_view_modification_notifier::
+    ~Plugin_gcs_view_modification_notifier() {
   mysql_mutex_destroy(&wait_for_view_mutex);
   mysql_cond_destroy(&wait_for_view_cond);
 }
 
-void
-Plugin_gcs_view_modification_notifier::start_view_modification()
-{
+void Plugin_gcs_view_modification_notifier::start_view_modification() {
   mysql_mutex_lock(&wait_for_view_mutex);
-  view_changing= true;
-  cancelled_view_change= false;
-  injected_view_modification= false;
-  error= 0;
+  view_changing = true;
+  cancelled_view_change = false;
+  injected_view_modification = false;
+  error = 0;
   mysql_mutex_unlock(&wait_for_view_mutex);
 }
 
-void
-Plugin_gcs_view_modification_notifier::start_injected_view_modification()
-{
+void Plugin_gcs_view_modification_notifier::start_injected_view_modification() {
   mysql_mutex_lock(&wait_for_view_mutex);
-  view_changing= true;
-  cancelled_view_change= false;
-  injected_view_modification= true;
-  error= 0;
+  view_changing = true;
+  cancelled_view_change = false;
+  injected_view_modification = true;
+  error = 0;
   mysql_mutex_unlock(&wait_for_view_mutex);
 }
 
-bool
-Plugin_gcs_view_modification_notifier::is_injected_view_modification()
-{
+bool Plugin_gcs_view_modification_notifier::is_injected_view_modification() {
   mysql_mutex_lock(&wait_for_view_mutex);
-  bool result= injected_view_modification;
+  bool result = injected_view_modification;
   mysql_mutex_unlock(&wait_for_view_mutex);
   return result;
 }
 
-void
-Plugin_gcs_view_modification_notifier::end_view_modification()
-{
+void Plugin_gcs_view_modification_notifier::end_view_modification() {
   mysql_mutex_lock(&wait_for_view_mutex);
-  view_changing= false;
+  view_changing = false;
   mysql_cond_broadcast(&wait_for_view_cond);
   mysql_mutex_unlock(&wait_for_view_mutex);
 }
 
-void
-Plugin_gcs_view_modification_notifier::cancel_view_modification(int errnr)
-{
+void Plugin_gcs_view_modification_notifier::cancel_view_modification(
+    int errnr) {
   mysql_mutex_lock(&wait_for_view_mutex);
-  view_changing= false;
-  cancelled_view_change= true;
-  this->error= errnr;
+  view_changing = false;
+  cancelled_view_change = true;
+  this->error = errnr;
   mysql_cond_broadcast(&wait_for_view_cond);
   mysql_mutex_unlock(&wait_for_view_mutex);
 }
 
-bool
-Plugin_gcs_view_modification_notifier::is_cancelled()
-{
+bool Plugin_gcs_view_modification_notifier::is_cancelled() {
   DBUG_ASSERT(view_changing == false);
   return cancelled_view_change;
 }
 
-bool
-Plugin_gcs_view_modification_notifier::wait_for_view_modification(long timeout)
-{
+bool Plugin_gcs_view_modification_notifier::wait_for_view_modification(
+    long timeout) {
   struct timespec ts;
-  int result= 0;
+  int result = 0;
 
   mysql_mutex_lock(&wait_for_view_mutex);
 
   DBUG_EXECUTE_IF("group_replication_skip_wait_for_view_modification",
-                  { view_changing= false; };);
+                  { view_changing = false; };);
 
-  while (view_changing && !cancelled_view_change)
-  {
+  while (view_changing && !cancelled_view_change) {
     set_timespec(&ts, timeout);
-    result=
-         mysql_cond_timedwait(&wait_for_view_cond, &wait_for_view_mutex, &ts);
+    result =
+        mysql_cond_timedwait(&wait_for_view_cond, &wait_for_view_mutex, &ts);
 
-    if(result != 0) //It means that it broke by timeout or an error.
+    if (result != 0)  // It means that it broke by timeout or an error.
     {
-      view_changing= false;
+      view_changing = false;
       break;
     }
   }
 
   DBUG_EXECUTE_IF("group_replication_force_view_modification_timeout",
-                  { result= 1; };);
-  if (result != 0)
-    error= GROUP_REPLICATION_CONFIGURATION_ERROR;
+                  { result = 1; };);
+  if (result != 0) error = GROUP_REPLICATION_CONFIGURATION_ERROR;
 
   mysql_mutex_unlock(&wait_for_view_mutex);
 
   return (result != 0 || cancelled_view_change);
 }
 
-int
-Plugin_gcs_view_modification_notifier::get_error()
-{
+int Plugin_gcs_view_modification_notifier::get_error() {
   DBUG_ASSERT(view_changing == false);
   return error;
 }

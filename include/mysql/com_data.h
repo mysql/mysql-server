@@ -24,9 +24,8 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include "binary_log_types.h" /* enum_field_types */
-#include "mysql_com.h" /* mysql_enum_shutdown_level */
+#include "mysql_com.h"        /* mysql_enum_shutdown_level */
 #endif
-
 
 /**
   @file include/mysql/com_data.h
@@ -34,30 +33,24 @@
   structure.
 */
 
-
-struct COM_INIT_DB_DATA
-{
+struct COM_INIT_DB_DATA {
   const char *db_name;
   unsigned long length;
 };
 
-struct COM_REFRESH_DATA
-{
+struct COM_REFRESH_DATA {
   unsigned char options;
 };
 
-struct COM_KILL_DATA
-{
+struct COM_KILL_DATA {
   unsigned long id;
 };
 
-struct COM_SET_OPTION_DATA
-{
+struct COM_SET_OPTION_DATA {
   unsigned int opt_command;
 };
 
-struct PS_PARAM
-{
+struct PS_PARAM {
   unsigned char null_bit;
   enum enum_field_types type;
   unsigned char unsigned_type;
@@ -65,8 +58,7 @@ struct PS_PARAM
   unsigned long length;
 };
 
-struct COM_STMT_EXECUTE_DATA
-{
+struct COM_STMT_EXECUTE_DATA {
   unsigned long stmt_id;
   unsigned long open_cursor;
   PS_PARAM *parameters;
@@ -74,48 +66,41 @@ struct COM_STMT_EXECUTE_DATA
   unsigned char has_new_types;
 };
 
-struct COM_STMT_FETCH_DATA
-{
+struct COM_STMT_FETCH_DATA {
   unsigned long stmt_id;
   unsigned long num_rows;
 };
 
-struct COM_STMT_SEND_LONG_DATA_DATA
-{
+struct COM_STMT_SEND_LONG_DATA_DATA {
   unsigned long stmt_id;
-  unsigned int  param_number;
+  unsigned int param_number;
   unsigned char *longdata;
   unsigned long length;
 };
 
-struct COM_STMT_PREPARE_DATA
-{
+struct COM_STMT_PREPARE_DATA {
   const char *query;
   unsigned int length;
 };
 
-struct COM_STMT_CLOSE_DATA
-{
+struct COM_STMT_CLOSE_DATA {
   unsigned int stmt_id;
 };
 
-struct COM_STMT_RESET_DATA
-{
+struct COM_STMT_RESET_DATA {
   unsigned int stmt_id;
 };
 
-struct COM_QUERY_DATA
-{
+struct COM_QUERY_DATA {
   const char *query;
   unsigned int length;
 };
 
-struct COM_FIELD_LIST_DATA
-{
-  unsigned char   *table_name;
-  unsigned int    table_name_length;
+struct COM_FIELD_LIST_DATA {
+  unsigned char *table_name;
+  unsigned int table_name_length;
   const unsigned char *query;
-  unsigned int        query_length;
+  unsigned int query_length;
 };
 
 union COM_DATA {

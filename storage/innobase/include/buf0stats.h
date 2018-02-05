@@ -24,111 +24,95 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/buf0stats.h
-Buffer pool stats
+/**************************************************/ /**
+ @file include/buf0stats.h
+ Buffer pool stats
 
-Created May 22, 2015 Vasil Dimov
-*******************************************************/
+ Created May 22, 2015 Vasil Dimov
+ *******************************************************/
 
 #ifndef buf0stats_h
 #define buf0stats_h
 
 #include "univ.i"
 
-#include "dict0types.h" /* index_id_t, DICT_IBUF_ID_MIN */
-#include "fsp0sysspace.h" /* srv_tmp_space */
-#include "ibuf0ibuf.h" /* IBUF_SPACE_ID */
-#include "ut0new.h" /* UT_NEW(), UT_DELETE() */
+#include "dict0types.h"        /* index_id_t, DICT_IBUF_ID_MIN */
+#include "fsp0sysspace.h"      /* srv_tmp_space */
+#include "ibuf0ibuf.h"         /* IBUF_SPACE_ID */
 #include "ut0lock_free_hash.h" /* ut_lock_free_hash_t */
+#include "ut0new.h"            /* UT_NEW(), UT_DELETE() */
 
 /** Per index buffer pool statistics - contains how many pages for each index
 are cached in the buffer pool(s). This is a key,value store where the key is
 the index id and the value is the number of pages in the buffer pool that
 belong to this index. */
 class buf_stat_per_index_t {
-public:
-	/** Constructor. */
-	buf_stat_per_index_t()
-	{
-		m_store = UT_NEW(ut_lock_free_hash_t(1024, true),
-				 mem_key_buf_stat_per_index_t);
-	}
+ public:
+  /** Constructor. */
+  buf_stat_per_index_t() {
+    m_store =
+        UT_NEW(ut_lock_free_hash_t(1024, true), mem_key_buf_stat_per_index_t);
+  }
 
-	/** Destructor. */
-	~buf_stat_per_index_t()
-	{
-		UT_DELETE(m_store);
-	}
+  /** Destructor. */
+  ~buf_stat_per_index_t() { UT_DELETE(m_store); }
 
-	/** Increment the number of pages for a given index with 1.
-	@param[in]	id	id of the index whose count to increment */
-	void
-	inc(
-		const index_id_t&	id)
-	{
-		if (should_skip(id)) {
-			return;
-		}
+  /** Increment the number of pages for a given index with 1.
+  @param[in]	id	id of the index whose count to increment */
+  void inc(const index_id_t &id) {
+    if (should_skip(id)) {
+      return;
+    }
 
-		m_store->inc(id.conv_to_int());
-	}
+    m_store->inc(id.conv_to_int());
+  }
 
-	/** Decrement the number of pages for a given index with 1.
-	@param[in]	id	id of the index whose count to decrement */
-	void
-	dec(
-		const index_id_t&	id)
-	{
-		if (should_skip(id)) {
-			return;
-		}
+  /** Decrement the number of pages for a given index with 1.
+  @param[in]	id	id of the index whose count to decrement */
+  void dec(const index_id_t &id) {
+    if (should_skip(id)) {
+      return;
+    }
 
-		m_store->dec(id.conv_to_int());
-	}
+    m_store->dec(id.conv_to_int());
+  }
 
-	/** Get the number of pages in the buffer pool for a given index.
-	@param[in]	id	id of the index whose pages to peek
-	@return number of pages */
-	uint64_t
-	get(
-		const index_id_t&	id)
-	{
-		if (should_skip(id)) {
-			return(0);
-		}
+  /** Get the number of pages in the buffer pool for a given index.
+  @param[in]	id	id of the index whose pages to peek
+  @return number of pages */
+  uint64_t get(const index_id_t &id) {
+    if (should_skip(id)) {
+      return (0);
+    }
 
-		const int64_t	ret = m_store->get(id.conv_to_int());
+    const int64_t ret = m_store->get(id.conv_to_int());
 
-		if (ret == ut_lock_free_hash_t::NOT_FOUND) {
-			/* If the index is not found in this structure,
-			then 0 of its pages are in the buffer pool. */
-			return(0);
-		}
+    if (ret == ut_lock_free_hash_t::NOT_FOUND) {
+      /* If the index is not found in this structure,
+      then 0 of its pages are in the buffer pool. */
+      return (0);
+    }
 
-		return(static_cast<uint64_t>(ret >= 0 ? ret : 0));
-	}
+    return (static_cast<uint64_t>(ret >= 0 ? ret : 0));
+  }
 
-private:
-	/** Assess if we should skip a page from accounting.
-	@param[in]	id	index_id of the page
-	@return true if it should not be accounted */
-	bool
-	should_skip(
-		const index_id_t&	id)
-	{
-		const bool is_temp = fsp_is_system_temporary(id.m_space_id);
+ private:
+  /** Assess if we should skip a page from accounting.
+  @param[in]	id	index_id of the page
+  @return true if it should not be accounted */
+  bool should_skip(const index_id_t &id) {
+    const bool is_temp = fsp_is_system_temporary(id.m_space_id);
 
-		return(id.is_ibuf() || is_temp
-		       || (id.m_index_id & 0xFFFFFFFF00000000ULL) != 0);
-	}
+    return (id.is_ibuf() || is_temp ||
+            (id.m_index_id & 0xFFFFFFFF00000000ULL) != 0);
+  }
 
-	/** (key, value) storage. */
-	ut_lock_free_hash_t*	m_store;
+  /** (key, value) storage. */
+  ut_lock_free_hash_t *m_store;
 };
 
 /** Container for how many pages from each index are contained in the buffer
 pool(s). */
-extern buf_stat_per_index_t*	buf_stat_per_index;
+extern buf_stat_per_index_t *buf_stat_per_index;
 
 #endif /* buf0stats_h */

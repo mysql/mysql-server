@@ -24,10 +24,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0import.ic
+/**************************************************/ /**
+ @file include/row0import.ic
 
-Import tablespace inline functions.
+ Import tablespace inline functions.
 
-Created 2012-02-08 Sunny Bains
-*******************************************************/
+ Created 2012-02-08 Sunny Bains
+ *******************************************************/

@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD_SDI_FWD_H_INCLUDED
-#define	DD_SDI_FWD_H_INCLUDED
+#define DD_SDI_FWD_H_INCLUDED
 
 #include <rapidjson/fwd.h>
 /**
@@ -42,12 +42,15 @@
 namespace dd {
 typedef rapidjson::UTF8<char> RJ_Encoding;
 typedef rapidjson::MemoryPoolAllocator<rapidjson::CrtAllocator> RJ_Allocator;
-typedef rapidjson::GenericDocument<RJ_Encoding, RJ_Allocator, rapidjson::CrtAllocator> RJ_Document;
+typedef rapidjson::GenericDocument<RJ_Encoding, RJ_Allocator,
+                                   rapidjson::CrtAllocator>
+    RJ_Document;
 typedef rapidjson::GenericValue<RJ_Encoding, RJ_Allocator> RJ_Value;
 typedef rapidjson::GenericStringBuffer<RJ_Encoding, rapidjson::CrtAllocator>
-RJ_StringBuffer;
+    RJ_StringBuffer;
 typedef rapidjson::PrettyWriter<RJ_StringBuffer, RJ_Encoding, RJ_Encoding,
-                                RJ_Allocator, 0> RJ_PrettyWriter;
+                                RJ_Allocator, 0>
+    RJ_PrettyWriter;
 
 using RJ_Writer = rapidjson::Writer<RJ_StringBuffer, RJ_Encoding, RJ_Encoding,
                                     RJ_Allocator, 0>;
@@ -61,7 +64,7 @@ using Sdi_writer = RJ_Writer;
 
 class Sdi_rcontext;
 class Sdi_wcontext;
-}
-/** @} */ // dd_rj_type_alias
+}  // namespace dd
+/** @} */  // dd_rj_type_alias
 
-#endif	/* DD_SDI_FWD_H_INCLUDED */
+#endif /* DD_SDI_FWD_H_INCLUDED */

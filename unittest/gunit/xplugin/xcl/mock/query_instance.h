@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,20 +29,15 @@
 
 #include "plugin/x/client/xquery_instances.h"
 
-
 namespace xcl {
 namespace test {
 
 class Mock_query_instances : public Query_instances {
  public:
-  MOCK_METHOD0(instances_fetch_begin,
-      Instance_id());
-  MOCK_METHOD0(instances_fetch_end,
-      void());
-  MOCK_METHOD1(is_instance_active,
-      bool(const Instance_id id));
+  MOCK_METHOD0(instances_fetch_begin, Instance_id());
+  MOCK_METHOD0(instances_fetch_end, void());
+  MOCK_METHOD1(is_instance_active, bool(const Instance_id id));
 };
-
 
 }  // namespace test
 }  // namespace xcl

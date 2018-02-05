@@ -58,9 +58,8 @@
 
   Class where the common binding utilities reside as static methods.
 */
-class Gcs_xcom_utils
-{
-public:
+class Gcs_xcom_utils {
+ public:
   /**
     Create a xcom group identifier from a Group Identifier.
 
@@ -77,9 +76,8 @@ public:
     @param peer_nodes input string of comma separated peer nodes
     @param[out] processed_peers the list of configured peers
    */
-  static
-  void process_peer_nodes(const std::string *peer_nodes,
-                          std::vector<std::string> &processed_peers);
+  static void process_peer_nodes(const std::string *peer_nodes,
+                                 std::vector<std::string> &processed_peers);
 
   /**
     Validates peer nodes according with IP/Address rules enforced by
@@ -89,9 +87,8 @@ public:
                     invalid peers
     @param [in,out] invalid_peers This list will contain all invalid peers.
    */
-  static
-  void validate_peer_nodes(std::vector<std::string> &peers,
-                           std::vector<std::string> &invalid_peers);
+  static void validate_peer_nodes(std::vector<std::string> &peers,
+                                  std::vector<std::string> &invalid_peers);
 
   /**
    Simple multiplicative hash.
@@ -116,18 +113,16 @@ public:
   implementation. The purpose of this is to allow Gcs_xcom_control_interface
   to be unit testable by creating mock classes on top of it.
 */
-class Gcs_xcom_proxy
-{
-public:
-  const static int connection_attempts= 10;
+class Gcs_xcom_proxy {
+ public:
+  const static int connection_attempts = 10;
 
   explicit Gcs_xcom_proxy() {}
 
   /**
     The destructor.
   */
-  virtual ~Gcs_xcom_proxy() {};
-
+  virtual ~Gcs_xcom_proxy(){};
 
   /**
     This is an utility member function that is used to call into XCom for
@@ -142,8 +137,8 @@ public:
     @c delete_node_address
   */
 
-  virtual node_address *new_node_address_uuid(unsigned int n, char *names[], blob uuids[])= 0;
-
+  virtual node_address *new_node_address_uuid(unsigned int n, char *names[],
+                                              blob uuids[]) = 0;
 
   /**
     This function is responsible to delete the list of nodes that had been
@@ -156,8 +151,7 @@ public:
     not have been completely freed.
   */
 
-  virtual void delete_node_address(unsigned int n, node_address *na)= 0;
-
+  virtual void delete_node_address(unsigned int n, node_address *na) = 0;
 
   /**
     This member function is responsible to call into XCom consensus and add a
@@ -179,9 +173,8 @@ public:
     were added to the configuration.
   */
 
-  virtual int
-  xcom_client_add_node(connection_descriptor* fd, node_list *nl, uint32_t group_id)= 0;
-
+  virtual int xcom_client_add_node(connection_descriptor *fd, node_list *nl,
+                                   uint32_t group_id) = 0;
 
   /**
     This member function is responsible for triggering the removal of a node
@@ -200,7 +193,7 @@ public:
            be removed
   */
 
-  virtual int xcom_client_remove_node(node_list *nl, uint32_t group_id)= 0;
+  virtual int xcom_client_remove_node(node_list *nl, uint32_t group_id) = 0;
 
   /**
     This member function is responsible for triggering the removal of a node
@@ -223,8 +216,8 @@ public:
     @param group_id The identifier of the group from which the nodes will
            be removed
   */
-  virtual int xcom_client_remove_node(connection_descriptor* fd, node_list* nl,
-                                      uint32_t group_id)= 0;
+  virtual int xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
+                                      uint32_t group_id) = 0;
 
   /**
     This member function is responsible for pushing data into consensus on
@@ -238,8 +231,7 @@ public:
     @return 0 on success, not 0 otherwise
   */
 
-  virtual int xcom_client_send_data(unsigned long long size, char *data)= 0;
-
+  virtual int xcom_client_send_data(unsigned long long size, char *data) = 0;
 
   /**
     This member function initializes XCom. This function must be called before
@@ -249,8 +241,7 @@ public:
     @param listen_port the port that the local XCom is to be listening on.
   */
 
-  virtual int xcom_init(xcom_port listen_port)= 0;
-
+  virtual int xcom_init(xcom_port listen_port) = 0;
 
   /**
     This member function finishes the XCom thread. This function must be
@@ -261,8 +252,7 @@ public:
                                xcom thread have already been opened.
   */
 
-  virtual int xcom_exit(bool xcom_handlers_open)= 0;
-
+  virtual int xcom_exit(bool xcom_handlers_open) = 0;
 
   /*
     Return the operation mode as an integer from an operation mode provided
@@ -273,8 +263,7 @@ public:
     If a different value is provide, INVALID_SSL_MODE (-1) is returned.
   */
 
-  virtual int xcom_get_ssl_mode(const char* mode)= 0;
-
+  virtual int xcom_get_ssl_mode(const char *mode) = 0;
 
   /*
     Set the operation mode which might be the following:
@@ -289,9 +278,9 @@ public:
     . SSL_REQUIRED (4): The SSL mode will be enabled but the verifications
       described in the next modes are not performed.
 
-    . SSL_VERIFY_CA (4) - Verify the server TLS certificate against the configured
-      Certificate Authority (CA) certificates. The connection attempt fails if no
-      valid matching CA certificates are found.
+    . SSL_VERIFY_CA (4) - Verify the server TLS certificate against the
+    configured Certificate Authority (CA) certificates. The connection attempt
+    fails if no valid matching CA certificates are found.
 
     . SSL_VERIFY_IDENTITY (5): Like VERIFY_CA, but additionally verify that the
       server certificate matches the host to which the connection is attempted.
@@ -299,49 +288,44 @@ public:
     If a different value is provide, INVALID_SSL_MODE (-1) is returned.
   */
 
-  virtual int xcom_set_ssl_mode(int mode)= 0;
+  virtual int xcom_set_ssl_mode(int mode) = 0;
 
+  /*
+    Return the operation fips mode as an integer from an operation fips mode
+    provided as a string. Note that the string must be provided in upper case
+    letters and the possible values are: "OFF", "ON", "STRICT",
 
-/*
-  Return the operation fips mode as an integer from an operation fips mode provided
-  as a string. Note that the string must be provided in upper case letters
-  and the possible values are: "OFF", "ON", "STRICT",
+    If a different value is provide, INVALID_SSL_MODE (-1) is returned.
+  */
 
-  If a different value is provide, INVALID_SSL_MODE (-1) is returned.
-*/
+  virtual int xcom_get_ssl_fips_mode(const char *mode) = 0;
 
-  virtual int xcom_get_ssl_fips_mode(const char* mode)= 0;
+  /*
+    Set the operation fips mode which might be the following:
 
+    . SSL_FIPS_MODE_OFF (0): This will set openssl fips mode value to 0
 
-/*
-  Set the operation fips mode which might be the following:
+    . SSL_FIPS_MODE_ON (1): This will set openssl fips mode value to 1
 
-  . SSL_FIPS_MODE_OFF (0): This will set openssl fips mode value to 0
+    . SSL_FIPS_MODE_STRICT (2): This will set openssl fips mode value to 2
 
-  . SSL_FIPS_MODE_ON (1): This will set openssl fips mode value to 1
+    If a different value is provide, INVALID_SSL_FIPS_MODE (-1) is returned.
+  */
 
-  . SSL_FIPS_MODE_STRICT (2): This will set openssl fips mode value to 2
-
-  If a different value is provide, INVALID_SSL_FIPS_MODE (-1) is returned.
-*/
-
-  virtual int xcom_set_ssl_fips_mode(int mode)= 0;
-
+  virtual int xcom_set_ssl_fips_mode(int mode) = 0;
 
   /*
     Initialize the SSL.
     Return 0 if success 1 otherwise.
   */
 
-  virtual int xcom_init_ssl()= 0;
-
+  virtual int xcom_init_ssl() = 0;
 
   /*
     Destroy the SSL Configuration freeing allocated memory.
   */
 
-  virtual void xcom_destroy_ssl()= 0;
-
+  virtual void xcom_destroy_ssl() = 0;
 
   /*
     Return whether the SSL will be used to encrypt data or not.
@@ -349,28 +333,23 @@ public:
     Return 1 if it is enabled 0 otherwise.
   */
 
-  virtual int xcom_use_ssl()= 0;
-
+  virtual int xcom_use_ssl() = 0;
 
   /*
     Set the necessary SSL parameters before initialization.
 
     server_key_file  - Path of file that contains the server's X509 key in PEM
                        format.
-    server_cert_file - Path of file that contains the server's X509 certificate in
-                       PEM format.
-    client_key_file  - Path of file that contains the client's X509 key in PEM
-                       format.
-    client_cert_file - Path of file that contains the client's X509 certificate in
-                       PEM format.
-    ca_file          - Path of file that contains list of trusted SSL CAs.
-    ca_path          - Path of directory that contains trusted SSL CA certificates
-                       in PEM format.
-    crl_file         - Path of file that contains certificate revocation lists.
-    crl_path         - Path of directory that contains certificate revocation list
-                       files.
-    cipher           - List of permitted ciphers to use for connection encryption.
-    tls_version      - Protocols permitted for secure connections.
+    server_cert_file - Path of file that contains the server's X509 certificate
+    in PEM format. client_key_file  - Path of file that contains the client's
+    X509 key in PEM format. client_cert_file - Path of file that contains the
+    client's X509 certificate in PEM format. ca_file          - Path of file
+    that contains list of trusted SSL CAs. ca_path          - Path of directory
+    that contains trusted SSL CA certificates in PEM format. crl_file         -
+    Path of file that contains certificate revocation lists. crl_path         -
+    Path of directory that contains certificate revocation list files. cipher
+    - List of permitted ciphers to use for connection encryption. tls_version
+    - Protocols permitted for secure connections.
 
     Note that only the server_key_file/server_cert_file and the client_key_file/
     client_cert_file are required and the rest of the pointers can be NULL.
@@ -380,19 +359,13 @@ public:
     The caller can free the parameters after the SSL is started
     if this is necessary.
   */
-  virtual void  xcom_set_ssl_parameters(const char *server_key_file,
-                                        const char *server_cert_file,
-                                        const char *client_key_file,
-                                        const char *client_cert_file,
-                                        const char *ca_file,
-                                        const char *ca_path,
-                                        const char *crl_file,
-                                        const char *crl_path,
-                                        const char *cipher,
-                                        const char *tls_version)= 0;
+  virtual void xcom_set_ssl_parameters(
+      const char *server_key_file, const char *server_cert_file,
+      const char *client_key_file, const char *client_cert_file,
+      const char *ca_file, const char *ca_path, const char *crl_file,
+      const char *crl_path, const char *cipher, const char *tls_version) = 0;
 
-
-  virtual site_def const *find_site_def(synode_no synode)= 0;
+  virtual site_def const *find_site_def(synode_no synode) = 0;
 
   /**
     This member function boots XCom.
@@ -402,8 +375,7 @@ public:
     @return false 0 on success, not 0 otherwise
   */
 
-  virtual int xcom_client_boot(node_list *nl, uint32_t group_id)= 0;
-
+  virtual int xcom_client_boot(node_list *nl, uint32_t group_id) = 0;
 
   /**
     This member function opens a connection to an XCom instance.
@@ -413,8 +385,8 @@ public:
     @return a valid file descriptor on success, -1 otherwise
   */
 
-  virtual connection_descriptor* xcom_client_open_connection(std::string addr, xcom_port port)= 0;
-
+  virtual connection_descriptor *xcom_client_open_connection(
+      std::string addr, xcom_port port) = 0;
 
   /**
     This member function closes the connection to an XCom instance.
@@ -423,8 +395,7 @@ public:
     @return 0 on success, not 0 otherwise
   */
 
-  virtual int xcom_client_close_connection(connection_descriptor* fd)= 0;
-
+  virtual int xcom_client_close_connection(connection_descriptor *fd) = 0;
 
   /**
     This member function opens all the local connections to XCom needed before
@@ -440,8 +411,7 @@ public:
     connection will have been created.
   */
 
-  virtual bool xcom_open_handlers(std::string saddr, xcom_port port)= 0;
-
+  virtual bool xcom_open_handlers(std::string saddr, xcom_port port) = 0;
 
   /**
     This member function closes all the local connections to XCom that had been
@@ -451,8 +421,7 @@ public:
     of the connections is undefined.
   */
 
-  virtual bool xcom_close_handlers()= 0;
-
+  virtual bool xcom_close_handlers() = 0;
 
   /**
     Acquires one of the handlers opened through @c xcom_open_handlers and locks
@@ -468,8 +437,7 @@ public:
     @return a valid handler to communicate with XCom
   */
 
-  virtual int xcom_acquire_handler()= 0;
-
+  virtual int xcom_acquire_handler() = 0;
 
   /**
     Releases the handler and unlocks it.
@@ -477,29 +445,28 @@ public:
     @param index The handler that was previously acquired
   */
 
-  virtual void xcom_release_handler(int index)= 0;
-
+  virtual void xcom_release_handler(int index) = 0;
 
   /**
     This member waits for XCom to be initialized.
   */
 
-  virtual enum_gcs_error xcom_wait_ready()= 0;
+  virtual enum_gcs_error xcom_wait_ready() = 0;
 
   /*
   This member retrieves the value of XCom initialized
   */
-  virtual bool xcom_is_ready()= 0;
+  virtual bool xcom_is_ready() = 0;
 
   /*
    This member sets the value of XCom initialized
    */
-  virtual void xcom_set_ready(bool value)= 0;
+  virtual void xcom_set_ready(bool value) = 0;
 
   /*
    This member signals that XCom has initialized.
    */
-  virtual void xcom_signal_ready()= 0;
+  virtual void xcom_signal_ready() = 0;
 
   /**
     @brief Call this method to wait for XCom communications to be initialized.
@@ -512,21 +479,23 @@ public:
     @param [out] status value of the XCom communication layer status.
                        It can be either XCOM_COMMS_OK or XCOM_COMMS_ERROR
    */
-  virtual void xcom_wait_for_xcom_comms_status_change(int& status)= 0;
+  virtual void xcom_wait_for_xcom_comms_status_change(int &status) = 0;
 
   /*
    This verifies if the communication status callback from XCom has been called
-   and if the internal cached status is different from XCOM_COMM_STATUS_UNDEFINED
+   and if the internal cached status is different from
+   XCOM_COMM_STATUS_UNDEFINED
   */
-  virtual bool xcom_has_comms_status_changed()= 0;
+  virtual bool xcom_has_comms_status_changed() = 0;
 
   /*
    This sets the status value of communication status callback from XCom.
-   Its main purpose is to reset the internal cached status to XCOM_COMM_STATUS_UNDEFINED
+   Its main purpose is to reset the internal cached status to
+   XCOM_COMM_STATUS_UNDEFINED
 
    @param status the new status value
    */
-  virtual void xcom_set_comms_status(int status)= 0;
+  virtual void xcom_set_comms_status(int status) = 0;
 
   /*
    This modifies the internal cached status to whatever value is delivered
@@ -535,8 +504,7 @@ public:
 
    @param status the new status value
   */
-  virtual void xcom_signal_comms_status_changed(int status)= 0;
-
+  virtual void xcom_signal_comms_status_changed(int status) = 0;
 
   /**
     @brief Call this method to wait for XCom to exit.
@@ -547,37 +515,32 @@ public:
     @return GCS_OK if success, otherwise GCS_NOK.
   */
 
-  virtual enum_gcs_error xcom_wait_exit()= 0;
-
+  virtual enum_gcs_error xcom_wait_exit() = 0;
 
   /**
     This verifies if XCom has finished or not.
   */
 
-  virtual bool xcom_is_exit()= 0;
-
+  virtual bool xcom_is_exit() = 0;
 
   /**
     This sets whether XCom has finished or not.
   */
 
-  virtual void xcom_set_exit(bool value)= 0;
-
+  virtual void xcom_set_exit(bool value) = 0;
 
   /**
     Clean up variables used to notify states in the XCOM's state
     machine.
   */
-  virtual void xcom_set_cleanup()= 0;
-
+  virtual void xcom_set_cleanup() = 0;
 
   /**
     This modifies the internal cached status and signals all threads
    that might be waiting on xcom_wait_exit.
   */
 
-  virtual void xcom_signal_exit()= 0;
-
+  virtual void xcom_signal_exit() = 0;
 
   /**
     This method forces XCom to inject a new configuration in the group,
@@ -589,8 +552,7 @@ public:
 
     @return
    */
-  virtual int xcom_client_force_config(node_list *nl,
-                                       uint32_t group_id)= 0;
+  virtual int xcom_client_force_config(node_list *nl, uint32_t group_id) = 0;
 
   /**
     This method forces XCom to inject a new configuration in the group,
@@ -604,7 +566,7 @@ public:
     @return
    */
   virtual int xcom_client_force_config(connection_descriptor *fd, node_list *nl,
-                                       uint32_t group_id)= 0;
+                                       uint32_t group_id) = 0;
 
   /**
     Function used to boot a node in XCOM.
@@ -613,7 +575,7 @@ public:
     @param group_id_hash Hash of group identifier.
   */
   virtual int xcom_boot_node(Gcs_xcom_node_information &node,
-                             uint32_t group_id_hash)= 0;
+                             uint32_t group_id_hash) = 0;
 
   /**
     Function to remove a set of nodes from XCOM.
@@ -623,7 +585,7 @@ public:
   */
 
   virtual int xcom_remove_nodes(Gcs_xcom_nodes &nodes,
-                                uint32_t group_id_hash)= 0;
+                                uint32_t group_id_hash) = 0;
 
   /**
     Function to remove a node from XCOM.
@@ -633,7 +595,7 @@ public:
   */
 
   virtual int xcom_remove_node(const Gcs_xcom_node_information &node,
-                               uint32_t group_id_hash)= 0;
+                               uint32_t group_id_hash) = 0;
 
   /**
     Function to add a set of nodes to XCOM.
@@ -643,10 +605,8 @@ public:
     @param group_id_hash Hash of group identifier.
   */
 
-  virtual int xcom_add_nodes(connection_descriptor& con,
-                             Gcs_xcom_nodes &nodes,
-                             uint32_t group_id_hash)= 0;
-
+  virtual int xcom_add_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
+                             uint32_t group_id_hash) = 0;
 
   /**
     Function to add a node to XCOM.
@@ -656,10 +616,9 @@ public:
   @param group_id_hash Hash of group identifier.
   */
 
-  virtual int xcom_add_node(connection_descriptor& con,
+  virtual int xcom_add_node(connection_descriptor &con,
                             const Gcs_xcom_node_information &node,
-                            uint32_t group_id_hash)= 0;
-
+                            uint32_t group_id_hash) = 0;
 
   /**
     Function to force the set of nodes in XCOM's configuration.
@@ -669,7 +628,7 @@ public:
   */
 
   virtual int xcom_force_nodes(Gcs_xcom_nodes &nodes,
-                               unsigned int group_id_hash)= 0;
+                               unsigned int group_id_hash) = 0;
 
   /**
     Function that retrieves the value that signals that XCom
@@ -677,15 +636,14 @@ public:
 
     @return 1 if XCom needs to forcefully exit. 0 otherwise.
    */
-  virtual bool get_should_exit()= 0;
+  virtual bool get_should_exit() = 0;
 
   /**
     Function that sets the value that signals that XCom
     must be forcefully stopped.
    */
-  virtual void set_should_exit(bool should_exit)= 0;
+  virtual void set_should_exit(bool should_exit) = 0;
 };
-
 
 /*
   Virtual class that contains implementation of methods used to
@@ -693,35 +651,29 @@ public:
   This layer becomes necessary to avoid duplicating code in test
   cases.
 */
-class Gcs_xcom_proxy_base : public Gcs_xcom_proxy
-{
-public:
+class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
+ public:
   explicit Gcs_xcom_proxy_base() {}
-  virtual ~Gcs_xcom_proxy_base() {};
+  virtual ~Gcs_xcom_proxy_base(){};
 
-  int xcom_boot_node(Gcs_xcom_node_information &node,
-                     uint32_t group_id_hash);
-  int xcom_remove_nodes(Gcs_xcom_nodes &nodes,
-                     uint32_t group_id_hash);
+  int xcom_boot_node(Gcs_xcom_node_information &node, uint32_t group_id_hash);
+  int xcom_remove_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
   int xcom_remove_node(const Gcs_xcom_node_information &node,
                        uint32_t group_id_hash);
-  int xcom_add_nodes(connection_descriptor& con,
-                     Gcs_xcom_nodes &nodes,
+  int xcom_add_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
                      uint32_t group_id_hash);
-  int xcom_add_node(connection_descriptor& con,
+  int xcom_add_node(connection_descriptor &con,
                     const Gcs_xcom_node_information &node,
                     uint32_t group_id_hash);
-  int xcom_force_nodes(Gcs_xcom_nodes &nodes,
-                       uint32_t group_id_hash);
-private:
+  int xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
 
+ private:
   /* Serialize information on nodes to be sent to XCOM */
   bool serialize_nodes_information(Gcs_xcom_nodes &nodes, node_list &nl);
 
   /* Free information on nodes sent to XCOM */
-  void free_nodes_information(node_list& nl);
+  void free_nodes_information(node_list &nl);
 };
-
 
 /**
   @class gcs_xcom_control_proxy_impl
@@ -730,47 +682,52 @@ private:
   instantiates Gcs_xcom_control_interface to be used in a real
   scenario.
 */
-class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base
-{
-private:
-  class Xcom_handler
-  {
-  private:
+class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
+ private:
+  class Xcom_handler {
+   private:
     My_xp_mutex_impl m_lock;
-    connection_descriptor* m_fd;
-  public:
+    connection_descriptor *m_fd;
+
+   public:
     explicit Xcom_handler();
     virtual ~Xcom_handler();
 
-    connection_descriptor* get_fd() { return m_fd; }
-    void set_fd(connection_descriptor* fd) { m_fd= fd; }
+    connection_descriptor *get_fd() { return m_fd; }
+    void set_fd(connection_descriptor *fd) { m_fd = fd; }
     void lock() { m_lock.lock(); }
     void unlock() { m_lock.unlock(); }
-  private:
+
+   private:
     /*
       Disabling the copy constructor and assignment operator.
     */
-    Xcom_handler(Xcom_handler const&);
-    Xcom_handler& operator=(Xcom_handler const&);
+    Xcom_handler(Xcom_handler const &);
+    Xcom_handler &operator=(Xcom_handler const &);
   };
-public:
+
+ public:
   explicit Gcs_xcom_proxy_impl();
   Gcs_xcom_proxy_impl(unsigned int wt);
   virtual ~Gcs_xcom_proxy_impl();
 
-  node_address *new_node_address_uuid(unsigned int n, char *names[], blob uuids[]);
+  node_address *new_node_address_uuid(unsigned int n, char *names[],
+                                      blob uuids[]);
   void delete_node_address(unsigned int n, node_address *na);
-  int xcom_client_add_node(connection_descriptor* fd, node_list *nl, uint32_t group_id);
-  int xcom_client_remove_node(connection_descriptor* fd, node_list* nl, uint32_t group_id);
+  int xcom_client_add_node(connection_descriptor *fd, node_list *nl,
+                           uint32_t group_id);
+  int xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
+                              uint32_t group_id);
   int xcom_client_remove_node(node_list *nl, uint32_t group_id);
   int xcom_client_boot(node_list *nl, uint32_t group_id);
-  connection_descriptor* xcom_client_open_connection(std::string, xcom_port port);
-  int xcom_client_close_connection(connection_descriptor* fd);
+  connection_descriptor *xcom_client_open_connection(std::string,
+                                                     xcom_port port);
+  int xcom_client_close_connection(connection_descriptor *fd);
   int xcom_client_send_data(unsigned long long size, char *data);
   int xcom_init(xcom_port listen_port);
   int xcom_exit(bool xcom_handlers_open);
-  int xcom_get_ssl_mode(const char* mode);
-  int xcom_get_ssl_fips_mode(const char* mode);
+  int xcom_get_ssl_mode(const char *mode);
+  int xcom_get_ssl_fips_mode(const char *mode);
   int xcom_set_ssl_fips_mode(int mode);
   int xcom_set_ssl_mode(int mode);
   int xcom_init_ssl();
@@ -794,7 +751,7 @@ public:
   void xcom_set_ready(bool value);
   void xcom_signal_ready();
 
-  void xcom_wait_for_xcom_comms_status_change(int& status);
+  void xcom_wait_for_xcom_comms_status_change(int &status);
   bool xcom_has_comms_status_changed();
   void xcom_set_comms_status(int status);
   void xcom_signal_comms_status_changed(int status);
@@ -811,7 +768,8 @@ public:
                                uint32_t group_id);
   bool get_should_exit();
   void set_should_exit(bool should_exit);
-private:
+
+ private:
   /* A pointer to the next local XCom connection to use. */
   int m_xcom_handlers_cursor;
 
@@ -832,18 +790,18 @@ private:
 
   // For synchronization between XCom and MySQL GCS infrastructure at startup.
   My_xp_mutex_impl m_lock_xcom_ready;
-  My_xp_cond_impl  m_cond_xcom_ready;
-  bool             m_is_xcom_ready;
+  My_xp_cond_impl m_cond_xcom_ready;
+  bool m_is_xcom_ready;
 
   My_xp_mutex_impl m_lock_xcom_comms_status;
-  My_xp_cond_impl  m_cond_xcom_comms_status;
-  int              m_xcom_comms_status;
+  My_xp_cond_impl m_cond_xcom_comms_status;
+  int m_xcom_comms_status;
 
   My_xp_mutex_impl m_lock_xcom_exit;
-  My_xp_cond_impl  m_cond_xcom_exit;
-  bool             m_is_xcom_exit;
+  My_xp_cond_impl m_cond_xcom_exit;
+  bool m_is_xcom_exit;
 
-  My_xp_socket_util* m_socket_util;
+  My_xp_socket_util *m_socket_util;
 
   // Stores SSL parameters
   const char *m_server_key_file;
@@ -862,20 +820,19 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_proxy_impl(Gcs_xcom_proxy_impl const&);
-  Gcs_xcom_proxy_impl& operator=(Gcs_xcom_proxy_impl const&);
+  Gcs_xcom_proxy_impl(Gcs_xcom_proxy_impl const &);
+  Gcs_xcom_proxy_impl &operator=(Gcs_xcom_proxy_impl const &);
 };
 
 /**
   A Gcs_xcom_interface needs to have an instance of this class
   initialized before engaging XCom.
  */
-class Gcs_xcom_app_cfg
-{
-public:
-  explicit Gcs_xcom_app_cfg() { }
+class Gcs_xcom_app_cfg {
+ public:
+  explicit Gcs_xcom_app_cfg() {}
 
-  virtual ~Gcs_xcom_app_cfg() { }
+  virtual ~Gcs_xcom_app_cfg() {}
 
   /**
     Initializes the data structures to communicate with
@@ -896,10 +853,9 @@ public:
   void deinit();
 };
 
-struct Gcs_xcom_thread_startup_parameters
-{
+struct Gcs_xcom_thread_startup_parameters {
   Gcs_xcom_proxy *proxy;
-  unsigned int   port;
+  unsigned int port;
 };
 
 /*****************************************************
@@ -916,8 +872,7 @@ struct Gcs_xcom_thread_startup_parameters
  @param s the string to check.
  @return true if it is a number, false otherwise.
  */
-inline bool is_number(const std::string &s)
-{
+inline bool is_number(const std::string &s) {
   return s.find_first_not_of("0123456789") == std::string::npos;
 }
 
@@ -933,8 +888,7 @@ bool is_valid_hostname(const std::string &server_and_port);
  Does some transformations on the parameters. For instance, replaces
  aliases with the correct ones
  */
-void
-fix_parameters_syntax(Gcs_interface_parameters &params);
+void fix_parameters_syntax(Gcs_interface_parameters &params);
 
 /**
  Checks that parameters are syntactically valid.
@@ -943,4 +897,4 @@ fix_parameters_syntax(Gcs_interface_parameters &params);
  @returns false if there is a syntax error, true otherwise.
  */
 bool is_parameters_syntax_correct(const Gcs_interface_parameters &params);
-#endif  /* GCS_XCOM_UTILS_INCLUDED */
+#endif /* GCS_XCOM_UTILS_INCLUDED */

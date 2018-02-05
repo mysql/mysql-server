@@ -29,15 +29,14 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysys_err.h"           // EE_*
+#include "mysys_err.h"  // EE_*
 #include "sql/mdl.h"
-#include "sql/sql_class.h"       // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
-#include "sql/table.h"           // TABLE_LIST
+#include "sql/table.h"  // TABLE_LIST
 #include "sql/transaction_info.h"
 #include "sql_string.h"
-
 
 /**
   Implementation of Drop_table_error_handler::handle_condition().
@@ -50,17 +49,13 @@
 
   @return true if the condition is handled.
 */
-bool Drop_table_error_handler::handle_condition(THD*,
-                                                uint sql_errno,
-                                                const char*,
-                                                Sql_condition::enum_severity_level*,
-                                                const char*)
-{
+bool Drop_table_error_handler::handle_condition(
+    THD *, uint sql_errno, const char *, Sql_condition::enum_severity_level *,
+    const char *) {
   return (sql_errno == ER_UNKNOWN_COLLATION) ||
          (sql_errno == ER_PLUGIN_IS_NOT_LOADED) ||
          (sql_errno == EE_DELETE && my_errno() == ENOENT);
 }
-
 
 /**
   This handler is used for the statements which support IGNORE keyword.
@@ -70,20 +65,16 @@ bool Drop_table_error_handler::handle_condition(THD*,
   aborted and next row is processed.
 
 */
-bool Ignore_error_handler::handle_condition(THD *thd,
-                                            uint sql_errno,
-                                            const char*,
-                                            Sql_condition::enum_severity_level *level,
-                                            const char*)
-{
+bool Ignore_error_handler::handle_condition(
+    THD *thd, uint sql_errno, const char *,
+    Sql_condition::enum_severity_level *level, const char *) {
   /*
     If a statement is executed with IGNORE keyword then this handler
     gets pushed for the statement. If there is trigger on the table
     which contains statements without IGNORE then this handler should
     not convert the errors within trigger to warnings.
   */
-  if (!thd->lex->is_ignore())
-    return false;
+  if (!thd->lex->is_ignore()) return false;
   /*
     Error codes ER_DUP_ENTRY_WITH_KEY_NAME is used while calling my_error
     to get the proper error messages depending on the use case.
@@ -95,43 +86,37 @@ bool Ignore_error_handler::handle_condition(THD *thd,
     There error codes are added here to force consistency if these error
     codes are used in any other case in future.
   */
-  switch (sql_errno)
-  {
-  case ER_SUBQUERY_NO_1_ROW:
-  case ER_ROW_IS_REFERENCED_2:
-  case ER_NO_REFERENCED_ROW_2:
-  case ER_BAD_NULL_ERROR:
-  case ER_DUP_ENTRY:
-  case ER_DUP_ENTRY_WITH_KEY_NAME:
-  case ER_DUP_KEY:
-  case ER_VIEW_CHECK_FAILED:
-  case ER_NO_PARTITION_FOR_GIVEN_VALUE:
-  case ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT:
-  case ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET:
-    (*level)= Sql_condition::SL_WARNING;
-    break;
-  default:
-    break;
+  switch (sql_errno) {
+    case ER_SUBQUERY_NO_1_ROW:
+    case ER_ROW_IS_REFERENCED_2:
+    case ER_NO_REFERENCED_ROW_2:
+    case ER_BAD_NULL_ERROR:
+    case ER_DUP_ENTRY:
+    case ER_DUP_ENTRY_WITH_KEY_NAME:
+    case ER_DUP_KEY:
+    case ER_VIEW_CHECK_FAILED:
+    case ER_NO_PARTITION_FOR_GIVEN_VALUE:
+    case ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT:
+    case ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET:
+      (*level) = Sql_condition::SL_WARNING;
+      break;
+    default:
+      break;
   }
   return false;
 }
 
-bool View_error_handler::handle_condition(
-                                THD *thd,
-                                uint sql_errno,
-                                const char *,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-{
+bool View_error_handler::handle_condition(THD *thd, uint sql_errno,
+                                          const char *,
+                                          Sql_condition::enum_severity_level *,
+                                          const char *) {
   /*
     Error will be handled by Show_create_error_handler for
     SHOW CREATE statements.
   */
-  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
-    return false;
+  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE) return false;
 
-  switch (sql_errno)
-  {
+  switch (sql_errno) {
     case ER_BAD_FIELD_ERROR:
     case ER_SP_DOES_NOT_EXIST:
     // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
@@ -139,20 +124,17 @@ bool View_error_handler::handle_condition(
     case ER_COLUMNACCESS_DENIED_ERROR:
     case ER_TABLEACCESS_DENIED_ERROR:
     // ER_TABLE_NOT_LOCKED cannot happen here.
-    case ER_NO_SUCH_TABLE:
-    {
-      TABLE_LIST *top= m_top_view->top_table();
-      my_error(ER_VIEW_INVALID, MYF(0),
-               top->view_db.str, top->view_name.str);
+    case ER_NO_SUCH_TABLE: {
+      TABLE_LIST *top = m_top_view->top_table();
+      my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
       return true;
     }
 
-    case ER_NO_DEFAULT_FOR_FIELD:
-    {
-      TABLE_LIST *top= m_top_view->top_table();
+    case ER_NO_DEFAULT_FOR_FIELD: {
+      TABLE_LIST *top = m_top_view->top_table();
       // TODO: make correct error message
-      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-               top->view_db.str, top->view_name.str);
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), top->view_db.str,
+               top->view_name.str);
       return true;
     }
   }
@@ -163,12 +145,9 @@ bool View_error_handler::handle_condition(
   Implementation of STRICT mode.
   Upgrades a set of given conditions from warning to error.
 */
-bool Strict_error_handler::handle_condition(THD *thd,
-                                            uint sql_errno,
-                                            const char*,
-                                            Sql_condition::enum_severity_level *level,
-                                            const char*)
-{
+bool Strict_error_handler::handle_condition(
+    THD *thd, uint sql_errno, const char *,
+    Sql_condition::enum_severity_level *level, const char *) {
   /*
     STRICT error handler should not be effective if we have changed the
     variable to turn off STRICT mode. This is the case when a SF/SP/Trigger
@@ -178,70 +157,66 @@ bool Strict_error_handler::handle_condition(THD *thd,
     statement. We dont want the strict handler to be effective for the
     next SP/SF/Trigger call if it was not created in STRICT mode.
   */
-  if (!thd->is_strict_mode())
-    return false;
+  if (!thd->is_strict_mode()) return false;
   /* STRICT MODE should affect only the below statements */
-  switch (thd->lex->sql_command)
-  {
-  case SQLCOM_SET_OPTION:
-  case SQLCOM_SELECT:
-    if (m_set_select_behavior == DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
+  switch (thd->lex->sql_command) {
+    case SQLCOM_SET_OPTION:
+    case SQLCOM_SELECT:
+      if (m_set_select_behavior == DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
+        return false;
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_CREATE_INDEX:
+    case SQLCOM_DROP_INDEX:
+    case SQLCOM_INSERT:
+    case SQLCOM_REPLACE:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_LOAD:
+    case SQLCOM_CALL:
+    case SQLCOM_END:
+      break;
+    default:
       return false;
-  case SQLCOM_CREATE_TABLE:
-  case SQLCOM_CREATE_INDEX:
-  case SQLCOM_DROP_INDEX:
-  case SQLCOM_INSERT:
-  case SQLCOM_REPLACE:
-  case SQLCOM_REPLACE_SELECT:
-  case SQLCOM_INSERT_SELECT:
-  case SQLCOM_UPDATE:
-  case SQLCOM_UPDATE_MULTI:
-  case SQLCOM_DELETE:
-  case SQLCOM_DELETE_MULTI:
-  case SQLCOM_ALTER_TABLE:
-  case SQLCOM_LOAD:
-  case SQLCOM_CALL:
-  case SQLCOM_END:
-    break;
-  default:
-    return false;
   }
 
-  switch (sql_errno)
-  {
-  case ER_TRUNCATED_WRONG_VALUE:
-  case ER_WRONG_VALUE_FOR_TYPE:
-  case ER_WARN_DATA_OUT_OF_RANGE:
-  case ER_DIVISION_BY_ZERO:
-  case ER_TRUNCATED_WRONG_VALUE_FOR_FIELD:
-  case WARN_DATA_TRUNCATED:
-  case ER_DATA_TOO_LONG:
-  case ER_BAD_NULL_ERROR:
-  case ER_NO_DEFAULT_FOR_FIELD:
-  case ER_TOO_LONG_KEY:
-  case ER_NO_DEFAULT_FOR_VIEW_FIELD:
-  case ER_WARN_NULL_TO_NOTNULL:
-  case ER_CUT_VALUE_GROUP_CONCAT:
-  case ER_DATETIME_FUNCTION_OVERFLOW:
-  case ER_WARN_TOO_FEW_RECORDS:
-  case ER_WARN_TOO_MANY_RECORDS:
-  case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
-  case ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE:
-  case ER_INVALID_JSON_VALUE_FOR_CAST:
-  case ER_WARN_ALLOWED_PACKET_OVERFLOWED:
-    if ((*level == Sql_condition::SL_WARNING) &&
-        (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)
-         || (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)))
-    {
-      (*level)= Sql_condition::SL_ERROR;
-    }
-    break;
-  default:
-    break;
+  switch (sql_errno) {
+    case ER_TRUNCATED_WRONG_VALUE:
+    case ER_WRONG_VALUE_FOR_TYPE:
+    case ER_WARN_DATA_OUT_OF_RANGE:
+    case ER_DIVISION_BY_ZERO:
+    case ER_TRUNCATED_WRONG_VALUE_FOR_FIELD:
+    case WARN_DATA_TRUNCATED:
+    case ER_DATA_TOO_LONG:
+    case ER_BAD_NULL_ERROR:
+    case ER_NO_DEFAULT_FOR_FIELD:
+    case ER_TOO_LONG_KEY:
+    case ER_NO_DEFAULT_FOR_VIEW_FIELD:
+    case ER_WARN_NULL_TO_NOTNULL:
+    case ER_CUT_VALUE_GROUP_CONCAT:
+    case ER_DATETIME_FUNCTION_OVERFLOW:
+    case ER_WARN_TOO_FEW_RECORDS:
+    case ER_WARN_TOO_MANY_RECORDS:
+    case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
+    case ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE:
+    case ER_INVALID_JSON_VALUE_FOR_CAST:
+    case ER_WARN_ALLOWED_PACKET_OVERFLOWED:
+      if ((*level == Sql_condition::SL_WARNING) &&
+          (!thd->get_transaction()->cannot_safely_rollback(
+               Transaction_ctx::STMT) ||
+           (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES))) {
+        (*level) = Sql_condition::SL_ERROR;
+      }
+      break;
+    default:
+      break;
   }
   return false;
 }
-
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -249,26 +224,20 @@ bool Strict_error_handler::handle_condition(THD *thd,
   tables.
 */
 
-class Repair_mrg_table_error_handler : public Internal_error_handler
-{
-public:
+class Repair_mrg_table_error_handler : public Internal_error_handler {
+ public:
   Repair_mrg_table_error_handler()
-    : m_handled_errors(false), m_unhandled_errors(false)
-  {}
+      : m_handled_errors(false), m_unhandled_errors(false) {}
 
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
-    if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
-    {
-      m_handled_errors= true;
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
+    if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE) {
+      m_handled_errors = true;
       return true;
     }
 
-    m_unhandled_errors= true;
+    m_unhandled_errors = true;
     return false;
   }
 
@@ -276,8 +245,7 @@ public:
     Returns true if there were ER_NO_SUCH_/WRONG_MRG_TABLE and there
     were no unhandled errors. false otherwise.
   */
-  bool safely_trapped_errors()
-  {
+  bool safely_trapped_errors() {
     /*
       Check for m_handled_errors is here for extra safety.
       It can be useful in situation when call to open_table()
@@ -285,14 +253,13 @@ public:
       error handler (e.g. in case of MDL deadlock which we
       decided to solve by back-off and retry).
     */
-    return (m_handled_errors && (! m_unhandled_errors));
+    return (m_handled_errors && (!m_unhandled_errors));
   }
 
-private:
+ private:
   bool m_handled_errors;
   bool m_unhandled_errors;
 };
-
 
 /**
   Following are implementation of error handler to convert ER_LOCK_DEADLOCK
@@ -302,42 +269,32 @@ private:
 Info_schema_error_handler::Info_schema_error_handler(THD *thd,
                                                      const String *schema_name,
                                                      const String *table_name)
-: m_can_deadlock(thd->mdl_context.has_locks()),
-  m_schema_name(schema_name),
-  m_table_name(table_name),
-  m_object_type(Mdl_object_type::TABLE)
-{}
+    : m_can_deadlock(thd->mdl_context.has_locks()),
+      m_schema_name(schema_name),
+      m_table_name(table_name),
+      m_object_type(Mdl_object_type::TABLE) {}
 
+Info_schema_error_handler::Info_schema_error_handler(
+    THD *thd, const String *tablespace_name)
+    : m_can_deadlock(thd->mdl_context.has_locks()),
+      m_tablespace_name(tablespace_name),
+      m_object_type(Mdl_object_type::TABLESPACE) {}
 
-Info_schema_error_handler::Info_schema_error_handler(THD *thd,
-                                                     const String *tablespace_name)
-: m_can_deadlock(thd->mdl_context.has_locks()),
-  m_tablespace_name(tablespace_name),
-  m_object_type(Mdl_object_type::TABLESPACE)
-{}
-
-bool Info_schema_error_handler::handle_condition(THD*,
-                                  uint sql_errno,
-                                  const char*,
-                                  Sql_condition::enum_severity_level*,
-                                  const char*)
-{
-  if (sql_errno == ER_LOCK_DEADLOCK && m_can_deadlock)
-  {
+bool Info_schema_error_handler::handle_condition(
+    THD *, uint sql_errno, const char *, Sql_condition::enum_severity_level *,
+    const char *) {
+  if (sql_errno == ER_LOCK_DEADLOCK && m_can_deadlock) {
     // Convert error to ER_WARN_I_S_SKIPPED_TABLE.
-    if (m_object_type == Mdl_object_type::TABLE)
-    {
+    if (m_object_type == Mdl_object_type::TABLE) {
       my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0), m_schema_name->ptr(),
                m_table_name->ptr());
-    }
-    else // Convert error to ER_WARN_I_S_SKIPPED_TABLESPACE.
+    } else  // Convert error to ER_WARN_I_S_SKIPPED_TABLESPACE.
     {
       my_error(ER_I_S_SKIPPED_TABLESPACE, MYF(0), m_tablespace_name->ptr());
     }
 
-    m_error_handled= true;
+    m_error_handled = true;
   }
 
   return false;
 }
-

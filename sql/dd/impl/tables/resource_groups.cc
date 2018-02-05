@@ -22,16 +22,14 @@
 
 #include "sql/dd/impl/tables/resource_groups.h"
 
-#include "sql/dd/impl/raw/object_keys.h" // dd::Global_name_key
-#include "sql/dd/impl/types/object_table_definition_impl.h" // dd::Raw_record
-#include "sql/dd/impl/types/resource_group_impl.h" // dd::Resource_group_impl
-
+#include "sql/dd/impl/raw/object_keys.h"  // dd::Global_name_key
+#include "sql/dd/impl/types/object_table_definition_impl.h"  // dd::Raw_record
+#include "sql/dd/impl/types/resource_group_impl.h"  // dd::Resource_group_impl
 
 namespace dd {
 namespace tables {
 
-Resource_groups::Resource_groups()
-{
+Resource_groups::Resource_groups() {
   m_target_def.set_table_name("resource_groups");
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
@@ -48,30 +46,24 @@ Resource_groups::Resource_groups()
                          "cpu_id_mask VARCHAR(1024) NOT NULL");
   m_target_def.add_field(FIELD_THREAD_PRIORITY, "FIELD_THREAD_PRIORITY",
                          "thread_priority int NOT NULL");
-  m_target_def.add_field(FIELD_OPTIONS,
-                         "FIELD_OPTIONS",
-                         "options MEDIUMTEXT");
+  m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
 
-  m_target_def.add_index(INDEX_PK_ID,
-                         "INDEX_PK_ID",
-                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY(id)");
   m_target_def.add_index(INDEX_UK_RESOURCE_GROUP_NAME,
                          "INDEX_UK_RESOURCE_GROUP_NAME",
                          "UNIQUE KEY (resource_group_name)");
 }
 
-const Resource_groups &Resource_groups::instance()
-{
-  static Resource_groups *s_instance= new Resource_groups();
+const Resource_groups &Resource_groups::instance() {
+  static Resource_groups *s_instance = new Resource_groups();
   return *s_instance;
 }
 
 bool Resource_groups::update_object_key(Global_name_key *key,
-                                        const String_type &name)
-{
+                                        const String_type &name) {
   key->update(FIELD_RESOURCE_GROUP_NAME, name);
   return false;
 }
 
-} // tables
-} // dd
+}  // namespace tables
+}  // namespace dd

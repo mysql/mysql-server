@@ -28,7 +28,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lot0types.h"
 
 struct lob_tester_t {
-
   void print_info();
 
   /** Insert 10MB of data and fetch it.  This LOB will have the FIRST page,
@@ -74,7 +73,7 @@ struct lob_tester_t {
 
   ulint get_page_size() const { return (UNIV_PAGE_SIZE); }
 
-  static std::ostream& print_lob(std::ostream& out, byte* lob, ulint size) {
+  static std::ostream &print_lob(std::ostream &out, byte *lob, ulint size) {
     for (ulint i = 0; i < size; ++i) {
       out << lob[i];
     }

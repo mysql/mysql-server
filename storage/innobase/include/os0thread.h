@@ -24,13 +24,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/os0thread.h
-The interface to the operating system
-process and thread control primitives
+/**************************************************/ /**
+ @file include/os0thread.h
+ The interface to the operating system
+ process and thread control primitives
 
-Created 9/8/1995 Heikki Tuuri
-*******************************************************/
+ Created 9/8/1995 Heikki Tuuri
+ *******************************************************/
 
 #ifndef os0thread_h
 #define os0thread_h
@@ -43,31 +43,30 @@ using os_thread_id_t = std::thread::native_handle_type;
 /** Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself.
 @return current thread native handle */
-os_thread_id_t
-os_thread_get_curr_id();
+os_thread_id_t os_thread_get_curr_id();
 
 /** Return the thread handle. The purpose of this function is to cast the
 native handle to an integer type for consistency
 @return the current thread ID cast to an uint64_t */
-#define os_thread_handle()	((uint64_t) (os_thread_get_curr_id()))
+#define os_thread_handle() ((uint64_t)(os_thread_get_curr_id()))
 
 /** Compares two thread ids for equality.
 @param[in]	lhs	OS thread or thread id
 @param[in]	rhs	OS thread or thread id
 return true if equal */
-#define os_thread_eq(lhs, rhs)  ((lhs) == (rhs))
+#define os_thread_eq(lhs, rhs) ((lhs) == (rhs))
 
 /** Advises the OS to give up remainder of the thread's time slice. */
-#define os_thread_yield()						\
-do {									\
-	std::this_thread::yield();					\
-} while(false)
+#define os_thread_yield()      \
+  do {                         \
+    std::this_thread::yield(); \
+  } while (false)
 
 /** The thread sleeps at least the time given in microseconds.
 @param[in]	usecs		time in microseconds */
-#define os_thread_sleep(usecs)						\
-do {									\
-	std::this_thread::sleep_for(std::chrono::microseconds(usecs));  \
-} while(false)
+#define os_thread_sleep(usecs)                                     \
+  do {                                                             \
+    std::this_thread::sleep_for(std::chrono::microseconds(usecs)); \
+  } while (false)
 
 #endif /* !os0thread_h */

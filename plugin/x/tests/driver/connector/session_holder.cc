@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -24,22 +24,16 @@
 
 #include "plugin/x/tests/driver/connector/session_holder.h"
 
-
 Session_holder::Session_holder(std::unique_ptr<xcl::XSession> session,
-               const Console &console)
-: m_session(std::move(session)), m_console(console) {
-}
+                               const Console &console)
+    : m_session(std::move(session)), m_console(console) {}
 
-xcl::XSession *Session_holder::get_session() {
-  return m_session.get();
-}
+xcl::XSession *Session_holder::get_session() { return m_session.get(); }
 
 bool Session_holder::try_get_number_of_received_messages(
-    const std::string message_name,
-    uint64_t *value) const {
+    const std::string message_name, uint64_t *value) const {
   assert(nullptr != value);
-  if (!m_received_msg_counters.count(message_name))
-    return false;
+  if (!m_received_msg_counters.count(message_name)) return false;
 
   *value = m_received_msg_counters.at(message_name);
 
@@ -50,36 +44,29 @@ xcl::XError Session_holder::setup_session(const Connection_options &options) {
   xcl::XError error;
 
   if (options.socket.empty()) {
-    error = m_session->connect(
-        options.host.c_str(),
-        options.port,
-        options.user.c_str(),
-        options.password.c_str(),
-        options.schema.c_str());
+    error = m_session->connect(options.host.c_str(), options.port,
+                               options.user.c_str(), options.password.c_str(),
+                               options.schema.c_str());
   } else {
-    error = m_session->connect(
-        options.socket.c_str(),
-        options.user.c_str(),
-        options.password.c_str(),
-        options.schema.c_str());
+    error =
+        m_session->connect(options.socket.c_str(), options.user.c_str(),
+                           options.password.c_str(), options.schema.c_str());
   }
 
   return error;
 }
 
-xcl::XError Session_holder::setup_connection(const Connection_options &options) {
+xcl::XError Session_holder::setup_connection(
+    const Connection_options &options) {
   xcl::XError error;
-  auto       &protocol = m_session->get_protocol();
-  auto       &connection = protocol.get_connection();
+  auto &protocol = m_session->get_protocol();
+  auto &connection = protocol.get_connection();
 
   if (options.socket.empty()) {
-    error = connection.connect(
-        options.host.c_str(),
-        options.port,
-        options.ip_mode);
+    error =
+        connection.connect(options.host.c_str(), options.port, options.ip_mode);
   } else {
-    error = connection.connect_to_localhost(
-        options.socket.c_str());
+    error = connection.connect_to_localhost(options.socket.c_str());
   }
 
   return error;
@@ -87,11 +74,9 @@ xcl::XError Session_holder::setup_connection(const Connection_options &options) 
 
 void Session_holder::setup_ssl(const Connection_options &options) {
   auto error = m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_fips_mode,
-      options.ssl_fips_mode);
+      xcl::XSession::Mysqlx_option::Ssl_fips_mode, options.ssl_fips_mode);
 
-  if (error)
-    throw error;
+  if (error) throw error;
 
   auto ssl_mode = options.ssl_mode;
   if (ssl_mode.empty()) {
@@ -101,61 +86,48 @@ void Session_holder::setup_ssl(const Connection_options &options) {
       ssl_mode = "DISABLED";
   }
 
-  error = m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_mode,
-      ssl_mode);
+  error = m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
+                                      ssl_mode);
 
-  if (error)
-    throw error;
+  if (error) throw error;
 
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_ca,
-      options.ssl_ca);
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_ca_path,
-      options.ssl_ca_path);
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_cert,
-      options.ssl_cert);
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_cipher,
-      options.ssl_cipher);
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Ssl_key,
-      options.ssl_key);
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Allowed_tls,
-      options.allowed_tls);
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Read_timeout,
-      options.io_timeout);
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Write_timeout,
-      options.io_timeout);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_ca,
+                              options.ssl_ca);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_ca_path,
+                              options.ssl_ca_path);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_cert,
+                              options.ssl_cert);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_cipher,
+                              options.ssl_cipher);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_key,
+                              options.ssl_key);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Allowed_tls,
+                              options.allowed_tls);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Read_timeout,
+                              options.io_timeout);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Write_timeout,
+                              options.io_timeout);
 }
 
 void Session_holder::setup_msg_callbacks(const bool force_trace_protocol) {
   auto &protocol = m_session->get_protocol();
 
-  m_session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Consume_all_notices,
-      false);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Consume_all_notices,
+                              false);
 
   m_handler_id = protocol.add_notice_handler(
-      [this] (const xcl::XProtocol *protocol,
-              const bool is_global,
-              const Frame_type type,
-              const char *data,
-              const uint32_t data_length) -> xcl::Handler_result {
+      [this](const xcl::XProtocol *protocol, const bool is_global,
+             const Frame_type type, const char *data,
+             const uint32_t data_length) -> xcl::Handler_result {
         return dump_notices(protocol, is_global, type, data, data_length);
       });
 
   protocol.add_received_message_handler(
-      [this] (xcl::XProtocol *protocol,
-          const xcl::XProtocol::Server_message_type_id msg_id,
-          const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
-    return count_received_messages(protocol, msg_id, msg);
-  });
+      [this](xcl::XProtocol *protocol,
+             const xcl::XProtocol::Server_message_type_id msg_id,
+             const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+        return count_received_messages(protocol, msg_id, msg);
+      });
 
   /** Push message handlers that are responsible for tracing.
    The functionality is enabled by setting "MYSQLX_TRACE_CONNECTION"
@@ -166,18 +138,18 @@ void Session_holder::setup_msg_callbacks(const bool force_trace_protocol) {
   if (force_trace_protocol ||
       (should_enable_tracing && strlen(should_enable_tracing))) {
     protocol.add_received_message_handler(
-        [this] (xcl::XProtocol *protocol,
-            const xcl::XProtocol::Server_message_type_id msg_id,
-            const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
-      return trace_received_messages(protocol, msg_id, msg);
-    });
+        [this](xcl::XProtocol *protocol,
+               const xcl::XProtocol::Server_message_type_id msg_id,
+               const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+          return trace_received_messages(protocol, msg_id, msg);
+        });
 
     protocol.add_send_message_handler(
-        [this] (xcl::XProtocol *protocol,
-            const xcl::XProtocol::Client_message_type_id msg_id,
-            const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
-      return trace_send_messages(protocol, msg_id, msg);
-    });
+        [this](xcl::XProtocol *protocol,
+               const xcl::XProtocol::Client_message_type_id msg_id,
+               const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+          return trace_send_messages(protocol, msg_id, msg);
+        });
   }
 }
 
@@ -231,12 +203,11 @@ xcl::Handler_result Session_holder::count_received_messages(
   return xcl::Handler_result::Continue;
 }
 
-xcl::Handler_result Session_holder::dump_notices(
-    const xcl::XProtocol *protocol,
-    const bool is_global,
-    const Frame_type type,
-    const char *data,
-    const uint32_t data_length) {
+xcl::Handler_result Session_holder::dump_notices(const xcl::XProtocol *protocol,
+                                                 const bool is_global,
+                                                 const Frame_type type,
+                                                 const char *data,
+                                                 const uint32_t data_length) {
   if (type == Frame_type::Frame_Type_SESSION_STATE_CHANGED) {
     Mysqlx::Notice::SessionStateChanged change;
 
@@ -258,8 +229,7 @@ xcl::Handler_result Session_holder::dump_notices(
   return xcl::Handler_result::Continue;
 }
 
-void Session_holder::print_message(
-    const std::string &direction,
-    const xcl::XProtocol::Message &msg) {
-  m_console.print(direction, msg.ByteSize()+1, " ", msg);
+void Session_holder::print_message(const std::string &direction,
+                                   const xcl::XProtocol::Message &msg) {
+  m_console.print(direction, msg.ByteSize() + 1, " ", msg);
 }

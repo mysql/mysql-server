@@ -60,13 +60,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   When the callback is invoked, the #PSI_thread_attrs structure will contain the
   system attributes of the thread.
-  
+
   @section PFS_NOTIFICATION_REGISTER Registering Events
 
   To register for one or more events, set the corresponding callback function
   pointers in the #PSI_notification structure, leaving the function pointer
   NULL for unused callbacks.
-  
+
   Use the service function @c register_notification() to register the callbacks
   with the server
 
@@ -81,7 +81,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
                       callbacks. Set TRUE for callback functions in
                       dynamically loaded modules. Set FALSE for callback
                       functions in static or unloadable modules.
-  
+
   For example:
   @code
     PSI_notification_cb my_callbacks;
@@ -100,22 +100,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   is used to unregister the callback set.
 
   A callback set can be registered more than once. No error is returned
-  for calling @c register_notification() more than once for a given callback set.
-  Callbacks are invoked once for each time they are registered.
+  for calling @c register_notification() more than once for a given callback
+  set. Callbacks are invoked once for each time they are registered.
 
   For callback functions that reside in dynamically loaded modules, set
-  @verbatim with_ref_count = TRUE @endverbatim so that the module can be safely unloaded after
-  the callbacks are unregistered.
+  @verbatim with_ref_count = TRUE @endverbatim so that the module can be safely
+  unloaded after the callbacks are unregistered.
 
   For callback functions that reside in static, built-in or otherwise unloadable
-  modules, set @verbatim with_ref_count = FALSE @endverbatim to optimize callback performance in
-  high-concurrency environments.
+  modules, set @verbatim with_ref_count = FALSE @endverbatim to optimize
+  callback performance in high-concurrency environments.
 
   Callbacks that reside in a dynamically loaded module such as a server plugin,
   must be successfully unregistered before the module is unloaded.
-  
-  For callbacks in static or unloadable modules, @c unregister_notification() will disable the
-  callback functions, but the function pointers will remain.
+
+  For callbacks in static or unloadable modules, @c unregister_notification()
+  will disable the callback functions, but the function pointers will remain.
 
   @section PFS_NOTIFICATION_UNREGISTER Unregistering Events
 
@@ -123,7 +123,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   returned from @c register_notification(). For example:
 
   @code
-    int ret = mysql_service_pfs_notification->unregister_notification(my_handle);
+    int ret =
+  mysql_service_pfs_notification->unregister_notification(my_handle);
 
     if (ret == 0)
     {
@@ -135,19 +136,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
     }
   @endcode
 
-  Callbacks that reside in a dynamically loaded module such as a server plugin or
-  component must be successfully unregistered before the module is unloaded.
+  Callbacks that reside in a dynamically loaded module such as a server plugin
+  or component must be successfully unregistered before the module is unloaded.
 
   If @c unregister_notification() returns an error, then the module should not
   be unloaded.
 
-  If the callbacks were registered with @verbatim with_ref_count = TRUE @endverbatim then
-  @c unregister_notification() will return an error if any of the functions are in use
-  and fail to return after 2 seconds.
+  If the callbacks were registered with @verbatim with_ref_count = TRUE
+  @endverbatim then
+  @c unregister_notification() will return an error if any of the functions are
+  in use and fail to return after 2 seconds.
 
-  If the callbacks were registered with @verbatim with_ref_count = FALSE @endverbatim then
+  If the callbacks were registered with @verbatim with_ref_count = FALSE
+  @endverbatim then
   @c unregister_notification() will disable the callback functions, but the
-  callback function pointers will be assumed to be valid until the server is shutdown.
+  callback function pointers will be assumed to be valid until the server is
+  shutdown.
 
   @c unregister_callback() can be called multiple times for the same handle.
 
@@ -157,8 +161,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 
 BEGIN_SERVICE_DEFINITION(pfs_notification)
-  register_notification_v1_t register_notification;
-  unregister_notification_v1_t unregister_notification;
+register_notification_v1_t register_notification;
+unregister_notification_v1_t unregister_notification;
 END_SERVICE_DEFINITION(pfs_notification)
 
 #endif

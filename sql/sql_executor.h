@@ -35,10 +35,10 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "sql/item.h"
-#include "sql/records.h"           // READ_RECORD
-#include "sql/sql_class.h"         // THD
+#include "sql/records.h"    // READ_RECORD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
-#include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
+#include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
 
@@ -55,40 +55,39 @@ struct CACHE_FIELD;
 struct MI_COLUMNDEF;
 struct POSITION;
 struct st_join_table;
-template <class T> class List;
+template <class T>
+class List;
 
 /**
    Possible status of a "nested loop" operation (Next_select_func family of
    functions).
    All values except NESTED_LOOP_OK abort the nested loop.
 */
-enum enum_nested_loop_state
-{
+enum enum_nested_loop_state {
   /**
      Thread shutdown was requested while processing the record
      @todo could it be merged with NESTED_LOOP_ERROR? Why two distinct states?
   */
-  NESTED_LOOP_KILLED= -2,
+  NESTED_LOOP_KILLED = -2,
   /// A fatal error (like table corruption) was detected
-  NESTED_LOOP_ERROR= -1,
+  NESTED_LOOP_ERROR = -1,
   /// Record has been successfully handled
-  NESTED_LOOP_OK= 0,
+  NESTED_LOOP_OK = 0,
   /**
      Record has been successfully handled; additionally, the nested loop
      produced the number of rows specified in the LIMIT clause for the query.
   */
-  NESTED_LOOP_QUERY_LIMIT= 3,
+  NESTED_LOOP_QUERY_LIMIT = 3,
   /**
      Record has been successfully handled; additionally, there is a cursor and
      the nested loop algorithm produced the number of rows that is specified
      for current cursor fetch operation.
   */
-  NESTED_LOOP_CURSOR_LIMIT= 4
+  NESTED_LOOP_CURSOR_LIMIT = 4
 };
 
-
-typedef enum_nested_loop_state
-(*Next_select_func)(JOIN *, class QEP_TAB *, bool);
+typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
+                                                   bool);
 
 /*
   Temporary table used by semi-join DuplicateElimination strategy
@@ -107,18 +106,15 @@ typedef enum_nested_loop_state
   the tuple.
 */
 
-class SJ_TMP_TABLE
-{
-public:
-  SJ_TMP_TABLE():hash_field(NULL)
-  {}
+class SJ_TMP_TABLE {
+ public:
+  SJ_TMP_TABLE() : hash_field(NULL) {}
   /*
     Array of pointers to tables whose rowids compose the temporary table
     record.
   */
-  class TAB
-  {
-  public:
+  class TAB {
+   public:
     QEP_TAB *qep_tab;
     uint rowid_offset;
     ushort null_byte;
@@ -126,22 +122,22 @@ public:
   };
   TAB *tabs;
   TAB *tabs_end;
-  
-  /* 
+
+  /*
     is_confluent==true means this is a special case where the temptable record
     has zero length (and presence of a unique key means that the temptable can
-    have either 0 or 1 records). 
+    have either 0 or 1 records).
     In this case we don't create the physical temptable but instead record
     its state in SJ_TMP_TABLE::have_confluent_record.
   */
   bool is_confluent;
 
-  /* 
+  /*
     When is_confluent==true: the contents of the table (whether it has the
     record or not).
   */
   bool have_confluent_row;
-  
+
   /* table record parameters */
   uint null_bits;
   uint null_bytes;
@@ -158,37 +154,36 @@ public:
   MI_COLUMNDEF *recinfo;
 
   /* Pointer to next table (next->start_idx > this->end_idx) */
-  SJ_TMP_TABLE *next; 
+  SJ_TMP_TABLE *next;
   /* Calc hash instead of too long key */
   Field_longlong *hash_field;
 };
 
-
- /**
-  Executor structure for the materialized semi-join info, which contains
-   - Description of expressions selected from subquery
-   - The sj-materialization temporary table
+/**
+ Executor structure for the materialized semi-join info, which contains
+  - Description of expressions selected from subquery
+  - The sj-materialization temporary table
 */
-class Semijoin_mat_exec
-{
-public:
+class Semijoin_mat_exec {
+ public:
   Semijoin_mat_exec(TABLE_LIST *sj_nest, bool is_scan, uint table_count,
                     uint mat_table_index, uint inner_table_index)
-    :sj_nest(sj_nest), is_scan(is_scan), table_count(table_count),
-     mat_table_index(mat_table_index), inner_table_index(inner_table_index),
-    table_param(), table(NULL)
-  {}
-  ~Semijoin_mat_exec()
-  {}
-  TABLE_LIST *const sj_nest;    ///< Semi-join nest for this materialization
-  const bool is_scan;           ///< true if executing a scan, false if lookup
-  const uint table_count;       ///< Number of tables in the sj-nest
-  const uint mat_table_index;   ///< Index in join_tab for materialized table
-  const uint inner_table_index; ///< Index in join_tab for first inner table
-  Temp_table_param table_param; ///< The temptable and its related info
-  TABLE *table;                 ///< Reference to temporary table
+      : sj_nest(sj_nest),
+        is_scan(is_scan),
+        table_count(table_count),
+        mat_table_index(mat_table_index),
+        inner_table_index(inner_table_index),
+        table_param(),
+        table(NULL) {}
+  ~Semijoin_mat_exec() {}
+  TABLE_LIST *const sj_nest;     ///< Semi-join nest for this materialization
+  const bool is_scan;            ///< true if executing a scan, false if lookup
+  const uint table_count;        ///< Number of tables in the sj-nest
+  const uint mat_table_index;    ///< Index in join_tab for materialized table
+  const uint inner_table_index;  ///< Index in join_tab for first inner table
+  Temp_table_param table_param;  ///< The temptable and its related info
+  TABLE *table;                  ///< Reference to temporary table
 };
-
 
 /**
   QEP_operation is an interface class for operations in query execution plan.
@@ -208,9 +203,8 @@ public:
   being cached, QEP_tmp_buffer is attached to a tmp table.
 */
 
-class QEP_operation
-{
-public:
+class QEP_operation {
+ public:
   // Type of the operation
   enum enum_op_type { OT_CACHE, OT_TMP_TABLE };
   /**
@@ -220,10 +214,10 @@ public:
   */
   QEP_TAB *qep_tab;
 
-  QEP_operation(): qep_tab(NULL) {};
-  QEP_operation(QEP_TAB *qep_tab_arg): qep_tab(qep_tab_arg) {};
-  virtual ~QEP_operation() {};
-  virtual enum_op_type type()= 0;
+  QEP_operation() : qep_tab(NULL){};
+  QEP_operation(QEP_TAB *qep_tab_arg) : qep_tab(qep_tab_arg){};
+  virtual ~QEP_operation(){};
+  virtual enum_op_type type() = 0;
   /**
     Initialize operation's internal state.  Called once per query execution.
   */
@@ -233,17 +227,16 @@ public:
     @return
       return one of enum_nested_loop_state values.
   */
-  virtual enum_nested_loop_state put_record()= 0;
+  virtual enum_nested_loop_state put_record() = 0;
   /**
     Finalize records sending.
   */
-  virtual enum_nested_loop_state end_send()= 0;
+  virtual enum_nested_loop_state end_send() = 0;
   /**
     Internal state cleanup.
   */
-  virtual void mem_free() {};
+  virtual void mem_free(){};
 };
-
 
 /**
   @brief
@@ -266,12 +259,10 @@ public:
 
 */
 
-class QEP_tmp_table :public QEP_operation
-{
-public:
-  QEP_tmp_table(QEP_TAB *qep_tab_arg) :
-  QEP_operation(qep_tab_arg), write_func(NULL)
-  {};
+class QEP_tmp_table : public QEP_operation {
+ public:
+  QEP_tmp_table(QEP_TAB *qep_tab_arg)
+      : QEP_operation(qep_tab_arg), write_func(NULL){};
   enum_op_type type() { return OT_TMP_TABLE; }
   enum_nested_loop_state put_record() { return put_record(false); };
   /*
@@ -283,12 +274,11 @@ public:
   */
   enum_nested_loop_state end_send();
   /** write_func setter */
-  void set_write_func(Next_select_func new_write_func)
-  {
-    write_func= new_write_func;
+  void set_write_func(Next_select_func new_write_func) {
+    write_func = new_write_func;
   }
 
-private:
+ private:
   /** Write function that would be used for saving records in tmp table. */
   Next_select_func write_func;
   enum_nested_loop_state put_record(bool end_of_records);
@@ -296,26 +286,22 @@ private:
   bool prepare_tmp_table();
 };
 
-
 void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace);
-enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool
-                                        end_of_records);
+enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab,
+                                     bool end_of_records);
 enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
                                       bool end_of_records);
 enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *qep_tab,
                                        bool end_of_records);
-enum_nested_loop_state sub_select(JOIN *join,QEP_TAB *qep_tab, bool
-                                  end_of_records);
-enum_nested_loop_state
-evaluate_join_record(JOIN *join, QEP_TAB *qep_tab, int error);
-
-
+enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *qep_tab,
+                                  bool end_of_records);
+enum_nested_loop_state evaluate_join_record(JOIN *join, QEP_TAB *qep_tab,
+                                            int error);
 
 MY_ATTRIBUTE((warn_unused_result))
 bool copy_fields(Temp_table_param *param, const THD *thd);
 
-enum Copy_func_type
-{
+enum Copy_func_type {
   /**
     In non-windowing step, copies functions
   */
@@ -355,7 +341,7 @@ enum Copy_func_type
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
-                Copy_func_type type= CFT_ALL);
+                Copy_func_type type = CFT_ALL);
 
 /**
   Copy the lookup key into the table ref's key buffer.
@@ -392,68 +378,64 @@ int test_if_item_cache_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
 bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-				     List<Item> &new_list1,
-				     List<Item> &new_list2,
-				     uint elements, List<Item> &items);
+                              List<Item> &new_list1, List<Item> &new_list2,
+                              uint elements, List<Item> &items);
 // Create list for using with tempory table
 bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
-				      List<Item> &new_list1,
-				      List<Item> &new_list2,
-				      uint elements, List<Item> &items);
+                               List<Item> &new_list1, List<Item> &new_list2,
+                               uint elements, List<Item> &items);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 bool setup_copy_fields(THD *thd, Temp_table_param *param,
-		  Ref_item_array ref_item_array,
-		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
-		  uint elements, List<Item> &all_fields);
+                       Ref_item_array ref_item_array,
+                       List<Item> &res_selected_fields,
+                       List<Item> &res_all_fields, uint elements,
+                       List<Item> &all_fields);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(Field *field, ulonglong *hash);
 
-class QEP_TAB : public QEP_shared_owner
-{
-public:
-  QEP_TAB() :
-    QEP_shared_owner(),
-    table_ref(NULL),
-    flush_weedout_table(NULL),
-    check_weed_out_table(NULL),
-    firstmatch_return(NO_PLAN_IDX),
-    loosescan_key_len(0),
-    loosescan_buf(NULL),
-    match_tab(NO_PLAN_IDX),
-    found_match(false),
-    found(false),
-    not_null_compl(false),
-    first_unmatched(NO_PLAN_IDX),
-    rematerialize(false),
-    materialize_table(NULL),
-    read_first_record(NULL),
-    next_select(NULL),
-    read_record(),
-    save_read_first_record(NULL),
-    save_read_record(NULL),
-    used_null_fields(false),
-    used_uneven_bit_fields(false),
-    keep_current_rowid(false),
-    copy_current_rowid(NULL),
-    distinct(false),
-    not_used_in_distinct(false),
-    cache_idx_cond(NULL),
-    having(NULL),
-    op(NULL),
-    tmp_table_param(NULL),
-    filesort(NULL),
-    ref_item_slice(REF_SLICE_SAVE),
-    send_records(0),
-    quick_traced_before(false),
-    m_condition_optim(NULL),
-    m_quick_optim(NULL),
-    m_keyread_optim(false),
-    m_reversed_access(false),
-    m_fetched_rows(0)
-  {
-  }
+class QEP_TAB : public QEP_shared_owner {
+ public:
+  QEP_TAB()
+      : QEP_shared_owner(),
+        table_ref(NULL),
+        flush_weedout_table(NULL),
+        check_weed_out_table(NULL),
+        firstmatch_return(NO_PLAN_IDX),
+        loosescan_key_len(0),
+        loosescan_buf(NULL),
+        match_tab(NO_PLAN_IDX),
+        found_match(false),
+        found(false),
+        not_null_compl(false),
+        first_unmatched(NO_PLAN_IDX),
+        rematerialize(false),
+        materialize_table(NULL),
+        read_first_record(NULL),
+        next_select(NULL),
+        read_record(),
+        save_read_first_record(NULL),
+        save_read_record(NULL),
+        used_null_fields(false),
+        used_uneven_bit_fields(false),
+        keep_current_rowid(false),
+        copy_current_rowid(NULL),
+        distinct(false),
+        not_used_in_distinct(false),
+        cache_idx_cond(NULL),
+        having(NULL),
+        op(NULL),
+        tmp_table_param(NULL),
+        filesort(NULL),
+        ref_item_slice(REF_SLICE_SAVE),
+        send_records(0),
+        quick_traced_before(false),
+        m_condition_optim(NULL),
+        m_quick_optim(NULL),
+        m_keyread_optim(false),
+        m_reversed_access(false),
+        m_fetched_rows(0) {}
 
   /// Initializes the object from a JOIN_TAB
   void init(JOIN_TAB *jt);
@@ -464,22 +446,18 @@ public:
 
   Item *condition_optim() const { return m_condition_optim; }
   QUICK_SELECT_I *quick_optim() const { return m_quick_optim; }
-  void set_quick_optim() { m_quick_optim= quick(); }
-  void set_condition_optim() { m_condition_optim= condition(); }
+  void set_quick_optim() { m_quick_optim = quick(); }
+  void set_condition_optim() { m_condition_optim = condition(); }
   bool keyread_optim() const { return m_keyread_optim; }
-  void set_keyread_optim()
-  {
-    if (table())
-      m_keyread_optim= table()->key_read;
+  void set_keyread_optim() {
+    if (table()) m_keyread_optim = table()->key_read;
   }
   bool reversed_access() const { return m_reversed_access; }
-  void set_reversed_access(bool arg) { m_reversed_access= arg; }
+  void set_reversed_access(bool arg) { m_reversed_access = arg; }
 
-  void set_table(TABLE *t)
-  {
+  void set_table(TABLE *t) {
     m_qs->set_table(t);
-    if (t)
-      t->reginfo.qep_tab= this;
+    if (t) t->reginfo.qep_tab = this;
   }
 
   /// @returns semijoin strategy for this table.
@@ -514,20 +492,17 @@ public:
   uint sjm_query_block_id() const;
 
   /// @returns whether this is doing QS_DYNAMIC_RANGE
-  bool dynamic_range() const
-  {
-    if (!position())
-      return false; // tmp table
+  bool dynamic_range() const {
+    if (!position()) return false;  // tmp table
     return read_first_record == join_init_quick_read_record;
   }
 
-  bool use_order() const; ///< Use ordering provided by chosen index?
+  bool use_order() const;  ///< Use ordering provided by chosen index?
   bool sort_table();
   bool remove_duplicates();
 
-  inline bool skip_record(THD *thd, bool *skip_record_arg)
-  {
-    *skip_record_arg= condition() ? condition()->val_int() == false : false;
+  inline bool skip_record(THD *thd, bool *skip_record_arg) {
+    *skip_record_arg = condition() ? condition()->val_int() == false : false;
     return thd->is_error();
   }
 
@@ -535,25 +510,22 @@ public:
      Used to begin a new execution of a subquery. Necessary if this subquery
      has done a filesort which which has cleared condition/quick.
   */
-  void restore_quick_optim_and_condition()
-  {
-    if (m_condition_optim)
-      set_condition(m_condition_optim);
-    if (m_quick_optim)
-      set_quick(m_quick_optim);
+  void restore_quick_optim_and_condition() {
+    if (m_condition_optim) set_condition(m_condition_optim);
+    if (m_quick_optim) set_quick(m_quick_optim);
   }
 
   void pick_table_access_method(const JOIN_TAB *join_tab);
   void set_pushed_table_access_method(void);
-  void push_index_cond(const JOIN_TAB *join_tab,
-                       uint keyno, Opt_trace_object *trace_obj);
+  void push_index_cond(const JOIN_TAB *join_tab, uint keyno,
+                       Opt_trace_object *trace_obj);
 
   /// @return the index used for a table in a QEP
   uint effective_index() const;
 
   bool pfs_batch_update(JOIN *join);
 
-public:
+ public:
   /// Pointer to table reference
   TABLE_LIST *table_ref;
 
@@ -631,12 +603,13 @@ public:
     executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
   */
-  READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
-  READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
+  READ_RECORD::Setup_func
+      save_read_first_record;              /* to save read_first_record */
+  READ_RECORD::Read_func save_read_record; /* to save read_record.read_record */
 
   // join-cache-related members
-  bool          used_null_fields;
-  bool          used_uneven_bit_fields;
+  bool used_null_fields;
+  bool used_uneven_bit_fields;
 
   /*
     Used by DuplicateElimination. tab->table->ref must have the rowid
@@ -686,7 +659,7 @@ public:
   bool quick_traced_before;
 
   /// @see m_quick_optim
-  Item          *m_condition_optim;
+  Item *m_condition_optim;
 
   /**
      m_quick is the quick "to be used at this stage of execution".
@@ -723,29 +696,27 @@ public:
   */
   ha_rows m_fetched_rows;
 
-  QEP_TAB(const QEP_TAB&);                      // not defined
-  QEP_TAB& operator=(const QEP_TAB&);           // not defined
+  QEP_TAB(const QEP_TAB &);             // not defined
+  QEP_TAB &operator=(const QEP_TAB &);  // not defined
 };
-
 
 /**
    @returns a pointer to the QEP_TAB whose index is qtab->member. For
    example, QEP_AT(x,first_inner) is the first_inner table of x.
 */
-#define QEP_AT(qtab,member) (qtab->join()->qep_tab[qtab->member])
-
+#define QEP_AT(qtab, member) (qtab->join()->qep_tab[qtab->member])
 
 /**
    Use this class when you need a QEP_TAB not connected to any JOIN_TAB.
 */
-class QEP_TAB_standalone
-{
-public:
+class QEP_TAB_standalone {
+ public:
   QEP_TAB_standalone() { m_qt.set_qs(&m_qs); }
   ~QEP_TAB_standalone() { m_qt.cleanup(); }
   /// @returns access to the QEP_TAB
   QEP_TAB &as_QEP_TAB() { return m_qt; }
-private:
+
+ private:
   QEP_shared m_qs;
   QEP_TAB m_qt;
 };

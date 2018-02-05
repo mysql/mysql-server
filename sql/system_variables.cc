@@ -24,7 +24,6 @@
 
 #include <string.h>
 
-
 /*
   Add all status variables to another status variable array
 
@@ -41,25 +40,22 @@
 */
 
 void add_to_status(System_status_var *to_var, System_status_var *from_var,
-                   bool reset_from_var)
-{
-  int        c;
-  ulonglong *end= (ulonglong*) ((uchar*) to_var +
-                                offsetof(System_status_var, LAST_STATUS_VAR) +
-                                sizeof(ulonglong));
-  ulonglong *to= (ulonglong*) to_var, *from= (ulonglong*) from_var;
+                   bool reset_from_var) {
+  int c;
+  ulonglong *end = (ulonglong *)((uchar *)to_var +
+                                 offsetof(System_status_var, LAST_STATUS_VAR) +
+                                 sizeof(ulonglong));
+  ulonglong *to = (ulonglong *)to_var, *from = (ulonglong *)from_var;
 
-  while (to != end)
-    *(to++)+= *(from++);
+  while (to != end) *(to++) += *(from++);
 
-  to_var->com_other+= from_var->com_other;
+  to_var->com_other += from_var->com_other;
 
-  for (c= 0; c< SQLCOM_END; c++)
-    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+  for (c = 0; c < SQLCOM_END; c++)
+    to_var->com_stat[(uint)c] += from_var->com_stat[(uint)c];
 
-  if (reset_from_var)
-  {
-    memset (from_var, 0, sizeof(*from_var));
+  if (reset_from_var) {
+    memset(from_var, 0, sizeof(*from_var));
   }
 }
 
@@ -77,20 +73,19 @@ void add_to_status(System_status_var *to_var, System_status_var *from_var,
 */
 
 void add_diff_to_status(System_status_var *to_var, System_status_var *from_var,
-                        System_status_var *dec_var)
-{
-  int        c;
-  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(System_status_var, LAST_STATUS_VAR) +
-                                                  sizeof(ulonglong));
-  ulonglong *to= (ulonglong*) to_var,
-            *from= (ulonglong*) from_var,
-            *dec= (ulonglong*) dec_var;
+                        System_status_var *dec_var) {
+  int c;
+  ulonglong *end = (ulonglong *)((uchar *)to_var +
+                                 offsetof(System_status_var, LAST_STATUS_VAR) +
+                                 sizeof(ulonglong));
+  ulonglong *to = (ulonglong *)to_var, *from = (ulonglong *)from_var,
+            *dec = (ulonglong *)dec_var;
 
-  while (to != end)
-    *(to++)+= *(from++) - *(dec++);
+  while (to != end) *(to++) += *(from++) - *(dec++);
 
-  to_var->com_other+= from_var->com_other - dec_var->com_other;
+  to_var->com_other += from_var->com_other - dec_var->com_other;
 
-  for (c= 0; c< SQLCOM_END; c++)
-    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c] -dec_var->com_stat[(uint) c];
+  for (c = 0; c < SQLCOM_END; c++)
+    to_var->com_stat[(uint)c] +=
+        from_var->com_stat[(uint)c] - dec_var->com_stat[(uint)c];
 }

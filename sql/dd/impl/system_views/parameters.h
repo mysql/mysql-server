@@ -33,11 +33,9 @@ namespace system_views {
 /*
   The class representing INFORMATION_SCHEMA.PARAMETERS system view definition.
 */
-class Parameters : public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Parameters : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_SPECIFIC_CATALOG,
     FIELD_SPECIFIC_SCHEMA,
     FIELD_SPECIFIC_NAME,
@@ -60,17 +58,15 @@ public:
 
   static const Parameters &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("PARAMETERS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Parameters::view_name(); }
+  virtual const String_type &name() const { return Parameters::view_name(); }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__PARAMETERS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__PARAMETERS_INCLUDED

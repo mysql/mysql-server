@@ -21,16 +21,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
-#define	RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
+#define RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
 
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/channel_observation_manager.h"
 #include "plugin/group_replication/include/recovery_state_transfer.h"
 
-class Recovery_channel_state_observer : public Channel_state_observer
-{
-public:
-  Recovery_channel_state_observer(Recovery_state_transfer* recovery_state_transfer);
+class Recovery_channel_state_observer : public Channel_state_observer {
+ public:
+  Recovery_channel_state_observer(
+      Recovery_state_transfer *recovery_state_transfer);
 
   /** Observer for receiver thread starts */
   int thread_start(Binlog_relay_IO_param *param);
@@ -45,33 +45,26 @@ public:
   int applier_stop(Binlog_relay_IO_param *param, bool aborted);
 
   /**  Observer for when a new transmission from a another server is requested*/
-  int before_request_transmit(Binlog_relay_IO_param *param,
-                            uint32 flags);
+  int before_request_transmit(Binlog_relay_IO_param *param, uint32 flags);
 
   /** Observer for whenever a event is read by the receiver thread*/
-  int after_read_event(Binlog_relay_IO_param *param,
-                       const char *packet, unsigned long len,
-                       const char **event_buf,
+  int after_read_event(Binlog_relay_IO_param *param, const char *packet,
+                       unsigned long len, const char **event_buf,
                        unsigned long *event_len);
 
   /** Observer for whenever a event is queued by the receiver thread*/
-  int after_queue_event(Binlog_relay_IO_param *param,
-                        const char *event_buf,
-                        unsigned long event_len,
-                        uint32 flags);
+  int after_queue_event(Binlog_relay_IO_param *param, const char *event_buf,
+                        unsigned long event_len, uint32 flags);
 
   /** Observer for whenever a reset slave is executed */
   int after_reset_slave(Binlog_relay_IO_param *param);
 
   /** Observer for applier skip event */
-  int applier_log_event(Binlog_relay_IO_param *param,
-                        Trans_param *trans_param,
-                        int& out);
+  int applier_log_event(Binlog_relay_IO_param *param, Trans_param *trans_param,
+                        int &out);
 
-private:
+ private:
   Recovery_state_transfer *recovery_state_transfer;
 };
 
 #endif /* RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE */
-
-

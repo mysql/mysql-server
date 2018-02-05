@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -44,7 +44,8 @@ Callback_command_delegate::Field_value::Field_value(const Field_value &other)
 /*
 NOTE: Commented for coverage. Uncomment when needed.
 
-Callback_command_delegate::Field_value& Callback_command_delegate::Field_value::operator = (const Field_value& other)
+Callback_command_delegate::Field_value&
+Callback_command_delegate::Field_value::operator = (const Field_value& other)
 {
   if (&other != this)
   {
@@ -172,8 +173,7 @@ ulong Callback_command_delegate::get_client_capabilities() {
 int Callback_command_delegate::get_null() {
   try {
     if (m_current_row) m_current_row->fields.push_back(NULL);
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
@@ -184,8 +184,7 @@ int Callback_command_delegate::get_integer(longlong value) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(ngs::allocate_object<Field_value>(value));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
@@ -198,8 +197,7 @@ int Callback_command_delegate::get_longlong(longlong value,
     if (m_current_row)
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(value, unsigned_flag));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
@@ -211,8 +209,7 @@ int Callback_command_delegate::get_decimal(const decimal_t *value) {
     if (m_current_row)
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
@@ -223,8 +220,7 @@ int Callback_command_delegate::get_double(double value, uint32) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(ngs::allocate_object<Field_value>(value));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
@@ -236,36 +232,31 @@ int Callback_command_delegate::get_date(const MYSQL_TIME *value) {
     if (m_current_row)
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
   return false;
 }
 
-int Callback_command_delegate::get_time(const MYSQL_TIME *value,
-                                        uint) {
+int Callback_command_delegate::get_time(const MYSQL_TIME *value, uint) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
   return false;
 }
 
-int Callback_command_delegate::get_datetime(const MYSQL_TIME *value,
-                                            uint) {
+int Callback_command_delegate::get_datetime(const MYSQL_TIME *value, uint) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }
@@ -279,8 +270,7 @@ int Callback_command_delegate::get_string(const char *const value,
     if (m_current_row)
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(value, length));
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
     return true;
   }

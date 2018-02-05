@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,28 +30,25 @@
 
 namespace xpl {
 
-Expect_condition_field::Expect_condition_field(
-    const std::string &value)
-: Expect_condition(Mysqlx::Expect::Open_Condition_Key_EXPECT_FIELD_EXIST,
-                   value) {
-}
+Expect_condition_field::Expect_condition_field(const std::string &value)
+    : Expect_condition(Mysqlx::Expect::Open_Condition_Key_EXPECT_FIELD_EXIST,
+                       value) {}
 
 Expect_condition_field::Expect_condition_field(
     const Expect_condition_field &other)
-: Expect_condition(other) {
-}
+    : Expect_condition(other) {}
 
 Expect_condition_field::Expect_condition_ptr Expect_condition_field::clone() {
-  return Expect_condition_ptr{ new Expect_condition_field(*this) };
+  return Expect_condition_ptr{new Expect_condition_field(*this)};
 }
 
 ngs::Error_code Expect_condition_field::check_if_error() {
   static XProtocol_tags tags;
 
   if (!tags.is_chain_acceptable(value())) {
-    return ngs::Error(
-        ER_X_EXPECT_FIELD_EXISTS_FAILED,
-        "Expectation failed: field_exists = '%s'", value().c_str());
+    return ngs::Error(ER_X_EXPECT_FIELD_EXISTS_FAILED,
+                      "Expectation failed: field_exists = '%s'",
+                      value().c_str());
   }
 
   return {};

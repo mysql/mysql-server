@@ -38,24 +38,19 @@
   @{
 */
 
-class PFS_index_esms_by_program : public PFS_engine_index
-{
-public:
+class PFS_index_esms_by_program : public PFS_engine_index {
+ public:
   PFS_index_esms_by_program()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("OBJECT_TYPE"),
-      m_key_2("OBJECT_SCHEMA"),
-      m_key_3("OBJECT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("OBJECT_TYPE"),
+        m_key_2("OBJECT_SCHEMA"),
+        m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_esms_by_program()
-  {
-  }
+  ~PFS_index_esms_by_program() {}
 
   virtual bool match(PFS_program *pfs);
 
-private:
+ private:
   PFS_key_object_type_enum m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
@@ -65,8 +60,7 @@ private:
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM.
 */
-struct row_esms_by_program
-{
+struct row_esms_by_program {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column OBJECT_SCHEMA. */
@@ -90,9 +84,8 @@ struct row_esms_by_program
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM. */
-class table_esms_by_program : public PFS_engine_table
-{
-public:
+class table_esms_by_program : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -107,23 +100,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_esms_by_program();
 
-public:
-  ~table_esms_by_program()
-  {
-  }
+ public:
+  ~table_esms_by_program() {}
 
-protected:
+ protected:
   int make_row(PFS_program *);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

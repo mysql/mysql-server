@@ -27,9 +27,8 @@
   only options that need special treatment in get_one_option() deserve
   to be listed below
 */
-enum options_mysqld
-{
-  OPT_to_set_the_start_number=256,
+enum options_mysqld {
+  OPT_to_set_the_start_number = 256,
   OPT_BIND_ADDRESS,
   OPT_BINLOG_CHECKSUM,
   OPT_BINLOG_DO_DB,
@@ -107,6 +106,5 @@ enum options_mysqld
   OPT_LOG_SLAVE_UPDATES,
   OPT_SLAVE_PRESERVE_COMMIT_ORDER
 };
-
 
 #endif  // OPTIONS_MYSQLD_INCLUDED

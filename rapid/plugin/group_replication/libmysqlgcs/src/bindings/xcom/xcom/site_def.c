@@ -338,9 +338,8 @@ void remove_site_def(u_int n, node_address *names, site_def *site) {
 /* purecov: begin deadcode */
 /* Return boot_key of first site def */
 synode_no get_boot_key() {
-  assert(!_get_site_def() ||
-         _get_site_def()->global_node_set.node_set_len ==
-             _get_maxnodes(_get_site_def()));
+  assert(!_get_site_def() || _get_site_def()->global_node_set.node_set_len ==
+                                 _get_maxnodes(_get_site_def()));
   if (get_site_def()) {
     return get_site_def()->boot_key;
   } else {
@@ -364,7 +363,7 @@ uint32_t get_group_id(site_def const *site) {
   if (site) {
     uint32_t group_id = site->start.group_id;
     assert(site->global_node_set.node_set_len == _get_maxnodes(site));
-    MAY_DBG(FN; NDBG((unsigned long) group_id, lu); );
+    MAY_DBG(FN; NDBG((unsigned long)group_id, lu););
     return group_id;
   } else {
     return null_id;

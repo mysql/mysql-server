@@ -29,41 +29,29 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view_identifier.h"
 
-class Gcs_xcom_view_identifier: public Gcs_view_identifier
-{
-public:
+class Gcs_xcom_view_identifier : public Gcs_view_identifier {
+ public:
   explicit Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
                                     uint32_t monotonic_part_arg);
 
   virtual ~Gcs_xcom_view_identifier();
 
+  uint64_t get_fixed_part() const { return fixed_part; }
 
-  uint64_t get_fixed_part() const
-  {
-    return fixed_part;
-  }
-
-
-  uint32_t get_monotonic_part() const
-  {
-    return monotonic_part;
-  }
-
+  uint32_t get_monotonic_part() const { return monotonic_part; }
 
   void increment_by_one();
 
-
   virtual const std::string &get_representation() const;
-
 
   Gcs_view_identifier *clone() const;
 
-private:
+ private:
   void init(uint64_t fixed_part_arg, uint32_t monotonic_part_arg);
 
   uint64_t fixed_part;
   uint32_t monotonic_part;
-  std::string       representation;
+  std::string representation;
 };
 
-#endif  /* GCS_XCOM_VIEW_IDENTIFIER_INCLUDED */
+#endif /* GCS_XCOM_VIEW_IDENTIFIER_INCLUDED */

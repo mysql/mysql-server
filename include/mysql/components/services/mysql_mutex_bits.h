@@ -46,8 +46,7 @@
   @sa mysql_mutex_unlock
   @sa mysql_mutex_destroy
 */
-struct mysql_mutex_t
-{
+struct mysql_mutex_t {
   /** The real mutex. */
   my_mutex_t m_mutex;
   /**
@@ -61,4 +60,3 @@ struct mysql_mutex_t
 /** @} (end of group psi_api_mutex) */
 
 #endif /* COMPONENTS_SERVICES_MYSQL_MUTEX_BITS_H */
-

@@ -31,9 +31,6 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/ngs/include/ngs/client_list.h"
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
@@ -41,13 +38,15 @@
 #include "plugin/x/ngs/include/ngs/interface/server_delegate.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/socket_events.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
-namespace ngs
-{
+namespace ngs {
 
 class Server;
 class Session_interface;
@@ -58,20 +57,24 @@ class Incoming_queue;
 class Scheduler_dynamic;
 class Server_acceptors;
 
-class Server: public Server_interface
-{
-public:
-  enum State {State_initializing, State_running, State_failure, State_terminating};
+class Server : public Server_interface {
+ public:
+  enum State {
+    State_initializing,
+    State_running,
+    State_failure,
+    State_terminating
+  };
 
   Server(ngs::shared_ptr<Server_acceptors> acceptors,
          ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
          ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
-         Server_delegate *delegate,
-         ngs::shared_ptr<Protocol_config> config);
+         Server_delegate *delegate, ngs::shared_ptr<Protocol_config> config);
 
   virtual Ssl_context *ssl_context() const { return m_ssl_context.get(); }
 
-  bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking, const bool skip_name_resolve, const bool use_unix_sockets);
+  bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking,
+               const bool skip_name_resolve, const bool use_unix_sockets);
 
   void start();
   void start_failed();
@@ -82,63 +85,66 @@ public:
   bool is_terminating();
   bool is_running();
 
-  virtual ngs::shared_ptr<Protocol_config> get_config() const { return m_config; }
-  ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const { return m_worker_scheduler; }
+  virtual ngs::shared_ptr<Protocol_config> get_config() const {
+    return m_config;
+  }
+  ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const {
+    return m_worker_scheduler;
+  }
   Client_list &get_client_list() { return m_client_list; }
   Mutex &get_client_exit_mutex() { return m_client_exit_mutex; }
 
-  virtual ngs::shared_ptr<Session_interface> create_session(Client_interface &client,
-                                                            Protocol_encoder_interface &proto,
-                                                            const int session_id);
+  virtual ngs::shared_ptr<Session_interface> create_session(
+      Client_interface &client, Protocol_encoder_interface &proto,
+      const int session_id);
 
   void on_client_closed(const Client_interface &client);
 
-  Authentication_interface_ptr get_auth_handler(const std::string &name, Session_interface *session);
-  void get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client);
-  void add_authentication_mechanism(const std::string &name,
-                                    Authentication_interface::Create initiator,
-                                    const bool allowed_only_with_secure_connection);
+  Authentication_interface_ptr get_auth_handler(const std::string &name,
+                                                Session_interface *session);
+  void get_authentication_mechanisms(std::vector<std::string> &auth_mech,
+                                     Client_interface &client);
+  void add_authentication_mechanism(
+      const std::string &name, Authentication_interface::Create initiator,
+      const bool allowed_only_with_secure_connection);
   void add_sha256_password_cache(SHA256_password_cache_interface *cache);
 
-  void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
+  void add_timer(const std::size_t delay_ms, ngs::function<bool()> callback);
   bool reset_globals();
   Document_id_generator_interface &get_document_id_generator() const override {
     return *m_id_generator;
   }
 
-private:
-  Server(const Server&);
-  Server& operator=(const Server&);
+ private:
+  Server(const Server &);
+  Server &operator=(const Server &);
 
   void run_task(ngs::shared_ptr<Server_task_interface> handler);
   void wait_for_clients_closure();
-  void go_through_all_clients(ngs::function<void (Client_ptr)> callback);
+  void go_through_all_clients(ngs::function<void(Client_ptr)> callback);
   bool timeout_for_clients_validation();
   void wait_for_next_client();
 
-  // accept one connection, create a connection object for the client and tell it to
-  // start reading input
+  // accept one connection, create a connection object for the client and tell
+  // it to start reading input
   void on_accept(Connection_acceptor_interface &acceptor);
-  void start_client_supervision_timer(const chrono::duration &oldest_object_time_ms);
+  void start_client_supervision_timer(
+      const chrono::duration &oldest_object_time_ms);
   void restart_client_supervision_timer();
 
   bool on_check_terminated_workers();
 
-private:
-  class Authentication_key
-  {
-  public:
-    Authentication_key(const std::string &key_name, const bool key_should_be_tls_active)
-    : name(key_name), must_be_secure_connection(key_should_be_tls_active)
-    {
-    }
+ private:
+  class Authentication_key {
+   public:
+    Authentication_key(const std::string &key_name,
+                       const bool key_should_be_tls_active)
+        : name(key_name), must_be_secure_connection(key_should_be_tls_active) {}
 
-    bool operator< (const Authentication_key &key) const
-    {
+    bool operator<(const Authentication_key &key) const {
       int result = name.compare(key.name);
 
-      if (0 != result)
-      {
+      if (0 != result) {
         return result < 0;
       }
 
@@ -149,7 +155,8 @@ private:
     const bool must_be_secure_connection;
   };
 
-  typedef std::map<Authentication_key, Authentication_interface::Create> Auth_handler_map;
+  typedef std::map<Authentication_key, Authentication_interface::Create>
+      Auth_handler_map;
 
   bool m_timer_running;
   bool m_skip_name_resolve;
@@ -170,6 +177,6 @@ private:
   Mutex m_client_exit_mutex;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_SERVER_H_
+#endif  // _NGS_SERVER_H_

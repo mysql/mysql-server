@@ -28,20 +28,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
   Locks RW-lock and releases lock on scope exit.
 */
-class rwlock_scoped_lock
-{
-public:
-  rwlock_scoped_lock(mysql_rwlock_t* lock, bool lock_for_write,
-    const char* file, int line);
-  rwlock_scoped_lock(rwlock_scoped_lock&& lock);
-  rwlock_scoped_lock(const rwlock_scoped_lock&) = delete;
+class rwlock_scoped_lock {
+ public:
+  rwlock_scoped_lock(mysql_rwlock_t *lock, bool lock_for_write,
+                     const char *file, int line);
+  rwlock_scoped_lock(rwlock_scoped_lock &&lock);
+  rwlock_scoped_lock(const rwlock_scoped_lock &) = delete;
   ~rwlock_scoped_lock();
 
-  rwlock_scoped_lock& operator=(const rwlock_scoped_lock&) = delete;
+  rwlock_scoped_lock &operator=(const rwlock_scoped_lock &) = delete;
 
-private:
-  mysql_rwlock_t* m_lock;
+ private:
+  mysql_rwlock_t *m_lock;
 };
-
 
 #endif /* MYSQL_RWLOCK_SCOPE_LOCK_H */

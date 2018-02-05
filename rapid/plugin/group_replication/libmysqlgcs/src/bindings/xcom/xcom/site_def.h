@@ -23,8 +23,8 @@
 #ifndef SITE_DEF_H
 #define SITE_DEF_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
 
 #ifdef __cplusplus
 extern "C" {

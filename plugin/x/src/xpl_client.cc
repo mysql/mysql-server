@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -41,7 +41,6 @@
 #include "plugin/x/src/xpl_session.h"
 #include "sql/hostname.h"
 
-
 namespace xpl {
 
 Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
@@ -50,7 +49,7 @@ Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
     : ngs::Client(connection, server, client_id, *pmon, timeouts),
       m_protocol_monitor(pmon) {
   if (m_protocol_monitor)
-    static_cast<Protocol_monitor*>(m_protocol_monitor)->init(this);
+    static_cast<Protocol_monitor *>(m_protocol_monitor)->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
@@ -79,23 +78,20 @@ ngs::Capabilities_configurator *Client::capabilities_configurator() {
   return caps;
 }
 
-void Client::set_is_interactive(const bool flag)  {
+void Client::set_is_interactive(const bool flag) {
   m_is_interactive = flag;
 
-  if (nullptr == m_session.get())
-    return;
+  if (nullptr == m_session.get()) return;
 
   auto thd = m_session->get_thd();
 
-  if (nullptr == thd)
-    return;
+  if (nullptr == thd) return;
 
   if (!m_session->data_context().attach()) {
     auto global_timeouts = get_global_timeouts();
 
-    m_wait_timeout = m_is_interactive ?
-        global_timeouts.interactive_timeout :
-        global_timeouts.wait_timeout;
+    m_wait_timeout = m_is_interactive ? global_timeouts.interactive_timeout
+                                      : global_timeouts.wait_timeout;
     set_session_wait_timeout(thd, m_wait_timeout);
 
     m_session->data_context().detach();
@@ -195,15 +191,15 @@ bool Client::is_localhost(const char *hostname) {
 void Protocol_monitor::init(Client *client) { m_client = client; }
 
 namespace {
-template <ngs::Common_status_variables::Variable ngs::Common_status_variables::*
-              variable>
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
+              *variable>
 inline void update_status(ngs::Session_interface *session) {
   if (session) ++(session->get_status_variables().*variable);
   ++(Global_status_variables::instance().*variable);
 }
 
-template <ngs::Common_status_variables::Variable ngs::Common_status_variables::*
-              variable>
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
+              *variable>
 inline void update_status(ngs::Session_interface *session, long param) {
   if (session) (session->get_status_variables().*variable) += param;
   (Global_status_variables::instance().*variable) += param;
@@ -240,14 +236,12 @@ void Protocol_monitor::on_row_send() {
 
 void Protocol_monitor::on_send(long bytes_transferred) {
   update_status<&ngs::Common_status_variables::m_bytes_sent>(
-      m_client->session(),
-      bytes_transferred);
+      m_client->session(), bytes_transferred);
 }
 
 void Protocol_monitor::on_receive(long bytes_transferred) {
   update_status<&ngs::Common_status_variables::m_bytes_received>(
-      m_client->session(),
-      bytes_transferred);
+      m_client->session(), bytes_transferred);
 }
 
 void Protocol_monitor::on_error_unknown_msg_type() {

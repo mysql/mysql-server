@@ -23,8 +23,8 @@
 #ifndef DD__TABLE_STAT_INCLUDED
 #define DD__TABLE_STAT_INCLUDED
 
-#include "sql/dd/types/entity_object.h"       // dd::Entity_object
-#include "sql/dd/types/entity_object_table.h" // Entity_object_table
+#include "sql/dd/types/entity_object.h"        // dd::Entity_object
+#include "sql/dd/types/entity_object_table.h"  // Entity_object_table
 
 namespace dd {
 
@@ -34,19 +34,18 @@ class Composite_char_key;
 class Table_stat_impl;
 
 namespace tables {
-  class Table_stats;
+class Table_stats;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_stat : virtual public Entity_object
-{
-public:
+class Table_stat : virtual public Entity_object {
+ public:
   typedef Table_stat_impl Impl;
   typedef tables::Table_stats DD_table;
   typedef Composite_char_key Name_key;
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // schema name.
   /////////////////////////////////////////////////////////////////////////
@@ -137,11 +136,10 @@ public:
 
   virtual ulonglong cached_time() const = 0;
   virtual void set_cached_time(ulonglong cached_time) = 0;
-
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__TABLE_STAT_INCLUDED
+#endif  // DD__TABLE_STAT_INCLUDED

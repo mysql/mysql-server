@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,10 +35,11 @@ namespace xpl {
 class Sha2_plain_verification : public ngs::Account_verification_interface {
  public:
   explicit Sha2_plain_verification(ngs::SHA256_password_cache_interface *cache)
-    : m_sha256_password_cache(cache) {}
+      : m_sha256_password_cache(cache) {}
   const std::string &get_salt() const override { return k_empty_salt; }
-  bool verify_authentication_string(const std::string &user,
-      const std::string &host, const std::string &client_string,
+  bool verify_authentication_string(
+      const std::string &user, const std::string &host,
+      const std::string &client_string,
       const std::string &db_string) const override;
 
  private:

@@ -81,9 +81,8 @@
   @endcode
 
 */
-class Gcs_communication_interface
-{
-public:
+class Gcs_communication_interface {
+ public:
   /**
     Method used to broadcast a message to a group in which this interface
     pertains.
@@ -98,8 +97,7 @@ public:
                                   the GCS can handle
   */
 
-  virtual enum_gcs_error send_message(const Gcs_message &message_to_send)= 0;
-
+  virtual enum_gcs_error send_message(const Gcs_message &message_to_send) = 0;
 
   /**
     Registers an implementation of a Gcs_communication_event_listener that will
@@ -115,9 +113,8 @@ public:
             be used in remove_event_listener
   */
 
-  virtual int
-  add_event_listener(const Gcs_communication_event_listener &event_listener)= 0;
-
+  virtual int add_event_listener(
+      const Gcs_communication_event_listener &event_listener) = 0;
 
   /**
     Removes a previously registered event listener.
@@ -130,10 +127,9 @@ public:
                                  registered
   */
 
-  virtual void remove_event_listener(int event_listener_handle)= 0;
-
+  virtual void remove_event_listener(int event_listener_handle) = 0;
 
   virtual ~Gcs_communication_interface() {}
 };
 
-#endif // GCS_COMMUNICATION_INTERFACE_H
+#endif  // GCS_COMMUNICATION_INTERFACE_H

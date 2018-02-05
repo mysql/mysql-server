@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,22 +22,20 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _XPL_MYSQL_VARIABLE_H_
 #define _XPL_MYSQL_VARIABLE_H_
 
 struct CHARSET_INFO;
 struct CHARSET_INFO;
 
-namespace mysqld
-{
+namespace mysqld {
 
-//XXX temporary wrapper for server variables
+// XXX temporary wrapper for server variables
 //    it should be removed after plugin correctly handles dynamic plugin macro
 bool is_terminating();
 const char *get_my_localhost();
 const CHARSET_INFO *get_charset_utf8mb4_general_ci();
 
-} // namespace mysqld
+}  // namespace mysqld
 
-#endif // _XPL_MYSQL_VARIABLE_H_
+#endif  // _XPL_MYSQL_VARIABLE_H_

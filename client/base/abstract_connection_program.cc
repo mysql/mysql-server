@@ -26,24 +26,19 @@
 
 using namespace Mysql::Tools::Base;
 
-
 Abstract_connection_program::Abstract_connection_program()
-  : m_connection_options(this)
-{
+    : m_connection_options(this) {
   this->add_provider(&this->m_connection_options);
 }
 
-MYSQL* Abstract_connection_program::create_connection()
-{
+MYSQL *Abstract_connection_program::create_connection() {
   return this->m_connection_options.create_connection();
 }
 
-CHARSET_INFO* Abstract_connection_program::get_current_charset() const
-{
+CHARSET_INFO *Abstract_connection_program::get_current_charset() const {
   return m_connection_options.get_current_charset();
 }
 
-void Abstract_connection_program::set_current_charset(CHARSET_INFO* charset)
-{
+void Abstract_connection_program::set_current_charset(CHARSET_INFO *charset) {
   m_connection_options.set_current_charset(charset);
 }

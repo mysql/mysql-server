@@ -35,23 +35,23 @@
 #include "my_io.h"
 #include "my_sys.h"
 
-        /*
-	  Copy directory and/or extension between filenames.
-	  (For the meaning of 'flag', check mf_format.c)
-	  'to' may be equal to 'name'.
-	  Returns 'to'.
-	*/
+/*
+  Copy directory and/or extension between filenames.
+  (For the meaning of 'flag', check mf_format.c)
+  'to' may be equal to 'name'.
+  Returns 'to'.
+*/
 
-char * fn_same(char *to, const char *name, int flag)
-{
+char *fn_same(char *to, const char *name, int flag) {
   char dev[FN_REFLEN];
   const char *ext;
   size_t dev_length;
   DBUG_ENTER("fn_same");
-  DBUG_PRINT("enter",("to: %s  name: %s  flag: %d",to,name,flag));
+  DBUG_PRINT("enter", ("to: %s  name: %s  flag: %d", to, name, flag));
 
-  if ((ext=strrchr(name+dirname_part(dev, name, &dev_length),FN_EXTCHAR)) == 0)
-    ext="";
+  if ((ext = strrchr(name + dirname_part(dev, name, &dev_length),
+                     FN_EXTCHAR)) == 0)
+    ext = "";
 
-  DBUG_RETURN(fn_format(to,to,dev,ext,flag));
+  DBUG_RETURN(fn_format(to, to, dev, ext, flag));
 } /* fn_same */

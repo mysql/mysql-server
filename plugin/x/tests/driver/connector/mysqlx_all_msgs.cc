@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,7 +25,6 @@
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 
 #include "plugin/x/client/mysqlxclient/xmessage.h"
-
 
 Message_by_full_name server_msgs_by_full_name;
 Message_by_full_name client_msgs_by_full_name;
@@ -135,4 +134,3 @@ static struct init_message_factory {
         "Mysqlx.Sql.StmtExecute");
   }
 } init_message_factory;
-

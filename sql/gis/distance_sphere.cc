@@ -148,9 +148,8 @@ bool distance_sphere(const dd::Spatial_reference_system *srs,
   try {
     DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
     DBUG_ASSERT(!srs || srs->is_cartesian() || srs->is_geographic());
-    DBUG_ASSERT(!srs ||
-                srs->is_cartesian() ==
-                    (g1->coordinate_system() == Coordinate_system::kCartesian));
+    DBUG_ASSERT(!srs || srs->is_cartesian() == (g1->coordinate_system() ==
+                                                Coordinate_system::kCartesian));
     DBUG_ASSERT(!srs ||
                 srs->is_geographic() == (g1->coordinate_system() ==
                                          Coordinate_system::kGeographic));

@@ -27,10 +27,10 @@
 
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql/dd/impl/raw/object_keys.h"   // Composite_4char_key
-#include "sql/dd/impl/raw/raw_record.h"    // raw_record
-#include "sql/dd/impl/tables/index_stats.h" // Index_stats::
-#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/dd/impl/raw/object_keys.h"     // Composite_4char_key
+#include "sql/dd/impl/raw/raw_record.h"      // raw_record
+#include "sql/dd/impl/tables/index_stats.h"  // Index_stats::
+#include "sql/dd/impl/transaction_impl.h"    // Open_dictionary_tables_ctx
 
 namespace dd {
 class Object_key;
@@ -44,8 +44,7 @@ namespace dd {
 // Index_stat_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool Index_stat_impl::has_new_primary_key() const
-{
+bool Index_stat_impl::has_new_primary_key() const {
   /*
     There is no OBJECT_ID for Table_stat/Index_stat DD object.
     So deciding if a object exists or not is not possible based
@@ -71,12 +70,9 @@ bool Index_stat_impl::has_new_primary_key() const
 // Index_stat_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool Index_stat_impl::validate() const
-{
-  if (schema_name().empty() || table_name().empty())
-  {
-    my_error(ER_INVALID_DD_OBJECT,
-             MYF(0),
+bool Index_stat_impl::validate() const {
+  if (schema_name().empty() || table_name().empty()) {
+    my_error(ER_INVALID_DD_OBJECT, MYF(0),
              Index_stat_impl::DD_table::instance().name().c_str(),
              "schema name or table name not supplied.");
     return true;
@@ -87,73 +83,61 @@ bool Index_stat_impl::validate() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Index_stat_impl::restore_attributes(const Raw_record &r)
-{
-  m_schema_name= r.read_str(Index_stats::FIELD_SCHEMA_NAME);
-  m_table_name= r.read_str(Index_stats::FIELD_TABLE_NAME);
-  m_index_name= r.read_str(Index_stats::FIELD_INDEX_NAME);
-  m_column_name= r.read_str(Index_stats::FIELD_COLUMN_NAME);
-  m_cardinality= r.read_int(Index_stats::FIELD_CARDINALITY);
-  m_cached_time= r.read_int(Index_stats::FIELD_CACHED_TIME);
+bool Index_stat_impl::restore_attributes(const Raw_record &r) {
+  m_schema_name = r.read_str(Index_stats::FIELD_SCHEMA_NAME);
+  m_table_name = r.read_str(Index_stats::FIELD_TABLE_NAME);
+  m_index_name = r.read_str(Index_stats::FIELD_INDEX_NAME);
+  m_column_name = r.read_str(Index_stats::FIELD_COLUMN_NAME);
+  m_cardinality = r.read_int(Index_stats::FIELD_CARDINALITY);
+  m_cached_time = r.read_int(Index_stats::FIELD_CACHED_TIME);
 
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Index_stat_impl::store_attributes(Raw_record *r)
-{
+bool Index_stat_impl::store_attributes(Raw_record *r) {
   return r->store(Index_stats::FIELD_SCHEMA_NAME, m_schema_name) ||
-           r->store(Index_stats::FIELD_TABLE_NAME, m_table_name) ||
-           r->store(Index_stats::FIELD_INDEX_NAME, m_index_name) ||
-           r->store(Index_stats::FIELD_COLUMN_NAME, m_column_name) ||
-           r->store(Index_stats::FIELD_CARDINALITY, m_cardinality,
-                    m_cardinality == (ulonglong) -1) ||
-           r->store(Index_stats::FIELD_CACHED_TIME,
-                    m_cached_time);
+         r->store(Index_stats::FIELD_TABLE_NAME, m_table_name) ||
+         r->store(Index_stats::FIELD_INDEX_NAME, m_index_name) ||
+         r->store(Index_stats::FIELD_COLUMN_NAME, m_column_name) ||
+         r->store(Index_stats::FIELD_CARDINALITY, m_cardinality,
+                  m_cardinality == (ulonglong)-1) ||
+         r->store(Index_stats::FIELD_CACHED_TIME, m_cached_time);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_stat_impl::debug_print(String_type &outb) const
-{
+void Index_stat_impl::debug_print(String_type &outb) const {
   dd::Stringstream_type ss;
-  ss
-    << "INDEX STAT OBJECT: { "
-    << "m_schema_name: " << m_schema_name << "; "
-    << "m_table_name: " << m_table_name << "; "
-    << "m_index_name: " << m_index_name << "; "
-    << "m_column_name: " << m_column_name << "; "
-    << "m_cardinality: " << m_cardinality << "; "
-    << "m_cached_time: " << m_cached_time;
+  ss << "INDEX STAT OBJECT: { "
+     << "m_schema_name: " << m_schema_name << "; "
+     << "m_table_name: " << m_table_name << "; "
+     << "m_index_name: " << m_index_name << "; "
+     << "m_column_name: " << m_column_name << "; "
+     << "m_cardinality: " << m_cardinality << "; "
+     << "m_cached_time: " << m_cached_time;
 
   ss << " }";
-  outb= ss.str();
+  outb = ss.str();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Object_key *Index_stat_impl::create_primary_key() const
-{
-  return dynamic_cast<Object_key*>(Index_stats::create_object_key(
-                                     m_schema_name,
-                                     m_table_name,
-                                     m_index_name,
-                                     m_column_name));
-}
-
-
-///////////////////////////////////////////////////////////////////////////
-
- const Object_table &Index_stat_impl::object_table() const
-{
-   return DD_table::instance();
+Object_key *Index_stat_impl::create_primary_key() const {
+  return dynamic_cast<Object_key *>(Index_stats::create_object_key(
+      m_schema_name, m_table_name, m_index_name, m_column_name));
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_stat_impl::register_tables(Open_dictionary_tables_ctx *otx)
-{
+const Object_table &Index_stat_impl::object_table() const {
+  return DD_table::instance();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Index_stat_impl::register_tables(Open_dictionary_tables_ctx *otx) {
   /**
     The requirement is that we should be able to update
     Table_stats and Index_stats DD tables even when someone holds
@@ -165,4 +149,4 @@ void Index_stat_impl::register_tables(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

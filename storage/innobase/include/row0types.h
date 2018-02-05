@@ -24,12 +24,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0types.h
-Row operation global types
+/**************************************************/ /**
+ @file include/row0types.h
+ Row operation global types
 
-Created 12/27/1996 Heikki Tuuri
-*******************************************************/
+ Created 12/27/1996 Heikki Tuuri
+ *******************************************************/
 
 #ifndef row0types_h
 #define row0types_h

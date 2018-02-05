@@ -28,18 +28,17 @@
 #include "client/dump/i_progress_reporter.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 class Item_processing_data;
 
 /**
   Interface for all objects that can process data in any part of dump process.
  */
-class I_chain_element : public virtual I_progress_reporter
-{
-public:
+class I_chain_element : public virtual I_progress_reporter {
+ public:
   virtual ~I_chain_element();
 
   /**
@@ -47,9 +46,9 @@ public:
     progress watching with multiple parts of chain during all objects
     processing.
    */
-  virtual uint64 get_id() const= 0;
+  virtual uint64 get_id() const = 0;
 
-protected:
+ protected:
   /**
     This callback can be requested to be called by child for any object
     processing. This will be called when the object processing has completed.
@@ -57,11 +56,11 @@ protected:
     implementations must be thread-safe.
    */
   virtual void item_completion_in_child_callback(
-    Item_processing_data* item_processed)= 0;
+      Item_processing_data *item_processed) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

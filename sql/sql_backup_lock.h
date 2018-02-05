@@ -30,14 +30,12 @@
 
 class THD;
 
-
 /**
   Sql_cmd_lock_instance represents statement LOCK INSTANCE FOR BACKUP.
 */
 
-class Sql_cmd_lock_instance : public Sql_cmd
-{
-public:
+class Sql_cmd_lock_instance : public Sql_cmd {
+ public:
   /**
     Execute LOCK INSTANCE statement once.
 
@@ -48,21 +46,17 @@ public:
 
   virtual bool execute(THD *thd);
 
-
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_LOCK_INSTANCE;
   }
 };
-
 
 /**
   Sql_cmd_unlock_instance represents statement UNLOCK INSTANCE.
 */
 
-class Sql_cmd_unlock_instance : public Sql_cmd
-{
-public:
+class Sql_cmd_unlock_instance : public Sql_cmd {
+ public:
   /**
     Execute UNLOCK INSTANCE statement once.
 
@@ -73,13 +67,10 @@ public:
 
   virtual bool execute(THD *thd);
 
-
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_UNLOCK_INSTANCE;
   }
 };
-
 
 /**
   Acquire exclusive Backup Lock.
@@ -94,7 +85,6 @@ public:
 
 bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
-
 /**
   Acquire shared Backup Lock.
 
@@ -108,7 +98,6 @@ bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
 bool acquire_shared_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
-
 /**
   Release Backup Lock if it was acquired.
 
@@ -117,19 +106,16 @@ bool acquire_shared_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
 void release_backup_lock(THD *thd);
 
-
 /**
   There are three possible results while checking if the instance is locked for
   backup.
 */
 
-enum class Is_instance_backup_locked_result
-{
+enum class Is_instance_backup_locked_result {
   NOT_LOCKED = 0,
   LOCKED = 1,
   OOM = 2
 };
-
 
 /**
   Check if this server instance is locked with Backup Lock. In fact, it checks

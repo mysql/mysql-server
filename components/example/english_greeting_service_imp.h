@@ -29,9 +29,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   An implementation of the example Services to get English greeting message and
   its localization information.
 */
-class english_greeting_service_imp
-{
-public:
+class english_greeting_service_imp {
+ public:
   /**
     Retrieves an English greeting message.
 
@@ -41,8 +40,7 @@ public:
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(say_hello,
-    (const char** hello_string));
+  static DEFINE_BOOL_METHOD(say_hello, (const char **hello_string));
 
   /**
     Retrieves a greeting message language.
@@ -53,8 +51,7 @@ public:
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(get_language,
-    (const char** language_string));
+  static DEFINE_BOOL_METHOD(get_language, (const char **language_string));
 };
 
 #endif /* ENGLISH_GREETING_SERVICE_IMP_H */

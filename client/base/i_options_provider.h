@@ -30,38 +30,37 @@
 #include "client/base/i_option_changed_listener.h"
 #include "my_getopt.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Interface for basic options providers functionality.
  */
-class I_options_provider : public I_option_changed_listener
-{
-public:
+class I_options_provider : public I_option_changed_listener {
+ public:
   /**
     Creates list of options provided by this provider.
     @returns list of my_getopt internal option data structures.
    */
-  virtual std::vector<my_option> generate_options()= 0;
+  virtual std::vector<my_option> generate_options() = 0;
   /**
     Callback to be called when command-line options parsing have finished.
    */
-  virtual void options_parsed()= 0;
+  virtual void options_parsed() = 0;
   /**
     Sets optional option changes listener to which all changes in all options
     contained in this provider should be reported. This is used when this
     provider is attached to another.
    */
   virtual void set_option_changed_listener(
-    I_option_changed_listener* listener)= 0;
+      I_option_changed_listener *listener) = 0;
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

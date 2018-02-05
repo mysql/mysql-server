@@ -39,17 +39,15 @@
   mandatory property is that they should be comparable.
 */
 
-class Gcs_view_identifier
-{
-public:
+class Gcs_view_identifier {
+ public:
   /**
     Returns a normalized representation of the DTO.
 
     @return a const char * containing the normalized representation of the DTO
   */
 
-  virtual const std::string &get_representation() const= 0;
-
+  virtual const std::string &get_representation() const = 0;
 
   /**
     Returns a copy of this object. Since this object is an interface, this is
@@ -58,8 +56,7 @@ public:
     @return a copy of the current object
   */
 
-  virtual Gcs_view_identifier *clone() const= 0;
-
+  virtual Gcs_view_identifier *clone() const = 0;
 
   /**
     Redefinition of the operator less, to allow usage as key in maps.
@@ -72,7 +69,6 @@ public:
 
   bool operator<(const Gcs_view_identifier &other) const;
 
-
   /**
     Redefinition of the operator equals, to allow usage in sets.
 
@@ -84,8 +80,7 @@ public:
 
   bool operator==(const Gcs_view_identifier &other) const;
 
-
   virtual ~Gcs_view_identifier() {}
 };
 
-#endif // GCS_VIEW_IDENTIFIER_INCLUDED
+#endif  // GCS_VIEW_IDENTIFIER_INCLUDED

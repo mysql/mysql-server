@@ -35,7 +35,7 @@ struct site_def {
   synode_no boot_key; /* The message number of the original unified_boot */
   node_no nodeno;     /* Node number of this node */
   node_list nodes;    /* Set of nodes in this config */
-  server* servers[NSERVERS]; /* Connections to other nodes */
+  server *servers[NSERVERS]; /* Connections to other nodes */
   detector_state detected;   /* Time of last incoming message for each node */
   node_no global_node_count; /* Number of live nodes in global_node_set */
   node_set global_node_set;  /* The global view */

@@ -55,8 +55,7 @@
   LOCKER = inline_mysql_start_idle_wait(STATE, __FILE__, __LINE__)
 #else
 #define MYSQL_START_IDLE_WAIT(LOCKER, STATE) \
-  do                                         \
-  {                                          \
+  do {                                       \
   } while (0)
 #endif
 
@@ -71,8 +70,7 @@
 #define MYSQL_END_IDLE_WAIT(LOCKER) inline_mysql_end_idle_wait(LOCKER)
 #else
 #define MYSQL_END_IDLE_WAIT(LOCKER) \
-  do                                \
-  {                                 \
+  do {                              \
   } while (0)
 #endif
 
@@ -81,11 +79,8 @@
   Instrumentation calls for MYSQL_START_IDLE_WAIT.
   @sa MYSQL_END_IDLE_WAIT.
 */
-static inline struct PSI_idle_locker *
-inline_mysql_start_idle_wait(PSI_idle_locker_state *state,
-                             const char *src_file,
-                             int src_line)
-{
+static inline struct PSI_idle_locker *inline_mysql_start_idle_wait(
+    PSI_idle_locker_state *state, const char *src_file, int src_line) {
   struct PSI_idle_locker *locker;
   locker = PSI_IDLE_CALL(start_idle_wait)(state, src_file, src_line);
   return locker;
@@ -95,16 +90,13 @@ inline_mysql_start_idle_wait(PSI_idle_locker_state *state,
   Instrumentation calls for MYSQL_END_IDLE_WAIT.
   @sa MYSQL_START_IDLE_WAIT.
 */
-static inline void
-inline_mysql_end_idle_wait(struct PSI_idle_locker *locker)
-{
-  if (likely(locker != NULL))
-  {
+static inline void inline_mysql_end_idle_wait(struct PSI_idle_locker *locker) {
+  if (likely(locker != NULL)) {
     PSI_IDLE_CALL(end_idle_wait)(locker);
   }
 }
 #endif
 
-/** @} (end of group psi_api_idle) */
+  /** @} (end of group psi_api_idle) */
 
 #endif

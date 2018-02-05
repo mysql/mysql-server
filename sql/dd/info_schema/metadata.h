@@ -23,9 +23,9 @@
 #ifndef SQL_DD_METADATA_H
 #define SQL_DD_METADATA_H
 
-#include <mysql/plugin.h>            // st_plugin_int
+#include <mysql/plugin.h>  // st_plugin_int
 
-#include "sql/dd/string_type.h"      // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
 struct st_plugin_int;
@@ -46,7 +46,7 @@ namespace info_schema {
   so that MySQL 8.0.4 is encoded as 80004.
 */
 
-static const uint IS_DD_VERSION= 80004;
+static const uint IS_DD_VERSION = 80004;
 
 /**
   Initialize INFORMATION_SCHEMA system views.
@@ -57,7 +57,6 @@ static const uint IS_DD_VERSION= 80004;
 */
 bool initialize(THD *thd);
 
-
 /**
   Create INFORMATION_SCHEMA system views.
 
@@ -66,7 +65,6 @@ bool initialize(THD *thd);
   @return       Upon failure, return true, otherwise false.
 */
 bool create_system_views(THD *thd);
-
 
 /**
   Store the server I_S table metadata into dictionary, once during MySQL
@@ -78,7 +76,6 @@ bool create_system_views(THD *thd);
 */
 bool store_server_I_S_metadata(THD *thd);
 
-
 /**
   Store I_S table metadata into dictionary, during MySQL server startup.
 
@@ -87,7 +84,6 @@ bool store_server_I_S_metadata(THD *thd);
   @return       Upon failure, return true, otherwise false.
 */
 bool update_I_S_metadata(THD *thd);
-
 
 /**
   Store dynamic I_S plugin table metadata into dictionary, during INSTALL
@@ -98,9 +94,7 @@ bool update_I_S_metadata(THD *thd);
 
   @return       Upon failure, return true, otherwise false.
 */
-bool store_dynamic_plugin_I_S_metadata(THD *thd,
-                                       st_plugin_int *plugin_int);
-
+bool store_dynamic_plugin_I_S_metadata(THD *thd, st_plugin_int *plugin_int);
 
 /**
   Remove I_S view metadata from dictionary. This is used
@@ -111,10 +105,9 @@ bool store_dynamic_plugin_I_S_metadata(THD *thd,
 
   @return       Upon failure, return true, otherwise false.
 */
-bool remove_I_S_view_metadata(THD *thd,
-                              const dd::String_type &view_name);
+bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name);
 
-}
-}
+}  // namespace info_schema
+}  // namespace dd
 
-#endif // SQL_DD_METADATA_H
+#endif  // SQL_DD_METADATA_H

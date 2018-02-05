@@ -51,18 +51,18 @@ struct st_plugin_int;
   component infrastuctures, These are not supposed to be used in other files.
 */
 #define OPTION_SET_LIMITS(type, options, opt) \
-  options->var_type= type; \
-  options->def_value= (opt)->def_val; \
-  options->min_value= (opt)->min_val; \
-  options->max_value= (opt)->max_val; \
-  options->block_size= (long) (opt)->blk_sz
+  options->var_type = type;                   \
+  options->def_value = (opt)->def_val;        \
+  options->min_value = (opt)->min_val;        \
+  options->max_value = (opt)->max_val;        \
+  options->block_size = (long)(opt)->blk_sz
 
-#define OPTION_SET_LIMITS_DOUBLE(options, opt) \
-  options->var_type= GET_DOUBLE; \
-  options->def_value= (longlong) getopt_double2ulonglong((opt)->def_val); \
-  options->min_value= (longlong) getopt_double2ulonglong((opt)->min_val); \
-  options->max_value= getopt_double2ulonglong((opt)->max_val); \
-  options->block_size= (long) (opt)->blk_sz;
+#define OPTION_SET_LIMITS_DOUBLE(options, opt)                            \
+  options->var_type = GET_DOUBLE;                                         \
+  options->def_value = (longlong)getopt_double2ulonglong((opt)->def_val); \
+  options->min_value = (longlong)getopt_double2ulonglong((opt)->min_val); \
+  options->max_value = getopt_double2ulonglong((opt)->max_val);           \
+  options->block_size = (long)(opt)->blk_sz;
 
 /****************************************************************************
   Internal type declarations for variables support
@@ -107,47 +107,35 @@ typedef DECLARE_MYSQL_THDVAR_SIMPLE(thdvar_double_t, double);
 /****************************************************************************
   default variable data check and update functions
 ****************************************************************************/
-int check_func_bool(THD*, SYS_VAR*,
-                    void *save, st_mysql_value *value);
+int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value);
 
-int check_func_int(THD *thd, SYS_VAR *var,
-                   void *save, st_mysql_value *value);
+int check_func_int(THD *thd, SYS_VAR *var, void *save, st_mysql_value *value);
 
-int check_func_long(THD *thd, SYS_VAR *var,
-                    void *save, st_mysql_value *value);
+int check_func_long(THD *thd, SYS_VAR *var, void *save, st_mysql_value *value);
 
-int check_func_longlong(THD *thd, SYS_VAR *var,
-                        void *save, st_mysql_value *value);
+int check_func_longlong(THD *thd, SYS_VAR *var, void *save,
+                        st_mysql_value *value);
 
-int check_func_str(THD *thd, SYS_VAR*,
-                   void *save, st_mysql_value *value);
+int check_func_str(THD *thd, SYS_VAR *, void *save, st_mysql_value *value);
 
-int check_func_enum(THD*, SYS_VAR *var,
-                    void *save, st_mysql_value *value);
+int check_func_enum(THD *, SYS_VAR *var, void *save, st_mysql_value *value);
 
-int check_func_set(THD*, SYS_VAR *var,
-                   void *save, st_mysql_value *value);
+int check_func_set(THD *, SYS_VAR *var, void *save, st_mysql_value *value);
 
-int check_func_double(THD *thd, SYS_VAR *var,
-                      void *save, st_mysql_value *value);
+int check_func_double(THD *thd, SYS_VAR *var, void *save,
+                      st_mysql_value *value);
 
-void update_func_bool(THD*, SYS_VAR*,
-                      void *tgt, const void *save);
+void update_func_bool(THD *, SYS_VAR *, void *tgt, const void *save);
 
-void update_func_int(THD*, SYS_VAR*,
-                     void *tgt, const void *save);
+void update_func_int(THD *, SYS_VAR *, void *tgt, const void *save);
 
-void update_func_long(THD*, SYS_VAR*,
-                      void *tgt, const void *save);
+void update_func_long(THD *, SYS_VAR *, void *tgt, const void *save);
 
-void update_func_longlong(THD*, SYS_VAR*,
-                          void *tgt, const void *save);
+void update_func_longlong(THD *, SYS_VAR *, void *tgt, const void *save);
 
-void update_func_str(THD*, SYS_VAR*,
-                      void *tgt, const void *save);
+void update_func_str(THD *, SYS_VAR *, void *tgt, const void *save);
 
-void update_func_double(THD*, SYS_VAR*,
-                        void *tgt, const void *save);
+void update_func_double(THD *, SYS_VAR *, void *tgt, const void *save);
 
 SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var);
 
@@ -157,17 +145,14 @@ int item_val_int(st_mysql_value *value, long long *buf);
 int item_is_unsigned(st_mysql_value *value);
 int item_val_real(st_mysql_value *value, double *buf);
 
-void plugin_opt_set_limits(struct my_option *,
-                           const SYS_VAR *);
+void plugin_opt_set_limits(struct my_option *, const SYS_VAR *);
 
-uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock);
+uchar *intern_sys_var_ptr(THD *thd, int offset, bool global_lock);
 
-bool plugin_var_memalloc_global_update(THD *thd,
-                                       SYS_VAR *var,
-                                       char **dest, const char *value);
-bool plugin_var_memalloc_session_update(THD *thd,
-                                        SYS_VAR *var,
-                                        char **dest, const char *value);
+bool plugin_var_memalloc_global_update(THD *thd, SYS_VAR *var, char **dest,
+                                       const char *value);
+bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
+                                        const char *value);
 
 /*
   stored in bookmark_hash, this structure is never removed from the
@@ -180,8 +165,7 @@ bool plugin_var_memalloc_session_update(THD *thd,
     name_len bytes - variable name
     '\0'           - end of key
 */
-struct st_bookmark
-{
+struct st_bookmark {
   size_t name_len;
   int offset;
   uint version;
@@ -193,25 +177,22 @@ st_bookmark *find_bookmark(const char *plugin, const char *name, int flags);
 /*
   skeleton of a plugin variable - portion of structure common to all.
 */
-struct SYS_VAR
-{
+struct SYS_VAR {
   MYSQL_PLUGIN_VAR_HEADER;
 };
 
-inline void convert_underscore_to_dash(char *str, size_t len)
-{
-  for (char *p= str; p <= str+len; p++)
-    if (*p == '_')
-      *p= '-';
+inline void convert_underscore_to_dash(char *str, size_t len) {
+  for (char *p = str; p <= str + len; p++)
+    if (*p == '_') *p = '-';
 }
 
 /*
   sys_var class for access to all plugin variables visible to the user
 */
-class sys_var_pluginvar: public sys_var
-{
-  static bool on_check_pluginvar(sys_var *self, THD*, set_var *var);
-public:
+class sys_var_pluginvar : public sys_var {
+  static bool on_check_pluginvar(sys_var *self, THD *, set_var *var);
+
+ public:
   bool is_plugin;
   st_plugin_int *plugin;
   SYS_VAR *plugin_var;
@@ -224,66 +205,76 @@ public:
   */
   const char *orig_pluginvar_name;
 
-  static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused))=
-                            std::nothrow) throw ()
-  { return alloc_root(mem_root, size); }
+  static void *operator new(
+      size_t size, MEM_ROOT *mem_root,
+      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+    return alloc_root(mem_root, size);
+  }
 
-  static void *operator new(size_t size)
-  { return my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(0)); }
+  static void *operator new(size_t size) {
+    return my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(0));
+  }
 
   static void operator delete(void *ptr_arg MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused)))
-  { TRASH(ptr_arg, size); }
+                              size_t size MY_ATTRIBUTE((unused))) {
+    TRASH(ptr_arg, size);
+  }
 
-  static void operator delete(void*, MEM_ROOT*,
-                              const std::nothrow_t&) throw ()
-  { /* never called */ }
+  static void operator delete(
+      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
+  }
 
-  static void operator delete(void* ptr)
-  { my_free(ptr); }
+  static void operator delete(void *ptr) { my_free(ptr); }
 
   sys_var_pluginvar(sys_var_chain *chain, const char *name_arg,
                     SYS_VAR *plugin_var_arg)
-    :sys_var(chain, name_arg, plugin_var_arg->comment,
-             (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
-             (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),
-             0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
-             VARIABLE_NOT_IN_BINLOG,
-             (plugin_var_arg->flags & PLUGIN_VAR_NODEFAULT) ?
-               on_check_pluginvar : NULL,
-             NULL, NULL, PARSE_NORMAL),
-    plugin_var(plugin_var_arg), orig_pluginvar_name(plugin_var_arg->name)
-  { plugin_var->name= name_arg; is_plugin= true; }
+      : sys_var(
+            chain, name_arg, plugin_var_arg->comment,
+            (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
+                (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),
+            0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
+            VARIABLE_NOT_IN_BINLOG,
+            (plugin_var_arg->flags & PLUGIN_VAR_NODEFAULT) ? on_check_pluginvar
+                                                           : NULL,
+            NULL, NULL, PARSE_NORMAL),
+        plugin_var(plugin_var_arg),
+        orig_pluginvar_name(plugin_var_arg->name) {
+    plugin_var->name = name_arg;
+    is_plugin = true;
+  }
   sys_var_pluginvar *cast_pluginvar() { return this; }
   bool check_update_type(Item_result type);
   SHOW_TYPE show_type();
-  uchar* real_value_ptr(THD *thd, enum_var_type type);
-  TYPELIB* plugin_var_typelib(void);
-  uchar* do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type, LEX_STRING *base);
-  uchar* do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
-  { return do_value_ptr(thd, thd, type, base); }
-  uchar* session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
-  { return do_value_ptr(running_thd, target_thd, OPT_SESSION, base); }
-  uchar* global_value_ptr(THD *thd, LEX_STRING *base)
-  { return do_value_ptr(thd, OPT_GLOBAL, base); }
+  uchar *real_value_ptr(THD *thd, enum_var_type type);
+  TYPELIB *plugin_var_typelib(void);
+  uchar *do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
+                      LEX_STRING *base);
+  uchar *do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base) {
+    return do_value_ptr(thd, thd, type, base);
+  }
+  uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                           LEX_STRING *base) {
+    return do_value_ptr(running_thd, target_thd, OPT_SESSION, base);
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
+    return do_value_ptr(thd, OPT_GLOBAL, base);
+  }
   bool do_check(THD *thd, set_var *var);
-  virtual void session_save_default(THD*, set_var*) {}
-  virtual void global_save_default(THD*, set_var*) {}
+  virtual void session_save_default(THD *, set_var *) {}
+  virtual void global_save_default(THD *, set_var *) {}
   bool session_update(THD *thd, set_var *var);
   bool global_update(THD *thd, set_var *var);
   bool is_default(THD *thd, set_var *var);
   longlong get_min_value();
   ulonglong get_max_value();
-  void set_arg_source(get_opt_arg_source *src)
-  {
+  void set_arg_source(get_opt_arg_source *src) {
     strcpy(source.m_path_name, src->m_path_name);
-    source.m_source= src->m_source;
+    source.m_source = src->m_source;
   }
-  bool is_non_persistent()
-  { return (plugin_var->flags & PLUGIN_VAR_NOPERSIST); }
-  void set_is_plugin(bool val)
-  { is_plugin= val; }
+  bool is_non_persistent() {
+    return (plugin_var->flags & PLUGIN_VAR_NOPERSIST);
+  }
+  void set_is_plugin(bool val) { is_plugin = val; }
   /**
     Check if plugin variable is persisted as a read only variable.
 
@@ -291,16 +282,16 @@ public:
        @retval true
        @retval false
   */
-  bool is_plugin_var_read_only()
-  { return (plugin_var->flags & PLUGIN_VAR_PERSIST_AS_READ_ONLY); }
+  bool is_plugin_var_read_only() {
+    return (plugin_var->flags & PLUGIN_VAR_PERSIST_AS_READ_ONLY);
+  }
 };
 
 /*
   hidden part of opaque value passed to variable check functions.
   Used to provide a object-like structure to non C++ consumers.
 */
-struct st_item_value_holder : public st_mysql_value
-{
+struct st_item_value_holder : public st_mysql_value {
   Item *item;
 };
 

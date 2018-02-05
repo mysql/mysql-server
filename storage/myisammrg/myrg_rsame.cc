@@ -23,19 +23,17 @@
 #include "my_inttypes.h"
 #include "storage/myisammrg/myrg_def.h"
 
-int myrg_rsame(MYRG_INFO *info,uchar *record,int inx)
-{
-  if (inx)					/* not yet used, should be 0 */
+int myrg_rsame(MYRG_INFO *info, uchar *record, int inx) {
+  if (inx) /* not yet used, should be 0 */
   {
     set_my_errno(HA_ERR_WRONG_INDEX);
     return HA_ERR_WRONG_INDEX;
   }
 
-  if (!info->current_table)
-  {
+  if (!info->current_table) {
     set_my_errno(HA_ERR_NO_ACTIVE_RECORD);
     return HA_ERR_NO_ACTIVE_RECORD;
   }
 
-  return mi_rsame(info->current_table->table,record,inx);
+  return mi_rsame(info->current_table->table, record, inx);
 }

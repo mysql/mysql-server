@@ -27,8 +27,8 @@
 #include <stddef.h> /* size_t */
 #endif
 
+#include <mysql/components/services/my_io_bits.h>     /* sockaddr_storage */
 #include <mysql/components/services/my_thread_bits.h> /* my_thread_handle */
-#include <mysql/components/services/my_io_bits.h> /* sockaddr_storage */
 
 /**
   @file
@@ -54,8 +54,7 @@ class THD;
   Phony declaration when compiling C code.
   This is ok, because the C code will never have a THD anyway.
 */
-struct opaque_THD
-{
+struct opaque_THD {
   int dummy;
 };
 typedef struct opaque_THD THD;
@@ -76,8 +75,7 @@ typedef struct PSI_thread PSI_thread;
   @since PSI_THREAD_VERSION_1
   This structure is used to register an instrumented thread.
 */
-struct PSI_thread_info_v1
-{
+struct PSI_thread_info_v1 {
   /**
     Pointer to the key assigned to the registered thread.
   */
@@ -118,11 +116,9 @@ typedef void (*register_thread_v1_t)(const char *category,
   @param start_routine the thread start routine
   @param arg the thread start routine argument
 */
-typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
-                                 my_thread_handle *thread,
+typedef int (*spawn_thread_v1_t)(PSI_thread_key key, my_thread_handle *thread,
                                  const my_thread_attr_t *attr,
-                                 void *(*start_routine)(void *),
-                                 void *arg);
+                                 void *(*start_routine)(void *), void *arg);
 
 /**
   Create instrumentation for a thread.
@@ -146,7 +142,8 @@ typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread, THD *thd);
   @param thread the instrumented thread
   @param id the id to assign
 */
-typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread, unsigned long long id);
+typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
+                                   unsigned long long id);
 
 /**
   Assign the current operating system thread id to an instrumented thread.
@@ -178,10 +175,8 @@ typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
   @param host the host name
   @param host_len the host name length
 */
-typedef void (*set_thread_account_v1_t)(const char *user,
-                                        int user_len,
-                                        const char *host,
-                                        int host_len);
+typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
+                                        const char *host, int host_len);
 
 /**
   Assign a current database to the instrumented thread.
@@ -244,11 +239,9 @@ typedef int (*set_thread_resource_group_v1_t)(const char *group_name,
   @param user_data user-defined data
   return 0 if successful, 1 otherwise
 */
-typedef int (*set_thread_resource_group_by_id_v1_t)(PSI_thread *thread,
-                                                    unsigned long long thread_id,
-                                                    const char *group_name,
-                                                    int group_name_len,
-                                                    void *user_data);
+typedef int (*set_thread_resource_group_by_id_v1_t)(
+    PSI_thread *thread, unsigned long long thread_id, const char *group_name,
+    int group_name_len, void *user_data);
 
 /**
   Attach a thread instrumentation to the running thread.
@@ -298,8 +291,7 @@ typedef void (*get_thread_event_id_v1_t)(unsigned long long *thread_internal_id,
   Performance Schema thread type: user/foreground or system/background.
   @sa get_thread_system_attrs
 */
-struct PSI_thread_attrs_v1
-{
+struct PSI_thread_attrs_v1 {
   /* PFS internal thread id, unique. */
   unsigned long long m_thread_internal_id;
 
@@ -352,8 +344,7 @@ typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
   Registration structure for the pfs_notification service.
   @sa register_notification_v1_t
 */
-struct PSI_notification_v1
-{
+struct PSI_notification_v1 {
   PSI_notification_cb thread_create;
   PSI_notification_cb thread_destroy;
   PSI_notification_cb session_connect;
@@ -381,7 +372,8 @@ typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
   @return 0 if successful, 1 otherwise
 */
 typedef int (*get_thread_system_attrs_by_id_v1_t)(
-  PSI_thread *thread, unsigned long long thread_id, PSI_thread_attrs *thread_attrs);
+    PSI_thread *thread, unsigned long long thread_id,
+    PSI_thread_attrs *thread_attrs);
 /**
   Register callback functions for the Notification service.
   For best performance, set with_ref_count = false.

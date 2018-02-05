@@ -28,4 +28,4 @@
 int sql_command_check();
 bool sql_command_select();
 
-#endif //SQL_COMMAND_TEST_INCLUDE
+#endif  // SQL_COMMAND_TEST_INCLUDE

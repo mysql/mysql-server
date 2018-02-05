@@ -78,7 +78,6 @@ node_no xcom_find_node_index(node_list *nodes) {
 
   sock_probe *s = calloc((size_t)1, sizeof(sock_probe));
 
-
   if (init_sock_probe(s) < 0) {
     free(s);
     return retval;
@@ -114,8 +113,7 @@ node_no xcom_find_node_index(node_list *nodes) {
         sockaddr tmp = get_sockaddr(s, j);
         if (sockaddr_default_eq(addr->ai_addr, &tmp) && is_if_running(s, j)) {
           retval = i;
-          if (saved_addr)
-            freeaddrinfo(saved_addr);
+          if (saved_addr) freeaddrinfo(saved_addr);
           goto end_loop;
         }
       }
@@ -162,8 +160,7 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
     }
   /* Free resources and return result */
   end_loop:
-    if (saved_addr)
-      freeaddrinfo(saved_addr);
+    if (saved_addr) freeaddrinfo(saved_addr);
     delete_sock_probe(s);
   }
   return retval;

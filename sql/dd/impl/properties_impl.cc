@@ -25,22 +25,20 @@
 #include <stddef.h>
 #include <new>
 
-#include "sql/dd/impl/utils.h" // eat_pairs
+#include "sql/dd/impl/utils.h"  // eat_pairs
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-const String_type Properties_impl::EMPTY_STR= "";
+const String_type Properties_impl::EMPTY_STR = "";
 
 ///////////////////////////////////////////////////////////////////////////
 
 Properties_impl::Properties_impl()
- :m_map(new Properties::Map())
-{ } /* purecov: tested */
+    : m_map(new Properties::Map()) {} /* purecov: tested */
 
 ///////////////////////////////////////////////////////////////////////////
-
 
 /**
   Parse the submitted string for properties on the format
@@ -51,25 +49,24 @@ Properties_impl::Properties_impl()
   @return                pointer to new Property_impl object
     @retval NULL         if an error occurred
 */
-Properties *Properties::parse_properties(const String_type &raw_properties)
-{ return Properties_impl::parse_properties(raw_properties); }
+Properties *Properties::parse_properties(const String_type &raw_properties) {
+  return Properties_impl::parse_properties(raw_properties);
+}
 
-Properties *Properties_impl::parse_properties(const String_type &raw_properties)
-{
-  Properties *tmp= new (std::nothrow) Properties_impl();
-  String_type::const_iterator it= raw_properties.begin();
+Properties *Properties_impl::parse_properties(
+    const String_type &raw_properties) {
+  Properties *tmp = new (std::nothrow) Properties_impl();
+  String_type::const_iterator it = raw_properties.begin();
 
-  if (eat_pairs(it, raw_properties.end(), tmp))
-  {
+  if (eat_pairs(it, raw_properties.end(), tmp)) {
     delete tmp;
-    tmp= NULL;
+    tmp = NULL;
   }
 
   return tmp;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
 
 /**
   Iterate over all entries in the private hash table. For each
@@ -80,15 +77,13 @@ Properties *Properties_impl::parse_properties(const String_type &raw_properties)
   @return string containing all escaped key value pairs
 */
 
-const String_type Properties_impl::raw_string() const
-{
+const String_type Properties_impl::raw_string() const {
   String_type str("");
-  str.reserve(16*m_map->size());
+  str.reserve(16 * m_map->size());
 
   // Iterate over all map entries
-  const Const_iterator map_end= m_map->end();
-  for (Const_iterator it= m_map->begin(); it != map_end; ++it)
-  {
+  const Const_iterator map_end = m_map->end();
+  for (Const_iterator it = m_map->begin(); it != map_end; ++it) {
     escape(&str, it->first);
     str.append("=");
     escape(&str, it->second);
@@ -99,9 +94,8 @@ const String_type Properties_impl::raw_string() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-Properties *parse_properties(const String_type &str)
-{
+Properties *parse_properties(const String_type &str) {
   return Properties_impl::parse_properties(str);
 }
 
-}
+}  // namespace dd

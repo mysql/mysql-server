@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,12 +33,10 @@
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
-namespace ngs
-{
+namespace ngs {
 
-class Protocol_config
-{
-public:
+class Protocol_config {
+ public:
   uint32_t default_max_frame_size;
   uint32_t max_message_size;
 
@@ -59,18 +57,16 @@ public:
 
   Global_timeouts get_global_timeouts() const {
     return {m_interactive_timeout, m_wait_timeout, m_read_timeout,
-        m_write_timeout};
+            m_write_timeout};
   }
 
   Protocol_config()
-  : default_max_frame_size(16*1024*1024),
-    max_message_size(16*1024*1024),
-    connect_timeout(0),
-    connect_timeout_hysteresis(100)
-  {
-  }
+      : default_max_frame_size(16 * 1024 * 1024),
+        max_message_size(16 * 1024 * 1024),
+        connect_timeout(0),
+        connect_timeout_hysteresis(100) {}
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_PROTOCOL_CONFIG_H_
+#endif  // _NGS_PROTOCOL_CONFIG_H_

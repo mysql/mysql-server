@@ -39,9 +39,7 @@
   file.
 */
 
-
 class Persisted_rule;
-
 
 /**
   Implementation of the post parse query rewriter. The public interface
@@ -49,9 +47,7 @@ class Persisted_rule;
   table, and rewrite_query(), which rewrites a query if applicable.
 */
 class Rewriter {
-
-public:
-
+ public:
   Rewriter();
 
   /**
@@ -68,7 +64,7 @@ public:
 
     @return A Rewrite_result object.
   */
-  Rewrite_result rewrite_query(MYSQL_THD thd, const uchar* key);
+  Rewrite_result rewrite_query(MYSQL_THD thd, const uchar *key);
 
   /// Empty the hashtable and reload all rules from disk table.
   longlong refresh(MYSQL_THD thd);
@@ -83,16 +79,15 @@ public:
   */
   void do_refresh(MYSQL_THD session_thd);
 
-private:
+ private:
   longlong m_refresh_status;
 
   /// The in-memory rules hash table.
-  malloc_unordered_multimap<std::string, std::unique_ptr<Rule>>
-    m_digests{PSI_INSTRUMENT_ME};
+  malloc_unordered_multimap<std::string, std::unique_ptr<Rule>> m_digests{
+      PSI_INSTRUMENT_ME};
 
   /// Loads the rule retrieved from the database in the hash table.
   bool load_rule(MYSQL_THD thd, Persisted_rule *diskrule);
-
 };
 
 #endif /* REWRITER_INCLUDED */

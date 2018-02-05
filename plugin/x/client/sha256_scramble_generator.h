@@ -24,12 +24,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef X_SHA256_SCRAMBLE_GENERATOR_H_
 #define X_SHA256_SCRAMBLE_GENERATOR_H_
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "sha2.h"                       /* SHA256_DIGEST_LENGTH */
-#include "openssl/ossl_typ.h"
 #include <openssl/evp.h>
+#include "openssl/ossl_typ.h"
+#include "sha2.h" /* SHA256_DIGEST_LENGTH */
 
 namespace xcl {
 namespace sha256_password {
@@ -40,16 +40,13 @@ const std::uint32_t CACHING_SHA2_DIGEST_LENGTH = SHA256_DIGEST_LENGTH;
 /**
   Supported digest information
 */
-enum class Digest_info {
-  SHA256_DIGEST = 0,
-  DIGEST_LAST
-};
+enum class Digest_info { SHA256_DIGEST = 0, DIGEST_LAST };
 
 /**
   Interface for cryptographic digest generation
 */
 class Generate_digest {
-public:
+ public:
   virtual bool update_digest(const void *src, const std::uint32_t length) = 0;
   virtual bool retrieve_digest(unsigned char *digest,
                                const std::uint32_t length) = 0;
@@ -57,12 +54,11 @@ public:
   virtual ~Generate_digest() = default;
 };
 
-
 /**
   SHA256 digest generator
 */
 class SHA256_digest : public Generate_digest {
-public:
+ public:
   SHA256_digest();
   ~SHA256_digest();
 
@@ -71,11 +67,11 @@ public:
   void scrub() override;
   bool all_ok() const { return m_ok; }
 
-private:
+ private:
   void init();
   void deinit();
 
-private:
+ private:
   /** Digest output buffer */
   unsigned char m_digest[CACHING_SHA2_DIGEST_LENGTH];
   /** Digest context */
@@ -84,22 +80,20 @@ private:
   bool m_ok;
 };
 
-
 /**
   Scramble generator
   Responsible for generating scramble of following format:
   XOR(SHA2(m_src), SHA2(SHA2(SHA2(m_src)), m_rnd))
 */
 class Generate_scramble {
-public:
-  Generate_scramble(const std::string &source,
-                    const std::string &rnd,
+ public:
+  Generate_scramble(const std::string &source, const std::string &rnd,
                     Digest_info digest_type = Digest_info::SHA256_DIGEST);
 
   bool scramble(unsigned char *out_scramble,
                 const std::uint32_t scramble_length);
 
-private:
+ private:
   /** plaintext source string */
   std::string m_src;
   /** random string */
@@ -112,13 +106,13 @@ private:
   std::uint32_t m_digest_length;
 };
 
-} // namespace sha256_password
+}  // namespace sha256_password
 
 bool generate_sha256_scramble(unsigned char *out_scramble,
-                              const std::size_t scramble_size,
-                              const char *src, const std::size_t src_size,
-                              const char *salt, const std::size_t salt_size);
+                              const std::size_t scramble_size, const char *src,
+                              const std::size_t src_size, const char *salt,
+                              const std::size_t salt_size);
 
-} // namespace xcl
+}  // namespace xcl
 
-#endif // X_SHA256_SCRAMBLE_GENERATOR_H_
+#endif  // X_SHA256_SCRAMBLE_GENERATOR_H_

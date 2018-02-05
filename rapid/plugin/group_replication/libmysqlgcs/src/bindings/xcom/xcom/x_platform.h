@@ -106,7 +106,7 @@ extern "C" {
 
     With this typedef we can call xsockopt functions uniformly across
     platorms. */
-typedef char* xcom_sockoptptr_t;
+typedef char *xcom_sockoptptr_t;
 
 typedef int mode_t;
 typedef SSIZE_T ssize_t;
@@ -255,7 +255,7 @@ static inline void thread_yield() { SwitchToThread(); }
 
     With this typedef we can call xsockopt functions uniformly across
     platorms, allbeit with an unnecessary cast to void* on *nix. */
-typedef void* xcom_sockoptptr_t;
+typedef void *xcom_sockoptptr_t;
 
 #define XCOM_O_CREAT O_CREAT
 #define XCOM_O_WRONLY O_WRONLY

@@ -45,7 +45,7 @@ void observer_trans_clear_io_cache_unused_list();
 /*
   Transaction lifecycle events observers.
 */
-int group_replication_trans_before_dml(Trans_param *param, int& out);
+int group_replication_trans_before_dml(Trans_param *param, int &out);
 
 int group_replication_trans_before_commit(Trans_param *param);
 
@@ -61,19 +61,17 @@ extern Trans_observer trans_observer;
   @class Transaction_Message
   Class to convey the serialized contents of the TCLE
  */
-class Transaction_Message: public Plugin_gcs_message
-{
-public:
-  enum enum_payload_item_type
-  {
+class Transaction_Message : public Plugin_gcs_message {
+ public:
+  enum enum_payload_item_type {
     // This type should not be used anywhere.
-    PIT_UNKNOWN= 0,
+    PIT_UNKNOWN = 0,
 
     // Length of the payload item: variable
-    PIT_TRANSACTION_DATA= 1,
+    PIT_TRANSACTION_DATA = 1,
 
     // No valid type codes can appear after this one.
-    PIT_MAX= 2
+    PIT_MAX = 2
   };
 
   /**
@@ -91,14 +89,14 @@ public:
    */
   bool append_cache(IO_CACHE *src);
 
-protected:
+ protected:
   /*
    Implementation of the template methods
    */
-  void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, const unsigned char*);
+  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void decode_payload(const unsigned char *buffer, const unsigned char *);
 
-private:
+ private:
   std::vector<uchar> data;
 };
 
@@ -113,6 +111,6 @@ private:
     @retval GCS_MESSAGE_TOO_BIG, when message is bigger than
                                  communication engine can handle
  */
-enum enum_gcs_error send_transaction_message(Transaction_Message* msg);
+enum enum_gcs_error send_transaction_message(Transaction_Message *msg);
 
 #endif /* OBSERVER_TRANS */

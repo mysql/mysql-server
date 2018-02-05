@@ -57,59 +57,49 @@
      0   ok.  In this case 'len' contains the size of the compressed packet
 */
 
-bool my_compress(uchar *packet, size_t *len, size_t *complen)
-{
+bool my_compress(uchar *packet, size_t *len, size_t *complen) {
   DBUG_ENTER("my_compress");
-  if (*len < MIN_COMPRESS_LENGTH)
-  {
-    *complen=0;
-    DBUG_PRINT("note",("Packet too short: Not compressed"));
-  }
-  else
-  {
-    uchar *compbuf=my_compress_alloc(packet,len,complen);
-    if (!compbuf)
-      DBUG_RETURN(*complen ? 0 : 1);
-    memcpy(packet,compbuf,*len);
+  if (*len < MIN_COMPRESS_LENGTH) {
+    *complen = 0;
+    DBUG_PRINT("note", ("Packet too short: Not compressed"));
+  } else {
+    uchar *compbuf = my_compress_alloc(packet, len, complen);
+    if (!compbuf) DBUG_RETURN(*complen ? 0 : 1);
+    memcpy(packet, compbuf, *len);
     my_free(compbuf);
   }
   DBUG_RETURN(0);
 }
 
-
-uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
-{
+uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen) {
   uchar *compbuf;
   uLongf tmp_complen;
   int res;
-  *complen=  *len * 120 / 100 + 12;
+  *complen = *len * 120 / 100 + 12;
 
-  if (!(compbuf= (uchar *) my_malloc(key_memory_my_compress_alloc,
-                                     *complen, MYF(MY_WME))))
-    return 0;					/* Not enough memory */
+  if (!(compbuf = (uchar *)my_malloc(key_memory_my_compress_alloc, *complen,
+                                     MYF(MY_WME))))
+    return 0; /* Not enough memory */
 
-  tmp_complen= (uint) *complen;
-  res= compress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet, (uLong) *len);
-  *complen=    tmp_complen;
+  tmp_complen = (uint)*complen;
+  res = compress((Bytef *)compbuf, &tmp_complen, (Bytef *)packet, (uLong)*len);
+  *complen = tmp_complen;
 
-  if (res != Z_OK)
-  {
+  if (res != Z_OK) {
     my_free(compbuf);
     return 0;
   }
 
-  if (*complen >= *len)
-  {
-    *complen= 0;
+  if (*complen >= *len) {
+    *complen = 0;
     my_free(compbuf);
-    DBUG_PRINT("note",("Packet got longer on compression; Not compressed"));
+    DBUG_PRINT("note", ("Packet got longer on compression; Not compressed"));
     return 0;
   }
   /* Store length of compressed packet in *len */
   std::swap(*len, *complen);
   return compbuf;
 }
-
 
 /*
   Uncompress packet
@@ -119,7 +109,7 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
      packet	Compressed data. This is is replaced with the orignal data.
      len	Length of compressed data
      complen	Length of the packet buffer (must be enough for the original
-	        data)
+                data)
 
    RETURN
      1   error
@@ -127,34 +117,29 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen)
               real data.
 */
 
-bool my_uncompress(uchar *packet, size_t len, size_t *complen)
-{
+bool my_uncompress(uchar *packet, size_t len, size_t *complen) {
   uLongf tmp_complen;
   DBUG_ENTER("my_uncompress");
 
-  if (*complen)					/* If compressed */
+  if (*complen) /* If compressed */
   {
-    uchar *compbuf= (uchar *) my_malloc(key_memory_my_compress_alloc,
-                                        *complen,MYF(MY_WME));
+    uchar *compbuf =
+        (uchar *)my_malloc(key_memory_my_compress_alloc, *complen, MYF(MY_WME));
     int error;
-    if (!compbuf)
-      DBUG_RETURN(1);				/* Not enough memory */
+    if (!compbuf) DBUG_RETURN(1); /* Not enough memory */
 
-    tmp_complen= (uint) *complen;
-    error= uncompress((Bytef*) compbuf, &tmp_complen, (Bytef*) packet,
-                      (uLong) len);
-    *complen= tmp_complen;
-    if (error != Z_OK)
-    {						/* Probably wrong packet */
-      DBUG_PRINT("error",("Can't uncompress packet, error: %d",error));
+    tmp_complen = (uint)*complen;
+    error =
+        uncompress((Bytef *)compbuf, &tmp_complen, (Bytef *)packet, (uLong)len);
+    *complen = tmp_complen;
+    if (error != Z_OK) { /* Probably wrong packet */
+      DBUG_PRINT("error", ("Can't uncompress packet, error: %d", error));
       my_free(compbuf);
       DBUG_RETURN(1);
     }
     memcpy(packet, compbuf, *complen);
     my_free(compbuf);
-  }
-  else
-    *complen= len;
+  } else
+    *complen = len;
   DBUG_RETURN(0);
 }
-

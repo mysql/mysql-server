@@ -23,24 +23,22 @@
 #ifndef DD_TABLES__INDEX_PARTITION_VALUES_INCLUDED
 #define DD_TABLES__INDEX_PARTITION_VALUES_INCLUDED
 
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Object_key;
+class Object_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_partition_values : public Object_table_impl
-{
-public:
+class Table_partition_values : public Object_table_impl {
+ public:
   static const Table_partition_values &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_PARTITION_ID,
     FIELD_LIST_NUM,
     FIELD_COLUMN_NUM,
@@ -48,28 +46,21 @@ public:
     FIELD_MAX_VALUE
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_PARTITION_ID_LIST_NUM_COLUMN_NUM
-  };
+  enum enum_indexes { INDEX_PK_PARTITION_ID_LIST_NUM_COLUMN_NUM };
 
-  enum enum_foreign_keys
-  {
-    FK_TABLE_PARTITION_ID
-  };
+  enum enum_foreign_keys { FK_TABLE_PARTITION_ID };
 
   Table_partition_values();
 
   static Object_key *create_key_by_partition_id(Object_id partition_id);
 
-  static Object_key *create_primary_key(Object_id partition_id,
-                                        int list_num,
+  static Object_key *create_primary_key(Object_id partition_id, int list_num,
                                         int column_num);
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__INDEX_PARTITION_VALUES_INCLUDED
+#endif  // DD_TABLES__INDEX_PARTITION_VALUES_INCLUDED

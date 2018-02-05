@@ -24,11 +24,11 @@
 #define DD__ENTITY_OBJECT_IMPL_INCLUDED
 
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/types/weak_object_impl.h" // Weak_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // Weak_object_impl
 #include "sql/dd/object_id.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/entity_object.h"     // Entity_object
+#include "sql/dd/types/entity_object.h"  // Entity_object
 #include "sql/dd/types/weak_object.h"
 
 namespace dd {
@@ -40,52 +40,45 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 class Entity_object_impl : virtual public Entity_object,
-                           public Weak_object_impl
-{
-public:
-  Entity_object_impl()
-   :m_id(INVALID_OBJECT_ID), m_has_new_primary_key(true)
-  { }
+                           public Weak_object_impl {
+ public:
+  Entity_object_impl() : m_id(INVALID_OBJECT_ID), m_has_new_primary_key(true) {}
 
-  virtual ~Entity_object_impl()
-  { }
+  virtual ~Entity_object_impl() {}
 
-public:
-  virtual Object_id id() const override
-  { return m_id; }
+ public:
+  virtual Object_id id() const override { return m_id; }
 
-  /* non-virtual */ void set_id(Object_id id)
-  {
-    m_id= id;
+  /* non-virtual */ void set_id(Object_id id) {
+    m_id = id;
     fix_has_new_primary_key();
   }
 
   /* purecov: begin deadcode */
-  virtual bool is_persistent() const override
-  { return (m_id != INVALID_OBJECT_ID); }
+  virtual bool is_persistent() const override {
+    return (m_id != INVALID_OBJECT_ID);
+  }
   /* purecov: end */
 
-  virtual const String_type &name() const override
-  { return m_name; }
+  virtual const String_type &name() const override { return m_name; }
 
-  virtual void set_name(const String_type &name) override
-  { m_name= name; }
+  virtual void set_name(const String_type &name) override { m_name = name; }
 
   virtual Object_key *create_primary_key() const override;
 
-  virtual bool has_new_primary_key() const override
-  { return m_has_new_primary_key; }
+  virtual bool has_new_primary_key() const override {
+    return m_has_new_primary_key;
+  }
 
-  virtual Entity_object_impl *impl() override
-  { return this; }
-  virtual const Entity_object_impl *impl() const override
-  { return this; }
+  virtual Entity_object_impl *impl() override { return this; }
+  virtual const Entity_object_impl *impl() const override { return this; }
 
-protected:
+ protected:
   virtual void set_primary_key_value(const Raw_new_record &r) override;
 
-  virtual void fix_has_new_primary_key() override
-  { m_has_new_primary_key= (m_id == INVALID_OBJECT_ID); }
+  virtual void fix_has_new_primary_key() override {
+    m_has_new_primary_key = (m_id == INVALID_OBJECT_ID);
+  }
 
   void restore_id(const Raw_record &r, int field_idx);
   void restore_name(const Raw_record &r, int field_idx);
@@ -97,7 +90,7 @@ protected:
   void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-private:
+ private:
   // NOTE: ID and Name attributes *must* remain private so that we can track
   // changes in them and prevent abuse.
 
@@ -118,7 +111,7 @@ private:
   */
   bool m_has_new_primary_key;
 
-protected:
+ protected:
   // The generated copy constructor could have been used,
   // but by adding this we force derived classes which define
   // their own copy constructor to also invoke the Entity_object_impl
@@ -127,13 +120,14 @@ protected:
   // the clone is handled correctly if storing it persistently as part of
   // updating a DD object.
   Entity_object_impl(const Entity_object_impl &src)
-    : Weak_object(src), m_id(src.m_id), m_name(src.m_name),
-            m_has_new_primary_key(src.m_has_new_primary_key)
-  {}
+      : Weak_object(src),
+        m_id(src.m_id),
+        m_name(src.m_name),
+        m_has_new_primary_key(src.m_has_new_primary_key) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__ENTITY_OBJECT_IMPL_INCLUDED
+#endif  // DD__ENTITY_OBJECT_IMPL_INCLUDED

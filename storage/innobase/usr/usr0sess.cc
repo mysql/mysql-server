@@ -24,42 +24,40 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file usr/usr0sess.cc
-Sessions
+/**************************************************/ /**
+ @file usr/usr0sess.cc
+ Sessions
 
-Created 6/25/1996 Heikki Tuuri
-*******************************************************/
+ Created 6/25/1996 Heikki Tuuri
+ *******************************************************/
 
 #include "usr0sess.h"
 #include "trx0trx.h"
 
-/*********************************************************************//**
-Opens a session.
-@return own: session object */
-sess_t*
-sess_open(void)
+/*********************************************************************/ /**
+ Opens a session.
+ @return own: session object */
+sess_t *sess_open(void)
 /*===========*/
 {
-	sess_t*	sess;
+  sess_t *sess;
 
-	sess = static_cast<sess_t*>(ut_zalloc_nokey(sizeof(*sess)));
+  sess = static_cast<sess_t *>(ut_zalloc_nokey(sizeof(*sess)));
 
-	sess->state = SESS_ACTIVE;
+  sess->state = SESS_ACTIVE;
 
-	sess->trx = trx_allocate_for_background();
-	sess->trx->sess = sess;
+  sess->trx = trx_allocate_for_background();
+  sess->trx->sess = sess;
 
-	return(sess);
+  return (sess);
 }
 
-/*********************************************************************//**
-Closes a session, freeing the memory occupied by it. */
-void
-sess_close(
-/*=======*/
-	sess_t*	sess)	/*!< in, own: session object */
+/*********************************************************************/ /**
+ Closes a session, freeing the memory occupied by it. */
+void sess_close(
+    /*=======*/
+    sess_t *sess) /*!< in, own: session object */
 {
-	trx_free_for_background(sess->trx);
-	ut_free(sess);
+  trx_free_for_background(sess->trx);
+  ut_free(sess);
 }

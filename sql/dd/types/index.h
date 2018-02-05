@@ -24,10 +24,10 @@
 #define DD__INDEX_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/collection.h"         // dd::Collection
-#include "sql/dd/sdi_fwd.h"            // dd::Sdi_rcontext
-#include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/collection.h"           // dd::Collection
+#include "sql/dd/sdi_fwd.h"              // dd::Sdi_rcontext
+#include "sql/dd/sdi_fwd.h"              // dd::Sdi_wcontext
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 namespace dd {
 
@@ -41,50 +41,42 @@ class Properties;
 class Table;
 
 namespace tables {
-  class Indexes;
+class Indexes;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index : virtual public Entity_object
-{
-public:
-  typedef Collection<Index_element*> Index_elements;
+class Index : virtual public Entity_object {
+ public:
+  typedef Collection<Index_element *> Index_elements;
   typedef Index_impl Impl;
   typedef tables::Indexes DD_table;
 
-public:
-  enum enum_index_type // similar to Keytype in sql_class.h but w/o FOREIGN_KEY
-  {
-    IT_PRIMARY= 1,
+ public:
+  enum enum_index_type  // similar to Keytype in sql_class.h but w/o FOREIGN_KEY
+  { IT_PRIMARY = 1,
     IT_UNIQUE,
     IT_MULTIPLE,
     IT_FULLTEXT,
-    IT_SPATIAL
-  };
+    IT_SPATIAL };
 
-  enum enum_index_algorithm // similar to ha_key_alg
-  {
-    IA_SE_SPECIFIC= 1,
+  enum enum_index_algorithm  // similar to ha_key_alg
+  { IA_SE_SPECIFIC = 1,
     IA_BTREE,
     IA_RTREE,
     IA_HASH,
-    IA_FULLTEXT
-  };
+    IA_FULLTEXT };
 
-public:
-  virtual ~Index()
-  { };
+ public:
+  virtual ~Index(){};
 
   /**
     Dummy method to be able to use Partition_index and Index interchangeably
     in templates.
   */
-  const Index &index() const
-  { return *this; }
+  const Index &index() const { return *this; }
 
-  Index &index()
-  { return *this; }
+  Index &index() { return *this; }
 
   /////////////////////////////////////////////////////////////////////////
   // Table.
@@ -131,8 +123,9 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
-  virtual void set_se_private_data(const Properties &se_private_data)= 0;
+  virtual bool set_se_private_data_raw(
+      const String_type &se_private_data_raw) = 0;
+  virtual void set_se_private_data(const Properties &se_private_data) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Tablespace.
@@ -168,7 +161,6 @@ public:
   virtual bool is_visible() const = 0;
   virtual void set_visible(bool is_visible) = 0;
 
-
   /////////////////////////////////////////////////////////////////////////
   // Index-element collection.
   /////////////////////////////////////////////////////////////////////////
@@ -180,7 +172,6 @@ public:
   virtual void set_ordinal_position(uint ordinal_position) = 0;
 
   virtual uint ordinal_position() const = 0;
-
 
   /**
     Converts *this into json.
@@ -195,7 +186,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -213,7 +203,6 @@ public:
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
 
-
   /**
     Check if index represents candidate key.
   */
@@ -222,6 +211,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__INDEX_INCLUDED
+#endif  // DD__INDEX_INCLUDED

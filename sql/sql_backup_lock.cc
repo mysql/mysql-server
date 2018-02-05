@@ -28,11 +28,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld_error.h"     // ER_SPECIFIC_ACCESS_DENIED_ERROR
-#include "sql/auth/sql_security_ctx.h" // Security_context
+#include "mysqld_error.h"               // ER_SPECIFIC_ACCESS_DENIED_ERROR
+#include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/mdl.h"
 #include "sql/system_variables.h"
-#include "sql_class.h"        // THD
+#include "sql_class.h"  // THD
 
 /**
   Check if a current user has the privilege BACKUP_ADMIN required to run
@@ -44,12 +44,10 @@
   @retval true   A user doesn't have the privilege BACKUP_ADMIN
 */
 
-static bool check_backup_admin_privilege(THD *thd)
-{
-  Security_context *sctx= thd->security_context();
+static bool check_backup_admin_privilege(THD *thd) {
+  Security_context *sctx = thd->security_context();
 
-  if (!sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)
-  {
+  if (!sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
     return true;
   }
@@ -57,9 +55,7 @@ static bool check_backup_admin_privilege(THD *thd)
   return false;
 }
 
-
-bool Sql_cmd_lock_instance::execute(THD *thd)
-{
+bool Sql_cmd_lock_instance::execute(THD *thd) {
   if (check_backup_admin_privilege(thd) ||
       acquire_exclusive_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
@@ -68,18 +64,14 @@ bool Sql_cmd_lock_instance::execute(THD *thd)
   return false;
 }
 
-
-bool Sql_cmd_unlock_instance::execute(THD *thd)
-{
-  if (check_backup_admin_privilege(thd))
-    return true;
+bool Sql_cmd_unlock_instance::execute(THD *thd) {
+  if (check_backup_admin_privilege(thd)) return true;
 
   release_backup_lock(thd);
 
   my_ok(thd);
   return false;
 }
-
 
 /**
   Acquire either exclusive or shared Backup Lock.
@@ -94,44 +86,34 @@ bool Sql_cmd_unlock_instance::execute(THD *thd)
     @retval true  Failure
 */
 
-static bool acquire_mdl_for_backup(THD *thd,
-                                   enum_mdl_type mdl_type,
+static bool acquire_mdl_for_backup(THD *thd, enum_mdl_type mdl_type,
                                    enum_mdl_duration mdl_duration,
-                                   ulong lock_wait_timeout)
-{
+                                   ulong lock_wait_timeout) {
   MDL_request mdl_request;
 
-  DBUG_ASSERT(mdl_type == MDL_SHARED ||
-              mdl_type == MDL_INTENTION_EXCLUSIVE);
+  DBUG_ASSERT(mdl_type == MDL_SHARED || mdl_type == MDL_INTENTION_EXCLUSIVE);
 
-  MDL_REQUEST_INIT(&mdl_request,
-                   MDL_key::BACKUP_LOCK, "", "", mdl_type,
+  MDL_REQUEST_INIT(&mdl_request, MDL_key::BACKUP_LOCK, "", "", mdl_type,
                    mdl_duration);
 
   return thd->mdl_context.acquire_lock(&mdl_request, lock_wait_timeout);
 }
 
-
 /**
   MDL_release_locks_visitor subclass to release MDL for BACKUP_LOCK.
 */
 
-class Release_all_backup_locks : public MDL_release_locks_visitor
-{
-public:
-  virtual bool release(MDL_ticket *ticket)
-  {
+class Release_all_backup_locks : public MDL_release_locks_visitor {
+ public:
+  virtual bool release(MDL_ticket *ticket) {
     return ticket->get_key()->mdl_namespace() == MDL_key::BACKUP_LOCK;
   }
 };
 
-
-void release_backup_lock(THD *thd)
-{
+void release_backup_lock(THD *thd) {
   Release_all_backup_locks lock_visitor;
   thd->mdl_context.release_locks(&lock_visitor);
 }
-
 
 /*
   The following rationale is for justification of choice for specific lock
@@ -147,34 +129,28 @@ void release_backup_lock(THD *thd)
   Backup Lock and IX lock should be considered as Shared Backup Lock.
 */
 
-bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout)
-{
+bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout) {
   return acquire_mdl_for_backup(thd, MDL_SHARED, MDL_EXPLICIT,
                                 lock_wait_timeout);
 }
 
-
-bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout)
-{
+bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout) {
   return acquire_mdl_for_backup(thd, MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION,
                                 lock_wait_timeout);
 }
 
-
-Is_instance_backup_locked_result is_instance_backup_locked(THD *thd)
-{
+Is_instance_backup_locked_result is_instance_backup_locked(THD *thd) {
   Is_instance_backup_locked_result res;
   MDL_key key(MDL_key::BACKUP_LOCK, "", "");
   MDL_lock_is_owned_visitor backup_lock_owner;
 
   if (thd->mdl_context.find_lock_owner(&key, &backup_lock_owner))
-    res= Is_instance_backup_locked_result::OOM;
-  else
-  {
+    res = Is_instance_backup_locked_result::OOM;
+  else {
     if (backup_lock_owner.exists())
-      res= Is_instance_backup_locked_result::LOCKED;
+      res = Is_instance_backup_locked_result::LOCKED;
     else
-      res= Is_instance_backup_locked_result::NOT_LOCKED;
+      res = Is_instance_backup_locked_result::NOT_LOCKED;
   }
 
   return res;

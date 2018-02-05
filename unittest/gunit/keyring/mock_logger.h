@@ -25,28 +25,25 @@
 
 #include <gmock/gmock.h>
 
-#include "plugin/keyring/common/logger.h"
 #include <sql/derror.h>
+#include "plugin/keyring/common/logger.h"
 
-namespace keyring
-{
-  class Mock_logger : public ILogger
-  {
-  public:
-    MOCK_METHOD2(log, void(longlong level, const char *msg));
+namespace keyring {
+class Mock_logger : public ILogger {
+ public:
+  MOCK_METHOD2(log, void(longlong level, const char *msg));
 
-    void log(longlong level, longlong errcode, ...)
-    {
-      char buf[LOG_BUFF_MAX];
-      const char *fmt= error_message_for_error_log(errcode);
+  void log(longlong level, longlong errcode, ...) {
+    char buf[LOG_BUFF_MAX];
+    const char *fmt = error_message_for_error_log(errcode);
 
-      va_list vl;
-      va_start(vl, errcode);
-      vsnprintf(buf, LOG_BUFF_MAX - 1, fmt, vl);
-      va_end(vl);
+    va_list vl;
+    va_start(vl, errcode);
+    vsnprintf(buf, LOG_BUFF_MAX - 1, fmt, vl);
+    va_end(vl);
 
-      log(level, buf);
-    }
-  };
-} //namespace keyring
-#endif //MOCKLOGGER_H
+    log(level, buf);
+  }
+};
+}  // namespace keyring
+#endif  // MOCKLOGGER_H

@@ -24,19 +24,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/buf0rea.h
-The database buffer read
+/**************************************************/ /**
+ @file include/buf0rea.h
+ The database buffer read
 
-Created 11/5/1995 Heikki Tuuri
-*******************************************************/
+ Created 11/5/1995 Heikki Tuuri
+ *******************************************************/
 
 #ifndef buf0rea_h
 #define buf0rea_h
 
-#include "univ.i"
 #include "buf0buf.h"
 #include "buf0types.h"
+#include "univ.i"
 
 /** High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
@@ -45,10 +45,7 @@ released by the i/o-handler thread.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if page has been read in, false in case of failure */
-ibool
-buf_read_page(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size);
+ibool buf_read_page(const page_id_t &page_id, const page_size_t &page_size);
 
 /** High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
@@ -58,11 +55,8 @@ released by the i/o-handler thread.
 @param[in]	page_size	page size
 @param[in]	sync		true if synchronous aio is desired
 @return true if page has been read in, false in case of failure */
-ibool
-buf_read_page_background(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size,
-	bool			sync);
+ibool buf_read_page_background(const page_id_t &page_id,
+                               const page_size_t &page_size, bool sync);
 
 /** Applies a random read-ahead in buf_pool if there are at least a threshold
 value of accessed pages from the random read-ahead area. Does not read any
@@ -80,11 +74,8 @@ wants to access
 @return number of page read requests issued; NOTE that if we read ibuf
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value! */
-ulint
-buf_read_ahead_random(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size,
-	ibool			inside_ibuf);
+ulint buf_read_ahead_random(const page_id_t &page_id,
+                            const page_size_t &page_size, ibool inside_ibuf);
 
 /** Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
@@ -112,31 +103,27 @@ which could result in a deadlock if the OS does not support asynchronous io.
 @param[in]	page_size	page size
 @param[in]	inside_ibuf	TRUE if we are inside ibuf routine
 @return number of page read requests issued */
-ulint
-buf_read_ahead_linear(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size,
-	ibool			inside_ibuf);
+ulint buf_read_ahead_linear(const page_id_t &page_id,
+                            const page_size_t &page_size, ibool inside_ibuf);
 
-/********************************************************************//**
-Issues read requests for pages which the ibuf module wants to read in, in
-order to contract the insert buffer tree. Technically, this function is like
-a read-ahead function. */
-void
-buf_read_ibuf_merge_pages(
-/*======================*/
-	bool		sync,			/*!< in: true if the caller
-						wants this function to wait
-						for the highest address page
-						to get read in, before this
-						function returns */
-	const space_id_t*	space_ids,	/*!< in: array of space ids */
-	const page_no_t*	page_nos,	/*!< in: array of page numbers
-						to read, with the highest page
-						number the last in the
-						array */
-	ulint			n_stored);	/*!< in: number of elements
-						in the arrays */
+/********************************************************************/ /**
+ Issues read requests for pages which the ibuf module wants to read in, in
+ order to contract the insert buffer tree. Technically, this function is like
+ a read-ahead function. */
+void buf_read_ibuf_merge_pages(
+    /*======================*/
+    bool sync,                   /*!< in: true if the caller
+                                 wants this function to wait
+                                 for the highest address page
+                                 to get read in, before this
+                                 function returns */
+    const space_id_t *space_ids, /*!< in: array of space ids */
+    const page_no_t *page_nos,   /*!< in: array of page numbers
+                                 to read, with the highest page
+                                 number the last in the
+                                 array */
+    ulint n_stored);             /*!< in: number of elements
+                                 in the arrays */
 
 /** Issues read requests for pages which recovery wants to read in.
 @param[in]	sync		true if the caller wants this function to wait
@@ -146,22 +133,18 @@ for the highest address page to get read in, before this function returns
 highest page number the last in the array
 @param[in]	n_stored	number of page numbers in the array */
 
-void
-buf_read_recv_pages(
-	bool			sync,
-	space_id_t		space_id,
-	const page_no_t*	page_nos,
-	ulint			n_stored);
+void buf_read_recv_pages(bool sync, space_id_t space_id,
+                         const page_no_t *page_nos, ulint n_stored);
 
 /** The size in pages of the area which the read-ahead algorithms read if
 invoked */
-#define	BUF_READ_AHEAD_AREA(b)		((b)->read_ahead_area)
+#define BUF_READ_AHEAD_AREA(b) ((b)->read_ahead_area)
 
 /** @name Modes used in read-ahead @{ */
 /** read only pages belonging to the insert buffer tree */
-#define BUF_READ_IBUF_PAGES_ONLY	131
+#define BUF_READ_IBUF_PAGES_ONLY 131
 /** read any page */
-#define BUF_READ_ANY_PAGE		132
+#define BUF_READ_ANY_PAGE 132
 /* @} */
 
 #endif

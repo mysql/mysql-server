@@ -37,7 +37,7 @@
 
 /** Declare the interface to our own service. Usually comes from a svc header */
 BEGIN_SERVICE_DEFINITION(test_services_plugin_registry_service)
-  DECLARE_BOOL_METHOD(test1, (int a1, int a2, int *outres));
+DECLARE_BOOL_METHOD(test1, (int a1, int a2, int *outres));
 END_SERVICE_DEFINITION(test_services_plugin_registry_service);
 
 /**
@@ -50,19 +50,16 @@ END_SERVICE_DEFINITION(test_services_plugin_registry_service);
   @retval 0         success
   @retval non-zero  failure
 */
-static DEFINE_BOOL_METHOD(test1, (int a1, int a2, int *outres))
-{
-  *outres= a1 + a2;
+static DEFINE_BOOL_METHOD(test1, (int a1, int a2, int *outres)) {
+  *outres = a1 + a2;
   return 0;
 }
 
 /** Our own service definition: a struct of function pointers */
-static SERVICE_TYPE(test_services_plugin_registry_service) svc_def= {
-  test1
-};
+static SERVICE_TYPE(test_services_plugin_registry_service) svc_def = {test1};
 
 /** @ref svc_def converted to a @ref my_h_service */
-static my_h_service h_my_svc= (my_h_service) &svc_def;
+static my_h_service h_my_svc = (my_h_service)&svc_def;
 
 /**
   Tests the plugin registry service
@@ -82,160 +79,147 @@ static my_h_service h_my_svc= (my_h_service) &svc_def;
   @retval false  success
   @retval true   failure
 */
-static bool test_plugin_registry(MYSQL_PLUGIN p)
-{
-  bool result= false;
-  SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
-  my_h_service h_reg= NULL;
-  my_h_service h_ret_svc= NULL;
-  int int_result= -1;
-  SERVICE_TYPE(registry_registration) *reg= NULL;
-  SERVICE_TYPE(test_services_plugin_registry_service) *ret;
+static bool test_plugin_registry(MYSQL_PLUGIN p) {
+  bool result = false;
+  SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
+  my_h_service h_reg = NULL;
+  my_h_service h_ret_svc = NULL;
+  int int_result = -1;
+  SERVICE_TYPE(registry_registration) *reg = NULL;
+  SERVICE_TYPE(test_services_plugin_registry_service) * ret;
 
-  enum { IDLE, REG_ACQUIRED, MY_SVC_REGISTERED,
-         MY_SVC_ACQUIRED } state= IDLE;
+  enum { IDLE, REG_ACQUIRED, MY_SVC_REGISTERED, MY_SVC_ACQUIRED } state = IDLE;
 
-  if (!r)
-  {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "mysql_plugin_registry_acquire() returns empty");
+  if (!r) {
+    my_plugin_log_message(&p, MY_ERROR_LEVEL,
+                          "mysql_plugin_registry_acquire() returns empty");
     return true;
   }
 
-  if (r->acquire("registry_registration", &h_reg))
-  {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "finding registry_register failed");
-    result= true;
+  if (r->acquire("registry_registration", &h_reg)) {
+    my_plugin_log_message(&p, MY_ERROR_LEVEL,
+                          "finding registry_register failed");
+    result = true;
     goto done;
   }
 
-  if (!h_reg)
-  {
+  if (!h_reg) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "empty registry_query returned");
-    result= true;
+    result = true;
     goto done;
   }
 
-  reg= reinterpret_cast<SERVICE_TYPE(registry_registration) *>(h_reg);
+  reg = reinterpret_cast<SERVICE_TYPE(registry_registration) *>(h_reg);
 
-  state= REG_ACQUIRED;
+  state = REG_ACQUIRED;
 
   if (reg->register_service(
-    "test_services_plugin_registry_service.mysql_server",
-    h_my_svc))
-  {
+          "test_services_plugin_registry_service.mysql_server", h_my_svc)) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "can't register my new service");
-    result= true;
+    result = true;
     goto done;
   }
 
-/* Register an already restistered service: Fail */
+  /* Register an already restistered service: Fail */
   if (reg->register_service(
-    "test_services_plugin_registry_service.mysql_server",
-    h_my_svc))
-  {
-    my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "new service already registered");
+          "test_services_plugin_registry_service.mysql_server", h_my_svc)) {
+    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
+                          "new service already registered");
   }
 
-  state= MY_SVC_REGISTERED;
+  state = MY_SVC_REGISTERED;
 
-  if (r->acquire("test_services_plugin_registry_service", &h_ret_svc))
-  {
+  if (r->acquire("test_services_plugin_registry_service", &h_ret_svc)) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL,
                           "can't find the newly registered service");
-    result= true;
+    result = true;
     goto done;
   }
 
-  state= MY_SVC_ACQUIRED;
+  state = MY_SVC_ACQUIRED;
 
-/* Aquire an already aquired service: Succeed (ignored) */
-  if (r->acquire("test_services_plugin_registry_service", &h_ret_svc))
-  {
-    my_plugin_log_message(&p,  MY_INFORMATION_LEVEL,
+  /* Aquire an already aquired service: Succeed (ignored) */
+  if (r->acquire("test_services_plugin_registry_service", &h_ret_svc)) {
+    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
                           "newly registered service already aquired");
   }
 
-  state= MY_SVC_ACQUIRED;
+  state = MY_SVC_ACQUIRED;
 
-  if (h_ret_svc != h_my_svc)
-  {
+  if (h_ret_svc != h_my_svc) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL,
                           "Different service handle returned");
-    result= true;
+    result = true;
     goto done;
   }
 
-  ret= reinterpret_cast<
-    SERVICE_TYPE(test_services_plugin_registry_service) *>(h_ret_svc);
+  ret = reinterpret_cast<SERVICE_TYPE(test_services_plugin_registry_service) *>(
+      h_ret_svc);
 
-  if (ret->test1(1, 2, &int_result))
-  {
+  if (ret->test1(1, 2, &int_result)) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL,
                           "results don't match: received %d", int_result);
-    result= true;
+    result = true;
     goto done;
   }
 
-  if (r->release(h_ret_svc))
-  {
+  if (r->release(h_ret_svc)) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "can't release my service");
-    result= true;
+    result = true;
     goto done;
   }
 
-/* Release an already released service: Succeed (ignored) */
-  if (r->release(h_ret_svc))
-  {
-    my_plugin_log_message(&p,  MY_INFORMATION_LEVEL, "my service already released");
+  /* Release an already released service: Succeed (ignored) */
+  if (r->release(h_ret_svc)) {
+    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
+                          "my service already released");
   }
 
-  state= MY_SVC_REGISTERED;
+  state = MY_SVC_REGISTERED;
 
-  if (reg->unregister("test_services_plugin_registry_service.mysql_server"))
-  {
+  if (reg->unregister("test_services_plugin_registry_service.mysql_server")) {
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "can't unregister my service");
-    result= true;
+    result = true;
     goto done;
   }
 
-/* Unregister an already unregistered service: Fail */
-  if (reg->unregister("test_services_plugin_registry_service.mysql_server"))
-  {
-    my_plugin_log_message(&p,  MY_INFORMATION_LEVEL, "my service aleady unregistered");
+  /* Unregister an already unregistered service: Fail */
+  if (reg->unregister("test_services_plugin_registry_service.mysql_server")) {
+    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
+                          "my service aleady unregistered");
   }
 
-  state= REG_ACQUIRED;
+  state = REG_ACQUIRED;
 
-  if (r->release(h_reg))
-  {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "can't release registry_registration");
-    result= true;
+  if (r->release(h_reg)) {
+    my_plugin_log_message(&p, MY_ERROR_LEVEL,
+                          "can't release registry_registration");
+    result = true;
     goto done;
   }
 
-  state= IDLE;
+  state = IDLE;
 
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "test_plugin_registry succeeded");
+  my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
+                        "test_plugin_registry succeeded");
 
 done:
-  switch (state)
-  {
-  case MY_SVC_ACQUIRED:
-    r->release(h_ret_svc);
-    /* fall through */
-  case MY_SVC_REGISTERED:
-    reg->unregister("test_services_plugin_registry_service.mysql_server");
-    /* fall through */
-  case REG_ACQUIRED:
-    r->release(h_reg);
-    /* fall through */
-  case IDLE:
-  default:
-    mysql_plugin_registry_release(r);
+  switch (state) {
+    case MY_SVC_ACQUIRED:
+      r->release(h_ret_svc);
+      /* fall through */
+    case MY_SVC_REGISTERED:
+      reg->unregister("test_services_plugin_registry_service.mysql_server");
+      /* fall through */
+    case REG_ACQUIRED:
+      r->release(h_reg);
+      /* fall through */
+    case IDLE:
+    default:
+      mysql_plugin_registry_release(r);
   }
   return result;
 }
-
 
 /**
   Initialize the test services at server start or plugin installation.
@@ -246,16 +230,14 @@ done:
   @retval 1 failure
 */
 
-static int test_services_plugin_init(void *p)
-{
+static int test_services_plugin_init(void *p) {
   DBUG_ENTER("test_services_plugin_init");
   int rc;
 
-  rc= test_plugin_registry(reinterpret_cast<MYSQL_PLUGIN>(p)) ? 1 : 0;
+  rc = test_plugin_registry(reinterpret_cast<MYSQL_PLUGIN>(p)) ? 1 : 0;
 
   DBUG_RETURN(rc);
 }
-
 
 /**
   Terminate the test services at server shutdown or plugin deinstallation.
@@ -266,35 +248,31 @@ static int test_services_plugin_init(void *p)
   @retval 1 failure
 */
 
-static int test_services_plugin_deinit(void*)
-{
+static int test_services_plugin_deinit(void *) {
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);
 }
 
-
-static struct st_mysql_daemon test_services_plugin_registry=
-{ MYSQL_DAEMON_INTERFACE_VERSION  };
+static struct st_mysql_daemon test_services_plugin_registry = {
+    MYSQL_DAEMON_INTERFACE_VERSION};
 
 /**
   test_services_plugin_registry descriptor
 */
 
-mysql_declare_plugin(test_services_plugin_registry)
-{
-  MYSQL_DAEMON_PLUGIN,
-  &test_services_plugin_registry,
-  "test_services_plugin_registry",
-  "Oracle",
-  "test the plugin registry services",
-  PLUGIN_LICENSE_GPL,
-  test_services_plugin_init, /* Plugin Init */
-  NULL, /* Plugin Check uninstall */
-  test_services_plugin_deinit, /* Plugin Deinit */
-  0x0100 /* 1.0 */,
-  NULL,                       /* status variables                */
-  NULL,                       /* system variables                */
-  NULL,                       /* config options                  */
-  0,                          /* flags                           */
-}
-mysql_declare_plugin_end;
+mysql_declare_plugin(test_services_plugin_registry){
+    MYSQL_DAEMON_PLUGIN,
+    &test_services_plugin_registry,
+    "test_services_plugin_registry",
+    "Oracle",
+    "test the plugin registry services",
+    PLUGIN_LICENSE_GPL,
+    test_services_plugin_init,   /* Plugin Init */
+    NULL,                        /* Plugin Check uninstall */
+    test_services_plugin_deinit, /* Plugin Deinit */
+    0x0100 /* 1.0 */,
+    NULL, /* status variables                */
+    NULL, /* system variables                */
+    NULL, /* config options                  */
+    0,    /* flags                           */
+} mysql_declare_plugin_end;

@@ -29,12 +29,10 @@
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
-
-class Applier_handler : public Event_handler
-{
-public:
+class Applier_handler : public Event_handler {
+ public:
   Applier_handler();
-  int handle_event(Pipeline_event *ev,Continuation *cont);
+  int handle_event(Pipeline_event *ev, Continuation *cont);
   int handle_action(Pipeline_action *action);
   int initialize();
   int terminate();
@@ -51,8 +49,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int initialize_repositories(bool reset_logs,
-                              ulong plugin_shutdown_timeout);
+  int initialize_repositories(bool reset_logs, ulong plugin_shutdown_timeout);
 
   /**
     Starts the SQL thread when receiving a action package
@@ -104,10 +101,8 @@ public:
   */
   int is_partial_transaction_on_relay_log();
 
-private:
-
+ private:
   Replication_thread_api channel_interface;
-
 };
 
 #endif /* SQL_THREAD_APPLIER_INCLUDE */

@@ -23,7 +23,6 @@
 #ifndef PS_INFORMATION_INCLUDED
 #define PS_INFORMATION_INCLUDED
 
-
 #include <mysql/plugin_group_replication.h>
 
 #include "plugin/group_replication/include/applier.h"
@@ -31,25 +30,20 @@
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 
+bool get_group_members_info(
+    uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks,
+    Group_member_info_manager_interface *group_member_manager,
+    char *channel_name);
 
-bool get_group_members_info(uint index,
-                            const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks,
-                            Group_member_info_manager_interface
-                                *group_member_manager,
-                            char *channel_name);
+bool get_group_member_stats(
+    uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks,
+    Group_member_info_manager_interface *group_member_manager,
+    Applier_module *applier_module, Gcs_operations *gcs_module,
+    char *channel_name);
 
-bool get_group_member_stats(uint index,
-                            const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks,
-                            Group_member_info_manager_interface
-                                *group_member_manager,
-                            Applier_module *applier_module,
-                            Gcs_operations *gcs_module,
-                            char *channel_name);
+bool get_connection_status(
+    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks,
+    char *group_name_pointer, char *channel_name,
+    bool is_group_replication_running);
 
-bool get_connection_status(const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks,
-                           char *group_name_pointer,
-                           char *channel_name,
-                           bool is_group_replication_running);
-
-#endif	/* PS_INFORMATION_INCLUDED */
-
+#endif /* PS_INFORMATION_INCLUDED */

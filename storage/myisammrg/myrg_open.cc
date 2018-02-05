@@ -34,9 +34,9 @@
 #include "typelib.h"
 
 /*
-	open a MyISAM MERGE table
-	if handle_locking is 0 then exit with error if some table is locked
-	if handle_locking is 1 then wait if table is locked
+        open a MyISAM MERGE table
+        if handle_locking is 0 then exit with error if some table is locked
+        if handle_locking is 1 then wait if table is locked
 
         NOTE: This function is not used in the MySQL server. It is for
         MERGE use independent from MySQL. Currently there is some code
@@ -45,172 +45,153 @@
         functions or make common sub-functions.
 */
 
-MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
-{
-  int save_errno,errpos=0;
-  uint files= 0, i, dir_length, length, key_parts= 0, min_keys= 0;
-  ulonglong file_offset=0;
-  char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
-  MYRG_INFO *m_info=0;
+MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
+  int save_errno, errpos = 0;
+  uint files = 0, i, dir_length, length, key_parts = 0, min_keys = 0;
+  ulonglong file_offset = 0;
+  char name_buff[FN_REFLEN * 2], buff[FN_REFLEN], *end;
+  MYRG_INFO *m_info = 0;
   File fd;
   IO_CACHE file;
-  MI_INFO *isam=0;
-  uint found_merge_insert_method= 0;
+  MI_INFO *isam = 0;
+  uint found_merge_insert_method = 0;
   size_t name_buff_length;
-  bool bad_children= false;
+  bool bad_children = false;
   DBUG_ENTER("myrg_open");
 
   memset(&file, 0, sizeof(file));
-  if ((fd= mysql_file_open(rg_key_file_MRG,
-                           fn_format(name_buff, name, "", MYRG_NAME_EXT,
-                                     MY_UNPACK_FILENAME|MY_APPEND_EXT),
-                           O_RDONLY, MYF(0))) < 0)
+  if ((fd = mysql_file_open(rg_key_file_MRG,
+                            fn_format(name_buff, name, "", MYRG_NAME_EXT,
+                                      MY_UNPACK_FILENAME | MY_APPEND_EXT),
+                            O_RDONLY, MYF(0))) < 0)
     goto err;
-  errpos=1;
-  if (init_io_cache(&file, fd, 4*IO_SIZE, READ_CACHE, 0, 0,
-		    MYF(MY_WME | MY_NABP)))
+  errpos = 1;
+  if (init_io_cache(&file, fd, 4 * IO_SIZE, READ_CACHE, 0, 0,
+                    MYF(MY_WME | MY_NABP)))
     goto err;
-  errpos=2;
-  dir_length=dirname_part(name_buff, name, &name_buff_length);
-  while ((length=my_b_gets(&file,buff,FN_REFLEN-1)))
-  {
-    if ((end=buff+length)[-1] == '\n')
-      end[-1]='\0';
-    if (buff[0] && buff[0] != '#')
-      files++;
+  errpos = 2;
+  dir_length = dirname_part(name_buff, name, &name_buff_length);
+  while ((length = my_b_gets(&file, buff, FN_REFLEN - 1))) {
+    if ((end = buff + length)[-1] == '\n') end[-1] = '\0';
+    if (buff[0] && buff[0] != '#') files++;
   }
 
   my_b_seek(&file, 0);
-  while ((length=my_b_gets(&file,buff,FN_REFLEN-1)))
-  {
-    if ((end=buff+length)[-1] == '\n')
-      *--end='\0';
-    if (!buff[0])
-      continue;		/* Skip empty lines */
-    if (buff[0] == '#')
-    {
-      if (!strncmp(buff+1,"INSERT_METHOD=",14))
-      {			/* Lookup insert method */
-	int tmp= find_type(buff + 15, &merge_insert_method, FIND_TYPE_BASIC);
-	found_merge_insert_method = (uint) (tmp >= 0 ? tmp : 0);
+  while ((length = my_b_gets(&file, buff, FN_REFLEN - 1))) {
+    if ((end = buff + length)[-1] == '\n') *--end = '\0';
+    if (!buff[0]) continue; /* Skip empty lines */
+    if (buff[0] == '#') {
+      if (!strncmp(buff + 1, "INSERT_METHOD=", 14)) { /* Lookup insert method */
+        int tmp = find_type(buff + 15, &merge_insert_method, FIND_TYPE_BASIC);
+        found_merge_insert_method = (uint)(tmp >= 0 ? tmp : 0);
       }
-      continue;		/* Skip comments */
+      continue; /* Skip comments */
     }
 
-    if (!has_path(buff))
-    {
-      (void) strmake(name_buff+dir_length,buff,
-                   sizeof(name_buff)-1-dir_length);
-      (void) cleanup_dirname(buff,name_buff);
-    }
-    else
+    if (!has_path(buff)) {
+      (void)strmake(name_buff + dir_length, buff,
+                    sizeof(name_buff) - 1 - dir_length);
+      (void)cleanup_dirname(buff, name_buff);
+    } else
       fn_format(buff, buff, "", "", 0);
-    if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
-    {
-      if (handle_locking & HA_OPEN_FOR_REPAIR)
-      {
+    if (!(isam = mi_open(buff, mode,
+                         (handle_locking ? HA_OPEN_WAIT_IF_LOCKED : 0)))) {
+      if (handle_locking & HA_OPEN_FOR_REPAIR) {
         myrg_print_wrong_table(buff);
-        bad_children= true;
+        bad_children = true;
         continue;
       }
       goto bad_children;
     }
-    if (!m_info)                                /* First file */
+    if (!m_info) /* First file */
     {
-      key_parts=isam->s->base.key_parts;
-      if (!(m_info= (MYRG_INFO*) my_malloc(rg_key_memory_MYRG_INFO,
-                                           sizeof(MYRG_INFO) +
-                                           files*sizeof(MYRG_TABLE) +
-                                           key_parts*sizeof(long),
-                                           MYF(MY_WME|MY_ZEROFILL))))
+      key_parts = isam->s->base.key_parts;
+      if (!(m_info = (MYRG_INFO *)my_malloc(rg_key_memory_MYRG_INFO,
+                                            sizeof(MYRG_INFO) +
+                                                files * sizeof(MYRG_TABLE) +
+                                                key_parts * sizeof(long),
+                                            MYF(MY_WME | MY_ZEROFILL))))
         goto err;
       DBUG_ASSERT(files);
-      m_info->open_tables=(MYRG_TABLE *) (m_info+1);
-      m_info->rec_per_key_part=(ulong *) (m_info->open_tables+files);
-      m_info->tables= files;
-      files= 0;
-      m_info->reclength=isam->s->base.reclength;
-      min_keys= isam->s->base.keys;
-      errpos=3;
+      m_info->open_tables = (MYRG_TABLE *)(m_info + 1);
+      m_info->rec_per_key_part = (ulong *)(m_info->open_tables + files);
+      m_info->tables = files;
+      files = 0;
+      m_info->reclength = isam->s->base.reclength;
+      min_keys = isam->s->base.keys;
+      errpos = 3;
     }
-    m_info->open_tables[files].table= isam;
-    m_info->open_tables[files].file_offset=(my_off_t) file_offset;
-    file_offset+=isam->state->data_file_length;
+    m_info->open_tables[files].table = isam;
+    m_info->open_tables[files].file_offset = (my_off_t)file_offset;
+    file_offset += isam->state->data_file_length;
     files++;
-    if (m_info->reclength != isam->s->base.reclength)
-    {
-      if (handle_locking & HA_OPEN_FOR_REPAIR)
-      {
+    if (m_info->reclength != isam->s->base.reclength) {
+      if (handle_locking & HA_OPEN_FOR_REPAIR) {
         myrg_print_wrong_table(buff);
-        bad_children= true;
+        bad_children = true;
         continue;
       }
       goto bad_children;
     }
-    m_info->options|= isam->s->options;
-    m_info->records+= isam->state->records;
-    m_info->del+= isam->state->del;
-    m_info->data_file_length+= isam->state->data_file_length;
-    if (min_keys > isam->s->base.keys)
-      min_keys= isam->s->base.keys;
-    for (i=0; i < key_parts; i++)
-      m_info->rec_per_key_part[i]+= (isam->s->state.rec_per_key_part[i] /
-                                     m_info->tables);
+    m_info->options |= isam->s->options;
+    m_info->records += isam->state->records;
+    m_info->del += isam->state->del;
+    m_info->data_file_length += isam->state->data_file_length;
+    if (min_keys > isam->s->base.keys) min_keys = isam->s->base.keys;
+    for (i = 0; i < key_parts; i++)
+      m_info->rec_per_key_part[i] +=
+          (isam->s->state.rec_per_key_part[i] / m_info->tables);
   }
 
-  if (bad_children)
-    goto bad_children;
-  if (!m_info && !(m_info= (MYRG_INFO*) my_malloc(rg_key_memory_MYRG_INFO,
-                                                  sizeof(MYRG_INFO),
-                                                  MYF(MY_WME | MY_ZEROFILL))))
+  if (bad_children) goto bad_children;
+  if (!m_info && !(m_info = (MYRG_INFO *)my_malloc(rg_key_memory_MYRG_INFO,
+                                                   sizeof(MYRG_INFO),
+                                                   MYF(MY_WME | MY_ZEROFILL))))
     goto err;
   /* Don't mark table readonly, for ALTER TABLE ... UNION=(...) to work */
-  m_info->options&= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
-  m_info->merge_insert_method= found_merge_insert_method;
+  m_info->options &= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
+  m_info->merge_insert_method = found_merge_insert_method;
 
-  if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
-  {
+  if (sizeof(my_off_t) == 4 && file_offset > (ulonglong)(ulong)~0L) {
     set_my_errno(HA_ERR_RECORD_FILE_FULL);
     goto err;
   }
-  m_info->keys= min_keys;
+  m_info->keys = min_keys;
   memset(&m_info->by_key, 0, sizeof(m_info->by_key));
 
   /* this works ok if the table list is empty */
-  m_info->end_table=m_info->open_tables+files;
-  m_info->last_used_table=m_info->open_tables;
-  m_info->children_attached= true;
+  m_info->end_table = m_info->open_tables + files;
+  m_info->last_used_table = m_info->open_tables;
+  m_info->children_attached = true;
 
-  (void) mysql_file_close(fd, MYF(0));
+  (void)mysql_file_close(fd, MYF(0));
   end_io_cache(&file);
-  mysql_mutex_init(rg_key_mutex_MYRG_INFO_mutex,
-                   &m_info->mutex, MY_MUTEX_INIT_FAST);
-  m_info->open_list.data=(void*) m_info;
+  mysql_mutex_init(rg_key_mutex_MYRG_INFO_mutex, &m_info->mutex,
+                   MY_MUTEX_INIT_FAST);
+  m_info->open_list.data = (void *)m_info;
   mysql_mutex_lock(&THR_LOCK_open);
-  myrg_open_list=list_add(myrg_open_list,&m_info->open_list);
+  myrg_open_list = list_add(myrg_open_list, &m_info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
   DBUG_RETURN(m_info);
 
 bad_children:
   set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
 err:
-  save_errno=my_errno();
+  save_errno = my_errno();
   switch (errpos) {
-  case 3:
-    while (files)
-      (void) mi_close(m_info->open_tables[--files].table);
-    my_free(m_info);
-    /* Fall through */
-  case 2:
-    end_io_cache(&file);
-    /* Fall through */
-  case 1:
-    (void) mysql_file_close(fd, MYF(0));
+    case 3:
+      while (files) (void)mi_close(m_info->open_tables[--files].table);
+      my_free(m_info);
+      /* Fall through */
+    case 2:
+      end_io_cache(&file);
+      /* Fall through */
+    case 1:
+      (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  DBUG_RETURN (NULL);
+  DBUG_RETURN(NULL);
 }
-
 
 /**
   Open parent table of a MyISAM MERGE table.
@@ -233,61 +214,55 @@ err:
 */
 
 MYRG_INFO *myrg_parent_open(const char *parent_name,
-                            int (*callback)(void*, const char*),
-                            void *callback_param)
-{
-  MYRG_INFO *m_info= NULL;
-  int       rc;
-  int       errpos;
-  int       save_errno;
-  int       insert_method;
-  uint      length;
-  uint      child_count;
-  File      fd;
-  IO_CACHE  file_cache;
-  char      parent_name_buff[FN_REFLEN * 2];
-  char      child_name_buff[FN_REFLEN];
+                            int (*callback)(void *, const char *),
+                            void *callback_param) {
+  MYRG_INFO *m_info = NULL;
+  int rc;
+  int errpos;
+  int save_errno;
+  int insert_method;
+  uint length;
+  uint child_count;
+  File fd;
+  IO_CACHE file_cache;
+  char parent_name_buff[FN_REFLEN * 2];
+  char child_name_buff[FN_REFLEN];
   DBUG_ENTER("myrg_parent_open");
 
-  rc= 1;
-  errpos= 0;
+  rc = 1;
+  errpos = 0;
   memset(&file_cache, 0, sizeof(file_cache));
 
   /* Open MERGE meta file. */
-  if ((fd= mysql_file_open(rg_key_file_MRG,
-                           fn_format(parent_name_buff, parent_name,
-                                     "", MYRG_NAME_EXT,
-                                     MY_UNPACK_FILENAME|MY_APPEND_EXT),
-                           O_RDONLY, MYF(0))) < 0)
+  if ((fd = mysql_file_open(
+           rg_key_file_MRG,
+           fn_format(parent_name_buff, parent_name, "", MYRG_NAME_EXT,
+                     MY_UNPACK_FILENAME | MY_APPEND_EXT),
+           O_RDONLY, MYF(0))) < 0)
     goto err; /* purecov: inspected */
-  errpos= 1;
+  errpos = 1;
 
   if (init_io_cache(&file_cache, fd, 4 * IO_SIZE, READ_CACHE, 0, 0,
                     MYF(MY_WME | MY_NABP)))
     goto err; /* purecov: inspected */
-  errpos= 2;
+  errpos = 2;
 
   /* Count children. Determine insert method. */
-  child_count= 0;
-  insert_method= 0;
-  while ((length= my_b_gets(&file_cache, child_name_buff, FN_REFLEN - 1)))
-  {
+  child_count = 0;
+  insert_method = 0;
+  while ((length = my_b_gets(&file_cache, child_name_buff, FN_REFLEN - 1))) {
     /* Remove line terminator. */
-    if (child_name_buff[length - 1] == '\n')
-      child_name_buff[--length]= '\0';
+    if (child_name_buff[length - 1] == '\n') child_name_buff[--length] = '\0';
 
     /* Skip empty lines. */
-    if (!child_name_buff[0])
-      continue; /* purecov: inspected */
+    if (!child_name_buff[0]) continue; /* purecov: inspected */
 
     /* Skip comments, but evaluate insert method. */
-    if (child_name_buff[0] == '#')
-    {
-      if (!strncmp(child_name_buff + 1, "INSERT_METHOD=", 14))
-      {
+    if (child_name_buff[0] == '#') {
+      if (!strncmp(child_name_buff + 1, "INSERT_METHOD=", 14)) {
         /* Compare buffer with global methods list: merge_insert_method. */
-        insert_method= find_type(child_name_buff + 15,
-                                 &merge_insert_method, FIND_TYPE_BASIC);
+        insert_method = find_type(child_name_buff + 15, &merge_insert_method,
+                                  FIND_TYPE_BASIC);
       }
       continue;
     }
@@ -297,72 +272,67 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   }
 
   /* Allocate MERGE parent table structure. */
-  if (!(m_info= (MYRG_INFO*) my_malloc(rg_key_memory_MYRG_INFO,
-                                       sizeof(MYRG_INFO) +
-                                       child_count * sizeof(MYRG_TABLE),
-                                       MYF(MY_WME | MY_ZEROFILL))))
+  if (!(m_info = (MYRG_INFO *)my_malloc(
+            rg_key_memory_MYRG_INFO,
+            sizeof(MYRG_INFO) + child_count * sizeof(MYRG_TABLE),
+            MYF(MY_WME | MY_ZEROFILL))))
     goto err; /* purecov: inspected */
-  errpos= 3;
-  m_info->open_tables= (MYRG_TABLE*) (m_info + 1);
-  m_info->tables= child_count;
-  m_info->merge_insert_method= insert_method > 0 ? insert_method : 0;
+  errpos = 3;
+  m_info->open_tables = (MYRG_TABLE *)(m_info + 1);
+  m_info->tables = child_count;
+  m_info->merge_insert_method = insert_method > 0 ? insert_method : 0;
   /* This works even if the table list is empty. */
-  m_info->end_table= m_info->open_tables + child_count;
-  if (!child_count)
-  {
+  m_info->end_table = m_info->open_tables + child_count;
+  if (!child_count) {
     /* Do not attach/detach an empty child list. */
-    m_info->children_attached= true;
+    m_info->children_attached = true;
   }
 
   /* Call callback for each child. */
   my_b_seek(&file_cache, 0);
-  while ((length= my_b_gets(&file_cache, child_name_buff, FN_REFLEN - 1)))
-  {
+  while ((length = my_b_gets(&file_cache, child_name_buff, FN_REFLEN - 1))) {
     /* Remove line terminator. */
-    if (child_name_buff[length - 1] == '\n')
-      child_name_buff[--length]= '\0';
+    if (child_name_buff[length - 1] == '\n') child_name_buff[--length] = '\0';
 
     /* Skip empty lines and comments. */
-    if (!child_name_buff[0] || (child_name_buff[0] == '#'))
-      continue;
+    if (!child_name_buff[0] || (child_name_buff[0] == '#')) continue;
 
     DBUG_PRINT("info", ("child: '%s'", child_name_buff));
 
     /* Callback registers child with handler table. */
-    if ((rc= (*callback)(callback_param, child_name_buff)))
+    if ((rc = (*callback)(callback_param, child_name_buff)))
       goto err; /* purecov: inspected */
   }
 
   end_io_cache(&file_cache);
-  (void) mysql_file_close(fd, MYF(0));
-  mysql_mutex_init(rg_key_mutex_MYRG_INFO_mutex,
-                   &m_info->mutex, MY_MUTEX_INIT_FAST);
+  (void)mysql_file_close(fd, MYF(0));
+  mysql_mutex_init(rg_key_mutex_MYRG_INFO_mutex, &m_info->mutex,
+                   MY_MUTEX_INIT_FAST);
 
-  m_info->open_list.data= (void*) m_info;
+  m_info->open_list.data = (void *)m_info;
   mysql_mutex_lock(&THR_LOCK_open);
-  myrg_open_list= list_add(myrg_open_list, &m_info->open_list);
+  myrg_open_list = list_add(myrg_open_list, &m_info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
 
   DBUG_RETURN(m_info);
 
   /* purecov: begin inspected */
- err:
-  save_errno= my_errno();
+err:
+  save_errno = my_errno();
   switch (errpos) {
-  case 3:
-    my_free(m_info);
-    /* Fall through */
-  case 2:
-    end_io_cache(&file_cache);
-    /* Fall through */
-  case 1:
-    (void) mysql_file_close(fd, MYF(0));
+    case 3:
+      my_free(m_info);
+      /* Fall through */
+    case 2:
+      end_io_cache(&file_cache);
+      /* Fall through */
+    case 1:
+      (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  DBUG_RETURN (NULL);
+  DBUG_RETURN(NULL);
   /* purecov: end */
 }
-
 
 /**
   Attach children to a MyISAM MERGE parent table.
@@ -390,19 +360,18 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
 */
 
 int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
-                         MI_INFO *(*callback)(void*),
-                         void *callback_param, bool *need_compat_check)
-{
-  ulonglong  file_offset;
-  MI_INFO    *myisam;
-  int        errpos;
-  int        save_errno;
-  uint       idx;
-  uint       child_nr;
-  uint       key_parts= 0;
-  uint       min_keys;
-  bool       bad_children= false;
-  bool       first_child= true;
+                         MI_INFO *(*callback)(void *), void *callback_param,
+                         bool *need_compat_check) {
+  ulonglong file_offset;
+  MI_INFO *myisam;
+  int errpos;
+  int save_errno;
+  uint idx;
+  uint child_nr;
+  uint key_parts = 0;
+  uint min_keys;
+  bool bad_children = false;
+  bool first_child = true;
   DBUG_ENTER("myrg_attach_children");
   DBUG_PRINT("myrg", ("handle_locking: %d", handle_locking));
 
@@ -414,109 +383,98 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     here and in ha_myisammrg::store_lock() forces consistent data.
   */
   mysql_mutex_lock(&m_info->mutex);
-  errpos= 0;
-  file_offset= 0;
-  min_keys= 0;
-  for (child_nr= 0; child_nr < m_info->tables; child_nr++)
-  {
-    if (! (myisam= (*callback)(callback_param)))
-    {
-      if (handle_locking & HA_OPEN_FOR_REPAIR)
-      {
+  errpos = 0;
+  file_offset = 0;
+  min_keys = 0;
+  for (child_nr = 0; child_nr < m_info->tables; child_nr++) {
+    if (!(myisam = (*callback)(callback_param))) {
+      if (handle_locking & HA_OPEN_FOR_REPAIR) {
         /* An appropriate error should've been already pushed by callback. */
-        bad_children= true;
+        bad_children = true;
         continue;
       }
       goto bad_children;
     }
 
-    DBUG_PRINT("myrg", ("child_nr: %u  table: '%s'",
-                        child_nr, myisam->filename));
+    DBUG_PRINT("myrg",
+               ("child_nr: %u  table: '%s'", child_nr, myisam->filename));
 
     /* Special handling when the first child is attached. */
-    if (first_child)
-    {
-      first_child= false;
-      m_info->reclength= myisam->s->base.reclength;
-      min_keys=  myisam->s->base.keys;
-      key_parts= myisam->s->base.key_parts;
-      if (*need_compat_check && m_info->rec_per_key_part)
-      {
+    if (first_child) {
+      first_child = false;
+      m_info->reclength = myisam->s->base.reclength;
+      min_keys = myisam->s->base.keys;
+      key_parts = myisam->s->base.key_parts;
+      if (*need_compat_check && m_info->rec_per_key_part) {
         my_free(m_info->rec_per_key_part);
-        m_info->rec_per_key_part= NULL;
+        m_info->rec_per_key_part = NULL;
       }
-      if (!m_info->rec_per_key_part)
-      {
-        if(!(m_info->rec_per_key_part= (ulong*)
-             my_malloc(rg_key_memory_MYRG_INFO,
-                       key_parts * sizeof(long), MYF(MY_WME))))
+      if (!m_info->rec_per_key_part) {
+        if (!(m_info->rec_per_key_part =
+                  (ulong *)my_malloc(rg_key_memory_MYRG_INFO,
+                                     key_parts * sizeof(long), MYF(MY_WME))))
           goto err; /* purecov: inspected */
-        errpos= 1;
+        errpos = 1;
       }
       memset(m_info->rec_per_key_part, 0, key_parts * sizeof(long));
     }
 
     /* Add MyISAM table info. */
-    m_info->open_tables[child_nr].table= myisam;
-    m_info->open_tables[child_nr].file_offset= (my_off_t) file_offset;
-    file_offset+= myisam->state->data_file_length;
+    m_info->open_tables[child_nr].table = myisam;
+    m_info->open_tables[child_nr].file_offset = (my_off_t)file_offset;
+    file_offset += myisam->state->data_file_length;
 
     /* Check table definition match. */
-    if (m_info->reclength != myisam->s->base.reclength)
-    {
-      DBUG_PRINT("error", ("definition mismatch table: '%s'  repair: %d",
-                           myisam->filename,
-                           (handle_locking & HA_OPEN_FOR_REPAIR)));
-      if (handle_locking & HA_OPEN_FOR_REPAIR)
-      {
+    if (m_info->reclength != myisam->s->base.reclength) {
+      DBUG_PRINT("error",
+                 ("definition mismatch table: '%s'  repair: %d",
+                  myisam->filename, (handle_locking & HA_OPEN_FOR_REPAIR)));
+      if (handle_locking & HA_OPEN_FOR_REPAIR) {
         myrg_print_wrong_table(myisam->filename);
-        bad_children= true;
+        bad_children = true;
         continue;
       }
       goto bad_children;
     }
 
-    m_info->options|= myisam->s->options;
-    m_info->records+= myisam->state->records;
-    m_info->del+= myisam->state->del;
-    m_info->data_file_length+= myisam->state->data_file_length;
+    m_info->options |= myisam->s->options;
+    m_info->records += myisam->state->records;
+    m_info->del += myisam->state->del;
+    m_info->data_file_length += myisam->state->data_file_length;
     if (min_keys > myisam->s->base.keys)
-      min_keys= myisam->s->base.keys; /* purecov: inspected */
-    for (idx= 0; idx < key_parts; idx++)
-      m_info->rec_per_key_part[idx]+= (myisam->s->state.rec_per_key_part[idx] /
-                                       m_info->tables);
+      min_keys = myisam->s->base.keys; /* purecov: inspected */
+    for (idx = 0; idx < key_parts; idx++)
+      m_info->rec_per_key_part[idx] +=
+          (myisam->s->state.rec_per_key_part[idx] / m_info->tables);
   }
 
-  if (bad_children)
-    goto bad_children;
+  if (bad_children) goto bad_children;
 
-  if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
-  {
+  if (sizeof(my_off_t) == 4 && file_offset > (ulonglong)(ulong)~0L) {
     set_my_errno(HA_ERR_RECORD_FILE_FULL);
     goto err;
   }
   /* Don't mark table readonly, for ALTER TABLE ... UNION=(...) to work */
-  m_info->options&= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
-  m_info->keys= min_keys;
-  m_info->last_used_table= m_info->open_tables;
-  m_info->children_attached= true;
+  m_info->options &= ~(HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA);
+  m_info->keys = min_keys;
+  m_info->last_used_table = m_info->open_tables;
+  m_info->children_attached = true;
   mysql_mutex_unlock(&m_info->mutex);
   DBUG_RETURN(0);
 
 bad_children:
   set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
 err:
-  save_errno= my_errno();
+  save_errno = my_errno();
   switch (errpos) {
-  case 1:
-    my_free(m_info->rec_per_key_part);
-    m_info->rec_per_key_part= NULL;
+    case 1:
+      my_free(m_info->rec_per_key_part);
+      m_info->rec_per_key_part = NULL;
   }
   mysql_mutex_unlock(&m_info->mutex);
   set_my_errno(save_errno);
   DBUG_RETURN(1);
 }
-
 
 /**
   @brief Detach children from a MyISAM MERGE parent table.
@@ -531,22 +489,19 @@ err:
     @retval     0               OK
 */
 
-int myrg_detach_children(MYRG_INFO *m_info)
-{
+int myrg_detach_children(MYRG_INFO *m_info) {
   DBUG_ENTER("myrg_detach_children");
   /* For symmetry with myrg_attach_children() we use the mutex here. */
   mysql_mutex_lock(&m_info->mutex);
-  if (m_info->tables)
-  {
+  if (m_info->tables) {
     /* Do not attach/detach an empty child list. */
-    m_info->children_attached= false;
+    m_info->children_attached = false;
     memset(m_info->open_tables, 0, m_info->tables * sizeof(MYRG_TABLE));
   }
-  m_info->records= 0;
-  m_info->del= 0;
-  m_info->data_file_length= 0;
-  m_info->options= 0;
+  m_info->records = 0;
+  m_info->del = 0;
+  m_info->data_file_length = 0;
+  m_info->options = 0;
   mysql_mutex_unlock(&m_info->mutex);
   DBUG_RETURN(0);
 }
-

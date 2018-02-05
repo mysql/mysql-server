@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -113,13 +113,13 @@ ngs::Error_code Account_verification_handler::verify_account(
   ngs::Account_verification_interface::Account_type account_verificator_id;
   // If SHA256_MEMORY is used then no matter what auth_plugin is used we
   // will be using cache-based verification
-  if (m_account_type ==
-      ngs::Account_verification_interface::Account_type::Account_sha256_memory) {
-    account_verificator_id =
-      ngs::Account_verification_interface::Account_type::Account_sha256_memory;
+  if (m_account_type == ngs::Account_verification_interface::Account_type::
+                            Account_sha256_memory) {
+    account_verificator_id = ngs::Account_verification_interface::Account_type::
+        Account_sha256_memory;
   } else {
-    account_verificator_id = get_account_verificator_id(
-        record.auth_plugin_name);
+    account_verificator_id =
+        get_account_verificator_id(record.auth_plugin_name);
   }
   auto *p = get_account_verificator(account_verificator_id);
 
@@ -157,7 +157,7 @@ ngs::Error_code Account_verification_handler::verify_account(
 
   if (record.require_secure_transport &&
       !ngs::Connection_type_helper::is_secure_type(
-           m_session->client().connection().connection_type()))
+          m_session->client().connection().connection_type()))
     return ngs::Error(ER_SECURE_TRANSPORT_REQUIRED,
                       "Secure transport required. To log in you must use "
                       "TCP+SSL or UNIX socket connection.");
@@ -186,8 +186,7 @@ ngs::Error_code Account_verification_handler::get_account_record(
       .get(record.user_required.ssl_x509_issuer)
       .get(record.user_required.ssl_x509_subject);
   return ngs::Success();
-}
-catch (const ngs::Error_code &e) {
+} catch (const ngs::Error_code &e) {
   return e;
 }
 
@@ -205,16 +204,17 @@ ngs::PFS_string Account_verification_handler::get_sql(
   //  - disconnect_on_expired_password
   // column `is_offline_mode_and_not_super_user` is set true if it
   //  - offline mode and user has not super priv
-  qb.put("/* xplugin authentication */ SELECT @@require_secure_transport, "
-         "`authentication_string`, `plugin`,"
-         "(`account_locked`='Y') as is_account_locked, "
-         "(`password_expired`!='N') as `is_password_expired`, "
-         "@@disconnect_on_expired_password as "
-         "`disconnect_on_expired_password`, "
-         "@@offline_mode and (`Super_priv`='N') as "
-         "`is_offline_mode_and_not_super_user`,"
-         "`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` "
-         "FROM mysql.user WHERE ")
+  qb.put(
+        "/* xplugin authentication */ SELECT @@require_secure_transport, "
+        "`authentication_string`, `plugin`,"
+        "(`account_locked`='Y') as is_account_locked, "
+        "(`password_expired`!='N') as `is_password_expired`, "
+        "@@disconnect_on_expired_password as "
+        "`disconnect_on_expired_password`, "
+        "@@offline_mode and (`Super_priv`='N') as "
+        "`is_offline_mode_and_not_super_user`,"
+        "`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` "
+        "FROM mysql.user WHERE ")
       .quote_string(user)
       .put(" = `user` AND ")
       .quote_string(host)

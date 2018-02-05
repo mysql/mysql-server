@@ -30,60 +30,48 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "sql/dd/cache/dictionary_client.h"       // dd::cache::Dictionary_...
-#include "sql/dd/dd.h"                            // dd::create_object
-#include "sql/dd/impl/cache/storage_adapter.h"    // Storage_adapter
-#include "sql/dd/impl/raw/object_keys.h"          // Global_name_key
+#include "sql/dd/cache/dictionary_client.h"     // dd::cache::Dictionary_...
+#include "sql/dd/dd.h"                          // dd::create_object
+#include "sql/dd/impl/cache/storage_adapter.h"  // Storage_adapter
+#include "sql/dd/impl/raw/object_keys.h"        // Global_name_key
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
-#include "sql/dd/impl/types/charset_impl.h"       // dd::Charset_impl
+#include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
+#include "sql/dd/impl/types/charset_impl.h"    // dd::Charset_impl
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/charset.h"
 #include "sql/item_create.h"
-#include "sql/sql_class.h"                        // THD
+#include "sql/sql_class.h"  // THD
 
 namespace dd {
 namespace tables {
 
-const Character_sets &Character_sets::instance()
-{
-  static Character_sets *s_instance= new Character_sets();
+const Character_sets &Character_sets::instance() {
+  static Character_sets *s_instance = new Character_sets();
   return *s_instance;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Character_sets::Character_sets()
-{
+Character_sets::Character_sets() {
   m_target_def.set_table_name("character_sets");
 
-  m_target_def.add_field(FIELD_ID,
-                         "FIELD_ID",
+  m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-  m_target_def.add_field(FIELD_NAME,
-                         "FIELD_NAME",
+  m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_DEFAULT_COLLATION_ID,
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_COMMENT,
-                         "FIELD_COMMENT",
+  m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment VARCHAR(2048)"
                          " COLLATE utf8_general_ci NOT NULL");
-  m_target_def.add_field(FIELD_MB_MAX_LENGTH,
-                         "FIELD_MB_MAX_LENGTH",
+  m_target_def.add_field(FIELD_MB_MAX_LENGTH, "FIELD_MB_MAX_LENGTH",
                          "mb_max_length INT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_OPTIONS,
-                         "FIELD_OPTIONS",
-                         "options MEDIUMTEXT");
+  m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
 
-  m_target_def.add_index(INDEX_PK_ID,
-                         "INDEX_PK_ID",
-                         "PRIMARY KEY(id)");
-  m_target_def.add_index(INDEX_UK_NAME,
-                         "INDEX_UK_NAME",
-                         "UNIQUE KEY(name)");
+  m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_NAME, "INDEX_UK_NAME", "UNIQUE KEY(name)");
   m_target_def.add_index(INDEX_K_DEFAULT_COLLATION_ID,
                          "INDEX_K_DEFAULT_COLLATION_ID",
                          "KEY(default_collation_id)");
@@ -99,16 +87,13 @@ Character_sets::Character_sets()
 // The table is populated when the server is started, unless it is
 // started in read only mode.
 
-bool Character_sets::populate(THD *thd) const
-{
+bool Character_sets::populate(THD *thd) const {
   // Obtain a list of the previously stored charsets.
-  std::vector<const Charset*> prev_cset;
-  if (thd->dd_client()->fetch_global_components(&prev_cset))
-    return true;
+  std::vector<const Charset *> prev_cset;
+  if (thd->dd_client()->fetch_global_components(&prev_cset)) return true;
 
   std::set<Object_id> prev_cset_ids;
-  for (const Charset *cset : prev_cset)
-    prev_cset_ids.insert(cset->id());
+  for (const Charset *cset : prev_cset) prev_cset_ids.insert(cset->id());
 
   // We have an outer loop identifying the primary collations, i.e.,
   // the collations which are default for some character set. Then,
@@ -125,18 +110,14 @@ bool Character_sets::populate(THD *thd) const
   // sets. Each character set is stored with the id (primary key) of its
   // corresponding primary collation as the id (primary key).
 
-  Charset_impl *new_charset= create_object<Charset_impl>();
-  bool error= false;
-  for (int internal_charset_id= 0;
+  Charset_impl *new_charset = create_object<Charset_impl>();
+  bool error = false;
+  for (int internal_charset_id = 0;
        internal_charset_id < MY_ALL_CHARSETS_SIZE && !error;
-       internal_charset_id++)
-  {
-    CHARSET_INFO *cs= all_charsets[internal_charset_id];
-    if (cs &&
-        (cs->state & MY_CS_PRIMARY)   &&
-        (cs->state & MY_CS_AVAILABLE) &&
-        !(cs->state & MY_CS_HIDDEN))
-    {
+       internal_charset_id++) {
+    CHARSET_INFO *cs = all_charsets[internal_charset_id];
+    if (cs && (cs->state & MY_CS_PRIMARY) && (cs->state & MY_CS_AVAILABLE) &&
+        !(cs->state & MY_CS_HIDDEN)) {
       // Remove the id from the set of non-updated old ids.
       prev_cset_ids.erase(cs->number);
 
@@ -149,8 +130,8 @@ bool Character_sets::populate(THD *thd) const
 
       // If the charset exists, it will be updated; otherwise,
       // it will be inserted.
-      error= cache::Storage_adapter::instance()->store(thd,
-               static_cast<Charset*>(new_charset));
+      error = cache::Storage_adapter::instance()->store(
+          thd, static_cast<Charset *>(new_charset));
     }
   }
   delete new_charset;
@@ -158,16 +139,13 @@ bool Character_sets::populate(THD *thd) const
   // The remaining ids in the prev_cset_ids set were not updated, and must
   // therefore be deleted from the DD since they are not supported anymore.
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  for (std::set<Object_id>::const_iterator del_it= prev_cset_ids.begin();
-       del_it != prev_cset_ids.end(); ++del_it)
-  {
-    const Charset *del_cset= NULL;
-    if (thd->dd_client()->acquire(*del_it, &del_cset))
-      return true;
+  for (std::set<Object_id>::const_iterator del_it = prev_cset_ids.begin();
+       del_it != prev_cset_ids.end(); ++del_it) {
+    const Charset *del_cset = NULL;
+    if (thd->dd_client()->acquire(*del_it, &del_cset)) return true;
 
     DBUG_ASSERT(del_cset);
-    if (thd->dd_client()->drop(del_cset))
-      return true;
+    if (thd->dd_client()->drop(del_cset)) return true;
   }
 
   return error;
@@ -176,23 +154,20 @@ bool Character_sets::populate(THD *thd) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-Charset *Character_sets::create_entity_object(const Raw_record &) const
-{
+Charset *Character_sets::create_entity_object(const Raw_record &) const {
   return new (std::nothrow) Charset_impl();
 }
 /* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Character_sets::update_object_key(
-  Global_name_key *key,
-  const String_type &charset_name)
-{
+bool Character_sets::update_object_key(Global_name_key *key,
+                                       const String_type &charset_name) {
   key->update(FIELD_NAME, charset_name);
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd

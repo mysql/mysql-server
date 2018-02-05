@@ -49,7 +49,7 @@
 extern bool pfs_initialized;
 
 #if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || \
-  defined(HAVE_ALIGNED_MALLOC)
+    defined(HAVE_ALIGNED_MALLOC)
 #define PFS_ALIGNEMENT 64
 #define PFS_ALIGNED MY_ALIGNED(PFS_ALIGNEMENT)
 #else
@@ -71,42 +71,33 @@ extern bool pfs_initialized;
   An atomic @c uint32 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
-struct PFS_cacheline_atomic_uint32
-{
+struct PFS_cacheline_atomic_uint32 {
   std::atomic<uint32> m_u32;
   char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<uint32>)];
 
-  PFS_cacheline_atomic_uint32() : m_u32(0)
-  {
-  }
+  PFS_cacheline_atomic_uint32() : m_u32(0) {}
 };
 
 /**
   An atomic @c uint64 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
-struct PFS_cacheline_atomic_uint64
-{
+struct PFS_cacheline_atomic_uint64 {
   std::atomic<uint64> m_u64;
   char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<uint64>)];
 
-  PFS_cacheline_atomic_uint64() : m_u64(0)
-  {
-  }
+  PFS_cacheline_atomic_uint64() : m_u64(0) {}
 };
 
 /**
   An atomic @c size_t variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
-struct PFS_cacheline_atomic_size_t
-{
+struct PFS_cacheline_atomic_size_t {
   std::atomic<size_t> m_size_t;
   char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<size_t>)];
 
-  PFS_cacheline_atomic_size_t() : m_size_t(0)
-  {
-  }
+  PFS_cacheline_atomic_size_t() : m_size_t(0) {}
 };
 
 struct PFS_builtin_memory_class;
@@ -115,9 +106,7 @@ struct PFS_builtin_memory_class;
 void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags);
 
 /** Allocate an array of structures with overflow check. */
-void *pfs_malloc_array(PFS_builtin_memory_class *klass,
-                       size_t n,
-                       size_t size,
+void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                        myf flags);
 
 /**
@@ -135,9 +124,7 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass,
 void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr);
 
 /** Free memory allocated with @sa pfs_malloc_array. */
-void pfs_free_array(PFS_builtin_memory_class *klass,
-                    size_t n,
-                    size_t size,
+void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                     void *ptr);
 
 /**
@@ -152,9 +139,7 @@ void pfs_free_array(PFS_builtin_memory_class *klass,
 /** Detect multiplication overflow. */
 bool is_overflow(size_t product, size_t n1, size_t n2);
 
-uint pfs_get_socket_address(char *host,
-                            uint host_len,
-                            uint *port,
+uint pfs_get_socket_address(char *host, uint host_len, uint *port,
                             const struct sockaddr_storage *src_addr,
                             socklen_t src_len);
 
@@ -165,7 +150,7 @@ uint pfs_get_socket_address(char *host,
 #define PFS_NEW(CLASS) (new (*THR_MALLOC) CLASS())
 
 void pfs_print_error(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
   Given an array defined as T ARRAY[MAX],
@@ -174,11 +159,9 @@ void pfs_print_error(const char *format, ...)
 */
 #define SANITIZE_ARRAY_BODY(T, ARRAY, MAX, UNSAFE)         \
   intptr offset;                                           \
-  if ((&ARRAY[0] <= UNSAFE) && (UNSAFE < &ARRAY[MAX]))     \
-  {                                                        \
+  if ((&ARRAY[0] <= UNSAFE) && (UNSAFE < &ARRAY[MAX])) {   \
     offset = ((intptr)UNSAFE - (intptr)ARRAY) % sizeof(T); \
-    if (offset == 0)                                       \
-      return UNSAFE;                                       \
+    if (offset == 0) return UNSAFE;                        \
   }                                                        \
   return NULL
 

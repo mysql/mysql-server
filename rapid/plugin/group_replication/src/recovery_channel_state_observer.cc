@@ -22,70 +22,54 @@
 
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
 
-Recovery_channel_state_observer::
-Recovery_channel_state_observer(Recovery_state_transfer* recovery_state_transfer)
-  :recovery_state_transfer(recovery_state_transfer)
-{}
+Recovery_channel_state_observer::Recovery_channel_state_observer(
+    Recovery_state_transfer *recovery_state_transfer)
+    : recovery_state_transfer(recovery_state_transfer) {}
 
-int Recovery_channel_state_observer::
-thread_start(Binlog_relay_IO_param*)
-{
+int Recovery_channel_state_observer::thread_start(Binlog_relay_IO_param *) {
   return 0;
 }
 
-int Recovery_channel_state_observer::thread_stop(Binlog_relay_IO_param *param)
-{
+int Recovery_channel_state_observer::thread_stop(Binlog_relay_IO_param *param) {
   recovery_state_transfer->inform_of_receiver_stop(param->thread_id);
   return 0;
 }
 
-int Recovery_channel_state_observer::
-applier_start(Binlog_relay_IO_param*)
-{
+int Recovery_channel_state_observer::applier_start(Binlog_relay_IO_param *) {
   return 0;
 }
 
-int Recovery_channel_state_observer::
-applier_stop(Binlog_relay_IO_param *param, bool aborted)
-{
+int Recovery_channel_state_observer::applier_stop(Binlog_relay_IO_param *param,
+                                                  bool aborted) {
   recovery_state_transfer->inform_of_applier_stop(param->thread_id, aborted);
   return 0;
 }
 
-int Recovery_channel_state_observer::
-before_request_transmit(Binlog_relay_IO_param*, uint32)
-{
+int Recovery_channel_state_observer::before_request_transmit(
+    Binlog_relay_IO_param *, uint32) {
   return 0;
 }
 
-int Recovery_channel_state_observer::
-after_read_event(Binlog_relay_IO_param*,
-                 const char*, unsigned long,
-                 const char**,
-                 unsigned long*)
-{
+int Recovery_channel_state_observer::after_read_event(Binlog_relay_IO_param *,
+                                                      const char *,
+                                                      unsigned long,
+                                                      const char **,
+                                                      unsigned long *) {
   return 0;
 }
 
-int Recovery_channel_state_observer::
-after_queue_event(Binlog_relay_IO_param*,
-                  const char*,
-                  unsigned long,
-                  uint32)
-{
+int Recovery_channel_state_observer::after_queue_event(Binlog_relay_IO_param *,
+                                                       const char *,
+                                                       unsigned long, uint32) {
   return 0;
 }
 
-int Recovery_channel_state_observer::
-after_reset_slave(Binlog_relay_IO_param*)
-{
+int Recovery_channel_state_observer::after_reset_slave(
+    Binlog_relay_IO_param *) {
   return 0;
 }
 
-int Recovery_channel_state_observer::
-applier_log_event(Binlog_relay_IO_param*,
-                  Trans_param*,
-                  int&)
-{
+int Recovery_channel_state_observer::applier_log_event(Binlog_relay_IO_param *,
+                                                       Trans_param *, int &) {
   return 0;
 }

@@ -41,7 +41,7 @@
 #endif
 
 namespace {
-bool is_daemon_proc= false;
+bool is_daemon_proc = false;
 }
 
 /**
@@ -50,10 +50,7 @@ bool is_daemon_proc= false;
   @retval true if this is the daemon
   @retval false otherwise
  */
-bool mysqld::runtime::is_daemon()
-{
-  return is_daemon_proc;
-}
+bool mysqld::runtime::is_daemon() { return is_daemon_proc; }
 
 /**
   Daemonize mysqld.
@@ -65,36 +62,29 @@ bool mysqld::runtime::is_daemon()
     @retval In parent; -1 if successful.
     @retval In parent; -2 in case of errors.
 */
-int mysqld::runtime::mysqld_daemonize()
-{
+int mysqld::runtime::mysqld_daemonize() {
   int pipe_fd[2];
-  if (pipe(pipe_fd) < 0)
-    return -2;
+  if (pipe(pipe_fd) < 0) return -2;
 
-  pid_t pid= fork();
-  if (pid == -1)
-  {
+  pid_t pid = fork();
+  if (pid == -1) {
     // Error
     close(pipe_fd[0]);
     close(pipe_fd[1]);
     return -2;
   }
 
-  if (pid != 0)
-  {
+  if (pid != 0) {
     // Parent, close write end of pipe.
     close(pipe_fd[1]);
 
     // Wait for first child to fork successfully.
-    int rc,status;
+    int rc, status;
     char waitstatus;
-    while ((rc= waitpid(pid, &status, 0)) == -1 &&
-           errno == EINTR)
-    {
+    while ((rc = waitpid(pid, &status, 0)) == -1 && errno == EINTR) {
       // Retry if errno is EINTR.
     }
-    if (rc == -1)
-    {
+    if (rc == -1) {
       LogErr(ERROR_LEVEL, ER_WAITPID_FAILED, static_cast<long long>(pid));
       close(pipe_fd[0]);
       close(pipe_fd[1]);
@@ -105,43 +95,34 @@ int mysqld::runtime::mysqld_daemonize()
     discard_error_log_messages();
 
     // Parent waits for pipe message from grand child
-    rc= read(pipe_fd[0], &waitstatus, 1);
+    rc = read(pipe_fd[0], &waitstatus, 1);
     close(pipe_fd[0]);
 
-    if (rc != 1)
-    {
+    if (rc != 1) {
       LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_MYSQLD_STATUS, strerror(errno), rc);
       return -2;
-    }
-    else if (waitstatus != 1)
-    {
+    } else if (waitstatus != 1) {
       return -2;
     }
     // Parent should return to calling function (mysqld_main) and not
     // call exit() directly.
     return -1;
-  }
-  else
-  {
+  } else {
     // Child, close read end of pipe file descriptor.
     close(pipe_fd[0]);
 
     int stdinfd;
-    if ((stdinfd= open("/dev/null", O_RDONLY)) <= STDERR_FILENO)
-    {
+    if ((stdinfd = open("/dev/null", O_RDONLY)) <= STDERR_FILENO) {
       close(pipe_fd[1]);
       exit(MYSQLD_ABORT_EXIT);
     }
 
-    if (! (dup2(stdinfd, STDIN_FILENO) != STDIN_FILENO)
-        && (setsid() > -1))
-    {
+    if (!(dup2(stdinfd, STDIN_FILENO) != STDIN_FILENO) && (setsid() > -1)) {
       close(stdinfd);
-      pid_t grand_child_pid= fork();
-      switch (grand_child_pid)
-      {
-        case 0: // Grand child
-          is_daemon_proc= true;
+      pid_t grand_child_pid = fork();
+      switch (grand_child_pid) {
+        case 0:  // Grand child
+          is_daemon_proc = true;
           return pipe_fd[1];
         case -1:
           close(pipe_fd[1]);
@@ -149,9 +130,7 @@ int mysqld::runtime::mysqld_daemonize()
         default:
           _exit(MYSQLD_SUCCESS_EXIT);
       }
-    }
-    else
-    {
+    } else {
       close(stdinfd);
       close(pipe_fd[1]);
       _exit(MYSQLD_SUCCESS_EXIT);
@@ -172,13 +151,10 @@ int mysqld::runtime::mysqld_daemonize()
   @note This function writes the status to write end of pipe.
   This notifies the parent which is block on read end of pipe.
 */
-void mysqld::runtime::signal_parent(int pipe_write_fd, char status)
-{
-  if (pipe_write_fd != -1)
-  {
-    while (write(pipe_write_fd, &status, 1) == -1 && errno == EINTR)
-    {
-    // Retry write syscall if errno is EINTR.
+void mysqld::runtime::signal_parent(int pipe_write_fd, char status) {
+  if (pipe_write_fd != -1) {
+    while (write(pipe_write_fd, &status, 1) == -1 && errno == EINTR) {
+      // Retry write syscall if errno is EINTR.
     }
 
     close(pipe_write_fd);

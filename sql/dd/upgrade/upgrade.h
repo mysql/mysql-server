@@ -96,41 +96,39 @@ bool allow_sdi_creation();
   during upgrade. After upgrade is successful, this file will be
   deleted.
 */
-class Upgrade_status
-{
-public:
-// Stages of upgrade to be maintained in the file.
-enum class enum_stage
-{
-  // Upgrade not started.
-  NONE,
+class Upgrade_status {
+ public:
+  // Stages of upgrade to be maintained in the file.
+  enum class enum_stage {
+    // Upgrade not started.
+    NONE,
 
-  // Upgrade from 5.7 detected, create this file and write 0 to it.
-  STARTED,
+    // Upgrade from 5.7 detected, create this file and write 0 to it.
+    STARTED,
 
-  /*
-    Started InnoDB in upgrade mode, i.e., undo and redo logs are
-    upgraded and mysql.ibd is created.
-  */
-  DICT_SPACE_CREATED,
+    /*
+      Started InnoDB in upgrade mode, i.e., undo and redo logs are
+      upgraded and mysql.ibd is created.
+    */
+    DICT_SPACE_CREATED,
 
-  // Dictionary tables are created.
-  DICT_TABLES_CREATED,
+    // Dictionary tables are created.
+    DICT_TABLES_CREATED,
 
-  /*
-    Dictionary initialization is complete and upgrade will start
-    processing user tables now.
-  */
-  DICTIONARY_CREATED,
+    /*
+      Dictionary initialization is complete and upgrade will start
+      processing user tables now.
+    */
+    DICTIONARY_CREATED,
 
-  // Upgrade of user tables is complete.
-  USER_TABLE_UPGRADED,
+    // Upgrade of user tables is complete.
+    USER_TABLE_UPGRADED,
 
-  // SDI information is added to tablespaces.
-  SDI_INFO_UPDATED
-};
+    // SDI information is added to tablespaces.
+    SDI_INFO_UPDATED
+  };
 
-public:
+ public:
   Upgrade_status();
 
   /**
@@ -168,17 +166,17 @@ public:
   */
   bool remove();
 
-private:
+ private:
   bool open(int flags);
   enum_stage read();
   bool write(enum_stage status);
   bool close();
 
-private:
+ private:
   FILE *m_file;
   const String_type m_filename;
 };
 
-} // namespace upgrade
-} // namespace dd
-#endif // DD_UPGRADE__UPGRADE_H_INCLUDED
+}  // namespace upgrade_57
+}  // namespace dd
+#endif  // DD_UPGRADE__UPGRADE_H_INCLUDED

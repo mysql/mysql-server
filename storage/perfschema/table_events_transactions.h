@@ -50,31 +50,25 @@ struct THR_LOCK;
   @{
 */
 
-class PFS_index_events_transactions : public PFS_engine_index
-{
-public:
+class PFS_index_events_transactions : public PFS_engine_index {
+ public:
   PFS_index_events_transactions()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("THREAD_ID"),
-      m_key_2("EVENT_ID")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("THREAD_ID"),
+        m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_transactions()
-  {
-  }
+  ~PFS_index_events_transactions() {}
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events *pfs);
 
-private:
+ private:
   PFS_key_thread_id m_key_1;
   PFS_key_event_id m_key_2;
 };
 
 /** A row of table_events_transactions_common. */
-struct row_events_transactions
-{
+struct row_events_transactions {
   /** Column THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** Column EVENT_ID. */
@@ -132,22 +126,15 @@ struct row_events_transactions
   Index 1 on thread (0 based)
   Index 2 on transaction event record in thread history (0 based)
 */
-struct pos_events_transactions_history : public PFS_double_index
-{
-  pos_events_transactions_history() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_events_transactions_history : public PFS_double_index {
+  pos_events_transactions_history() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  next_thread(void)
-  {
+  inline void next_thread(void) {
     m_index_1++;
     m_index_2 = 0;
   }
@@ -157,20 +144,15 @@ struct pos_events_transactions_history : public PFS_double_index
   Adapter, for table sharing the structure of
   PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_CURRENT.
 */
-class table_events_transactions_common : public PFS_engine_table
-{
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+class table_events_transactions_common : public PFS_engine_table {
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_events_transactions_common(const PFS_engine_table_share *share,
                                    void *pos);
 
-  ~table_events_transactions_common()
-  {
-  }
+  ~table_events_transactions_common() {}
 
   int make_row(PFS_events_transactions *statement);
 
@@ -180,9 +162,8 @@ protected:
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_CURRENT. */
 class table_events_transactions_current
-  : public table_events_transactions_common
-{
-public:
+    : public table_events_transactions_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -198,15 +179,13 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
+ protected:
   table_events_transactions_current();
 
-public:
-  ~table_events_transactions_current()
-  {
-  }
+ public:
+  ~table_events_transactions_current() {}
 
-private:
+ private:
   friend class table_events_transactions_history;
   friend class table_events_transactions_history_long;
 
@@ -225,9 +204,8 @@ private:
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY. */
 class table_events_transactions_history
-  : public table_events_transactions_common
-{
-public:
+    : public table_events_transactions_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -243,15 +221,13 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
+ protected:
   table_events_transactions_history();
 
-public:
-  ~table_events_transactions_history()
-  {
-  }
+ public:
+  ~table_events_transactions_history() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */
@@ -267,9 +243,8 @@ private:
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_HISTORY_LONG. */
 class table_events_transactions_history_long
-  : public table_events_transactions_common
-{
-public:
+    : public table_events_transactions_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -281,15 +256,13 @@ public:
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
-protected:
+ protected:
   table_events_transactions_history_long();
 
-public:
-  ~table_events_transactions_history_long()
-  {
-  }
+ public:
+  ~table_events_transactions_history_long() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

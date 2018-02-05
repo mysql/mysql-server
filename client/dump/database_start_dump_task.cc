@@ -26,6 +26,5 @@
 
 using namespace Mysql::Tools::Dump;
 
-Database_start_dump_task::Database_start_dump_task(Database* related_database)
-  : Abstract_database_dump_task(related_database)
-{}
+Database_start_dump_task::Database_start_dump_task(Database *related_database)
+    : Abstract_database_dump_task(related_database) {}

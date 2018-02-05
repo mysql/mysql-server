@@ -32,14 +32,11 @@
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_context.h"
 
-
-namespace xpl
-{
+namespace xpl {
 class Session;
 
-class Crud_command_handler
-{
-public:
+class Crud_command_handler {
+ public:
   Crud_command_handler() : m_qb(1024) {}
 
   ngs::Error_code execute_crud_insert(Session &session,
@@ -58,20 +55,19 @@ public:
   ngs::Error_code execute_drop_view(Session &session,
                                     const Mysqlx::Crud::DropView &msg);
 
-private:
- using Status_variable = ngs::Common_status_variables::Variable
-     ngs::Common_status_variables::*;
+ private:
+  using Status_variable =
+      ngs::Common_status_variables::Variable ngs::Common_status_variables::*;
 
- template <typename B, typename M>
- ngs::Error_code execute(Session &session, const B &builder, const M &msg,
-                         ngs::Resultset_interface &resultset,
-                         Status_variable variable,
-                         bool (ngs::Protocol_encoder_interface::*send_ok)());
+  template <typename B, typename M>
+  ngs::Error_code execute(Session &session, const B &builder, const M &msg,
+                          ngs::Resultset_interface &resultset,
+                          Status_variable variable,
+                          bool (ngs::Protocol_encoder_interface::*send_ok)());
 
   template <typename M>
   ngs::Error_code error_handling(const ngs::Error_code &error,
-                                 const M & /*msg*/) const
-  {
+                                 const M & /*msg*/) const {
     return error;
   }
 
@@ -86,6 +82,6 @@ private:
   Query_string_builder m_qb;
 };
 
-} // namespace xpl
+}  // namespace xpl
 
-#endif // _XPL_CRUD_CMD_HANDLER_H_
+#endif  // _XPL_CRUD_CMD_HANDLER_H_

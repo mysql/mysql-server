@@ -31,15 +31,12 @@
 
 namespace timespec_unittest {
 
-
-class TimespecTest : public ::testing::Test
-{
-protected:
-/*
-   Helper function which checks that none of the fields have overflowed.
- */
-  void verify_timespec()
-  {
+class TimespecTest : public ::testing::Test {
+ protected:
+  /*
+     Helper function which checks that none of the fields have overflowed.
+   */
+  void verify_timespec() {
     EXPECT_GT(ts.tv_sec, 0);
     EXPECT_GE(ts.tv_nsec, 0);
   }
@@ -49,48 +46,41 @@ protected:
 
 /* Tests for set_timespec_nsec */
 
-TEST_F(TimespecTest, TestNsecZero)
-{
-  ulonglong nsec= 0;
+TEST_F(TimespecTest, TestNsecZero) {
+  ulonglong nsec = 0;
   set_timespec_nsec(&ts, nsec);
   verify_timespec();
 }
 
-TEST_F(TimespecTest, TestNsecMax)
-{
-  ulonglong nsec= 0xFFFFFFFFFFFFFFFFULL;
+TEST_F(TimespecTest, TestNsecMax) {
+  ulonglong nsec = 0xFFFFFFFFFFFFFFFFULL;
   set_timespec_nsec(&ts, nsec);
   verify_timespec();
 }
 
 /* Tests for set_timespec (taking a seconds argument) */
 
-TEST_F(TimespecTest, TestSecZero)
-{
-  ulonglong sec= 0;
+TEST_F(TimespecTest, TestSecZero) {
+  ulonglong sec = 0;
   set_timespec(&ts, sec);
   verify_timespec();
 }
 
-TEST_F(TimespecTest, TestSec_LONG_TIMEOUT)
-{
-  ulonglong sec= LONG_TIMEOUT;
+TEST_F(TimespecTest, TestSec_LONG_TIMEOUT) {
+  ulonglong sec = LONG_TIMEOUT;
   set_timespec(&ts, sec);
   verify_timespec();
 }
 
-TEST_F(TimespecTest, TestSec_INT_MAX32)
-{
-  ulonglong sec= INT_MAX32;
+TEST_F(TimespecTest, TestSec_INT_MAX32) {
+  ulonglong sec = INT_MAX32;
   set_timespec(&ts, sec);
   verify_timespec();
 }
 
-TEST_F(TimespecTest, TestSec_UINT_MAX32)
-{
-  ulonglong sec= UINT_MAX32;
+TEST_F(TimespecTest, TestSec_UINT_MAX32) {
+  ulonglong sec = UINT_MAX32;
   set_timespec(&ts, sec);
   verify_timespec();
 }
-}
-
+}  // namespace timespec_unittest

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,7 +22,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _NGS_LOG_H_
 #define _NGS_LOG_H_
 
@@ -32,11 +31,19 @@
 
 #else
 
-#define log_debug(...) do {} while(0)
-#define log_info(...) do {} while(0)
-#define log_warning(...) do {} while(0)
-#define log_error(...) do {} while(0)
+#define log_debug(...) \
+  do {                 \
+  } while (0)
+#define log_info(...) \
+  do {                \
+  } while (0)
+#define log_warning(...) \
+  do {                   \
+  } while (0)
+#define log_error(...) \
+  do {                 \
+  } while (0)
 
-#endif // NGS_DISABLE_LOGGING
+#endif  // NGS_DISABLE_LOGGING
 
-#endif // _NGS_LOG_H_
+#endif  // _NGS_LOG_H_

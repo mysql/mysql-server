@@ -34,8 +34,7 @@
 struct PFS_instr_class;
 
 /** An event record. */
-struct PFS_events
-{
+struct PFS_events {
   /** THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** EVENT_ID. */

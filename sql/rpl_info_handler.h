@@ -31,10 +31,8 @@
 class Rpl_info_values;
 class Server_ids;
 
-
-enum enum_info_repository
-{
-  INFO_REPOSITORY_FILE= 0,
+enum enum_info_repository {
+  INFO_REPOSITORY_FILE = 0,
   INFO_REPOSITORY_TABLE,
   INFO_REPOSITORY_DUMMY,
   /*
@@ -47,13 +45,16 @@ enum enum_info_repository
 /*
   Defines status on the repository.
 */
-enum enum_return_check { REPOSITORY_DOES_NOT_EXIST= 1, REPOSITORY_EXISTS, ERROR_CHECKING_REPOSITORY };
+enum enum_return_check {
+  REPOSITORY_DOES_NOT_EXIST = 1,
+  REPOSITORY_EXISTS,
+  ERROR_CHECKING_REPOSITORY
+};
 
-class Rpl_info_handler
-{
+class Rpl_info_handler {
   friend class Rpl_info_factory;
 
-public:
+ public:
   /**
     After creating an object and assembling components, this method is
     used to initialize internal structures. Everything that does not
@@ -63,25 +64,19 @@ public:
     @retval false success,
     @retval true  otherwise error.
   */
-  int init_info()
-  {
-    return do_init_info();
-  }
+  int init_info() { return do_init_info(); }
 
   /**
     Checks the repository's status.
-    
+
     @retval REPOSITORY_EXISTS         reposistory is ready to
                                       be used.
-    @retval REPOSITORY_DOES_NOT_EXIST repository needs to be 
+    @retval REPOSITORY_DOES_NOT_EXIST repository needs to be
                                       configured.
     @retval ERROR_CHECKING_REPOSITORY error while checking the
                                       reposistory.
   */
-  enum_return_check check_info()
-  {
-    return do_check_info();
-  }
+  enum_return_check check_info() { return do_check_info(); }
 
   /**
     Flushes and syncs in-memory information into a stable storage (i.e.
@@ -99,10 +94,7 @@ public:
     @retval false No error
     @retval true  Failure
   */
-  int flush_info(const bool force)
-  {
-    return do_flush_info(force);
-  }
+  int flush_info(const bool force) { return do_flush_info(force); }
 
   /**
     Deletes any information in it and in some cases the repository.
@@ -112,10 +104,7 @@ public:
     @retval false No error
     @retval true  Failure
   */
-  int remove_info()
-  {
-    return do_remove_info();
-  }
+  int remove_info() { return do_remove_info(); }
 
   /**
     Deletes any information in the repository. In contrast to the
@@ -124,10 +113,7 @@ public:
     @retval false No error
     @retval true  Failure
   */
-  int clean_info()
-  {
-    return do_clean_info();
-  }
+  int clean_info() { return do_clean_info(); }
 
   /**
     Closes access to the repository.
@@ -135,48 +121,36 @@ public:
     @retval false No error
     @retval true  Failure
   */
-  void end_info()
-  {
-    do_end_info();
-  }
+  void end_info() { do_end_info(); }
 
   /**
     Enables the storage system to receive reads, i.e.
     getters.
- 
+
     @retval false No error
     @retval true  Failure
   */
-  int prepare_info_for_read()
-  {
-    return (do_prepare_info_for_read());
-  }
+  int prepare_info_for_read() { return (do_prepare_info_for_read()); }
 
   /**
     Enables the storage system to receive writes, i.e.
     setters.
- 
+
     @retval false No error
     @retval true  Failure
   */
-  int prepare_info_for_write()
-  {
-    return (do_prepare_info_for_write());
-  }
+  int prepare_info_for_write() { return (do_prepare_info_for_write()); }
 
   /**
     Gets the type of the repository that is used.
 
     @return Type of repository.
   */
-  uint get_rpl_info_type()
-  {
-     return (do_get_rpl_info_type());
-  }
+  uint get_rpl_info_type() { return (do_get_rpl_info_type()); }
   /**
      Returns a string corresponding to the type.
   */
-  const char* get_rpl_info_type_str();
+  const char *get_rpl_info_type_str();
 
   /**
     Sets the value of a field to @c value.
@@ -190,27 +164,21 @@ public:
     @retval true Failure
   */
   template <class TypeHandler>
-  bool set_info(TypeHandler const value)
-  {
-    if (cursor >= ninfo || prv_error)
-      return true;
+  bool set_info(TypeHandler const value) {
+    if (cursor >= ninfo || prv_error) return true;
 
-    if (!(prv_error= do_set_info(cursor, value)))
-      cursor++;
+    if (!(prv_error = do_set_info(cursor, value))) cursor++;
 
-    return(prv_error);
+    return (prv_error);
   }
 
   template <class TypeHandler>
-  bool set_info(TypeHandler const value, const size_t size)
-  {
-    if (cursor >= ninfo || prv_error)
-      return true;
+  bool set_info(TypeHandler const value, const size_t size) {
+    if (cursor >= ninfo || prv_error) return true;
 
-    if (!(prv_error= do_set_info(cursor, value, size)))
-      cursor++;
+    if (!(prv_error = do_set_info(cursor, value, size))) cursor++;
 
-    return(prv_error);
+    return (prv_error);
   }
 
   /**
@@ -226,10 +194,8 @@ public:
   */
 
   template <class TypeHandler>
-  bool set_info(int pk_cursor, TypeHandler const value)
-  {
-    if (pk_cursor >= ninfo)
-      return true;
+  bool set_info(int pk_cursor, TypeHandler const value) {
+    if (pk_cursor >= ninfo) return true;
 
     return (do_set_info(pk_cursor, value));
   }
@@ -248,16 +214,12 @@ public:
     @retval true Failure
   */
   template <class TypeHandlerPointer, class TypeHandler>
-  bool get_info(TypeHandlerPointer value,
-                TypeHandler const default_value)
-  {
-    if (cursor >= ninfo || prv_error)
-      return true;
+  bool get_info(TypeHandlerPointer value, TypeHandler const default_value) {
+    if (cursor >= ninfo || prv_error) return true;
 
-    if (!(prv_error= do_get_info(cursor, value, default_value)))
-      cursor++;
+    if (!(prv_error = do_get_info(cursor, value, default_value))) cursor++;
 
-    return(prv_error);
+    return (prv_error);
   }
 
   /**
@@ -277,17 +239,15 @@ public:
   */
   template <class TypeHandler>
   bool get_info(TypeHandler value, const size_t size,
-                TypeHandler const default_value)
-  {
-    if (cursor >= ninfo || prv_error)
-      return true;
+                TypeHandler const default_value) {
+    if (cursor >= ninfo || prv_error) return true;
 
-    if (!(prv_error= do_get_info(cursor, value, size, default_value)))
+    if (!(prv_error = do_get_info(cursor, value, size, default_value)))
       cursor++;
 
-    return(prv_error);
+    return (prv_error);
   }
- 
+
   /**
     Returns the value of a Server_id field.
     Any call must be done in the right order which
@@ -301,16 +261,12 @@ public:
     @retval false No error
     @retval true Failure
   */
-  bool get_info(Server_ids *value,
-                const Server_ids *default_value)
-  {
-    if (cursor >= ninfo || prv_error)
-      return true;
+  bool get_info(Server_ids *value, const Server_ids *default_value) {
+    if (cursor >= ninfo || prv_error) return true;
 
-    if (!(prv_error= do_get_info(cursor, value, default_value)))
-      cursor++;
+    if (!(prv_error = do_get_info(cursor, value, default_value))) cursor++;
 
-    return(prv_error);
+    return (prv_error);
   }
 
   /**
@@ -324,7 +280,7 @@ public:
     Configures the number of events after which the info (e.g.
     master info, relay log info) must be synced when flush() is
     called.
- 
+
     @param[in] period Number of events.
   */
   void set_sync_period(uint period);
@@ -336,10 +292,7 @@ public:
 
     @return a pointer to a string.
   */
-  char *get_description_info()
-  {
-    return (do_get_description_info());
-  }
+  char *get_description_info() { return (do_get_description_info()); }
 
   /**
     Any transactional repository may have its updates rolled back in case
@@ -366,7 +319,7 @@ public:
   */
   bool update_is_transactional() { return do_update_is_transactional(); }
 
-  /*                                                                                                                                    
+  /*
     Pre-store information before writing it to the repository and if
     necessary after reading it from the repository. The decision is
     delegated to the sub-classes.
@@ -375,7 +328,7 @@ public:
 
   virtual ~Rpl_info_handler();
 
-protected:
+ protected:
   /* Number of fields to be stored in the repository. */
   int ninfo;
 
@@ -399,50 +352,48 @@ protected:
 
   Rpl_info_handler(const int nparam);
 
-private:
-  virtual int do_init_info()= 0;
-  virtual int do_init_info(uint instance)= 0;
-  virtual enum_return_check do_check_info()= 0;
-  virtual enum_return_check do_check_info(uint instance)= 0;
-  virtual int do_flush_info(const bool force)= 0;
-  virtual int do_remove_info()= 0;
-  virtual int do_clean_info()= 0;
-  virtual void do_end_info()= 0;
-  virtual int do_prepare_info_for_read()= 0;
-  virtual int do_prepare_info_for_write()= 0;
+ private:
+  virtual int do_init_info() = 0;
+  virtual int do_init_info(uint instance) = 0;
+  virtual enum_return_check do_check_info() = 0;
+  virtual enum_return_check do_check_info(uint instance) = 0;
+  virtual int do_flush_info(const bool force) = 0;
+  virtual int do_remove_info() = 0;
+  virtual int do_clean_info() = 0;
+  virtual void do_end_info() = 0;
+  virtual int do_prepare_info_for_read() = 0;
+  virtual int do_prepare_info_for_write() = 0;
 
-  virtual bool do_set_info(const int pos, const char *value)= 0;
+  virtual bool do_set_info(const int pos, const char *value) = 0;
   virtual bool do_set_info(const int pos, const uchar *value,
-                           const size_t size)= 0;
-  virtual bool do_set_info(const int pos, const ulong value)= 0;
-  virtual bool do_set_info(const int pos, const int value)= 0;
-  virtual bool do_set_info(const int pos, const float value)= 0;
-  virtual bool do_set_info(const int pos, const Server_ids *value)= 0;
-  virtual bool do_get_info(const int pos, char *value,
-                           const size_t size,
-                           const char *default_value)= 0;
-  virtual bool do_get_info(const int pos, uchar *value,
-                           const size_t size,
-                           const uchar *default_value)= 0;
+                           const size_t size) = 0;
+  virtual bool do_set_info(const int pos, const ulong value) = 0;
+  virtual bool do_set_info(const int pos, const int value) = 0;
+  virtual bool do_set_info(const int pos, const float value) = 0;
+  virtual bool do_set_info(const int pos, const Server_ids *value) = 0;
+  virtual bool do_get_info(const int pos, char *value, const size_t size,
+                           const char *default_value) = 0;
+  virtual bool do_get_info(const int pos, uchar *value, const size_t size,
+                           const uchar *default_value) = 0;
   virtual bool do_get_info(const int pos, ulong *value,
-                           const ulong default_value)= 0;
+                           const ulong default_value) = 0;
   virtual bool do_get_info(const int pos, int *value,
-                           const int default_value)= 0;
+                           const int default_value) = 0;
   virtual bool do_get_info(const int pos, float *value,
-                           const float default_value)= 0;
+                           const float default_value) = 0;
   virtual bool do_get_info(const int pos, Server_ids *value,
-                           const Server_ids *default_value)= 0;
-  virtual char* do_get_description_info()= 0;
-  virtual bool do_is_transactional()= 0;
-  virtual bool do_update_is_transactional()= 0;
-  virtual uint do_get_rpl_info_type()= 0;
+                           const Server_ids *default_value) = 0;
+  virtual char *do_get_description_info() = 0;
+  virtual bool do_is_transactional() = 0;
+  virtual bool do_update_is_transactional() = 0;
+  virtual uint do_get_rpl_info_type() = 0;
 
-  Rpl_info_handler(const Rpl_info_handler& handler);
+  Rpl_info_handler(const Rpl_info_handler &handler);
 
-  Rpl_info_handler& operator=(const Rpl_info_handler& handler);
+  Rpl_info_handler &operator=(const Rpl_info_handler &handler);
 };
 #ifndef DBUG_OFF
- extern ulong w_rr;
- extern uint mts_debug_concurrent_access;
+extern ulong w_rr;
+extern uint mts_debug_concurrent_access;
 #endif
 #endif /* RPL_INFO_HANDLER_H */

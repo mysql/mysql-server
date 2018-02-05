@@ -25,34 +25,31 @@
 
 #include <sys/types.h>
 
-#include "handler.h"       // ts_command_type
+#include "handler.h"  // ts_command_type
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql_cmd.h"       // Sql_cmd
+#include "sql_cmd.h"  // Sql_cmd
 
 class THD;
-
 
 /**
   Structure used by parser to store options for tablespace statements
   and pass them on to Excution classes.
  */
-struct Tablespace_options
-{
-  ulonglong extent_size= 1024*1024;        // Default 1 MByte
-  ulonglong undo_buffer_size= 8*1024*1024; // Default 8 MByte
-  ulonglong redo_buffer_size= 8*1024*1024; // Default 8 MByte
-  ulonglong initial_size= 128*1024*1024;   // Default 128 MByte
-  ulonglong autoextend_size= 0;            // No autoextension as default
-  ulonglong max_size=0;                    // Max size == initial size => no extension
-  ulonglong file_block_size= 0;            // 0=default or must be a valid Page Size
-  uint nodegroup_id= UNDEF_NODEGROUP;
-  bool wait_until_completed= true;
-  LEX_STRING ts_comment= {nullptr, 0}; // FIXME: Rename to comment?
-  LEX_STRING engine_name= {nullptr, 0};
+struct Tablespace_options {
+  ulonglong extent_size = 1024 * 1024;           // Default 1 MByte
+  ulonglong undo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
+  ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
+  ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
+  ulonglong autoextend_size = 0;                 // No autoextension as default
+  ulonglong max_size = 0;         // Max size == initial size => no extension
+  ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
+  uint nodegroup_id = UNDEF_NODEGROUP;
+  bool wait_until_completed = true;
+  LEX_STRING ts_comment = {nullptr, 0};  // FIXME: Rename to comment?
+  LEX_STRING engine_name = {nullptr, 0};
 };
-
 
 /**
   Check if tablespace name has valid length.
@@ -72,7 +69,6 @@ struct Tablespace_options
 
 bool validate_tablespace_name_length(const char *tablespace_name);
 
-
 /**
   Check if a tablespace name is valid.
 
@@ -86,11 +82,8 @@ bool validate_tablespace_name_length(const char *tablespace_name);
   @retval  true    Error encountered and reported.
 */
 
-bool validate_tablespace_name(bool tablespace_ddl,
-                              const char *tablespace_name,
+bool validate_tablespace_name(bool tablespace_ddl, const char *tablespace_name,
                               const handlerton *engine);
-
-
 
 /**
   Base class for tablespace execution classes including LOGFILE GROUP
@@ -98,9 +91,9 @@ bool validate_tablespace_name(bool tablespace_ddl,
  */
 class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
 {
-protected:
+ protected:
   const LEX_STRING m_tablespace_name;
-  const Tablespace_options  *m_options;
+  const Tablespace_options *m_options;
 
   /**
     Creates shared base object.
@@ -108,10 +101,9 @@ protected:
     @param name
     @param options
    */
-  Sql_cmd_tablespace(const LEX_STRING &name,
-                     const Tablespace_options *options);
+  Sql_cmd_tablespace(const LEX_STRING &name, const Tablespace_options *options);
 
-public:
+ public:
   /**
     Provide access to the command code enum value.
     @return command code enum value
@@ -119,16 +111,16 @@ public:
   enum_sql_command sql_command_code() const override final;
 };
 
-
 /**
   Execution class for CREATE TABLESPACE ... ADD DATAFILE ...
  */
-class Sql_cmd_create_tablespace final : public Sql_cmd_tablespace /* purecov: inspected */
+class Sql_cmd_create_tablespace final
+    : public Sql_cmd_tablespace /* purecov: inspected */
 {
   const LEX_STRING m_datafile_name;
   const LEX_STRING m_logfile_group_name;
 
-public:
+ public:
   /**
     Creates execution class instance for create tablespace statement.
 
@@ -141,17 +133,16 @@ public:
                             const LEX_STRING &lfgname,
                             const Tablespace_options *options);
 
-  bool execute(THD*) override;
+  bool execute(THD *) override;
 };
-
 
 /**
   Execution class for DROP TABLESPACE ...
  */
-class Sql_cmd_drop_tablespace final : public Sql_cmd_tablespace /* purecov: inspected */
+class Sql_cmd_drop_tablespace final
+    : public Sql_cmd_tablespace /* purecov: inspected */
 {
-
-public:
+ public:
   /**
     Creates execution class instance for drop tablespace statement.
 
@@ -160,18 +151,18 @@ public:
   */
   Sql_cmd_drop_tablespace(const LEX_STRING &tsname,
                           const Tablespace_options *options);
-  bool execute(THD*) override;
+  bool execute(THD *) override;
 };
-
 
 /**
   Execution class for ALTER TABLESPACE ... ADD DATAFILE ...
  */
-class Sql_cmd_alter_tablespace_add_datafile final : public Sql_cmd_tablespace /* purecov: inspected */
+class Sql_cmd_alter_tablespace_add_datafile final
+    : public Sql_cmd_tablespace /* purecov: inspected */
 {
   const LEX_STRING m_datafile_name;
 
-public:
+ public:
   /**
     Creates execution class instance for add datafile statement.
 
@@ -182,18 +173,18 @@ public:
   Sql_cmd_alter_tablespace_add_datafile(const LEX_STRING &tsname,
                                         const LEX_STRING &dfname,
                                         const Tablespace_options *options);
-  bool execute(THD*) override;
+  bool execute(THD *) override;
 };
-
 
 /**
   Execution class for ALTER TABLESPACE ... DROP DATAFILE ...
  */
-class Sql_cmd_alter_tablespace_drop_datafile final : public Sql_cmd_tablespace /* purecov: inspected */
+class Sql_cmd_alter_tablespace_drop_datafile final
+    : public Sql_cmd_tablespace /* purecov: inspected */
 {
   const LEX_STRING m_datafile_name;
 
-public:
+ public:
   /**
     Creates execution class instance for drop datafile statement.
 
@@ -204,17 +195,18 @@ public:
   Sql_cmd_alter_tablespace_drop_datafile(const LEX_STRING &tsname,
                                          const LEX_STRING &dfname,
                                          const Tablespace_options *options);
-    bool execute(THD*) override;
+  bool execute(THD *) override;
 };
 
 /**
   Execution class for ALTER TABLESPACE ... RENAME TO ...
  */
-class Sql_cmd_alter_tablespace_rename final : public Sql_cmd_tablespace /* purecov: inspected */
+class Sql_cmd_alter_tablespace_rename final
+    : public Sql_cmd_tablespace /* purecov: inspected */
 {
   const LEX_STRING m_new_name;
 
-public:
+ public:
   /**
     Creates execution class instance for rename statement.
 
@@ -223,9 +215,8 @@ public:
    */
   Sql_cmd_alter_tablespace_rename(const LEX_STRING &old_name,
                                   const LEX_STRING &new_name);
-  bool execute(THD*) override;
+  bool execute(THD *) override;
 };
-
 
 /**
   Execution class for CREATE/DROP/ALTER LOGFILE GROUP ...
@@ -237,7 +228,7 @@ class Sql_cmd_logfile_group final : public Sql_cmd /* purecov: inspected */
   const LEX_STRING m_undofile_name;
   const Tablespace_options *m_options;
 
-public:
+ public:
   /**
     Creates execution class instance for logfile group statements.
 
@@ -249,7 +240,7 @@ public:
   Sql_cmd_logfile_group(ts_command_type cmd_type,
                         const LEX_STRING &logfile_group_name,
                         const Tablespace_options *options,
-                        const LEX_STRING &undofile_name= {nullptr, 0});
+                        const LEX_STRING &undofile_name = {nullptr, 0});
 
   bool execute(THD *thd) override;
 

@@ -23,23 +23,18 @@
 #ifndef COMPONENTS_SERVICES_MYSQL_RWLOCK_SERVICE_H
 #define COMPONENTS_SERVICES_MYSQL_RWLOCK_SERVICE_H
 
+#include <mysql/components/service.h>
 #include <mysql/components/services/mysql_rwlock_bits.h>
 #include <mysql/components/services/psi_rwlock_bits.h>
-#include <mysql/components/service.h>
 
 typedef void (*mysql_rwlock_register_t)(const char *category,
-                                        PSI_rwlock_info *info,
-                                        int count);
+                                        PSI_rwlock_info *info, int count);
 
-typedef int (*mysql_rwlock_init_t)(PSI_rwlock_key key,
-                                   mysql_rwlock_t *that,
-                                   const char *src_file,
-                                   unsigned int src_line);
+typedef int (*mysql_rwlock_init_t)(PSI_rwlock_key key, mysql_rwlock_t *that,
+                                   const char *src_file, unsigned int src_line);
 
-typedef int (*mysql_prlock_init_t)(PSI_rwlock_key key,
-                                   mysql_prlock_t *that,
-                                   const char *src_file,
-                                   unsigned int src_line);
+typedef int (*mysql_prlock_init_t)(PSI_rwlock_key key, mysql_prlock_t *that,
+                                   const char *src_file, unsigned int src_line);
 
 typedef int (*mysql_rwlock_destroy_t)(mysql_rwlock_t *that,
                                       const char *src_file,
@@ -49,20 +44,16 @@ typedef int (*mysql_prlock_destroy_t)(mysql_prlock_t *that,
                                       const char *src_file,
                                       unsigned int src_line);
 
-typedef int (*mysql_rwlock_rdlock_t)(mysql_rwlock_t *that,
-                                     const char *src_file,
+typedef int (*mysql_rwlock_rdlock_t)(mysql_rwlock_t *that, const char *src_file,
                                      unsigned int src_line);
 
-typedef int (*mysql_prlock_rdlock_t)(mysql_prlock_t *that,
-                                     const char *src_file,
+typedef int (*mysql_prlock_rdlock_t)(mysql_prlock_t *that, const char *src_file,
                                      unsigned int src_line);
 
-typedef int (*mysql_rwlock_wrlock_t)(mysql_rwlock_t *that,
-                                     const char *src_file,
+typedef int (*mysql_rwlock_wrlock_t)(mysql_rwlock_t *that, const char *src_file,
                                      unsigned int src_line);
 
-typedef int (*mysql_prlock_wrlock_t)(mysql_prlock_t *that,
-                                     const char *src_file,
+typedef int (*mysql_prlock_wrlock_t)(mysql_prlock_t *that, const char *src_file,
                                      unsigned int src_line);
 
 typedef int (*mysql_rwlock_tryrdlock_t)(mysql_rwlock_t *that,
@@ -77,12 +68,10 @@ typedef int (*mysql_rwlock_trywrlock_t)(mysql_rwlock_t *that,
 
 /* No mysql_prlock_trywrlock_t */
 
-typedef int (*mysql_rwlock_unlock_t)(mysql_rwlock_t *that,
-                                     const char *src_file,
+typedef int (*mysql_rwlock_unlock_t)(mysql_rwlock_t *that, const char *src_file,
                                      unsigned int src_line);
 
-typedef int (*mysql_prlock_unlock_t)(mysql_prlock_t *that,
-                                     const char *src_file,
+typedef int (*mysql_prlock_unlock_t)(mysql_prlock_t *that, const char *src_file,
                                      unsigned int src_line);
 
 BEGIN_SERVICE_DEFINITION(mysql_rwlock_v1)

@@ -24,10 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+/**************************************************/ /**
+ @file include/row0purge.ic
+ Purge obsolete records
 
-/**************************************************//**
-@file include/row0purge.ic
-Purge obsolete records
-
-Created 3/14/1997 Heikki Tuuri
-*******************************************************/
+ Created 3/14/1997 Heikki Tuuri
+ *******************************************************/

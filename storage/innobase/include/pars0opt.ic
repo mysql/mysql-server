@@ -24,9 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/pars0opt.ic
-Simple SQL optimizer
+/**************************************************/ /**
+ @file include/pars0opt.ic
+ Simple SQL optimizer
 
-Created 12/21/1997 Heikki Tuuri
-*******************************************************/
+ Created 12/21/1997 Heikki Tuuri
+ *******************************************************/

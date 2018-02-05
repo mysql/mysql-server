@@ -33,11 +33,9 @@ namespace system_views {
 /*
   The class representing INFORMATION_SCHEMA.TRIGGERS system view definition.
 */
-class Triggers : public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Triggers : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_TRIGGER_CATALOG,
     FIELD_TRIGGER_SCHEMA,
     FIELD_TRIGGER_NAME,
@@ -66,16 +64,14 @@ public:
 
   static const Triggers &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("TRIGGERS");
     return s_view_name;
   }
-  virtual const String_type &name() const
-  { return Triggers::view_name(); }
+  virtual const String_type &name() const { return Triggers::view_name(); }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__TRIGGERS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__TRIGGERS_INCLUDED

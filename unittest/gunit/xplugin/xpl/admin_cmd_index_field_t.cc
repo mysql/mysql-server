@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -40,7 +40,7 @@ namespace test {
 using namespace ::testing;
 
 namespace {
-const char* const PATH = "$.path";
+const char *const PATH = "$.path";
 #define PATH_HASH "6EA549FAA434CCD150A7DB5FF9C0AEC77C4F5D25"
 const Any::Object::Fld MEMBER{"member", PATH};
 const Any::Object::Fld NOT_REQUIRED{"required", false};
@@ -64,7 +64,7 @@ class Index_field_create_test
       public WithParamInterface<Param_index_field_create> {};
 
 TEST_P(Index_field_create_test, fail_on_create) {
-  const Param_index_field_create& param = GetParam();
+  const Param_index_field_create &param = GetParam();
   Admin_command_arguments_object args(param.constraint);
 
   ngs::Error_code error;
@@ -185,7 +185,8 @@ Param_index_field_create fail_on_create_param[] = {
     {ER_X_CMD_ARGUMENT_VALUE,
      {MEMBER, {"type", "fulltext"}, OPTIONS, NOT_REQUIRED}},
     {ER_X_CMD_ARGUMENT_VALUE,
-     {MEMBER, {"type", "fulltext"}, SRID, NOT_REQUIRED}}, };
+     {MEMBER, {"type", "fulltext"}, SRID, NOT_REQUIRED}},
+};
 
 INSTANTIATE_TEST_CASE_P(fail_on_create_field, Index_field_create_test,
                         ValuesIn(fail_on_create_param));
@@ -200,7 +201,7 @@ class Index_field_add_field_test
       public WithParamInterface<Param_index_field_add_field> {};
 
 TEST_P(Index_field_add_field_test, add_field) {
-  const Param_index_field_add_field& param = GetParam();
+  const Param_index_field_add_field &param = GetParam();
 
   Admin_command_arguments_object args(param.constraint);
 
@@ -265,7 +266,7 @@ class Index_field_add_column_test
       public WithParamInterface<Param_index_field_add_column> {};
 
 TEST_P(Index_field_add_column_test, add_column) {
-  const Param_index_field_add_column& param = GetParam();
+  const Param_index_field_add_column &param = GetParam();
 
   Admin_command_arguments_object args(param.constraint);
 
@@ -282,34 +283,42 @@ TEST_P(Index_field_add_column_test, add_column) {
 Param_index_field_add_column add_column_param[] = {
     {" ADD COLUMN `$ix_xd_" PATH_HASH
      "` DECIMAL GENERATED ALWAYS AS (JSON_EXTRACT(doc, '$.path')) VIRTUAL",
-     true, {MEMBER, {"type", "DECIMAL"}, NOT_REQUIRED}},
+     true,
+     {MEMBER, {"type", "DECIMAL"}, NOT_REQUIRED}},
     {" ADD COLUMN `$ix_xd_" PATH_HASH
      "` DECIMAL GENERATED ALWAYS AS (JSON_EXTRACT(doc, '$.path')) STORED",
-     false, {MEMBER, {"type", "DECIMAL"}, NOT_REQUIRED}},
+     false,
+     {MEMBER, {"type", "DECIMAL"}, NOT_REQUIRED}},
     {" ADD COLUMN `$ix_t32_" PATH_HASH
      "` TEXT GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, "
      "'$.path'))) VIRTUAL",
-     true, {MEMBER, {"type", "TEXT(32)"}, NOT_REQUIRED}},
+     true,
+     {MEMBER, {"type", "TEXT(32)"}, NOT_REQUIRED}},
     {" ADD COLUMN `$ix_t32_r_" PATH_HASH
      "` TEXT GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, "
      "'$.path'))) VIRTUAL NOT NULL",
-     true, {MEMBER, {"type", "TEXT(32)"}, REQUIRED}},
+     true,
+     {MEMBER, {"type", "TEXT(32)"}, REQUIRED}},
     {" ADD COLUMN `$ix_gj_r_" PATH_HASH
      "` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON"
      "(JSON_EXTRACT(doc, '$.path'),1,4326)) STORED NOT NULL",
-     true, {MEMBER, {"type", "GEOJSON"}, REQUIRED}},
+     true,
+     {MEMBER, {"type", "GEOJSON"}, REQUIRED}},
     {" ADD COLUMN `$ix_gj_" PATH_HASH
      "` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON("
      "JSON_EXTRACT(doc, '$.path'),42,4326)) STORED",
-     true, {MEMBER, {"type", "GEOJSON"}, OPTIONS, NOT_REQUIRED}},
+     true,
+     {MEMBER, {"type", "GEOJSON"}, OPTIONS, NOT_REQUIRED}},
     {" ADD COLUMN `$ix_gj_" PATH_HASH
      "` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON("
      "JSON_EXTRACT(doc, '$.path'),1,666)) STORED",
-     false, {MEMBER, {"type", "GEOJSON"}, SRID, NOT_REQUIRED}},
+     false,
+     {MEMBER, {"type", "GEOJSON"}, SRID, NOT_REQUIRED}},
     {" ADD COLUMN `$ix_ft_" PATH_HASH
      "` TEXT GENERATED ALWAYS AS (JSON_UNQUOTE("
      "JSON_EXTRACT(doc, '$.path'))) STORED",
-     false, {MEMBER, {"type", "FULLTEXT"}, NOT_REQUIRED}}};
+     false,
+     {MEMBER, {"type", "FULLTEXT"}, NOT_REQUIRED}}};
 
 INSTANTIATE_TEST_CASE_P(add_column, Index_field_add_column_test,
                         ValuesIn(add_column_param));
@@ -332,8 +341,9 @@ class Index_field_is_column_exists_test : public Test {
 };
 
 TEST_F(Index_field_is_column_exists_test, column_is_not_exist) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS("$ix_i_r_" PATH_HASH))),
-                                    _, _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS("$ix_i_r_" PATH_HASH))), _, _))
+      .WillOnce(Return(ngs::Success()));
   ngs::Error_code error;
   ASSERT_FALSE(
       field->is_column_exists(&data_context, "schema", "collection", &error));

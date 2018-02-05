@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,7 +33,6 @@
 #include "plugin/x/client/mysqlxclient/xerror.h"
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
-
 std::ostream &operator<<(std::ostream &os, const xcl::XError &err);
 std::ostream &operator<<(std::ostream &os, const std::exception &exc);
 std::ostream &operator<<(std::ostream &os, const std::set<int> &value);
@@ -49,9 +48,7 @@ class Console {
 
  public:
   explicit Console(const Options &options);
-  Console(const Options &options,
-          std::ostream *out,
-          std::ostream *err);
+  Console(const Options &options, std::ostream *out, std::ostream *err);
 
   template <typename T>
   void print(const T &obj) const {

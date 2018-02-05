@@ -24,9 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0mysql.ic
-MySQL interface for Innobase
+/**************************************************/ /**
+ @file include/row0mysql.ic
+ MySQL interface for Innobase
 
-Created 1/23/2001 Heikki Tuuri
-*******************************************************/
+ Created 1/23/2001 Heikki Tuuri
+ *******************************************************/

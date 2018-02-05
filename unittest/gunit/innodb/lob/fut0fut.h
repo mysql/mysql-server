@@ -26,8 +26,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _fut0fut_h_
 #define _fut0fut_h_
 
-#include "lot0buf.h"
 #include "fil0fil.h"
+#include "lot0buf.h"
 
 inline byte *fut_get_ptr(fil_addr_t addr, buf_block_t **ptr_block = nullptr) {
   buf_block_t *block;
@@ -45,4 +45,4 @@ inline byte *fut_get_ptr(fil_addr_t addr, buf_block_t **ptr_block = nullptr) {
   return (ptr);
 }
 
-#endif // _fut0fut_h_
+#endif  // _fut0fut_h_

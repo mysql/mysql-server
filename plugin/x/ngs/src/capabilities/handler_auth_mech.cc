@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,17 +29,11 @@
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
+namespace ngs {
 
-namespace ngs
-{
+bool Capability_auth_mech::is_supported() const { return true; }
 
-bool Capability_auth_mech::is_supported() const
-{
-  return true;
-}
-
-void Capability_auth_mech::get(::Mysqlx::Datatypes::Any &any)
-{
+void Capability_auth_mech::get(::Mysqlx::Datatypes::Any &any) {
   std::vector<std::string> auth_mechs;
 
   m_client.server().get_authentication_mechanisms(auth_mechs, m_client);
@@ -47,13 +41,10 @@ void Capability_auth_mech::get(::Mysqlx::Datatypes::Any &any)
   Setter_any::set_array(any, auth_mechs);
 }
 
-bool Capability_auth_mech::set(const ::Mysqlx::Datatypes::Any&)
-{
+bool Capability_auth_mech::set(const ::Mysqlx::Datatypes::Any &) {
   return false;
 }
 
-void Capability_auth_mech::commit()
-{
-}
+void Capability_auth_mech::commit() {}
 
-} // namespace ngs
+}  // namespace ngs

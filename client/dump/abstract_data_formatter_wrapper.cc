@@ -29,24 +29,21 @@
 using namespace Mysql::Tools::Dump;
 
 void Abstract_data_formatter_wrapper::format_object(
-  Item_processing_data* current_processing_data)
-{
-  for (std::vector<I_data_formatter*>::iterator it= m_formatters.begin();
-    it != m_formatters.end(); ++it)
-  {
+    Item_processing_data *current_processing_data) {
+  for (std::vector<I_data_formatter *>::iterator it = m_formatters.begin();
+       it != m_formatters.end(); ++it) {
     (*it)->format_object(
-      this->object_to_be_processed_in_child(current_processing_data, *it));
+        this->object_to_be_processed_in_child(current_processing_data, *it));
   }
 }
 
 Abstract_data_formatter_wrapper::Abstract_data_formatter_wrapper(
-  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator)
-  : Abstract_chain_element(message_handler, object_id_generator)
-{}
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler,
+    Simple_id_generator *object_id_generator)
+    : Abstract_chain_element(message_handler, object_id_generator) {}
 
 void Abstract_data_formatter_wrapper::register_data_formatter(
-  I_data_formatter* new_data_formatter)
-{
+    I_data_formatter *new_data_formatter) {
   m_formatters.push_back(new_data_formatter);
 }

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,11 +30,11 @@
 namespace ngs {
 
 class Vio_wrapper : public Vio_interface {
-public:
+ public:
   Vio_wrapper(Vio *vio);
 
-  ssize_t read(uchar* buffer, ssize_t bytes_to_send) override;
-  ssize_t write(const uchar* buffer, ssize_t bytes_to_send) override;
+  ssize_t read(uchar *buffer, ssize_t bytes_to_send) override;
+  ssize_t write(const uchar *buffer, ssize_t bytes_to_send) override;
 
   void set_timeout(const Direction direction, const uint32_t timeout) override;
 
@@ -51,11 +51,10 @@ public:
 
   ~Vio_wrapper();
 
-private:
+ private:
   Vio *m_vio;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_VIO_WRAPPER_H_
-
+#endif  // _NGS_VIO_WRAPPER_H_

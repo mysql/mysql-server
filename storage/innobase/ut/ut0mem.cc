@@ -24,65 +24,63 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************//**
-@file ut/ut0mem.cc
-Memory primitives
+/********************************************************************/ /**
+ @file ut/ut0mem.cc
+ Memory primitives
 
-Created 5/11/1994 Heikki Tuuri
-*************************************************************************/
+ Created 5/11/1994 Heikki Tuuri
+ *************************************************************************/
 
 #include "ut0mem.h"
-# include "os0thread.h"
-# include "srv0srv.h"
-# include <stdlib.h>
+#include <stdlib.h>
+#include "os0thread.h"
+#include "srv0srv.h"
 
-/**********************************************************************//**
-Copies up to size - 1 characters from the NUL-terminated string src to
-dst, NUL-terminating the result. Returns strlen(src), so truncation
-occurred if the return value >= size.
-@return strlen(src) */
-ulint
-ut_strlcpy(
-/*=======*/
-	char*		dst,	/*!< in: destination buffer */
-	const char*	src,	/*!< in: source buffer */
-	ulint		size)	/*!< in: size of destination buffer */
+/**********************************************************************/ /**
+ Copies up to size - 1 characters from the NUL-terminated string src to
+ dst, NUL-terminating the result. Returns strlen(src), so truncation
+ occurred if the return value >= size.
+ @return strlen(src) */
+ulint ut_strlcpy(
+    /*=======*/
+    char *dst,       /*!< in: destination buffer */
+    const char *src, /*!< in: source buffer */
+    ulint size)      /*!< in: size of destination buffer */
 {
-	ulint	src_size = strlen(src);
+  ulint src_size = strlen(src);
 
-	if (size != 0) {
-		ulint	n = ut_min(src_size, size - 1);
+  if (size != 0) {
+    ulint n = ut_min(src_size, size - 1);
 
-		memcpy(dst, src, n);
-		dst[n] = '\0';
-	}
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+  }
 
-	return(src_size);
+  return (src_size);
 }
 
 /********************************************************************
 Concatenate 3 strings.*/
-char*
-ut_str3cat(
-/*=======*/
-				/* out, own: concatenated string, must be
-				freed with ut_free() */
-	const char*	s1,	/* in: string 1 */
-	const char*	s2,	/* in: string 2 */
-	const char*	s3)	/* in: string 3 */
+char *ut_str3cat(
+    /*=======*/
+    /* out, own: concatenated string, must be
+    freed with ut_free() */
+    const char *s1, /* in: string 1 */
+    const char *s2, /* in: string 2 */
+    const char *s3) /* in: string 3 */
 {
-	char*	s;
-	ulint	s1_len = strlen(s1);
-	ulint	s2_len = strlen(s2);
-	ulint	s3_len = strlen(s3);
+  char *s;
+  ulint s1_len = strlen(s1);
+  ulint s2_len = strlen(s2);
+  ulint s3_len = strlen(s3);
 
-	s = static_cast<char*>(ut_malloc_nokey(s1_len + s2_len + s3_len + 1));
+  s = static_cast<char *>(ut_malloc_nokey(s1_len + s2_len + s3_len + 1));
 
-	memcpy(s, s1, s1_len);
-	memcpy(s + s1_len, s2, s2_len);
-	memcpy(s + s1_len + s2_len, s3, s3_len);
+  memcpy(s, s1, s1_len);
+  memcpy(s + s1_len, s2, s2_len);
+  memcpy(s + s1_len + s2_len, s3, s3_len);
 
-	s[s1_len + s2_len + s3_len] = '\0';
+  s[s1_len + s2_len + s3_len] = '\0';
 
-	return(s);
+  return (s);
 }

@@ -70,13 +70,13 @@
 */
 
 #include <stddef.h>
-#include <map>                // std::map
-#include <string>             // std::string
-#include <utility>            // std::pair
+#include <map>      // std::map
+#include <string>   // std::string
+#include <utility>  // std::pair
 
 #include "my_inttypes.h"
 #include "mysql_time.h"
-#include "sql/histograms/histogram.h" // Histogram, Histogram_comparator,
+#include "sql/histograms/histogram.h"  // Histogram, Histogram_comparator,
 #include "sql/histograms/value_map_type.h"
 #include "sql/memroot_allocator.h"
 #include "sql/my_decimal.h"
@@ -92,25 +92,25 @@ namespace histograms {
   Singleton histogram.
 */
 struct Histogram_comparator;
-template <class T> class Value_map;
+template <class T>
+class Value_map;
 
 template <class T>
-class Singleton : public Histogram
-{
-private:
+class Singleton : public Histogram {
+ private:
   /// String representation of the histogram type SINGLETON.
   static constexpr const char *singleton_str() { return "singleton"; }
 
-  using singleton_buckets_allocator=
-    Memroot_allocator<std::pair<const T, double>>;
+  using singleton_buckets_allocator =
+      Memroot_allocator<std::pair<const T, double>>;
 
-  using singleton_buckets_type=
-    std::map<const T, double, Histogram_comparator,
-             singleton_buckets_allocator>;
+  using singleton_buckets_type = std::map<const T, double, Histogram_comparator,
+                                          singleton_buckets_allocator>;
 
   /// The buckets for this histogram [key, cumulative frequency].
   singleton_buckets_type m_buckets;
-public:
+
+ public:
   /**
     Singleton constructor.
 
@@ -194,7 +194,7 @@ public:
 
     @return the selectivity between 0.0 and 1.0 inclusive.
   */
-  double get_equal_to_selectivity(const T& value) const;
+  double get_equal_to_selectivity(const T &value) const;
 
   /**
     Find the number of values less than 'value'.
@@ -206,7 +206,7 @@ public:
 
     @return the selectivity between 0.0 and 1.0 inclusive.
   */
-  double get_less_than_selectivity(const T& value) const;
+  double get_less_than_selectivity(const T &value) const;
 
   /**
     Find the number of values greater than 'value'.
@@ -218,8 +218,9 @@ public:
 
     @return the selectivity between 0.0 and 1.0 inclusive.
   */
-  double get_greater_than_selectivity(const T& value) const;
-private:
+  double get_greater_than_selectivity(const T &value) const;
+
+ private:
   /**
     Add value to a JSON bucket
 
@@ -230,8 +231,7 @@ private:
 
     @return     true on error, false otherwise
   */
-  static bool add_value_json_bucket(const T &value,
-                                    Json_array *json_bucket);
+  static bool add_value_json_bucket(const T &value, Json_array *json_bucket);
 
   /**
     Convert one bucket to a JSON object.
@@ -244,8 +244,7 @@ private:
   static bool create_json_bucket(const std::pair<T, double> &bucket,
                                  Json_array *json_bucket);
 
-
-protected:
+ protected:
   /**
     Populate this histogram with contents from a JSON object.
 
@@ -256,6 +255,6 @@ protected:
   bool json_to_histogram(const Json_object &json_object) override;
 };
 
-} // namespace histograms
+}  // namespace histograms
 
 #endif

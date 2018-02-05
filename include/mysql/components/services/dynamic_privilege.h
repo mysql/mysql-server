@@ -28,15 +28,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 DEFINE_SERVICE_HANDLE(Security_context_handle);
 
 BEGIN_SERVICE_DEFINITION(dynamic_privilege_register)
-  DECLARE_BOOL_METHOD(register_privilege, (const char *, size_t));
-  DECLARE_BOOL_METHOD(unregister_privilege, (const char *, size_t));
+DECLARE_BOOL_METHOD(register_privilege, (const char *, size_t));
+DECLARE_BOOL_METHOD(unregister_privilege, (const char *, size_t));
 END_SERVICE_DEFINITION(dynamic_privilege_register)
 
-
 BEGIN_SERVICE_DEFINITION(global_grants_check)
-  DECLARE_BOOL_METHOD(has_global_grant,
-                      (Security_context_handle, const char *, size_t));
+DECLARE_BOOL_METHOD(has_global_grant,
+                    (Security_context_handle, const char *, size_t));
 END_SERVICE_DEFINITION(global_grants_check)
 
 #endif /* DYNAMIC_PRIVILEGE_H */
-

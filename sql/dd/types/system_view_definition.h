@@ -23,7 +23,7 @@
 #ifndef DD__SYSTEM_VIEW_DEFINITION_INCLUDED
 #define DD__SYSTEM_VIEW_DEFINITION_INCLUDED
 
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 namespace dd {
 namespace system_views {
@@ -33,21 +33,19 @@ namespace system_views {
   necessary to create a I_S table.
 */
 
-class System_view_definition
-{
-public:
-  virtual ~System_view_definition()
-  { };
+class System_view_definition {
+ public:
+  virtual ~System_view_definition(){};
 
   /**
     Build CREATE VIEW DDL statement for the system view.
 
     @return String_type containing the DDL statement for the target view.
   */
-  virtual String_type build_ddl_create_view() const= 0;
+  virtual String_type build_ddl_create_view() const = 0;
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif	// DD__SYSTEM_VIEW_DEFINITION_INCLUDED
+#endif  // DD__SYSTEM_VIEW_DEFINITION_INCLUDED

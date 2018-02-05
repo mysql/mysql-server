@@ -27,10 +27,8 @@
 #include <map>
 #include <utility>
 
-
 void Gcs_interface_parameters::add_parameter(const std::string &name,
-                                             const std::string &value)
-{
+                                             const std::string &value) {
   std::pair<const std::string, const std::string> to_add(name, value);
 
   parameters.erase(name);
@@ -38,39 +36,33 @@ void Gcs_interface_parameters::add_parameter(const std::string &name,
 }
 
 /* purecov: begin deadcode */
-bool Gcs_interface_parameters::check_parameters(const char* params[], int size) const
-{
-  for (int index=0; index < size; index++)
-  {
+bool Gcs_interface_parameters::check_parameters(const char *params[],
+                                                int size) const {
+  for (int index = 0; index < size; index++) {
     std::string param(params[index]);
-    if (get_parameter(param))
-      return true;
+    if (get_parameter(param)) return true;
   }
   return false;
 }
 
-bool Gcs_interface_parameters::check_parameters(const std::vector<std::string> &params) const
-{
-  for (std::vector<std::string>::const_iterator it = params.begin() ;
-       it != params.end(); ++it)
-  {
-    if (get_parameter(*it))
-      return true;
+bool Gcs_interface_parameters::check_parameters(
+    const std::vector<std::string> &params) const {
+  for (std::vector<std::string>::const_iterator it = params.begin();
+       it != params.end(); ++it) {
+    if (get_parameter(*it)) return true;
   }
   return false;
 }
 /* purecov: end */
 
-const std::string *
-Gcs_interface_parameters::get_parameter(const std::string &name) const
-{
-  const std::string *retval= NULL;
+const std::string *Gcs_interface_parameters::get_parameter(
+    const std::string &name) const {
+  const std::string *retval = NULL;
 
   std::map<std::string, std::string>::const_iterator to_find;
 
-  if ((to_find= parameters.find(name)) != parameters.end())
-  {
-    retval= &((*to_find).second);
+  if ((to_find = parameters.find(name)) != parameters.end()) {
+    retval = &((*to_find).second);
   }
 
   return retval;

@@ -27,9 +27,9 @@
 #include <new>
 
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/view_routine.h"       // dd::View_routine
+#include "sql/dd/types/view_routine.h"  // dd::View_routine
 
 namespace dd {
 
@@ -44,20 +44,17 @@ class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class View_routine_impl : public Weak_object_impl,
-                          public View_routine
-{
-public:
+class View_routine_impl : public Weak_object_impl, public View_routine {
+ public:
   View_routine_impl();
 
   View_routine_impl(View_impl *view);
 
   View_routine_impl(const View_routine_impl &src, View_impl *parent);
 
-  virtual ~View_routine_impl()
-  { }
+  virtual ~View_routine_impl() {}
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual const Object_table &object_table() const;
@@ -70,42 +67,42 @@ public:
 
   virtual void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint)
-  { }
+  void set_ordinal_position(uint) {}
 
-  virtual uint ordinal_position() const
-  { return -1; }
+  virtual uint ordinal_position() const { return -1; }
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // routine catalog.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &routine_catalog() const
-  { return m_routine_catalog; }
+  virtual const String_type &routine_catalog() const {
+    return m_routine_catalog;
+  }
 
-  virtual void set_routine_catalog(const String_type &sf_catalog)
-  { m_routine_catalog= sf_catalog; }
+  virtual void set_routine_catalog(const String_type &sf_catalog) {
+    m_routine_catalog = sf_catalog;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // routine schema.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &routine_schema() const
-  { return m_routine_schema; }
+  virtual const String_type &routine_schema() const { return m_routine_schema; }
 
-  virtual void set_routine_schema(const String_type &sf_schema)
-  { m_routine_schema= sf_schema; }
+  virtual void set_routine_schema(const String_type &sf_schema) {
+    m_routine_schema = sf_schema;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // routine name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &routine_name() const
-  { return m_routine_name; }
+  virtual const String_type &routine_name() const { return m_routine_name; }
 
-  virtual void set_routine_name(const String_type &sf_name)
-  { m_routine_name= sf_name; }
+  virtual void set_routine_name(const String_type &sf_name) {
+    m_routine_name = sf_name;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // view.
@@ -115,23 +112,21 @@ public:
 
   virtual View &view();
 
-public:
-  static View_routine_impl *restore_item(View_impl *view)
-  {
+ public:
+  static View_routine_impl *restore_item(View_impl *view) {
     return new (std::nothrow) View_routine_impl(view);
   }
 
   static View_routine_impl *clone(const View_routine_impl &other,
-                                  View_impl *view)
-  {
+                                  View_impl *view) {
     return new (std::nothrow) View_routine_impl(other, view);
   }
 
-public:
+ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
-private:
+ private:
   String_type m_routine_catalog;
   String_type m_routine_schema;
   String_type m_routine_name;
@@ -142,6 +137,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__VIEW_ROUTINE_IMPL_INCLUDED
+#endif  // DD__VIEW_ROUTINE_IMPL_INCLUDED

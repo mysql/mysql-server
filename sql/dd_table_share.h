@@ -24,11 +24,11 @@
 
 #include <sys/types.h>
 
-#include "binary_log_types.h"        // enum_field_types
+#include "binary_log_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "my_inttypes.h"
-#include "my_sys.h"                  // get_charset
-#include "sql/dd/object_id.h"        // dd::Object_id
+#include "my_sys.h"            // get_charset
+#include "sql/dd/object_id.h"  // dd::Object_id
 
 class Field;
 class KEY_PART_INFO;
@@ -36,11 +36,10 @@ class THD;
 struct TABLE_SHARE;
 
 namespace dd {
-  class Table;
+class Table;
 
-  enum class enum_column_types;
-}
-
+enum class enum_column_types;
+}  // namespace dd
 
 /**
   Read the table definition from the data-dictionary.
@@ -63,7 +62,6 @@ namespace dd {
 */
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def);
 
-
 /**
   Read the table definition from the data-dictionary.
 
@@ -85,15 +83,12 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def);
 bool open_table_def_suppress_invalid_meta_data(THD *thd, TABLE_SHARE *share,
                                                const dd::Table &table_def);
 
-
 /* Map from new to old field type. */
 enum_field_types dd_get_old_field_type(dd::enum_column_types type);
 
-static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id)
-{
-  return get_charset(static_cast<uint> (dd_cs_id), MYF(0));
+static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id) {
+  return get_charset(static_cast<uint>(dd_cs_id), MYF(0));
 }
-
 
 /**
   Check if the given key_part is suitable to be promoted as part of
@@ -106,7 +101,6 @@ static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id)
    true  - Is suitable for primary key.
    false - if not.
 */
-bool is_suitable_for_primary_key(KEY_PART_INFO *key_part,
-                                 Field *table_field);
+bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field);
 
-#endif // DD_TABLE_SHARE_INCLUDED
+#endif  // DD_TABLE_SHARE_INCLUDED

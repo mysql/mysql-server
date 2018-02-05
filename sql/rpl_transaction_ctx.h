@@ -23,7 +23,7 @@
 #ifndef RPL_TRANSACTION_CTX_H
 #define RPL_TRANSACTION_CTX_H
 
-#include "mysql/service_rpl_transaction_ctx.h" // Transaction_termination_ctx
+#include "mysql/service_rpl_transaction_ctx.h"  // Transaction_termination_ctx
 
 /**
   Server side support to provide a service to plugins to report if
@@ -31,9 +31,8 @@
   Its value is reset on Transaction_ctx::cleanup().
   Its value is set through service service_rpl_transaction_ctx.
 */
-class Rpl_transaction_ctx
-{
-public:
+class Rpl_transaction_ctx {
+ public:
   Rpl_transaction_ctx();
   virtual ~Rpl_transaction_ctx() {}
 
@@ -48,7 +47,8 @@ public:
          @retval 0      success
          @retval !=0    error
   */
-  int set_rpl_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
+  int set_rpl_transaction_ctx(
+      Transaction_termination_ctx transaction_termination_ctx);
 
   /**
     Get transaction outcome decision.
@@ -90,8 +90,8 @@ public:
   */
   void cleanup();
 
-private:
+ private:
   Transaction_termination_ctx m_transaction_ctx;
 };
 
-#endif	/* RPL_TRANSACTION_CTX_H */
+#endif /* RPL_TRANSACTION_CTX_H */

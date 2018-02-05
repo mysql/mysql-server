@@ -24,12 +24,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/os0proc.ic
-The interface to the operating system
-process control primitives
+/**************************************************/ /**
+ @file include/os0proc.ic
+ The interface to the operating system
+ process control primitives
 
-Created 9/30/1995 Heikki Tuuri
-*******************************************************/
-
-
+ Created 9/30/1995 Heikki Tuuri
+ *******************************************************/

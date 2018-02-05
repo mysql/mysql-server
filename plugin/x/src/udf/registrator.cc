@@ -26,21 +26,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/service_plugin_registry.h"
 #include "plugin/x/src/xpl_log.h"
 
-
 namespace xpl {
 namespace udf {
 Registrator::Registrator()
     : m_registry{mysql_plugin_registry_acquire()},
       m_registrator{"udf_registration", m_registry} {}
 
-Registrator::~Registrator() {
-  mysql_plugin_registry_release(m_registry);
-}
+Registrator::~Registrator() { mysql_plugin_registry_release(m_registry); }
 
-void Registrator::registration(const Record& r, Name_registry *udf_names) {
+void Registrator::registration(const Record &r, Name_registry *udf_names) {
   if (!m_registrator.is_valid() ||
-      m_registrator->udf_register(r.m_name, r.m_result, r.m_func,
-                                  r.m_func_init, r.m_func_deinit))
+      m_registrator->udf_register(r.m_name, r.m_result, r.m_func, r.m_func_init,
+                                  r.m_func_deinit))
     throw std::runtime_error(std::string("Can't register '") + r.m_name +
                              "' user defined function");
   udf_names->insert(r.m_name);
@@ -64,5 +61,5 @@ void Registrator::unregistration(Name_registry *udf_names) {
       ++i;
 }
 
-}  // namespace udf
-}  // namespace xpl
+}  // namespace udf
+}  // namespace xpl

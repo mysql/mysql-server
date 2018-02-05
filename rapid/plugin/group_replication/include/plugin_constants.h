@@ -26,9 +26,9 @@
 /*
   Plugin user to acess the server
 */
-#define GROUPREPL_USER      "mysql.session"
-#define GROUPREPL_HOST      "localhost"
-#define GROUPREPL_ACCOUNT   GROUPREPL_USER "@" GROUPREPL_HOST
+#define GROUPREPL_USER "mysql.session"
+#define GROUPREPL_HOST "localhost"
+#define GROUPREPL_ACCOUNT GROUPREPL_USER "@" GROUPREPL_HOST
 
 /*
   Plugin errors

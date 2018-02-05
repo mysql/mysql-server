@@ -28,7 +28,6 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_statistics_interface.h"
 
-
 /**
   @interface Gcs_xcom_statistics_updater
 
@@ -36,9 +35,8 @@
   of the Gcs_statistics_interface will provide to the other interfaces that
   update statistics.
 */
-class Gcs_xcom_statistics_updater
-{
-public:
+class Gcs_xcom_statistics_updater {
+ public:
   /**
     Method called to register that a message has been sent.
 
@@ -49,8 +47,7 @@ public:
     @param[in] message_length the length of the message being sent
    */
 
-  virtual void update_message_sent(unsigned long long message_length)= 0;
-
+  virtual void update_message_sent(unsigned long long message_length) = 0;
 
   /**
     Method called to register when a message is received.
@@ -65,22 +62,19 @@ public:
     @param[in] message_length the length of the message received
    */
 
-  virtual void update_message_received(long message_length)= 0;
-
+  virtual void update_message_received(long message_length) = 0;
 
   virtual ~Gcs_xcom_statistics_updater() {}
 };
-
 
 /**
   @class Gcs_xcom_statistics_interface
 
   This class implements the Gcs_statistics_interface and updater.
 */
-class Gcs_xcom_statistics
-  :public Gcs_statistics_interface, public Gcs_xcom_statistics_updater
-{
-public:
+class Gcs_xcom_statistics : public Gcs_statistics_interface,
+                            public Gcs_xcom_statistics_updater {
+ public:
   explicit Gcs_xcom_statistics();
   virtual ~Gcs_xcom_statistics();
 
@@ -104,8 +98,7 @@ public:
 
   void update_message_received(long message_length);
 
-private:
-
+ private:
   long total_messages_sent;
   long total_bytes_sent;
   long total_messages_received;
@@ -115,4 +108,4 @@ private:
   long last_message_timestamp;
 };
 
-#endif  /* GCS_XCOM_STATISTICS_INTERFACE_INCLUDED */
+#endif /* GCS_XCOM_STATISTICS_INTERFACE_INCLUDED */

@@ -149,9 +149,8 @@ bool is_simple(const dd::Spatial_reference_system *srs, const Geometry *g,
                bool *result_null) noexcept {
   try {
     DBUG_ASSERT(!srs || srs->is_cartesian() || srs->is_geographic());
-    DBUG_ASSERT(!srs ||
-                srs->is_cartesian() ==
-                    (g->coordinate_system() == Coordinate_system::kCartesian));
+    DBUG_ASSERT(!srs || srs->is_cartesian() == (g->coordinate_system() ==
+                                                Coordinate_system::kCartesian));
     DBUG_ASSERT(!srs ||
                 srs->is_geographic() ==
                     (g->coordinate_system() == Coordinate_system::kGeographic));

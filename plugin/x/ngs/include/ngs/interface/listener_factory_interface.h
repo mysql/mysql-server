@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,23 +29,25 @@
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 
-
-namespace ngs
-{
+namespace ngs {
 
 class Socket_events;
-using Listener_interface_ptr = Memory_instrumented<Listener_interface>::Unique_ptr;
+using Listener_interface_ptr =
+    Memory_instrumented<Listener_interface>::Unique_ptr;
 
-class Listener_factory_interface
-{
-public:
+class Listener_factory_interface {
+ public:
   virtual ~Listener_factory_interface() {}
 
-  virtual Listener_interface_ptr create_unix_socket_listener(const std::string &unix_socket_path, Socket_events_interface &event, const uint32 backlog) = 0;
-  virtual Listener_interface_ptr create_tcp_socket_listener(std::string &bind_address, const unsigned short port, const uint32 port_open_timeout,
-                                                            Socket_events_interface &event, const uint32 backlog) = 0;
+  virtual Listener_interface_ptr create_unix_socket_listener(
+      const std::string &unix_socket_path, Socket_events_interface &event,
+      const uint32 backlog) = 0;
+  virtual Listener_interface_ptr create_tcp_socket_listener(
+      std::string &bind_address, const unsigned short port,
+      const uint32 port_open_timeout, Socket_events_interface &event,
+      const uint32 backlog) = 0;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_LISTENER_FACTORY_INTERFACE_H_
+#endif  // _NGS_LISTENER_FACTORY_INTERFACE_H_

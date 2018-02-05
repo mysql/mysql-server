@@ -41,29 +41,27 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"
 
+/*
+** Open tempfile cached by IO_CACHE
+** Should be used when no seeks are done (only reinit_io_buff)
+** Return 0 if cache is inited ok
+** The actual file is created when the IO_CACHE buffer gets filled
+** If dir is not given, use TMPDIR.
+*/
 
-	/*
-	** Open tempfile cached by IO_CACHE
-	** Should be used when no seeks are done (only reinit_io_buff)
-	** Return 0 if cache is inited ok
-	** The actual file is created when the IO_CACHE buffer gets filled
-	** If dir is not given, use TMPDIR.
-	*/
-
-bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
-                      size_t cache_size, myf cache_myflags)
-{
+bool open_cached_file(IO_CACHE *cache, const char *dir, const char *prefix,
+                      size_t cache_size, myf cache_myflags) {
   DBUG_ENTER("open_cached_file");
-  cache->dir=	 dir ? my_strdup(key_memory_IO_CACHE,
-                                 dir,MYF(cache_myflags & MY_WME)) : (char*) 0;
-  cache->prefix= (prefix ? my_strdup(key_memory_IO_CACHE,
-                                     prefix,MYF(cache_myflags & MY_WME)) :
-		 (char*) 0);
-  cache->file_name=0;
-  cache->buffer=0;				/* Mark that not open */
-  if (!init_io_cache(cache,-1,cache_size,WRITE_CACHE,0L,0,
-		     MYF(cache_myflags | MY_NABP)))
-  {
+  cache->dir =
+      dir ? my_strdup(key_memory_IO_CACHE, dir, MYF(cache_myflags & MY_WME))
+          : (char *)0;
+  cache->prefix = (prefix ? my_strdup(key_memory_IO_CACHE, prefix,
+                                      MYF(cache_myflags & MY_WME))
+                          : (char *)0);
+  cache->file_name = 0;
+  cache->buffer = 0; /* Mark that not open */
+  if (!init_io_cache(cache, -1, cache_size, WRITE_CACHE, 0L, 0,
+                     MYF(cache_myflags | MY_NABP))) {
     DBUG_RETURN(0);
   }
   my_free(cache->dir);
@@ -73,38 +71,31 @@ bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
 
 /* Create the temporary file */
 
-bool real_open_cached_file(IO_CACHE *cache)
-{
+bool real_open_cached_file(IO_CACHE *cache) {
   char name_buff[FN_REFLEN];
-  int error=1;
+  int error = 1;
   DBUG_ENTER("real_open_cached_file");
-  if ((cache->file= mysql_file_create_temp(cache->file_key, name_buff,
-                      cache->dir, cache->prefix,
-                      (O_RDWR | O_TRUNC),
-                      MYF(MY_WME))) >= 0)
-  {
-    error=0;
+  if ((cache->file = mysql_file_create_temp(
+           cache->file_key, name_buff, cache->dir, cache->prefix,
+           (O_RDWR | O_TRUNC), MYF(MY_WME))) >= 0) {
+    error = 0;
     /*
       Remove an open tempfile so that it doesn't survive
       if we crash.
     */
-    (void) my_delete(name_buff, MYF(MY_WME));
+    (void)my_delete(name_buff, MYF(MY_WME));
   }
   DBUG_RETURN(error);
 }
 
-
-void close_cached_file(IO_CACHE *cache)
-{
+void close_cached_file(IO_CACHE *cache) {
   DBUG_ENTER("close_cached_file");
-  if (my_b_inited(cache))
-  {
-    File file=cache->file;
-    cache->file= -1;    /* Don't flush data */
-    (void) end_io_cache(cache);
-    if (file >= 0)
-    {
-      (void) mysql_file_close(file, MYF(0));
+  if (my_b_inited(cache)) {
+    File file = cache->file;
+    cache->file = -1; /* Don't flush data */
+    (void)end_io_cache(cache);
+    if (file >= 0) {
+      (void)mysql_file_close(file, MYF(0));
     }
     my_free(cache->dir);
     my_free(cache->prefix);

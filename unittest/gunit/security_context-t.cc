@@ -28,15 +28,13 @@
 #include "sql/sql_class.h"
 #include "unittest/gunit/test_utils.h"
 
-namespace security_context_unittest
-{
+namespace security_context_unittest {
 
 /*
   Testing accessor functions of string type data members of class
   Security_context.
 */
-TEST(Security_context, string_data_member)
-{
+TEST(Security_context, string_data_member) {
   Security_context sctx;
 
   // Case 1: Initialize Security context and check the values set.
@@ -148,4 +146,4 @@ TEST(Security_context, string_data_member)
   EXPECT_EQ(0, strcmp(sctx.priv_host().str, "localhost"));
 }
 
-}
+}  // namespace security_context_unittest

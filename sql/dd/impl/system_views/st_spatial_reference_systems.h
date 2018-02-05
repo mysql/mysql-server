@@ -34,12 +34,10 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS
   system view definition.
 */
-class St_spatial_reference_systems :
-        public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class St_spatial_reference_systems
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_SRS_NAME,
     FIELD_SRS_ID,
     FIELD_ORGANIZATION,
@@ -52,17 +50,17 @@ public:
 
   static const St_spatial_reference_systems &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("ST_SPATIAL_REFERENCE_SYSTEMS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return St_spatial_reference_systems::view_name(); }
+  virtual const String_type &name() const {
+    return St_spatial_reference_systems::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__ST_SPATIAL_REFERENCE_SYSTEMS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__ST_SPATIAL_REFERENCE_SYSTEMS_INCLUDED

@@ -23,49 +23,35 @@
 */
 #ifndef INFIX_OSTREAM_IT_INCLUDED
 #define INFIX_OSTREAM_IT_INCLUDED
-#include <ostream>
 #include <iterator>
+#include <ostream>
 #include <string>
 
-template <class T >
-class infix_ostream_iterator :
-  public std::iterator<std::output_iterator_tag, T >
-{
-public:
-  infix_ostream_iterator(std::ostream &s)
-    : m_os(&s)
-  {}
+template <class T>
+class infix_ostream_iterator
+    : public std::iterator<std::output_iterator_tag, T> {
+ public:
+  infix_ostream_iterator(std::ostream &s) : m_os(&s) {}
 
-  infix_ostream_iterator(std::ostream  &s, const char *d)
-    : m_os(&s), m_delimiter(d)
-  {}
+  infix_ostream_iterator(std::ostream &s, const char *d)
+      : m_os(&s), m_delimiter(d) {}
 
-  infix_ostream_iterator<T > &operator=(T const &item)
-  {
+  infix_ostream_iterator<T> &operator=(T const &item) {
     *m_os << m_curr_delimiter << item;
     m_curr_delimiter = m_delimiter;
     return *this;
   }
 
-  infix_ostream_iterator<T > &operator*()
-  {
-    return *this;
-  }
+  infix_ostream_iterator<T> &operator*() { return *this; }
 
-  infix_ostream_iterator<T > &operator++()
-  {
-    return *this;
-  }
+  infix_ostream_iterator<T> &operator++() { return *this; }
 
-  infix_ostream_iterator<T > &operator++(int)
-  {
-    return *this;
-  }
-private:
+  infix_ostream_iterator<T> &operator++(int) { return *this; }
+
+ private:
   std::ostream *m_os;
   std::string m_curr_delimiter;
   std::string m_delimiter;
 };
 
 #endif
-

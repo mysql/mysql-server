@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef OBSERVER_SERVER_CHANNELS
-#define	OBSERVER_SERVER_CHANNELS
+#define OBSERVER_SERVER_CHANNELS
 
 #include <mysql/group_replication_priv.h>
 
@@ -39,10 +39,8 @@ int group_replication_after_read_event(Binlog_relay_IO_param *param,
                                        unsigned long *event_len);
 int group_replication_after_queue_event(Binlog_relay_IO_param *param,
                                         const char *event_buf,
-                                        unsigned long event_len,
-                                        uint32 flags);
+                                        unsigned long event_len, uint32 flags);
 int group_replication_after_reset_slave(Binlog_relay_IO_param *param);
-
 
 extern Binlog_relay_IO_observer binlog_IO_observer;
 

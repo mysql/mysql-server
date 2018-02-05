@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,36 +33,24 @@
 
 #include "plugin/x/client/mysqlxclient/xconnection.h"
 
-
 namespace xcl {
 namespace test {
 
 class Mock_connection : public XConnection {
  public:
-  MOCK_METHOD1(connect_to_localhost,
-      XError(const std::string &unix_socket));
-  MOCK_METHOD3(connect,
-      XError(const std::string &host,
-             const uint16_t port,
-             const Internet_protocol ip_mode));
-  MOCK_METHOD0(get_socket_fd,
-      my_socket());
-  MOCK_METHOD0(activate_tls,
-      XError());
-  MOCK_METHOD1(shutdown,
-      XError(const Shutdown_type how_to_shutdown));
+  MOCK_METHOD1(connect_to_localhost, XError(const std::string &unix_socket));
+  MOCK_METHOD3(connect, XError(const std::string &host, const uint16_t port,
+                               const Internet_protocol ip_mode));
+  MOCK_METHOD0(get_socket_fd, my_socket());
+  MOCK_METHOD0(activate_tls, XError());
+  MOCK_METHOD1(shutdown, XError(const Shutdown_type how_to_shutdown));
   MOCK_METHOD2(write,
-      XError(const uint8_t *data, const std::size_t data_length));
-  MOCK_METHOD2(read,
-      XError(uint8_t *data, const std::size_t data_length));
-  MOCK_METHOD1(set_read_timeout,
-      XError(const int deadline_milliseconds));
-  MOCK_METHOD1(set_write_timeout,
-      XError(const int deadline_milliseconds));
-  MOCK_METHOD0(close,
-      void());
-  MOCK_METHOD0(state,
-      const State&());
+               XError(const uint8_t *data, const std::size_t data_length));
+  MOCK_METHOD2(read, XError(uint8_t *data, const std::size_t data_length));
+  MOCK_METHOD1(set_read_timeout, XError(const int deadline_milliseconds));
+  MOCK_METHOD1(set_write_timeout, XError(const int deadline_milliseconds));
+  MOCK_METHOD0(close, void());
+  MOCK_METHOD0(state, const State &());
 };
 
 }  // namespace test

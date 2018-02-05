@@ -25,11 +25,8 @@
 
 #include "plugin/group_replication/include/read_mode_handler.h"
 
-class Delayed_initialization_thread
-{
-
-public:
-
+class Delayed_initialization_thread {
+ public:
   Delayed_initialization_thread();
 
   /**
@@ -75,9 +72,8 @@ public:
   */
   void wait_for_read_mode();
 
-private:
-
-  //Delayed_initialization_thread variables
+ private:
+  // Delayed_initialization_thread variables
 
   /* Delayed_initialization_thread state */
   thread_state delayed_thd_state;
@@ -91,11 +87,11 @@ private:
   /* Thread related structures */
 
   my_thread_handle delayed_init_pthd;
-  //run conditions and locks
+  // run conditions and locks
   mysql_mutex_t run_lock;
-  mysql_cond_t  run_cond;
+  mysql_cond_t run_cond;
   mysql_mutex_t server_ready_lock;
-  mysql_cond_t  server_ready_cond;
+  mysql_cond_t server_ready_cond;
 };
 
 #endif /* DELAYED_PLUGIN_INITIALIZATION_INCLUDE */

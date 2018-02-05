@@ -95,8 +95,8 @@ int flush_srv_buf(server *s, int64_t *ret);
     @retval 1 if it should continue.
 */
 
-int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf,
-                      pax_msg *p, server *s, int64_t *ret);
+int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
+                      server *s, int64_t *ret);
 
 /**
   Reads message from connection rfd without buffering reads.
@@ -148,8 +148,8 @@ int send_msg(server *s, node_no from, node_no to, uint32_t group_id,
 */
 void server_detected(server *s);
 
-void invalidate_servers(const site_def* old_site_def,
-                        const site_def* new_site_def);
+void invalidate_servers(const site_def *old_site_def,
+                        const site_def *new_site_def);
 
 void shutdown_connection(connection_descriptor *con);
 void reset_connection(connection_descriptor *con);

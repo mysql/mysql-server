@@ -30,17 +30,16 @@
 #include "client/base/abstract_option.h"
 #include "my_getopt.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Simple boolean option. Does not accept value.
  */
-class Simple_option : public Abstract_option<Simple_option>
-{
-public:
+class Simple_option : public Abstract_option<Simple_option> {
+ public:
   /**
     Constructs new simple option.
     @param name Name of option. It is used in command-line option name as
@@ -50,9 +49,9 @@ public:
   Simple_option(std::string name, std::string description);
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

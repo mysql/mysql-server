@@ -40,9 +40,8 @@ class Properties;
 class Routine_name_key;
 
 namespace tables {
-  class Routines;
+class Routines;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -55,9 +54,8 @@ namespace tables {
         must inherit this class virtually.
 */
 
-class Routine : virtual public Entity_object
-{
-public:
+class Routine : virtual public Entity_object {
+ public:
   typedef Routine_impl Impl;
   typedef Routine Cache_partition;
   typedef tables::Routines DD_table;
@@ -67,41 +65,35 @@ public:
   typedef Collection<Parameter *> Parameter_collection;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_routine_name_key(key, schema_id(), name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_routine_name_key(key, schema_id(), name());
+  }
 
-  virtual bool update_routine_name_key(Name_key *key,
-                                       Object_id schema_id,
+  virtual bool update_routine_name_key(Name_key *key, Object_id schema_id,
                                        const String_type &name) const = 0;
 
-  virtual bool update_aux_key(Aux_key*) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
-public:
-  enum enum_routine_type
-  {
-    RT_FUNCTION = 1,
-    RT_PROCEDURE
-  };
+ public:
+  enum enum_routine_type { RT_FUNCTION = 1, RT_PROCEDURE };
 
-  enum enum_sql_data_access
-  {
+  enum enum_sql_data_access {
     SDA_CONTAINS_SQL = 1,
     SDA_NO_SQL,
     SDA_READS_SQL_DATA,
     SDA_MODIFIES_SQL_DATA
   };
 
-public:
-  virtual ~Routine()
-  { };
+ public:
+  virtual ~Routine(){};
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // schema.
   /////////////////////////////////////////////////////////////////////////
@@ -178,7 +170,7 @@ public:
 
   virtual Object_id connection_collation_id() const = 0;
   virtual void set_connection_collation_id(
-                 Object_id connection_collation_id) = 0;
+      Object_id connection_collation_id) = 0;
 
   virtual Object_id schema_collation_id() const = 0;
   virtual void set_schema_collation_id(Object_id schema_collation_id) = 0;
@@ -223,6 +215,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__ROUTINE_INCLUDED
+#endif  // DD__ROUTINE_INCLUDED

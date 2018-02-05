@@ -24,46 +24,35 @@
 
 #include <sstream>
 
-Gcs_xcom_view_identifier::
-Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
-                         uint32_t monotonic_part_arg)
-  :fixed_part(0), monotonic_part(0), representation()
-{
+Gcs_xcom_view_identifier::Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
+                                                   uint32_t monotonic_part_arg)
+    : fixed_part(0), monotonic_part(0), representation() {
   init(fixed_part_arg, monotonic_part_arg);
 }
 
-
-void Gcs_xcom_view_identifier::
-init(uint64_t fixed_part_arg, uint32_t monotonic_part_arg)
-{
-  fixed_part=     fixed_part_arg;
-  monotonic_part= monotonic_part_arg;
+void Gcs_xcom_view_identifier::init(uint64_t fixed_part_arg,
+                                    uint32_t monotonic_part_arg) {
+  fixed_part = fixed_part_arg;
+  monotonic_part = monotonic_part_arg;
 
   std::ostringstream builder;
 
   builder << fixed_part << ":" << monotonic_part;
 
-  representation= builder.str();
+  representation = builder.str();
 }
 
-
-void Gcs_xcom_view_identifier::increment_by_one()
-{
-  monotonic_part+= 1;
+void Gcs_xcom_view_identifier::increment_by_one() {
+  monotonic_part += 1;
   init(fixed_part, monotonic_part);
 }
 
-
 Gcs_xcom_view_identifier::~Gcs_xcom_view_identifier() {}
 
-
-const std::string &Gcs_xcom_view_identifier::get_representation() const
-{
+const std::string &Gcs_xcom_view_identifier::get_representation() const {
   return representation;
 }
 
-
-Gcs_view_identifier *Gcs_xcom_view_identifier::clone() const
-{
+Gcs_view_identifier *Gcs_xcom_view_identifier::clone() const {
   return new Gcs_xcom_view_identifier(*this);
 }

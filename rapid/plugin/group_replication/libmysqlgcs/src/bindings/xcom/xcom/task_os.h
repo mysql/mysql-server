@@ -60,21 +60,17 @@ static inline int hard_select_err(int err) {
   return err != 0 && from_errno(err) != WSAEINTR;
 }
 
-
-#if(_WIN32_WINNT < 0x0600)
+#if (_WIN32_WINNT < 0x0600)
 #error "Need _WIN32_WINNT >= 0x0600"
 #endif
 
 typedef ULONG nfds_t;
 typedef struct pollfd pollfd;
-static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
+static inline int poll(pollfd *fds, nfds_t nfds, int timeout) {
   return WSAPoll(fds, nfds, timeout);
 }
 
-static inline int is_socket_error(int x)
-{
-	return x == SOCKET_ERROR || x < 0;
-}
+static inline int is_socket_error(int x) { return x == SOCKET_ERROR || x < 0; }
 
 #else
 #include <errno.h>
@@ -114,10 +110,7 @@ static inline int hard_select_err(int err) {
 
 typedef struct pollfd pollfd;
 
-static inline int is_socket_error(int x)
-{
-	return x < 0;
-}
+static inline int is_socket_error(int x) { return x < 0; }
 
 #endif
 

@@ -46,33 +46,28 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_socket.h"
 
-#define PSI_SOCKET_CALL(M) pfs_ ## M ## _v1
+#define PSI_SOCKET_CALL(M) pfs_##M##_v1
 
-void pfs_register_socket_v1(const char *category,
-                            PSI_socket_info_v1 *info,
+void pfs_register_socket_v1(const char *category, PSI_socket_info_v1 *info,
                             int count);
 
-PSI_socket*
-pfs_init_socket_v1(PSI_socket_key key, const my_socket *fd,
-                   const struct sockaddr *addr, socklen_t addr_len);
+PSI_socket *pfs_init_socket_v1(PSI_socket_key key, const my_socket *fd,
+                               const struct sockaddr *addr, socklen_t addr_len);
 
 void pfs_destroy_socket_v1(PSI_socket *socket);
 
-PSI_socket_locker*
-pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
-                         PSI_socket *socket,
-                         PSI_socket_operation op,
-                         size_t count,
-                         const char *src_file, uint src_line);
+PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
+                                            PSI_socket *socket,
+                                            PSI_socket_operation op,
+                                            size_t count, const char *src_file,
+                                            uint src_line);
 
 void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count);
 
 void pfs_set_socket_state_v1(PSI_socket *socket, PSI_socket_state state);
 
-void pfs_set_socket_info_v1(PSI_socket *socket,
-                            const my_socket *fd,
-                            const struct sockaddr *addr,
-                            socklen_t addr_len);
+void pfs_set_socket_info_v1(PSI_socket *socket, const my_socket *fd,
+                            const struct sockaddr *addr, socklen_t addr_len);
 
 void pfs_set_socket_thread_owner_v1(PSI_socket *socket);
 
@@ -81,4 +76,3 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket);
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
 #endif
-

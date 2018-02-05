@@ -39,8 +39,7 @@
 #define BINARY_LOG_TYPES_INCLUDED
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 /*
@@ -65,29 +64,29 @@ typedef enum enum_field_types {
   MYSQL_TYPE_TIME,
   MYSQL_TYPE_DATETIME,
   MYSQL_TYPE_YEAR,
-  MYSQL_TYPE_NEWDATE,                /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_NEWDATE, /**< Internal to MySQL. Not used in protocol */
   MYSQL_TYPE_VARCHAR,
   MYSQL_TYPE_BIT,
   MYSQL_TYPE_TIMESTAMP2,
-  MYSQL_TYPE_DATETIME2,              /**< Internal to MySQL. Not used in protocol */
-  MYSQL_TYPE_TIME2,                  /**< Internal to MySQL. Not used in protocol */
-  MYSQL_TYPE_JSON=245,
-  MYSQL_TYPE_NEWDECIMAL=246,
-  MYSQL_TYPE_ENUM=247,
-  MYSQL_TYPE_SET=248,
-  MYSQL_TYPE_TINY_BLOB=249,
-  MYSQL_TYPE_MEDIUM_BLOB=250,
-  MYSQL_TYPE_LONG_BLOB=251,
-  MYSQL_TYPE_BLOB=252,
-  MYSQL_TYPE_VAR_STRING=253,
-  MYSQL_TYPE_STRING=254,
-  MYSQL_TYPE_GEOMETRY=255
+  MYSQL_TYPE_DATETIME2, /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_TIME2,     /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_JSON = 245,
+  MYSQL_TYPE_NEWDECIMAL = 246,
+  MYSQL_TYPE_ENUM = 247,
+  MYSQL_TYPE_SET = 248,
+  MYSQL_TYPE_TINY_BLOB = 249,
+  MYSQL_TYPE_MEDIUM_BLOB = 250,
+  MYSQL_TYPE_LONG_BLOB = 251,
+  MYSQL_TYPE_BLOB = 252,
+  MYSQL_TYPE_VAR_STRING = 253,
+  MYSQL_TYPE_STRING = 254,
+  MYSQL_TYPE_GEOMETRY = 255
 } enum_field_types;
 
 #define DATETIME_MAX_DECIMALS 6
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif  // __cplusplus
 
 #endif /* BINARY_LOG_TYPES_INCLUDED */

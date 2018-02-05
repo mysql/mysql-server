@@ -29,25 +29,25 @@
 #include <algorithm>
 
 #include "mysql_com.h"
-#include "sql/mysqld.h"                         // global_system_variables
+#include "sql/mysqld.h"  // global_system_variables
 #include "sql/system_variables.h"
 
-using std::min;
 using std::max;
+using std::min;
 
 /*
   Function called by my_net_init() to set some check variables
 */
 
-void my_net_local_init(NET *net)
-{
-  net->max_packet=   (uint) global_system_variables.net_buffer_length;
+void my_net_local_init(NET *net) {
+  net->max_packet = (uint)global_system_variables.net_buffer_length;
 
   my_net_set_read_timeout(net, (uint)global_system_variables.net_read_timeout);
   my_net_set_write_timeout(net,
                            (uint)global_system_variables.net_write_timeout);
 
-  net->retry_count=  (uint) global_system_variables.net_retry_count;
-  net->max_packet_size= max<size_t>(global_system_variables.net_buffer_length,
-                                    global_system_variables.max_allowed_packet);
+  net->retry_count = (uint)global_system_variables.net_retry_count;
+  net->max_packet_size =
+      max<size_t>(global_system_variables.net_buffer_length,
+                  global_system_variables.max_allowed_packet);
 }

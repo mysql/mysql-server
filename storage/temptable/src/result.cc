@@ -27,7 +27,7 @@ TempTable Result to string convert. */
 
 namespace temptable {
 
-const char* result_to_string(Result r) {
+const char *result_to_string(Result r) {
   switch (r) {
     case Result::END_OF_FILE:
       return "END_OF_FILE";

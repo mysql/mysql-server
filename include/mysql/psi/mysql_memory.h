@@ -48,14 +48,12 @@
 #define mysql_memory_register(P1, P2, P3) \
   inline_mysql_memory_register(P1, P2, P3)
 
-static inline void
-inline_mysql_memory_register(
+static inline void inline_mysql_memory_register(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  const char *category, PSI_memory_info *info, int count)
+    const char *category, PSI_memory_info *info, int count)
 #else
-  const char *category MY_ATTRIBUTE((unused)),
-  void *info MY_ATTRIBUTE((unused)),
-  int count MY_ATTRIBUTE((unused)))
+    const char *category MY_ATTRIBUTE((unused)),
+    void *info MY_ATTRIBUTE((unused)), int count MY_ATTRIBUTE((unused)))
 #endif
 {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -63,6 +61,6 @@ inline_mysql_memory_register(
 #endif
 }
 
-/** @} (end of group psi_api_memory) */
+  /** @} (end of group psi_api_memory) */
 
 #endif

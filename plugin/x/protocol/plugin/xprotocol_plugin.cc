@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,10 +27,9 @@
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/compiler/plugin.h>
 
-
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   Chain_file_output xprotocol_tags("xprotocol_tags.h");
-  XProtocol_plugin  xprotocol_plugin(&xprotocol_tags);
+  XProtocol_plugin xprotocol_plugin(&xprotocol_tags);
 
   return google::protobuf::compiler::PluginMain(argc, argv, &xprotocol_plugin);
 }

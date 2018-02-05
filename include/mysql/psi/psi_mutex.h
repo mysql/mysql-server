@@ -39,8 +39,7 @@
 #include "mysql/components/services/psi_mutex_bits.h"
 
 /** Entry point for the performance schema interface. */
-struct PSI_mutex_bootstrap
-{
+struct PSI_mutex_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -58,8 +57,7 @@ struct PSI_mutex_bootstrap
   Performance Schema Mutex Interface, version 1.
   @since PSI_MUTEX_VERSION_1
 */
-struct PSI_mutex_service_v1
-{
+struct PSI_mutex_service_v1 {
   /** @sa register_mutex_v1_t. */
   register_mutex_v1_t register_mutex;
   /** @sa init_mutex_v1_t. */

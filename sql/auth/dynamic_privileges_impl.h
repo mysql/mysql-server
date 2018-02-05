@@ -31,12 +31,10 @@ DEFINE_SERVICE_HANDLE(Security_context_handle);
   Interface implementation for registering and checking global dynamic
   privileges.
 */
-class dynamic_privilege_services_impl
-{
-public:
-
-  static DEFINE_BOOL_METHOD(register_privilege,
-    (const char *privilege_str, size_t privilege_str_len));
+class dynamic_privilege_services_impl {
+ public:
+  static DEFINE_BOOL_METHOD(register_privilege, (const char *privilege_str,
+                                                 size_t privilege_str_len));
 
   /**
     Unregister a previously registered privilege object identifier so that it no
@@ -47,22 +45,21 @@ public:
        @retval true Operation was not successful
        @retval false Success
   */
-  static DEFINE_BOOL_METHOD(unregister_privilege,
-    (const char *privilege_str, size_t privilege_str_len));
+  static DEFINE_BOOL_METHOD(unregister_privilege, (const char *privilege_str,
+                                                   size_t privilege_str_len));
 
   /**
-    Check if the supplied security context has the specified privilege identifier
-    granted to it.
+    Check if the supplied security context has the specified privilege
+    identifier granted to it.
     @return
        @retval true The privilege was granted.
        @retval false Access is defined - no such privilege.
   */
   static DEFINE_BOOL_METHOD(has_global_grant,
-    (Security_context_handle, const char *privilege_str,
-     size_t privilege_str_len));
-private:
+                            (Security_context_handle, const char *privilege_str,
+                             size_t privilege_str_len));
 
+ private:
 };
 bool dynamic_privilege_init(void);
 #endif /* MYSQL_SERVER_DYNAMIC_LOADER_PATH_FILTER_H */
-

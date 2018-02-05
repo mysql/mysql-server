@@ -29,22 +29,22 @@
 
 #include "client/dump/thread.h"
 
-namespace my_boost{
+namespace my_boost {
 
-class thread_group
-{
-public:
-  template <typename TCallable> void create_thread(TCallable entry_point)
-  {
+class thread_group {
+ public:
+  template <typename TCallable>
+  void create_thread(TCallable entry_point) {
     m_threads.push_back(new thread(entry_point));
   }
 
   void join_all();
   ~thread_group();
-private:
-  std::vector<my_boost::thread*> m_threads;
+
+ private:
+  std::vector<my_boost::thread *> m_threads;
 };
 
-}
+}  // namespace my_boost
 
 #endif

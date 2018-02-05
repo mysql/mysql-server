@@ -25,20 +25,17 @@
 #ifndef NAMED_PIPE_CONNECTION_INCLUDED
 #define NAMED_PIPE_CONNECTION_INCLUDED
 
-
 #include <Windows.h>
 #include <string>
 
 class Channel_info;
 class THD;
 
-
 /**
   This class abstracts Named pipe listener that setups a named pipe
   handle to listen and receive client connections.
 */
-class Named_pipe_listener
-{
+class Named_pipe_listener {
   std::string m_pipe_name;
   SECURITY_ATTRIBUTES m_sa_pipe_security;
   SECURITY_DESCRIPTOR m_sd_pipe_descriptor;
@@ -47,26 +44,22 @@ class Named_pipe_listener
   HANDLE h_connected_pipe;
   OVERLAPPED m_connect_overlapped;
 
-public:
+ public:
   /**
     Constructor for named pipe listener
 
     @param  pipe_name name for pipe used in CreateNamedPipe function.
   */
   Named_pipe_listener(const std::string *pipe_name)
-  : m_pipe_name(*pipe_name),
-    m_pipe_handle(INVALID_HANDLE_VALUE)
-  { }
-
+      : m_pipe_name(*pipe_name), m_pipe_handle(INVALID_HANDLE_VALUE) {}
 
   /**
     Set up a listener.
 
-    @retval false listener listener has been setup successfully to listen for connect events
-            true  failure in setting up the listener.
+    @retval false listener listener has been setup successfully to listen for
+    connect events true  failure in setting up the listener.
   */
   bool setup_listener();
-
 
   /**
     The body of the event loop that listen for connection events from clients.
@@ -74,7 +67,7 @@ public:
     @retval Channel_info   Channel_info object abstracting the connected client
                            details for processing this connection.
   */
-  Channel_info* listen_for_connection_event();
+  Channel_info *listen_for_connection_event();
 
   /**
     Close the listener
@@ -82,4 +75,4 @@ public:
   void close_listener();
 };
 
-#endif // NAMED_PIPE_CONNECTION_INCLUDED.
+#endif  // NAMED_PIPE_CONNECTION_INCLUDED.

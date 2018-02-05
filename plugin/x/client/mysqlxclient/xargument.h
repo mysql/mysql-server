@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,7 +30,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-
 
 namespace xcl {
 
@@ -53,36 +52,29 @@ class Argument_value {
     TObject
   };
 
-  enum class String_type {
-    TString,
-    TOctets,
-    TDecimal
-  };
+  enum class String_type { TString, TOctets, TDecimal };
 
   class Argument_visitor {
    public:
     virtual ~Argument_visitor() = default;
 
     virtual void visit() = 0;
-    virtual void visit(const int64_t  value) = 0;
+    virtual void visit(const int64_t value) = 0;
     virtual void visit(const uint64_t value) = 0;
     virtual void visit(const double value) = 0;
-    virtual void visit(const float  value) = 0;
-    virtual void visit(const bool   value) = 0;
-    virtual void visit(const Object      &value) = 0;
-    virtual void visit(const Arguments   &value) = 0;
+    virtual void visit(const float value) = 0;
+    virtual void visit(const bool value) = 0;
+    virtual void visit(const Object &value) = 0;
+    virtual void visit(const Arguments &value) = 0;
     virtual void visit(const std::string &value,
                        const Argument_value::String_type st) = 0;
   };
 
  public:
-  Argument_value() {
-    set();
-  }
+  Argument_value() { set(); }
 
-  explicit Argument_value(
-      const std::string &s,
-      const String_type string_type = String_type::TString) {
+  explicit Argument_value(const std::string &s, const String_type string_type =
+                                                    String_type::TString) {
     set(s, get_type(string_type));
   }
 
@@ -91,7 +83,7 @@ class Argument_value {
     set(n);
   }
 
-  template<typename Value_type>
+  template <typename Value_type>
   Argument_value &operator=(const Value_type &value) {
     m_string.clear();
     m_object.clear();
@@ -105,71 +97,69 @@ class Argument_value {
 
   void accept(Argument_visitor *visitor) const {
     switch (m_type) {
-    case Type::TInteger:
-      visitor->visit(m_value.i);
-      return;
+      case Type::TInteger:
+        visitor->visit(m_value.i);
+        return;
 
-    case Type::TUInteger:
-      visitor->visit(m_value.ui);
-      return;
+      case Type::TUInteger:
+        visitor->visit(m_value.ui);
+        return;
 
-    case Type::TNull:
-      visitor->visit();
-      return;
+      case Type::TNull:
+        visitor->visit();
+        return;
 
-    case Type::TDouble:
-      visitor->visit(m_value.d);
-      return;
+      case Type::TDouble:
+        visitor->visit(m_value.d);
+        return;
 
-    case Type::TFloat:
-      visitor->visit(m_value.f);
-      return;
+      case Type::TFloat:
+        visitor->visit(m_value.f);
+        return;
 
-    case Type::TBool:
-      visitor->visit(m_value.b);
-      return;
+      case Type::TBool:
+        visitor->visit(m_value.b);
+        return;
 
-    case Type::TString:
-      visitor->visit(m_string, String_type::TString);
-      return;
+      case Type::TString:
+        visitor->visit(m_string, String_type::TString);
+        return;
 
-    case Type::TOctets:
-      visitor->visit(m_string, String_type::TOctets);
-      return;
+      case Type::TOctets:
+        visitor->visit(m_string, String_type::TOctets);
+        return;
 
-    case Type::TDecimal:
-      visitor->visit(m_string, String_type::TDecimal);
-      return;
+      case Type::TDecimal:
+        visitor->visit(m_string, String_type::TDecimal);
+        return;
 
-    case Type::TArray:
-      visitor->visit(m_array);
-      return;
+      case Type::TArray:
+        visitor->visit(m_array);
+        return;
 
-    case Type::TObject:
-      visitor->visit(m_object);
-      return;
+      case Type::TObject:
+        visitor->visit(m_object);
+        return;
     }
   }
 
  private:
   Type get_type(const String_type type) const {
     switch (type) {
-    case String_type::TString:
-      return Type::TString;
+      case String_type::TString:
+        return Type::TString;
 
-    case String_type::TOctets:
-      return Type::TOctets;
+      case String_type::TOctets:
+        return Type::TOctets;
 
-    case String_type::TDecimal:
-      return Type::TDecimal;
+      case String_type::TDecimal:
+        return Type::TDecimal;
     }
 
     return Type::TNull;
   }
 
-  void set() {
-    m_type = Type::TNull;
-  }
+  void set() { m_type = Type::TNull; }
 
   void set(const std::string &s, Type type = Type::TString) {
     m_type = type;
@@ -201,7 +191,6 @@ class Argument_value {
     m_value.ui = n;
   }
 
-
   void set(const Arguments &arguments) {
     m_type = Type::TArray;
     m_array = arguments;
@@ -212,10 +201,10 @@ class Argument_value {
     m_object = object;
   }
 
-  Type        m_type;
+  Type m_type;
   std::string m_string;
-  Arguments   m_array;
-  Object      m_object;
+  Arguments m_array;
+  Object m_object;
 
   union {
     int64_t i;

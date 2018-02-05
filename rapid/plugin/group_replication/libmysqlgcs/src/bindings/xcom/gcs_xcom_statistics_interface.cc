@@ -27,78 +27,57 @@ using std::max;
 using std::min;
 
 Gcs_xcom_statistics::Gcs_xcom_statistics()
-  :total_messages_sent(0),
-   total_bytes_sent(0),
-   total_messages_received(0),
-   total_bytes_received(0),
-   min_message_length(0),
-   max_message_length(0),
-   last_message_timestamp(0)
-{}
-
+    : total_messages_sent(0),
+      total_bytes_sent(0),
+      total_messages_received(0),
+      total_bytes_received(0),
+      min_message_length(0),
+      max_message_length(0),
+      last_message_timestamp(0) {}
 
 Gcs_xcom_statistics::~Gcs_xcom_statistics() {}
 
-
-long Gcs_xcom_statistics::get_total_messages_sent()
-{
+long Gcs_xcom_statistics::get_total_messages_sent() {
   return total_messages_sent;
 }
 
+long Gcs_xcom_statistics::get_total_bytes_sent() { return total_bytes_sent; }
 
-long Gcs_xcom_statistics::get_total_bytes_sent()
-{
-  return total_bytes_sent;
-}
-
-
-long Gcs_xcom_statistics::get_total_messages_received()
-{
+long Gcs_xcom_statistics::get_total_messages_received() {
   return total_messages_received;
 }
 
-
-long Gcs_xcom_statistics::get_total_bytes_received()
-{
+long Gcs_xcom_statistics::get_total_bytes_received() {
   return total_bytes_received;
 }
 
-
-long Gcs_xcom_statistics::get_min_message_length()
-{
+long Gcs_xcom_statistics::get_min_message_length() {
   return min_message_length;
 }
 
-
-long Gcs_xcom_statistics::get_max_message_length()
-{
+long Gcs_xcom_statistics::get_max_message_length() {
   return max_message_length;
 }
 
-
-long Gcs_xcom_statistics::get_last_message_timestamp()
-{
+long Gcs_xcom_statistics::get_last_message_timestamp() {
   return last_message_timestamp;
 }
 /* purecov: end*/
 
-void Gcs_xcom_statistics::update_message_sent(unsigned long long message_length)
-{
+void Gcs_xcom_statistics::update_message_sent(
+    unsigned long long message_length) {
   total_messages_sent++;
-  total_bytes_sent+= message_length;
+  total_bytes_sent += message_length;
 }
 
-
-void Gcs_xcom_statistics::update_message_received(long message_length)
-{
-  max_message_length= max(max_message_length, message_length);
+void Gcs_xcom_statistics::update_message_received(long message_length) {
+  max_message_length = max(max_message_length, message_length);
 
   // Make the first initialization of min_message_length here
-  if (min_message_length == 0)
-    min_message_length= message_length;
+  if (min_message_length == 0) min_message_length = message_length;
 
-  min_message_length= min(min_message_length, message_length);
+  min_message_length = min(min_message_length, message_length);
 
   total_messages_received++;
-  total_bytes_received+= message_length;
+  total_bytes_received += message_length;
 }

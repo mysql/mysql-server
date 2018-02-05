@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,14 +27,11 @@
 
 #include "processor/block_processor.h"
 
-
 class Comment_processor : public Block_processor {
  public:
   Result feed(std::istream &input, const char *linebuf) override {
-    while(*linebuf) {
-      if (*linebuf != ' ' &&
-          *linebuf != '\t')
-        break;
+    while (*linebuf) {
+      if (*linebuf != ' ' && *linebuf != '\t') break;
 
       ++linebuf;
     }

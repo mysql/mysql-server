@@ -228,13 +228,12 @@ node_address *new_node_address_uuid(u_int n, char *names[], blob uuids[]) {
   node_address *na = calloc((size_t)n, sizeof(node_address));
   init_node_address(na, n, names);
 
-  for(; i < n; i++)
-  {
+  for (; i < n; i++) {
     na[i].uuid.data.data_len = uuids[i].data.data_len;
     na[i].uuid.data.data_val = calloc(uuids[i].data.data_len, sizeof(char));
-    na[i].uuid.data.data_val = strncpy(
-      na[i].uuid.data.data_val, uuids[i].data.data_val, uuids[i].data.data_len
-    );
+    na[i].uuid.data.data_val =
+        strncpy(na[i].uuid.data.data_val, uuids[i].data.data_val,
+                uuids[i].data.data_len);
   }
 
   return na;

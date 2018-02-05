@@ -25,13 +25,12 @@
 
 #include <stddef.h>
 
-#include "sql/mdl.h"    // enum_mdl_duration
+#include "sql/mdl.h"  // enum_mdl_duration
 
 class MDL_ticket;
 class THD;
 
 struct CHARSET_INFO;
-
 
 namespace dd {
 
@@ -59,7 +58,7 @@ bool create_schema(THD *thd, const char *schema_name,
   @return        false if success, true if error.
 */
 bool mdl_lock_schema(THD *thd, const char *schema_name,
-                     enum_mdl_duration duration, MDL_ticket **ticket= nullptr);
+                     enum_mdl_duration duration, MDL_ticket **ticket = nullptr);
 
 /**
   RAII based class to acquire and release schema meta data locks.
@@ -82,16 +81,13 @@ bool mdl_lock_schema(THD *thd, const char *schema_name,
         errors are propagated even when autocommit == 1.
 */
 
-class Schema_MDL_locker
-{
-private:
-  THD *m_thd;              // Thread context.
-  MDL_ticket *m_ticket;    // MDL ticket.
+class Schema_MDL_locker {
+ private:
+  THD *m_thd;            // Thread context.
+  MDL_ticket *m_ticket;  // MDL ticket.
 
-public:
-  Schema_MDL_locker(THD *thd): m_thd(thd), m_ticket(NULL)
-  { }
-
+ public:
+  Schema_MDL_locker(THD *thd) : m_thd(thd), m_ticket(NULL) {}
 
   /**
     Make sure we have an IX meta data lock on the schema name.
@@ -108,7 +104,6 @@ public:
 
   bool ensure_locked(const char *schema_name);
 
-
   /**
     Release the MDL ticket, if any, when the instance of this
     class leaves scope or is deleted.
@@ -117,5 +112,5 @@ public:
   ~Schema_MDL_locker();
 };
 
-} // namespace dd
-#endif // DD_SCHEMA_INCLUDED
+}  // namespace dd
+#endif  // DD_SCHEMA_INCLUDED

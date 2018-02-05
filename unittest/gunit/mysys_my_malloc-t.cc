@@ -29,23 +29,22 @@
 
 namespace mysys_my_malloc_unittest {
 
-TEST(Mysys, Malloc)
-{
+TEST(Mysys, Malloc) {
   void *p;
 
-  p= my_malloc(PSI_NOT_INSTRUMENTED, 0, MYF(0));
+  p = my_malloc(PSI_NOT_INSTRUMENTED, 0, MYF(0));
   EXPECT_TRUE(p != NULL) << "Zero-sized block allocation.";
 
-  p= my_realloc(PSI_NOT_INSTRUMENTED, p, 32, MYF(0));
+  p = my_realloc(PSI_NOT_INSTRUMENTED, p, 32, MYF(0));
   EXPECT_TRUE(p != NULL) << "Reallocated zero-sized block.";
 
-  p= my_realloc(PSI_NOT_INSTRUMENTED, p, 16, MYF(0));
+  p = my_realloc(PSI_NOT_INSTRUMENTED, p, 16, MYF(0));
   EXPECT_TRUE(p != NULL) << "Trimmed block.";
 
   my_free(p);
-  p= NULL;
+  p = NULL;
 
   my_free(p);
 }
 
-}
+}  // namespace mysys_my_malloc_unittest

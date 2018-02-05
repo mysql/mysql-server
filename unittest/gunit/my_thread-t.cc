@@ -30,31 +30,24 @@
 
 namespace my_thread_unittest {
 
-extern "C" void *handle_thread(void*)
-{
+extern "C" void *handle_thread(void *) {
   my_thread_exit(0);
-  return 0; // Avoid compiler warning
+  return 0;  // Avoid compiler warning
 }
 
-
-class ThreadTest : public ::testing::Test
-{
-};
-
+class ThreadTest : public ::testing::Test {};
 
 // Join with running/already finished thread
-TEST(Thread, CreateAndJoin)
-{
+TEST(Thread, CreateAndJoin) {
   my_thread_handle thr;
   my_thread_attr_t thr_attr;
   my_thread_attr_init(&thr_attr);
 #ifdef _WIN32
-  const HANDLE null_thr_handle= NULL;
+  const HANDLE null_thr_handle = NULL;
 #endif
-  int ret, tries=10;
-  while (tries)
-  {
-    ret= my_thread_create(&thr, &thr_attr, handle_thread, 0);
+  int ret, tries = 10;
+  while (tries) {
+    ret = my_thread_create(&thr, &thr_attr, handle_thread, 0);
     EXPECT_EQ(0, ret);
 #ifdef _WIN32
     EXPECT_NE(null_thr_handle, thr.handle);
@@ -66,4 +59,4 @@ TEST(Thread, CreateAndJoin)
   my_thread_attr_destroy(&thr_attr);
 }
 
-}  // namespace
+}  // namespace my_thread_unittest

@@ -77,13 +77,13 @@
 #endif
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
 
 #ifndef _WIN32
 #include <poll.h>
@@ -104,17 +104,16 @@ typedef struct {
   pollfd *pollfd_array_val;
 } pollfd_array;
 
-typedef task_env* task_env_p;
+typedef task_env *task_env_p;
 
 typedef struct {
   u_int task_env_p_array_len;
   task_env_p *task_env_p_array_val;
 } task_env_p_array;
 
-define_xdr_funcs(pollfd)
-define_xdr_funcs(task_env_p)
+define_xdr_funcs(pollfd) define_xdr_funcs(task_env_p)
 
-struct iotasks {
+    struct iotasks {
   int nwait;
   pollfd_array fd;
   task_env_p_array tasks;
@@ -163,8 +162,7 @@ static void task_queue_init(task_queue *q) { q->curn = 0; }
 static void task_queue_debug(task_queue *q) {
   int i;
   GET_GOUT;
-    if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-      return;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
   STRLIT("task_queue_debug ");
   for (i = 1; i <= q->curn; i++) {
     NDBG(i, d);
@@ -596,16 +594,14 @@ static task_env *extract_first_delayed() {
 
 static iotasks iot;
 
-static void iotasks_init(iotasks *iot)
- {
+static void iotasks_init(iotasks *iot) {
   DBGOUT(FN);
   iot->nwait = 0;
   init_pollfd_array(&iot->fd);
   init_task_env_p_array(&iot->tasks);
- }
+}
 
-static void iotasks_deinit(iotasks *iot)
-{
+static void iotasks_deinit(iotasks *iot) {
   DBGOUT(FN);
   iot->nwait = 0;
   free_pollfd_array(&iot->fd);
@@ -625,13 +621,12 @@ static void poll_debug() {
 }
 #endif
 
-static void poll_wakeup(int i)
-{
-  activate(task_unref(get_task_env_p(&iot.tasks,i)));
-  set_task_env_p(&iot.tasks, NULL,i);
+static void poll_wakeup(int i) {
+  activate(task_unref(get_task_env_p(&iot.tasks, i)));
+  set_task_env_p(&iot.tasks, NULL, i);
   iot.nwait--; /* Shrink array of pollfds */
-  set_pollfd(&iot.fd, get_pollfd(&iot.fd,iot.nwait),i);
-  set_task_env_p(&iot.tasks, get_task_env_p(&iot.tasks,iot.nwait),i);
+  set_pollfd(&iot.fd, get_pollfd(&iot.fd, iot.nwait), i);
+  set_task_env_p(&iot.tasks, get_task_env_p(&iot.tasks, iot.nwait), i);
 }
 
 static int poll_wait(int ms) {
@@ -656,13 +651,12 @@ static int poll_wait(int ms) {
     int i = 0;
     int interrupt = 0;
     while (i < iot.nwait) {
-      interrupt =
-        (get_task_env_p(&iot.tasks,i)->time != 0.0 &&
-        get_task_env_p(&iot.tasks,i)->time < task_now());
+      interrupt = (get_task_env_p(&iot.tasks, i)->time != 0.0 &&
+                   get_task_env_p(&iot.tasks, i)->time < task_now());
       if (interrupt || /* timeout ? */
-        get_pollfd(&iot.fd,i).revents) {
+          get_pollfd(&iot.fd, i).revents) {
         /* if(iot.fd[i].revents & POLLERR) abort(); */
-        get_task_env_p(&iot.tasks,i)->interrupt = interrupt;
+        get_task_env_p(&iot.tasks, i)->interrupt = interrupt;
         poll_wakeup(i);
         wake = 1;
       } else {
@@ -693,7 +687,7 @@ static void add_fd(task_env *t, int fd, int op) {
 
 void unpoll(int i) {
   task_unref(get_task_env_p(&iot.tasks, i));
-  set_task_env_p(&iot.tasks, NULL,i);
+  set_task_env_p(&iot.tasks, NULL, i);
   {
     pollfd x;
     x.fd = -1;
@@ -706,7 +700,7 @@ void unpoll(int i) {
 static void wake_all_io() {
   int i;
   for (i = 0; i < iot.nwait; i++) {
-    activate(get_task_env_p(&iot.tasks,i));
+    activate(get_task_env_p(&iot.tasks, i));
     unpoll(i);
   }
   iot.nwait = 0;
@@ -716,7 +710,7 @@ void remove_and_wakeup(int fd) {
   int i = 0;
   MAY_DBG(FN; NDBG(fd, d));
   while (i < iot.nwait) {
-    if (get_pollfd(&iot.fd,i).fd == fd) {
+    if (get_pollfd(&iot.fd, i).fd == fd) {
       poll_wakeup(i);
     } else {
       i++;
@@ -902,12 +896,12 @@ int unblock_fd(int fd) {
   x = fcntl(fd, F_SETFL, x | O_NONBLOCK);
 #else
   /**
-             * On windows we toggle the FIONBIO flag directly
-             *
-             * Undocumented in MSDN:
-             * Calling ioctlsocket(FIONBIO) to an already set state
-             * seems to return -1 and WSAGetLastError() == 0.
-             */
+   * On windows we toggle the FIONBIO flag directly
+   *
+   * Undocumented in MSDN:
+   * Calling ioctlsocket(FIONBIO) to an already set state
+   * seems to return -1 and WSAGetLastError() == 0.
+   */
   u_long nonblocking = 1; /** !0 == non-blocking */
   int x = ioctlsocket(fd, FIONBIO, &nonblocking);
 #endif
@@ -920,12 +914,12 @@ int block_fd(int fd) {
   x = fcntl(fd, F_SETFL, x & ~O_NONBLOCK);
 #else
   /**
-             * On windows we toggle the FIONBIO flag directly.
-             *
-             * Undocumented in MSDN:
-             * Calling ioctlsocket(FIONBIO) to an already set state seems to
-             * return -1 and WSAGetLastError() == 0.
-             */
+   * On windows we toggle the FIONBIO flag directly.
+   *
+   * Undocumented in MSDN:
+   * Calling ioctlsocket(FIONBIO) to an already set state seems to
+   * return -1 and WSAGetLastError() == 0.
+   */
   u_long nonblocking = 0; /** 0 == blocking */
   int x = ioctlsocket(fd, FIONBIO, &nonblocking);
 #endif
@@ -950,16 +944,15 @@ static int msdiff(double time) {
 
 static should_exit_getter get_should_exit;
 
-void set_should_exit_getter(should_exit_getter x)  { get_should_exit = x; }
+void set_should_exit_getter(should_exit_getter x) { get_should_exit = x; }
 
 static double idle_time = 0.0;
 void task_loop() {
   task_env *t = 0;
   /* While there are tasks */
   for (;;) {
-    //check forced exit callback
-    if(get_should_exit())
-    {
+    // check forced exit callback
+    if (get_should_exit()) {
       xcom_fsm(xa_exit, int_arg(0));
     }
 
@@ -1066,8 +1059,7 @@ static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
 static void print_sockaddr(struct sockaddr *a) {
   u_int i;
   GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-    return;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
   NDBG(a->sa_family, u);
   NDBG(a->sa_family, d);
   STRLIT(" data ");
@@ -1233,8 +1225,7 @@ result announce_tcp(xcom_port port) {
               fd.val, err);
     goto err;
   }
-  G_DEBUG("Successfully bound to %s:%d (socket=%d).", "0.0.0.0", port,
-            fd.val);
+  G_DEBUG("Successfully bound to %s:%d (socket=%d).", "0.0.0.0", port, fd.val);
   if (listen(fd.val, 32) < 0) {
     int err = to_errno(GET_OS_ERR);
     G_MESSAGE(
@@ -1354,9 +1345,7 @@ void task_sys_init() {
              /* task_new(statistics_task, null_arg, "statistics_task", 1);  */
 }
 
-
-static void task_sys_deinit()
-{
+static void task_sys_deinit() {
   DBGOUT(FN);
   iotasks_deinit(&iot);
 }

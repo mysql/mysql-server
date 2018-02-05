@@ -22,43 +22,37 @@
 
 #include "plugin/group_replication/include/gcs_logger.h"
 
-#include "my_dbug.h"
-#include <mysqld_error.h>
 #include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
+#include "my_dbug.h"
 
-enum_gcs_error Gcs_gr_logger_impl::initialize()
-{
+enum_gcs_error Gcs_gr_logger_impl::initialize() {
   DBUG_ENTER("Gcs_gr_logger_impl::initialize");
   DBUG_RETURN(GCS_OK);
 }
 
-enum_gcs_error Gcs_gr_logger_impl::finalize()
-{
+enum_gcs_error Gcs_gr_logger_impl::finalize() {
   DBUG_ENTER("Gcs_gr_logger_impl::finalize");
   DBUG_RETURN(GCS_OK);
 }
 
 void Gcs_gr_logger_impl::log_event(const gcs_log_level_t level,
-                                   const std::string &message)
-{
+                                   const std::string &message) {
   DBUG_ENTER("Gcs_gr_logger_impl::log_event");
 
-  switch (level)
-  {
+  switch (level) {
     case GCS_INFO:
       LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG,
                    message.c_str());
       break;
 
     case GCS_WARN:
-      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG,
-                   message.c_str());
+      LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG, message.c_str());
       break;
 
     case GCS_ERROR:
     case GCS_FATAL:
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG,
-                   message.c_str());
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_GR_ERROR_MSG, message.c_str());
       break;
 
     default:

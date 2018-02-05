@@ -26,41 +26,35 @@
 
 Single_primary_message::Single_primary_message(Single_primary_message_type type)
     : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE),
-      single_primary_message_type(type)
-{
-}
+      single_primary_message_type(type) {}
 
-Single_primary_message::~Single_primary_message()
-{
-}
+Single_primary_message::~Single_primary_message() {}
 
-Single_primary_message::Single_primary_message(const uchar* buf, size_t len)
-    : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE)
-{
+Single_primary_message::Single_primary_message(const uchar *buf, size_t len)
+    : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE) {
   decode(buf, len);
 }
 
-void Single_primary_message::decode_payload(const unsigned char* buffer,
-                                            const unsigned char*)
-{
+void Single_primary_message::decode_payload(const unsigned char *buffer,
+                                            const unsigned char *) {
   DBUG_ENTER("Single_primary_message::decode_payload");
-  const unsigned char *slider= buffer;
-  uint16 payload_item_type= 0;
+  const unsigned char *slider = buffer;
+  uint16 payload_item_type = 0;
 
-  uint16 single_primary_message_type_aux= 0;
-  decode_payload_item_int2(&slider,
-                           &payload_item_type,
+  uint16 single_primary_message_type_aux = 0;
+  decode_payload_item_int2(&slider, &payload_item_type,
                            &single_primary_message_type_aux);
-  single_primary_message_type= (Single_primary_message_type)single_primary_message_type_aux;
+  single_primary_message_type =
+      (Single_primary_message_type)single_primary_message_type_aux;
 
   DBUG_VOID_RETURN;
 }
 
-void Single_primary_message::encode_payload(std::vector<unsigned char>* buffer) const
-{
+void Single_primary_message::encode_payload(
+    std::vector<unsigned char> *buffer) const {
   DBUG_ENTER("Single_primary_message::encode_payload");
 
-  uint16 single_primary_message_type_aux= (uint16)single_primary_message_type;
+  uint16 single_primary_message_type_aux = (uint16)single_primary_message_type;
   encode_payload_item_int2(buffer, PIT_SINGLE_PRIMARY_MESSAGE_TYPE,
                            single_primary_message_type_aux);
 

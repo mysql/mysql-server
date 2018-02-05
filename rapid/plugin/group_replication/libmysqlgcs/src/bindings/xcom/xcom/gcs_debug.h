@@ -63,21 +63,18 @@ extern xcom_logger xcom_log;
 extern xcom_debugger xcom_debug;
 extern xcom_debugger_check xcom_debug_check;
 
-
 /**
   Prints the logging messages to the console. It is invoked when no logger
   callback was set by an upper layer.
 */
 void xcom_default_log(const int64_t l, const char *msg);
 
-
 /**
   Prints the logging messages to the console. It is invoked when no debugger
   callback was set by an upper layer.
 */
 void xcom_default_debug(const char *format, ...)
-                         MY_ATTRIBUTE((format(printf, 1, 2)));
-
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
   Check whether a set of debug and trace options are enabled. It is invoked
@@ -85,13 +82,11 @@ void xcom_default_debug(const char *format, ...)
 */
 int xcom_default_debug_check(const int64_t options);
 
-
 /**
   Define the set of debug and trace options that are enabled if there
   is no debugger check injected.
 */
 extern int64_t xcom_debug_options;
-
 
 /**
   Concatenates two strings and returns pointer to last character of final
@@ -146,21 +141,20 @@ char *mystrcat_sprintf(char *dest, int *size, const char *format, ...)
 #define PRINT_GOUT xcom_debug("%s", xcom_log_buffer)
 #define RET_GOUT return xcom_log_buffer
 
-#define G_LOG_LEVEL(level, ...)  \
-  {                              \
-    GET_GOUT;                    \
-    ADD_F_GOUT(__VA_ARGS__);     \
-    PRINT_LOUT(level);           \
-    FREE_GOUT;                   \
+#define G_LOG_LEVEL(level, ...) \
+  {                             \
+    GET_GOUT;                   \
+    ADD_F_GOUT(__VA_ARGS__);    \
+    PRINT_LOUT(level);          \
+    FREE_GOUT;                  \
   }
 
 #ifndef XCOM_STANDALONE
-#define G_DEBUG_LEVEL(level, ...)     \
-  {                                   \
-    if (IS_XCOM_DEBUG_WITH(level))    \
-    {                                 \
-      xcom_debug(__VA_ARGS__);        \
-    }                                 \
+#define G_DEBUG_LEVEL(level, ...)    \
+  {                                  \
+    if (IS_XCOM_DEBUG_WITH(level)) { \
+      xcom_debug(__VA_ARGS__);       \
+    }                                \
   }
 #else
 #define G_DEBUG_LEVEL(level, ...)    \
@@ -174,36 +168,37 @@ char *mystrcat_sprintf(char *dest, int *size, const char *format, ...)
   }
 #endif /* XCOM_STANDALONE */
 
-#define g_critical(...) G_LOG_LEVEL(XCOM_LOG_FATAL,__VA_ARGS__)
-#define G_ERROR(...)    G_LOG_LEVEL(XCOM_LOG_ERROR,__VA_ARGS__)
-#define G_WARNING(...)  G_LOG_LEVEL(XCOM_LOG_WARN,__VA_ARGS__)
-#define G_MESSAGE(...)  G_LOG_LEVEL(XCOM_LOG_INFO, __VA_ARGS__)
-#define G_INFO(...)     G_LOG_LEVEL(XCOM_LOG_INFO, __VA_ARGS__)
-#define G_DEBUG(...)    G_DEBUG_LEVEL(XCOM_DEBUG_BASIC | XCOM_DEBUG_TRACE, __VA_ARGS__)
-#define G_TRACE(...)    G_DEBUG_LEVEL(XCOM_DEBUG_TRACE, __VA_ARGS__)
+#define g_critical(...) G_LOG_LEVEL(XCOM_LOG_FATAL, __VA_ARGS__)
+#define G_ERROR(...) G_LOG_LEVEL(XCOM_LOG_ERROR, __VA_ARGS__)
+#define G_WARNING(...) G_LOG_LEVEL(XCOM_LOG_WARN, __VA_ARGS__)
+#define G_MESSAGE(...) G_LOG_LEVEL(XCOM_LOG_INFO, __VA_ARGS__)
+#define G_INFO(...) G_LOG_LEVEL(XCOM_LOG_INFO, __VA_ARGS__)
+#define G_DEBUG(...) \
+  G_DEBUG_LEVEL(XCOM_DEBUG_BASIC | XCOM_DEBUG_TRACE, __VA_ARGS__)
+#define G_TRACE(...) G_DEBUG_LEVEL(XCOM_DEBUG_TRACE, __VA_ARGS__)
 #define IS_XCOM_DEBUG_WITH(level) xcom_debug_check(level)
 
 #if TASK_DBUG_ON
-#define DBGOHK(x)                                  \
-  do {                                             \
-    if (IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) {    \
-      GET_GOUT;                                    \
-      ADD_F_GOUT("%f ", task_now());               \
-      NEXP(get_nodeno(get_site_def()), u);         \
-      x;                                           \
-      PRINT_GOUT;                                  \
-      FREE_GOUT;                                   \
-    }                                              \
+#define DBGOHK(x)                               \
+  do {                                          \
+    if (IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) { \
+      GET_GOUT;                                 \
+      ADD_F_GOUT("%f ", task_now());            \
+      NEXP(get_nodeno(get_site_def()), u);      \
+      x;                                        \
+      PRINT_GOUT;                               \
+      FREE_GOUT;                                \
+    }                                           \
   } while (0)
-#define DBGOUT(x)                                  \
-  do {                                             \
-    if (IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) {    \
-      GET_GOUT;                                    \
-      ADD_F_GOUT("%f ", task_now());               \
-      x;                                           \
-      PRINT_GOUT;                                  \
-      FREE_GOUT;                                   \
-   }                                               \
+#define DBGOUT(x)                               \
+  do {                                          \
+    if (IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) { \
+      GET_GOUT;                                 \
+      ADD_F_GOUT("%f ", task_now());            \
+      x;                                        \
+      PRINT_GOUT;                               \
+      FREE_GOUT;                                \
+    }                                           \
   } while (0)
 #define MAY_DBG(x) DBGOUT(x)
 #else
@@ -230,8 +225,10 @@ char *mystrcat_sprintf(char *dest, int *size, const char *format, ...)
 #define NDBG(x, f)      \
   ADD_F_GOUT(#x " = "); \
   NPUT(x, f)
-#define NDBG64(x) ADD_F_GOUT(#x " = "); NPUT64(x);
-#define NPUT64(x) ADD_F_GOUT("%" PRIu64 " ",x)
+#define NDBG64(x)       \
+  ADD_F_GOUT(#x " = "); \
+  NPUT64(x);
+#define NPUT64(x) ADD_F_GOUT("%" PRIu64 " ", x)
 #define NEXP(x, f) ADD_F_GOUT(#x ": %" #f " ", x)
 #define NUMEXP(x) NEXP(x, d)
 #define g_strerror strerror

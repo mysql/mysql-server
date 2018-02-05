@@ -107,9 +107,8 @@
 
   @endcode
 */
-class Gcs_control_interface
-{
-public:
+class Gcs_control_interface {
+ public:
   /**
     Method that causes one to join the group that this
     interface pertains.
@@ -122,8 +121,7 @@ public:
             gcs_error in case of error.
    */
 
-  virtual enum_gcs_error join()= 0;
-
+  virtual enum_gcs_error join() = 0;
 
   /**
     Method that causes one to leave the group that this
@@ -137,8 +135,7 @@ public:
             gcs_error in case of error
    */
 
-  virtual enum_gcs_error leave()= 0;
-
+  virtual enum_gcs_error leave() = 0;
 
   /**
     Reports if one has joined and belongs to a group.
@@ -146,8 +143,7 @@ public:
     @retval true if belonging to a group
   */
 
-  virtual bool belongs_to_group()= 0;
-
+  virtual bool belongs_to_group() = 0;
 
   /**
     Returns the currently installed view.
@@ -160,8 +156,7 @@ public:
     @retval - NULL if one never joined a group.
   */
 
-  virtual Gcs_view *get_current_view()= 0;
-
+  virtual Gcs_view *get_current_view() = 0;
 
   /**
     Retrieves the local identifier of this member on a group.
@@ -170,8 +165,7 @@ public:
     @retval - NULL in case of error
   */
 
-  virtual const Gcs_member_identifier get_local_member_identifier() const= 0;
-
+  virtual const Gcs_member_identifier get_local_member_identifier() const = 0;
 
   /**
     Registers an implementation of a Gcs_control_event_listener that will
@@ -187,9 +181,8 @@ public:
             be used in remove_event_listener
   */
 
-  virtual int
-  add_event_listener(const Gcs_control_event_listener &event_listener)= 0;
-
+  virtual int add_event_listener(
+      const Gcs_control_event_listener &event_listener) = 0;
 
   /**
     Removes a previously registered event listener.
@@ -202,10 +195,9 @@ public:
                                      registered
    */
 
-  virtual void remove_event_listener(int event_listener_handle)= 0;
-
+  virtual void remove_event_listener(int event_listener_handle) = 0;
 
   virtual ~Gcs_control_interface() {}
 };
 
-#endif // GCS_CONTROL_INTERFACE_INCLUDED
+#endif  // GCS_CONTROL_INTERFACE_INCLUDED

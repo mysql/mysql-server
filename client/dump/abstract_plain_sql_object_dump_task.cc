@@ -27,8 +27,7 @@
 using namespace Mysql::Tools::Dump;
 
 Abstract_plain_sql_object_dump_task::Abstract_plain_sql_object_dump_task(
-  uint64 id, const std::string& name, const std::string& schema,
-  const std::string& sql_formatted_definition)
-  : Abstract_plain_sql_object(id, name, schema, sql_formatted_definition),
-  Abstract_dump_task((Abstract_data_object*)this)
-{}
+    uint64 id, const std::string &name, const std::string &schema,
+    const std::string &sql_formatted_definition)
+    : Abstract_plain_sql_object(id, name, schema, sql_formatted_definition),
+      Abstract_dump_task((Abstract_data_object *)this) {}

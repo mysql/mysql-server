@@ -28,29 +28,27 @@
 #include "my_io.h"
 #include "plugin/keyring/common/logger.h"
 
-namespace keyring
-{
-  class File_io
-  {
-  public:
-    File_io(ILogger *logger) : logger(logger)
-    {}
+namespace keyring {
+class File_io {
+ public:
+  File_io(ILogger *logger) : logger(logger) {}
 
-    File open(PSI_file_key file_data_key, const char *filename, int flags,
-              myf myFlags);
-    int close(File file, myf myFlags);
-    size_t read(File file, uchar *buffer, size_t count, myf myFlags);
-    size_t write(File file, const uchar *buffer, size_t count, myf myFlags);
-    my_off_t seek(File file, my_off_t pos, int whence, myf flags);
-    my_off_t tell(File file, myf flags);
-    int fstat(File file, MY_STAT *stat_area, myf myFlags);
-    int sync(File file, myf myFlags);
-    bool truncate(File file, myf myFlags);
-    bool remove(const char *filename, myf myFlags);
-  protected:
-    ILogger *logger;
+  File open(PSI_file_key file_data_key, const char *filename, int flags,
+            myf myFlags);
+  int close(File file, myf myFlags);
+  size_t read(File file, uchar *buffer, size_t count, myf myFlags);
+  size_t write(File file, const uchar *buffer, size_t count, myf myFlags);
+  my_off_t seek(File file, my_off_t pos, int whence, myf flags);
+  my_off_t tell(File file, myf flags);
+  int fstat(File file, MY_STAT *stat_area, myf myFlags);
+  int sync(File file, myf myFlags);
+  bool truncate(File file, myf myFlags);
+  bool remove(const char *filename, myf myFlags);
 
-    void my_warning(int nr, ...);
-  };
-} //namespace keyring
-#endif //MYSQL_FILE_IO_H
+ protected:
+  ILogger *logger;
+
+  void my_warning(int nr, ...);
+};
+}  // namespace keyring
+#endif  // MYSQL_FILE_IO_H

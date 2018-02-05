@@ -83,8 +83,7 @@ struct PFS_user;
 struct PFS_account;
 
 /** Base structure for wait instruments. */
-struct PFS_instr
-{
+struct PFS_instr {
   /** Internal lock. */
   pfs_lock m_lock;
   /** Enabled flag. */
@@ -96,8 +95,7 @@ struct PFS_instr
 };
 
 /** Instrumented mutex implementation. @see PSI_mutex. */
-struct PFS_ALIGNED PFS_mutex : public PFS_instr
-{
+struct PFS_ALIGNED PFS_mutex : public PFS_instr {
   /** Mutex identity, typically a @c pthread_mutex_t. */
   const void *m_identity;
   /** Mutex class. */
@@ -114,8 +112,7 @@ struct PFS_ALIGNED PFS_mutex : public PFS_instr
 };
 
 /** Instrumented rwlock implementation. @see PSI_rwlock. */
-struct PFS_ALIGNED PFS_rwlock : public PFS_instr
-{
+struct PFS_ALIGNED PFS_rwlock : public PFS_instr {
   /** RWLock identity, typically a @c pthread_rwlock_t. */
   const void *m_identity;
   /** RWLock class. */
@@ -139,8 +136,7 @@ struct PFS_ALIGNED PFS_rwlock : public PFS_instr
 };
 
 /** Instrumented condition implementation. @see PSI_cond. */
-struct PFS_ALIGNED PFS_cond : public PFS_instr
-{
+struct PFS_ALIGNED PFS_cond : public PFS_instr {
   /** Condition identity, typically a @c pthread_cond_t. */
   const void *m_identity;
   /** Condition class. */
@@ -150,13 +146,8 @@ struct PFS_ALIGNED PFS_cond : public PFS_instr
 };
 
 /** Instrumented File and FILE implementation. @see PSI_file. */
-struct PFS_ALIGNED PFS_file : public PFS_instr
-{
-  uint32
-  get_version()
-  {
-    return m_lock.get_version();
-  }
+struct PFS_ALIGNED PFS_file : public PFS_instr {
+  uint32 get_version() { return m_lock.get_version(); }
 
   /** File identity */
   const void *m_identity;
@@ -173,8 +164,7 @@ struct PFS_ALIGNED PFS_file : public PFS_instr
 };
 
 /** Instrumented table implementation. @see PSI_table. */
-struct PFS_ALIGNED PFS_table
-{
+struct PFS_ALIGNED PFS_table {
   /**
     True if table I/O instrumentation is enabled.
     This flag is computed.
@@ -202,22 +192,18 @@ struct PFS_ALIGNED PFS_table
   /** True if table lock statistics have been collected. */
   bool m_has_lock_stats;
 
-public:
+ public:
   /**
     Aggregate this table handle statistics to the parents.
     Only use this method for handles owned by the calling code.
     @sa sanitized_aggregate.
   */
-  void
-  aggregate(const TABLE_SHARE *server_share)
-  {
-    if (m_has_io_stats)
-    {
+  void aggregate(const TABLE_SHARE *server_share) {
+    if (m_has_io_stats) {
       safe_aggregate_io(server_share, &m_table_stat, m_share);
       m_has_io_stats = false;
     }
-    if (m_has_lock_stats)
-    {
+    if (m_has_lock_stats) {
       safe_aggregate_lock(&m_table_stat, m_share);
       m_has_lock_stats = false;
     }
@@ -263,7 +249,7 @@ public:
   /** Container page. */
   PFS_opaque_container_page *m_page;
 
-private:
+ private:
   static void safe_aggregate_io(const TABLE_SHARE *optional_server_share,
                                 PFS_table_stat *stat,
                                 PFS_table_share *safe_share);
@@ -272,13 +258,8 @@ private:
 };
 
 /** Instrumented socket implementation. @see PSI_socket. */
-struct PFS_ALIGNED PFS_socket : public PFS_instr
-{
-  uint32
-  get_version()
-  {
-    return m_lock.get_version();
-  }
+struct PFS_ALIGNED PFS_socket : public PFS_instr {
+  uint32 get_version() { return m_lock.get_version(); }
 
   /** Socket identity, typically int */
   const void *m_identity;
@@ -299,13 +280,8 @@ struct PFS_ALIGNED PFS_socket : public PFS_instr
 };
 
 /** Instrumented metadata lock implementation. @see PSI_metadata_lock. */
-struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr
-{
-  uint32
-  get_version()
-  {
-    return m_lock.get_version();
-  }
+struct PFS_ALIGNED PFS_metadata_lock : public PFS_instr {
+  uint32 get_version() { return m_lock.get_version(); }
 
   /** Lock identity. */
   const void *m_identity;
@@ -361,8 +337,7 @@ extern size_t pfs_max_digest_length;
 extern size_t pfs_max_sqltext;
 
 /** Instrumented thread implementation. @see PSI_thread. */
-struct PFS_ALIGNED PFS_thread : PFS_connection_slice
-{
+struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   static PFS_thread *get_current_thread(void);
 
   /** Thread instrumentation flag. */
@@ -672,15 +647,9 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
 
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
-  void
-  set_enabled(bool enabled)
-  {
-    m_enabled = enabled;
-  }
+  void set_enabled(bool enabled) { m_enabled = enabled; }
 
-  void
-  set_history(bool history)
-  {
+  void set_history(bool history) {
     m_history = history;
     set_history_derived_flags();
   }
@@ -695,28 +664,20 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   */
   PFS_memory_safe_stat *m_instr_class_memory_stats;
 
-  void
-  set_instr_class_memory_stats(PFS_memory_safe_stat *array)
-  {
+  void set_instr_class_memory_stats(PFS_memory_safe_stat *array) {
     m_has_memory_stats = false;
     m_instr_class_memory_stats = array;
   }
 
-  const PFS_memory_safe_stat *
-  read_instr_class_memory_stats() const
-  {
-    if (!m_has_memory_stats)
-    {
+  const PFS_memory_safe_stat *read_instr_class_memory_stats() const {
+    if (!m_has_memory_stats) {
       return NULL;
     }
     return m_instr_class_memory_stats;
   }
 
-  PFS_memory_safe_stat *
-  write_instr_class_memory_stats()
-  {
-    if (!m_has_memory_stats)
-    {
+  PFS_memory_safe_stat *write_instr_class_memory_stats() {
+    if (!m_has_memory_stats) {
       rebase_memory_stats();
       m_has_memory_stats = true;
     }
@@ -750,46 +711,34 @@ void destroy_rwlock(PFS_rwlock *pfs);
 PFS_cond *create_cond(PFS_cond_class *klass, const void *identity);
 void destroy_cond(PFS_cond *pfs);
 
-PFS_thread *create_thread(PFS_thread_class *klass,
-                          const void *identity,
+PFS_thread *create_thread(PFS_thread_class *klass, const void *identity,
                           ulonglong processlist_id);
 
 PFS_thread *find_thread(ulonglong thread_id);
 
 void destroy_thread(PFS_thread *pfs);
 
-PFS_file *find_or_create_file(PFS_thread *thread,
-                              PFS_file_class *klass,
-                              const char *filename,
-                              uint len,
-                              bool create);
+PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
+                              const char *filename, uint len, bool create);
 
-void find_and_rename_file(PFS_thread *thread,
-                          const char *old_filename,
-                          uint old_len,
-                          const char *new_filename,
-                          uint new_len);
+void find_and_rename_file(PFS_thread *thread, const char *old_filename,
+                          uint old_len, const char *new_filename, uint new_len);
 
 void release_file(PFS_file *pfs);
 void destroy_file(PFS_thread *thread, PFS_file *pfs);
-PFS_table *create_table(PFS_table_share *share,
-                        PFS_thread *opening_thread,
+PFS_table *create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);
 
-PFS_socket *create_socket(PFS_socket_class *socket_class,
-                          const my_socket *fd,
-                          const struct sockaddr *addr,
-                          socklen_t addr_len);
+PFS_socket *create_socket(PFS_socket_class *socket_class, const my_socket *fd,
+                          const struct sockaddr *addr, socklen_t addr_len);
 void destroy_socket(PFS_socket *pfs);
 
-PFS_metadata_lock *create_metadata_lock(void *identity,
-                                        const MDL_key *mdl_key,
+PFS_metadata_lock *create_metadata_lock(void *identity, const MDL_key *mdl_key,
                                         opaque_mdl_type mdl_type,
                                         opaque_mdl_duration mdl_duration,
                                         opaque_mdl_status mdl_status,
-                                        const char *src_file,
-                                        uint src_line);
+                                        const char *src_file, uint src_line);
 void destroy_metadata_lock(PFS_metadata_lock *pfs);
 
 /* For iterators and show status. */
@@ -843,55 +792,36 @@ void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array_1,
                           PFS_error_stat *to_array_2);
 
-void aggregate_all_memory(bool alive,
-                          PFS_memory_safe_stat *from_array,
+void aggregate_all_memory(bool alive, PFS_memory_safe_stat *from_array,
                           PFS_memory_shared_stat *to_array);
-void aggregate_all_memory(bool alive,
-                          PFS_memory_shared_stat *from_array,
+void aggregate_all_memory(bool alive, PFS_memory_shared_stat *from_array,
                           PFS_memory_shared_stat *to_array);
-void aggregate_all_memory(bool alive,
-                          PFS_memory_safe_stat *from_array,
+void aggregate_all_memory(bool alive, PFS_memory_safe_stat *from_array,
                           PFS_memory_shared_stat *to_array_1,
                           PFS_memory_shared_stat *to_array_2);
-void aggregate_all_memory(bool alive,
-                          PFS_memory_shared_stat *from_array,
+void aggregate_all_memory(bool alive, PFS_memory_shared_stat *from_array,
                           PFS_memory_shared_stat *to_array_1,
                           PFS_memory_shared_stat *to_array_2);
 
-void aggregate_thread(PFS_thread *thread,
-                      PFS_account *safe_account,
-                      PFS_user *safe_user,
-                      PFS_host *safe_host);
-void aggregate_thread_waits(PFS_thread *thread,
-                            PFS_account *safe_account,
-                            PFS_user *safe_user,
-                            PFS_host *safe_host);
-void aggregate_thread_stages(PFS_thread *thread,
-                             PFS_account *safe_account,
-                             PFS_user *safe_user,
-                             PFS_host *safe_host);
-void aggregate_thread_statements(PFS_thread *thread,
-                                 PFS_account *safe_account,
-                                 PFS_user *safe_user,
-                                 PFS_host *safe_host);
+void aggregate_thread(PFS_thread *thread, PFS_account *safe_account,
+                      PFS_user *safe_user, PFS_host *safe_host);
+void aggregate_thread_waits(PFS_thread *thread, PFS_account *safe_account,
+                            PFS_user *safe_user, PFS_host *safe_host);
+void aggregate_thread_stages(PFS_thread *thread, PFS_account *safe_account,
+                             PFS_user *safe_user, PFS_host *safe_host);
+void aggregate_thread_statements(PFS_thread *thread, PFS_account *safe_account,
+                                 PFS_user *safe_user, PFS_host *safe_host);
 void aggregate_thread_transactions(PFS_thread *thread,
                                    PFS_account *safe_account,
-                                   PFS_user *safe_user,
-                                   PFS_host *safe_host);
-void aggregate_thread_errors(PFS_thread *thread,
-                             PFS_account *safe_account,
-                             PFS_user *safe_user,
-                             PFS_host *safe_host);
-void aggregate_thread_memory(bool alive,
-                             PFS_thread *thread,
-                             PFS_account *safe_account,
-                             PFS_user *safe_user,
+                                   PFS_user *safe_user, PFS_host *safe_host);
+void aggregate_thread_errors(PFS_thread *thread, PFS_account *safe_account,
+                             PFS_user *safe_user, PFS_host *safe_host);
+void aggregate_thread_memory(bool alive, PFS_thread *thread,
+                             PFS_account *safe_account, PFS_user *safe_user,
                              PFS_host *safe_host);
 
-void aggregate_thread_status(PFS_thread *thread,
-                             PFS_account *safe_account,
-                             PFS_user *safe_user,
-                             PFS_host *safe_host);
+void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
+                             PFS_user *safe_user, PFS_host *safe_host);
 
 void clear_thread_account(PFS_thread *thread);
 void set_thread_account(PFS_thread *thread);

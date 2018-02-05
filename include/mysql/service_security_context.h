@@ -36,9 +36,9 @@
 #ifdef __cplusplus
 class Security_context;
 /** an opaque class reference hiding the actual security context object. */
-#define MYSQL_SECURITY_CONTEXT Security_context*
+#define MYSQL_SECURITY_CONTEXT Security_context *
 #else
-#define MYSQL_SECURITY_CONTEXT void*
+#define MYSQL_SECURITY_CONTEXT void *
 #endif
 typedef char my_svc_bool;
 
@@ -73,12 +73,14 @@ extern "C" struct security_context_service_st {
     Retrieves a handle to the current security context for a thread.
     @sa ::thd_get_security_context
   */
-  my_svc_bool (*thd_get_security_context)(MYSQL_THD, MYSQL_SECURITY_CONTEXT *out_ctx);
+  my_svc_bool (*thd_get_security_context)(MYSQL_THD,
+                                          MYSQL_SECURITY_CONTEXT *out_ctx);
   /**
     Sets a new security context for a thread
     @sa ::thd_set_security_context
   */
-  my_svc_bool (*thd_set_security_context)(MYSQL_THD, MYSQL_SECURITY_CONTEXT in_ctx);
+  my_svc_bool (*thd_set_security_context)(MYSQL_THD,
+                                          MYSQL_SECURITY_CONTEXT in_ctx);
 
   /**
     Creates a new security context
@@ -94,7 +96,8 @@ extern "C" struct security_context_service_st {
     Creates a copy of a security context
     @sa ::security_context_copy
   */
-  my_svc_bool (*security_context_copy)(MYSQL_SECURITY_CONTEXT in_ctx, MYSQL_SECURITY_CONTEXT *out_ctx);
+  my_svc_bool (*security_context_copy)(MYSQL_SECURITY_CONTEXT in_ctx,
+                                       MYSQL_SECURITY_CONTEXT *out_ctx);
 
   /**
     Fills in a security context with the attributes of a user account
@@ -108,13 +111,16 @@ extern "C" struct security_context_service_st {
     Retrieves the value for a named attribute of a security context
     @sa ::security_context_get_option
   */
-  my_svc_bool (*security_context_get_option)(MYSQL_SECURITY_CONTEXT, const char *name, void *inout_pvalue);
+  my_svc_bool (*security_context_get_option)(MYSQL_SECURITY_CONTEXT,
+                                             const char *name,
+                                             void *inout_pvalue);
   /**
     Sets a new value for a named attribute of a security context
     @sa ::security_context_set_option
   */
-  my_svc_bool (*security_context_set_option)(MYSQL_SECURITY_CONTEXT, const char *name, void *pvalue);
-} *security_context_service;
+  my_svc_bool (*security_context_set_option)(MYSQL_SECURITY_CONTEXT,
+                                             const char *name, void *pvalue);
+} * security_context_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
@@ -128,7 +134,7 @@ extern "C" struct security_context_service_st {
 #define security_context_destroy(_CTX) \
   security_context_service->security_context_destroy(_CTX)
 #define security_context_copy(_CTX1, _CTX2) \
-  security_context_service->security_context_copy(_CTX1,_CTX2)
+  security_context_service->security_context_copy(_CTX1, _CTX2)
 
 #define security_context_lookup(_CTX, _U, _H, _IP, _DB) \
   security_context_service->security_context_lookup(_CTX, _U, _H, _IP, _DB)
@@ -138,19 +144,23 @@ extern "C" struct security_context_service_st {
 #define security_context_set_option(_SEC_CTX, _NAME, _VALUE) \
   security_context_service->security_context_set_option(_SEC_CTX, _NAME, _VALUE)
 #else
-  my_svc_bool thd_get_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT *out_ctx);
-  my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT in_ctx);
+my_svc_bool thd_get_security_context(MYSQL_THD,
+                                     MYSQL_SECURITY_CONTEXT *out_ctx);
+my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT in_ctx);
 
-  my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *out_ctx);
-  my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT ctx);
-  my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx, MYSQL_SECURITY_CONTEXT *out_ctx);
+my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *out_ctx);
+my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT ctx);
+my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
+                                  MYSQL_SECURITY_CONTEXT *out_ctx);
 
-  my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
-                                  const char *user, const char *host,
-                                  const char *ip, const char *db);
+my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
+                                    const char *user, const char *host,
+                                    const char *ip, const char *db);
 
-  my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT, const char *name, void *inout_pvalue);
-  my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT, const char *name, void *pvalue);
+my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT,
+                                        const char *name, void *inout_pvalue);
+my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT,
+                                        const char *name, void *pvalue);
 #endif /* !MYSQL_DYNAMIC_PLUGIN */
 
 #endif /* !MYSQL_SERVICE_SECURITY_CONTEXT */

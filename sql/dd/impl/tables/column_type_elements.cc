@@ -25,31 +25,27 @@
 #include <new>
 
 #include "my_dbug.h"
-#include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
+#include "sql/dd/impl/raw/object_keys.h"       // Parent_id_range_key
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
-#include "sql/sql_const.h"            // MAX_INTERVAL_VALUE_LENGTH
+#include "sql/sql_const.h"  // MAX_INTERVAL_VALUE_LENGTH
 
 namespace dd {
 namespace tables {
 
-const Column_type_elements &Column_type_elements::instance()
-{
-  static Column_type_elements *s_instance= new Column_type_elements();
+const Column_type_elements &Column_type_elements::instance() {
+  static Column_type_elements *s_instance = new Column_type_elements();
   return *s_instance;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Column_type_elements::Column_type_elements()
-{
+Column_type_elements::Column_type_elements() {
   m_target_def.set_table_name("column_type_elements");
 
-  m_target_def.add_field(FIELD_COLUMN_ID,
-                         "FIELD_COLUMN_ID",
+  m_target_def.add_field(FIELD_COLUMN_ID, "FIELD_COLUMN_ID",
                          "column_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_ELEMENT_INDEX,
-                         "FIELD_ELEMENT_INDEX",
+  m_target_def.add_field(FIELD_ELEMENT_INDEX, "FIELD_ELEMENT_INDEX",
                          "element_index INT UNSIGNED NOT NULL");
   // Fail if the max length of enum/set elements is increased.
   // If it's changed, the corresponding column length must be
@@ -59,8 +55,7 @@ Column_type_elements::Column_type_elements()
 
   // Leave room for four bytes per character, which is used
   // by e.g. utf8mb4, i.e. 255 * 4 = 1020 bytes.
-  m_target_def.add_field(FIELD_NAME,
-                         "FIELD_NAME",
+  m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARBINARY(1020) NOT NULL");
 
   m_target_def.add_index(INDEX_PK_COLUMN_ID_ELEMENT_INDEX,
@@ -76,24 +71,21 @@ Column_type_elements::Column_type_elements()
 
 ///////////////////////////////////////////////////////////////////////////
 
-Object_key *Column_type_elements::create_key_by_column_id(
-  Object_id column_id)
-{
+Object_key *Column_type_elements::create_key_by_column_id(Object_id column_id) {
   return new (std::nothrow) Parent_id_range_key(
-          INDEX_PK_COLUMN_ID_ELEMENT_INDEX, FIELD_COLUMN_ID, column_id);
+      INDEX_PK_COLUMN_ID_ELEMENT_INDEX, FIELD_COLUMN_ID, column_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Object_key *Column_type_elements::create_primary_key(
-  Object_id column_id, int index)
-{
-  return new (std::nothrow) Composite_pk(INDEX_PK_COLUMN_ID_ELEMENT_INDEX,
-                                         FIELD_COLUMN_ID, column_id,
-                                         FIELD_ELEMENT_INDEX, index);
+Object_key *Column_type_elements::create_primary_key(Object_id column_id,
+                                                     int index) {
+  return new (std::nothrow)
+      Composite_pk(INDEX_PK_COLUMN_ID_ELEMENT_INDEX, FIELD_COLUMN_ID, column_id,
+                   FIELD_ELEMENT_INDEX, index);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd

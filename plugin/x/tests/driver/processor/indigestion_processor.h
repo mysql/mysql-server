@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,7 +29,6 @@
 #include "processor/block_processor.h"
 #include "processor/execution_context.h"
 
-
 class Indigestion_processor : public Block_processor {
  public:
   explicit Indigestion_processor(Execution_context *context)
@@ -41,9 +40,8 @@ class Indigestion_processor : public Block_processor {
     aux::trim(line);
 
     if (!line.empty()) {
-      m_context->print_error(
-          m_context->m_script_stack,
-          "Unknown command \"", linebuf, "\"\n");
+      m_context->print_error(m_context->m_script_stack, "Unknown command \"",
+                             linebuf, "\"\n");
 
       return Result::Indigestion;
     }

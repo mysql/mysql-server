@@ -34,39 +34,40 @@
 #include "client/dump/i_output_writer.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Wrapper to another Output Writer, compresses formatted data stream with LZ4.
  */
 class Compression_lz4_writer : public I_output_writer,
-  public Abstract_output_writer_wrapper
-{
-public:
+                               public Abstract_output_writer_wrapper {
+ public:
   Compression_lz4_writer(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator);
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator);
 
   ~Compression_lz4_writer();
 
-  void append(const std::string& data_to_append);
+  void append(const std::string &data_to_append);
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher* new_progress_watcher)
-  { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
+  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+    Abstract_chain_element::register_progress_watcher(new_progress_watcher);
+  }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const
-  { return Abstract_chain_element::get_id(); }
+  uint64 get_id() const { return Abstract_chain_element::get_id(); }
 
-protected:
+ protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data* item_processed)
-  { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
+  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+    Abstract_chain_element::item_completion_in_child_callback(item_processed);
+  }
 
-private:
+ private:
   void process_buffer(size_t lz4_result);
 
   void prepare_buffer(size_t src_size);
@@ -76,8 +77,8 @@ private:
   std::vector<char> m_buffer;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

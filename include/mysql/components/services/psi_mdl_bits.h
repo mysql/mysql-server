@@ -66,8 +66,7 @@ typedef struct PSI_metadata_locker PSI_metadata_locker;
   This memory is provided by the instrumented code for performance reasons.
   @sa start_metadata_wait_v1_t
 */
-struct PSI_metadata_locker_state_v1
-{
+struct PSI_metadata_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current metadata lock. */
@@ -84,13 +83,9 @@ struct PSI_metadata_locker_state_v1
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
 
 typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
-  void *identity,
-  const struct MDL_key *key,
-  opaque_mdl_type mdl_type,
-  opaque_mdl_duration mdl_duration,
-  opaque_mdl_status mdl_status,
-  const char *src_file,
-  unsigned int src_line);
+    void *identity, const struct MDL_key *key, opaque_mdl_type mdl_type,
+    opaque_mdl_duration mdl_duration, opaque_mdl_status mdl_status,
+    const char *src_file, unsigned int src_line);
 
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
@@ -98,10 +93,8 @@ typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
 
 typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
-  struct PSI_metadata_locker_state_v1 *state,
-  struct PSI_metadata_lock *mdl,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_metadata_locker_state_v1 *state, struct PSI_metadata_lock *mdl,
+    const char *src_file, unsigned int src_line);
 
 typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
                                        int rc);

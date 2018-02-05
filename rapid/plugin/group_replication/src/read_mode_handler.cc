@@ -29,11 +29,10 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_utils.h"
 
-
-long enable_super_read_only_mode(Sql_service_command_interface *command_interface)
-{
+long enable_super_read_only_mode(
+    Sql_service_command_interface *command_interface) {
   DBUG_ENTER("set_super_read_only_mode");
-  long error =0;
+  long error = 0;
 
 #ifndef DBUG_OFF
   DBUG_EXECUTE_IF("group_replication_skip_read_mode", { DBUG_RETURN(0); });
@@ -43,29 +42,28 @@ long enable_super_read_only_mode(Sql_service_command_interface *command_interfac
   DBUG_ASSERT(command_interface != NULL);
 
   // Extract server values for super read mode
-  longlong server_super_read_only_query=
+  longlong server_super_read_only_query =
       command_interface->get_server_super_read_only();
 
-  error= server_super_read_only_query == -1;
+  error = server_super_read_only_query == -1;
 
   // Setting the super_read_only mode on the server.
-  if (!error)
-  {
-    if(!server_super_read_only_query)
-      error= command_interface->set_super_read_only();
-  }
-  else
-  {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_READ_UNABLE_FOR_SUPER_READ_ONLY); /* purecov: inspected */
+  if (!error) {
+    if (!server_super_read_only_query)
+      error = command_interface->set_super_read_only();
+  } else {
+    LogPluginErr(
+        ERROR_LEVEL,
+        ER_GRP_RPL_READ_UNABLE_FOR_SUPER_READ_ONLY); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);
 }
 
-long disable_super_read_only_mode(Sql_service_command_interface *command_interface)
-{
+long disable_super_read_only_mode(
+    Sql_service_command_interface *command_interface) {
   DBUG_ENTER("reset_super_read_mode");
-  long error =0;
+  long error = 0;
 
   DBUG_ASSERT(command_interface != NULL);
 
@@ -74,78 +72,72 @@ long disable_super_read_only_mode(Sql_service_command_interface *command_interfa
   DBUG_RETURN(error);
 }
 
-int enable_server_read_mode(enum_plugin_con_isolation session_isolation)
-{
-  Sql_service_command_interface *sql_command_interface=
+int enable_server_read_mode(enum_plugin_con_isolation session_isolation) {
+  Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
-  int error=
-    sql_command_interface->
-      establish_session_connection(session_isolation, GROUPREPL_USER,
-                                   get_plugin_pointer()) ||
-    enable_super_read_only_mode(sql_command_interface);
+  int error = sql_command_interface->establish_session_connection(
+                  session_isolation, GROUPREPL_USER, get_plugin_pointer()) ||
+              enable_super_read_only_mode(sql_command_interface);
   delete sql_command_interface;
   return error;
 }
 
-int disable_server_read_mode(enum_plugin_con_isolation session_isolation)
-{
-  Sql_service_command_interface *sql_command_interface=
+int disable_server_read_mode(enum_plugin_con_isolation session_isolation) {
+  Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
-  int error=
-    sql_command_interface->
-      establish_session_connection(session_isolation, GROUPREPL_USER,
-                                   get_plugin_pointer()) ||
-    disable_super_read_only_mode(sql_command_interface);
+  int error = sql_command_interface->establish_session_connection(
+                  session_isolation, GROUPREPL_USER, get_plugin_pointer()) ||
+              disable_super_read_only_mode(sql_command_interface);
   delete sql_command_interface;
   return error;
 }
 
 long get_read_mode_state(Sql_service_command_interface *sql_command_interface,
-                         bool *read_only_enabled, bool *super_read_only_enabled)
-{
+                         bool *read_only_enabled,
+                         bool *super_read_only_enabled) {
   DBUG_ENTER("get_read_mode_state");
 
-  long error =0;
+  long error = 0;
 
   DBUG_ASSERT(sql_command_interface != NULL);
 
   // Extract server values for the read mode
-  longlong server_read_only_query=
+  longlong server_read_only_query =
       sql_command_interface->get_server_read_only();
-  longlong server_super_read_only_query=
+  longlong server_super_read_only_query =
       sql_command_interface->get_server_super_read_only();
 
-  error= server_read_only_query == -1 || server_super_read_only_query == -1;
+  error = server_read_only_query == -1 || server_super_read_only_query == -1;
 
-  if (!error)
-  {
-    *read_only_enabled= (bool) server_read_only_query;
-    *super_read_only_enabled= (bool) server_super_read_only_query;
-  }
-  else
-  {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_READ_UNABLE_FOR_READ_ONLY_SUPER_READ_ONLY); /* purecov: inspected */
+  if (!error) {
+    *read_only_enabled = (bool)server_read_only_query;
+    *super_read_only_enabled = (bool)server_super_read_only_query;
+  } else {
+    LogPluginErr(
+        ERROR_LEVEL,
+        ER_GRP_RPL_READ_UNABLE_FOR_READ_ONLY_SUPER_READ_ONLY); /* purecov:
+                                                                  inspected */
   }
 
   DBUG_RETURN(error);
 }
 
 long set_read_mode_state(Sql_service_command_interface *sql_service_command,
-                         bool read_only_enabled, bool super_read_only_enabled)
-{
+                         bool read_only_enabled, bool super_read_only_enabled) {
   DBUG_ENTER("set_read_mode_state");
 
-  long error= 0;
+  long error = 0;
 
   if (!read_only_enabled)
-    error|= sql_service_command->reset_read_only();
+    error |= sql_service_command->reset_read_only();
   else if (!super_read_only_enabled)
-    error|= sql_service_command->reset_super_read_only();
+    error |= sql_service_command->reset_super_read_only();
 
-  if (error)
-  {
-    //Do not throw an error as the user can reset the read mode
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_RESET_SERVER_READ_MODE); /* purecov: inspected */
+  if (error) {
+    // Do not throw an error as the user can reset the read mode
+    LogPluginErr(
+        ERROR_LEVEL,
+        ER_GRP_RPL_UNABLE_TO_RESET_SERVER_READ_MODE); /* purecov: inspected */
   }
 
   DBUG_RETURN(error);

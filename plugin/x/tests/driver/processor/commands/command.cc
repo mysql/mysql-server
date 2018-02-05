@@ -46,8 +46,7 @@ const char CMD_ARG_SEPARATOR = '\t';
 const std::string CMD_PREFIX = "-->";
 
 std::string bindump_to_data(const std::string &bindump,
-                            const Script_stack *stack,
-                            const Console &console) {
+                            const Script_stack *stack, const Console &console) {
   std::string res;
   for (size_t i = 0; i < bindump.length(); i++) {
     if (bindump[i] == '\\') {
@@ -93,11 +92,10 @@ class Backup_and_restore {
 
  private:
   T *m_variable;
-  T  m_value;
+  T m_value;
 };
 
 }  // namespace
-
 
 ngs::chrono::time_point Command::m_start_measure;
 
@@ -105,7 +103,7 @@ Command::Command() {
   m_commands["title"] = &Command::cmd_title;
   m_commands["echo"] = &Command::cmd_echo;
   m_commands["recvtype"] = &Command::cmd_recvtype;
-  m_commands["recvok"]     = &Command::cmd_recvok;
+  m_commands["recvok"] = &Command::cmd_recvok;
   m_commands["recverror"] = &Command::cmd_recverror;
   m_commands["recvresult"] = &Command::cmd_recvresult;
   m_commands["recvtovar"] = &Command::cmd_recvtovar;
@@ -162,35 +160,25 @@ Command::Command() {
   m_commands["received"] = &Command::cmd_received;
 }
 
-bool Command::is_command_registred(
-    const std::string &command_line,
-    std::string *out_command_name,
-    bool *out_is_single_line_command) const {
+bool Command::is_command_registred(const std::string &command_line,
+                                   std::string *out_command_name,
+                                   bool *out_is_single_line_command) const {
   auto command_name_start = command_line.begin();
-  const bool has_prefix = 0 == strncmp(
-      command_line.c_str(),
-      CMD_PREFIX.c_str(),
-      CMD_PREFIX.length());
+  const bool has_prefix = 0 == strncmp(command_line.c_str(), CMD_PREFIX.c_str(),
+                                       CMD_PREFIX.length());
 
-  if (out_is_single_line_command)
-    *out_is_single_line_command = has_prefix;
+  if (out_is_single_line_command) *out_is_single_line_command = has_prefix;
 
-  if (has_prefix)
-    command_name_start += CMD_PREFIX.length();
+  if (has_prefix) command_name_start += CMD_PREFIX.length();
 
   const auto command_name_end = std::find_if(
-      command_line.begin(),
-      command_line.end(),
-      [](const char element) -> bool {
+      command_line.begin(), command_line.end(), [](const char element) -> bool {
         return element == ' ' || element == ';';
       });
 
-  std::string command_name(
-        command_name_start,
-        command_name_end);
+  std::string command_name(command_name_start, command_name_end);
 
-  if (out_command_name)
-    *out_command_name = command_name;
+  if (out_command_name) *out_command_name = command_name;
 
   return m_commands.count(command_name) > 0;
 }
@@ -199,11 +187,9 @@ Command::Result Command::process(std::istream &input,
                                  Execution_context *context,
                                  const std::string &command_line) {
   std::string out_command_name;
-  bool        out_has_prefix;
+  bool out_has_prefix;
 
-  if (!is_command_registred(command_line,
-                            &out_command_name,
-                            &out_has_prefix)) {
+  if (!is_command_registred(command_line, &out_command_name, &out_has_prefix)) {
     context->print_error("Unknown command_line \"", command_line, "\"\n");
     return Result::Stop_with_failure;
   }
@@ -212,19 +198,13 @@ Command::Result Command::process(std::istream &input,
 
   context->m_command_name = out_command_name;
 
-  const char * arguments = command_line.c_str() +
-      out_command_name.length();
+  const char *arguments = command_line.c_str() + out_command_name.length();
 
-  if (out_has_prefix)
-    arguments += CMD_PREFIX.length();
+  if (out_has_prefix) arguments += CMD_PREFIX.length();
 
-  if (' ' == *arguments)
-    arguments++;
+  if (' ' == *arguments) arguments++;
 
-  return (this->*m_commands[out_command_name])(
-      input,
-      context,
-      arguments);
+  return (this->*m_commands[out_command_name])(input, context, arguments);
 }
 
 Command::Result Command::cmd_echo(std::istream &input,
@@ -274,9 +254,8 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   }
 
   if (nullptr == msg.get())
-    return context->m_options.m_fatal_errors ?
-        Result::Stop_with_failure :
-        Result::Continue;
+    return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                             : Result::Continue;
 
   try {
     const std::string message_in_text =
@@ -287,15 +266,13 @@ Command::Result Command::cmd_recvtype(std::istream &input,
                      vargs[0], "\nbut got:\n");
       context->print(message_in_text, "\n");
 
-      return context->m_options.m_fatal_errors ?
-          Result::Stop_with_failure :
-          Result::Continue;
+      return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                               : Result::Continue;
     }
 
     if (context->m_options.m_show_query_result && !be_quiet)
       context->print(message_in_text, "\n");
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     context->print_error_red(context->m_script_stack, e, '\n');
     if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
   }
@@ -309,19 +286,16 @@ Command::Result Command::cmd_recvok(std::istream &input,
   xcl::XError error;
   xcl::XProtocol::Server_message_type_id out_msgid;
 
-  Message_ptr msg{
-    context->session()->get_protocol().recv_single_message(
-        &out_msgid, &error)
-  };
+  Message_ptr msg{context->session()->get_protocol().recv_single_message(
+      &out_msgid, &error)};
 
   context->print("RUN recvok\n");
 
   if (error) {
     context->m_console.print_error(error);
 
-    return context->m_options.m_fatal_errors ?
-        Result::Stop_with_failure :
-        Result::Continue;
+    return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                             : Result::Continue;
   }
 
   if (nullptr == msg.get()) {
@@ -334,19 +308,17 @@ Command::Result Command::cmd_recvok(std::istream &input,
       context->print("Got unexpected message:\n");
       context->print(formatter::message_to_text(*msg), "\n");
 
-      return context->m_options.m_fatal_errors ?
-          Result::Stop_with_failure :
-          Result::Continue;
+      return context->m_options.m_fatal_errors ? Result::Stop_with_failure
+                                               : Result::Continue;
     }
 
-    auto msg_error = static_cast<Mysqlx::Error*>(msg.get());
+    auto msg_error = static_cast<Mysqlx::Error *>(msg.get());
 
     if (!context->m_expected_error.check_error(
-          xcl::XError(msg_error->code(), msg_error->msg())))
+            xcl::XError(msg_error->code(), msg_error->msg())))
       return Result::Stop_with_failure;
   } else {
-    if (!context->m_expected_error.check_ok())
-      return Result::Stop_with_failure;
+    if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
   }
 
   return Result::Continue;
@@ -361,7 +333,8 @@ Command::Result Command::cmd_recverror(std::istream &input,
       context->session()->get_protocol().recv_single_message(&msgid, &xerror));
 
   if (args.empty()) {
-    context->print_error("'recverror' command, requires an integer argument.\n");
+    context->print_error(
+        "'recverror' command, requires an integer argument.\n");
     return Result::Stop_with_failure;
   }
 
@@ -370,8 +343,9 @@ Command::Result Command::cmd_recverror(std::istream &input,
     try {
       const int expected_error_code = mysqlxtest::get_error_code_by_text(args);
       if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
-          expected_error_code != static_cast<int>(static_cast<Mysqlx::Error *>(
-                                     msg.get())->code())) {
+          expected_error_code !=
+              static_cast<int>(
+                  static_cast<Mysqlx::Error *>(msg.get())->code())) {
         context->print_error(context->m_script_stack, "Was expecting Error ",
                              args, ", but got:\n");
         failed = true;
@@ -384,8 +358,7 @@ Command::Result Command::cmd_recverror(std::istream &input,
       if (failed && context->m_options.m_fatal_errors) {
         return Result::Stop_with_success;
       }
-    }
-    catch (std::exception &e) {
+    } catch (std::exception &e) {
       context->print_error_red(context->m_script_stack, e, '\n');
       if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
     }
@@ -481,8 +454,7 @@ Command::Result Command::cmd_recvresult(std::istream &input,
         context->print("auto-generated id(s): ");
         std::vector<std::string>::const_iterator i = document_ids.begin();
         context->print(*i++);
-        for (; i != document_ids.end(); ++i)
-          context->print(",", *i);
+        for (; i != document_ids.end(); ++i) context->print(",", *i);
         context->print("\n");
       }
 
@@ -499,8 +471,7 @@ Command::Result Command::cmd_recvresult(std::istream &input,
     }
 
     if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
-  }
-  catch (xcl::XError &) {
+  } catch (xcl::XError &) {
   }
   return Result::Continue;
 }
@@ -509,7 +480,8 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
   if (args.empty()) {
-    context->print_error("'recvuntil' command, requires at last one argument.\n");
+    context->print_error(
+        "'recvuntil' command, requires at last one argument.\n");
     return Result::Stop_with_failure;
   }
 
@@ -550,8 +522,7 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
   }
 
   const xcl::XProtocol::Server_message_type_id expected_msg_id{
-    iterator_msg_id->second.second
-  };
+      iterator_msg_id->second.second};
 
   do {
     xcl::XError error;
@@ -567,8 +538,7 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
 
       try {
         if (show) context->print(*msg, "\n");
-      }
-      catch (std::exception &e) {
+      } catch (std::exception &e) {
         context->print_error_red(context->m_script_stack, e, '\n');
         if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
       }
@@ -584,10 +554,9 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
   return Result::Continue;
 }
 
-Command::Result Command::cmd_do_ssl_handshake(
-    std::istream &input,
-    Execution_context *context,
-    const std::string &args) {
+Command::Result Command::cmd_do_ssl_handshake(std::istream &input,
+                                              Execution_context *context,
+                                              const std::string &args) {
   xcl::XError error =
       context->session()->get_protocol().get_connection().activate_tls();
   if (error) {
@@ -625,7 +594,8 @@ Command::Result Command::cmd_stmtadmin(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
   if (args.empty()) {
-    context->print_error("'stmtadmin' command, requires at last one argument.\n");
+    context->print_error(
+        "'stmtadmin' command, requires at last one argument.\n");
     return Result::Stop_with_failure;
   }
 
@@ -674,8 +644,8 @@ Command::Result Command::cmd_sleep(std::istream &input,
   const int delay_in_milliseconds = static_cast<int>(delay_in_seconds * 1000);
   Sleep(delay_in_milliseconds);
 #else
-  const int delay_in_microseconds = static_cast<int>(
-      delay_in_seconds * 1000000);
+  const int delay_in_microseconds =
+      static_cast<int>(delay_in_seconds * 1000000);
   usleep(delay_in_microseconds);
 #endif
   return Result::Continue;
@@ -717,8 +687,7 @@ Command::Result Command::cmd_login(std::istream &input,
 
   auto protocol = context->m_connection->active_xprotocol();
 
-  for (auto &c : auth_meth)
-    c = toupper(c);
+  for (auto &c : auth_meth) c = toupper(c);
 
   auto error = protocol->execute_authenticate(user, pass, db, auth_meth);
 
@@ -840,8 +809,9 @@ Command::Result Command::cmd_loginerror(std::istream &input,
       if (err.error() == expected_error_code) {
         context->print("error (as expected): ", err, "\n");
       } else {
-        context->print_error(context->m_script_stack, "was expecting: ",
-                             expected_error_code, " but got: ", err, '\n');
+        context->print_error(context->m_script_stack,
+                             "was expecting: ", expected_error_code,
+                             " but got: ", err, '\n');
         if (context->m_options.m_fatal_errors) return Result::Stop_with_failure;
       }
       return Result::Continue;
@@ -849,8 +819,7 @@ Command::Result Command::cmd_loginerror(std::istream &input,
     context->print_error(context->m_script_stack,
                          "Login succeeded, but an error was expected\n");
     if (context->m_options.m_fatal_errors) return Result::Stop_with_failure;
-  }
-  catch (const std::exception &e) {
+  } catch (const std::exception &e) {
     context->print_error(e, '\n');
     return Result::Stop_with_failure;
   }
@@ -890,7 +859,8 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
     if (copy_arg != CMD_ARG_SHOW_RECEIVED) {
       context->print_error(
           "'recvuntildisc' command, accepts zero or one argument. "
-          "Acceptable value for the argument is \"", CMD_ARG_SHOW_RECEIVED,"\"\n");
+          "Acceptable value for the argument is \"",
+          CMD_ARG_SHOW_RECEIVED, "\"\n");
       return Result::Stop_with_failure;
     }
 
@@ -901,18 +871,16 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
     while (true) {
       Message_ptr msg{
           context->m_connection->active_xprotocol()->recv_single_message(
-              &msgid,
-              &error)};
+              &msgid, &error)};
 
-      if (error)
-        throw error;
+      if (error) throw error;
 
-    if (msg.get() && show_all_received_messages)
-      context->print(context->m_variables->unreplace(
-          formatter::message_to_text(*msg), true), "\n");
+      if (msg.get() && show_all_received_messages)
+        context->print(context->m_variables->unreplace(
+                           formatter::message_to_text(*msg), true),
+                       "\n");
     }
-  }
-  catch (xcl::XError &) {
+  } catch (xcl::XError &) {
     context->print_error("Server disconnected", '\n');
   }
 
@@ -955,7 +923,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
     xcl::XError err;
     Message_ptr msg(
         context->m_connection->active_xprotocol()->recv_single_message(&msgid,
-                                                                      &err));
+                                                                       &err));
     if (err) throw err;
 
     if (msg.get()) {
@@ -966,8 +934,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
     }
 
     return Result::Stop_with_failure;
-  }
-  catch (const xcl::XError &ec) {
+  } catch (const xcl::XError &ec) {
     if (CR_SERVER_GONE_ERROR != ec.error()) {
       /** Peer disconnected, connector shouldn't try
       to execute closure flow. Lets close it. */
@@ -981,9 +948,9 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
       ngs::chrono::to_milliseconds(ngs::chrono::now() - start_time));
 
   if (abs(execution_delta_time - expected_delta_time) > tolerance) {
-    context->print_error("ERROR: Peer disconnected after: ",
-                         execution_delta_time, "[ms], expected: ",
-                         expected_delta_time, "[ms]\n");
+    context->print_error(
+        "ERROR: Peer disconnected after: ", execution_delta_time,
+        "[ms], expected: ", expected_delta_time, "[ms]\n");
     return Result::Stop_with_failure;
   }
 
@@ -1017,29 +984,26 @@ Command::Result Command::cmd_recv(std::istream &input,
 
     Message_ptr msg{
         context->m_connection->active_xprotocol()->recv_single_message(&msgid,
-                                                                      &error)};
+                                                                       &error)};
 
     if (error) {
       if (!quiet && !context->m_expected_error.check_error(
-                         error))  // TODO(owner) do we need
-                                  // this !quiet ?
+                        error))  // TODO(owner) do we need
+                                 // this !quiet ?
         return Result::Stop_with_failure;
       return Result::Continue;
     }
 
     if (msg.get() && (context->m_options.m_show_query_result && !quiet))
-      context->print(
-          context->m_variables->unreplace(formatter::message_to_text(
-              *msg, args_copy), true), "\n");
+      context->print(context->m_variables->unreplace(
+                         formatter::message_to_text(*msg, args_copy), true),
+                     "\n");
 
-    if (!context->m_expected_error.check_ok())
-      return Result::Stop_with_failure;
-  }
-  catch (std::exception &e) {
+    if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
+  } catch (std::exception &e) {
     context->print_error("ERROR: ", e, '\n');
 
-    if (context->m_options.m_fatal_errors)
-      return Result::Stop_with_failure;
+    if (context->m_options.m_fatal_errors) return Result::Stop_with_failure;
   }
   return Result::Continue;
 }
@@ -1086,22 +1050,20 @@ Command::Result Command::cmd_nofatalerrors(std::istream &input,
 }
 
 Command::Result Command::cmd_newsession_memory(std::istream &input,
-                                             Execution_context *context,
-                                             const std::string &args) {
+                                               Execution_context *context,
+                                               const std::string &args) {
   return do_newsession(input, context, args, {"SHA256_MEMORY"});
 }
 
-Command::Result Command::cmd_newsession_mysql41(
-    std::istream &input,
-    Execution_context *context,
-    const std::string &args) {
+Command::Result Command::cmd_newsession_mysql41(std::istream &input,
+                                                Execution_context *context,
+                                                const std::string &args) {
   return do_newsession(input, context, args, {"MYSQL41"});
 }
 
-Command::Result Command::cmd_newsession_plain(
-    std::istream &input,
-    Execution_context *context,
-    const std::string &args) {
+Command::Result Command::cmd_newsession_plain(std::istream &input,
+                                              Execution_context *context,
+                                              const std::string &args) {
   return do_newsession(input, context, args, {"PLAIN"});
 }
 
@@ -1112,9 +1074,7 @@ Command::Result Command::cmd_newsession(std::istream &input,
 }
 
 Command::Result Command::do_newsession(
-    std::istream &input,
-    Execution_context *context,
-    const std::string &args,
+    std::istream &input, Execution_context *context, const std::string &args,
     const std::vector<std::string> &auth_methods) {
   if (args.empty()) {
     context->print_error(
@@ -1154,8 +1114,7 @@ Command::Result Command::do_newsession(
   try {
     context->m_connection->create(name, user, pass, db, auth_methods);
     if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
-  }
-  catch (xcl::XError &err) {
+  } catch (xcl::XError &err) {
     if (!context->m_expected_error.check_error(err)) {
       return Result::Stop_with_failure;
     }
@@ -1190,8 +1149,7 @@ Command::Result Command::cmd_closesession(std::istream &input,
     if (!context->m_expected_error.check_ok()) {
       return Result::Stop_with_failure;
     }
-  }
-  catch (xcl::XError &err) {
+  } catch (xcl::XError &err) {
     if (!context->m_expected_error.check_error(err)) {
       return Result::Stop_with_failure;
     }
@@ -1223,8 +1181,7 @@ Command::Result Command::cmd_expecterror(std::istream &input,
 
       context->m_expected_error.expect_errno(error_code);
     }
-  }
-  catch (const std::exception &e) {
+  } catch (const std::exception &e) {
     context->print_error(e, '\n');
 
     return Result::Stop_with_failure;
@@ -1315,16 +1272,14 @@ Command::Result Command::cmd_varlet(std::istream &input,
   if (p == std::string::npos) {
     context->m_variables->set(args, "");
   } else {
-    const std::string name  = args.substr(0, p);
-    std::string       value = args.substr(p + 1);
+    const std::string name = args.substr(0, p);
+    std::string value = args.substr(p + 1);
 
     context->m_variables->replace(&value);
 
     if (!context->m_variables->set(name, value)) {
-      context->print_error(
-          "'varlet' command failed, when setting the '",
-          name,
-          "' variable.\n");
+      context->print_error("'varlet' command failed, when setting the '", name,
+                           "' variable.\n");
 
       return Result::Stop_with_failure;
     }
@@ -1408,19 +1363,17 @@ Command::Result Command::cmd_varfile(std::istream &input,
   return Result::Continue;
 }
 
-Command::Result Command::cmd_varescape(
-    std::istream &input,
-    Execution_context *context,
-    const std::string &args) {
+Command::Result Command::cmd_varescape(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
   if (args.empty()) {
     context->print_error("'varescape' command, requires one argument.\n");
     return Result::Stop_with_failure;
   }
 
   if (!context->m_variables->is_present(args)) {
-    context->print_error(
-        "'varescape' command,",
-        "argument needs to be a variable.\n");
+    context->print_error("'varescape' command,",
+                         "argument needs to be a variable.\n");
     return Result::Stop_with_failure;
   }
 
@@ -1433,7 +1386,6 @@ Command::Result Command::cmd_varescape(
 
   return Result::Continue;
 }
-
 
 Command::Result Command::cmd_binsend(std::istream &input,
                                      Execution_context *context,
@@ -1476,8 +1428,7 @@ Command::Result Command::cmd_hexsend(std::istream &input,
   std::string data;
   try {
     aux::unhex(args_copy, data);
-  }
-  catch (const std::exception &) {
+  } catch (const std::exception &) {
     context->print_error("Hex string is invalid", '\n');
     return Result::Stop_with_failure;
   }
@@ -1504,7 +1455,8 @@ Command::Result Command::cmd_binsendoffset(std::istream &input,
                                            Execution_context *context,
                                            const std::string &args) {
   if (args.empty()) {
-    context->print_error("'binsendoffset' command, requires at last one argument.\n");
+    context->print_error(
+        "'binsendoffset' command, requires at last one argument.\n");
     return Result::Stop_with_failure;
   }
 
@@ -1519,10 +1471,8 @@ Command::Result Command::cmd_binsendoffset(std::istream &input,
   std::string data;
 
   try {
-    data = bindump_to_data(
-        argl[0],
-        &context->m_script_stack,
-        context->m_console);
+    data =
+        bindump_to_data(argl[0], &context->m_script_stack, context->m_console);
     end_bin = data.length();
 
     if (argl.size() > 1) {
@@ -1533,8 +1483,7 @@ Command::Result Command::cmd_binsendoffset(std::istream &input,
         if (argl.size() > 3) throw std::out_of_range("Too many arguments");
       }
     }
-  }
-  catch (const std::out_of_range &) {
+  } catch (const std::out_of_range &) {
     context->print_error(
         "Invalid number of arguments for command binsendoffset:", argl.size(),
         '\n');
@@ -1545,8 +1494,7 @@ Command::Result Command::cmd_binsendoffset(std::istream &input,
   data = data.substr(begin_bin, end_bin - begin_bin);
 
   context->m_connection->active_xconnection()->write(
-      reinterpret_cast<const uint8_t *>(data.c_str()),
-      data.length());
+      reinterpret_cast<const uint8_t *>(data.c_str()), data.length());
 
   return Result::Continue;
 }
@@ -1555,22 +1503,21 @@ Command::Result Command::cmd_callmacro(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
   if (args.empty()) {
-    context->print_error("'callmacro' command, requires at last one argument.\n");
+    context->print_error(
+        "'callmacro' command, requires at last one argument.\n");
     return Result::Stop_with_failure;
   }
 
-  if (context->m_macros.call(context, args))
-    return Result::Continue;
+  if (context->m_macros.call(context, args)) return Result::Continue;
 
   return Result::Stop_with_failure;
 }
 
 Command::Result Command::cmd_macro_delimiter_compress(
-    std::istream &input,
-    Execution_context *context,
-    const std::string &args) {
+    std::istream &input, Execution_context *context, const std::string &args) {
   if (args.empty()) {
-    context->print_error("'macro_delimiter_compress' command, requires one argument.\n");
+    context->print_error(
+        "'macro_delimiter_compress' command, requires one argument.\n");
     return Result::Stop_with_failure;
   }
 
@@ -1578,14 +1525,12 @@ Command::Result Command::cmd_macro_delimiter_compress(
   aux::trim(copy_args);
 
   std::map<std::string, bool> allowed_values{
-    {"true", true},
-    {"false", false},
-    {"0", false},
-    {"1", true}
-  };
+      {"true", true}, {"false", false}, {"0", false}, {"1", true}};
 
   if (0 == allowed_values.count(copy_args)) {
-    context->print_error("'macro_delimiter_compress' received unknown argument value '",copy_args,"'.\n");
+    context->print_error(
+        "'macro_delimiter_compress' received unknown argument value '",
+        copy_args, "'.\n");
     return Result::Stop_with_failure;
   }
 
@@ -1639,9 +1584,8 @@ Command::Result Command::cmd_assert_ne(std::istream &input,
   context->m_variables->replace(&vargs[1]);
 
   if (vargs[0] == vargs[1]) {
-    context->print_error(
-        "Expecting '", vargs[0],
-        "', to be different from '", vargs[1], "'\n");
+    context->print_error("Expecting '", vargs[0], "', to be different from '",
+                         vargs[1], "'\n");
     return Result::Stop_with_failure;
   }
 
@@ -1767,8 +1711,7 @@ Command::Result Command::cmd_wait_for(std::istream &input,
 
       match = (value == expected_value);
     } while (!match && --countdown_retries);
-  }
-  catch (const Result result) {
+  } catch (const Result result) {
     context->print_error(
         "'Wait_for' failed because one of subsequent commands failed\n");
     return result;
@@ -1816,8 +1759,7 @@ bool Command::json_string_to_any(const std::string &json_string,
 }
 
 static bool try_open_file_on_different_paths(
-    std::ifstream &stream,
-    const std::string &filename,
+    std::ifstream &stream, const std::string &filename,
     const std::vector<std::string> &paths) {
   for (const auto &path : paths) {
     stream.open(path + filename);
@@ -1826,8 +1768,7 @@ static bool try_open_file_on_different_paths(
     // valid values.
     stream.peek();
 
-    if (stream.good())
-      return true;
+    if (stream.good()) return true;
   }
 
   return stream.good();
@@ -1846,10 +1787,8 @@ Command::Result Command::cmd_import(std::istream &input,
 
   std::ifstream stream;
 
-  try_open_file_on_different_paths(
-      stream,
-      filename,
-      {context->m_options.m_import_path, ""});
+  try_open_file_on_different_paths(stream, filename,
+                                   {context->m_options.m_import_path, ""});
 
   // After the "peek", good can be checked
   if (!stream.good()) {
@@ -1860,11 +1799,10 @@ Command::Result Command::cmd_import(std::istream &input,
 
   context->m_script_stack.push({0, args});
 
-  std::vector<Block_processor_ptr> processors {
-    std::make_shared<Macro_block_processor>(context),
-    std::make_shared<Comment_processor>(),
-    std::make_shared<Indigestion_processor>(context)
-  };
+  std::vector<Block_processor_ptr> processors{
+      std::make_shared<Macro_block_processor>(context),
+      std::make_shared<Comment_processor>(),
+      std::make_shared<Indigestion_processor>(context)};
 
   bool r = process_client_input(stream, &processors, &context->m_script_stack,
                                 context->m_console) == 0;
@@ -1882,8 +1820,7 @@ void Command::print_resultset(Execution_context *context,
   int column_index = -1;
   bool first = true;
 
-  if (result->get_last_error())
-    return;
+  if (result->get_last_error()) return;
 
   for (auto col = meta.begin(); col != meta.end(); ++col) {
     ++column_index;
@@ -1904,7 +1841,7 @@ void Command::print_resultset(Execution_context *context,
   if (!quiet) context->print("\n");
 
   for (;;) {
-    const xcl::XRow* row(result->next());
+    const xcl::XRow *row(result->next());
 
     if (!row) break;
 
@@ -1920,16 +1857,14 @@ void Command::print_resultset(Execution_context *context,
         int field = (*i);
         if (field != 0)
           if (!quiet) context->print("\t");
-        std::string str = context->m_variables->unreplace(
-            out_result, false);
+        std::string str = context->m_variables->unreplace(out_result, false);
         if (!quiet) context->print(str);
         if (value_callback) {
           value_callback(str);
           Value_callback().swap(value_callback);
         }
       }
-    }
-    catch (std::exception &e) {
+    } catch (std::exception &e) {
       context->print_error("ERROR: ", e, '\n');
     }
     if (!quiet) context->print("\n");
@@ -1971,7 +1906,8 @@ void print_help_commands() {
                "the server (allows variables).\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";
-  std::cout << "  <FIELD PATH> - print only selected part of the message using\n";
+  std::cout
+      << "  <FIELD PATH> - print only selected part of the message using\n";
   std::cout << "                 \"field-path\" filter:\n";
   std::cout << "                 * field_name1\n";
   std::cout << "                 * field_name1.field_name2\n";
@@ -2022,15 +1958,18 @@ void print_help_commands() {
   std::cout << "  Whether to print warnings generated by the statement "
                "(default no)\n";
   std::cout << "-->recvuntildisc [" << CMD_ARG_SHOW_RECEIVED << "]\n";
-  std::cout << "  Receive all messages until server drops current connection.\n";
-  std::cout << "  " << CMD_ARG_SHOW_RECEIVED << " - received messages are printed to standard output.\n";
+  std::cout
+      << "  Receive all messages until server drops current connection.\n";
+  std::cout << "  " << CMD_ARG_SHOW_RECEIVED
+            << " - received messages are printed to standard output.\n";
   std::cout << "-->peerdisc <MILLISECONDS> [TOLERANCE]\n";
   std::cout << "  Expect that xplugin disconnects after given number of "
                "milliseconds and tolerance\n";
   std::cout << "-->sleep <SECONDS>\n";
   std::cout << "  Stops execution of mysqlxtest for given number of seconds "
                "(may be fractional)\n";
-  std::cout << "-->login <user>\t<pass>\t<db>\t<mysql41|plain|sha256_memory>]\n";
+  std::cout
+      << "-->login <user>\t<pass>\t<db>\t<mysql41|plain|sha256_memory>]\n";
   std::cout << "  Performs authentication steps (use with --no-auth)\n";
   std::cout << "-->loginerror <errno>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Performs authentication steps expecting an error (use with "
@@ -2076,8 +2015,7 @@ void print_help_commands() {
   std::cout << "-->varfile <varname> <datafile>\n";
   std::cout << "  Assigns the contents of the file to the named variable\n";
   std::cout << "-->varlet <varname> <value>\n";
-  std::cout
-      << "  Assign the value (can be another variable) to the variable\n";
+  std::cout << "  Assign the value (can be another variable) to the variable\n";
   std::cout << "-->varinc <varname> <n>\n";
   std::cout << "  Increment the value of varname by n (assuming both "
                "convert to integral)\n";

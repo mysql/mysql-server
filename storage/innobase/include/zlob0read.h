@@ -35,18 +35,12 @@ namespace lob {
 @param[in]	entry	pointer to the index entry
 @param[in]	offset	the offset from which to read the chunk.
 @param[in,out]	len	the length of the output buffer. This length can
-			be greater than the chunk size.
+                        be greater than the chunk size.
 @param[in,out]	buf	the output buffer.
 @param[in]	mtr	mini-transaction context.
 @return number of bytes copied into the output buffer. */
-ulint
-z_read_chunk(
-	dict_index_t*		index,
-	z_index_entry_t&	entry,
-	ulint			offset,
-	ulint&			len,
-	byte*&			buf,
-	mtr_t*			mtr);
+ulint z_read_chunk(dict_index_t *index, z_index_entry_t &entry, ulint offset,
+                   ulint &len, byte *&buf, mtr_t *mtr);
 
 /** Read one zlib stream fully, given its index entry.
 @param[in]      index      the index dictionary object.
@@ -55,13 +49,8 @@ z_read_chunk(
 @param[in]      zbuf_size  the size of the output buffer.
 @param[in,out]  mtr        mini-transaction.
 @return the size of the zlib stream.*/
-ulint
-z_read_strm(
-	dict_index_t*		index,
-	z_index_entry_t&	entry,
-	byte*			zbuf,
-	ulint			zbuf_size,
-	mtr_t*			mtr);
+ulint z_read_strm(dict_index_t *index, z_index_entry_t &entry, byte *zbuf,
+                  ulint zbuf_size, mtr_t *mtr);
 
 /** Fetch a compressed large object (ZLOB) from the system.
 @param[in] ctx    the read context information.
@@ -71,8 +60,8 @@ z_read_strm(
 @param[in] len    the length of LOB data that needs to be fetched.
 @param[out] buf   the output buffer (owned by caller) of minimum len bytes.
 @return the amount of data (in bytes) that was actually read. */
-ulint z_read(ReadContext* ctx, trx_t* trx, lob::ref_t ref, ulint offset,
-             ulint len, byte* buf);
+ulint z_read(ReadContext *ctx, trx_t *trx, lob::ref_t ref, ulint offset,
+             ulint len, byte *buf);
 
 #ifdef UNIV_DEBUG
 /** Validate one zlib stream, given its index entry.
@@ -81,11 +70,7 @@ ulint z_read(ReadContext* ctx, trx_t* trx, lob::ref_t ref, ulint offset,
 @param[in]	mtr        mini-transaction.
 @return true if validation passed.
 @return does not return if validation failed.*/
-bool
-z_validate_strm(
-	dict_index_t*		index,
-	z_index_entry_t&	entry,
-	mtr_t*			mtr);
+bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr);
 #endif /* UNIV_DEBUG */
 
 }; /* namespace lob */

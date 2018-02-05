@@ -28,33 +28,13 @@
 
 // We must use full boost::mutex name, because mutex is ambigious on Solaris.
 
-my_boost::mutex::mutex()
-{
-  native_mutex_init(&m_mutex, NULL);
-}
-my_boost::mutex::~mutex()
-{
-  native_mutex_destroy(&m_mutex);
-}
-void my_boost::mutex::lock()
-{
-  native_mutex_lock(&m_mutex);
-}
-bool my_boost::mutex::try_lock()
-{
-  return native_mutex_trylock(&m_mutex) == 0;
-}
-void my_boost::mutex::unlock()
-{
-  native_mutex_unlock(&m_mutex);
-}
-my_boost::mutex::scoped_lock::scoped_lock(my_boost::mutex& mutex_to_lock)
-  : m_mutex(mutex_to_lock)
-{
+my_boost::mutex::mutex() { native_mutex_init(&m_mutex, NULL); }
+my_boost::mutex::~mutex() { native_mutex_destroy(&m_mutex); }
+void my_boost::mutex::lock() { native_mutex_lock(&m_mutex); }
+bool my_boost::mutex::try_lock() { return native_mutex_trylock(&m_mutex) == 0; }
+void my_boost::mutex::unlock() { native_mutex_unlock(&m_mutex); }
+my_boost::mutex::scoped_lock::scoped_lock(my_boost::mutex &mutex_to_lock)
+    : m_mutex(mutex_to_lock) {
   m_mutex.lock();
 }
-my_boost::mutex::scoped_lock::~scoped_lock()
-{
-  m_mutex.unlock();
-}
-
+my_boost::mutex::scoped_lock::~scoped_lock() { m_mutex.unlock(); }

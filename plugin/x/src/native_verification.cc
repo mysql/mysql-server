@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,10 +30,8 @@
 namespace xpl {
 
 bool Native_verification::verify_authentication_string(
-    const std::string &user,
-    const std::string &host,
-    const std::string &client_string,
-    const std::string &db_string) const {
+    const std::string &user, const std::string &host,
+    const std::string &client_string, const std::string &db_string) const {
   if (client_string.empty()) return db_string.empty();
 
   if (db_string.empty()) return false;

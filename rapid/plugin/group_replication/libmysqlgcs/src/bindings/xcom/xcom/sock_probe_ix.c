@@ -93,11 +93,9 @@ static int init_sock_probe(sock_probe *s) {
    make sure that we don't fill up the buffer. Then, when finally ifc_len
    is smaller than the buffer size, we break the loop.
   */
-  do
-  {
-    bufsize+= IF_INIT_BUF_SIZE;
-    if (!(s->ifbuf= (char *)realloc(s->ifbuf, (size_t)bufsize)))
-    {
+  do {
+    bufsize += IF_INIT_BUF_SIZE;
+    if (!(s->ifbuf = (char *)realloc(s->ifbuf, (size_t)bufsize))) {
       abrt = TRUE;
       /* Out of memory. */
       goto err;
@@ -109,12 +107,12 @@ static int init_sock_probe(sock_probe *s) {
         INVALID_SOCKET)
       goto err;
 
-    s->ifc.ifc_len= bufsize;
-    s->ifc.ifc_buf= s->ifbuf;
+    s->ifc.ifc_len = bufsize;
+    s->ifc.ifc_buf = s->ifbuf;
     /* Get information about IP interfaces on this machine.*/
     if (ioctl(s->tmp_socket, SIOCGIFCONF, (char *)&s->ifc) < 0) {
       DBGOUT(NUMEXP(errno); STREXP(strerror(errno)););
-      abrt= TRUE;
+      abrt = TRUE;
       goto err;
     }
   } while (s->ifc.ifc_len >= bufsize);

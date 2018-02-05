@@ -30,8 +30,7 @@
 
 #include "my_inttypes.h"
 
-typedef struct
-{
+typedef struct {
   std::string db_name;
   std::string table_name;
   std::string org_table_name;
@@ -44,19 +43,17 @@ typedef struct
   enum_field_types type;
 } Field_type;
 
-struct Field_value
-{
+struct Field_value {
   Field_value();
-  Field_value(const Field_value& other);
+  Field_value(const Field_value &other);
   Field_value(const longlong &num, bool unsign = false);
   Field_value(const decimal_t &decimal);
   Field_value(const double num);
   Field_value(const MYSQL_TIME &time);
   Field_value(const char *str, size_t length);
-  Field_value& operator=(const Field_value& other);
+  Field_value &operator=(const Field_value &other);
   ~Field_value();
-  union
-  {
+  union {
     longlong v_long;
     double v_double;
     decimal_t v_decimal;
@@ -67,33 +64,26 @@ struct Field_value
   bool is_unsigned;
   bool has_ptr;
 
-private:
+ private:
   void copy_string(const char *str, size_t length);
 };
 
+class Sql_resultset {
+ public:
+  Sql_resultset()
+      : current_row(0),
+        num_cols(0),
+        num_rows(0),
+        num_metarow(0),
+        m_resultcs(NULL),
+        m_server_status(0),
+        m_warn_count(0),
+        m_affected_rows(0),
+        m_last_insert_id(0),
+        m_sql_errno(0),
+        m_killed(false) {}
 
-class Sql_resultset
-{
-public:
-  Sql_resultset() :
-    current_row(0),
-    num_cols(0),
-    num_rows(0),
-    num_metarow(0),
-    m_resultcs(NULL),
-    m_server_status(0),
-    m_warn_count(0),
-    m_affected_rows(0),
-    m_last_insert_id(0),
-    m_sql_errno(0),
-    m_killed(false)
-  {}
-
-  ~Sql_resultset()
-  {
-    clear();
-  }
-
+  ~Sql_resultset() { clear(); }
 
   /* new row started for resultset */
   void new_row();
@@ -116,17 +106,16 @@ public:
 
     @param row  row position to set
   */
-  void absolute(int row) { current_row= row; }
+  void absolute(int row) { current_row = row; }
 
   /* move row index to first row */
-  void first() { current_row= 0; }
+  void first() { current_row = 0; }
 
   /* move row index to last row */
-  void last() { current_row= num_rows > 0 ? num_rows - 1 : 0; }
+  void last() { current_row = num_rows > 0 ? num_rows - 1 : 0; }
 
   /* increment number of rows in resulset */
   void increment_rows() { ++num_rows; }
-
 
   /** Set Methods **/
 
@@ -135,33 +124,29 @@ public:
 
     @param rows  number of rows in resultset
   */
-  void set_rows(uint rows) { num_rows= rows; }
+  void set_rows(uint rows) { num_rows = rows; }
 
   /*
     set number of cols in resulset
 
     @param rows  number of cols in resultset
   */
-  void set_cols(uint cols) { num_cols= cols; }
+  void set_cols(uint cols) { num_cols = cols; }
 
   /**
     set resultset charset info
 
     @param result_cs   charset of resulset
   */
-  void set_charset(const CHARSET_INFO *result_cs)
-  {
-    m_resultcs= result_cs;
-  }
+  void set_charset(const CHARSET_INFO *result_cs) { m_resultcs = result_cs; }
 
   /**
     set server status. check mysql_com for more details
 
     @param server_status   server status
   */
-  void set_server_status(uint server_status)
-  {
-    m_server_status= server_status;
+  void set_server_status(uint server_status) {
+    m_server_status = server_status;
   }
 
   /**
@@ -169,19 +154,15 @@ public:
 
     @param warn_count  number of warning
   */
-  void set_warn_count(uint warn_count)
-  {
-    m_warn_count= warn_count;
-  }
+  void set_warn_count(uint warn_count) { m_warn_count = warn_count; }
 
   /**
     set rows affected due to last command execution
 
     @param affected_rows  number of rows affected due to last operation
   */
-  void set_affected_rows(ulonglong affected_rows)
-  {
-    m_affected_rows= affected_rows;
+  void set_affected_rows(ulonglong affected_rows) {
+    m_affected_rows = affected_rows;
   }
 
   /**
@@ -189,9 +170,8 @@ public:
 
     @param last_insert_id   last inserted value in AUTOINCREMENT column
   */
-  void set_last_insert_id(ulonglong last_insert_id)
-  {
-    m_last_insert_id= last_insert_id;
+  void set_last_insert_id(ulonglong last_insert_id) {
+    m_last_insert_id = last_insert_id;
   }
 
   /**
@@ -199,10 +179,7 @@ public:
 
     @param msg  client message
   */
-  void set_message(std::string msg)
-  {
-   m_message= msg;
-  }
+  void set_message(std::string msg) { m_message = msg; }
 
   /**
     set sql error number saved during error in
@@ -210,10 +187,7 @@ public:
 
     @param sql_errno  sql error number
   */
-  void set_sql_errno(uint sql_errno)
-  {
-    m_sql_errno= sql_errno;
-  }
+  void set_sql_errno(uint sql_errno) { m_sql_errno = sql_errno; }
 
   /**
     set sql error message saved during error in
@@ -221,10 +195,7 @@ public:
 
     @param msg  sql error message
   */
-  void set_err_msg(std::string msg)
-  {
-    m_err_msg= msg;
-  }
+  void set_err_msg(std::string msg) { m_err_msg = msg; }
 
   /**
     set sql error state saved during error in
@@ -232,17 +203,10 @@ public:
 
     @param state  sql error state
   */
-  void set_sqlstate(std::string state)
-  {
-    m_sqlstate= state;
-  }
+  void set_sqlstate(std::string state) { m_sqlstate = state; }
 
   /* Session was shutdown while command was running */
-  void set_killed()
-  {
-    m_killed= true; /* purecov: inspected */
-  }
-
+  void set_killed() { m_killed = true; /* purecov: inspected */ }
 
   /** Get Methods **/
 
@@ -265,7 +229,7 @@ public:
 
     @return charset info
   */
-  const CHARSET_INFO * get_charset() { return m_resultcs; }
+  const CHARSET_INFO *get_charset() { return m_resultcs; }
 
   /**
     get server status. check mysql_com for more details
@@ -302,7 +266,6 @@ public:
   */
   std::string get_message() { return m_message; }
 
-
   /** Getting error info **/
   /**
     get sql error number saved during error in last command execution
@@ -312,7 +275,6 @@ public:
       @retval !=0    SQL Error Number
   */
   uint sql_errno() { return m_sql_errno; }
-
 
   /**
     get sql error message saved during error in last command execution
@@ -328,87 +290,73 @@ public:
   */
   std::string sqlstate() { return m_sqlstate; }
 
-
   /* get long field type column */
-  longlong getLong(uint columnIndex)
-  {
+  longlong getLong(uint columnIndex) {
     return result_value[current_row][columnIndex]->value.v_long;
   }
 
   /* get decimal field type column */
-  decimal_t getDecimal(uint columnIndex)
-  {
+  decimal_t getDecimal(uint columnIndex) {
     return result_value[current_row][columnIndex]->value.v_decimal;
   }
 
   /* get double field type column */
-  double getDouble(uint columnIndex)
-  {
+  double getDouble(uint columnIndex) {
     return result_value[current_row][columnIndex]->value.v_double;
   }
 
   /* get time field type column */
-  MYSQL_TIME getTime(uint columnIndex)
-  {
+  MYSQL_TIME getTime(uint columnIndex) {
     return result_value[current_row][columnIndex]->value.v_time;
   }
 
   /* get string field type column */
-  char *getString(uint columnIndex)
-  {
+  char *getString(uint columnIndex) {
     if (result_value[current_row][columnIndex] != NULL)
       return result_value[current_row][columnIndex]->value.v_string;
-    return const_cast<char*>("");
+    return const_cast<char *>("");
   }
 
   /* resultset metadata functions */
 
   /* set metadata info */
-  void set_metadata(Field_type ftype)
-  {
+  void set_metadata(Field_type ftype) {
     result_meta.push_back(ftype);
     ++num_metarow;
   }
 
   /* get database */
-  std::string get_database(uint rowIndex= 0)
-  {
+  std::string get_database(uint rowIndex = 0) {
     return result_meta[rowIndex].db_name;
   }
 
   /* get table alias */
-  std::string get_table(uint rowIndex= 0)
-  {
+  std::string get_table(uint rowIndex = 0) {
     return result_meta[rowIndex].table_name;
   }
 
   /* get original table */
-  std::string get_org_table(uint rowIndex= 0)
-  {
+  std::string get_org_table(uint rowIndex = 0) {
     return result_meta[rowIndex].org_table_name;
   }
 
   /* get column name alias */
-  std::string get_column_name(uint rowIndex= 0)
-  {
+  std::string get_column_name(uint rowIndex = 0) {
     return result_meta[rowIndex].col_name;
   }
 
   /* get original column name */
-  std::string get_org_column_name(uint rowIndex= 0)
-  {
+  std::string get_org_column_name(uint rowIndex = 0) {
     return result_meta[rowIndex].org_col_name;
   }
 
   /* get field width */
-  unsigned long get_length(uint rowIndex= 0)
-  {
+  unsigned long get_length(uint rowIndex = 0) {
     return result_meta[rowIndex].length;
   }
 
   /* get field charsetnr */
-  unsigned int get_charsetnr(uint rowIndex= 0)
-  {
+  unsigned int get_charsetnr(uint rowIndex = 0) {
     return result_meta[rowIndex].charsetnr;
   }
 
@@ -418,20 +366,17 @@ public:
       https://dev.mysql.com/doc/refman/5.7/en/c-api-data-structures.html
     for all flags
   */
-  unsigned int get_flags(uint rowIndex= 0)
-  {
+  unsigned int get_flags(uint rowIndex = 0) {
     return result_meta[rowIndex].flags;
   }
 
   /* get the number of decimals for numeric fields */
-  unsigned int get_decimals(uint rowIndex= 0)
-  {
+  unsigned int get_decimals(uint rowIndex = 0) {
     return result_meta[rowIndex].decimals;
   }
 
   /* get field type. Check enum enum_field_types for whole list */
-  enum_field_types get_field_type(uint rowIndex= 0)
-  {
+  enum_field_types get_field_type(uint rowIndex = 0) {
     return result_meta[rowIndex].type;
   }
 
@@ -442,20 +387,17 @@ public:
       @retval true   session was stopped
       @retval false  session was not stopped
   */
-  bool get_killed_status()
-  {
-    return m_killed;
-  }
+  bool get_killed_status() { return m_killed; }
 
-private:
+ private:
   /* resultset store */
-  std::vector< std::vector< Field_value* > > result_value;
+  std::vector<std::vector<Field_value *>> result_value;
   /* metadata store */
-  std::vector< Field_type > result_meta;
+  std::vector<Field_type> result_meta;
 
-  int current_row; /* current row position */
-  uint num_cols; /* number of columns in resultset/metadata */
-  uint num_rows; /* number of rows in resultset */
+  int current_row;  /* current row position */
+  uint num_cols;    /* number of columns in resultset/metadata */
+  uint num_rows;    /* number of rows in resultset */
   uint num_metarow; /* number of rows in metadata */
 
   const CHARSET_INFO *m_resultcs; /* result charset */
@@ -466,13 +408,13 @@ private:
   /* rows affected mostly useful for command like update */
   ulonglong m_affected_rows;
   ulonglong m_last_insert_id; /* last auto-increment column value */
-  std::string m_message; /* client message */
+  std::string m_message;      /* client message */
 
-  uint m_sql_errno;  /* sql error number */
-  std::string m_err_msg; /* sql error message */
+  uint m_sql_errno;       /* sql error number */
+  std::string m_err_msg;  /* sql error message */
   std::string m_sqlstate; /* sql error state */
 
   bool m_killed; /* session killed status */
 };
 
-#endif //SQL_RESULTSET_INCLUDE
+#endif  // SQL_RESULTSET_INCLUDE

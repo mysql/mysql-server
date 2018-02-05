@@ -24,8 +24,8 @@
 #define SQL_PARTITION_ADMIN_H
 
 #include "my_sqlcommand.h"
-#include "sql/sql_admin.h"             // Sql_cmd_analyze_table
-#include "sql/sql_alter.h"             // Sql_cmd_common_alter_table
+#include "sql/sql_admin.h"  // Sql_cmd_analyze_table
+#include "sql/sql_alter.h"  // Sql_cmd_common_alter_table
 
 class THD;
 struct TABLE_LIST;
@@ -34,112 +34,96 @@ struct TABLE_LIST;
   Class that represents the ALTER TABLE t1 EXCHANGE PARTITION p
                             WITH TABLE t2 statement.
 */
-class Sql_cmd_alter_table_exchange_partition : public Sql_cmd_common_alter_table
-{
-public:
+class Sql_cmd_alter_table_exchange_partition
+    : public Sql_cmd_common_alter_table {
+ public:
   using Sql_cmd_common_alter_table::Sql_cmd_common_alter_table;
 
   bool execute(THD *thd);
 
-private:
+ private:
   bool exchange_partition(THD *thd, TABLE_LIST *, Alter_info *);
 };
-
 
 /**
   Class that represents the ALTER TABLE t1 ANALYZE PARTITION p statement.
 */
-class Sql_cmd_alter_table_analyze_partition final : public Sql_cmd_analyze_table
-{
-public:
+class Sql_cmd_alter_table_analyze_partition final
+    : public Sql_cmd_analyze_table {
+ public:
   /**
     Constructor, used to represent a ALTER TABLE ANALYZE PARTITION statement.
   */
   Sql_cmd_alter_table_analyze_partition(THD *thd, Alter_info *alter_info)
-    : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0)
-  {}
+      : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0) {}
 
-  ~Sql_cmd_alter_table_analyze_partition()
-  {}
+  ~Sql_cmd_alter_table_analyze_partition() {}
 
   bool execute(THD *thd);
 
   /* Override SQLCOM_ANALYZE, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_ALTER_TABLE;
   }
 };
 
-
 /**
   Class that represents the ALTER TABLE t1 CHECK PARTITION p statement.
 */
-class Sql_cmd_alter_table_check_partition final : public Sql_cmd_check_table
-{
-public:
+class Sql_cmd_alter_table_check_partition final : public Sql_cmd_check_table {
+ public:
   using Sql_cmd_check_table::Sql_cmd_check_table;
 
   bool execute(THD *thd);
 
   /* Override SQLCOM_CHECK, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_ALTER_TABLE;
   }
 };
 
-
 /**
   Class that represents the ALTER TABLE t1 OPTIMIZE PARTITION p statement.
 */
-class Sql_cmd_alter_table_optimize_partition final : public Sql_cmd_optimize_table
-{
-public:
+class Sql_cmd_alter_table_optimize_partition final
+    : public Sql_cmd_optimize_table {
+ public:
   using Sql_cmd_optimize_table::Sql_cmd_optimize_table;
 
   bool execute(THD *thd);
 
   /* Override SQLCOM_OPTIMIZE, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_ALTER_TABLE;
   }
 };
 
-
 /**
   Class that represents the ALTER TABLE t1 REPAIR PARTITION p statement.
 */
-class Sql_cmd_alter_table_repair_partition final : public Sql_cmd_repair_table
-{
-public:
+class Sql_cmd_alter_table_repair_partition final : public Sql_cmd_repair_table {
+ public:
   using Sql_cmd_repair_table::Sql_cmd_repair_table;
 
   bool execute(THD *thd);
 
   /* Override SQLCOM_REPAIR, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_ALTER_TABLE;
   }
 };
 
-
 /**
   Class that represents the ALTER TABLE t1 TRUNCATE PARTITION p statement.
 */
-class Sql_cmd_alter_table_truncate_partition final :
-  public Sql_cmd_ddl_table
-{
-public:
+class Sql_cmd_alter_table_truncate_partition final : public Sql_cmd_ddl_table {
+ public:
   using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 
   /* Override SQLCOM_TRUNCATE, since it is an ALTER command */
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_ALTER_TABLE;
   }
 };

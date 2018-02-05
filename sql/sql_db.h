@@ -27,7 +27,7 @@
 
 class THD;
 namespace dd {
-  class Schema;
+class Schema;
 }
 
 struct CHARSET_INFO;
@@ -39,14 +39,11 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists);
 bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                      bool force_switch);
 
-bool mysql_opt_change_db(THD *thd,
-                         const LEX_CSTRING &new_db_name,
-                         LEX_STRING *saved_db_name,
-                         bool force_switch,
+bool mysql_opt_change_db(THD *thd, const LEX_CSTRING &new_db_name,
+                         LEX_STRING *saved_db_name, bool force_switch,
                          bool *cur_db_changed);
 bool get_default_db_collation(const dd::Schema &schema,
                               const CHARSET_INFO **collation);
-bool get_default_db_collation(THD *thd,
-                              const char *db_name,
+bool get_default_db_collation(THD *thd, const char *db_name,
                               const CHARSET_INFO **collation);
 #endif /* SQL_DB_INCLUDED */

@@ -35,20 +35,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "rwlock_scoped_lock.h"
 
 typedef std::map<const char *, std::unique_ptr<mysql_component>, c_string_less>
-  my_component_registry;
+    my_component_registry;
 
 /**
   A class with an implementation of the Dynamic Loader Service.
 */
 class mysql_dynamic_loader_imp {
   typedef std::unordered_map<my_string,
-    my_service<SERVICE_TYPE(dynamic_loader_scheme)>> scheme_service_map;
+                             my_service<SERVICE_TYPE(dynamic_loader_scheme)>>
+      scheme_service_map;
 
   /* contain the actual fields definitions */
   static my_component_registry components_list;
   static mysql_rwlock_t LOCK_dynamic_loader;
 
-public:
+ public:
   /**
     Initializes loader for usage. Initializes RW lock, all other structures
     should be empty. Shouldn't be called multiple times.
@@ -60,7 +61,7 @@ public:
   */
   static void deinit();
 
-public: /* Service Implementations */
+ public: /* Service Implementations */
   /**
     Loads specified group of Components by URN, initializes them and
     registers all Service Implementations present in these Components.
@@ -78,8 +79,7 @@ public: /* Service Implementations */
     @retval true failure
   */
 
-  static DEFINE_BOOL_METHOD(load,
-    (const char *urns[], int component_count));
+  static DEFINE_BOOL_METHOD(load, (const char *urns[], int component_count));
   /**
     Unloads specified group of Components by URN, deinitializes them and
     unregisters all Service Implementations present in these Components.
@@ -99,11 +99,10 @@ public: /* Service Implementations */
     @retval true failure
   */
 
-  static DEFINE_BOOL_METHOD(unload,
-    (const char *urns[], int component_count));
+  static DEFINE_BOOL_METHOD(unload, (const char *urns[], int component_count));
 
   typedef std::pair<my_component_registry::const_iterator, rwlock_scoped_lock>
-    component_iterator;
+      component_iterator;
 
   /**
     Creates iterator that iterates through all loaded Components.
@@ -116,7 +115,7 @@ public: /* Service Implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(iterator_create,
-    (my_h_component_iterator *out_iterator));
+                            (my_h_component_iterator * out_iterator));
 
   /**
     Releases Component iterator. Releases read lock on dynamic loader.
@@ -127,7 +126,7 @@ public: /* Service Implementations */
     @retval true failure
   */
   static DEFINE_METHOD(void, iterator_release,
-    (my_h_component_iterator iterator));
+                       (my_h_component_iterator iterator));
 
   /**
     Gets name and URN of Service pointed to by iterator.
@@ -143,8 +142,8 @@ public: /* Service Implementations */
       through all values already.
   */
   static DEFINE_BOOL_METHOD(iterator_get,
-    (my_h_component_iterator iterator, const char **out_name,
-      const char **out_urn));
+                            (my_h_component_iterator iterator,
+                             const char **out_name, const char **out_urn));
 
   /**
     Advances specified iterator to next element. Will succeed but return true if
@@ -156,8 +155,7 @@ public: /* Service Implementations */
     @retval false success
     @retval true Failure or called on iterator that was on last element.
   */
-  static DEFINE_BOOL_METHOD(iterator_next,
-    (my_h_component_iterator iterator));
+  static DEFINE_BOOL_METHOD(iterator_next, (my_h_component_iterator iterator));
 
   /**
     Checks if specified iterator is valid, i.e. have not reached one-past-last
@@ -169,7 +167,7 @@ public: /* Service Implementations */
     @retval true Invalid or reached one-past-last element.
   */
   static DEFINE_BOOL_METHOD(iterator_is_valid,
-    (my_h_component_iterator iterator));
+                            (my_h_component_iterator iterator));
 
   /* This includes metadata-related method implementations that are shared
     by registry and dynamic_loader, so we don't duplicate the code. Following
@@ -182,7 +180,7 @@ public: /* Service Implementations */
 
 #include "registry_metadata.h.inc"
 
-private:
+ private:
   /**
     Loads specified group of Components by URN. From URNs specified the
     scheme part of URN (part before "://") is extracted and used to acquire
@@ -196,8 +194,8 @@ private:
     @retval false success
     @retval true failure
   */
-  static bool load_do_load_component_by_scheme(
-    const char *urns[], int component_count);
+  static bool load_do_load_component_by_scheme(const char *urns[],
+                                               int component_count);
 
   /**
     Prepares a list of all Services that are provided by specified Components.
@@ -210,7 +208,7 @@ private:
     @retval true failure
   */
   static bool load_do_collect_services_provided(
-    std::vector<std::unique_ptr<mysql_component> >& loaded_components);
+      std::vector<std::unique_ptr<mysql_component>> &loaded_components);
 
   /**
     Checks if all dependencies can be satisfied with existing or to be added
@@ -224,8 +222,8 @@ private:
     @retval true failure
   */
   static bool load_do_check_dependencies(
-    std::vector<std::unique_ptr<mysql_component> >& loaded_components,
-    const std::set<my_string>& services_provided);
+      std::vector<std::unique_ptr<mysql_component>> &loaded_components,
+      const std::set<my_string> &services_provided);
 
   /**
     Registers all Services that are provided by specified Components.
@@ -238,7 +236,7 @@ private:
     @retval true failure
   */
   static bool load_do_register_services(
-    std::vector<std::unique_ptr<mysql_component> >& loaded_components);
+      std::vector<std::unique_ptr<mysql_component>> &loaded_components);
 
   /**
     Acquires Service Implementations for all dependencies of Components.
@@ -251,7 +249,7 @@ private:
     @retval true failure
   */
   static bool load_do_resolve_dependencies(
-    std::vector<std::unique_ptr<mysql_component> >& loaded_components);
+      std::vector<std::unique_ptr<mysql_component>> &loaded_components);
 
   /**
     Calls Components initialization method to make Components ready to function.
@@ -264,7 +262,7 @@ private:
     @retval true failure
   */
   static bool load_do_initialize_components(
-    std::vector<std::unique_ptr<mysql_component> >& loaded_components);
+      std::vector<std::unique_ptr<mysql_component>> &loaded_components);
 
   /**
     Adds all Components to main list of loaded Components. Marks changes done by
@@ -276,7 +274,7 @@ private:
     @retval true failure
   */
   static bool load_do_commit(
-    std::vector<std::unique_ptr<mysql_component> >& loaded_components);
+      std::vector<std::unique_ptr<mysql_component>> &loaded_components);
 
   /**
     Unloads all Components specified in list. It does not acquire a write lock
@@ -288,8 +286,8 @@ private:
     @retval false success
     @retval true failure
   */
-  static bool unload_do_list_components(
-    const char *urns[], int component_count);
+  static bool unload_do_list_components(const char *urns[],
+                                        int component_count);
 
   /**
     Orders components in a order that would allow allow deinitialization to be
@@ -304,7 +302,7 @@ private:
     @retval true failure
   */
   static bool unload_do_topological_order(
-    const std::vector<mysql_component*>& components_to_unload);
+      const std::vector<mysql_component *> &components_to_unload);
 
   /**
     Prefetch all scheme loading Services before we get a lock on a Registry.
@@ -317,9 +315,9 @@ private:
     @retval true failure
   */
   static bool unload_do_get_scheme_services(
-    const std::vector<mysql_component*>& components_to_unload,
-    const std::map<const void*, std::vector<mysql_component*>>&
-      dependency_graph);
+      const std::vector<mysql_component *> &components_to_unload,
+      const std::map<const void *, std::vector<mysql_component *>>
+          &dependency_graph);
 
   /**
     Takes a lock on all services that are provided by the Components to be
@@ -335,9 +333,10 @@ private:
     @retval true failure
   */
   static bool unload_do_lock_provided_services(
-    const std::vector<mysql_component*>& components_to_unload,
-    const std::map<const void*, std::vector<mysql_component*>>&
-      dependency_graph, scheme_service_map& scheme_services);
+      const std::vector<mysql_component *> &components_to_unload,
+      const std::map<const void *, std::vector<mysql_component *>>
+          &dependency_graph,
+      scheme_service_map &scheme_services);
 
   /**
     Checks if all Service Implementations provided by the Components to be
@@ -356,9 +355,10 @@ private:
     @retval true failure
   */
   static bool unload_do_check_provided_services_reference_count(
-    const std::vector<mysql_component* >& components_to_unload,
-    const std::map<const void*, std::vector<mysql_component*>>&
-      dependency_graph, scheme_service_map& scheme_services);
+      const std::vector<mysql_component *> &components_to_unload,
+      const std::map<const void *, std::vector<mysql_component *>>
+          &dependency_graph,
+      scheme_service_map &scheme_services);
 
   /**
     Deinitialize Components using their deinitialization method.
@@ -373,8 +373,8 @@ private:
     @retval true failure
   */
   static bool unload_do_deinitialize_components(
-    const std::vector<mysql_component* >& components_to_unload,
-    scheme_service_map& scheme_services);
+      const std::vector<mysql_component *> &components_to_unload,
+      scheme_service_map &scheme_services);
 
   /**
     Releases Service Implementations acquired to satisfy dependencies.
@@ -389,8 +389,8 @@ private:
     @retval true failure
   */
   static bool unload_do_unload_dependencies(
-    const std::vector<mysql_component* >& components_to_unload,
-    scheme_service_map& scheme_services);
+      const std::vector<mysql_component *> &components_to_unload,
+      scheme_service_map &scheme_services);
 
   /**
     Unregisters all Service Implementations of specified Components.
@@ -405,8 +405,8 @@ private:
     @retval true failure
   */
   static bool unload_do_unregister_services(
-    const std::vector<mysql_component* >& components_to_unload,
-    scheme_service_map& scheme_services);
+      const std::vector<mysql_component *> &components_to_unload,
+      scheme_service_map &scheme_services);
 
   /**
     Uses Component URN to extract the scheme part of URN (part before "://") and
@@ -424,8 +424,8 @@ private:
     @retval true failure
   */
   static bool unload_do_unload_components(
-    const std::vector<mysql_component* >& components_to_unload,
-    scheme_service_map& scheme_services);
+      const std::vector<mysql_component *> &components_to_unload,
+      scheme_service_map &scheme_services);
 
   /**
     Finishes unloading process by marking changes to not be rolled back.
@@ -450,9 +450,10 @@ private:
     @retval false success
     @retval true failure
   */
-  static bool get_scheme_service_from_urn(const my_string& urn,
-    SERVICE_TYPE(dynamic_loader_scheme)** out_scheme_service,
-    scheme_service_map& scheme_services);
+  static bool get_scheme_service_from_urn(const my_string &urn,
+                                          SERVICE_TYPE(dynamic_loader_scheme) *
+                                              *out_scheme_service,
+                                          scheme_service_map &scheme_services);
 };
 
 #endif /* MYSQL_SERVER_DYNAMIC_LOADER_H */

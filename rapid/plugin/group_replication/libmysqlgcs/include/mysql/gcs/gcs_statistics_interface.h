@@ -29,63 +29,54 @@
   This interface represents all statistics that a binding implementation should
   provide.
 */
-class Gcs_statistics_interface
-{
-public:
-
+class Gcs_statistics_interface {
+ public:
   /**
     @return the total number of messages sent via the Communication Interface
   */
 
-  virtual long get_total_messages_sent()= 0;
-
+  virtual long get_total_messages_sent() = 0;
 
   /**
     @return the total amount of data sent via the Communication Interface
   */
 
-  virtual long get_total_bytes_sent()= 0;
-
+  virtual long get_total_bytes_sent() = 0;
 
   /**
     @return the total number of messages received via the Communication
             Interface
   */
 
-  virtual long get_total_messages_received()= 0;
-
+  virtual long get_total_messages_received() = 0;
 
   /**
     @return the total amount of data received via the Communication Interface
   */
 
-  virtual long get_total_bytes_received()= 0;
-
+  virtual long get_total_bytes_received() = 0;
 
   /**
     @return the smallest amount of data received in a message via the
             Communication Interface
   */
 
-  virtual long get_min_message_length()= 0;
-
+  virtual long get_min_message_length() = 0;
 
   /**
     @return the biggest amount of data received in a message via the
             Communication Interface
   */
 
-  virtual long get_max_message_length()= 0;
-
+  virtual long get_max_message_length() = 0;
 
   /**
     @return the timestamp in which the last message was received
   */
 
-  virtual long get_last_message_timestamp()= 0;
-
+  virtual long get_last_message_timestamp() = 0;
 
   virtual ~Gcs_statistics_interface() {}
 };
 
-#endif // GCS_STATISTICS_INTERFACE_INCLUDED
+#endif  // GCS_STATISTICS_INTERFACE_INCLUDED

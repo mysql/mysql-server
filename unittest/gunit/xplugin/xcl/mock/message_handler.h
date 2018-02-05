@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,59 +33,50 @@
 
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
-
 namespace xcl {
 namespace test {
 
 class Mock_handlers {
  public:
   XProtocol::Server_message_handler get_mock_lambda_received_message_handler() {
-    return [this](XProtocol *protocol,
-                  const XProtocol::Server_message_type_id id,
-                  const XProtocol::Message &msg) -> Handler_result {
-      return this->received_message_handler(protocol, id, msg);
-    };
+    return
+        [this](XProtocol *protocol, const XProtocol::Server_message_type_id id,
+               const XProtocol::Message &msg) -> Handler_result {
+          return this->received_message_handler(protocol, id, msg);
+        };
   }
 
   XProtocol::Client_message_handler get_mock_lambda_send_message_handler() {
-    return [this](XProtocol *protocol,
-                  const XProtocol::Client_message_type_id id,
-                  const XProtocol::Message &msg) -> Handler_result {
-      return this->send_message_handler(protocol, id, msg);
-    };
+    return
+        [this](XProtocol *protocol, const XProtocol::Client_message_type_id id,
+               const XProtocol::Message &msg) -> Handler_result {
+          return this->send_message_handler(protocol, id, msg);
+        };
   }
 
   XProtocol::Notice_handler get_mock_lambda_notice_handler() {
-    return [this](XProtocol *protocol,
-                  const bool is_global,
-                  const Mysqlx::Notice::Frame::Type type,
-                  const char *payload,
+    return [this](XProtocol *protocol, const bool is_global,
+                  const Mysqlx::Notice::Frame::Type type, const char *payload,
                   const uint32_t payload_size) -> Handler_result {
-      return this->notice_handler(protocol,
-                                  is_global,
-                                  type,
-                                  payload,
+      return this->notice_handler(protocol, is_global, type, payload,
                                   payload_size);
     };
   }
 
  public:
   MOCK_METHOD3(received_message_handler,
-      Handler_result(XProtocol *,
-           const XProtocol::Server_message_type_id,
-           const XProtocol::Message &));
+               Handler_result(XProtocol *,
+                              const XProtocol::Server_message_type_id,
+                              const XProtocol::Message &));
 
   MOCK_METHOD3(send_message_handler,
-      Handler_result(XProtocol *,
-           const XProtocol::Client_message_type_id,
-           const XProtocol::Message &));
+               Handler_result(XProtocol *,
+                              const XProtocol::Client_message_type_id,
+                              const XProtocol::Message &));
 
-  MOCK_METHOD5(notice_handler,
-      Handler_result(XProtocol *,
-           const bool,
-           const Mysqlx::Notice::Frame::Type,
-           const char *,
-           const uint32_t));
+  MOCK_METHOD5(notice_handler, Handler_result(XProtocol *, const bool,
+                                              const Mysqlx::Notice::Frame::Type,
+                                              const char *, const uint32_t));
 };
 
 }  // namespace test

@@ -35,9 +35,8 @@
   It shall contain any entry from every member that handed out its data
   for a joining node.
 */
-typedef std::vector<std::pair<Gcs_member_identifier *, Gcs_message_data *> >
-Exchanged_data;
-
+typedef std::vector<std::pair<Gcs_member_identifier *, Gcs_message_data *>>
+    Exchanged_data;
 
 /**
   @class Gcs_control_event_listener
@@ -49,9 +48,8 @@ Exchanged_data;
   For a working example, please refer to the documentation in
   Gcs_communication_interface.
 */
-class Gcs_control_event_listener
-{
-public:
+class Gcs_control_event_listener {
+ public:
   /**
     This method is called when the view is ready to be installed.
 
@@ -65,8 +63,7 @@ public:
   */
 
   virtual void on_view_changed(const Gcs_view &new_view,
-                               const Exchanged_data &exchanged_data) const= 0;
-
+                               const Exchanged_data &exchanged_data) const = 0;
 
   /**
     This method is called when the Data Exchange is about to happen in order
@@ -77,7 +74,7 @@ public:
             the data to exchange.
   */
 
-  virtual Gcs_message_data* get_exchangeable_data() const= 0;
+  virtual Gcs_message_data *get_exchangeable_data() const = 0;
 
   /**
     This member function is called when the set of suspicions
@@ -90,10 +87,10 @@ public:
                            of @c members.
    */
   virtual void on_suspicions(
-          const std::vector<Gcs_member_identifier>& members,
-          const std::vector<Gcs_member_identifier>& unreachable) const= 0;
+      const std::vector<Gcs_member_identifier> &members,
+      const std::vector<Gcs_member_identifier> &unreachable) const = 0;
 
   virtual ~Gcs_control_event_listener() {}
 };
 
-#endif // GCS_CONTROL_EVENT_LISTENER_INCLUDED
+#endif  // GCS_CONTROL_EVENT_LISTENER_INCLUDED

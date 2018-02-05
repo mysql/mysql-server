@@ -99,7 +99,7 @@ bool Item_func_regexp::fix_fields(THD *thd, Item **arguments) {
       ((m_cmp_collation.collation->state & MY_CS_CSSORT) != 0 ||
        (m_cmp_collation.collation->state & MY_CS_BINSORT) != 0);
 
-  uint32_t icu_flags = 0; // Avoids compiler warning on gcc 4.8.5.
+  uint32_t icu_flags = 0;  // Avoids compiler warning on gcc 4.8.5.
   // match_parameter overrides coercion type.
   auto mp = match_parameter();
   if (mp.has_value() &&

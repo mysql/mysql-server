@@ -32,8 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0types.h"
 #include "fut0fut.h"
 #include "fut0lst.h"
-#include "trx0types.h"
 #include "lob0int.h"
+#include "trx0types.h"
 
 namespace lob {
 
@@ -42,7 +42,7 @@ struct ref_t {
   bool operator<(const ref_t &that) const { return (m_id < that.m_id); }
   std::ostream &print(std::ostream &out) const {
     out << "[ref_t: m_id=" << m_id << "]";
-    return(out);
+    return (out);
   }
 };
 
@@ -97,13 +97,10 @@ void remove(trx_id_t trxid, ref_t ref);
 
 void trx_purge(trx_id_t trxid, ref_t ref);
 
-void print(std::ostream& out, ref_t ref);
+void print(std::ostream &out, ref_t ref);
 
-inline
-void trx_rollback(trx_id_t trxid, ref_t ref) {
-   trx_purge(trxid, ref);
-}
+inline void trx_rollback(trx_id_t trxid, ref_t ref) { trx_purge(trxid, ref); }
 
-}; // namespace lob
+};  // namespace lob
 
-#endif // _lot0lob_h_
+#endif  // _lot0lob_h_

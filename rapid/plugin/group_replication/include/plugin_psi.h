@@ -44,7 +44,7 @@ void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
 
 */
 void register_group_replication_cond_psi_keys(PSI_cond_info conditions[],
-                                               size_t cond_count);
+                                              size_t cond_count);
 
 /*
   Register the psi keys for threads
@@ -64,7 +64,6 @@ void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
 void register_group_replication_rwlock_psi_keys(PSI_rwlock_info *keys,
                                                 size_t count);
 
-
 /*
   Register the psi keys for mutexes, conditions, threads and rwlocks
 
@@ -72,74 +71,43 @@ void register_group_replication_rwlock_psi_keys(PSI_rwlock_info *keys,
 void register_all_group_replication_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
 
-extern PSI_mutex_key
-              key_GR_LOCK_applier_module_run,
-              key_GR_LOCK_applier_module_suspend,
-              key_GR_LOCK_cert_broadcast_run,
-              key_GR_LOCK_cert_broadcast_dispatcher_run,
-              key_GR_LOCK_certification_info,
-              key_GR_LOCK_cert_members,
-              key_GR_LOCK_channel_observation_list,
-              key_GR_LOCK_channel_observation_removal,
-              key_GR_LOCK_count_down_latch,
-              key_GR_LOCK_delayed_init_run,
-              key_GR_LOCK_delayed_init_server_ready,
-              key_GR_LOCK_force_members_running,
-              key_GR_LOCK_group_info_manager,
-              key_GR_LOCK_group_part_handler_abort,
-              key_GR_LOCK_group_part_handler_run,
-              key_GR_LOCK_pipeline_continuation,
-              key_GR_LOCK_pipeline_stats_flow_control,
-              key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
-              key_GR_LOCK_plugin_online,
-              key_GR_LOCK_plugin_running,
-              key_GR_LOCK_recovery_module_run,
-              key_GR_LOCK_recovery,
-              key_GR_LOCK_recovery_donor_selection,
-              key_GR_LOCK_session_thread_method_exec,
-              key_GR_LOCK_session_thread_run,
-              key_GR_LOCK_synchronized_queue,
-              key_GR_LOCK_view_modification_wait,
-              key_GR_LOCK_wait_ticket,
-              key_GR_LOCK_write_lock_protection,
-              key_GR_LOCK_trx_unlocking;
+extern PSI_mutex_key key_GR_LOCK_applier_module_run,
+    key_GR_LOCK_applier_module_suspend, key_GR_LOCK_cert_broadcast_run,
+    key_GR_LOCK_cert_broadcast_dispatcher_run, key_GR_LOCK_certification_info,
+    key_GR_LOCK_cert_members, key_GR_LOCK_channel_observation_list,
+    key_GR_LOCK_channel_observation_removal, key_GR_LOCK_count_down_latch,
+    key_GR_LOCK_delayed_init_run, key_GR_LOCK_delayed_init_server_ready,
+    key_GR_LOCK_force_members_running, key_GR_LOCK_group_info_manager,
+    key_GR_LOCK_group_part_handler_abort, key_GR_LOCK_group_part_handler_run,
+    key_GR_LOCK_pipeline_continuation, key_GR_LOCK_pipeline_stats_flow_control,
+    key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
+    key_GR_LOCK_plugin_online, key_GR_LOCK_plugin_running,
+    key_GR_LOCK_recovery_module_run, key_GR_LOCK_recovery,
+    key_GR_LOCK_recovery_donor_selection,
+    key_GR_LOCK_session_thread_method_exec, key_GR_LOCK_session_thread_run,
+    key_GR_LOCK_synchronized_queue, key_GR_LOCK_view_modification_wait,
+    key_GR_LOCK_wait_ticket, key_GR_LOCK_write_lock_protection,
+    key_GR_LOCK_trx_unlocking;
 
-extern PSI_cond_key
-              key_GR_COND_applier_module_run,
-              key_GR_COND_applier_module_suspend,
-              key_GR_COND_applier_module_wait,
-              key_GR_COND_cert_broadcast_dispatcher_run,
-              key_GR_COND_cert_broadcast_run,
-              key_GR_COND_count_down_latch,
-              key_GR_COND_delayed_init_run,
-              key_GR_COND_delayed_init_server_ready,
-              key_GR_COND_group_part_handler_abort,
-              key_GR_COND_group_part_handler_run,
-              key_GR_COND_pipeline_continuation,
-              key_GR_COND_pipeline_stats_flow_control,
-              key_GR_COND_plugin_online,
-              key_GR_COND_recovery,
-              key_GR_COND_recovery_module_run,
-              key_GR_COND_session_thread_method_exec,
-              key_GR_COND_session_thread_run,
-              key_GR_COND_synchronized_queue,
-              key_GR_COND_view_modification_wait,
-              key_GR_COND_wait_ticket,
-              key_GR_COND_write_lock_protection;
+extern PSI_cond_key key_GR_COND_applier_module_run,
+    key_GR_COND_applier_module_suspend, key_GR_COND_applier_module_wait,
+    key_GR_COND_cert_broadcast_dispatcher_run, key_GR_COND_cert_broadcast_run,
+    key_GR_COND_count_down_latch, key_GR_COND_delayed_init_run,
+    key_GR_COND_delayed_init_server_ready, key_GR_COND_group_part_handler_abort,
+    key_GR_COND_group_part_handler_run, key_GR_COND_pipeline_continuation,
+    key_GR_COND_pipeline_stats_flow_control, key_GR_COND_plugin_online,
+    key_GR_COND_recovery, key_GR_COND_recovery_module_run,
+    key_GR_COND_session_thread_method_exec, key_GR_COND_session_thread_run,
+    key_GR_COND_synchronized_queue, key_GR_COND_view_modification_wait,
+    key_GR_COND_wait_ticket, key_GR_COND_write_lock_protection;
 
-extern PSI_thread_key
-               key_GR_THD_applier_module_receiver,
-               key_GR_THD_cert_broadcast,
-               key_GR_THD_delayed_init,
-               key_GR_THD_plugin_session,
-               key_GR_THD_group_partition_handler,
-               key_GR_THD_recovery;
+extern PSI_thread_key key_GR_THD_applier_module_receiver,
+    key_GR_THD_cert_broadcast, key_GR_THD_delayed_init,
+    key_GR_THD_plugin_session, key_GR_THD_group_partition_handler,
+    key_GR_THD_recovery;
 
-extern PSI_rwlock_key
-               key_GR_RWLOCK_cert_stable_gtid_set,
-               key_GR_RWLOCK_io_cache_unused_list,
-               key_GR_RWLOCK_plugin_stop,
-               key_GR_RWLOCK_gcs_operations,
-               key_GR_RWLOCK_gcs_operations_finalize_ongoing;
+extern PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
+    key_GR_RWLOCK_io_cache_unused_list, key_GR_RWLOCK_plugin_stop,
+    key_GR_RWLOCK_gcs_operations, key_GR_RWLOCK_gcs_operations_finalize_ongoing;
 
 #endif /* PLUGIN_PSI_INCLUDED */

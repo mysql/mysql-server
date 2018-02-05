@@ -24,72 +24,58 @@
 #include "my_inttypes.h"
 #include "storage/heap/heapdef.h"
 
-	/* Read prev record for key */
+/* Read prev record for key */
 
-
-int heap_rprev(HP_INFO *info, uchar *record)
-{
+int heap_rprev(HP_INFO *info, uchar *record) {
   uchar *pos;
-  HP_SHARE *share=info->s;
+  HP_SHARE *share = info->s;
   HP_KEYDEF *keyinfo;
   DBUG_ENTER("heap_rprev");
 
-  if (info->lastinx < 0)
-  {
+  if (info->lastinx < 0) {
     set_my_errno(HA_ERR_WRONG_INDEX);
     DBUG_RETURN(HA_ERR_WRONG_INDEX);
   }
   keyinfo = share->keydef + info->lastinx;
-  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
-  {
+  if (keyinfo->algorithm == HA_KEY_ALG_BTREE) {
     heap_rb_param custom_arg;
 
     if (info->last_pos)
       pos = (uchar *)tree_search_next(&keyinfo->rb_tree, &info->last_pos,
-                             offsetof(TREE_ELEMENT, right),
-                             offsetof(TREE_ELEMENT, left));
-    else
-    {
+                                      offsetof(TREE_ELEMENT, right),
+                                      offsetof(TREE_ELEMENT, left));
+    else {
       custom_arg.keyseg = keyinfo->seg;
       custom_arg.key_length = keyinfo->length;
       custom_arg.search_flag = SEARCH_SAME;
-      pos = (uchar *)tree_search_key(&keyinfo->rb_tree, info->lastkey, info->parents, 
-                           &info->last_pos, info->last_find_flag, &custom_arg);
+      pos = (uchar *)tree_search_key(&keyinfo->rb_tree, info->lastkey,
+                                     info->parents, &info->last_pos,
+                                     info->last_find_flag, &custom_arg);
     }
-    if (pos)
-    {
+    if (pos) {
       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
-	     sizeof(uchar*));
+             sizeof(uchar *));
       info->current_ptr = pos;
-    }
-    else
-    {
+    } else {
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
     }
-  }
-  else
-  {
-    if (info->current_ptr || (info->update & HA_STATE_NEXT_FOUND))
-    {
+  } else {
+    if (info->current_ptr || (info->update & HA_STATE_NEXT_FOUND)) {
       if ((info->update & HA_STATE_DELETED))
-        pos= hp_search(info, share->keydef + info->lastinx, info->lastkey, 3);
+        pos = hp_search(info, share->keydef + info->lastinx, info->lastkey, 3);
       else
-        pos= hp_search(info, share->keydef + info->lastinx, info->lastkey, 2);
-    }
-    else
-    {
-      pos=0;					/* Read next after last */
+        pos = hp_search(info, share->keydef + info->lastinx, info->lastkey, 2);
+    } else {
+      pos = 0; /* Read next after last */
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
     }
   }
-  if (!pos)
-  {
-    info->update=HA_STATE_PREV_FOUND;		/* For heap_rprev */
-    if (my_errno() == HA_ERR_KEY_NOT_FOUND)
-      set_my_errno(HA_ERR_END_OF_FILE);
+  if (!pos) {
+    info->update = HA_STATE_PREV_FOUND; /* For heap_rprev */
+    if (my_errno() == HA_ERR_KEY_NOT_FOUND) set_my_errno(HA_ERR_END_OF_FILE);
     DBUG_RETURN(my_errno());
   }
-  memcpy(record,pos,(size_t) share->reclength);
-  info->update=HA_STATE_AKTIV | HA_STATE_PREV_FOUND;
+  memcpy(record, pos, (size_t)share->reclength);
+  info->update = HA_STATE_AKTIV | HA_STATE_PREV_FOUND;
   DBUG_RETURN(0);
 }

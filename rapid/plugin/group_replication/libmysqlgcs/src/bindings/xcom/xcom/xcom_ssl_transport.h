@@ -70,9 +70,9 @@ enum ssl_enum_fips_mode_options {
 };
 
 /*
-  Return the operation fips mode as an integer from an operation fips mode provided
-  as a string. Note that the string must be provided in upper case letters
-  and the possible values are: "OFF", "ON", "STRICT",
+  Return the operation fips mode as an integer from an operation fips mode
+  provided as a string. Note that the string must be provided in upper case
+  letters and the possible values are: "OFF", "ON", "STRICT",
 
   If a different value is provide, INVALID_SSL_MODE (-1) is returned.
 */

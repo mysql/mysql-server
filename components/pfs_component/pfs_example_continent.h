@@ -43,8 +43,7 @@ extern PFS_engine_table_share_proxy continent_st_share;
 extern native_mutex_t LOCK_continent_records_array;
 
 /* A structure to denote a single row of the table. */
-struct
-{
+struct {
   char name[20];
   unsigned int name_length;
 
@@ -60,88 +59,52 @@ struct
 extern Continent_record continent_records_array[CONTINENT_MAX_ROWS];
 
 /* A class to define position of cursor in table. */
-class Continent_POS
-{
-private:
+class Continent_POS {
+ private:
   unsigned int m_index;
 
-public:
+ public:
   ~Continent_POS(){};
-  Continent_POS()
-  {
-    m_index = 0;
-  }
+  Continent_POS() { m_index = 0; }
 
-  bool
-  has_more()
-  {
-    if (m_index < CONTINENT_MAX_ROWS)
-      return true;
+  bool has_more() {
+    if (m_index < CONTINENT_MAX_ROWS) return true;
     return false;
   }
-  void
-  next()
-  {
-    m_index++;
-  }
+  void next() { m_index++; }
 
-  void
-  reset()
-  {
-    m_index = 0;
-  }
+  void reset() { m_index = 0; }
 
-  unsigned int
-  get_index()
-  {
-    return m_index;
-  }
+  unsigned int get_index() { return m_index; }
 
-  void
-  set_at(unsigned int index)
-  {
-    m_index = index;
-  }
+  void set_at(unsigned int index) { m_index = index; }
 
-  void
-  set_at(Continent_POS *pos)
-  {
-    m_index = pos->m_index;
-  }
+  void set_at(Continent_POS *pos) { m_index = pos->m_index; }
 
-  void
-  set_after(Continent_POS *pos)
-  {
-    m_index = pos->m_index + 1;
-  }
+  void set_after(Continent_POS *pos) { m_index = pos->m_index + 1; }
 };
 
-class Continent_index
-{
-public:
+class Continent_index {
+ public:
   virtual ~Continent_index(){};
 
   virtual bool match(Continent_record *record) = 0;
 };
 
 /* An index on Continent Name */
-class Continent_index_by_name : public Continent_index
-{
-public:
+class Continent_index_by_name : public Continent_index {
+ public:
   PSI_plugin_key_string m_name;
   char m_name_buffer[20];
 
-  bool
-  match(Continent_record *record)
-  {
+  bool match(Continent_record *record) {
     return mysql_service_pfs_plugin_table->match_key_string(
-      false, record->name, record->name_length, &m_name);
+        false, record->name, record->name_length, &m_name);
   }
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct
-{
+typedef struct {
   /* Current position instance */
   Continent_POS m_pos;
   /* Next position instance */
@@ -162,26 +125,19 @@ void continent_close_table(PSI_table_handle *handle);
 int continent_rnd_next(PSI_table_handle *handle);
 int continent_rnd_init(PSI_table_handle *h, bool scan);
 int continent_rnd_pos(PSI_table_handle *handle);
-int continent_index_init(PSI_table_handle *handle,
-                         unsigned int idx,
-                         bool sorted,
-                         PSI_index_handle **index);
-int continent_index_read(PSI_index_handle *index,
-                         PSI_key_reader *reader,
-                         unsigned int idx,
-                         int find_flag);
+int continent_index_init(PSI_table_handle *handle, unsigned int idx,
+                         bool sorted, PSI_index_handle **index);
+int continent_index_read(PSI_index_handle *index, PSI_key_reader *reader,
+                         unsigned int idx, int find_flag);
 int continent_index_next(PSI_table_handle *handle);
 void continent_reset_position(PSI_table_handle *handle);
-int continent_read_column_value(PSI_table_handle *handle,
-                                PSI_field *field,
+int continent_read_column_value(PSI_table_handle *handle, PSI_field *field,
                                 unsigned int index);
 int continent_write_row_values(PSI_table_handle *handle);
-int continent_write_column_value(PSI_table_handle *handle,
-                                 PSI_field *field,
+int continent_write_column_value(PSI_table_handle *handle, PSI_field *field,
                                  unsigned int index);
 int continent_update_row_values(PSI_table_handle *handle);
-int continent_update_column_value(PSI_table_handle *handle,
-                                  PSI_field *field,
+int continent_update_column_value(PSI_table_handle *handle, PSI_field *field,
                                   unsigned int index);
 int continent_delete_row_values(PSI_table_handle *handle);
 int continent_delete_all_rows(void);

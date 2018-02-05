@@ -53,8 +53,7 @@ struct THR_LOCK;
   A row of table
   PERFORMANCE_SCHEMA.STATUS_BY_ACCOUNT.
 */
-struct row_status_by_account
-{
+struct row_status_by_account {
   /** Column USER, HOST. */
   PFS_account_row m_account;
   /** Column VARIABLE_NAME. */
@@ -69,52 +68,38 @@ struct row_status_by_account
   Index 1 on account (0 based)
   Index 2 on status variable (0 based)
 */
-struct pos_status_by_account : public PFS_double_index
-{
-  pos_status_by_account() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_status_by_account : public PFS_double_index {
+  pos_status_by_account() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline bool
-  has_more_account(void)
-  {
+  inline bool has_more_account(void) {
     return (m_index_1 < global_account_container.get_row_count());
   }
 
-  inline void
-  next_account(void)
-  {
+  inline void next_account(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
-class PFS_index_status_by_account : public PFS_engine_index
-{
-public:
+class PFS_index_status_by_account : public PFS_engine_index {
+ public:
   PFS_index_status_by_account()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("USER"),
-      m_key_2("HOST"),
-      m_key_3("VARIABLE_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("USER"),
+        m_key_2("HOST"),
+        m_key_3("VARIABLE_NAME") {}
 
-  ~PFS_index_status_by_account()
-  {
-  }
+  ~PFS_index_status_by_account() {}
 
   virtual bool match(PFS_account *pfs);
   virtual bool match(const Status_variable *pfs);
 
-private:
+ private:
   PFS_key_user m_key_1;
   PFS_key_host m_key_2;
   PFS_key_variable_name m_key_3;
@@ -124,24 +109,19 @@ private:
   Store and retrieve table state information for queries that reinstantiate
   the table object.
 */
-class table_status_by_account_context : public PFS_table_context
-{
-public:
+class table_status_by_account_context : public PFS_table_context {
+ public:
   table_status_by_account_context(ulonglong current_version, bool restore)
-    : PFS_table_context(current_version,
-                        global_account_container.get_row_count(),
-                        restore,
-                        THR_PFS_SBH)
-  {
-  }
+      : PFS_table_context(current_version,
+                          global_account_container.get_row_count(), restore,
+                          THR_PFS_SBH) {}
 };
 
 /** Table PERFORMANCE_SCHEMA.STATUS_BY_ACCOUNT. */
-class table_status_by_account : public PFS_engine_table
-{
+class table_status_by_account : public PFS_engine_table {
   typedef pos_status_by_account pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -157,22 +137,18 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_status_by_account();
 
-public:
-  ~table_status_by_account()
-  {
-  }
+ public:
+  ~table_status_by_account() {}
 
-protected:
+ protected:
   int make_row(PFS_account *pfs_account, const Status_variable *status_var);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

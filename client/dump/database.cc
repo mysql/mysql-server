@@ -26,7 +26,6 @@
 
 using namespace Mysql::Tools::Dump;
 
-Database::Database(uint64 id, const std::string& name,
-  const std::string& sql_formatted_definition)
-  : Abstract_plain_sql_object(id, name, "", sql_formatted_definition)
-{}
+Database::Database(uint64 id, const std::string &name,
+                   const std::string &sql_formatted_definition)
+    : Abstract_plain_sql_object(id, name, "", sql_formatted_definition) {}

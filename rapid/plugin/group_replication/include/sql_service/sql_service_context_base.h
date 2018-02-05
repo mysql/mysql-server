@@ -29,10 +29,8 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/sql_service/sql_resultset.h"
 
-class Sql_service_context_base
-{
-public:
-
+class Sql_service_context_base {
+ public:
   /** The sql service callbacks that will call the below virtual methods*/
   static const st_command_service_cbs sql_service_callbacks;
 
@@ -82,8 +80,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  virtual int end_result_metadata(uint server_status,
-                                  uint warn_count) = 0;
+  virtual int end_result_metadata(uint server_status, uint warn_count) = 0;
 
   /**
     Indicates the beginning of a new row in the result set/metadata
@@ -112,7 +109,6 @@ public:
   */
   virtual void abort_row() = 0;
 
-
   /**
     Return client's capabilities (see mysql_com.h, CLIENT_*)
 
@@ -129,7 +125,6 @@ public:
       @retval 0  OK
   */
   virtual int get_null() = 0;
-
 
   /**
     Get TINY/SHORT/LONG value from server
@@ -166,7 +161,7 @@ public:
       @retval 1  Error
       @retval 0  OK
    */
-  virtual int get_decimal(const decimal_t * value) = 0;
+  virtual int get_decimal(const decimal_t *value) = 0;
 
   /**
 
@@ -185,7 +180,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  virtual int get_date(const MYSQL_TIME * value) = 0;
+  virtual int get_date(const MYSQL_TIME *value) = 0;
 
   /**
     Get TIME value from server
@@ -197,7 +192,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  virtual int get_time(const MYSQL_TIME * value, uint decimals) = 0;
+  virtual int get_time(const MYSQL_TIME *value, uint decimals) = 0;
 
   /**
     Get DATETIME value from server
@@ -209,8 +204,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  virtual int get_datetime(const MYSQL_TIME * value,
-                           uint decimals) = 0;
+  virtual int get_datetime(const MYSQL_TIME *value, uint decimals) = 0;
 
   /**
     Get STRING value from server
@@ -223,9 +217,8 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  virtual int get_string(const char * const value,
-                         size_t length, const CHARSET_INFO * const valuecs) = 0;
-
+  virtual int get_string(const char *const value, size_t length,
+                         const CHARSET_INFO *const valuecs) = 0;
 
   /** Getting execution status **/
   /**
@@ -240,8 +233,7 @@ public:
   */
   virtual void handle_ok(uint server_status, uint statement_warn_count,
                          ulonglong affected_rows, ulonglong last_insert_id,
-                         const char * const message) = 0;
-
+                         const char *const message) = 0;
 
   /**
     Command ended with ERROR
@@ -250,133 +242,107 @@ public:
     @param err_msg   Error message
     @param sqlstate  SQL state corresponding to the error code
   */
-  virtual void handle_error(uint sql_errno,
-                            const char * const err_msg,
-                            const char * const sqlstate) = 0;
+  virtual void handle_error(uint sql_errno, const char *const err_msg,
+                            const char *const sqlstate) = 0;
 
   /**
    Session was shutdown while command was running
   */
   virtual void shutdown(int flag) = 0;
 
-private:
+ private:
   static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
-                                       const CHARSET_INFO *resultcs)
-  {
-    return ((Sql_service_context_base *) ctx)->start_result_metadata(num_cols,
-                                                                 flags,
-                                                                 resultcs);
+                                       const CHARSET_INFO *resultcs) {
+    return ((Sql_service_context_base *)ctx)
+        ->start_result_metadata(num_cols, flags, resultcs);
   }
 
   static int sql_field_metadata(void *ctx, struct st_send_field *field,
-                                const CHARSET_INFO *charset)
-  {
-    return ((Sql_service_context_base *) ctx)->field_metadata(field,
-                                                          charset);
+                                const CHARSET_INFO *charset) {
+    return ((Sql_service_context_base *)ctx)->field_metadata(field, charset);
   }
 
   static int sql_end_result_metadata(void *ctx, uint server_status,
-                                     uint warn_count)
-  {
-    return ((Sql_service_context_base *) ctx)->end_result_metadata(server_status,
-                                                               warn_count);
+                                     uint warn_count) {
+    return ((Sql_service_context_base *)ctx)
+        ->end_result_metadata(server_status, warn_count);
   }
 
-  static int sql_start_row(void *ctx)
-  {
-    return ((Sql_service_context_base *) ctx)->start_row();
+  static int sql_start_row(void *ctx) {
+    return ((Sql_service_context_base *)ctx)->start_row();
   }
 
-  static int sql_end_row(void *ctx)
-  {
-    return ((Sql_service_context_base *) ctx)->end_row();
+  static int sql_end_row(void *ctx) {
+    return ((Sql_service_context_base *)ctx)->end_row();
   }
 
-  static void sql_abort_row(void *ctx)
-  {
-    return ((Sql_service_context_base *) ctx)->abort_row(); /* purecov: inspected */
+  static void sql_abort_row(void *ctx) {
+    return ((Sql_service_context_base *)ctx)
+        ->abort_row(); /* purecov: inspected */
   }
 
-  static ulong sql_get_client_capabilities(void *ctx)
-  {
-    return ((Sql_service_context_base *) ctx)->get_client_capabilities();
+  static ulong sql_get_client_capabilities(void *ctx) {
+    return ((Sql_service_context_base *)ctx)->get_client_capabilities();
   }
 
-  static int sql_get_null(void *ctx)
-  {
-    return ((Sql_service_context_base *) ctx)->get_null();
+  static int sql_get_null(void *ctx) {
+    return ((Sql_service_context_base *)ctx)->get_null();
   }
 
-  static int sql_get_integer(void * ctx, longlong value)
-  {
-    return ((Sql_service_context_base *) ctx)->get_integer(value);
+  static int sql_get_integer(void *ctx, longlong value) {
+    return ((Sql_service_context_base *)ctx)->get_integer(value);
   }
 
-  static int sql_get_longlong(void * ctx, longlong value, uint is_unsigned)
-  {
-    return ((Sql_service_context_base *) ctx)->get_longlong(value, is_unsigned);
+  static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
+    return ((Sql_service_context_base *)ctx)->get_longlong(value, is_unsigned);
   }
 
-  static int sql_get_decimal(void * ctx, const decimal_t * value)
-  {
-    return ((Sql_service_context_base *) ctx)->get_decimal(value);
+  static int sql_get_decimal(void *ctx, const decimal_t *value) {
+    return ((Sql_service_context_base *)ctx)->get_decimal(value);
   }
 
-  static int sql_get_double(void * ctx, double value, uint32 decimals)
-  {
-    return ((Sql_service_context_base *) ctx)->get_double(value, decimals);
+  static int sql_get_double(void *ctx, double value, uint32 decimals) {
+    return ((Sql_service_context_base *)ctx)->get_double(value, decimals);
   }
 
-  static int sql_get_date(void * ctx, const MYSQL_TIME * value)
-  {
-    return ((Sql_service_context_base *) ctx)->get_date(value);
+  static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
+    return ((Sql_service_context_base *)ctx)->get_date(value);
   }
 
-  static int sql_get_time(void * ctx, const MYSQL_TIME * value, uint decimals)
-  {
-    return ((Sql_service_context_base *) ctx)->get_time(value, decimals);
+  static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
+    return ((Sql_service_context_base *)ctx)->get_time(value, decimals);
   }
 
-  static int sql_get_datetime(void * ctx, const MYSQL_TIME * value,
-                              uint decimals)
-  {
-    return ((Sql_service_context_base *) ctx)->get_datetime(value, decimals);
+  static int sql_get_datetime(void *ctx, const MYSQL_TIME *value,
+                              uint decimals) {
+    return ((Sql_service_context_base *)ctx)->get_datetime(value, decimals);
   }
 
-  static int sql_get_string(void * ctx, const char * const value,
-                            size_t length, const CHARSET_INFO * const valuecs)
-  {
-    return ((Sql_service_context_base *) ctx)->get_string(value, length, valuecs);
+  static int sql_get_string(void *ctx, const char *const value, size_t length,
+                            const CHARSET_INFO *const valuecs) {
+    return ((Sql_service_context_base *)ctx)
+        ->get_string(value, length, valuecs);
   }
 
-  static void sql_handle_ok(void * ctx,
-                            uint server_status, uint statement_warn_count,
-                            ulonglong affected_rows, ulonglong last_insert_id,
-                            const char * const message)
-  {
-    return ((Sql_service_context_base *) ctx)->handle_ok(server_status,
-                                                     statement_warn_count,
-                                                     affected_rows,
-                                                     last_insert_id,
-                                                     message);
+  static void sql_handle_ok(void *ctx, uint server_status,
+                            uint statement_warn_count, ulonglong affected_rows,
+                            ulonglong last_insert_id,
+                            const char *const message) {
+    return ((Sql_service_context_base *)ctx)
+        ->handle_ok(server_status, statement_warn_count, affected_rows,
+                    last_insert_id, message);
   }
 
-
-  static void sql_handle_error(void * ctx, uint sql_errno,
-                               const char * const err_msg,
-                               const char * const sqlstate)
-  {
-    return ((Sql_service_context_base *) ctx)->handle_error(sql_errno,
-                                                        err_msg,
-                                                        sqlstate);
+  static void sql_handle_error(void *ctx, uint sql_errno,
+                               const char *const err_msg,
+                               const char *const sqlstate) {
+    return ((Sql_service_context_base *)ctx)
+        ->handle_error(sql_errno, err_msg, sqlstate);
   }
 
-
-  static void sql_shutdown(void *ctx, int flag)
-  {
-    return ((Sql_service_context_base *) ctx)->shutdown(flag);
+  static void sql_shutdown(void *ctx, int flag) {
+    return ((Sql_service_context_base *)ctx)->shutdown(flag);
   }
 };
 
-
-#endif //SQL_SERVICE_CONTEXT_BASE_INCLUDE
+#endif  // SQL_SERVICE_CONTEXT_BASE_INCLUDE

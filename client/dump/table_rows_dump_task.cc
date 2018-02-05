@@ -26,6 +26,5 @@
 
 using namespace Mysql::Tools::Dump;
 
-Table_rows_dump_task::Table_rows_dump_task(Table* related_table)
-  : Abstract_table_dump_task(related_table)
-{}
+Table_rows_dump_task::Table_rows_dump_task(Table *related_table)
+    : Abstract_table_dump_task(related_table) {}

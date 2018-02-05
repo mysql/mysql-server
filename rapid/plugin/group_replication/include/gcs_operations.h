@@ -30,30 +30,27 @@
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
-
 /**
   @class Gcs_operations
   Coordinates all operations to GCS interface.
 */
-class Gcs_operations
-{
-public:
+class Gcs_operations {
+ public:
   /**
     @enum enum_leave_state
 
     This enumeration describes the return values when a process tries to leave
     a group.
   */
-  enum enum_leave_state
-  {
-      /* The request was accepted, the member should now be leaving. */
-      NOW_LEAVING,
-      /* The member is already leaving, no point in retrying */
-      ALREADY_LEAVING,
-      /* The member already left */
-      ALREADY_LEFT,
-      /* There was an error when trying to leave */
-      ERROR_WHEN_LEAVING
+  enum enum_leave_state {
+    /* The request was accepted, the member should now be leaving. */
+    NOW_LEAVING,
+    /* The member is already leaving, no point in retrying */
+    ALREADY_LEAVING,
+    /* The member already left */
+    ALREADY_LEFT,
+    /* There was an error when trying to leave */
+    ERROR_WHEN_LEAVING
   };
 
   /**
@@ -87,7 +84,7 @@ public:
             NULL if member does not belong to a group..
             The return value must deallocated by the caller.
   */
-  Gcs_view* get_current_view();
+  Gcs_view *get_current_view();
 
   /**
     Configure the GCS interface.
@@ -98,7 +95,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  enum enum_gcs_error configure(const Gcs_interface_parameters& parameters);
+  enum enum_gcs_error configure(const Gcs_interface_parameters &parameters);
 
   /**
     Configure the debug options that shall be used by GCS.
@@ -121,8 +118,9 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  enum enum_gcs_error join(const Gcs_communication_event_listener& communication_event_listener,
-                           const Gcs_control_event_listener& control_event_listener);
+  enum enum_gcs_error join(
+      const Gcs_communication_event_listener &communication_event_listener,
+      const Gcs_control_event_listener &control_event_listener);
 
   /**
     Returns true if this server belongs to the group.
@@ -158,7 +156,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int get_local_member_identifier(std::string& identifier);
+  int get_local_member_identifier(std::string &identifier);
 
   /**
     Send a message to the group.
@@ -172,8 +170,8 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  enum enum_gcs_error send_message(const Plugin_gcs_message& message,
-                                   bool skip_if_not_initialized= false);
+  enum enum_gcs_error send_message(const Plugin_gcs_message &message,
+                                   bool skip_if_not_initialized = false);
 
   /**
     Forces a new group membership, on which the excluded members
@@ -186,14 +184,14 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int force_members(const char* members);
+  int force_members(const char *members);
 
   /**
    * @return the communication engine being used
    */
-  static const std::string& get_gcs_engine();
+  static const std::string &get_gcs_engine();
 
-private:
+ private:
   /**
     Internal function that configures the debug options that shall be used by
     GCS.

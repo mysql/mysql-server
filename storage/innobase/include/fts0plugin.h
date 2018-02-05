@@ -24,12 +24,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include/fts0plugin.h
-Full text search plugin header file
+/******************************************************************/ /**
+ @file include/fts0plugin.h
+ Full text search plugin header file
 
-Created 2013/06/04 Shaohua Wang
-***********************************************************************/
+ Created 2013/06/04 Shaohua Wang
+ ***********************************************************************/
 
 #ifndef INNOBASE_FTS0PLUGIN_H
 #define INNOBASE_FTS0PLUGIN_H
@@ -40,19 +40,24 @@ extern struct st_mysql_ftparser fts_default_parser;
 
 struct fts_ast_state_t;
 
-#define PARSER_INIT(parser, arg) if (parser->init) { parser->init(arg); }
-#define PARSER_DEINIT(parser, arg) if (parser->deinit) { parser->deinit(arg); }
+#define PARSER_INIT(parser, arg) \
+  if (parser->init) {            \
+    parser->init(arg);           \
+  }
+#define PARSER_DEINIT(parser, arg) \
+  if (parser->deinit) {            \
+    parser->deinit(arg);           \
+  }
 
-/******************************************************************//**
-fts parse query by plugin parser.
-@return 0 if parse successfully, or return non-zero. */
-int
-fts_parse_by_parser(
-/*================*/
-	ibool			mode,	/*!< in: query boolean mode */
-	uchar*			query,	/*!< in: query string */
-	ulint			len,	/*!< in: query string length */
-	st_mysql_ftparser*	parse,	/*!< in: fts plugin parser */
-	fts_ast_state_t*	state);	/*!< in: query parser state */
+/******************************************************************/ /**
+ fts parse query by plugin parser.
+ @return 0 if parse successfully, or return non-zero. */
+int fts_parse_by_parser(
+    /*================*/
+    ibool mode,               /*!< in: query boolean mode */
+    uchar *query,             /*!< in: query string */
+    ulint len,                /*!< in: query string length */
+    st_mysql_ftparser *parse, /*!< in: fts plugin parser */
+    fts_ast_state_t *state);  /*!< in: query parser state */
 
-#endif	/* INNOBASE_FTS0PLUGIN_H */
+#endif /* INNOBASE_FTS0PLUGIN_H */

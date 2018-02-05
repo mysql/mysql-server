@@ -30,31 +30,28 @@
 
 namespace keyring {
 
-enum DigestKind
-{
-  SHA256
-};
+enum DigestKind { SHA256 };
 
-class Digest
-{
-public:
-  explicit Digest(DigestKind digestKind= SHA256);
-  Digest(DigestKind digestKind, const char* value);
+class Digest {
+ public:
+  explicit Digest(DigestKind digestKind = SHA256);
+  Digest(DigestKind digestKind, const char *value);
 
   ~Digest();
 
   void assign(const char *value);
   bool operator==(const Digest &digest);
-  Digest& operator=(const Digest &digest);
-  void compute(uchar* memory, size_t memory_size);
+  Digest &operator=(const Digest &digest);
+  void compute(uchar *memory, size_t memory_size);
 
   unsigned char *value;
   bool is_empty;
   unsigned int length;
-protected:
+
+ protected:
   void set_digest_kind(DigestKind digest_kind);
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_DGST_H
+#endif  // MYSQL_DGST_H

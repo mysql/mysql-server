@@ -51,17 +51,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 static PSI_rwlock_key key_rwlock_LOCK_registry;
 
-typedef std::map<const char*, mysql_service_implementation*, c_string_less>
-  my_service_registry;
+typedef std::map<const char *, mysql_service_implementation *, c_string_less>
+    my_service_registry;
 
-struct my_h_service_iterator_imp
-{
+struct my_h_service_iterator_imp {
   my_service_registry::const_iterator m_it;
   rwlock_scoped_lock m_lock;
 };
 
-struct my_h_service_metadata_iterator_imp
-{
+struct my_h_service_metadata_iterator_imp {
   my_metadata::const_iterator m_it;
   rwlock_scoped_lock m_lock;
 };
@@ -70,17 +68,15 @@ struct my_h_service_metadata_iterator_imp
   Initializes registry for usage. Initializes RW lock, all other structures
   should be empty. Shouldn't be called multiple times.
 */
-void mysql_registry_imp::init()
-{
-  mysql_rwlock_init(
-    key_rwlock_LOCK_registry, &mysql_registry_imp::LOCK_registry);
+void mysql_registry_imp::init() {
+  mysql_rwlock_init(key_rwlock_LOCK_registry,
+                    &mysql_registry_imp::LOCK_registry);
 }
 /**
   De-initializes registry. De-initializes RW lock, all other structures
   are cleaned up.
 */
-void mysql_registry_imp::deinit()
-{
+void mysql_registry_imp::deinit() {
   mysql_registry_imp::service_registry.clear();
   mysql_registry_imp::interface_mapping.clear();
 
@@ -92,8 +88,7 @@ void mysql_registry_imp::deinit()
 
   @return A lock acquired wrapped into RAII object.
 */
-rwlock_scoped_lock mysql_registry_imp::lock_registry_for_write()
-{
+rwlock_scoped_lock mysql_registry_imp::lock_registry_for_write() {
   return rwlock_scoped_lock(&LOCK_registry, true, __FILE__, __LINE__);
 }
 
@@ -107,14 +102,12 @@ rwlock_scoped_lock mysql_registry_imp::lock_registry_for_write()
   @return A pointer to respective Service Implementation data structure, or
     NULL if no such interface pointer is registered within the Registry.
 */
-mysql_service_implementation*
-  mysql_registry_imp::get_service_implementation_by_interface(
-    my_h_service interface)
-{
-  my_interface_mapping::const_iterator iter=
-    mysql_registry_imp::interface_mapping.find(interface);
-  if (iter == mysql_registry_imp::interface_mapping.cend())
-  {
+mysql_service_implementation *
+mysql_registry_imp::get_service_implementation_by_interface(
+    my_h_service interface) {
+  my_interface_mapping::const_iterator iter =
+      mysql_registry_imp::interface_mapping.find(interface);
+  if (iter == mysql_registry_imp::interface_mapping.cend()) {
     return NULL;
   }
 
@@ -132,12 +125,10 @@ mysql_service_implementation*
     Returns 0 in case there is no such interface or it is not referenced.
 */
 uint64_t mysql_registry_imp::get_service_implementation_reference_count(
-    my_h_service interface)
-{
-  my_interface_mapping::const_iterator iter=
-    mysql_registry_imp::interface_mapping.find(interface);
-  if (iter == mysql_registry_imp::interface_mapping.cend())
-  {
+    my_h_service interface) {
+  my_interface_mapping::const_iterator iter =
+      mysql_registry_imp::interface_mapping.find(interface);
+  if (iter == mysql_registry_imp::interface_mapping.cend()) {
     return -1;
   }
 
@@ -156,29 +147,23 @@ uint64_t mysql_registry_imp::get_service_implementation_reference_count(
   @retval false success
   @retval true failure
 */
-bool mysql_registry_imp::acquire_nolock(
-  const char *service_name, my_h_service *out_service)
-{
-  try
-  {
-    if (out_service == NULL)
-    {
+bool mysql_registry_imp::acquire_nolock(const char *service_name,
+                                        my_h_service *out_service) {
+  try {
+    if (out_service == NULL) {
       return true;
     }
     my_service_registry::const_iterator iter;
 
-    iter= mysql_registry_imp::service_registry.find(service_name);
+    iter = mysql_registry_imp::service_registry.find(service_name);
 
-    if (iter == mysql_registry_imp::service_registry.cend())
-      return true;
+    if (iter == mysql_registry_imp::service_registry.cend()) return true;
 
-    mysql_service_implementation *imp= iter->second;
+    mysql_service_implementation *imp = iter->second;
     imp->add_reference();
-    *out_service= imp->interface();
+    *out_service = imp->interface();
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -194,25 +179,19 @@ bool mysql_registry_imp::acquire_nolock(
   @retval false success
   @retval true failure
 */
-bool mysql_registry_imp::release_nolock(my_h_service service)
-{
-  try
-  {
-    if (service == NULL)
-    {
+bool mysql_registry_imp::release_nolock(my_h_service service) {
+  try {
+    if (service == NULL) {
       return true;
     }
 
-    mysql_service_implementation* service_implementation=
-      mysql_registry_imp::get_service_implementation_by_interface(service);
-    if (service_implementation == NULL)
-    {
+    mysql_service_implementation *service_implementation =
+        mysql_registry_imp::get_service_implementation_by_interface(service);
+    if (service_implementation == NULL) {
       return true;
     }
     return service_implementation->release_reference();
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -230,44 +209,35 @@ bool mysql_registry_imp::release_nolock(my_h_service service)
   @retval true failure
 */
 bool mysql_registry_imp::register_service_nolock(
-  const char *service_implementation_name, my_h_service ptr)
-{
-  try
-  {
-    std::unique_ptr<mysql_service_implementation> imp=
-      std::unique_ptr<mysql_service_implementation>(
-        new mysql_service_implementation(ptr, service_implementation_name));
+    const char *service_implementation_name, my_h_service ptr) {
+  try {
+    std::unique_ptr<mysql_service_implementation> imp =
+        std::unique_ptr<mysql_service_implementation>(
+            new mysql_service_implementation(ptr, service_implementation_name));
 
-    if (imp->interface() == nullptr)
-    {
+    if (imp->interface() == nullptr) {
       return true;
     }
 
     /* Register the implementation name. */
-    std::pair<my_service_registry::iterator, bool> addition_result=
-      mysql_registry_imp::service_registry.emplace(
-        imp->name_c_str(), imp.get());
+    std::pair<my_service_registry::iterator, bool> addition_result =
+        mysql_registry_imp::service_registry.emplace(imp->name_c_str(),
+                                                     imp.get());
 
     /* Fail if it was present already. */
-    if (!addition_result.second)
-    {
+    if (!addition_result.second) {
       return true;
-    }
-    else
-    {
-      try
-      {
+    } else {
+      try {
         /* Register interface in mapping */
-        mysql_registry_imp::interface_mapping.emplace(
-          imp->interface(), imp.get());
+        mysql_registry_imp::interface_mapping.emplace(imp->interface(),
+                                                      imp.get());
 
         /* Register the Service Implementation as default for Service name in
           case none were registered before. */
         mysql_registry_imp::service_registry.emplace_hint(
-          addition_result.first, imp->service_name_c_str(), imp.get());
-      }
-      catch (...)
-      {
+            addition_result.first, imp->service_name_c_str(), imp.get());
+      } catch (...) {
         mysql_registry_imp::service_registry.erase(addition_result.first);
         /* unique_ptr still has ownership over implementation object, we
           don't have to delete it explicitly. */
@@ -279,9 +249,7 @@ bool mysql_registry_imp::register_service_nolock(
     imp.release();
 
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -299,20 +267,17 @@ bool mysql_registry_imp::register_service_nolock(
   @retval true Failure. May happen when Service is still being referenced.
 */
 bool mysql_registry_imp::unregister_nolock(
-  const char *service_implementation_name)
-{
-  try
-  {
+    const char *service_implementation_name) {
+  try {
     std::unique_ptr<mysql_service_implementation> imp;
 
     {
       /* Find the implementation and check if it is not being referenced. */
-      my_service_registry::iterator imp_iter=
-        mysql_registry_imp::service_registry.find(
-          service_implementation_name);
-      if (imp_iter == mysql_registry_imp::service_registry.end()
-        || imp_iter->second->get_reference_count() > 0)
-      {
+      my_service_registry::iterator imp_iter =
+          mysql_registry_imp::service_registry.find(
+              service_implementation_name);
+      if (imp_iter == mysql_registry_imp::service_registry.end() ||
+          imp_iter->second->get_reference_count() > 0) {
         return true;
       }
 
@@ -326,41 +291,35 @@ bool mysql_registry_imp::unregister_nolock(
 
     /* Remove interface mapping. */
     mysql_registry_imp::interface_mapping.erase(
-      mysql_registry_imp::interface_mapping.find(imp->interface()));
+        mysql_registry_imp::interface_mapping.find(imp->interface()));
 
     /* Look if it is the default implementation. */
-    my_service_registry::iterator default_iter=
-      mysql_registry_imp::service_registry.find(
-      imp->service_name_c_str());
-    if (default_iter == mysql_registry_imp::service_registry.end())
-    {
+    my_service_registry::iterator default_iter =
+        mysql_registry_imp::service_registry.find(imp->service_name_c_str());
+    if (default_iter == mysql_registry_imp::service_registry.end()) {
       /* A Service Implementation and no default present. The state is not
         consistent. */
       return true;
     }
 
-    if (default_iter->second == imp.get())
-    {
+    if (default_iter->second == imp.get()) {
       /* Remove the default implementation too. */
-      my_service_registry::iterator new_default_iter=
-        mysql_registry_imp::service_registry.erase(default_iter);
+      my_service_registry::iterator new_default_iter =
+          mysql_registry_imp::service_registry.erase(default_iter);
 
       /* Search for a new default implementation. */
-      if (new_default_iter != mysql_registry_imp::service_registry.end()
-        && !strcmp(imp->service_name_c_str(),
-          new_default_iter->second->service_name_c_str()))
-      {
+      if (new_default_iter != mysql_registry_imp::service_registry.end() &&
+          !strcmp(imp->service_name_c_str(),
+                  new_default_iter->second->service_name_c_str())) {
         /* Set as default implementation. */
-        mysql_service_implementation *new_default= new_default_iter->second;
-        mysql_registry_imp::service_registry.emplace_hint(new_default_iter,
-          new_default->service_name_c_str(), new_default);
+        mysql_service_implementation *new_default = new_default_iter->second;
+        mysql_registry_imp::service_registry.emplace_hint(
+            new_default_iter, new_default->service_name_c_str(), new_default);
       }
     }
 
     return false;
-  }
-  catch(...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -377,8 +336,7 @@ bool mysql_registry_imp::unregister_nolock(
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::acquire,
-  (const char *service_name, my_h_service *out_service))
-{
+                   (const char *service_name, my_h_service *out_service)) {
   rwlock_scoped_lock lock(&LOCK_registry, false, __FILE__, __LINE__);
 
   return mysql_registry_imp::acquire_nolock(service_name, out_service);
@@ -399,46 +357,38 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::acquire,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::acquire_related,
-  (const char *service_name, my_h_service service,
-    my_h_service *out_service))
-{
-  try
-  {
-    rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, false,
-      __FILE__, __LINE__);
+                   (const char *service_name, my_h_service service,
+                    my_h_service *out_service)) {
+  try {
+    rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, false, __FILE__,
+                            __LINE__);
 
-    mysql_service_implementation* service_implementation=
-      mysql_registry_imp::get_service_implementation_by_interface(service);
-    if (service_implementation == NULL)
-    {
+    mysql_service_implementation *service_implementation =
+        mysql_registry_imp::get_service_implementation_by_interface(service);
+    if (service_implementation == NULL) {
       return true;
     }
     /* Find dot, the component name is right after the dot. */
-    const char* component_part=
-      strchr(service_implementation->name_c_str(), '.');
-    if (component_part == NULL)
-    {
+    const char *component_part =
+        strchr(service_implementation->name_c_str(), '.');
+    if (component_part == NULL) {
       return true;
     }
     /* Assure given service_name is not fully qualified. */
-    if (strchr(service_name, '.') != NULL)
-    {
+    if (strchr(service_name, '.') != NULL) {
       return true;
     }
-    my_string service_implementation_name=
-      my_string(service_name) + component_part;
+    my_string service_implementation_name =
+        my_string(service_name) + component_part;
     /* Try to acquire such Service. */
-    if (mysql_registry_imp::acquire_nolock(
-      service_implementation_name.c_str(), out_service))
-    {
+    if (mysql_registry_imp::acquire_nolock(service_implementation_name.c_str(),
+                                           out_service)) {
       /* If desired Service Implementation is not found, return the default
       one for Service specified. */
       return mysql_registry_imp::acquire_nolock(service_name, out_service);
     }
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -453,11 +403,9 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::acquire_related,
   @retval false success
   @retval true failure
 */
-DEFINE_BOOL_METHOD(mysql_registry_imp::release,
-  (my_h_service service))
-{
-  rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, false,
-    __FILE__, __LINE__);
+DEFINE_BOOL_METHOD(mysql_registry_imp::release, (my_h_service service)) {
+  rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, false, __FILE__,
+                          __LINE__);
 
   return mysql_registry_imp::release_nolock(service);
 }
@@ -474,13 +422,13 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::release,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::register_service,
-  (const char *service_implementation_name, my_h_service ptr))
-{
-  rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, true,
-    __FILE__, __LINE__);
+                   (const char *service_implementation_name,
+                    my_h_service ptr)) {
+  rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, true, __FILE__,
+                          __LINE__);
 
   return mysql_registry_imp::register_service_nolock(
-    service_implementation_name, ptr);
+      service_implementation_name, ptr);
 }
 
 /**
@@ -496,10 +444,9 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::register_service,
   @retval true Failure. May happen when Service is still being referenced.
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::unregister,
-  (const char *service_implementation_name))
-{
-  rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, true,
-    __FILE__, __LINE__);
+                   (const char *service_implementation_name)) {
+  rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, true, __FILE__,
+                          __LINE__);
 
   return mysql_registry_imp::unregister_nolock(service_implementation_name);
 }
@@ -514,35 +461,30 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::unregister,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::set_default,
-  (const char *service_implementation_name))
-{
-  try
-  {
+                   (const char *service_implementation_name)) {
+  try {
     my_service_registry::const_iterator iter;
 
-    rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, true,
-      __FILE__, __LINE__);
+    rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, true, __FILE__,
+                            __LINE__);
 
     /* register the implementation name */
-    iter= mysql_registry_imp::service_registry.find(
-      service_implementation_name);
+    iter =
+        mysql_registry_imp::service_registry.find(service_implementation_name);
 
-    if (iter == mysql_registry_imp::service_registry.cend())
-    {
+    if (iter == mysql_registry_imp::service_registry.cend()) {
       return true;
     }
-    mysql_service_implementation *imp= iter->second;
+    mysql_service_implementation *imp = iter->second;
     /* We have to remove and reinsert value as key, the string pointer will
       not be valid if we unregister previous default implementation. */
-    iter= mysql_registry_imp::service_registry.erase(
-      mysql_registry_imp::service_registry.find(imp->service_name_c_str()));
+    iter = mysql_registry_imp::service_registry.erase(
+        mysql_registry_imp::service_registry.find(imp->service_name_c_str()));
     mysql_registry_imp::service_registry.emplace_hint(
-      iter, imp->service_name_c_str(), imp);
+        iter, imp->service_name_c_str(), imp);
 
     return false;
-  }
-  catch(...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -567,31 +509,27 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::set_default,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_create,
-  (const char *service_name_pattern, my_h_service_iterator *out_iterator))
-{
-  try
-  {
-    *out_iterator= {};
+                   (const char *service_name_pattern,
+                    my_h_service_iterator *out_iterator)) {
+  try {
+    *out_iterator = {};
 
     /* This read lock on whole registry will be held, until the iterator is
       released. */
-    rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, false,
-      __FILE__, __LINE__);
+    rwlock_scoped_lock lock(&mysql_registry_imp::LOCK_registry, false, __FILE__,
+                            __LINE__);
 
-    my_service_registry::const_iterator r=
-      (!service_name_pattern || !*service_name_pattern)
-        ? mysql_registry_imp::service_registry.cbegin()
-        : mysql_registry_imp::service_registry.find(service_name_pattern);
-    if (r == mysql_registry_imp::service_registry.cend())
-    {
+    my_service_registry::const_iterator r =
+        (!service_name_pattern || !*service_name_pattern)
+            ? mysql_registry_imp::service_registry.cbegin()
+            : mysql_registry_imp::service_registry.find(service_name_pattern);
+    if (r == mysql_registry_imp::service_registry.cend()) {
       return true;
     }
 
-    *out_iterator= new my_h_service_iterator_imp{ r, std::move(lock) };
+    *out_iterator = new my_h_service_iterator_imp{r, std::move(lock)};
     return false;
-  }
-  catch(...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -605,20 +543,15 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_create,
   @retval true failure
 */
 DEFINE_METHOD(void, mysql_registry_imp::iterator_release,
-  (my_h_service_iterator iterator))
-{
-  try
-  {
-    my_h_service_iterator_imp* iter=
-      reinterpret_cast<my_h_service_iterator_imp*>(iterator);
+              (my_h_service_iterator iterator)) {
+  try {
+    my_h_service_iterator_imp *iter =
+        reinterpret_cast<my_h_service_iterator_imp *>(iterator);
 
-    if (!iter)
-      return;
+    if (!iter) return;
 
     delete iter;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
 }
 
@@ -634,27 +567,21 @@ DEFINE_METHOD(void, mysql_registry_imp::iterator_release,
     through all values already.
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_get,
-  (my_h_service_iterator iterator, const char **out_name))
-{
-  try
-  {
-    *out_name= NULL;
+                   (my_h_service_iterator iterator, const char **out_name)) {
+  try {
+    *out_name = NULL;
 
-    if (!iterator)
-      return true;
+    if (!iterator) return true;
 
-    my_service_registry::const_iterator& iter=
-      reinterpret_cast<my_h_service_iterator_imp*>(iterator)->m_it;
+    my_service_registry::const_iterator &iter =
+        reinterpret_cast<my_h_service_iterator_imp *>(iterator)->m_it;
 
-    if (iter != mysql_registry_imp::service_registry.cend())
-    {
-      *out_name= iter->second->name_c_str();
+    if (iter != mysql_registry_imp::service_registry.cend()) {
+      *out_name = iter->second->name_c_str();
 
       return false;
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -670,24 +597,18 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_get,
   @retval true Failure or called on iterator that was on last element.
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_next,
-  (my_h_service_iterator iterator))
-{
-  try
-  {
-    if (!iterator)
-      return true;
+                   (my_h_service_iterator iterator)) {
+  try {
+    if (!iterator) return true;
 
-    my_service_registry::const_iterator& iter=
-      reinterpret_cast<my_h_service_iterator_imp*>(iterator)->m_it;
+    my_service_registry::const_iterator &iter =
+        reinterpret_cast<my_h_service_iterator_imp *>(iterator)->m_it;
 
-    if (iter != mysql_registry_imp::service_registry.cend())
-    {
+    if (iter != mysql_registry_imp::service_registry.cend()) {
       ++iter;
       return iter == mysql_registry_imp::service_registry.cend();
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -702,20 +623,15 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_next,
   @retval true Invalid or reached one-past-last element.
 */
 DEFINE_BOOL_METHOD(mysql_registry_imp::iterator_is_valid,
-  (my_h_service_iterator iterator))
-{
-  try
-  {
-    if (!iterator)
-      return true;
+                   (my_h_service_iterator iterator)) {
+  try {
+    if (!iterator) return true;
 
-    my_service_registry::const_iterator& iter=
-      reinterpret_cast<my_h_service_iterator_imp*>(iterator)->m_it;
+    my_service_registry::const_iterator &iter =
+        reinterpret_cast<my_h_service_iterator_imp *>(iterator)->m_it;
 
     return iter == mysql_registry_imp::service_registry.cend();
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -745,32 +661,27 @@ mysql_rwlock_t mysql_registry_imp::LOCK_registry;
   managing RW locks and their PSI augmentation. */
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_rwlock_info all_registry_rwlocks[]=
-{
-  { &::key_rwlock_LOCK_registry, "LOCK_registry", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
-};
+static PSI_rwlock_info all_registry_rwlocks[] = {
+    {&::key_rwlock_LOCK_registry, "LOCK_registry", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME}};
 
-
-static void init_registry_psi_keys(void)
-{
-  const char *category= "components";
+static void init_registry_psi_keys(void) {
+  const char *category = "components";
   int count;
 
-  count= static_cast<int>(array_elements(all_registry_rwlocks));
+  count = static_cast<int>(array_elements(all_registry_rwlocks));
   mysql_rwlock_register(category, all_registry_rwlocks, count);
 }
 #endif
 
-void registry_init()
-{
+void registry_init() {
 #ifdef HAVE_PSI_INTERFACE
   ::init_registry_psi_keys();
 #endif
   mysql_registry_imp::init();
 }
 
-void registry_deinit()
-{
+void registry_deinit() {
   mysql_registry_imp::deinit();
   return;
 }

@@ -41,7 +41,7 @@ namespace {
  * ellipsoid surface. Such a projection would ensure straight lines get mapped
  * to geodesics. However, such a projection seems impossible.
  */
-gis::Geographic_point gis_project_on_pole(const gis::Cartesian_point& cart) {
+gis::Geographic_point gis_project_on_pole(const gis::Cartesian_point &cart) {
   using std::atan2;
   using std::hypot;
 
@@ -57,7 +57,7 @@ gis::Geographic_point gis_project_on_pole(const gis::Cartesian_point& cart) {
 }
 
 inline gis::Geographic_linestring gis_project_on_pole(
-    const gis::Cartesian_linestring& cart) {
+    const gis::Cartesian_linestring &cart) {
   gis::Geographic_linestring geom;
   for (size_t i = 0; i < cart.size(); i++) {
     geom.push_back(gis_project_on_pole(cart[i]));

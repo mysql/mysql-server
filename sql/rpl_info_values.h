@@ -25,25 +25,23 @@
 
 class String;
 
-
-class Rpl_info_values
-{
-public:
+class Rpl_info_values {
+ public:
   Rpl_info_values(int param_ninfo);
   virtual ~Rpl_info_values();
 
   bool init();
 
-  /** 
+  /**
     Sequence of values to be read from or stored into a repository.
   */
   String *value;
 
-private:
+ private:
   /* This property represents the number of fields. */
   int ninfo;
 
-  Rpl_info_values& operator=(const Rpl_info_values& values);
-  Rpl_info_values(const Rpl_info_values& values);
+  Rpl_info_values &operator=(const Rpl_info_values &values);
+  Rpl_info_values(const Rpl_info_values &values);
 };
 #endif /* RPL_INFO_VALUES_H */

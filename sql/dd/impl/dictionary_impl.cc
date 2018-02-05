@@ -34,41 +34,41 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/auth_common.h"          // acl_init
+#include "sql/auth/auth_common.h"  // acl_init
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/auto_thd.h"                  // Auto_thd
-#include "sql/bootstrap.h"                 // bootstrap::bootstrap_functor
-#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "sql/dd/dd.h"                     // enum_dd_init_type
-#include "sql/dd/dd_schema.h"              // dd::Schema_MDL_locker
-#include "sql/dd/dd_version.h"             // dd::DD_VERSION
-#include "sql/dd/impl/bootstrapper.h"      // dd::Bootstrapper
-#include "sql/dd/impl/cache/shared_dictionary_cache.h" // Shared_dictionary_cache
-#include "sql/dd/impl/system_registry.h"   // dd::System_tables
-#include "sql/dd/impl/tables/columns.h"    // dd::tables::Columns
-#include "sql/dd/impl/tables/dd_properties.h" // get_actual_dd_version()
-#include "sql/dd/impl/tables/indexes.h"    // dd::tables::Indexes
-#include "sql/dd/impl/tables/tables.h"     // dd::tables::Tables
-#include "sql/dd/impl/tables/table_partitions.h"// dd::tables::Table_partitions
-#include "sql/dd/impl/tables/tablespaces.h"// dd::tables::Tablespaces
-#include "sql/dd/info_schema/metadata.h"   // dd::info_schema::store_dynamic...
-#include "sql/dd/types/abstract_table.h"   // dd::Abstract_table::DD_table
-#include "sql/dd/types/column.h"           // dd::Column::DD_table
-#include "sql/dd/types/index.h"            // dd::Index::DD_table
-#include "sql/dd/types/partition.h"        // dd::Partition::DD_table
-#include "sql/dd/types/table.h"            // dd::Table::DD_table
-#include "sql/dd/types/tablespace.h"       // dd::Tablespace::DD_table
+#include "sql/auto_thd.h"                    // Auto_thd
+#include "sql/bootstrap.h"                   // bootstrap::bootstrap_functor
+#include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
+#include "sql/dd/dd.h"                       // enum_dd_init_type
+#include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
+#include "sql/dd/dd_version.h"               // dd::DD_VERSION
+#include "sql/dd/impl/bootstrapper.h"        // dd::Bootstrapper
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
+#include "sql/dd/impl/system_registry.h"                // dd::System_tables
+#include "sql/dd/impl/tables/columns.h"                 // dd::tables::Columns
+#include "sql/dd/impl/tables/dd_properties.h"     // get_actual_dd_version()
+#include "sql/dd/impl/tables/indexes.h"           // dd::tables::Indexes
+#include "sql/dd/impl/tables/table_partitions.h"  // dd::tables::Table_partitions
+#include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
+#include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
+#include "sql/dd/info_schema/metadata.h"  // dd::info_schema::store_dynamic...
+#include "sql/dd/types/abstract_table.h"  // dd::Abstract_table::DD_table
+#include "sql/dd/types/column.h"          // dd::Column::DD_table
+#include "sql/dd/types/index.h"           // dd::Index::DD_table
 #include "sql/dd/types/object_table_definition.h"
+#include "sql/dd/types/partition.h"  // dd::Partition::DD_table
 #include "sql/dd/types/system_view.h"
-#include "sql/dd/upgrade/upgrade.h"        // dd::upgrade
+#include "sql/dd/types/table.h"       // dd::Table::DD_table
+#include "sql/dd/types/tablespace.h"  // dd::Tablespace::DD_table
+#include "sql/dd/upgrade/upgrade.h"   // dd::upgrade
 #include "sql/derror.h"
 #include "sql/handler.h"
 #include "sql/mdl.h"
-#include "sql/opt_costconstantcache.h"     // init_optimizer_cost_module
+#include "sql/opt_costconstantcache.h"  // init_optimizer_cost_module
 #include "sql/plugin_table.h"
-#include "sql/sql_class.h"                 // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/system_variables.h"
-#include "storage/perfschema/pfs_dd_version.h" // PFS_DD_VERSION
+#include "storage/perfschema/pfs_dd_version.h"  // PFS_DD_VERSION
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -81,32 +81,26 @@ namespace dd {
 class Object_table;
 class Table;
 
-Dictionary_impl *Dictionary_impl::s_instance= NULL;
+Dictionary_impl *Dictionary_impl::s_instance = NULL;
 
-Dictionary_impl *Dictionary_impl::instance()
-{
-  return s_instance;
-}
+Dictionary_impl *Dictionary_impl::instance() { return s_instance; }
 
-Object_id Dictionary_impl::DEFAULT_CATALOG_ID= 1;
-Object_id Dictionary_impl::DD_TABLESPACE_ID= 1;
+Object_id Dictionary_impl::DEFAULT_CATALOG_ID = 1;
+Object_id Dictionary_impl::DD_TABLESPACE_ID = 1;
 const String_type Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::init(enum_dd_init_type dd_init)
-{
+bool Dictionary_impl::init(enum_dd_init_type dd_init) {
   if (dd_init == enum_dd_init_type::DD_INITIALIZE ||
-      dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
-  {
+      dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE) {
     DBUG_ASSERT(!Dictionary_impl::s_instance);
 
-    if (Dictionary_impl::s_instance)
-      return false; /* purecov: inspected */
+    if (Dictionary_impl::s_instance) return false; /* purecov: inspected */
 
     std::unique_ptr<Dictionary_impl> d(new Dictionary_impl());
 
-    Dictionary_impl::s_instance= d.release();
+    Dictionary_impl::s_instance = d.release();
   }
 
   acl_init(true);
@@ -125,46 +119,42 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
     depending on bootstrapping option.
   */
 
-  bool result= false;
+  bool result = false;
 
   // Creation of Data Dictionary through current server
   if (dd_init == enum_dd_init_type::DD_INITIALIZE)
-    result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::initialize,
-                                              SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::initialize,
+                                               SYSTEM_THREAD_DD_INITIALIZE);
 
   // Creation of INFORMATION_SCHEMA system views.
   else if (dd_init == enum_dd_init_type::DD_INITIALIZE_SYSTEM_VIEWS)
-    result= ::bootstrap::run_bootstrap_thread(NULL,
-                                              &dd::info_schema::initialize,
-                                              SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(
+        NULL, &dd::info_schema::initialize, SYSTEM_THREAD_DD_INITIALIZE);
 
   /*
     Creation of Dictionary Tables in old Data Directory
     This function also takes care of normal server restart.
   */
   else if (dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
-    result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &upgrade_57::do_pre_checks_and_initialize_dd,
-                         SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(
+        NULL, &upgrade_57::do_pre_checks_and_initialize_dd,
+        SYSTEM_THREAD_DD_INITIALIZE);
 
   // Populate metadata in DD tables from old data directory and do cleanup.
   else if (dd_init == enum_dd_init_type::DD_POPULATE_UPGRADE)
-    result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &upgrade_57::fill_dd_and_finalize,
-                         SYSTEM_THREAD_DD_INITIALIZE);
-
+    result = ::bootstrap::run_bootstrap_thread(
+        NULL, &upgrade_57::fill_dd_and_finalize, SYSTEM_THREAD_DD_INITIALIZE);
 
   // Delete DD tables and do cleanup in case of error in upgrade
   else if (dd_init == enum_dd_init_type::DD_DELETE)
-    result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &upgrade_57::terminate,
-                         SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(NULL, &upgrade_57::terminate,
+                                               SYSTEM_THREAD_DD_INITIALIZE);
 
   // Update server and plugin I_S table metadata into DD tables.
   else if (dd_init == enum_dd_init_type::DD_UPDATE_I_S_METADATA)
-    result= ::bootstrap::run_bootstrap_thread(NULL,
-                         &dd::info_schema::update_I_S_metadata,
-                         SYSTEM_THREAD_DD_INITIALIZE);
+    result = ::bootstrap::run_bootstrap_thread(
+        NULL, &dd::info_schema::update_I_S_metadata,
+        SYSTEM_THREAD_DD_INITIALIZE);
 
   /* Now that the dd is initialized, delete the cost model. */
   delete_optimizer_cost_module();
@@ -176,13 +166,11 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::shutdown()
-{
-  if (!Dictionary_impl::s_instance)
-    return true;
+bool Dictionary_impl::shutdown() {
+  if (!Dictionary_impl::s_instance) return true;
 
   delete Dictionary_impl::s_instance;
-  Dictionary_impl::s_instance= NULL;
+  Dictionary_impl::s_instance = NULL;
 
   return false;
 }
@@ -191,18 +179,15 @@ bool Dictionary_impl::shutdown()
 // Implementation details.
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::get_target_dd_version()
-{ return dd::DD_VERSION; }
+uint Dictionary_impl::get_target_dd_version() { return dd::DD_VERSION; }
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::get_actual_dd_version(THD *thd)
-{
-  bool exists= false;
-  uint version= 0;
-  bool error MY_ATTRIBUTE((unused))=
-    tables::DD_properties::instance().get(thd, "DD_VERSION",
-                                          &version, &exists);
+uint Dictionary_impl::get_actual_dd_version(THD *thd) {
+  bool exists = false;
+  uint version = 0;
+  bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
+      thd, "DD_VERSION", &version, &exists);
   DBUG_ASSERT(!error);
   DBUG_ASSERT(exists);
   return version;
@@ -210,18 +195,17 @@ uint Dictionary_impl::get_actual_dd_version(THD *thd)
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::get_target_I_S_version()
-{ return dd::info_schema::IS_DD_VERSION; }
+uint Dictionary_impl::get_target_I_S_version() {
+  return dd::info_schema::IS_DD_VERSION;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::get_actual_I_S_version(THD *thd)
-{
-  bool exists= false;
-  uint version= 0;
-  bool error MY_ATTRIBUTE((unused))=
-    tables::DD_properties::instance().get(thd, "IS_VERSION",
-                                          &version, &exists);
+uint Dictionary_impl::get_actual_I_S_version(THD *thd) {
+  bool exists = false;
+  uint version = 0;
+  bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
+      thd, "IS_VERSION", &version, &exists);
   DBUG_ASSERT(!error);
   DBUG_ASSERT(exists);
   return version;
@@ -229,25 +213,21 @@ uint Dictionary_impl::get_actual_I_S_version(THD *thd)
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::set_I_S_version(THD *thd, uint version)
-{
+uint Dictionary_impl::set_I_S_version(THD *thd, uint version) {
   return tables::DD_properties::instance().set(thd, "IS_VERSION", version);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::get_target_P_S_version()
-{ return PFS_DD_VERSION; }
+uint Dictionary_impl::get_target_P_S_version() { return PFS_DD_VERSION; }
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::get_actual_P_S_version(THD *thd)
-{
-  bool exists= false;
-  uint version= 0;
-  bool error MY_ATTRIBUTE((unused))=
-    tables::DD_properties::instance().get(thd, "PS_VERSION",
-                                          &version, &exists);
+uint Dictionary_impl::get_actual_P_S_version(THD *thd) {
+  bool exists = false;
+  uint version = 0;
+  bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
+      thd, "PS_VERSION", &version, &exists);
   DBUG_ASSERT(!error);
   DBUG_ASSERT(exists);
   return version;
@@ -255,19 +235,15 @@ uint Dictionary_impl::get_actual_P_S_version(THD *thd)
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint Dictionary_impl::set_P_S_version(THD *thd, uint version)
-{
+uint Dictionary_impl::set_P_S_version(THD *thd, uint version) {
   return tables::DD_properties::instance().set(thd, "PS_VERSION", version);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 const Object_table *Dictionary_impl::get_dd_table(
-  const String_type &schema_name,
-  const String_type &table_name) const
-{
-  if (!is_dd_schema_name(schema_name))
-    return NULL;
+    const String_type &schema_name, const String_type &table_name) const {
+  if (!is_dd_schema_name(schema_name)) return NULL;
 
   return System_tables::instance()->find_table(schema_name, table_name);
 }
@@ -275,13 +251,11 @@ const Object_table *Dictionary_impl::get_dd_table(
 ///////////////////////////////////////////////////////////////////////////
 
 bool Dictionary_impl::is_dd_table_name(const String_type &schema_name,
-                                       const String_type &table_name) const
-{
-  if (!is_dd_schema_name(schema_name))
-    return false;
+                                       const String_type &table_name) const {
+  if (!is_dd_schema_name(schema_name)) return false;
 
-  const System_tables::Types *table_type= System_tables::instance()->
-    find_type(schema_name, table_name);
+  const System_tables::Types *table_type =
+      System_tables::instance()->find_type(schema_name, table_name);
 
   return (table_type != nullptr &&
           (*table_type == System_tables::Types::CORE ||
@@ -292,14 +266,12 @@ bool Dictionary_impl::is_dd_table_name(const String_type &schema_name,
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::is_system_table_name(const String_type &schema_name,
-                                           const String_type &table_name) const
-{
-  if (!is_dd_schema_name(schema_name))
-    return false;
+bool Dictionary_impl::is_system_table_name(
+    const String_type &schema_name, const String_type &table_name) const {
+  if (!is_dd_schema_name(schema_name)) return false;
 
-  const System_tables::Types *table_type= System_tables::instance()->
-    find_type(schema_name, table_name);
+  const System_tables::Types *table_type =
+      System_tables::instance()->find_type(schema_name, table_name);
 
   return (table_type != nullptr &&
           (*table_type == System_tables::Types::SYSTEM));
@@ -308,25 +280,20 @@ bool Dictionary_impl::is_system_table_name(const String_type &schema_name,
 ///////////////////////////////////////////////////////////////////////////
 
 int Dictionary_impl::table_type_error_code(
-  const String_type &schema_name,
-  const String_type &table_name) const
-{
-  const System_tables::Types *type= System_tables::instance()->
-                                      find_type(schema_name, table_name);
-  if (type != nullptr)
-    return System_tables::type_name_error_code(*type);
+    const String_type &schema_name, const String_type &table_name) const {
+  const System_tables::Types *type =
+      System_tables::instance()->find_type(schema_name, table_name);
+  if (type != nullptr) return System_tables::type_name_error_code(*type);
   return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Dictionary_impl::is_dd_table_access_allowed(
-  bool is_dd_internal_thread,
-  bool is_ddl_statement,
-  const char *schema_name,
-  size_t schema_length,
-  const char *table_name) const
-{
+bool Dictionary_impl::is_dd_table_access_allowed(bool is_dd_internal_thread,
+                                                 bool is_ddl_statement,
+                                                 const char *schema_name,
+                                                 size_t schema_length,
+                                                 const char *table_name) const {
   /*
     From WL#6391, we have the following matrix describing access:
 
@@ -360,8 +327,8 @@ bool Dictionary_impl::is_dd_table_access_allowed(
   // Now we need to get the table type.
   const String_type schema_str(schema_name);
   const String_type table_str(table_name);
-  const System_tables::Types *table_type= System_tables::instance()->
-                               find_type(schema_str, table_str);
+  const System_tables::Types *table_type =
+      System_tables::instance()->find_type(schema_str, table_str);
 
   /*
     Access allowed for external DD tables, for DML on DDSE tables,
@@ -376,8 +343,7 @@ bool Dictionary_impl::is_dd_table_access_allowed(
 
 bool Dictionary_impl::is_system_view_name(const char *schema_name,
                                           const char *table_name,
-                                          bool *hidden) const
-{
+                                          bool *hidden) const {
   /*
     TODO One possible improvement here could be to try and use the variant
     of is_infoschema_db() that takes length as a parameter. Then, if the
@@ -385,8 +351,7 @@ bool Dictionary_impl::is_system_view_name(const char *schema_name,
     that this is indeed not a system view, without having to do a strcmp at
     all.
   */
-  if (schema_name == nullptr ||
-      table_name == nullptr ||
+  if (schema_name == nullptr || table_name == nullptr ||
       is_infoschema_db(schema_name) == false)
     return false;
 
@@ -396,11 +361,11 @@ bool Dictionary_impl::is_system_view_name(const char *schema_name,
   my_stpcpy(tab_name_buf, table_name);
   my_caseup_str(system_charset_info, tab_name_buf);
 
-  const system_views::System_view *s=
-    System_views::instance()->find(INFORMATION_SCHEMA_NAME.str, tab_name_buf);
+  const system_views::System_view *s =
+      System_views::instance()->find(INFORMATION_SCHEMA_NAME.str, tab_name_buf);
 
   if (s)
-    *hidden= s->hidden();
+    *hidden = s->hidden();
   else
     *hidden = false;
 
@@ -414,152 +379,101 @@ bool Dictionary_impl::is_system_view_name(const char *schema_name,
   Following are couple of API's that InnoDB needs to acquire MDL locks.
 */
 
-static bool acquire_mdl(THD *thd,
-                        MDL_key::enum_mdl_namespace lock_namespace,
-                        const char *schema_name,
-                        const char *table_name,
-                        bool no_wait,
-                        ulong lock_wait_timeout,
+static bool acquire_mdl(THD *thd, MDL_key::enum_mdl_namespace lock_namespace,
+                        const char *schema_name, const char *table_name,
+                        bool no_wait, ulong lock_wait_timeout,
                         enum_mdl_type lock_type,
                         enum_mdl_duration lock_duration,
-                        MDL_ticket **out_mdl_ticket)
-{
+                        MDL_ticket **out_mdl_ticket) {
   DBUG_ENTER("dd::acquire_mdl");
 
   MDL_request mdl_request;
   MDL_REQUEST_INIT(&mdl_request, lock_namespace, schema_name, table_name,
                    lock_type, lock_duration);
 
-  if (no_wait)
-  {
-    if (thd->mdl_context.try_acquire_lock(&mdl_request))
-      DBUG_RETURN(true);
-  }
-  else if (thd->mdl_context.acquire_lock(&mdl_request, lock_wait_timeout))
+  if (no_wait) {
+    if (thd->mdl_context.try_acquire_lock(&mdl_request)) DBUG_RETURN(true);
+  } else if (thd->mdl_context.acquire_lock(&mdl_request, lock_wait_timeout))
     DBUG_RETURN(true);
 
-  if (out_mdl_ticket)
-    *out_mdl_ticket= mdl_request.ticket;
+  if (out_mdl_ticket) *out_mdl_ticket = mdl_request.ticket;
 
   DBUG_RETURN(false);
 }
 
-
-bool acquire_shared_table_mdl(THD *thd,
-                              const char *schema_name,
-                              const char *table_name,
-                              bool no_wait,
-                              MDL_ticket **out_mdl_ticket)
-{
+bool acquire_shared_table_mdl(THD *thd, const char *schema_name,
+                              const char *table_name, bool no_wait,
+                              MDL_ticket **out_mdl_ticket) {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
-                     thd->variables.lock_wait_timeout, MDL_SHARED,
-                     MDL_EXPLICIT, out_mdl_ticket);
+                     thd->variables.lock_wait_timeout, MDL_SHARED, MDL_EXPLICIT,
+                     out_mdl_ticket);
 }
 
-
-bool has_shared_table_mdl(THD *thd,
-                          const char *schema_name,
-                          const char *table_name)
-{
+bool has_shared_table_mdl(THD *thd, const char *schema_name,
+                          const char *table_name) {
   return thd->mdl_context.owns_equal_or_stronger_lock(
-                          MDL_key::TABLE,
-                          schema_name,
-                          table_name,
-                          MDL_SHARED);
+      MDL_key::TABLE, schema_name, table_name, MDL_SHARED);
 }
 
-
-bool has_exclusive_table_mdl(THD *thd,
-                             const char *schema_name,
-                             const char *table_name)
-{
+bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
+                             const char *table_name) {
   return thd->mdl_context.owns_equal_or_stronger_lock(
-                          MDL_key::TABLE,
-                          schema_name,
-                          table_name,
-                          MDL_EXCLUSIVE);
+      MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE);
 }
 
-
-bool acquire_exclusive_tablespace_mdl(THD *thd,
-                                      const char *tablespace_name,
-                                      bool no_wait)
-{
+bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
+                                      bool no_wait) {
   // When requesting a tablespace name lock, we leave the schema name empty.
   return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
                      thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
                      MDL_TRANSACTION, NULL);
 }
 
-
-bool acquire_shared_tablespace_mdl(THD *thd,
-                                   const char *tablespace_name,
-                                   bool no_wait)
-{
+bool acquire_shared_tablespace_mdl(THD *thd, const char *tablespace_name,
+                                   bool no_wait) {
   // When requesting a tablespace name lock, we leave the schema name empty.
   return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
                      thd->variables.lock_wait_timeout, MDL_SHARED,
                      MDL_TRANSACTION, NULL);
 }
 
-
-bool has_shared_tablespace_mdl(THD *thd,
-                               const char *tablespace_name)
-{
+bool has_shared_tablespace_mdl(THD *thd, const char *tablespace_name) {
   // When checking a tablespace name lock, we leave the schema name empty.
   return thd->mdl_context.owns_equal_or_stronger_lock(
-                          MDL_key::TABLESPACE,
-                          "",
-                          tablespace_name,
-                          MDL_SHARED);
+      MDL_key::TABLESPACE, "", tablespace_name, MDL_SHARED);
 }
 
-
-bool has_exclusive_tablespace_mdl(THD *thd,
-                                  const char *tablespace_name)
-{
+bool has_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name) {
   // When checking a tablespace name lock, we leave the schema name empty.
   return thd->mdl_context.owns_equal_or_stronger_lock(
-                          MDL_key::TABLESPACE,
-                          "",
-                          tablespace_name,
-                          MDL_EXCLUSIVE);
+      MDL_key::TABLESPACE, "", tablespace_name, MDL_EXCLUSIVE);
 }
 
-bool acquire_exclusive_table_mdl(THD *thd,
-                                 const char *schema_name,
-                                 const char *table_name,
-                                 bool no_wait,
-                                 MDL_ticket **out_mdl_ticket)
-{
+bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
+                                 const char *table_name, bool no_wait,
+                                 MDL_ticket **out_mdl_ticket) {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
                      thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
                      MDL_TRANSACTION, out_mdl_ticket);
 }
 
-bool acquire_exclusive_table_mdl(THD *thd,
-                                 const char *schema_name,
+bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
                                  const char *table_name,
                                  unsigned long int lock_wait_timeout,
-                                 MDL_ticket **out_mdl_ticket)
-{
+                                 MDL_ticket **out_mdl_ticket) {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, false,
                      lock_wait_timeout, MDL_EXCLUSIVE, MDL_TRANSACTION,
                      out_mdl_ticket);
 }
 
-bool acquire_exclusive_schema_mdl(THD *thd,
-                                 const char *schema_name,
-                                 bool no_wait,
-                                 MDL_ticket **out_mdl_ticket)
-{
+bool acquire_exclusive_schema_mdl(THD *thd, const char *schema_name,
+                                  bool no_wait, MDL_ticket **out_mdl_ticket) {
   return acquire_mdl(thd, MDL_key::SCHEMA, schema_name, "", no_wait,
                      thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
                      MDL_EXPLICIT, out_mdl_ticket);
 }
 
-void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
-{
+void release_mdl(THD *thd, MDL_ticket *mdl_ticket) {
   DBUG_ENTER("dd::release_mdl");
 
   thd->mdl_context.release_lock(mdl_ticket);
@@ -568,36 +482,29 @@ void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
 }
 
 /* purecov: begin deadcode */
-cache::Dictionary_client *get_dd_client(THD *thd)
-{ return thd->dd_client(); }
+cache::Dictionary_client *get_dd_client(THD *thd) { return thd->dd_client(); }
 /* purecov: end */
 
-
-bool create_native_table(THD *thd, const Plugin_table *pt)
-{
+bool create_native_table(THD *thd, const Plugin_table *pt) {
   if (dd::get_dictionary()->is_dd_table_name(pt->get_schema_name(),
-                                             pt->get_name()))
-  {
+                                             pt->get_name())) {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
              ER_THD(thd, dd::get_dictionary()->table_type_error_code(
-                               pt->get_schema_name(), pt->get_name())),
+                             pt->get_schema_name(), pt->get_name())),
              pt->get_schema_name(), pt->get_name());
 
     return true;
   }
 
   // Acquire MDL on new native table that we would create.
-  bool error= false;
+  bool error = false;
   MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request,
-                   MDL_key::TABLE,
-                   pt->get_schema_name(),
-                   pt->get_name(),
-                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, pt->get_schema_name(),
+                   pt->get_name(), MDL_EXCLUSIVE, MDL_TRANSACTION);
   dd::Schema_MDL_locker mdl_locker(thd);
   if (mdl_locker.ensure_locked(pt->get_schema_name()) ||
       thd->mdl_context.acquire_lock(&mdl_request,
-                                     thd->variables.lock_wait_timeout))
+                                    thd->variables.lock_wait_timeout))
     return true;
 
   /*
@@ -612,25 +519,23 @@ bool create_native_table(THD *thd, const Plugin_table *pt)
 
     4. Undo 1.
   */
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  const dd::Table *table_def= NULL;
+  dd::cache::Dictionary_client *client = thd->dd_client();
+  const dd::Table *table_def = NULL;
   if (client->acquire(pt->get_schema_name(), pt->get_name(), &table_def))
     return true;
 
   thd->mark_plugin_fake_ddl(true);
-  ulong master_access= thd->security_context()->master_access();
+  ulong master_access = thd->security_context()->master_access();
   thd->security_context()->set_master_access(~(ulong)0);
 
   // Drop the table and related dynamic statistics too.
-  if (table_def)
-  {
-    error= client->drop(table_def) ||
-           client->remove_table_dynamic_statistics(pt->get_schema_name(),
-                                                   pt->get_name());
+  if (table_def) {
+    error =
+        client->drop(table_def) || client->remove_table_dynamic_statistics(
+                                       pt->get_schema_name(), pt->get_name());
   }
 
-  if (!error)
-    error= execute_query(thd, pt->get_ddl());
+  if (!error) error = execute_query(thd, pt->get_ddl());
 
   thd->security_context()->set_master_access(master_access);
   thd->mark_plugin_fake_ddl(false);
@@ -638,16 +543,13 @@ bool create_native_table(THD *thd, const Plugin_table *pt)
   return error;
 }
 
-
 // Remove metadata of native table from DD tables.
-bool drop_native_table(THD *thd, const char *schema_name, const char *table_name)
-{
-  if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name))
-  {
+bool drop_native_table(THD *thd, const char *schema_name,
+                       const char *table_name) {
+  if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name)) {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
              ER_THD(thd, dd::get_dictionary()->table_type_error_code(
-                                                 schema_name,
-                                                 table_name)),
+                             schema_name, table_name)),
              schema_name, table_name);
 
     return true;
@@ -655,10 +557,7 @@ bool drop_native_table(THD *thd, const char *schema_name, const char *table_name
 
   // Acquire MDL on schema and table.
   MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request,
-                   MDL_key::TABLE,
-                   schema_name,
-                   table_name,
+  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, schema_name, table_name,
                    MDL_EXCLUSIVE, MDL_TRANSACTION);
   dd::Schema_MDL_locker mdl_locker(thd);
   if (mdl_locker.ensure_locked(schema_name) ||
@@ -666,28 +565,24 @@ bool drop_native_table(THD *thd, const char *schema_name, const char *table_name
                                     thd->variables.lock_wait_timeout))
     return true;
 
-  dd::cache::Dictionary_client *client= thd->dd_client();
-  const dd::Table *table_def= NULL;
-  if (client->acquire(schema_name, table_name, &table_def))
-  {
+  dd::cache::Dictionary_client *client = thd->dd_client();
+  const dd::Table *table_def = NULL;
+  if (client->acquire(schema_name, table_name, &table_def)) {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
   // Not error is reported if table is not present.
-  if (!table_def)
-    return false;
+  if (!table_def) return false;
 
   // Drop the table and related dynamic statistics too.
   return client->drop(table_def) ||
-         client->remove_table_dynamic_statistics(schema_name,
-                                                 table_name);
+         client->remove_table_dynamic_statistics(schema_name, table_name);
 }
 
-bool reset_tables_and_tablespaces()
-{
+bool reset_tables_and_tablespaces() {
   Auto_THD thd;
-  handlerton *ddse= ha_resolve_by_legacy_type(thd.thd ,DB_TYPE_INNODB);
+  handlerton *ddse = ha_resolve_by_legacy_type(thd.thd, DB_TYPE_INNODB);
 
   // Acquire transactional metadata locks and evict all cached objects.
   if (dd::cache::Shared_dictionary_cache::reset_tables_and_tablespaces(thd.thd))
@@ -703,11 +598,10 @@ bool reset_tables_and_tablespaces()
   return false;
 }
 
-
 template <typename Entity_object_type>
-const Object_table &get_dd_table()
-{ return Entity_object_type::DD_table::instance(); }
-
+const Object_table &get_dd_table() {
+  return Entity_object_type::DD_table::instance();
+}
 
 template const Object_table &get_dd_table<dd::Column>();
 template const Object_table &get_dd_table<dd::Index>();
@@ -715,4 +609,4 @@ template const Object_table &get_dd_table<dd::Partition>();
 template const Object_table &get_dd_table<dd::Table>();
 template const Object_table &get_dd_table<dd::Tablespace>();
 
-}
+}  // namespace dd

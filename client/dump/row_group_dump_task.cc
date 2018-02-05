@@ -28,32 +28,25 @@
 
 using namespace Mysql::Tools::Dump;
 
-void Row_group_dump_task::set_completed()
-{
-  for (std::vector<Row*>::iterator it= m_rows.begin(); it != m_rows.end();
-    ++it)
-  {
+void Row_group_dump_task::set_completed() {
+  for (std::vector<Row *>::iterator it = m_rows.begin(); it != m_rows.end();
+       ++it) {
     delete *it;
-    *it= NULL;
+    *it = NULL;
   }
 
   Abstract_simple_dump_task::set_completed();
 }
 
-bool Row_group_dump_task::can_be_executed() const
-{
-  return true;
-}
+bool Row_group_dump_task::can_be_executed() const { return true; }
 
-I_data_object* Row_group_dump_task::get_related_db_object() const
-{
+I_data_object *Row_group_dump_task::get_related_db_object() const {
   return NULL;
 }
 
-Row_group_dump_task::Row_group_dump_task(Table* source_table,
-  const std::vector<Mysql_field>& fields,
-  const bool has_generated_column)
-  : m_source_table(source_table),
-  m_fields(fields),
-  m_has_generated_columns(has_generated_column)
-{}
+Row_group_dump_task::Row_group_dump_task(Table *source_table,
+                                         const std::vector<Mysql_field> &fields,
+                                         const bool has_generated_column)
+    : m_source_table(source_table),
+      m_fields(fields),
+      m_has_generated_columns(has_generated_column) {}

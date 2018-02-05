@@ -43,11 +43,8 @@
   Initialize table PREPARED_STATEMENTS_INSTANCE.
   @param param performance schema sizing
 */
-int
-init_prepared_stmt(const PFS_global_param *param)
-{
-  if (global_prepared_stmt_container.init(param->m_prepared_stmt_sizing))
-  {
+int init_prepared_stmt(const PFS_global_param *param) {
+  if (global_prepared_stmt_container.init(param->m_prepared_stmt_sizing)) {
     return 1;
   }
 
@@ -56,71 +53,48 @@ init_prepared_stmt(const PFS_global_param *param)
 }
 
 /** Cleanup table PREPARED_STATEMENTS_INSTANCE. */
-void
-cleanup_prepared_stmt(void)
-{
-  global_prepared_stmt_container.cleanup();
-}
+void cleanup_prepared_stmt(void) { global_prepared_stmt_container.cleanup(); }
 
-void
-PFS_prepared_stmt::reset_data()
-{
+void PFS_prepared_stmt::reset_data() {
   m_prepare_stat.reset();
   m_reprepare_stat.reset();
   m_execute_stat.reset();
 }
 
-static void
-fct_reset_prepared_stmt_instances(PFS_prepared_stmt *pfs)
-{
+static void fct_reset_prepared_stmt_instances(PFS_prepared_stmt *pfs) {
   pfs->reset_data();
 }
 
-void
-reset_prepared_stmt_instances()
-{
+void reset_prepared_stmt_instances() {
   global_prepared_stmt_container.apply_all(fct_reset_prepared_stmt_instances);
 }
 
-PFS_prepared_stmt *
-create_prepared_stmt(void *identity,
-                     PFS_thread *thread,
-                     PFS_program *pfs_program,
-                     PFS_events_statements *pfs_stmt,
-                     uint stmt_id,
-                     const char *stmt_name,
-                     uint stmt_name_length,
-                     const char *sqltext,
-                     uint sqltext_length)
-{
+PFS_prepared_stmt *create_prepared_stmt(
+    void *identity, PFS_thread *thread, PFS_program *pfs_program,
+    PFS_events_statements *pfs_stmt, uint stmt_id, const char *stmt_name,
+    uint stmt_name_length, const char *sqltext, uint sqltext_length) {
   PFS_prepared_stmt *pfs = NULL;
   pfs_dirty_state dirty_state;
 
   /* Create a new record in prepared stmt stat array. */
   pfs = global_prepared_stmt_container.allocate(&dirty_state);
-  if (pfs != NULL)
-  {
+  if (pfs != NULL) {
     /* Reset the stats. */
     pfs->reset_data();
     /* Do the assignments. */
     pfs->m_identity = identity;
     /* Set query text if available, else it will be set later. */
-    if (sqltext_length > 0)
-      strncpy(pfs->m_sqltext, sqltext, sqltext_length);
+    if (sqltext_length > 0) strncpy(pfs->m_sqltext, sqltext, sqltext_length);
 
     pfs->m_sqltext_length = sqltext_length;
 
-    if (stmt_name != NULL)
-    {
+    if (stmt_name != NULL) {
       pfs->m_stmt_name_length = stmt_name_length;
-      if (pfs->m_stmt_name_length > PS_NAME_LENGTH)
-      {
+      if (pfs->m_stmt_name_length > PS_NAME_LENGTH) {
         pfs->m_stmt_name_length = PS_NAME_LENGTH;
       }
       strncpy(pfs->m_stmt_name, stmt_name, pfs->m_stmt_name_length);
-    }
-    else
-    {
+    } else {
       pfs->m_stmt_name_length = 0;
     }
 
@@ -128,33 +102,24 @@ create_prepared_stmt(void *identity,
     pfs->m_owner_thread_id = thread->m_thread_internal_id;
 
     /* If this statement prepare is called from a SP. */
-    if (pfs_program)
-    {
+    if (pfs_program) {
       pfs->m_owner_object_type = pfs_program->m_type;
-      strncpy(pfs->m_owner_object_schema,
-              pfs_program->m_schema_name,
+      strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name,
               pfs_program->m_schema_name_length);
       pfs->m_owner_object_schema_length = pfs_program->m_schema_name_length;
-      strncpy(pfs->m_owner_object_name,
-              pfs_program->m_object_name,
+      strncpy(pfs->m_owner_object_name, pfs_program->m_object_name,
               pfs_program->m_object_name_length);
       pfs->m_owner_object_name_length = pfs_program->m_object_name_length;
-    }
-    else
-    {
+    } else {
       pfs->m_owner_object_type = NO_OBJECT_TYPE;
       pfs->m_owner_object_schema_length = 0;
       pfs->m_owner_object_name_length = 0;
     }
 
-    if (pfs_stmt)
-    {
-      if (pfs_program)
-      {
+    if (pfs_stmt) {
+      if (pfs_program) {
         pfs->m_owner_event_id = pfs_stmt->m_nesting_event_id;
-      }
-      else
-      {
+      } else {
         pfs->m_owner_event_id = pfs_stmt->m_event_id;
       }
     }
@@ -166,9 +131,7 @@ create_prepared_stmt(void *identity,
   return pfs;
 }
 
-void
-delete_prepared_stmt(PFS_prepared_stmt *pfs)
-{
+void delete_prepared_stmt(PFS_prepared_stmt *pfs) {
   global_prepared_stmt_container.deallocate(pfs);
   return;
 }

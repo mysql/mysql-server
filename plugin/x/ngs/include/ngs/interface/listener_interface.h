@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,7 +30,6 @@
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "violite.h"
 
-
 namespace ngs {
 
 class Connection_acceptor_interface;
@@ -43,11 +42,11 @@ enum State_listener {
 };
 
 class Listener_interface {
-public:
+ public:
   typedef Sync_variable<State_listener> Sync_variable_state;
   typedef ngs::function<void(Connection_acceptor_interface &)> On_connection;
 
-  virtual ~Listener_interface() {};
+  virtual ~Listener_interface(){};
 
   virtual Sync_variable_state &get_state() = 0;
   virtual std::string get_last_error() = 0;
@@ -61,6 +60,6 @@ public:
   virtual void loop() = 0;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // NGS_LISTENER_INTERFACE_H_
+#endif  // NGS_LISTENER_INTERFACE_H_

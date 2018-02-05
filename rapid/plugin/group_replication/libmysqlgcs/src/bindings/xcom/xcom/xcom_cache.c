@@ -246,9 +246,8 @@ void deinit_cache() {
 
 /* static synode_no log_tail; */
 
-pax_machine *get_cache_no_touch(synode_no synode)
-{
-  pax_machine * retval = hash_get(synode);
+pax_machine *get_cache_no_touch(synode_no synode) {
+  pax_machine *retval = hash_get(synode);
   /* DBGOUT(FN; SYCEXP(synode); STREXP(task_name())); */
   MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
   if (!retval) {
@@ -264,9 +263,8 @@ pax_machine *get_cache_no_touch(synode_no synode)
   return retval;
 }
 
-pax_machine *get_cache(synode_no synode)
-{
-  pax_machine * retval = get_cache_no_touch(synode);
+pax_machine *get_cache(synode_no synode) {
+  pax_machine *retval = get_cache_no_touch(synode);
   lru_touch_hit(retval); /* Insert in protected_lru */
   MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
   return retval;
@@ -443,7 +441,7 @@ size_t add_cache_size(size_t x) {
   cache_size += x;
   if (DBG_CACHE_SIZE && x) {
     G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
-              (long unsigned int)cache_size, (long unsigned int)x);
+            (long unsigned int)cache_size, (long unsigned int)x);
   }
   return cache_size;
 }
@@ -453,7 +451,7 @@ size_t sub_cache_size(size_t x) {
   cache_size -= x;
   if (DBG_CACHE_SIZE && x) {
     G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
-              (long unsigned int)cache_size, (long unsigned int)x);
+            (long unsigned int)cache_size, (long unsigned int)x);
   }
   return cache_size;
 }

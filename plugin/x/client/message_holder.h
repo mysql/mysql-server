@@ -29,11 +29,9 @@
 
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
-
 namespace xcl {
 
-const char * const ERR_MSG_UNEXPECTED =
-    "Received unexpected message";
+const char *const ERR_MSG_UNEXPECTED = "Received unexpected message";
 
 class Message_holder {
  public:
@@ -41,22 +39,18 @@ class Message_holder {
   using Message = XProtocol::Message;
 
  public:
-  explicit Message_holder(XProtocol *protocol)
-  : m_protocol(protocol) {
-  }
+  explicit Message_holder(XProtocol *protocol) : m_protocol(protocol) {}
 
   XError read_new_message() {
     XError error;
 
-    m_message = m_protocol->recv_single_message(
-        &m_message_id, &error);
+    m_message = m_protocol->recv_single_message(&m_message_id, &error);
 
     return error;
   }
 
   XError read_or_use_cached_message() {
-    if (has_cached_message())
-      return {};
+    if (has_cached_message()) return {};
 
     return read_new_message();
   }
@@ -68,32 +62,24 @@ class Message_holder {
     for (;;) {
       auto error = read_or_use_cached_message();
 
-      if (error)
-        return error;
+      if (error) return error;
 
       if (Mysqlx::ServerMessages::ERROR == m_message_id) {
-        auto error_msg = reinterpret_cast<
-            Mysqlx::Error *>(m_message.get());
+        auto error_msg = reinterpret_cast<Mysqlx::Error *>(m_message.get());
 
-        return XError{
-          static_cast<int>(error_msg->code()),
-          error_msg->msg()
-        };
+        return XError{static_cast<int>(error_msg->code()), error_msg->msg()};
       }
 
-      if (std::any_of(expected_msg_ids.begin(),
-                      expected_msg_ids.end(),
-                      [this](const Message_id value){
-                        return value == m_message_id;
-                      }))
+      if (std::any_of(
+              expected_msg_ids.begin(), expected_msg_ids.end(),
+              [this](const Message_id value) { return value == m_message_id; }))
         return {};
 
       error = message_callback(m_message_id, m_message);
 
       clear_cached_message();
 
-      if (error)
-        return error;
+      if (error) return error;
     }
   }
 
@@ -103,65 +89,44 @@ class Message_holder {
     for (;;) {
       auto error = read_or_use_cached_message();
 
-      if (error)
-        return error;
+      if (error) return error;
 
       if (Mysqlx::ServerMessages::ERROR == m_message_id) {
-        auto error_msg = reinterpret_cast<
-            Mysqlx::Error *>(m_message.get());
+        auto error_msg = reinterpret_cast<Mysqlx::Error *>(m_message.get());
 
-        return XError{
-          static_cast<int>(error_msg->code()),
-          error_msg->msg()
-        };
+        return XError{static_cast<int>(error_msg->code()), error_msg->msg()};
       }
 
-      if (std::any_of(expected_msg_ids.begin(),
-                      expected_msg_ids.end(),
-                      [this](const Message_id value){
-                        return value == m_message_id;
-                      }))
+      if (std::any_of(
+              expected_msg_ids.begin(), expected_msg_ids.end(),
+              [this](const Message_id value) { return value == m_message_id; }))
         return {};
 
-
-      if (std::none_of(allowed_msg_ids.begin(),
-                       allowed_msg_ids.end(),
-                       [this](const Message_id value){
-                         return value == m_message_id;
-                       }))
+      if (std::none_of(
+              allowed_msg_ids.begin(), allowed_msg_ids.end(),
+              [this](const Message_id value) { return value == m_message_id; }))
         return XError{CR_COMMANDS_OUT_OF_SYNC, ERR_MSG_UNEXPECTED};
 
       clear_cached_message();
     }
   }
 
-  void clear_cached_message() {
-    m_message.reset();
-  }
+  void clear_cached_message() { m_message.reset(); }
 
-  bool has_cached_message() const {
-    return nullptr != m_message.get();
-  }
+  bool has_cached_message() const { return nullptr != m_message.get(); }
 
-  Message *get_cached_message() const {
-    return m_message.get();
-  }
+  Message *get_cached_message() const { return m_message.get(); }
 
   bool is_one_of(const std::vector<Message_id> &message_ids) const {
-    if (!has_cached_message())
-      return false;
+    if (!has_cached_message()) return false;
 
-    return std::any_of(
-        message_ids.begin(),
-        message_ids.end(),
-        [this] (const Message_id allowed_id)-> bool {
-          return allowed_id == m_message_id;
-        });
+    return std::any_of(message_ids.begin(), message_ids.end(),
+                       [this](const Message_id allowed_id) -> bool {
+                         return allowed_id == m_message_id;
+                       });
   }
 
-  Message_id get_cached_message_id() const {
-    return m_message_id;
-  }
+  Message_id get_cached_message_id() const { return m_message_id; }
 
   std::unique_ptr<Message> m_message;
 

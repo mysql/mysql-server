@@ -30,33 +30,27 @@
 
 using namespace std;
 
-ostream &operator<<(ostream &os, const Datetime&)
-{
-  const char format[]= "%Y-%m-%d %X";
+ostream &operator<<(ostream &os, const Datetime &) {
+  const char format[] = "%Y-%m-%d %X";
   time_t t(time(NULL));
   tm tm(*localtime(&t));
   std::locale loc(cout.getloc());
   ostringstream sout;
-  const std::time_put<char> &tput =
-          std::use_facet<std::time_put<char> >(loc);
+  const std::time_put<char> &tput = std::use_facet<std::time_put<char>>(loc);
   tput.put(sout.rdbuf(), sout, '\0', &tm, &format[0], &format[11]);
   os << sout.str() << " ";
   return os;
 }
 
-ostream &operator<<(ostream &os, const Gen_spaces &gen)
-{
+ostream &operator<<(ostream &os, const Gen_spaces &gen) {
   return os << gen.m_spaces;
 }
 
-int
-Log::Log_buff::sync()
-{
+int Log::Log_buff::sync() {
   string sout(str());
-  if (m_enabled && sout.length() > 0)
-  {
+  if (m_enabled && sout.length() > 0) {
     m_os << Datetime() << "[" << m_logc << "]"
-      << Gen_spaces(8-m_logc.length()) << sout;
+         << Gen_spaces(8 - m_logc.length()) << sout;
   }
   str("");
   m_os.flush();

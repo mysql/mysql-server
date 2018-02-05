@@ -23,20 +23,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
+#include <string.h>
 #include <cassert>
 #include <iostream>
 #include <map>
-#include <string.h>
 #include <set>
 
 #include "lot0buf.h"
 #include "mach0data.h"
-#include "ut0ut.h"
 #include "ut0byte.h"
+#include "ut0ut.h"
 
 #ifdef UNIV_DEBUG
-#define Fname(x) const char* fname = x;
-#define LOG(x) {std::cout << fname << ":" << x << std::endl;}
+#define Fname(x) const char *fname = x;
+#define LOG(x) \
+  { std::cout << fname << ":" << x << std::endl; }
 #else
 #define Fname(x)
 #define LOG(x)
@@ -46,7 +47,6 @@ const ulint buf_pool_size = GB1;
 
 class buf_pool_t {
  public:
-
   buf_pool_t() {
     Fname("buf_pool_t::buf_pool_t");
     ulint page_count;
@@ -56,9 +56,9 @@ class buf_pool_t {
     page_count = mem_size / UNIV_PAGE_SIZE;
     LOG("Number of pages = " << page_count);
     m_frame_array_raw = new (std::nothrow) byte[mem_size];
-    m_frames = (byte*) ut_align(m_frame_array_raw, UNIV_PAGE_SIZE);
-    LOG("Raw ptr = " << (void*) m_frame_array_raw);
-    LOG("Aligned ptr = " << (void*) m_frames);
+    m_frames = (byte *)ut_align(m_frame_array_raw, UNIV_PAGE_SIZE);
+    LOG("Raw ptr = " << (void *)m_frame_array_raw);
+    LOG("Aligned ptr = " << (void *)m_frames);
     if (m_frame_array_raw != m_frames) {
       --page_count;
     }
@@ -69,7 +69,7 @@ class buf_pool_t {
   /** Get the buffer block, given the page number.  It is an error to
   look for a page number that is not there in the buffer pool.
   @param[in]  page_no  the page number to look for in the buffer pool. */
-  buf_block_t* get(page_no_t page_no) {
+  buf_block_t *get(page_no_t page_no) {
     auto it = m_buf_pool.find(page_no);
     assert(it != m_buf_pool.end());
 
@@ -79,14 +79,14 @@ class buf_pool_t {
   }
 
   /** Allocate a new page. */
-  buf_block_t* alloc() {
+  buf_block_t *alloc() {
     if (!m_free_pages.empty()) {
       auto it = m_free_pages.begin();
-      buf_block_t* tmp = *it;
+      buf_block_t *tmp = *it;
       m_free_pages.erase(it);
-      return(tmp);
+      return (tmp);
     }
-    return(alloc(max_page_no()));
+    return (alloc(max_page_no()));
   }
 
   void reset() {
@@ -95,14 +95,12 @@ class buf_pool_t {
     m_cur_free_frame = m_frames;
   }
 
-  void dealloc(buf_block_t* block) {
-     m_free_pages.insert(block);
-  }
+  void dealloc(buf_block_t *block) { m_free_pages.insert(block); }
 
  private:
-  buf_block_t* alloc(page_no_t page_no) {
+  buf_block_t *alloc(page_no_t page_no) {
     Fname("buf_pool_t::alloc");
-    buf_block_t* block = new (std::nothrow) buf_block_t;
+    buf_block_t *block = new (std::nothrow) buf_block_t;
     assert(block != nullptr);
     /* Ensure that the page_no is not already allocated. */
     auto it = m_buf_pool.find(page_no);
@@ -114,60 +112,52 @@ class buf_pool_t {
     memset(block->m_frame, 0x00, UNIV_PAGE_SIZE);
     /* Set the page number */
     block->set_page_no(page_no);
-    m_buf_pool.insert(std::pair<page_no_t, buf_block_t*>(page_no, block));
-    LOG("block ptr=" << (void*) block);
-    LOG("frame ptr=" << (void*) block->m_frame);
+    m_buf_pool.insert(std::pair<page_no_t, buf_block_t *>(page_no, block));
+    LOG("block ptr=" << (void *)block);
+    LOG("frame ptr=" << (void *)block->m_frame);
     LOG("page_no=" << page_no);
     return (block);
   }
 
-  page_no_t max_page_no() const {
-    return(m_buf_pool.size());
-  }
+  page_no_t max_page_no() const { return (m_buf_pool.size()); }
 
-  byte* alloc_frame() {
+  byte *alloc_frame() {
     byte *tmp = m_cur_free_frame;
     ut_a(m_cur_free_frame != m_frame_end);
     m_cur_free_frame += UNIV_PAGE_SIZE;
-    return(tmp);
+    return (tmp);
   }
 
   /** Copy constructor is disabled. */
-  buf_pool_t(const buf_pool_t& other);
+  buf_pool_t(const buf_pool_t &other);
 
   /** The map between the page number, and the actual page. */
-  std::map<page_no_t, buf_block_t*> m_buf_pool;
+  std::map<page_no_t, buf_block_t *> m_buf_pool;
 
   /** One big chunk containing all frames (unaligned). */
-  byte* m_frame_array_raw;
+  byte *m_frame_array_raw;
 
   /** First frame in the array, aligned to page size. */
-  byte* m_frames;
+  byte *m_frames;
 
   /** End of frame in the array, aligned to page size. */
-  byte* m_frame_end;
+  byte *m_frame_end;
 
   /** Current free frame */
-  byte* m_cur_free_frame;
+  byte *m_cur_free_frame;
 
   /** Free pages. */
-  std::set<buf_block_t*> m_free_pages;
+  std::set<buf_block_t *> m_free_pages;
 };
 
 static buf_pool_t g_buf_pool;
 
-buf_block_t* buf_page_get(page_no_t page_no) {
-  return(g_buf_pool.get(page_no));
+buf_block_t *buf_page_get(page_no_t page_no) {
+  return (g_buf_pool.get(page_no));
 }
 
-buf_block_t* btr_page_alloc() {
-  return(g_buf_pool.alloc());
-}
+buf_block_t *btr_page_alloc() { return (g_buf_pool.alloc()); }
 
-void btr_page_free(buf_block_t* block) {
-  return(g_buf_pool.dealloc(block));
-}
+void btr_page_free(buf_block_t *block) { return (g_buf_pool.dealloc(block)); }
 
-void buf_pool_reset() {
-  g_buf_pool.reset();
-}
+void buf_pool_reset() { g_buf_pool.reset(); }

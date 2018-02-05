@@ -46,7 +46,7 @@ typedef struct cfg_app_xcom {
  The application will set this pointer before engaging
  xcom
 */
-extern cfg_app_xcom_st* the_app_xcom_cfg;
+extern cfg_app_xcom_st *the_app_xcom_cfg;
 
 void init_cfg_app_xcom();
 void deinit_cfg_app_xcom();

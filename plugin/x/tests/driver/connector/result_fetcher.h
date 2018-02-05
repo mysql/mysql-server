@@ -33,19 +33,14 @@
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
 #include "plugin/x/client/mysqlxclient/xrow.h"
 
-
 class Result_fetcher {
  public:
   using XQuery_result_ptr = std::unique_ptr<xcl::XQuery_result>;
 
   class Warning {
    public:
-    Warning(
-        const std::string &text,
-        const uint32_t code,
-        const bool is_note)
-    : m_text(text), m_code(code), m_is_note(is_note) {
-    }
+    Warning(const std::string &text, const uint32_t code, const bool is_note)
+        : m_text(text), m_code(code), m_is_note(is_note) {}
 
     std::string m_text;
     uint32_t m_code;
@@ -54,17 +49,15 @@ class Result_fetcher {
 
  public:
   explicit Result_fetcher(XQuery_result_ptr query)
-  : m_query(std::move(query)) {
-  }
+      : m_query(std::move(query)) {}
 
   std::vector<xcl::Column_metadata> column_metadata() {
-    if (m_error)
-      return {};
+    if (m_error) return {};
 
     return m_query->get_metadata(&m_error);
   }
 
-  const xcl::XRow* next() {
+  const xcl::XRow *next() {
     if (m_cached_row) {
       auto result = m_cached_row;
 
@@ -73,8 +66,7 @@ class Result_fetcher {
       return result;
     }
 
-    if (m_error)
-      return nullptr;
+    if (m_error) return nullptr;
 
     return m_query->get_next_row(&m_error);
   }
@@ -84,29 +76,24 @@ class Result_fetcher {
     while (m_query->next_resultset(&m_error)) {
       m_cached_row = m_query->get_next_row(&m_error);
 
-      if (nullptr != m_cached_row)
-        return true;
+      if (nullptr != m_cached_row) return true;
     }
 
     return false;
   }
 
-  xcl::XError get_last_error() const {
-    return m_error;
-  }
+  xcl::XError get_last_error() const { return m_error; }
 
   int64_t last_insert_id() const {
     uint64_t result;
-    if (!m_query->try_get_last_insert_id(&result))
-      return -1;
+    if (!m_query->try_get_last_insert_id(&result)) return -1;
 
     return result;
   }
 
   int64_t affected_rows() const {
     uint64_t result;
-    if (!m_query->try_get_affected_rows(&result))
-      return -1;
+    if (!m_query->try_get_affected_rows(&result)) return -1;
 
     return result;
   }
@@ -130,8 +117,7 @@ class Result_fetcher {
 
     for (const auto &warning : m_query->get_warnings()) {
       result.emplace_back(
-          warning.msg(),
-          warning.code(),
+          warning.msg(), warning.code(),
           warning.level() == ::Mysqlx::Notice::Warning_Level_NOTE);
     }
 
@@ -140,16 +126,13 @@ class Result_fetcher {
 
  private:
   XQuery_result_ptr m_query;
-  xcl::XError       m_error;
-  const xcl::XRow  *m_cached_row{ nullptr };
+  xcl::XError m_error;
+  const xcl::XRow *m_cached_row{nullptr};
 };
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const std::vector<xcl::Column_metadata>& meta);
+std::ostream &operator<<(std::ostream &os,
+                         const std::vector<xcl::Column_metadata> &meta);
 
-std::ostream& operator<<(
-    std::ostream& os,
-    Result_fetcher* result);
+std::ostream &operator<<(std::ostream &os, Result_fetcher *result);
 
 #endif  // X_TESTS_DRIVER_CONNECTOR_RESULT_FETCHER_H_

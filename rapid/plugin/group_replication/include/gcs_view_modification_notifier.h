@@ -26,16 +26,14 @@
 #include "plugin/group_replication/include/plugin_constants.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 
-
 /*
   @class Plugin_gcs_view_modification_notifier
 
   This class is used with the purpose of issuing a view changing event
   and wait for its completion.
  */
-class Plugin_gcs_view_modification_notifier
-{
-public:
+class Plugin_gcs_view_modification_notifier {
+ public:
   Plugin_gcs_view_modification_notifier();
   virtual ~Plugin_gcs_view_modification_notifier();
 
@@ -70,8 +68,8 @@ public:
     @param[in]  errnr  error that did cause the view modification to
                      be cancelled
   */
-  void cancel_view_modification(int errnr=
-                                GROUP_REPLICATION_CONFIGURATION_ERROR);
+  void cancel_view_modification(
+      int errnr = GROUP_REPLICATION_CONFIGURATION_ERROR);
 
   /**
     Check if view modification was cancelled.
@@ -92,7 +90,7 @@ public:
       @retval false  OK
       @retval true   error (timeout or view modification cancelled)
    */
-  bool wait_for_view_modification(long timeout= VIEW_MODIFICATION_TIMEOUT);
+  bool wait_for_view_modification(long timeout = VIEW_MODIFICATION_TIMEOUT);
 
   /**
     Get the error number that did happen on view modification.
@@ -104,7 +102,7 @@ public:
   */
   int get_error();
 
-private:
+ private:
   bool view_changing;
   bool cancelled_view_change;
   bool injected_view_modification;

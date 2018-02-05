@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -92,7 +92,6 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
   ngs::Error_code attach() override;
   ngs::Error_code detach() override;
-
 
   ngs::Error_code init();
   ngs::Error_code init(const int client_port, const ngs::Connection_type type);

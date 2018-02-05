@@ -26,8 +26,7 @@
 
 #include "my_sys.h"
 
-void test_timers()
-{
+void test_timers() {
   ulonglong t1_a;
   ulonglong t2_a;
   ulonglong t3_a;
@@ -41,26 +40,26 @@ void test_timers()
 
   init_timers();
 
-  t1_a= get_timer_pico_value(TIMER_NAME_CYCLE);
+  t1_a = get_timer_pico_value(TIMER_NAME_CYCLE);
   /* Wait 5 seconds */
   my_sleep(5000000);
-  t1_b= get_timer_pico_value(TIMER_NAME_CYCLE);
+  t1_b = get_timer_pico_value(TIMER_NAME_CYCLE);
 
-  t2_a= get_timer_pico_value(TIMER_NAME_NANOSEC);
+  t2_a = get_timer_pico_value(TIMER_NAME_NANOSEC);
   my_sleep(5000000);
-  t2_b= get_timer_pico_value(TIMER_NAME_NANOSEC);
+  t2_b = get_timer_pico_value(TIMER_NAME_NANOSEC);
 
-  t3_a= get_timer_pico_value(TIMER_NAME_MICROSEC);
+  t3_a = get_timer_pico_value(TIMER_NAME_MICROSEC);
   my_sleep(5000000);
-  t3_b= get_timer_pico_value(TIMER_NAME_MICROSEC);
+  t3_b = get_timer_pico_value(TIMER_NAME_MICROSEC);
 
-  t4_a= get_timer_pico_value(TIMER_NAME_MILLISEC);
+  t4_a = get_timer_pico_value(TIMER_NAME_MILLISEC);
   my_sleep(5000000);
-  t4_b= get_timer_pico_value(TIMER_NAME_MILLISEC);
+  t4_b = get_timer_pico_value(TIMER_NAME_MILLISEC);
 
-  t5_a= get_timer_pico_value(TIMER_NAME_TICK);
+  t5_a = get_timer_pico_value(TIMER_NAME_TICK);
   my_sleep(5000000);
-  t5_b= get_timer_pico_value(TIMER_NAME_TICK);
+  t5_b = get_timer_pico_value(TIMER_NAME_TICK);
 
   /*
     Print the timer values, for manual inspection by a human.
@@ -78,11 +77,11 @@ void test_timers()
   diag("milli b: %13llu", t4_b);
   diag("tick b: %13llu", t5_b);
 
-  diag("cycle b-a: %13llu", t1_b-t1_a);
-  diag("nano b-a: %13llu", t2_b-t2_a);
-  diag("micro b-a: %13llu", t3_b-t3_a);
-  diag("milli b-a: %13llu", t4_b-t4_a);
-  diag("tick b-a: %13llu", t5_b-t5_a);
+  diag("cycle b-a: %13llu", t1_b - t1_a);
+  diag("nano b-a: %13llu", t2_b - t2_a);
+  diag("micro b-a: %13llu", t3_b - t3_a);
+  diag("milli b-a: %13llu", t4_b - t4_a);
+  diag("tick b-a: %13llu", t5_b - t5_a);
 
   if ((t1_a == 0) && (t1_b == 0))
     skip(1, "cycle timer not implemented");
@@ -110,16 +109,11 @@ void test_timers()
     ok(t5_b > t5_a, "tick timer ascending");
 }
 
-void do_all_tests()
-{
-  test_timers();
-}
+void do_all_tests() { test_timers(); }
 
-int main(int, char **)
-{
+int main(int, char **) {
   plan(5);
   MY_INIT("pfs_timer-t");
   do_all_tests();
   return (exit_status());
 }
-

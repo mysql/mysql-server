@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,38 +27,36 @@
 
 #include "plugin/x/src/sql_data_context.h"
 
-namespace ngs
-{
+namespace ngs {
 
 class IOptions_session;
 typedef ngs::shared_ptr<IOptions_session> IOptions_session_ptr;
 
 }  // namespace ngs
 
-namespace xpl
-{
+namespace xpl {
 
-  class Sql_user_require
-  {
-  public:
-    std::string ssl_type;
-    std::string ssl_cipher;
-    std::string ssl_x509_issuer;
-    std::string ssl_x509_subject;
+class Sql_user_require {
+ public:
+  std::string ssl_type;
+  std::string ssl_cipher;
+  std::string ssl_x509_issuer;
+  std::string ssl_x509_subject;
 
-    ngs::Error_code validate(const ngs::IOptions_session_ptr &options) const;
+  ngs::Error_code validate(const ngs::IOptions_session_ptr &options) const;
 
-  private:
-    const static std::string SSL_TYPE_NONE;
-    const static std::string SSL_TYPE_SSL;
-    const static std::string SSL_TYPE_X509;
-    const static std::string SSL_TYPE_SPECIFIC;
+ private:
+  const static std::string SSL_TYPE_NONE;
+  const static std::string SSL_TYPE_SSL;
+  const static std::string SSL_TYPE_X509;
+  const static std::string SSL_TYPE_SPECIFIC;
 
-    ngs::Error_code check_ssl(const ngs::IOptions_session_ptr &options) const;
-    ngs::Error_code check_x509(const ngs::IOptions_session_ptr &options) const;
-    ngs::Error_code check_specific(const ngs::IOptions_session_ptr &options) const;
-  };
+  ngs::Error_code check_ssl(const ngs::IOptions_session_ptr &options) const;
+  ngs::Error_code check_x509(const ngs::IOptions_session_ptr &options) const;
+  ngs::Error_code check_specific(
+      const ngs::IOptions_session_ptr &options) const;
+};
 
-} // namespace xpl
+}  // namespace xpl
 
-#endif // _SQL_USER_REQUIRE_H_
+#endif  // _SQL_USER_REQUIRE_H_

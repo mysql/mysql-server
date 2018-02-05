@@ -35,7 +35,6 @@
 #include "mysqlxclient/xerror.h"
 #include "mysqlxclient/xrow.h"
 
-
 namespace xcl {
 
 /**
@@ -76,8 +75,8 @@ namespace xcl {
 */
 class XQuery_result {
  public:
-  using Warning  = ::Mysqlx::Notice::Warning;
-  using Row      = ::Mysqlx::Resultset::Row;
+  using Warning = ::Mysqlx::Notice::Warning;
+  using Row = ::Mysqlx::Resultset::Row;
   using Metadata = std::vector<Column_metadata>;
   using Warnings = std::vector<Warning>;
 
@@ -151,8 +150,8 @@ class XQuery_result {
       @retval == true    auto-generated identifiers list is not empty
       @retval == false   auto-generated identifiers list is empty
   */
-  virtual bool try_get_generated_document_ids(std::vector<std::string> *out_ids)
-      const = 0;
+  virtual bool try_get_generated_document_ids(
+      std::vector<std::string> *out_ids) const = 0;
 
   /**
     Get column information for current 'resultset'.
@@ -245,7 +244,6 @@ class XQuery_result {
       @retval == false      all 'resultset' received or an error occur
   */
   virtual bool next_resultset(XError *out_error) = 0;
-
 
   /**
     Check if there is a 'resultset'.

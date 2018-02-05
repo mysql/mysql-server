@@ -34,16 +34,14 @@
 /**
   What is the policy when creation a new server session for SQL execution.
 */
-enum enum_plugin_con_isolation
-{
-  PSESSION_USE_THREAD,      ///< Use the current thread
-  PSESSION_INIT_THREAD,     ///< Use the current thread but initialize it
-  PSESSION_DEDICATED_THREAD ///< Use a dedicated thread to open a session
+enum enum_plugin_con_isolation {
+  PSESSION_USE_THREAD,       ///< Use the current thread
+  PSESSION_INIT_THREAD,      ///< Use the current thread but initialize it
+  PSESSION_DEDICATED_THREAD  ///< Use a dedicated thread to open a session
 };
 
-class Sql_service_commands
-{
-public:
+class Sql_service_commands {
+ public:
   /**
     Internal method to set the super read only mode.
 
@@ -54,7 +52,8 @@ public:
        @retval 0  - success
        @retval >0 - failure
   */
-  long internal_set_super_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
+  long internal_set_super_read_only(Sql_service_interface *sql_interface,
+                                    void *arg = NULL);
 
   /**
     Internal method to reset the super read only mode.
@@ -66,7 +65,8 @@ public:
        @retval 0  - success
        @retval >0 - failure
   */
-  long internal_reset_super_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
+  long internal_reset_super_read_only(Sql_service_interface *sql_interface,
+                                      void *arg = NULL);
 
   /**
     Internal method to reset the super read only mode.
@@ -78,7 +78,8 @@ public:
        @retval 0  - success
        @retval >0 - failure
   */
-  long internal_reset_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
+  long internal_reset_read_only(Sql_service_interface *sql_interface,
+                                void *arg = NULL);
 
   /**
    Internal method to get the super read only mode.
@@ -90,7 +91,8 @@ public:
    @retval  0  Not in super read mode
    @retval  1  In read super mode
   */
-  long internal_get_server_super_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
+  long internal_get_server_super_read_only(Sql_service_interface *sql_interface,
+                                           void *arg = NULL);
 
   /**
     Internal method to get the super read only mode.
@@ -102,7 +104,8 @@ public:
     @retval  0  Not in super read mode
     @retval  1  In read super mode
   */
-  long internal_get_server_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
+  long internal_get_server_read_only(Sql_service_interface *sql_interface,
+                                     void *arg = NULL);
 
   /**
     Method to return the server gtid_executed by executing the corresponding
@@ -116,7 +119,7 @@ public:
       @retval !=0    Error
   */
   int internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
-                                        std::string& gtid_executed);
+                                        std::string &gtid_executed);
 
   /**
     Method to return the server gtid_executed by executing the corresponding
@@ -129,8 +132,8 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  long internal_get_server_gtid_executed_generic(Sql_service_interface *sql_interface,
-                                                void* gtid_executed);
+  long internal_get_server_gtid_executed_generic(
+      Sql_service_interface *sql_interface, void *gtid_executed);
 
   /**
     Method to wait for the server gtid_executed to match the given GTID string
@@ -143,23 +146,19 @@ public:
       @retval 0      OK
       @retval !=0    Error when executed or timeout.
   */
-  long internal_wait_for_server_gtid_executed(Sql_service_interface *sql_interface,
-                                              std::string& gtid_executed,
-                                              int timeout= 0);
-
+  long internal_wait_for_server_gtid_executed(
+      Sql_service_interface *sql_interface, std::string &gtid_executed,
+      int timeout = 0);
 };
 
-struct st_session_method
-{
-  long (Sql_service_commands::*method)(Sql_service_interface*, void*);
+struct st_session_method {
+  long (Sql_service_commands::*method)(Sql_service_interface *, void *);
   bool terminated;
 };
 
-class Session_plugin_thread
-{
-public:
-
-  Session_plugin_thread(Sql_service_commands* command_interface);
+class Session_plugin_thread {
+ public:
+  Session_plugin_thread(Sql_service_commands *command_interface);
 
   ~Session_plugin_thread();
 
@@ -194,8 +193,9 @@ public:
      @param method    method to executed
      @param terminate termination flag to the class
   */
-  void queue_new_method_for_application(long (Sql_service_commands::*method)(Sql_service_interface*, void*),
-                                        bool terminate=false);
+  void queue_new_method_for_application(
+      long (Sql_service_commands::*method)(Sql_service_interface *, void *),
+      bool terminate = false);
 
   /**
     Wait for the queued method to return.
@@ -209,22 +209,19 @@ public:
     Sets a pointer that the next queued method will use to return a value
     @param pointer the pointer where the method will store some return value
   */
-  void set_return_pointer(void* pointer)
-  {
-    return_object= pointer;
-  }
+  void set_return_pointer(void *pointer) { return_object = pointer; }
 
-private:
+ private:
   Sql_service_commands *command_interface;
 
   Sql_service_interface *m_server_interface;
 
-  Synchronized_queue<st_session_method*> *incoming_methods;
+  Synchronized_queue<st_session_method *> *incoming_methods;
 
   void *m_plugin_pointer;
 
   /** The value for returning on methods */
-  void* return_object;
+  void *return_object;
 
   /** Session thread handle */
   my_thread_handle m_plugin_session_pthd;
@@ -236,7 +233,7 @@ private:
   mysql_cond_t m_method_cond;
 
   /**The user for the session connection*/
-  const char* session_user;
+  const char *session_user;
   /** Session thread method completion flag */
   bool m_method_execution_completed;
   /** The method return value */
@@ -249,9 +246,8 @@ private:
   int m_session_thread_error;
 };
 
-class Sql_service_command_interface
-{
-public:
+class Sql_service_command_interface {
+ public:
   Sql_service_command_interface();
   ~Sql_service_command_interface();
 
@@ -270,14 +266,14 @@ public:
   */
   int establish_session_connection(enum_plugin_con_isolation isolation_param,
                                    const char *user,
-                                   void *plugin_pointer= NULL);
+                                   void *plugin_pointer = NULL);
 
   /**
     Returns the SQL service interface associated to this class
 
     @return the sql service interface field
   */
-  Sql_service_interface* get_sql_service_interface();
+  Sql_service_interface *get_sql_service_interface();
 
   /**
     Sets the SQL API user to be used on security checks
@@ -288,7 +284,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int set_interface_user(const char* user);
+  int set_interface_user(const char *user);
 
   /**
    Method to kill the session identified by the given sesion id in those
@@ -342,7 +338,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int get_server_gtid_executed(std::string& gtid_executed);
+  int get_server_gtid_executed(std::string &gtid_executed);
 
   /**
     Method to wait for the server gtid_executed to match the given GTID string
@@ -354,7 +350,8 @@ public:
       @retval 0      OK
       @retval !=0    Error when executed or timeout.
   */
-  long wait_for_server_gtid_executed(std::string& gtid_executed, int timeout= 0);
+  long wait_for_server_gtid_executed(std::string &gtid_executed,
+                                     int timeout = 0);
 
   /**
     Method to get the value of the super_read_only variable on the server.
@@ -373,8 +370,8 @@ public:
     @retval  1  In read super mode
   */
   long get_server_read_only();
-private:
 
+ private:
   enum_plugin_con_isolation connection_thread_isolation;
 
   Sql_service_commands sql_service_commands;
@@ -383,7 +380,7 @@ private:
   Sql_service_interface *m_server_interface;
 
   /* The thread where the connection leaves if isolation is needed*/
-  Session_plugin_thread* m_plugin_session_thread;
+  Session_plugin_thread *m_plugin_session_thread;
 };
 
-#endif //SQL_SERVICE_COMMAND_INCLUDE
+#endif  // SQL_SERVICE_COMMAND_INCLUDE

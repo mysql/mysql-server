@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,10 +32,8 @@ namespace xpl {
 const std::string Native_plain_verification::k_empty_salt;
 
 bool Native_plain_verification::verify_authentication_string(
-    const std::string &user,
-    const std::string &host,
-    const std::string &client_string,
-    const std::string &db_string) const {
+    const std::string &user, const std::string &host,
+    const std::string &client_string, const std::string &db_string) const {
   // There is no need to perform additional authentication if the given
   // credentials are already in the cache.
   if (m_sha256_password_cache &&
@@ -43,17 +41,14 @@ bool Native_plain_verification::verify_authentication_string(
     return true;
   }
 
-  bool client_string_matches =
-      client_string.empty() &&
-      db_string.empty();
+  bool client_string_matches = client_string.empty() && db_string.empty();
 
   if (!client_string_matches &&
       compute_password_hash(client_string) == db_string) {
     client_string_matches = true;
   }
 
-  if (client_string_matches &&
-      m_sha256_password_cache) {
+  if (client_string_matches && m_sha256_password_cache) {
     m_sha256_password_cache->upsert(user, host, client_string);
   }
 

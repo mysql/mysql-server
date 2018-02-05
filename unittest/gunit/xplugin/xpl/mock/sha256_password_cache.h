@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -37,26 +37,27 @@ namespace xpl {
 namespace test {
 
 class Mock_sha256_password_cache : public ngs::SHA256_password_cache_interface {
-public:
-  MOCK_METHOD3(upsert, bool (const std::string &, const std::string &,
-                             const std::string &));
-  MOCK_METHOD2(remove, bool (const std::string &, const std::string &));
+ public:
+  MOCK_METHOD3(upsert, bool(const std::string &, const std::string &,
+                            const std::string &));
+  MOCK_METHOD2(remove, bool(const std::string &, const std::string &));
   MOCK_CONST_METHOD2(get_entry,
-    std::pair<bool, std::string> (const std::string &, const std::string &));
-  MOCK_CONST_METHOD3(contains, bool (const std::string &, const std::string &,
-                                     const std::string &));
-  MOCK_CONST_METHOD0(size, std::size_t ());
-  MOCK_METHOD0(clear, void ());
-  MOCK_METHOD0(enable, void ());
-  MOCK_METHOD0(disable, void ());
+                     std::pair<bool, std::string>(const std::string &,
+                                                  const std::string &));
+  MOCK_CONST_METHOD3(contains, bool(const std::string &, const std::string &,
+                                    const std::string &));
+  MOCK_CONST_METHOD0(size, std::size_t());
+  MOCK_METHOD0(clear, void());
+  MOCK_METHOD0(enable, void());
+  MOCK_METHOD0(disable, void());
 };
 
 class Mock_cache_based_verification : public Cache_based_verification {
-public:
+ public:
   explicit Mock_cache_based_verification(
       ngs::SHA256_password_cache_interface *cache)
-    : Cache_based_verification(cache) {}
-  MOCK_CONST_METHOD0(get_salt, const std::string& ());
+      : Cache_based_verification(cache) {}
+  MOCK_CONST_METHOD0(get_salt, const std::string &());
 };
 
 }  // namespace test

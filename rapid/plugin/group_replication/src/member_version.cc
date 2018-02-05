@@ -25,80 +25,49 @@
 
 #include "plugin/group_replication/include/member_version.h"
 
-Member_version::Member_version(unsigned int version)
-{
-  this->version= version;
+Member_version::Member_version(unsigned int version) {
+  this->version = version;
 }
 
-uint32
-Member_version::get_version() const
-{
-  return this->version;
-}
+uint32 Member_version::get_version() const { return this->version; }
 
-const std::string
-Member_version::get_version_string() const
-{
+const std::string Member_version::get_version_string() const {
   std::stringstream member_version;
-  member_version << std::hex
-                 << get_major_version ()<<"."
-                 << get_minor_version ()<<"."
-                 << get_patch_version ();
+  member_version << std::hex << get_major_version() << "."
+                 << get_minor_version() << "." << get_patch_version();
   return member_version.str();
 }
 
-uint32
-Member_version::get_major_version() const
-{
-  return this->version >> 16;
-}
+uint32 Member_version::get_major_version() const { return this->version >> 16; }
 
-uint32
-Member_version::get_minor_version() const
-{
+uint32 Member_version::get_minor_version() const {
   return (this->version >> 8) & 0xff;
 }
 
-uint32
-Member_version::get_patch_version() const
-{
+uint32 Member_version::get_patch_version() const {
   return this->version & 0xff;
 }
 
-bool
-Member_version::operator ==(const Member_version &other) const
-{
+bool Member_version::operator==(const Member_version &other) const {
   return get_version() == other.get_version();
 }
 
-bool
-Member_version::operator <(const Member_version &other) const
-{
-  if (*this == other)
-    return false;
+bool Member_version::operator<(const Member_version &other) const {
+  if (*this == other) return false;
 
-  if (get_major_version() < other.get_major_version())
-  {
+  if (get_major_version() < other.get_major_version()) {
     return true;
-  }
-  else if (get_major_version() > other.get_major_version())
-  {
+  } else if (get_major_version() > other.get_major_version()) {
     return false;
-  }
-  else //major version are the same
+  } else  // major version are the same
   {
-    if (get_minor_version() < other.get_minor_version())
-    {
+    if (get_minor_version() < other.get_minor_version()) {
       return true;
-    }
-    else if (get_minor_version() > other.get_minor_version())
-    {
+    } else if (get_minor_version() > other.get_minor_version()) {
       return false;
-    }
-    else //minor version are the same
+    } else  // minor version are the same
     {
-      if (get_patch_version() < other.get_patch_version())
-      {
+      if (get_patch_version() < other.get_patch_version()) {
         return true;
       }
     }
@@ -107,28 +76,18 @@ Member_version::operator <(const Member_version &other) const
   return false;
 }
 
-bool
-Member_version::operator >(const Member_version &other) const
-{
-  if (*this == other)
-    return false;
+bool Member_version::operator>(const Member_version &other) const {
+  if (*this == other) return false;
 
   return !(*this < other);
 }
 
-bool
-Member_version::operator >=(const Member_version &other) const
-{
+bool Member_version::operator>=(const Member_version &other) const {
   return (*this == other || *this > other);
 }
 
-bool
-Member_version::operator <=(const Member_version &other) const
-{
+bool Member_version::operator<=(const Member_version &other) const {
   return (*this == other || *this < other);
 }
 
-Member_version::~Member_version()
-{
-}
-
+Member_version::~Member_version() {}

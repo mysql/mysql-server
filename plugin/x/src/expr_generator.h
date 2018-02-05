@@ -36,7 +36,8 @@ namespace xpl {
 class Expression_generator {
  public:
   using Expr = ::Mysqlx::Expr::Expr;
-  using Args = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Scalar>;
+  using Args =
+      ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Scalar>;
   using Document_path =
       ::google::protobuf::RepeatedPtrField<::Mysqlx::Expr::DocumentPathItem>;
 
@@ -51,10 +52,10 @@ class Expression_generator {
 
   // source: ``Mysqlx.Resultset.ColumnMetadata`` for list of known values
   enum Octets_content_type {
-    CT_PLAIN = 0x0000,     //   default value; general use of octets
+    CT_PLAIN = 0x0000,  //   default value; general use of octets
     CT_GEOMETRY = Mysqlx::Resultset::GEOMETRY,
-    CT_JSON     = Mysqlx::Resultset::JSON,
-    CT_XML      = Mysqlx::Resultset::XML
+    CT_JSON = Mysqlx::Resultset::JSON,
+    CT_XML = Mysqlx::Resultset::XML
   };
 
   Expression_generator(Query_string_builder *qb, const Args &args,
@@ -72,7 +73,7 @@ class Expression_generator {
 
   Expression_generator clone(Query_string_builder *qb) const;
   Query_string_builder &query_string_builder() const { return *m_qb; }
-  const Args & args() const { return m_args; }
+  const Args &args() const { return m_args; }
 
  private:
   using Placeholder = ::google::protobuf::uint32;

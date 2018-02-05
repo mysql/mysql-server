@@ -28,18 +28,13 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/sql_service/sql_service_context_base.h"
 
-class Sql_service_context : public Sql_service_context_base
-{
-public:
-  Sql_service_context(Sql_resultset *rset)
-    :resultset(rset)
-  {
-    if (rset != NULL)
-      resultset->clear();
+class Sql_service_context : public Sql_service_context_base {
+ public:
+  Sql_service_context(Sql_resultset *rset) : resultset(rset) {
+    if (rset != NULL) resultset->clear();
   }
 
   ~Sql_service_context() {}
-
 
   /** Getting metadata **/
   /**
@@ -66,8 +61,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  int field_metadata(struct st_send_field *field,
-                     const CHARSET_INFO *charset);
+  int field_metadata(struct st_send_field *field, const CHARSET_INFO *charset);
 
   /**
     Indicates end of metadata for the result set
@@ -79,8 +73,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  int end_result_metadata(uint server_status,
-                          uint warn_count);
+  int end_result_metadata(uint server_status, uint warn_count);
 
   /**
     Indicates the beginning of a new row in the result set/metadata
@@ -161,7 +154,7 @@ public:
       @retval 1  Error
       @retval 0  OK
    */
-  int get_decimal(const decimal_t * value);
+  int get_decimal(const decimal_t *value);
 
   /**
     Receive DOUBLE value from server
@@ -181,7 +174,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  int get_date(const MYSQL_TIME * value);
+  int get_date(const MYSQL_TIME *value);
 
   /**
     Get TIME value from server
@@ -193,7 +186,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  int get_time(const MYSQL_TIME * value, uint decimals);
+  int get_time(const MYSQL_TIME *value, uint decimals);
 
   /**
     Get DATETIME value from server
@@ -205,8 +198,7 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  int get_datetime(const MYSQL_TIME * value,
-                   uint decimals);
+  int get_datetime(const MYSQL_TIME *value, uint decimals);
 
   /**
     Get STRING value from server
@@ -219,8 +211,8 @@ public:
       @retval 1  Error
       @retval 0  OK
   */
-  int get_string(const char * const value,
-                 size_t length, const CHARSET_INFO * const valuecs);
+  int get_string(const char *const value, size_t length,
+                 const CHARSET_INFO *const valuecs);
 
   /** Getting execution status **/
   /**
@@ -235,7 +227,7 @@ public:
   */
   void handle_ok(uint server_status, uint statement_warn_count,
                  ulonglong affected_rows, ulonglong last_insert_id,
-                 const char * const message);
+                 const char *const message);
 
   /**
     Command ended with ERROR
@@ -244,18 +236,17 @@ public:
     @param err_msg   Error message
     @param sqlstate  SQL state correspongin to the error code
   */
-  void handle_error(uint sql_errno,
-                    const char * const err_msg,
-                    const char * const sqlstate);
+  void handle_error(uint sql_errno, const char *const err_msg,
+                    const char *const sqlstate);
 
   /**
     Session was shutdown while command was running
   */
   void shutdown(int flag);
 
-private:
+ private:
   /* executed command result store */
   Sql_resultset *resultset;
 };
 
-#endif //SQL_SERVICE_CONTEXT_INCLUDE
+#endif  // SQL_SERVICE_CONTEXT_INCLUDE

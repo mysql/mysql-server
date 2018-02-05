@@ -46,83 +46,71 @@
 /**
   Group_member_info_pointer_comparator to guarantee uniqueness
  */
-struct Group_member_info_pointer_comparator
-{
-  bool operator()(Group_member_info* one,
-                  Group_member_info* other) const
-  {
+struct Group_member_info_pointer_comparator {
+  bool operator()(Group_member_info *one, Group_member_info *other) const {
     return one->has_lower_uuid(other);
   }
 };
-
 
 /*
   @class Plugin_gcs_events_handler
 
   Implementation of all GCS event handlers to the plugin
  */
-class Plugin_gcs_events_handler: public Gcs_communication_event_listener,
-                                 public Gcs_control_event_listener
-{
-public:
+class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
+                                  public Gcs_control_event_listener {
+ public:
   /**
     Plugin_gcs_events_handler constructor
 
     It receives, via the constructor, all the necessary dependencies to work.
   */
-  Plugin_gcs_events_handler(Applier_module_interface* applier_module,
-                            Recovery_module* recovery_module,
-                            Plugin_gcs_view_modification_notifier* vc_notifier,
-                            Compatibility_module* compatibility_manager,
+  Plugin_gcs_events_handler(Applier_module_interface *applier_module,
+                            Recovery_module *recovery_module,
+                            Plugin_gcs_view_modification_notifier *vc_notifier,
+                            Compatibility_module *compatibility_manager,
                             ulong components_stop_timeout);
   virtual ~Plugin_gcs_events_handler();
 
   /*
    Implementation of all callback methods
    */
-  void on_message_received(const Gcs_message& message) const;
+  void on_message_received(const Gcs_message &message) const;
   void on_view_changed(const Gcs_view &new_view,
                        const Exchanged_data &exchanged_data) const;
-  Gcs_message_data* get_exchangeable_data() const;
-  void on_suspicions(const std::vector<Gcs_member_identifier>& members,
-                     const std::vector<Gcs_member_identifier>& unreachable) const;
+  Gcs_message_data *get_exchangeable_data() const;
+  void on_suspicions(
+      const std::vector<Gcs_member_identifier> &members,
+      const std::vector<Gcs_member_identifier> &unreachable) const;
 
   /**
     Sets the component stop timeout.
 
     @param[in]  timeout      the timeout
   */
-  void set_stop_wait_timeout (ulong timeout){
-    stop_wait_timeout= timeout;
-  }
+  void set_stop_wait_timeout(ulong timeout) { stop_wait_timeout = timeout; }
 
-private:
+ private:
   /*
    Individual handling methods for all possible message types
    received via on_message_received(...)
    */
-  void handle_transactional_message(const Gcs_message& message) const;
-  void handle_certifier_message(const Gcs_message& message) const;
-  void handle_recovery_message(const Gcs_message& message) const;
-  void handle_stats_message(const Gcs_message& message) const;
-  void handle_single_primary_message(const Gcs_message& message) const;
+  void handle_transactional_message(const Gcs_message &message) const;
+  void handle_certifier_message(const Gcs_message &message) const;
+  void handle_recovery_message(const Gcs_message &message) const;
+  void handle_stats_message(const Gcs_message &message) const;
+  void handle_single_primary_message(const Gcs_message &message) const;
 
   /*
    Methods to act upon members after a on_view_change(...) is called
    */
-  int update_group_info_manager(const Gcs_view& new_view,
-                                 const Exchanged_data &exchanged_data,
-                                 bool is_joining,
-                                 bool is_leaving)
-                                 const;
-  void handle_joining_members(const Gcs_view& new_view,
-                              bool is_joining,
-                              bool is_leaving)
-                              const;
-  void handle_leaving_members(const Gcs_view& new_view,
-                              bool is_joining,
-                              bool is_leaving)
-                              const;
+  int update_group_info_manager(const Gcs_view &new_view,
+                                const Exchanged_data &exchanged_data,
+                                bool is_joining, bool is_leaving) const;
+  void handle_joining_members(const Gcs_view &new_view, bool is_joining,
+                              bool is_leaving) const;
+  void handle_leaving_members(const Gcs_view &new_view, bool is_joining,
+                              bool is_leaving) const;
 
   /**
     This method updates the status of the members in the list according to the
@@ -136,12 +124,11 @@ private:
     @note When not using the old_equal_to and old_different_from parameters, you
     can pass the Group_member_info::MEMBER_END value.
   */
-  void
-  update_member_status(const std::vector<Gcs_member_identifier>& members,
-                       Group_member_info::Group_member_status status,
-                       Group_member_info::Group_member_status old_equal_to,
-                       Group_member_info::Group_member_status old_different_from)
-                       const;
+  void update_member_status(
+      const std::vector<Gcs_member_identifier> &members,
+      Group_member_info::Group_member_status status,
+      Group_member_info::Group_member_status old_equal_to,
+      Group_member_info::Group_member_status old_different_from) const;
 
   /**
     This method handles the election of a new primary node when the plugin runs
@@ -161,8 +148,8 @@ private:
                                increases.
    */
   void sort_members_for_election(
-       std::vector<Group_member_info*>* all_members_info,
-       std::vector<Group_member_info*>::iterator lowest_version_end) const;
+      std::vector<Group_member_info *> *all_members_info,
+      std::vector<Group_member_info *>::iterator lowest_version_end) const;
 
   /**
     Sort members based on member_version and get first iterator position
@@ -175,14 +162,12 @@ private:
     @note from the start of the list to the returned iterator, all members have
           the lowest version in the group.
    */
-  std::vector<Group_member_info*>::iterator
+  std::vector<Group_member_info *>::iterator
   sort_and_get_lowest_version_member_position(
-    std::vector<Group_member_info*>* all_members_info) const;
+      std::vector<Group_member_info *> *all_members_info) const;
 
-  int
-  process_local_exchanged_data(const Exchanged_data &exchanged_data,
-                               bool is_joining)
-                               const;
+  int process_local_exchanged_data(const Exchanged_data &exchanged_data,
+                                   bool is_joining) const;
 
   /**
     Verifies if a certain Vector of Member Ids contains a given member id.
@@ -192,9 +177,8 @@ private:
 
     @return true if member_id occurs in members.
    */
-  bool is_member_on_vector(const std::vector<Gcs_member_identifier>& members,
-                           const Gcs_member_identifier& member_id)
-                           const;
+  bool is_member_on_vector(const std::vector<Gcs_member_identifier> &members,
+                           const Gcs_member_identifier &member_id) const;
 
   /**
     Checks the compatibility of the member with the group.
@@ -241,8 +225,7 @@ private:
 
     @param[in]  view_packet         the view change packet
   */
-  void
-  collect_members_executed_sets(View_change_packet *view_packet) const;
+  void collect_members_executed_sets(View_change_packet *view_packet) const;
 
   /**
     Method that compares the member options with
@@ -272,21 +255,21 @@ private:
         @retval true   the member was expelled
         @retval false  otherwise
   */
-  bool was_member_expelled_from_group(const Gcs_view& view) const;
+  bool was_member_expelled_from_group(const Gcs_view &view) const;
 
   /**
     Logs member joining message to error logs from view.
 
     @param[in]  new_view        the view delivered by the GCS
   */
-  void log_members_joining_message(const Gcs_view& new_view) const;
+  void log_members_joining_message(const Gcs_view &new_view) const;
 
   /**
     Logs member leaving message to error logs from view.
 
     @param[in]  new_view        the view delivered by the GCS
   */
-  void log_members_leaving_message(const Gcs_view& new_view) const;
+  void log_members_leaving_message(const Gcs_view &new_view) const;
 
   /**
     This function return all members present in vector of Gcs_member_identifier
@@ -295,27 +278,29 @@ private:
 
     @param[in]    members      joining or leaving members for this view
     @param[out]   all_hosts    host and port of all members from view
-    @param[out]   primary_host primary member hosts and port of all members from view
+    @param[out]   primary_host primary member hosts and port of all members from
+    view
   */
   void get_hosts_from_view(const std::vector<Gcs_member_identifier> &members,
-                           std::string& all_hosts, std::string& primary_host) const;
+                           std::string &all_hosts,
+                           std::string &primary_host) const;
 
-  Applier_module_interface* applier_module;
-  Recovery_module* recovery_module;
+  Applier_module_interface *applier_module;
+  Recovery_module *recovery_module;
 
   /*
     Holds, until view can be installed, all Member information received from
     other members
   */
-  std::set<Group_member_info*,
-      Group_member_info_pointer_comparator>* temporary_states;
+  std::set<Group_member_info *, Group_member_info_pointer_comparator>
+      *temporary_states;
 
-  Plugin_gcs_view_modification_notifier* view_change_notifier;
+  Plugin_gcs_view_modification_notifier *view_change_notifier;
 
-  Compatibility_module* compatibility_manager;
+  Compatibility_module *compatibility_manager;
 
   /**The status of this member when it joins*/
-  st_compatibility_types* joiner_compatibility_status;
+  st_compatibility_types *joiner_compatibility_status;
 
   /* Component stop timeout on shutdown */
   ulong stop_wait_timeout;

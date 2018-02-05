@@ -46,7 +46,7 @@
 
 #include <stdlib.h>
 
-#define ROTL32(x, y)	_rotl(x, y)
+#define ROTL32(x, y) _rotl(x, y)
 
 /*
   Force inlining of intrinsic even though /Oi option is turned off
@@ -54,22 +54,18 @@
 */
 #pragma intrinsic(_rotl)
 
-#else // !defined(_MSC_VER)
+#else  // !defined(_MSC_VER)
 
 /*
   Many other compilers should be able to optimize the below
   function to single instruction.
 */
 
-inline uint32 rotl32 (uint32 x, char r)
-{
-  return (x << r) | (x >> (32 - r));
-}
+inline uint32 rotl32(uint32 x, char r) { return (x << r) | (x >> (32 - r)); }
 
-#define	ROTL32(x,y)	rotl32(x,y)
+#define ROTL32(x, y) rotl32(x, y)
 
-#endif // !defined(_MSC_VER)
-
+#endif  // !defined(_MSC_VER)
 
 /**
   Compute 32-bit version of MurmurHash3 hash for the key.
@@ -86,49 +82,46 @@ inline uint32 rotl32 (uint32 x, char r)
   @returns Hash value for the key.
 */
 
-uint32 murmur3_32(const uchar *key, size_t len, uint32 seed)
-{
-  const uchar *tail= key + (len  - len % 4);
+uint32 murmur3_32(const uchar *key, size_t len, uint32 seed) {
+  const uchar *tail = key + (len - len % 4);
 
-  uint32 h1= seed;
+  uint32 h1 = seed;
 
   /* Constants for magic numbers that are used more than once. */
-  const uint32 c1= 0xcc9e2d51;
-  const uint32 c2= 0x1b873593;
+  const uint32 c1 = 0xcc9e2d51;
+  const uint32 c2 = 0x1b873593;
 
   /* Body: process all 32-bit blocks in the key. */
 
-  for (const uchar *data= key; data != tail; data+= 4)
-  {
-    uint32 k1= uint4korr(data);
+  for (const uchar *data = key; data != tail; data += 4) {
+    uint32 k1 = uint4korr(data);
 
-    k1*= c1;
-    k1= ROTL32(k1, 15);
-    k1*= c2;
+    k1 *= c1;
+    k1 = ROTL32(k1, 15);
+    k1 *= c2;
 
-    h1^= k1;
-    h1= ROTL32(h1, 13);
-    h1= h1 * 5 + 0xe6546b64;
+    h1 ^= k1;
+    h1 = ROTL32(h1, 13);
+    h1 = h1 * 5 + 0xe6546b64;
   }
 
   /* Tail: handle remaining len % 4 bytes. */
 
-  uint32 k1= 0;
+  uint32 k1 = 0;
 
-  switch(len % 4)
-  {
-  case 3:
-    k1^= static_cast<uint32>(tail[2]) << 16;
-    /* Fall through. */
-  case 2:
-    k1^= static_cast<uint32>(tail[1]) << 8;
-    /* Fall through. */
-  case 1:
-    k1^= tail[0];
-    k1*= c1;
-    k1= ROTL32(k1, 15);
-    k1*= c2;
-    h1^= k1;
+  switch (len % 4) {
+    case 3:
+      k1 ^= static_cast<uint32>(tail[2]) << 16;
+      /* Fall through. */
+    case 2:
+      k1 ^= static_cast<uint32>(tail[1]) << 8;
+      /* Fall through. */
+    case 1:
+      k1 ^= tail[0];
+      k1 *= c1;
+      k1 = ROTL32(k1, 15);
+      k1 *= c2;
+      h1 ^= k1;
   };
 
   /*
@@ -136,13 +129,13 @@ uint32 murmur3_32(const uchar *key, size_t len, uint32 seed)
     Add length and force all bits of a hash block to avalanche.
   */
 
-  h1^= len;
+  h1 ^= len;
 
-  h1^= h1 >> 16;
-  h1*= 0x85ebca6b;
-  h1^= h1 >> 13;
-  h1*= 0xc2b2ae35;
-  h1^= h1 >> 16;
+  h1 ^= h1 >> 16;
+  h1 *= 0x85ebca6b;
+  h1 ^= h1 >> 13;
+  h1 *= 0xc2b2ae35;
+  h1 ^= h1 >> 16;
 
   return h1;
 }

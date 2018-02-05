@@ -41,17 +41,17 @@ enum enum_plugin_load_option {
 
 /* A handle of a plugin */
 
-struct st_plugin_int
-{
+struct st_plugin_int {
   LEX_STRING name{nullptr, 0};
   st_mysql_plugin *plugin{nullptr};
   st_plugin_dl *plugin_dl{nullptr};
   uint state{0};
-  uint ref_count{0};               /* number of threads using the plugin */
-  void *data{nullptr};                   /* plugin type specific, e.g. handlerton */
-  MEM_ROOT mem_root;            /* memory for dynamic plugin structures */
-  sys_var *system_vars{nullptr};         /* server variables for this plugin */
-  enum_plugin_load_option load_option{PLUGIN_OFF}; /* OFF, ON, FORCE, F+PERMANENT */
+  uint ref_count{0};             /* number of threads using the plugin */
+  void *data{nullptr};           /* plugin type specific, e.g. handlerton */
+  MEM_ROOT mem_root;             /* memory for dynamic plugin structures */
+  sys_var *system_vars{nullptr}; /* server variables for this plugin */
+  enum_plugin_load_option load_option{
+      PLUGIN_OFF}; /* OFF, ON, FORCE, F+PERMANENT */
 };
 
 /*
@@ -62,33 +62,18 @@ struct st_plugin_int
 #ifdef DBUG_OFF
 typedef struct st_plugin_int *plugin_ref;
 
-inline st_mysql_plugin *plugin_decl(st_plugin_int *ref)
-{
-  return ref->plugin;
-}
-inline st_plugin_dl *plugin_dlib(st_plugin_int *ref)
-{
-  return ref->plugin_dl;
-}
-template<typename T>
-inline T plugin_data(st_plugin_int *ref)
-{
+inline st_mysql_plugin *plugin_decl(st_plugin_int *ref) { return ref->plugin; }
+inline st_plugin_dl *plugin_dlib(st_plugin_int *ref) { return ref->plugin_dl; }
+template <typename T>
+inline T plugin_data(st_plugin_int *ref) {
   return static_cast<T>(ref->data);
 }
-inline LEX_STRING *plugin_name(st_plugin_int *ref)
-{
-  return &(ref->name);
-}
-inline uint plugin_state(st_plugin_int *ref)
-{
-  return ref->state;
-}
-inline enum_plugin_load_option plugin_load_option(st_plugin_int *ref)
-{
+inline LEX_STRING *plugin_name(st_plugin_int *ref) { return &(ref->name); }
+inline uint plugin_state(st_plugin_int *ref) { return ref->state; }
+inline enum_plugin_load_option plugin_load_option(st_plugin_int *ref) {
   return ref->load_option;
 }
-inline bool plugin_equals(st_plugin_int *ref1, st_plugin_int *ref2)
-{
+inline bool plugin_equals(st_plugin_int *ref1, st_plugin_int *ref2) {
   return ref1 == ref2;
 }
 
@@ -96,33 +81,22 @@ inline bool plugin_equals(st_plugin_int *ref1, st_plugin_int *ref2)
 
 typedef struct st_plugin_int **plugin_ref;
 
-inline st_mysql_plugin *plugin_decl(st_plugin_int **ref)
-{
+inline st_mysql_plugin *plugin_decl(st_plugin_int **ref) {
   return ref[0]->plugin;
 }
-inline st_plugin_dl *plugin_dlib(st_plugin_int **ref)
-{
+inline st_plugin_dl *plugin_dlib(st_plugin_int **ref) {
   return ref[0]->plugin_dl;
 }
-template<typename T>
-inline T plugin_data(st_plugin_int **ref)
-{
+template <typename T>
+inline T plugin_data(st_plugin_int **ref) {
   return static_cast<T>(ref[0]->data);
 }
-inline LEX_STRING *plugin_name(st_plugin_int **ref)
-{
-  return &(ref[0]->name);
-}
-inline uint plugin_state(st_plugin_int **ref)
-{
-  return ref[0]->state;
-}
-inline enum_plugin_load_option plugin_load_option(st_plugin_int **ref)
-{
+inline LEX_STRING *plugin_name(st_plugin_int **ref) { return &(ref[0]->name); }
+inline uint plugin_state(st_plugin_int **ref) { return ref[0]->state; }
+inline enum_plugin_load_option plugin_load_option(st_plugin_int **ref) {
   return ref[0]->load_option;
 }
-inline bool plugin_equals(st_plugin_int **ref1, st_plugin_int **ref2)
-{
+inline bool plugin_equals(st_plugin_int **ref1, st_plugin_int **ref2) {
   return ref1 && ref2 && (ref1[0] == ref2[0]);
 }
 #endif
@@ -132,18 +106,15 @@ inline bool plugin_equals(st_plugin_int **ref1, st_plugin_int **ref2)
 
   @brief Plugin array helper class.
 */
-class Plugin_array : public Prealloced_array<plugin_ref, 2>
-{
-public:
+class Plugin_array : public Prealloced_array<plugin_ref, 2> {
+ public:
   /**
     Class construction.
 
     @param psi_key PSI key.
   */
-  explicit Plugin_array(PSI_memory_key psi_key) :
-    Prealloced_array<plugin_ref, 2>(psi_key)
-  {
-  }
+  explicit Plugin_array(PSI_memory_key psi_key)
+      : Prealloced_array<plugin_ref, 2>(psi_key) {}
 
   /**
     Check, whether the plugin specified by the plugin argument has been
@@ -154,13 +125,11 @@ public:
     @retval true  Plugin has been already added.
     @retval false There is no plugin in the array.
   */
-  bool exists(plugin_ref plugin)
-  {
+  bool exists(plugin_ref plugin) {
     Plugin_array::iterator i;
 
-    for (i= begin(); i != end(); ++i)
-      if (plugin_equals(*i, plugin))
-        return true;
+    for (i = begin(); i != end(); ++i)
+      if (plugin_equals(*i, plugin)) return true;
 
     return false;
   }

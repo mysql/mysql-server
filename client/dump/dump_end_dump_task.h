@@ -27,18 +27,17 @@
 
 #include "client/dump/abstract_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Dump_end_dump_task : public Abstract_dump_task
-{
-public:
+class Dump_end_dump_task : public Abstract_dump_task {
+ public:
   Dump_end_dump_task();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

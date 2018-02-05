@@ -20,61 +20,45 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #include "plugin/group_replication/include/observer_server_actions.h"
 
 #include "plugin/group_replication/include/observer_trans.h"
 
-int group_replication_reset_master_logs(Binlog_transmit_param*)
-{
+int group_replication_reset_master_logs(Binlog_transmit_param *) {
   register_server_reset_master();
   return 0;
 }
 
-int group_replication_transmit_start(Binlog_transmit_param*,
-                                     const char*, my_off_t)
-{
+int group_replication_transmit_start(Binlog_transmit_param *, const char *,
+                                     my_off_t) {
   return 0;
 }
 
-int group_replication_transmit_stop(Binlog_transmit_param*)
-{
+int group_replication_transmit_stop(Binlog_transmit_param *) { return 0; }
+
+int group_replication_reserve_header(Binlog_transmit_param *, unsigned char *,
+                                     unsigned long, unsigned long *) {
   return 0;
 }
 
-int group_replication_reserve_header(Binlog_transmit_param*,
-                                     unsigned char*,
-                                     unsigned long,
-                                     unsigned long*)
-{
+int group_replication_before_send_event(Binlog_transmit_param *,
+                                        unsigned char *, unsigned long,
+                                        const char *, my_off_t) {
   return 0;
 }
 
-int group_replication_before_send_event(Binlog_transmit_param*,
-                                        unsigned char*,
-                                        unsigned long,
-                                        const char*,
-                                        my_off_t)
-{
-  return 0;
-}
-
-int group_replication_after_send_event(Binlog_transmit_param*,
-                                       const char*,
-                                       unsigned long,
-                                       const char*,
-                                       my_off_t)
-{
+int group_replication_after_send_event(Binlog_transmit_param *, const char *,
+                                       unsigned long, const char *, my_off_t) {
   return 0;
 }
 
 Binlog_transmit_observer binlog_transmit_observer = {
-  sizeof(Binlog_transmit_observer),
+    sizeof(Binlog_transmit_observer),
 
-  group_replication_transmit_start,     // transmit_start,
-  group_replication_transmit_stop,      // transmit_stop,
-  group_replication_reserve_header,     // reserve_header,
-  group_replication_before_send_event,  // before_send_event,
-  group_replication_after_send_event,   // after_send_event,
-  group_replication_reset_master_logs   // reset_master
+    group_replication_transmit_start,     // transmit_start,
+    group_replication_transmit_stop,      // transmit_stop,
+    group_replication_reserve_header,     // reserve_header,
+    group_replication_before_send_event,  // before_send_event,
+    group_replication_after_send_event,   // after_send_event,
+    group_replication_reset_master_logs   // reset_master
 };

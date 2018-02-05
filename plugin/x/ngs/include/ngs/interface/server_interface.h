@@ -29,7 +29,6 @@
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
-
 namespace ngs {
 
 class Client_interface;
@@ -43,24 +42,26 @@ class Mutex;
 class Sql_session_interface;
 
 class Server_interface {
-public:
+ public:
   virtual ~Server_interface() {}
 
-  virtual void get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client) = 0;
+  virtual void get_authentication_mechanisms(
+      std::vector<std::string> &auth_mech, Client_interface &client) = 0;
 
   virtual ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const = 0;
-  virtual Authentication_interface_ptr       get_auth_handler(const std::string &name, Session_interface *session) = 0;
-  virtual ngs::shared_ptr<Protocol_config>   get_config() const = 0;
+  virtual Authentication_interface_ptr get_auth_handler(
+      const std::string &name, Session_interface *session) = 0;
+  virtual ngs::shared_ptr<Protocol_config> get_config() const = 0;
 
-  virtual Document_id_generator_interface &get_document_id_generator() const = 0;
+  virtual Document_id_generator_interface &get_document_id_generator()
+      const = 0;
 
   virtual Mutex &get_client_exit_mutex() = 0;
 
   virtual Ssl_context *ssl_context() const = 0;
 
   virtual ngs::shared_ptr<Session_interface> create_session(
-      Client_interface &client,
-      Protocol_encoder_interface &proto,
+      Client_interface &client, Protocol_encoder_interface &proto,
       const int session_id) = 0;
 
   virtual bool is_running() = 0;
@@ -69,6 +70,6 @@ public:
   virtual void restart_client_supervision_timer() = 0;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // NGS_SERVER_INTERFACE_H_
+#endif  // NGS_SERVER_INTERFACE_H_

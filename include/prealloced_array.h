@@ -62,43 +62,42 @@
           Elements must be copyable or movable.
   @tparam Prealloc Number of elements to pre-allocate.
  */
-template<typename Element_type, size_t Prealloc>
-class Prealloced_array
-{
+template <typename Element_type, size_t Prealloc>
+class Prealloced_array {
   /**
     Is Element_type trivially destructible? If it is, we don't destroy
     elements when they are removed from the array or when the array is
     destroyed.
   */
-  static constexpr bool Has_trivial_destructor=
-    std::is_trivially_destructible<Element_type>::value;
+  static constexpr bool Has_trivial_destructor =
+      std::is_trivially_destructible<Element_type>::value;
 
   /**
     Casts the raw buffer to the proper Element_type.
     We use a raw buffer rather than Element_type[] in order to avoid having
     CTORs/DTORs invoked by the C++ runtime.
   */
-  Element_type *cast_rawbuff()
-  {
-    return static_cast<Element_type*>(static_cast<void*>(&m_buff.data[0]));
+  Element_type *cast_rawbuff() {
+    return static_cast<Element_type *>(static_cast<void *>(&m_buff.data[0]));
   }
-public:
 
+ public:
   /// Initial capacity of the array.
-  static const size_t initial_capacity= Prealloc;
+  static const size_t initial_capacity = Prealloc;
 
   /// Standard typedefs.
   typedef Element_type value_type;
-  typedef size_t       size_type;
-  typedef ptrdiff_t    difference_type;
+  typedef size_t size_type;
+  typedef ptrdiff_t difference_type;
 
   typedef Element_type *iterator;
   typedef const Element_type *const_iterator;
 
   explicit Prealloced_array(PSI_memory_key psi_key)
-    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
-      m_psi_key(psi_key)
-  {
+      : m_size(0),
+        m_capacity(Prealloc),
+        m_array_ptr(cast_rawbuff()),
+        m_psi_key(psi_key) {
     static_assert(Prealloc != 0, "We do not want a zero-size array.");
   }
 
@@ -107,24 +106,22 @@ public:
     Using 'Prealloc' for initial_size makes this similar to a raw C array.
   */
   Prealloced_array(PSI_memory_key psi_key, size_t initial_size)
-    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
-      m_psi_key(psi_key)
-  {
+      : m_size(0),
+        m_capacity(Prealloc),
+        m_array_ptr(cast_rawbuff()),
+        m_psi_key(psi_key) {
     static_assert(Prealloc != 0, "We do not want a zero-size array.");
 
-    if (initial_size > Prealloc)
-    {
+    if (initial_size > Prealloc) {
       // We avoid using reserve() since it requires Element_type to be copyable.
-      void *mem=
-        my_malloc(m_psi_key, initial_size * element_size(), MYF(MY_WME));
-      if (!mem)
-        return;
-      m_array_ptr= static_cast<Element_type*>(mem);
-      m_capacity= initial_size;
+      void *mem =
+          my_malloc(m_psi_key, initial_size * element_size(), MYF(MY_WME));
+      if (!mem) return;
+      m_array_ptr = static_cast<Element_type *>(mem);
+      m_capacity = initial_size;
     }
-    for (size_t ix= 0; ix < initial_size; ++ix)
-    {
-      Element_type *p= &m_array_ptr[m_size++];
+    for (size_t ix = 0; ix < initial_size; ++ix) {
+      Element_type *p = &m_array_ptr[m_size++];
       ::new (p) Element_type();
     }
   }
@@ -133,12 +130,12 @@ public:
     An object instance "owns" its array, so we do deep copy here.
    */
   Prealloced_array(const Prealloced_array &that)
-    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
-      m_psi_key(that.m_psi_key)
-  {
-    if (this->reserve(that.capacity()))
-      return;
-    for (const Element_type *p= that.begin(); p != that.end(); ++p)
+      : m_size(0),
+        m_capacity(Prealloc),
+        m_array_ptr(cast_rawbuff()),
+        m_psi_key(that.m_psi_key) {
+    if (this->reserve(that.capacity())) return;
+    for (const Element_type *p = that.begin(); p != that.end(); ++p)
       this->push_back(*p);
   }
 
@@ -149,27 +146,24 @@ public:
     with each element constructed from its corresponding element in that range,
     in the same order.
   */
-  Prealloced_array(PSI_memory_key psi_key,
-                   const_iterator first, const_iterator last)
-    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
-      m_psi_key(psi_key)
-  {
-    if (this->reserve(last - first))
-      return;
-    for (; first != last; ++first)
-      push_back(*first);
+  Prealloced_array(PSI_memory_key psi_key, const_iterator first,
+                   const_iterator last)
+      : m_size(0),
+        m_capacity(Prealloc),
+        m_array_ptr(cast_rawbuff()),
+        m_psi_key(psi_key) {
+    if (this->reserve(last - first)) return;
+    for (; first != last; ++first) push_back(*first);
   }
 
   /**
     Copies all the elements from 'that' into this container.
     Any objects in this container are destroyed first.
    */
-  Prealloced_array &operator=(const Prealloced_array &that)
-  {
+  Prealloced_array &operator=(const Prealloced_array &that) {
     this->clear();
-    if (this->reserve(that.capacity()))
-      return *this;
-    for (const Element_type *p= that.begin(); p != that.end(); ++p)
+    if (this->reserve(that.capacity())) return *this;
+    for (const Element_type *p = that.begin(); p != that.end(); ++p)
       this->push_back(*p);
     return *this;
   }
@@ -178,29 +172,24 @@ public:
     Runs DTOR on all elements if needed.
     Deallocates array if we exceeded the Preallocated amount.
    */
-  ~Prealloced_array()
-  {
-    if (!Has_trivial_destructor)
-    {
+  ~Prealloced_array() {
+    if (!Has_trivial_destructor) {
       clear();
     }
-    if (m_array_ptr != cast_rawbuff())
-      my_free(m_array_ptr);
+    if (m_array_ptr != cast_rawbuff()) my_free(m_array_ptr);
   }
 
-  size_t capacity() const     { return m_capacity; }
+  size_t capacity() const { return m_capacity; }
   size_t element_size() const { return sizeof(Element_type); }
-  bool   empty() const        { return m_size == 0; }
-  size_t size() const         { return m_size; }
+  bool empty() const { return m_size == 0; }
+  size_t size() const { return m_size; }
 
-  Element_type &at(size_t n)
-  {
+  Element_type &at(size_t n) {
     DBUG_ASSERT(n < size());
     return m_array_ptr[n];
   }
 
-  const Element_type &at(size_t n) const
-  {
+  const Element_type &at(size_t n) const {
     DBUG_ASSERT(n < size());
     return m_array_ptr[n];
   }
@@ -219,9 +208,9 @@ public:
     end   : Returns a pointer to the past-the-end element in the array.
    */
   iterator begin() { return m_array_ptr; }
-  iterator end()   { return m_array_ptr + size(); }
+  iterator end() { return m_array_ptr + size(); }
   const_iterator begin() const { return m_array_ptr; }
-  const_iterator end()   const { return m_array_ptr + size(); }
+  const_iterator end() const { return m_array_ptr + size(); }
   /// Returns a constant pointer to the first element in the array.
   const_iterator cbegin() const { return begin(); }
   /// Returns a constant pointer to the past-the-end element in the array.
@@ -232,15 +221,12 @@ public:
     The array is extended with default values if necessary.
     @retval true if out-of-memory, false otherwise.
   */
-  bool assign_at(size_t n, const value_type &val)
-  {
-    if (n < size())
-    {
-      at(n)= val;
+  bool assign_at(size_t n, const value_type &val) {
+    if (n < size()) {
+      at(n) = val;
       return false;
     }
-    if (reserve(n + 1))
-      return true;
+    if (reserve(n + 1)) return true;
     resize(n);
     return push_back(val);
   }
@@ -253,32 +239,27 @@ public:
     @param  n number of elements.
     @retval true if out-of-memory, false otherwise.
   */
-  bool reserve(size_t n)
-  {
-    if (n <= m_capacity)
-      return false;
+  bool reserve(size_t n) {
+    if (n <= m_capacity) return false;
 
-    void *mem= my_malloc(m_psi_key, n * element_size(), MYF(MY_WME));
-    if (!mem)
-      return true;
-    Element_type *new_array= static_cast<Element_type*>(mem);
+    void *mem = my_malloc(m_psi_key, n * element_size(), MYF(MY_WME));
+    if (!mem) return true;
+    Element_type *new_array = static_cast<Element_type *>(mem);
 
     // Move all the existing elements into the new array.
-    for (size_t ix= 0; ix < m_size; ++ix)
-    {
-      Element_type *new_p= &new_array[ix];
-      Element_type &old_p= m_array_ptr[ix];
-      ::new (new_p) Element_type(std::move(old_p)); // Move into new location.
+    for (size_t ix = 0; ix < m_size; ++ix) {
+      Element_type *new_p = &new_array[ix];
+      Element_type &old_p = m_array_ptr[ix];
+      ::new (new_p) Element_type(std::move(old_p));  // Move into new location.
       if (!Has_trivial_destructor)
-        old_p.~Element_type();              // Destroy the old element.
+        old_p.~Element_type();  // Destroy the old element.
     }
 
-    if (m_array_ptr != cast_rawbuff())
-      my_free(m_array_ptr);
+    if (m_array_ptr != cast_rawbuff()) my_free(m_array_ptr);
 
     // Forget the old array;
-    m_array_ptr= new_array;
-    m_capacity= n;
+    m_array_ptr = new_array;
+    m_capacity = n;
     return false;
   }
 
@@ -287,18 +268,14 @@ public:
     Complexity: Constant (amortized time, reallocation may happen).
     @return true if out-of-memory, false otherwise
   */
-  bool push_back(const Element_type &element)
-  {
-    return emplace_back(element);
-  }
+  bool push_back(const Element_type &element) { return emplace_back(element); }
 
   /**
     Copies (or moves, if possible) an element into the back of the array.
     Complexity: Constant (amortized time, reallocation may happen).
     @return true if out-of-memory, false otherwise
   */
-  bool push_back(Element_type &&element)
-  {
+  bool push_back(Element_type &&element) {
     return emplace_back(std::move(element));
   }
 
@@ -308,12 +285,11 @@ public:
     @return true if out-of-memory, false otherwise
   */
   template <typename... Args>
-  bool emplace_back(Args&&... args)
-  {
-    const size_t expansion_factor= 2;
+  bool emplace_back(Args &&... args) {
+    const size_t expansion_factor = 2;
     if (m_size == m_capacity && reserve(m_capacity * expansion_factor))
       return true;
-    Element_type *p= &m_array_ptr[m_size++];
+    Element_type *p = &m_array_ptr[m_size++];
     ::new (p) Element_type(std::forward<Args>(args)...);
     return false;
   }
@@ -322,12 +298,10 @@ public:
     Removes the last element in the array, effectively reducing the
     container size by one. This destroys the removed element.
    */
-  void pop_back()
-  {
+  void pop_back() {
     DBUG_ASSERT(!empty());
-    if (!Has_trivial_destructor)
-      back().~Element_type();
-    m_size-= 1;
+    if (!Has_trivial_destructor) back().~Element_type();
+    m_size -= 1;
   }
 
   /**
@@ -342,8 +316,7 @@ public:
 
     @return an iterator pointing to the inserted value
   */
-  iterator insert(const_iterator position, const value_type &val)
-  {
+  iterator insert(const_iterator position, const value_type &val) {
     return emplace(position, val);
   }
 
@@ -359,8 +332,7 @@ public:
 
     @return an iterator pointing to the inserted value
   */
-  iterator insert(const_iterator position, value_type &&val)
-  {
+  iterator insert(const_iterator position, value_type &&val) {
     return emplace(position, std::move(val));
   }
 
@@ -377,9 +349,8 @@ public:
     @return an iterator pointing to the inserted value
   */
   template <typename... Args>
-  iterator emplace(const_iterator position, Args&&... args)
-  {
-    const difference_type n= position - begin();
+  iterator emplace(const_iterator position, Args &&... args) {
+    const difference_type n = position - begin();
     emplace_back(std::forward<Args>(args)...);
     std::rotate(begin() + n, end() - 1, end());
     return begin() + n;
@@ -399,12 +370,10 @@ public:
             the new element was inserted, or false if an equivalent element
             already existed.
   */
-  std::pair<iterator, bool> insert_unique(const value_type &val)
-  {
-    std::pair<iterator, iterator> p= std::equal_range(begin(), end(), val);
+  std::pair<iterator, bool> insert_unique(const value_type &val) {
+    std::pair<iterator, iterator> p = std::equal_range(begin(), end(), val);
     // p.first == p.second means we did not find it.
-    if (p.first == p.second)
-      return std::make_pair(insert(p.first, val), true);
+    if (p.first == p.second) return std::make_pair(insert(p.first, val), true);
     return std::make_pair(p.first, false);
   }
 
@@ -421,11 +390,9 @@ public:
 
     @retval number of elements removed, 0 or 1.
   */
-  size_type erase_unique(const value_type &val)
-  {
-    std::pair<iterator, iterator> p= std::equal_range(begin(), end(), val);
-    if (p.first == p.second)
-      return 0; // Not found
+  size_type erase_unique(const value_type &val) {
+    std::pair<iterator, iterator> p = std::equal_range(begin(), end(), val);
+    if (p.first == p.second) return 0;  // Not found
     erase(p.first);
     return 1;
   }
@@ -437,8 +404,7 @@ public:
 
     @retval 1 if element is found, 0 otherwise.
   */
-  size_type count_unique(const value_type& val) const
-  {
+  size_type count_unique(const value_type &val) const {
     return std::binary_search(begin(), end(), val);
   }
 
@@ -453,8 +419,7 @@ public:
     We use std::move to move objects, hence Element_type must be
     move-assignable.
   */
-  iterator erase(const_iterator position)
-  {
+  iterator erase(const_iterator position) {
     DBUG_ASSERT(position != end());
     return erase(position - begin());
   }
@@ -462,12 +427,10 @@ public:
   /**
     Removes a single element from the array.
   */
-  iterator erase(size_t ix)
-  {
+  iterator erase(size_t ix) {
     DBUG_ASSERT(ix < size());
-    iterator pos= begin() + ix;
-    if (pos + 1 != end())
-      std::move(pos + 1, end(), pos);
+    iterator pos = begin() + ix;
+    if (pos + 1 != end()) std::move(pos + 1, end(), pos);
     pop_back();
     return pos;
   }
@@ -477,16 +440,13 @@ public:
     The removed elements are destroyed.
     This effectively reduces the containers size by 'end() - first'.
    */
-  void erase_at_end(const_iterator first)
-  {
-    const_iterator last= cend();
-    const difference_type diff= last - first;
-    if (!Has_trivial_destructor)
-    {
-      for (; first != last; ++first)
-        first->~Element_type();
+  void erase_at_end(const_iterator first) {
+    const_iterator last = cend();
+    const difference_type diff = last - first;
+    if (!Has_trivial_destructor) {
+      for (; first != last; ++first) first->~Element_type();
     }
-    m_size-= diff;
+    m_size -= diff;
   }
 
   /**
@@ -500,17 +460,15 @@ public:
     We use std::move to move objects, hence Element_type must be
     move-assignable.
    */
-  iterator erase(const_iterator first, const_iterator last)
-  {
+  iterator erase(const_iterator first, const_iterator last) {
     /*
       std::move() wants non-const input iterators, otherwise it cannot move and
       must always copy the elements. Convert first and last from const_iterator
       to iterator.
     */
-    iterator start= begin() + (first - cbegin());
-    iterator stop= begin() + (last - cbegin());
-    if (first != last)
-      erase_at_end(std::move(stop, end(), start));
+    iterator start = begin() + (first - cbegin());
+    iterator stop = begin() + (last - cbegin());
+    if (first != last) erase_at_end(std::move(stop, end(), start));
     return start;
   }
 
@@ -520,12 +478,10 @@ public:
 
     We use std::swap to do the operation.
    */
-  void swap(Prealloced_array &rhs)
-  {
+  void swap(Prealloced_array &rhs) {
     // Just swap pointers if both arrays have done malloc.
     if (m_array_ptr != cast_rawbuff() &&
-        rhs.m_array_ptr != rhs.cast_rawbuff())
-    {
+        rhs.m_array_ptr != rhs.cast_rawbuff()) {
       std::swap(m_size, rhs.m_size);
       std::swap(m_capacity, rhs.m_capacity);
       std::swap(m_array_ptr, rhs.m_array_ptr);
@@ -538,17 +494,13 @@ public:
   /**
     Requests the container to reduce its capacity to fit its size.
    */
-  void shrink_to_fit()
-  {
+  void shrink_to_fit() {
     // Cannot shrink the pre-allocated array.
-    if (m_array_ptr == cast_rawbuff())
-      return;
+    if (m_array_ptr == cast_rawbuff()) return;
     // No point in swapping.
-    if (size() == capacity())
-      return;
+    if (size() == capacity()) return;
     Prealloced_array tmp(m_psi_key, begin(), end());
-    if (size() <= Prealloc)
-    {
+    if (size() <= Prealloc) {
       /*
         The elements fit in the pre-allocated array. Destruct the
         heap-allocated array in this, and copy the elements into the
@@ -556,9 +508,7 @@ public:
       */
       this->~Prealloced_array();
       new (this) Prealloced_array(tmp.m_psi_key, tmp.begin(), tmp.end());
-    }
-    else
-    {
+    } else {
       // Both this and tmp have a heap-allocated array. Swap pointers.
       swap(tmp);
     }
@@ -583,47 +533,39 @@ public:
     Notice that this function changes the actual content of the
     container by inserting or erasing elements from it.
    */
-  void resize(size_t n, const Element_type &val= Element_type())
-  {
-    if (n == m_size)
-      return;
-    if (n > m_size)
-    {
-      if (!reserve(n))
-      {
-        while (n != m_size)
-          push_back(val);
+  void resize(size_t n, const Element_type &val = Element_type()) {
+    if (n == m_size) return;
+    if (n > m_size) {
+      if (!reserve(n)) {
+        while (n != m_size) push_back(val);
       }
       return;
     }
-    if (!Has_trivial_destructor)
-    {
-      while (n != m_size)
-        pop_back();
+    if (!Has_trivial_destructor) {
+      while (n != m_size) pop_back();
     }
-    m_size= n;
+    m_size = n;
   }
 
   /**
     Removes (and destroys) all elements.
     Does not change capacity.
    */
-  void clear()
-  {
-    if (!Has_trivial_destructor)
-    {
-      for (Element_type *p= begin(); p != end(); ++p)
-        p->~Element_type();                     // Destroy discarded element.
+  void clear() {
+    if (!Has_trivial_destructor) {
+      for (Element_type *p = begin(); p != end(); ++p)
+        p->~Element_type();  // Destroy discarded element.
     }
-    m_size= 0;
+    m_size = 0;
   }
 
-private:
-  size_t         m_size;
-  size_t         m_capacity;
+ private:
+  size_t m_size;
+  size_t m_capacity;
   // This buffer must be properly aligned.
-  my_aligned_storage<Prealloc * sizeof(Element_type), MY_ALIGNOF(double)>m_buff;
-  Element_type  *m_array_ptr;
+  my_aligned_storage<Prealloc * sizeof(Element_type), MY_ALIGNOF(double)>
+      m_buff;
+  Element_type *m_array_ptr;
   PSI_memory_key m_psi_key;
 };
 

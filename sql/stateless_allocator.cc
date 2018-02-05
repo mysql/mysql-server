@@ -24,7 +24,4 @@
 
 #include "mysql/service_mysql_alloc.h"  // my_free
 
-void My_free_functor::operator()(void *p, size_t) const
-{
-  my_free(p);
-}
+void My_free_functor::operator()(void *p, size_t) const { my_free(p); }

@@ -36,7 +36,7 @@ namespace ngs {
 class Sql_session_interface;
 class Protocol_encoder_interface;
 
-}
+}  // namespace ngs
 
 namespace xpl {
 

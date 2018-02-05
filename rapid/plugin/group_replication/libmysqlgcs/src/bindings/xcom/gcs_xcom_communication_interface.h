@@ -50,9 +50,8 @@
   - Delegation method that will contain all the business logic related with
     messages delivery to registered clients.
 */
-class Gcs_xcom_communication_interface: public Gcs_communication_interface
-{
-public:
+class Gcs_xcom_communication_interface : public Gcs_communication_interface {
+ public:
   /**
     Sends a message that is internal to the binding implementation.
     This message will not be subject to the same restrictions of send_message.
@@ -69,10 +68,9 @@ public:
 
   */
 
-  virtual enum_gcs_error
-  send_binding_message(const Gcs_message &message_to_send,
-                       unsigned long long *message_length,
-                       Gcs_internal_message_header::enum_cargo_type cargo)= 0;
+  virtual enum_gcs_error send_binding_message(
+      const Gcs_message &message_to_send, unsigned long long *message_length,
+      Gcs_internal_message_header::enum_cargo_type cargo) = 0;
 
   /**
     The purpose of this method is to be called when in Gcs_xcom_interface
@@ -93,8 +91,7 @@ public:
     @param message
   */
 
-  virtual bool xcom_receive_data(Gcs_message *message)= 0;
-
+  virtual bool xcom_receive_data(Gcs_message *message) = 0;
 
   /**
     Buffer messages when a view is not installed yet and the state
@@ -107,8 +104,7 @@ public:
     @param[in] message Message to buffer.
   */
 
-  virtual void buffer_message(Gcs_message *message)= 0;
-
+  virtual void buffer_message(Gcs_message *message) = 0;
 
   /**
     The state exchange phase has been executed and the view has been
@@ -120,8 +116,7 @@ public:
     avoid any concurrency issue.
   */
 
-  virtual void deliver_buffered_messages()= 0;
-
+  virtual void deliver_buffered_messages() = 0;
 
   /**
     Clean up possible buffered messages that were not delivered to
@@ -134,8 +129,7 @@ public:
     avoid any concurrency issue.
   */
 
-  virtual void cleanup_buffered_messages()= 0;
-
+  virtual void cleanup_buffered_messages() = 0;
 
   /**
     Return the number of buffered messages.
@@ -145,35 +139,31 @@ public:
     avoid any concurrency issue.
   */
 
-  virtual size_t number_buffered_messages()= 0;
-
+  virtual size_t number_buffered_messages() = 0;
 
   virtual ~Gcs_xcom_communication_interface() {}
 };
-
 
 /**
   @class Gcs_xcom_communication_interface
 
   Implementation of the Gcs_communication_interface for xcom.
 */
-class Gcs_xcom_communication: public Gcs_xcom_communication_interface
-{
-public:
-
+class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
+ public:
   /**
     Gcs_xcom_communication_interface constructor.
 
     @param[in] stats a reference to the statistics interface
     @param[in] proxy a reference to an implementation of
                  Gcs_xcom_communication_proxy
-    @param[in] view_control a reference to a gcs_xcom_view_change_control_interface
-               implementation
+    @param[in] view_control a reference to a
+    gcs_xcom_view_change_control_interface implementation
   */
 
-  explicit Gcs_xcom_communication(Gcs_xcom_statistics_updater *stats,
-                                  Gcs_xcom_proxy *proxy,
-                                  Gcs_xcom_view_change_control_interface *view_control);
+  explicit Gcs_xcom_communication(
+      Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
+      Gcs_xcom_view_change_control_interface *view_control);
 
   virtual ~Gcs_xcom_communication();
 
@@ -183,8 +173,8 @@ public:
     Implementation of the public send_message method defined in
     Gcs_xcom_communication.
     Besides sending a message to the group, this method does two extra things:
-    - Guarantees view safety, in which no messages can be sent when a view change
-      is occurring.
+    - Guarantees view safety, in which no messages can be sent when a view
+    change is occurring.
     - Registers in the statistics interface that a message was sent.
 
     @param[in] message_to_send the message to send
@@ -197,8 +187,8 @@ public:
 
   enum_gcs_error send_message(const Gcs_message &message_to_send);
 
-  int
-  add_event_listener(const Gcs_communication_event_listener &event_listener);
+  int add_event_listener(
+      const Gcs_communication_event_listener &event_listener);
 
   void remove_event_listener(int event_listener_handle);
 
@@ -210,28 +200,25 @@ public:
   bool xcom_receive_data(Gcs_message *message);
 
   // Implementation of the Gcs_xcom_communication_interface
-  enum_gcs_error send_binding_message(const Gcs_message &message_to_send,
-                                      unsigned long long *message_length,
-                                      Gcs_internal_message_header::enum_cargo_type cargo);
+  enum_gcs_error send_binding_message(
+      const Gcs_message &message_to_send, unsigned long long *message_length,
+      Gcs_internal_message_header::enum_cargo_type cargo);
 
   // For unit testing purposes
-  std::map<int, const Gcs_communication_event_listener &> *get_event_listeners();
+  std::map<int, const Gcs_communication_event_listener &>
+      *get_event_listeners();
 
   Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
 
-
   void buffer_message(Gcs_message *message);
-
 
   void deliver_buffered_messages();
 
-
   void cleanup_buffered_messages();
-
 
   size_t number_buffered_messages();
 
-private:
+ private:
   // Registered event listeners
   std::map<int, const Gcs_communication_event_listener &> event_listeners;
 
@@ -264,8 +251,8 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_communication(const Gcs_xcom_communication&);
-  Gcs_xcom_communication& operator=(const Gcs_xcom_communication&);
+  Gcs_xcom_communication(const Gcs_xcom_communication &);
+  Gcs_xcom_communication &operator=(const Gcs_xcom_communication &);
 };
 
-#endif  /* GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED */
+#endif /* GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED */

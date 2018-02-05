@@ -30,9 +30,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 
 #include <aes.h>
+#include <my_aes.h>
 #include <sys/types.h>
 #include "m_string.h"
-#include <my_aes.h>
 #include "my_aes_impl.h"
 #include "my_inttypes.h"
 #include "mysys_ssl/my_aes_impl.h"
@@ -40,60 +40,40 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /** AES block size is fixed to be 128 bits for CBC and ECB */
 #define MY_AES_BLOCK_SIZE 16
 
-
 /* keep in sync with enum my_aes_opmode in my_aes.h */
-const char *my_aes_opmode_names[]=
-{
-  "aes-128-ecb",
-  "aes-192-ecb",
-  "aes-256-ecb",
-  "aes-128-cbc",
-  "aes-192-cbc",
-  "aes-256-cbc",
-  NULL /* needed for the type enumeration */
+const char *my_aes_opmode_names[] = {
+    "aes-128-ecb", "aes-192-ecb", "aes-256-ecb", "aes-128-cbc",
+    "aes-192-cbc", "aes-256-cbc", NULL /* needed for the type enumeration */
 };
 
-
 /* keep in sync with enum my_aes_opmode in my_aes.h */
-static uint my_aes_opmode_key_sizes_impl[]=
-{
-  128 /* aes-128-ecb */,
-  192 /* aes-192-ecb */,
-  256 /* aes-256-ecb */,
-  128 /* aes-128-cbc */,
-  192 /* aes-192-cbc */,
-  256 /* aes-256-cbc */,
+static uint my_aes_opmode_key_sizes_impl[] = {
+    128 /* aes-128-ecb */, 192 /* aes-192-ecb */, 256 /* aes-256-ecb */,
+    128 /* aes-128-cbc */, 192 /* aes-192-cbc */, 256 /* aes-256-cbc */,
 };
 
-uint *my_aes_opmode_key_sizes= my_aes_opmode_key_sizes_impl;
+uint *my_aes_opmode_key_sizes = my_aes_opmode_key_sizes_impl;
 
-bool needs_iv(enum my_aes_opmode mode)
-{
-  switch (mode)
-  {
-  case my_aes_128_ecb:
-  case my_aes_192_ecb:
-  case my_aes_256_ecb:
-    return false;
-    break;
-  default:
-    return true;
-    break;
+bool needs_iv(enum my_aes_opmode mode) {
+  switch (mode) {
+    case my_aes_128_ecb:
+    case my_aes_192_ecb:
+    case my_aes_256_ecb:
+      return false;
+      break;
+    default:
+      return true;
+      break;
   }
 }
 
-
-bool EncryptSetKey(Aes* ctx, const unsigned char *key, uint block_size,
-                   const unsigned char *iv, my_aes_opmode mode)
-{
+bool EncryptSetKey(Aes *ctx, const unsigned char *key, uint block_size,
+                   const unsigned char *iv, my_aes_opmode mode) {
   const unsigned char nullIV[16] = {0};
-  if (needs_iv(mode))
-  {
-    if (!iv)
-      return true;
+  if (needs_iv(mode)) {
+    if (!iv) return true;
     wc_AesSetKey(ctx, key, block_size, iv, AES_ENCRYPTION);
-  }
-  else {
+  } else {
     /*
      * NOT RECOMMENDED!
      * No chaining between blocks so iv is irrelavant and set to all 0's
@@ -103,18 +83,13 @@ bool EncryptSetKey(Aes* ctx, const unsigned char *key, uint block_size,
   return false;
 }
 
-
-bool DecryptSetKey(Aes* ctx, const unsigned char *key, uint block_size,
-                   const unsigned char *iv, my_aes_opmode mode)
-{
+bool DecryptSetKey(Aes *ctx, const unsigned char *key, uint block_size,
+                   const unsigned char *iv, my_aes_opmode mode) {
   const unsigned char nullIV[16] = {0};
-  if (needs_iv(mode))
-  {
-    if (!iv)
-      return true;
+  if (needs_iv(mode)) {
+    if (!iv) return true;
     wc_AesSetKey(ctx, key, block_size, iv, AES_DECRYPTION);
-  }
-  else {
+  } else {
     /*
      * NOT RECOMMENDED!
      * No chaining between blocks so iv is irrelavant and set to all 0's
@@ -124,63 +99,52 @@ bool DecryptSetKey(Aes* ctx, const unsigned char *key, uint block_size,
   return false;
 }
 
-
 /* is called with only one block size at a time */
-void EncryptProcess(Aes* ctx, unsigned char *dest,
-                    const unsigned char * source, uint block_size,
-                    my_aes_opmode mode)
-{
+void EncryptProcess(Aes *ctx, unsigned char *dest, const unsigned char *source,
+                    uint block_size, my_aes_opmode mode) {
   if (needs_iv(mode))
     wc_AesCbcEncrypt(ctx, dest, source, block_size);
   else
     wc_AesEncryptDirect(ctx, dest, source);
 }
 
-
 /* is called with only one block size at a time */
-void DecryptProcess(Aes* ctx, unsigned char *dest,
-                    const unsigned char * source, uint block_size,
-                    my_aes_opmode mode)
-{
+void DecryptProcess(Aes *ctx, unsigned char *dest, const unsigned char *source,
+                    uint block_size, my_aes_opmode mode) {
   if (needs_iv(mode))
     wc_AesCbcDecrypt(ctx, dest, source, block_size);
   else
     wc_AesDecryptDirect(ctx, dest, source);
 }
 
-
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
-                   unsigned char *dest,
-                   const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding)
-{
+                   unsigned char *dest, const unsigned char *key,
+                   uint32 key_length, enum my_aes_opmode mode,
+                   const unsigned char *iv, bool padding) {
   Aes enc;
 
   /* 128 bit block used for padding */
   unsigned char block[MY_AES_BLOCK_SIZE];
-  uint num_blocks;                               /* number of complete blocks */
+  uint num_blocks; /* number of complete blocks */
   uint i;
   /* predicted real key size */
-  const uint key_size= my_aes_opmode_key_sizes[mode] / 8;
+  const uint key_size = my_aes_opmode_key_sizes[mode] / 8;
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
   my_aes_create_key(key, key_length, rkey, mode);
 
-  if (EncryptSetKey(&enc, rkey, key_size, iv, mode))
-    return MY_AES_BAD_DATA;
+  if (EncryptSetKey(&enc, rkey, key_size, iv, mode)) return MY_AES_BAD_DATA;
 
-  num_blocks= source_length / MY_AES_BLOCK_SIZE;
+  num_blocks = source_length / MY_AES_BLOCK_SIZE;
 
   /* Encode all complete blocks */
-  for (i= num_blocks; i > 0;
-       i--, source+= MY_AES_BLOCK_SIZE, dest+= MY_AES_BLOCK_SIZE)
+  for (i = num_blocks; i > 0;
+       i--, source += MY_AES_BLOCK_SIZE, dest += MY_AES_BLOCK_SIZE)
     EncryptProcess(&enc, dest, source, MY_AES_BLOCK_SIZE, mode);
 
   /* If no padding, return here */
-  if (!padding)
-    return (int) (MY_AES_BLOCK_SIZE * num_blocks);
+  if (!padding) return (int)(MY_AES_BLOCK_SIZE * num_blocks);
   /*
     Re-implement standard PKCS padding for the last block.
     Pad the last incomplete data block (even if empty) with bytes
@@ -188,40 +152,37 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
     This also means that there will always be one more block,
     even if the source data size is dividable by the AES block size.
    */
-  unsigned char pad_len=
-    MY_AES_BLOCK_SIZE - (source_length - MY_AES_BLOCK_SIZE * num_blocks);
+  unsigned char pad_len =
+      MY_AES_BLOCK_SIZE - (source_length - MY_AES_BLOCK_SIZE * num_blocks);
   memcpy(block, source, MY_AES_BLOCK_SIZE - pad_len);
   memset(block + MY_AES_BLOCK_SIZE - pad_len, pad_len, pad_len);
 
   EncryptProcess(&enc, dest, block, MY_AES_BLOCK_SIZE, mode);
 
   /* we've added a block */
-  num_blocks+= 1;
+  num_blocks += 1;
 
-  return (int) (MY_AES_BLOCK_SIZE * num_blocks);
+  return (int)(MY_AES_BLOCK_SIZE * num_blocks);
 }
 
-
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
-                   unsigned char *dest,
-                   const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding)
-{
+                   unsigned char *dest, const unsigned char *key,
+                   uint32 key_length, enum my_aes_opmode mode,
+                   const unsigned char *iv, bool padding) {
   Aes dec;
   /* 128 bit block used for padding */
   uint8 block[MY_AES_BLOCK_SIZE];
-  uint32 num_blocks;                               /* Number of complete blocks */
+  uint32 num_blocks; /* Number of complete blocks */
   int i;
   /* predicted real key size */
-  const uint key_size= my_aes_opmode_key_sizes[mode] / 8;
+  const uint key_size = my_aes_opmode_key_sizes[mode] / 8;
   /* The real key to be used for decryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
   my_aes_create_key(key, key_length, rkey, mode);
   DecryptSetKey(&dec, rkey, key_size, iv, mode);
 
-  num_blocks= source_length / MY_AES_BLOCK_SIZE;
+  num_blocks = source_length / MY_AES_BLOCK_SIZE;
 
   /*
     Input size has to be a multiple of the AES block size.
@@ -231,13 +192,12 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
     return MY_AES_BAD_DATA;
 
   /* Decode all but the last block */
-  for (i= padding? num_blocks - 1: num_blocks; i > 0;
-       i--, source+= MY_AES_BLOCK_SIZE, dest+= MY_AES_BLOCK_SIZE)
+  for (i = padding ? num_blocks - 1 : num_blocks; i > 0;
+       i--, source += MY_AES_BLOCK_SIZE, dest += MY_AES_BLOCK_SIZE)
     DecryptProcess(&dec, dest, source, MY_AES_BLOCK_SIZE, mode);
 
   /* If no padding, return here. */
-  if (!padding)
-    return MY_AES_BLOCK_SIZE * num_blocks;
+  if (!padding) return MY_AES_BLOCK_SIZE * num_blocks;
 
   /* unwarp the standard PKCS padding */
   DecryptProcess(&dec, block, source, MY_AES_BLOCK_SIZE, mode);
@@ -245,24 +205,16 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   /* Use last char in the block as size */
   uint8 pad_len = block[MY_AES_BLOCK_SIZE - 1];
 
-  if (pad_len > MY_AES_BLOCK_SIZE)
-    return MY_AES_BAD_DATA;
+  if (pad_len > MY_AES_BLOCK_SIZE) return MY_AES_BAD_DATA;
   /* We could also check whole padding but we do not really need this */
 
   memcpy(dest, block, MY_AES_BLOCK_SIZE - pad_len);
   return MY_AES_BLOCK_SIZE * num_blocks - pad_len;
 }
 
-
-int my_aes_get_size(uint32 source_length, my_aes_opmode)
-{
-  return MY_AES_BLOCK_SIZE * (source_length / MY_AES_BLOCK_SIZE)
-    + MY_AES_BLOCK_SIZE;
+int my_aes_get_size(uint32 source_length, my_aes_opmode) {
+  return MY_AES_BLOCK_SIZE * (source_length / MY_AES_BLOCK_SIZE) +
+         MY_AES_BLOCK_SIZE;
 }
 
-
-bool my_aes_needs_iv(my_aes_opmode opmode)
-{
-  return needs_iv(opmode);
-}
-
+bool my_aes_needs_iv(my_aes_opmode opmode) { return needs_iv(opmode); }

@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef OBSERVER_SERVER_ACTIONS_INCLUDE
-#define	OBSERVER_SERVER_ACTIONS_INCLUDE
+#define OBSERVER_SERVER_ACTIONS_INCLUDE
 
 #include <mysql/group_replication_priv.h>
 
@@ -37,23 +37,20 @@ int group_replication_transmit_start(Binlog_transmit_param *param,
 int group_replication_transmit_stop(Binlog_transmit_param *param);
 
 int group_replication_reserve_header(Binlog_transmit_param *param,
-                                     unsigned char *header,
-                                     unsigned long size,
+                                     unsigned char *header, unsigned long size,
                                      unsigned long *len);
 
 int group_replication_before_send_event(Binlog_transmit_param *param,
                                         unsigned char *packet,
-                                        unsigned long len,
-                                        const char *log_file, my_off_t log_pos);
+                                        unsigned long len, const char *log_file,
+                                        my_off_t log_pos);
 
 int group_replication_after_send_event(Binlog_transmit_param *param,
-                                       const char *event_buf,
-                                       unsigned long len,
+                                       const char *event_buf, unsigned long len,
                                        const char *skipped_log_file,
                                        my_off_t skipped_log_pos);
 
-//Binlog_transmit observer struct
+// Binlog_transmit observer struct
 extern Binlog_transmit_observer binlog_transmit_observer;
 
-#endif	/* OBSERVER_SERVER_ACTIONS_INCLUDE */
-
+#endif /* OBSERVER_SERVER_ACTIONS_INCLUDE */

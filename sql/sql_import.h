@@ -26,23 +26,23 @@
 #include "lex_string.h"
 #include "my_sqlcommand.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_cmd.h"   // Sql_cmd
+#include "sql/sql_cmd.h"  // Sql_cmd
 
 class THD;
 
 /**
-  @file sql/sql_import.h Declaration of command class for the IMPORT TABLES command.
+  @file sql/sql_import.h Declaration of command class for the IMPORT TABLES
+  command.
  */
 
 /**
   Command class for the IMPORT command.
  */
-class Sql_cmd_import_table : public Sql_cmd
-{
+class Sql_cmd_import_table : public Sql_cmd {
   typedef Mem_root_array_YY<LEX_STRING> Sdi_patterns_type;
   const Sdi_patterns_type m_sdi_patterns;
 
-public:
+ public:
   /**
     Called by sql_yacc.yy.
 

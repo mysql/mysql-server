@@ -25,37 +25,24 @@
 
 #include "sql/mdl.h"
 
-class Test_MDL_context_owner : public MDL_context_owner
-{
-public:
-  Test_MDL_context_owner()
-  {}
-  virtual void enter_cond(mysql_cond_t*,
-                          mysql_mutex_t*,
-                          const PSI_stage_info*,
-                          PSI_stage_info*,
-                          const char*,
-                          const char*,
-                          int)
-  {
-  }
+class Test_MDL_context_owner : public MDL_context_owner {
+ public:
+  Test_MDL_context_owner() {}
+  virtual void enter_cond(mysql_cond_t *, mysql_mutex_t *,
+                          const PSI_stage_info *, PSI_stage_info *,
+                          const char *, const char *, int) {}
 
-  virtual void exit_cond(const PSI_stage_info*,
-                         const char*,
-                         const char*,
-                         int)
-  {
-  }
+  virtual void exit_cond(const PSI_stage_info *, const char *, const char *,
+                         int) {}
 
-  virtual int  is_killed() const final { return 0; }
+  virtual int is_killed() const final { return 0; }
   virtual bool is_connected() { return true; }
-  virtual THD* get_thd()   { return NULL; }
+  virtual THD *get_thd() { return NULL; }
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key*,
-                                                 bool*)
-  { return false; }
-  virtual void notify_hton_post_release_exclusive(const MDL_key*)
-  { }
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *, bool *) {
+    return false;
+  }
+  virtual void notify_hton_post_release_exclusive(const MDL_key *) {}
 
   virtual uint get_rand_seed() { return 0; }
 };

@@ -24,9 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/pars0sym.ic
-SQL parser symbol table
+/**************************************************/ /**
+ @file include/pars0sym.ic
+ SQL parser symbol table
 
-Created 12/15/1997 Heikki Tuuri
-*******************************************************/
+ Created 12/15/1997 Heikki Tuuri
+ *******************************************************/

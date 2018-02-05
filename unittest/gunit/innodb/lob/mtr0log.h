@@ -26,10 +26,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _mtr0log_h_
 #define _mtr0log_h_
 
-void
-mlog_write_ulint(
-        byte*           ptr,    /*!< in: pointer where to write */
-        ulint           val,    /*!< in: value to write */
-        mlog_id_t       type);
+void mlog_write_ulint(byte *ptr, /*!< in: pointer where to write */
+                      ulint val, /*!< in: value to write */
+                      mlog_id_t type);
 
-#endif // _mtr0log_h_
+#endif  // _mtr0log_h_

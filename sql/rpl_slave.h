@@ -32,7 +32,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "my_thread.h"                     // my_start_routine
+#include "my_thread.h"  // my_start_routine
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
@@ -64,8 +64,8 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
   @file
 */
 
-/** 
-   Some of defines are need in parser even though replication is not 
+/**
+   Some of defines are need in parser even though replication is not
    compiled in (embedded).
 */
 
@@ -74,15 +74,15 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 */
 #define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
 
-#define SLAVE_NET_TIMEOUT  60
+#define SLAVE_NET_TIMEOUT 60
 
-#define MAX_SLAVE_ERROR    12000
+#define MAX_SLAVE_ERROR 12000
 
-#define MTS_WORKER_UNDEF ((ulong) -1)
-#define MTS_MAX_WORKERS  1024
+#define MTS_WORKER_UNDEF ((ulong)-1)
+#define MTS_MAX_WORKERS 1024
 #define MAX_SLAVE_RETRY_PAUSE 5
 
-/* 
+/*
    When using tables to store the slave workers bitmaps,
    we use a BLOB field. The maximum size of a BLOB is:
 
@@ -225,13 +225,15 @@ extern bool server_id_supplied;
   then we write F2's name in parentheses in the list of locks for F1.
 
     Sys_var_gtid_mode::global_update:
-      gtid_mode_lock->wrlock, channel_map->wrlock, binlog.LOCK_log, global_sid_lock->wrlock
+      gtid_mode_lock->wrlock, channel_map->wrlock, binlog.LOCK_log,
+  global_sid_lock->wrlock
 
     change_master_cmd:
       channel_map.wrlock, (change_master)
 
     change_master:
-      mi->channel_wrlock, mi.run_lock, rli.run_lock, (global_init_info), (purge_relay_logs), (init_relay_log_pos), rli.err_lock
+      mi->channel_wrlock, mi.run_lock, rli.run_lock, (global_init_info),
+  (purge_relay_logs), (init_relay_log_pos), rli.err_lock
 
     global_init_info:
       mi.data_lock, rli.data_lock
@@ -354,16 +356,14 @@ extern const char *relay_log_basename;
   3 possible values for Master_info::slave_running and
   Relay_log_info::slave_running.
   The values 0,1,2 are very important: to keep the diff small, I didn't
-  substitute places where we use 0/1 with the newly defined symbols. So don't change
-  these values.
-  The same way, code is assuming that in Relay_log_info we use only values
-  0/1.
-  I started with using an enum, but
-  enum_variable=1; is not legal so would have required many line changes.
+  substitute places where we use 0/1 with the newly defined symbols. So don't
+  change these values. The same way, code is assuming that in Relay_log_info we
+  use only values 0/1. I started with using an enum, but enum_variable=1; is not
+  legal so would have required many line changes.
 */
-#define MYSQL_SLAVE_NOT_RUN         0
+#define MYSQL_SLAVE_NOT_RUN 0
 #define MYSQL_SLAVE_RUN_NOT_CONNECT 1
-#define MYSQL_SLAVE_RUN_CONNECT     2
+#define MYSQL_SLAVE_RUN_CONNECT 2
 
 /*
   If the following is set, if first gives an error, second will be
@@ -372,20 +372,20 @@ extern const char *relay_log_basename;
 #define SLAVE_FORCE_ALL 4
 
 /* @todo: see if you can change to int */
-bool start_slave_cmd(THD* thd);
-bool stop_slave_cmd(THD* thd);
+bool start_slave_cmd(THD *thd);
+bool stop_slave_cmd(THD *thd);
 bool change_master_cmd(THD *thd);
-int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
-                  bool preserve_logs= false);
+int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
+                  bool preserve_logs = false);
 bool reset_slave_cmd(THD *thd);
 bool show_slave_status_cmd(THD *thd);
 bool flush_relay_logs_cmd(THD *thd);
 
 bool flush_relay_logs(Master_info *mi);
-int reset_slave(THD *thd, Master_info* mi, bool reset_all);
+int reset_slave(THD *thd, Master_info *mi, bool reset_all);
 int reset_slave(THD *thd);
 int init_slave();
-int init_recovery(Master_info* mi);
+int init_recovery(Master_info *mi);
 /**
   Call mi->init_info() and/or mi->rli->init_info(), which will read
   the replication configuration from repositories.
@@ -406,17 +406,15 @@ int init_recovery(Master_info* mi);
   @retval 0 Success
   @retval nonzero Error
 */
-int load_mi_and_rli_from_repositories(Master_info* mi,
-                                      bool ignore_if_no_info,
+int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
                                       int thread_mask);
-void end_info(Master_info* mi);
-int remove_info(Master_info* mi);
-int flush_master_info(Master_info* mi, bool force,
-                      bool need_lock= true,
-                      bool flush_relay_log= true);
-void add_slave_skip_errors(const char* arg);
-void set_slave_skip_errors(char** slave_skip_errors_ptr);
-int add_new_channel(Master_info** mi, const char* channel);
+void end_info(Master_info *mi);
+int remove_info(Master_info *mi);
+int flush_master_info(Master_info *mi, bool force, bool need_lock = true,
+                      bool flush_relay_log = true);
+void add_slave_skip_errors(const char *arg);
+void set_slave_skip_errors(char **slave_skip_errors_ptr);
+int add_new_channel(Master_info **mi, const char *channel);
 /**
   Terminates the slave threads according to the given mask.
 
@@ -439,22 +437,18 @@ int add_new_channel(Master_info** mi, const char* channel);
     @retval ER_ERROR_DURING_FLUSH_LOGS
       There was an error while flushing the log/repositories
 */
-int terminate_slave_threads(Master_info* mi, int thread_mask,
+int terminate_slave_threads(Master_info *mi, int thread_mask,
                             ulong stop_wait_timeout,
-                            bool need_lock_term= true);
+                            bool need_lock_term = true);
 bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
-                         Master_info* mi, int thread_mask);
+                         Master_info *mi, int thread_mask);
 bool start_slave(THD *thd);
 int stop_slave(THD *thd);
-bool start_slave(THD* thd,
-                 LEX_SLAVE_CONNECTION* connection_param,
-                 LEX_MASTER_INFO* master_param,
-                 int thread_mask_input,
-                 Master_info* mi,
-                 bool set_mts_settings);
-int stop_slave(THD* thd, Master_info* mi, bool net_report,
-               bool for_one_channel,
-               bool* push_temp_table_warning);
+bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
+                 LEX_MASTER_INFO *master_param, int thread_mask_input,
+                 Master_info *mi, bool set_mts_settings);
+int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
+               bool *push_temp_table_warning);
 /*
   cond_lock is usually same as start_lock. It is needed for the case when
   start_lock is 0 which happens if start_slave_thread() is called already
@@ -463,52 +457,45 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report,
 */
 bool start_slave_thread(
 #ifdef HAVE_PSI_THREAD_INTERFACE
-                        PSI_thread_key thread_key,
+    PSI_thread_key thread_key,
 #endif
-                        my_start_routine h_func,
-                        mysql_mutex_t *start_lock,
-                        mysql_mutex_t *cond_lock,
-                        mysql_cond_t *start_cond,
-                        std::atomic<uint> *slave_running,
-                        std::atomic<ulong> *slave_run_id,
-                        Master_info *mi);
+    my_start_routine h_func, mysql_mutex_t *start_lock,
+    mysql_mutex_t *cond_lock, mysql_cond_t *start_cond,
+    std::atomic<uint> *slave_running, std::atomic<ulong> *slave_run_id,
+    Master_info *mi);
 
-bool show_slave_status(THD* thd, Master_info* mi);
-bool show_slave_status(THD* thd);
+bool show_slave_status(THD *thd, Master_info *mi);
+bool show_slave_status(THD *thd);
 bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                         bool (*pred)(const void *), const void *param);
-bool rpl_master_erroneous_autoinc(THD* thd);
+bool rpl_master_erroneous_autoinc(THD *thd);
 
 const char *print_slave_db_safe(const char *db);
 
-void end_slave(); /* release slave threads */
+void end_slave();                 /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
-void lock_slave_threads(Master_info* mi);
-void unlock_slave_threads(Master_info* mi);
-void init_thread_mask(int* mask,Master_info* mi,bool inverse);
-void set_slave_thread_options(THD* thd);
+void lock_slave_threads(Master_info *mi);
+void unlock_slave_threads(Master_info *mi);
+void init_thread_mask(int *mask, Master_info *mi, bool inverse);
+void set_slave_thread_options(THD *thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
-int rotate_relay_log(Master_info* mi,
-                     bool log_master_fd= true,
-                     bool need_lock=true);
-typedef enum
-{
-  QUEUE_EVENT_OK= 0,
+int rotate_relay_log(Master_info *mi, bool log_master_fd = true,
+                     bool need_lock = true);
+typedef enum {
+  QUEUE_EVENT_OK = 0,
   QUEUE_EVENT_ERROR_QUEUING,
   QUEUE_EVENT_ERROR_FLUSHING_INFO
 } QUEUE_EVENT_RESULT;
-QUEUE_EVENT_RESULT queue_event(Master_info* mi,
-                               const char* buf,
-                               ulong event_len,
-                               bool flush_mi= true);
+QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
+                               ulong event_len, bool flush_mi = true);
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
-bool net_request_file(NET* net, const char* fname);
+bool net_request_file(NET *net, const char *fname);
 
 extern bool replicate_same_server_id;
 
-extern int disconnect_slave_event_count, abort_slave_event_count ;
+extern int disconnect_slave_event_count, abort_slave_event_count;
 
 /* the master variables are defaults read from my.cnf or command line */
 extern uint report_port;
@@ -516,12 +503,12 @@ extern char *master_info_file, *relay_log_info_file, *report_user;
 extern char *report_host, *report_password;
 
 bool mts_recovery_groups(Relay_log_info *rli);
-bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
-                            bool force, bool need_data_lock);
-bool sql_slave_killed(THD* thd, Relay_log_info* rli);
+bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period, bool force,
+                            bool need_data_lock);
+bool sql_slave_killed(THD *thd, Relay_log_info *rli);
 
 /* masks for start/stop operations on io and sql slave threads */
-#define SLAVE_IO  1
+#define SLAVE_IO 1
 #define SLAVE_SQL 2
 
 /**

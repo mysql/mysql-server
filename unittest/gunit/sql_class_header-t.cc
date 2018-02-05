@@ -45,5 +45,6 @@
 #endif
 
 #ifdef _SQL_PROFILE_H
-#error "sql_class.h includes sql_profile.h directly or indirectly; it should not."
+#error \
+    "sql_class.h includes sql_profile.h directly or indirectly; it should not."
 #endif

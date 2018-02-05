@@ -22,11 +22,8 @@
 
 #include "sql/current_thd.h"
 
-thread_local THD *current_thd= nullptr;
+thread_local THD *current_thd = nullptr;
 
 #if defined(_WIN32)
-extern "C" THD *_current_thd_noinline(void)
-{
-  return current_thd;
-}
+extern "C" THD *_current_thd_noinline(void) { return current_thd; }
 #endif

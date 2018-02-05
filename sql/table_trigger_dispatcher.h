@@ -32,10 +32,10 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql_com.h"                    // MYSQL_ERRMSG_SIZE
-#include "mysqld_error.h"                 // ER_PARSE_ERROR
-#include "sql/table_trigger_field_support.h" // Table_trigger_field_support
-#include "sql/trigger_def.h"              // enum_trigger_action_time_type
+#include "mysql_com.h"                        // MYSQL_ERRMSG_SIZE
+#include "mysqld_error.h"                     // ER_PARSE_ERROR
+#include "sql/table_trigger_field_support.h"  // Table_trigger_field_support
+#include "sql/trigger_def.h"                  // enum_trigger_action_time_type
 
 class Field;
 class Query_tables_list;
@@ -50,7 +50,8 @@ class Table;
 }  // namespace dd
 struct TABLE;
 struct TABLE_LIST;
-template <class T> class List;
+template <class T>
+class List;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -58,9 +59,8 @@ template <class T> class List;
   This class holds all information about triggers of a table.
 */
 
-class Table_trigger_dispatcher : public Table_trigger_field_support
-{
-public:
+class Table_trigger_dispatcher : public Table_trigger_field_support {
+ public:
   static Table_trigger_dispatcher *create(TABLE *subject_table);
 
   // Only used by NDB - see reload_triggers_for_table().
@@ -69,10 +69,10 @@ public:
 
   bool check_n_load(THD *thd, const dd::Table &table);
 
-private:
+ private:
   Table_trigger_dispatcher(TABLE *subject_table);
 
-public:
+ public:
   ~Table_trigger_dispatcher();
 
   /**
@@ -82,10 +82,8 @@ public:
     @retval true in case there is at least one broken trigger (a trigger which
     SQL-definition can not be parsed) for this table.
   */
-  bool check_for_broken_triggers()
-  {
-    if (m_has_unparseable_trigger)
-    {
+  bool check_for_broken_triggers() {
+    if (m_has_unparseable_trigger) {
       my_message(ER_PARSE_ERROR, m_parse_error_message, MYF(0));
       return true;
     }
@@ -98,15 +96,13 @@ public:
                         enum_trigger_action_time_type action_time,
                         bool old_row_is_record1);
 
-  Trigger_chain *get_triggers(int event, int action_time)
-  {
+  Trigger_chain *get_triggers(int event, int action_time) {
     DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
     DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
   }
 
-  const Trigger_chain *get_triggers(int event, int action_time) const
-  {
+  const Trigger_chain *get_triggers(int event, int action_time) const {
     DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
     DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
@@ -115,19 +111,16 @@ public:
   Trigger *find_trigger(const LEX_STRING &trigger_name);
 
   bool has_triggers(enum_trigger_event_type event,
-                    enum_trigger_action_time_type action_time) const
-  {
+                    enum_trigger_action_time_type action_time) const {
     return get_triggers(event, action_time) != NULL;
   }
 
-  bool has_update_triggers() const
-  {
+  bool has_update_triggers() const {
     return get_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE) ||
            get_triggers(TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
   }
 
-  bool has_delete_triggers() const
-  {
+  bool has_delete_triggers() const {
     return get_triggers(TRG_EVENT_DELETE, TRG_ACTION_BEFORE) ||
            get_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER);
   }
@@ -145,11 +138,10 @@ public:
 
   void parse_triggers(THD *thd, List<Trigger> *triggers, bool is_upgrade);
 
-private:
+ private:
   Trigger_chain *create_trigger_chain(
-    MEM_ROOT *mem_root,
-    enum_trigger_event_type event,
-    enum_trigger_action_time_type action_time);
+      MEM_ROOT *mem_root, enum_trigger_event_type event,
+      enum_trigger_action_time_type action_time);
 
   bool prepare_record1_accessors();
 
@@ -162,33 +154,28 @@ private:
 
     @param error_message The error message thrown by the parser.
   */
-  void set_parse_error_message(const char *error_message)
-  {
-    if (!m_has_unparseable_trigger)
-    {
-      m_has_unparseable_trigger= true;
-      strncpy(m_parse_error_message,
-              error_message, sizeof(m_parse_error_message));
+  void set_parse_error_message(const char *error_message) {
+    if (!m_has_unparseable_trigger) {
+      m_has_unparseable_trigger = true;
+      strncpy(m_parse_error_message, error_message,
+              sizeof(m_parse_error_message));
     }
   }
 
-private:
+ private:
   /************************************************************************
    * Table_trigger_field_support interface implementation.
    ***********************************************************************/
 
-  virtual TABLE *get_subject_table()
-  { return m_subject_table; }
+  virtual TABLE *get_subject_table() { return m_subject_table; }
 
   virtual Field *get_trigger_variable_field(enum_trigger_variable_type v,
-                                            int field_index)
-  {
-    return (v == TRG_OLD_ROW) ?
-           m_old_field[field_index] :
-           m_new_field[field_index];
+                                            int field_index) {
+    return (v == TRG_OLD_ROW) ? m_old_field[field_index]
+                              : m_new_field[field_index];
   }
 
-private:
+ private:
   /**
     TABLE instance for which this triggers list object was created.
   */
@@ -240,4 +227,4 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-#endif // TABLE_TRIGGER_DISPATCHER_H_INCLUDED
+#endif  // TABLE_TRIGGER_DISPATCHER_H_INCLUDED

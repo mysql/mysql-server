@@ -28,10 +28,10 @@
 #include <string>
 
 #include "lex_string.h"
-#include "sql/dd/dictionary.h"       // dd::Dictionary
-#include "sql/dd/object_id.h"        // dd::Object_id
-#include "sql/dd/string_type.h"      // dd::String_type
-#include "sql/table.h"               // MYSQL_SCHEMA_NAME
+#include "sql/dd/dictionary.h"   // dd::Dictionary
+#include "sql/dd/object_id.h"    // dd::Object_id
+#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/table.h"           // MYSQL_SCHEMA_NAME
 
 class THD;
 
@@ -40,16 +40,16 @@ class Object_table;
 }  // namespace dd
 
 namespace dd_schema_unittest {
-  class SchemaTest;
+class SchemaTest;
 }
 
 namespace my_testing {
-  class DD_initializer;
+class DD_initializer;
 }
 
 namespace dd_column_statistics_unittest {
-  template <typename T>
-  class ColumnStatisticsTest;
+template <typename T>
+class ColumnStatisticsTest;
 }
 namespace dd {
 
@@ -59,8 +59,7 @@ enum class enum_dd_init_type;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Dictionary_impl : public Dictionary
-{
+class Dictionary_impl : public Dictionary {
   friend class dd_schema_unittest::SchemaTest;
   friend class my_testing::DD_initializer;
   template <typename T>
@@ -70,24 +69,22 @@ class Dictionary_impl : public Dictionary
   // Implementation details.
   /////////////////////////////////////////////////////////////////////////
 
-private:
+ private:
   static Dictionary_impl *s_instance;
 
-public:
+ public:
   static bool init(enum_dd_init_type dd_init);
   static bool shutdown();
 
   static Dictionary_impl *instance();
 
-private:
-  Dictionary_impl()
-  { }
+ private:
+  Dictionary_impl() {}
 
-public:
-  virtual ~Dictionary_impl()
-  { }
+ public:
+  virtual ~Dictionary_impl() {}
 
-public:
+ public:
   static uint get_target_dd_version();
 
   virtual uint get_actual_dd_version(THD *thd);
@@ -104,15 +101,16 @@ public:
 
   uint set_P_S_version(THD *thd, uint version);
 
-  virtual const Object_table *get_dd_table(
-    const String_type &schema_name, const String_type &table_name) const;
+  virtual const Object_table *get_dd_table(const String_type &schema_name,
+                                           const String_type &table_name) const;
 
-public:
-  virtual bool is_dd_schema_name(const String_type &schema_name) const
-  { return (schema_name == MYSQL_SCHEMA_NAME.str); }
+ public:
+  virtual bool is_dd_schema_name(const String_type &schema_name) const {
+    return (schema_name == MYSQL_SCHEMA_NAME.str);
+  }
 
   virtual bool is_dd_table_name(const String_type &schema_name,
-                               const String_type &table_name) const;
+                                const String_type &table_name) const;
 
   virtual bool is_system_table_name(const String_type &schema_name,
                                     const String_type &table_name) const;
@@ -127,27 +125,24 @@ public:
                                           const char *table_name) const;
 
   virtual bool is_system_view_name(const char *schema_name,
-                                   const char *table_name,
-                                   bool *hidden) const;
+                                   const char *table_name, bool *hidden) const;
 
   virtual bool is_system_view_name(const char *schema_name,
-                                   const char *table_name) const
-  {
+                                   const char *table_name) const {
     bool hidden;
     return is_system_view_name(schema_name, table_name, &hidden);
   }
 
-public:
-  static Object_id default_catalog_id()
-  { return DEFAULT_CATALOG_ID; }
+ public:
+  static Object_id default_catalog_id() { return DEFAULT_CATALOG_ID; }
 
-  static Object_id dd_tablespace_id()
-  { return DD_TABLESPACE_ID; }
+  static Object_id dd_tablespace_id() { return DD_TABLESPACE_ID; }
 
-  static const String_type &default_catalog_name()
-  { return DEFAULT_CATALOG_NAME; }
+  static const String_type &default_catalog_name() {
+    return DEFAULT_CATALOG_NAME;
+  }
 
-private:
+ private:
   static Object_id DEFAULT_CATALOG_ID;
   static Object_id DD_TABLESPACE_ID;
   static const String_type DEFAULT_CATALOG_NAME;
@@ -155,6 +150,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__DICTIONARY_IMPL_INCLUDED
+#endif  // DD__DICTIONARY_IMPL_INCLUDED

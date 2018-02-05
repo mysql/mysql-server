@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,17 +32,12 @@
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/protocol/buffer.h"
 
-
 using namespace ngs;
 
-Buffer::Buffer(Page_pool& page_pool)
-  : m_capacity(0), m_length(0), m_page_pool(page_pool)
-{
-}
+Buffer::Buffer(Page_pool &page_pool)
+    : m_capacity(0), m_length(0), m_page_pool(page_pool) {}
 
-Buffer::~Buffer()
-{
-}
+Buffer::~Buffer() {}
 
 /*
 NOTE: Commented for coverage. Uncomment when needed.
@@ -53,65 +48,41 @@ size_t Buffer::capacity() const
 }
 */
 
+size_t Buffer::length() const { return m_length; }
 
-size_t Buffer::length() const
-{
-  return m_length;
-}
+size_t Buffer::available_space() const { return m_capacity - m_length; }
 
-
-size_t Buffer::available_space() const
-{
-  return m_capacity - m_length;
-}
-
-
-Alloc_result Buffer::reserve(size_t space)
-{
+Alloc_result Buffer::reserve(size_t space) {
   size_t available = available_space();
 
-  while (available < space)
-  {
-    try
-    {
+  while (available < space) {
+    try {
       Buffer_page p = m_page_pool.allocate();
       available += p->capacity;
       m_capacity += p->capacity;
 
       m_pages.push_back(p);
-    }
-    catch (const std::bad_alloc &exc)
-    {
+    } catch (const std::bad_alloc &exc) {
       log_error(ER_XPLUGIN_BUFFER_PAGE_ALLOC_FAILED, exc.what());
       return Memory_error;
-    }
-    catch (const Page_pool::No_more_pages_exception &)
-    {
+    } catch (const Page_pool::No_more_pages_exception &) {
       return Memory_no_free_pages;
     }
   }
   return Memory_allocated;
 }
 
-
-Alloc_result Buffer::add_pages(unsigned int npages)
-{
-  for (unsigned int i = 0; i < npages; i++)
-  {
-    try
-    {
+Alloc_result Buffer::add_pages(unsigned int npages) {
+  for (unsigned int i = 0; i < npages; i++) {
+    try {
       Buffer_page p = m_page_pool.allocate();
       m_capacity += p->capacity;
 
       m_pages.push_back(p);
-    }
-    catch (std::bad_alloc &exc)
-    {
+    } catch (std::bad_alloc &exc) {
       log_error(ER_XPLUGIN_BUFFER_PAGE_ALLOC_FAILED, exc.what());
       return Memory_error;
-    }
-    catch (const Page_pool::No_more_pages_exception &)
-    {
+    } catch (const Page_pool::No_more_pages_exception &) {
       return Memory_no_free_pages;
     }
   }
@@ -128,40 +99,26 @@ bool Buffer::uint32_at(size_t offset, uint32_t &ret)
 }
 */
 
-
-bool Buffer::int32_at(size_t offset, int32_t &ret_int)
-{
+bool Buffer::int32_at(size_t offset, int32_t &ret_int) {
   char tmp[4];
   size_t offs = 0;
 
-  for (Page_list::const_iterator p = m_pages.begin();
-       p != m_pages.end(); ++p)
-  {
-    if (offs + (*p)->length < offset)
-    {
+  for (Page_list::const_iterator p = m_pages.begin(); p != m_pages.end(); ++p) {
+    if (offs + (*p)->length < offset) {
       offs += (*p)->length;
-    }
-    else
-    {
-      if ((*p)->length - (offset - offs) >= 4)
-      {
+    } else {
+      if ((*p)->length - (offset - offs) >= 4) {
         // full word is in a single page
-        memcpy(tmp, (*p)->data + (offset-offs), 4);
-      }
-      else
-      {
-        const char *data = (*p)->data + offset-offs;
-        for (int o = 0; o < 4; o++)
-        {
+        memcpy(tmp, (*p)->data + (offset - offs), 4);
+      } else {
+        const char *data = (*p)->data + offset - offs;
+        for (int o = 0; o < 4; o++) {
           tmp[o] = *data++;
 
-          if ((*p)->length - (data - (*p)->data) <= 0)
-          {
+          if ((*p)->length - (data - (*p)->data) <= 0) {
             ++p;
-            if (p == m_pages.end())
-            {
-              if (o < 3)
-                return false;
+            if (p == m_pages.end()) {
+              if (o < 3) return false;
               break;
             }
             data = (*p)->data;
@@ -173,7 +130,7 @@ bool Buffer::int32_at(size_t offset, int32_t &ret_int)
       std::swap(tmp[0], tmp[3]);
       std::swap(tmp[1], tmp[2]);
 #endif
-      const uint32_t* ret_ptr = (uint32_t*)(tmp);
+      const uint32_t *ret_ptr = (uint32_t *)(tmp);
       ret_int = *ret_ptr;
 
       return true;
@@ -182,7 +139,6 @@ bool Buffer::int32_at(size_t offset, int32_t &ret_int)
 
   return false;
 }
-
 
 /*
 NOTE: Commented for coverage. Uncomment when needed.
@@ -217,15 +173,12 @@ Resource<Page> Buffer::pop_front()
 }
 */
 
-
-void Buffer::push_back(const Resource<Page> &page)
-{
+void Buffer::push_back(const Resource<Page> &page) {
   m_length += page->length;
   m_capacity += page->capacity;
 
   m_pages.push_back(page);
 }
-
 
 /*
 NOTE: Commented for coverage. Uncomment when needed.
@@ -234,13 +187,14 @@ void Buffer::add_bytes_transferred(size_t nbytes)
 {
   m_length += nbytes;
 
-  // update the length field of all pages to reflect the number of bytes that got transferred to them
-  Page_list::iterator p = pages().begin();
-  while (p != pages().end())
+  // update the length field of all pages to reflect the number of bytes that
+got transferred to them Page_list::iterator p = pages().begin(); while (p !=
+pages().end())
   {
     if ((*p)->length < (*p)->capacity && nbytes > 0)
     {
-      size_t bytes_filled = std::min(nbytes, (size_t)((*p)->capacity - (*p)->length));
+      size_t bytes_filled = std::min(nbytes, (size_t)((*p)->capacity -
+(*p)->length));
 
       nbytes -= bytes_filled;
       (*p)->length += bytes_filled;
@@ -252,9 +206,8 @@ void Buffer::add_bytes_transferred(size_t nbytes)
 
   for (; p != pages().end() && nbytes > 0; ++p)
   {
-    // invariant: all pages after the 1st page with available space will be empty
-    DBUG_ASSERT((*p)->length == 0);
-    if (nbytes >= (*p)->capacity)
+    // invariant: all pages after the 1st page with available space will be
+empty DBUG_ASSERT((*p)->length == 0); if (nbytes >= (*p)->capacity)
     {
       nbytes -= (*p)->capacity;
       (*p)->length = (*p)->capacity;
@@ -268,9 +221,7 @@ void Buffer::add_bytes_transferred(size_t nbytes)
 }
 */
 
-
-void Buffer::reset()
-{
+void Buffer::reset() {
   for (Page_list::const_iterator p = pages().begin(); p != pages().end(); ++p)
     (*p)->length = 0;
 }

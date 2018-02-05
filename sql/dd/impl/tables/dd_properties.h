@@ -24,10 +24,10 @@
 #define DD_TABLES__DD_PROPERTIES_INCLUDED
 
 #include <sys/types.h>
-#include <string>
 #include <map>
+#include <string>
 
-#include "sql/dd/impl/properties_impl.h"            // dd::Properties_impl
+#include "sql/dd/impl/properties_impl.h"  // dd::Properties_impl
 #include "sql/dd/impl/types/object_table_impl.h"
 #include "sql/dd/string_type.h"
 
@@ -38,18 +38,13 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class DD_properties : public Object_table_impl
-{
-public:
+class DD_properties : public Object_table_impl {
+ public:
   DD_properties();
 
-  enum enum_fields
-  {
-    FIELD_PROPERTIES
-  };
+  enum enum_fields { FIELD_PROPERTIES };
 
   static DD_properties &instance();
-
 
   /**
     The 'mysql.dd_properties' table will store key=value pairs. The valid
@@ -76,16 +71,7 @@ public:
   /**
     Enumeration used to lookup the valid keys for the DD table properties.
   */
-  enum class DD_property
-  {
-    ID,
-    DATA,
-    SPACE_ID,
-    IDX,
-    COL,
-    DEF
-  };
-
+  enum class DD_property { ID, DATA, SPACE_ID, IDX, COL, DEF };
 
   /**
     Property key names for DD table properties.
@@ -94,22 +80,25 @@ public:
 
     @return Key character string.
   */
-  static const char* dd_key(DD_property label)
-  {
-    switch (label)
-    {
-    case DD_property::ID:       return "id";
-    case DD_property::DATA:     return "data";
-    case DD_property::SPACE_ID: return "space_id";
-    case DD_property::IDX:      return "idx";
-    case DD_property::COL:      return "col";
-    case DD_property::DEF:      return "def";
-    default:
-      DBUG_ASSERT(false);
-      return "";
+  static const char *dd_key(DD_property label) {
+    switch (label) {
+      case DD_property::ID:
+        return "id";
+      case DD_property::DATA:
+        return "data";
+      case DD_property::SPACE_ID:
+        return "space_id";
+      case DD_property::IDX:
+        return "idx";
+      case DD_property::COL:
+        return "col";
+      case DD_property::DEF:
+        return "def";
+      default:
+        DBUG_ASSERT(false);
+        return "";
     }
   };
-
 
   /**
     Get the integer value of the property key.
@@ -126,7 +115,6 @@ public:
   */
   bool get(THD *thd, const String_type &key, uint *value, bool *exists);
 
-
   /**
     Set the integer value of the property key.
 
@@ -139,7 +127,6 @@ public:
     @returns false on success otherwise true.
   */
   bool set(THD *thd, const String_type &key, uint value);
-
 
   /**
     Get the character string value of the property key.
@@ -156,7 +143,6 @@ public:
   */
   bool get(THD *thd, const String_type &key, String_type *value, bool *exists);
 
-
   /**
     Set the character string value of the property key.
 
@@ -169,7 +155,6 @@ public:
     @returns false on success otherwise true.
   */
   bool set(THD *thd, const String_type &key, const String_type &value);
-
 
   /**
     Get the properties object associated with a key.
@@ -184,11 +169,8 @@ public:
 
     @returns false on success otherwise true.
   */
-  bool get(THD *thd,
-           const String_type &key,
-           std::unique_ptr<Properties> *properties,
-           bool *exists);
-
+  bool get(THD *thd, const String_type &key,
+           std::unique_ptr<Properties> *properties, bool *exists);
 
   /**
     Set the properties object associated with a key.
@@ -202,26 +184,17 @@ public:
 
     @returns false on success otherwise true.
   */
-  bool set(THD *thd,
-           const String_type &key,
-           const dd::Properties &properties);
+  bool set(THD *thd, const String_type &key, const dd::Properties &properties);
 
-
-private:
+ private:
   // A cache of the table contents.
   std::unique_ptr<Properties> m_properties;
 
   // Definitions of the valid property types. Used for internal validation.
-  enum class Property_type
-  {
-    UNSIGNED_INT_32,
-    CHARACTER_STRING,
-    PROPERTIES
-  };
+  enum class Property_type { UNSIGNED_INT_32, CHARACTER_STRING, PROPERTIES };
 
   // Map from valid property keys to types. Used for internal validation.
   std::map<String_type, Property_type> m_property_desc;
-
 
   /**
     Initialize the cached properties by reading from disk.
@@ -232,7 +205,6 @@ private:
   */
   bool init_cached_properties(THD *thd);
 
-
   /**
     Flush the cached properties to disk.
 
@@ -241,7 +213,6 @@ private:
     @returns false on success otherwise true.
   */
   bool flush_cached_properties(THD *thd);
-
 
   /**
     Get the value of the property key.
@@ -261,7 +232,6 @@ private:
   bool unchecked_get(THD *thd, const String_type &key, String_type *value,
                      bool *exists);
 
-
   /**
     Set the value of the property key.
 
@@ -278,12 +248,11 @@ private:
   */
   bool unchecked_set(THD *thd, const String_type &key,
                      const String_type &value);
-
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__DD_PROPERTIES_INCLUDED
+#endif  // DD_TABLES__DD_PROPERTIES_INCLUDED

@@ -116,8 +116,7 @@
 
 #define PSI_COUNT_VOLATILITY 9
 
-struct PSI_placeholder
-{
+struct PSI_placeholder {
   int m_placeholder;
 };
 

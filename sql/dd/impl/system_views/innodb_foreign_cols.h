@@ -33,33 +33,31 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.INNODB_FOREIGN_COLS system view
   definition
 */
-class Innodb_foreign_cols :
-  public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Innodb_foreign_cols
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_FOREIGN_ID,
     FIELD_FOR_COL_NAME,
     FIELD_REF_COL_NAME,
     FIELD_COL_POS
   };
 
-  Innodb_foreign_cols ();
+  Innodb_foreign_cols();
 
   static const Innodb_foreign_cols &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("INNODB_FOREIGN_COLS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Innodb_foreign_cols::view_name(); }
+  virtual const String_type &name() const {
+    return Innodb_foreign_cols::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__INNODB_FOREIGN_COLS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__INNODB_FOREIGN_COLS_INCLUDED

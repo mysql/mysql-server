@@ -28,18 +28,17 @@
 #include "client/base/abstract_option.h"
 #include "my_getopt.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Disabled option. This option is used to mark existance of options
   inavailable due to distribution configuration.
  */
-class Disabled_option : public Abstract_option<Disabled_option>
-{
-public:
+class Disabled_option : public Abstract_option<Disabled_option> {
+ public:
   /**
     Constructs new disabled option.
     @param name Name of option. It is used in command-line option name as
@@ -49,9 +48,9 @@ public:
   Disabled_option(std::string name, std::string description);
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

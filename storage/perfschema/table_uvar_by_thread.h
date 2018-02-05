@@ -51,39 +51,27 @@ struct THR_LOCK;
   @{
 */
 
-struct User_variable
-{
-public:
-  User_variable()
-  {
-  }
+struct User_variable {
+ public:
+  User_variable() {}
 
   User_variable(const User_variable &uv)
-    : m_name(uv.m_name), m_value(uv.m_value)
-  {
-  }
+      : m_name(uv.m_name), m_value(uv.m_value) {}
 
-  ~User_variable()
-  {
-  }
+  ~User_variable() {}
 
   PFS_variable_name_row m_name;
   PFS_user_variable_value_row m_value;
 };
 
-class User_variables
-{
+class User_variables {
   typedef Prealloced_array<User_variable, 100> User_variable_array;
 
-public:
+ public:
   User_variables()
-    : m_pfs(NULL), m_thread_internal_id(0), m_array(PSI_INSTRUMENT_ME)
-  {
-  }
+      : m_pfs(NULL), m_thread_internal_id(0), m_array(PSI_INSTRUMENT_ME) {}
 
-  void
-  reset()
-  {
+  void reset() {
     m_pfs = NULL;
     m_thread_internal_id = 0;
     m_array.clear();
@@ -91,26 +79,19 @@ public:
 
   void materialize(PFS_thread *pfs, THD *thd);
 
-  bool
-  is_materialized(PFS_thread *pfs)
-  {
+  bool is_materialized(PFS_thread *pfs) {
     DBUG_ASSERT(pfs != NULL);
-    if (m_pfs != pfs)
-    {
+    if (m_pfs != pfs) {
       return false;
     }
-    if (m_thread_internal_id != pfs->m_thread_internal_id)
-    {
+    if (m_thread_internal_id != pfs->m_thread_internal_id) {
       return false;
     }
     return true;
   }
 
-  const User_variable *
-  get(uint index) const
-  {
-    if (index >= m_array.size())
-    {
+  const User_variable *get(uint index) const {
+    if (index >= m_array.size()) {
       return NULL;
     }
 
@@ -118,7 +99,7 @@ public:
     return p;
   }
 
-private:
+ private:
   PFS_thread *m_pfs;
   ulonglong m_thread_internal_id;
   User_variable_array m_array;
@@ -128,8 +109,7 @@ private:
   A row of table
   PERFORMANCE_SCHEMA.USER_VARIABLES_BY_THREAD.
 */
-struct row_uvar_by_thread
-{
+struct row_uvar_by_thread {
   /** Column THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** Column VARIABLE_NAME. */
@@ -144,55 +124,42 @@ struct row_uvar_by_thread
   Index 1 on thread (0 based)
   Index 2 on user variable (0 based)
 */
-struct pos_uvar_by_thread : public PFS_double_index
-{
-  pos_uvar_by_thread() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_uvar_by_thread : public PFS_double_index {
+  pos_uvar_by_thread() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  next_thread(void)
-  {
+  inline void next_thread(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
-class PFS_index_uvar_by_thread : public PFS_engine_index
-{
-public:
+class PFS_index_uvar_by_thread : public PFS_engine_index {
+ public:
   PFS_index_uvar_by_thread()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("THREAD_ID"),
-      m_key_2("VARIABLE_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("THREAD_ID"),
+        m_key_2("VARIABLE_NAME") {}
 
-  ~PFS_index_uvar_by_thread()
-  {
-  }
+  ~PFS_index_uvar_by_thread() {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(const User_variable *pfs);
 
-private:
+ private:
   PFS_key_thread_id m_key_1;
   PFS_key_variable_name m_key_2;
 };
 
 /** Table PERFORMANCE_SCHEMA.USER_VARIABLES_BY_THREAD. */
-class table_uvar_by_thread : public PFS_engine_table
-{
+class table_uvar_by_thread : public PFS_engine_table {
   typedef pos_uvar_by_thread pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -206,25 +173,20 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_uvar_by_thread();
 
-public:
-  ~table_uvar_by_thread()
-  {
-    m_THD_cache.reset();
-  }
+ public:
+  ~table_uvar_by_thread() { m_THD_cache.reset(); }
 
-protected:
+ protected:
   int materialize(PFS_thread *thread);
   int make_row(PFS_thread *thread, const User_variable *uvar);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

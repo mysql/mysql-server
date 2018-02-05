@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,24 +29,20 @@
 #include "plugin/x/ngs/include/ngs_common/bind.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 
+namespace ngs {
 
-namespace ngs
-{
-
-class Server_client_timeout
-{
-public:
+class Server_client_timeout {
+ public:
   Server_client_timeout(const chrono::time_point &release_all_before_time);
-  void validate_client_state(
-      ngs::shared_ptr<Client_interface> client);
+  void validate_client_state(ngs::shared_ptr<Client_interface> client);
 
   chrono::time_point get_oldest_client_accept_time();
 
-private:
+ private:
   chrono::time_point m_oldest_client_accept_time;
-  const chrono::time_point& m_release_all_before_time;
+  const chrono::time_point &m_release_all_before_time;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // MYSQLX_NGS_SERVER_CLIENT_TIMEOUT_H_
+#endif  // MYSQLX_NGS_SERVER_CLIENT_TIMEOUT_H_

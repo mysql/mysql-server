@@ -24,11 +24,11 @@
 #define DD__SDI_UTILS_INCLUDED
 
 #include "my_dbug.h"
-#include "sql/current_thd.h"         // inline_current_thd
-#include "sql/dd/string_type.h"      // dd::String_type
-#include "sql/error_handler.h"       // Internal_error_handler
-#include "sql/mdl.h"                 // MDL_request
-#include "sql/sql_class.h"           // THD
+#include "sql/current_thd.h"     // inline_current_thd
+#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/mdl.h"             // MDL_request
+#include "sql/sql_class.h"       // THD
 
 #ifndef DBUG_OFF
 #define ENTITY_FMT "(%s, %llu)"
@@ -54,15 +54,14 @@ namespace sdi_utils {
   @param[in] ret return value to check
   @return same as argument passed in
  */
-inline bool checked_return(bool ret)
-{
+inline bool checked_return(bool ret) {
 #ifndef DBUG_OFF
-  THD *cthd= current_thd;
-  DBUG_ASSERT(!ret || cthd->is_system_thread() || cthd->is_error() || cthd->killed);
+  THD *cthd = current_thd;
+  DBUG_ASSERT(!ret || cthd->is_system_thread() || cthd->is_error() ||
+              cthd->killed);
 #endif /*!DBUG_OFF*/
   return ret;
 }
-
 
 /**
   Convenience function for obtaining MDL. Sets up the MDL_request
@@ -80,19 +79,16 @@ inline bool mdl_lock(THD *thd, MDL_key::enum_mdl_namespace ns,
                      const String_type &schema_name,
                      const String_type &object_name,
                      enum_mdl_type mt = MDL_EXCLUSIVE,
-                     enum_mdl_duration md = MDL_TRANSACTION)
-{
+                     enum_mdl_duration md = MDL_TRANSACTION) {
   MDL_request mdl_request;
   MDL_REQUEST_INIT(&mdl_request, ns, schema_name.c_str(), object_name.c_str(),
                    mt, md);
-  return checked_return
-    (thd->mdl_context.acquire_lock(&mdl_request,
-                                   thd->variables.lock_wait_timeout));
+  return checked_return(thd->mdl_context.acquire_lock(
+      &mdl_request, thd->variables.lock_wait_timeout));
 }
 
 template <typename T>
-const T& ptr_as_cref(const T *p)
-{
+const T &ptr_as_cref(const T *p) {
   DBUG_ASSERT(p != nullptr);
   return *p;
 }
@@ -103,16 +99,15 @@ const T& ptr_as_cref(const T *p)
   parameter.
  */
 template <typename CONDITION_HANDLER_CLOS>
-class Closure_error_handler : public Internal_error_handler
-{
+class Closure_error_handler : public Internal_error_handler {
   CONDITION_HANDLER_CLOS *m_ch;
-  bool handle_condition(THD*, uint sql_errno, const char* sqlstate,
+  bool handle_condition(THD *, uint sql_errno, const char *sqlstate,
                         Sql_condition::enum_severity_level *level,
-                        const char* msg)
-  {
+                        const char *msg) {
     return (*m_ch)(sql_errno, sqlstate, level, msg);
   }
-public:
+
+ public:
   Closure_error_handler(CONDITION_HANDLER_CLOS *ch) : m_ch(ch) {}
 };
 
@@ -128,21 +123,19 @@ public:
   @retval false otherwise
  */
 template <typename CH_CLOS, typename ACTION_CLOS>
-bool handle_errors(THD *thd, CH_CLOS &&chc, ACTION_CLOS &&ac)
-{
+bool handle_errors(THD *thd, CH_CLOS &&chc, ACTION_CLOS &&ac) {
   Closure_error_handler<CH_CLOS> eh(&chc);
   thd->push_internal_handler(&eh);
-  bool r= ac();
+  bool r = ac();
   thd->pop_internal_handler();
   return r;
 }
 
 template <typename P_TYPE, typename CLOS_TYPE>
-std::unique_ptr<P_TYPE, CLOS_TYPE> make_guard(P_TYPE *p, CLOS_TYPE &&clos)
-{
+std::unique_ptr<P_TYPE, CLOS_TYPE> make_guard(P_TYPE *p, CLOS_TYPE &&clos) {
   return std::unique_ptr<P_TYPE, CLOS_TYPE>(p, std::forward<CLOS_TYPE>(clos));
 }
 
-} // namespace sdi_utils
-} // namespace dd
-#endif // DD__SDI_UTILS_INCLUDED
+}  // namespace sdi_utils
+}  // namespace dd
+#endif  // DD__SDI_UTILS_INCLUDED

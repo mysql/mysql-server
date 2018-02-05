@@ -35,26 +35,23 @@
 #include "unittest/gunit/xplugin/xcl/mock/factory.h"
 #include "unittest/gunit/xplugin/xcl/mock/protocol.h"
 
-
 namespace xcl {
 namespace test {
 
-using ::testing::_;
 using ::testing::An;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::SaveArg;
 using ::testing::StrictMock;
 using ::testing::Test;
-using ::testing::Invoke;
-using ::testing::WithParamInterface;
 using ::testing::Values;
+using ::testing::WithParamInterface;
+using ::testing::_;
 
 class Xcl_session_impl_tests : public Test {
  public:
-  void SetUp() override {
-    m_sut = make_sut(false);
-  }
+  void SetUp() override { m_sut = make_sut(false); }
 
   std::unique_ptr<Session_impl> prepare_session() {
     std::unique_ptr<Session_impl> result;
@@ -63,52 +60,48 @@ class Xcl_session_impl_tests : public Test {
      of it to setup mocking expectations.
      */
     m_mock_protocol = new StrictMock<Mock_protocol>();
-    m_mock_factory  = new StrictMock<Mock_factory>();
+    m_mock_factory = new StrictMock<Mock_factory>();
 
-    EXPECT_CALL(*m_mock_factory, create_protocol_raw(_)).WillOnce(
-        DoAll(Invoke(this, &Xcl_session_impl_tests::assign_configs),
-              Return(m_mock_protocol)));
+    EXPECT_CALL(*m_mock_factory, create_protocol_raw(_))
+        .WillOnce(DoAll(Invoke(this, &Xcl_session_impl_tests::assign_configs),
+                        Return(m_mock_protocol)));
     EXPECT_CALL(*m_mock_protocol,
                 add_notice_handler(_, _, Handler_priority_high))
-      .WillOnce(DoAll(SaveArg<0>(&m_out_message_handler),
-                      Return(1)));
+        .WillOnce(DoAll(SaveArg<0>(&m_out_message_handler), Return(1)));
     EXPECT_CALL(*m_mock_protocol,
                 add_notice_handler(_, _, Handler_priority_low))
-      .WillOnce(Return(1));
-    EXPECT_CALL(*m_mock_protocol, get_connection()).
-        WillRepeatedly(ReturnRef(m_mock_connection));
-    EXPECT_CALL(m_mock_connection, state()).
-        WillRepeatedly(ReturnRef(m_mock_connection_state));
+        .WillOnce(Return(1));
+    EXPECT_CALL(*m_mock_protocol, get_connection())
+        .WillRepeatedly(ReturnRef(m_mock_connection));
+    EXPECT_CALL(m_mock_connection, state())
+        .WillRepeatedly(ReturnRef(m_mock_connection_state));
 
-    result.reset(new Session_impl(
-        std::unique_ptr<Protocol_factory>{m_mock_factory}));
+    result.reset(
+        new Session_impl(std::unique_ptr<Protocol_factory>{m_mock_factory}));
 
     return result;
   }
 
   std::unique_ptr<Session_impl> make_sut(const bool is_connected,
-      const std::string &auth = "MYSQL41") {
+                                         const std::string &auth = "MYSQL41") {
     auto result = prepare_session();
 
-    EXPECT_CALL(m_mock_connection_state, is_connected()).
-        WillRepeatedly(Return(false));
+    EXPECT_CALL(m_mock_connection_state, is_connected())
+        .WillRepeatedly(Return(false));
     result->set_mysql_option(
         xcl::XSession::Mysqlx_option::Authentication_method, auth);
     ::testing::Mock::VerifyAndClearExpectations(&m_mock_connection_state);
-    EXPECT_CALL(m_mock_connection_state, is_connected()).
-        WillRepeatedly(Return(is_connected));
+    EXPECT_CALL(m_mock_connection_state, is_connected())
+        .WillRepeatedly(Return(is_connected));
 
     return result;
   }
 
-  void expect_connection_close() {
-    EXPECT_CALL(m_mock_connection, close());
-  }
+  void expect_connection_close() { EXPECT_CALL(m_mock_connection, close()); }
 
   bool encode_session_state_change(
       const Mysqlx::Notice::SessionStateChanged_Parameter param,
-      const uint64_t value,
-      std::string *out_payload) {
+      const uint64_t value, std::string *out_payload) {
     Mysqlx::Notice::SessionStateChanged session_state_changed;
     std::string session_state_changed_binary;
 
@@ -127,25 +120,22 @@ class Xcl_session_impl_tests : public Test {
   }
 
   XError assert_ssl_mode(const std::string &value) {
-    return m_sut->set_mysql_option(
-        XSession::Mysqlx_option::Ssl_mode,
-        value);
+    return m_sut->set_mysql_option(XSession::Mysqlx_option::Ssl_mode, value);
   }
 
   XError assert_resolve_to(const std::string &value) {
-    return m_sut->set_mysql_option(
-        XSession::Mysqlx_option::Hostname_resolve_to,
-        value);
+    return m_sut->set_mysql_option(XSession::Mysqlx_option::Hostname_resolve_to,
+                                   value);
   }
 
-  XProtocol::Notice_handler         m_out_message_handler;
-  const Ssl_config                 *m_out_ssl_config{ nullptr };
-  const Connection_config          *m_out_connection_config{ nullptr };
-  StrictMock<Mock_protocol>        *m_mock_protocol{ nullptr };
-  StrictMock<Mock_connection>       m_mock_connection;
+  XProtocol::Notice_handler m_out_message_handler;
+  const Ssl_config *m_out_ssl_config{nullptr};
+  const Connection_config *m_out_connection_config{nullptr};
+  StrictMock<Mock_protocol> *m_mock_protocol{nullptr};
+  StrictMock<Mock_connection> m_mock_connection;
   StrictMock<Mock_connection_state> m_mock_connection_state;
-  StrictMock<Mock_factory>         *m_mock_factory;
-  std::unique_ptr<Session_impl>     m_sut;
+  StrictMock<Mock_factory> *m_mock_factory;
+  std::unique_ptr<Session_impl> m_sut;
 };
 
 }  // namespace test

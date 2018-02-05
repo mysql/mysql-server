@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,7 +34,7 @@ namespace ngs {
 
 Capability_client_interactive::Capability_client_interactive(
     Client_interface &client)
-  : m_client(client) {
+    : m_client(client) {
   m_value = m_client.is_interactive();
 }
 
@@ -43,12 +43,9 @@ void Capability_client_interactive::get(::Mysqlx::Datatypes::Any &any) {
 }
 
 bool Capability_client_interactive::set(const ::Mysqlx::Datatypes::Any &any) {
-  try
-  {
+  try {
     m_value = ngs::Getter_any::get_numeric_value<bool>(any);
-  }
-  catch (const ngs::Error_code &error)
-  {
+  } catch (const ngs::Error_code &error) {
     log_error(ER_XPLUGIN_CAPABILITY_CLIENT_INTERACTIVE_FAILED,
               error.message.c_str());
     return false;
@@ -60,4 +57,4 @@ void Capability_client_interactive::commit() {
   m_client.set_is_interactive(m_value);
 }
 
-} // namespace ngs
+}  // namespace ngs

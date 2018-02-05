@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* Procedures (functions with changes output of select) */
 
 #include "sql/procedure.h"
@@ -28,20 +27,14 @@
 #include "decimal.h"
 #include "sql/my_decimal.h"
 
-my_decimal *Item_proc_string::val_decimal(my_decimal *decimal_value)
-{
-  if (null_value)
-    return 0;
+my_decimal *Item_proc_string::val_decimal(my_decimal *decimal_value) {
+  if (null_value) return 0;
   string2my_decimal(E_DEC_FATAL_ERROR, &str_value, decimal_value);
   return (decimal_value);
 }
 
-
-my_decimal *Item_proc_int::val_decimal(my_decimal *decimal_value)
-{
-  if (null_value)
-    return 0;
+my_decimal *Item_proc_int::val_decimal(my_decimal *decimal_value) {
+  if (null_value) return 0;
   int2my_decimal(E_DEC_FATAL_ERROR, value, unsigned_flag, decimal_value);
   return (decimal_value);
 }
-

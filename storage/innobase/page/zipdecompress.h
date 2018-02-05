@@ -25,12 +25,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file page/zipdecompress.h
-Compressed page interface
+/**************************************************/ /**
+ @file page/zipdecompress.h
+ Compressed page interface
 
-Created June 2005 by Marko Makela
-*******************************************************/
+ Created June 2005 by Marko Makela
+ *******************************************************/
 
 /** NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
@@ -39,26 +39,25 @@ external tools. */
 #ifndef zip_decompress_h
 #define zip_decompress_h
 
-#include "page0types.h"
 #include "btr0types.h"
 #include "fil0types.h"
+#include "page0types.h"
 
 #include "page/page.ic"
 #include "page/zipdecompress.ic"
-/**********************************************************************//**
-Decompress a page.  This function should tolerate errors on the compressed
-page.  Instead of letting assertions fail, it will return FALSE if an
-inconsistency is detected.
-@return true on success, false on failure */
-ibool
-page_zip_decompress_low(
-/*====================*/
-	page_zip_des_t*	page_zip,/*!< in: data, ssize;
-				out: m_start, m_end, m_nonempty, n_blobs */
-	page_t*		page,	/*!< out: uncompressed page, may be trashed */
-	ibool		all);	/*!< in: TRUE=decompress the whole page;
-				FALSE=verify but do not copy some
-				page header fields that should not change
-				after page creation */
+/**********************************************************************/ /**
+ Decompress a page.  This function should tolerate errors on the compressed
+ page.  Instead of letting assertions fail, it will return FALSE if an
+ inconsistency is detected.
+ @return true on success, false on failure */
+ibool page_zip_decompress_low(
+    /*====================*/
+    page_zip_des_t *page_zip, /*!< in: data, ssize;
+                             out: m_start, m_end, m_nonempty, n_blobs */
+    page_t *page,             /*!< out: uncompressed page, may be trashed */
+    ibool all);               /*!< in: TRUE=decompress the whole page;
+                              FALSE=verify but do not copy some
+                              page header fields that should not change
+                              after page creation */
 
 #endif

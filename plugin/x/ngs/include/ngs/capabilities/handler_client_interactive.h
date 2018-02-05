@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,10 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _NGS_CAPABILITY_CLIENT_INTERACTIVE_H_
 #define _NGS_CAPABILITY_CLIENT_INTERACTIVE_H_
-
 
 #include "plugin/x/ngs/include/ngs/capabilities/handler.h"
 #include "plugin/x/src/xpl_client.h"
@@ -35,7 +33,7 @@ namespace ngs {
 class Client_interface;
 
 class Capability_client_interactive : public Capability_handler {
-public:
+ public:
   Capability_client_interactive(Client_interface &client);
 
   virtual const std::string name() const { return "client.interactive"; }
@@ -46,12 +44,11 @@ public:
 
   virtual void commit();
 
-private:
+ private:
   Client_interface &m_client;
   bool m_value;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-
-#endif // _NGS_CAPABILITY_CLIENT_INTERACTIVE_H_
+#endif  // _NGS_CAPABILITY_CLIENT_INTERACTIVE_H_

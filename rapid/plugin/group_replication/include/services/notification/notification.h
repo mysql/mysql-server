@@ -31,42 +31,39 @@
   which notifications should be triggered and also the view
   identifier.
  */
-class Notification_context
-{
-private:
+class Notification_context {
+ private:
   bool m_member_role_changed;
   bool m_member_state_changed;
   bool m_quorum_lost;
   bool m_view_changed;
   std::string m_view_id;
 
-public:
-  Notification_context() :
-    m_member_role_changed(false),
-    m_member_state_changed(false),
-    m_quorum_lost(false),
-    m_view_changed(false),
-    m_view_id("")
-  {}
+ public:
+  Notification_context()
+      : m_member_role_changed(false),
+        m_member_state_changed(false),
+        m_quorum_lost(false),
+        m_view_changed(false),
+        m_view_id("") {}
 
-  void reset()
-  {
-    m_member_role_changed= false;
-    m_member_state_changed= false;
-    m_view_changed= false;
-    m_quorum_lost= false;
+  void reset() {
+    m_member_role_changed = false;
+    m_member_state_changed = false;
+    m_view_changed = false;
+    m_quorum_lost = false;
   }
-  void set_member_role_changed() { m_member_role_changed= true; }
-  void set_member_state_changed() { m_member_state_changed= true; }
-  void set_quorum_lost() { m_quorum_lost= true; }
-  void set_view_changed() { m_view_changed= true; }
-  void set_view_id(const std::string& v) { m_view_id.assign(v); }
+  void set_member_role_changed() { m_member_role_changed = true; }
+  void set_member_state_changed() { m_member_state_changed = true; }
+  void set_quorum_lost() { m_quorum_lost = true; }
+  void set_view_changed() { m_view_changed = true; }
+  void set_view_id(const std::string &v) { m_view_id.assign(v); }
 
   bool get_member_role_changed() const { return m_member_role_changed; }
   bool get_member_state_changed() const { return m_member_state_changed; }
   bool get_quorum_lost() const { return m_quorum_lost; }
   bool get_view_changed() const { return m_view_changed; }
-  const std::string& get_view_id() const { return m_view_id; }
+  const std::string &get_view_id() const { return m_view_id; }
 };
 
 /**
@@ -89,7 +86,6 @@ public:
 
   @param ctx The notification context.
  */
-bool notify_and_reset_ctx(Notification_context& ctx);
+bool notify_and_reset_ctx(Notification_context &ctx);
 
 #endif /* LISTENER_SERVICES_NOTIFICATION_H */
-

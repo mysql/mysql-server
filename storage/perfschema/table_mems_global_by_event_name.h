@@ -47,27 +47,21 @@ struct THR_LOCK;
   @{
 */
 
-class PFS_index_mems_global_by_event_name : public PFS_engine_index
-{
-public:
+class PFS_index_mems_global_by_event_name : public PFS_engine_index {
+ public:
   PFS_index_mems_global_by_event_name()
-    : PFS_engine_index(&m_key), m_key("EVENT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_mems_global_by_event_name()
-  {
-  }
+  ~PFS_index_mems_global_by_event_name() {}
 
   virtual bool match(PFS_instr_class *instr_class);
 
-private:
+ private:
   PFS_key_event_name m_key;
 };
 
 /** A row of PERFORMANCE_SCHEMA.MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME. */
-struct row_mems_global_by_event_name
-{
+struct row_mems_global_by_event_name {
   /** Column EVENT_NAME. */
   PFS_event_name_row m_event_name;
   /** Columns COUNT_ALLOC, ... */
@@ -80,44 +74,32 @@ struct row_mems_global_by_event_name
   Index 1 on view
   Index 2 on instrument key (1 based)
 */
-struct pos_mems_global_by_event_name : public PFS_double_index
-{
+struct pos_mems_global_by_event_name : public PFS_double_index {
   static const uint FIRST_VIEW = 1;
   static const uint VIEW_BUILTIN_MEMORY = 1;
   static const uint VIEW_MEMORY = 2;
   static const uint LAST_VIEW = 2;
 
-  pos_mems_global_by_event_name() : PFS_double_index(FIRST_VIEW, 1)
-  {
-  }
+  pos_mems_global_by_event_name() : PFS_double_index(FIRST_VIEW, 1) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = FIRST_VIEW;
     m_index_2 = 1;
   }
 
-  inline bool
-  has_more_view(void)
-  {
-    return (m_index_1 <= LAST_VIEW);
-  }
+  inline bool has_more_view(void) { return (m_index_1 <= LAST_VIEW); }
 
-  inline void
-  next_view(void)
-  {
+  inline void next_view(void) {
     m_index_1++;
     m_index_2 = 1;
   }
 };
 
 /** Table PERFORMANCE_SCHEMA.MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME. */
-class table_mems_global_by_event_name : public PFS_engine_table
-{
+class table_mems_global_by_event_name : public PFS_engine_table {
   typedef pos_mems_global_by_event_name pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -132,20 +114,16 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next(void);
 
-private:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ private:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_mems_global_by_event_name();
 
-public:
-  ~table_mems_global_by_event_name()
-  {
-  }
+ public:
+  ~table_mems_global_by_event_name() {}
 
-private:
+ private:
   int make_row(PFS_builtin_memory_class *klass);
   int make_row(PFS_memory_class *klass);
 

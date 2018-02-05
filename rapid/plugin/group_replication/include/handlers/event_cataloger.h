@@ -27,11 +27,10 @@
 
 #include "plugin/group_replication/include/applier.h"
 
-class Event_cataloger : public Event_handler
-{
-public:
+class Event_cataloger : public Event_handler {
+ public:
   Event_cataloger();
-  int handle_event(Pipeline_event *ev,Continuation *cont);
+  int handle_event(Pipeline_event *ev, Continuation *cont);
   int handle_action(Pipeline_action *action);
   int initialize();
   int terminate();

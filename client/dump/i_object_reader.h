@@ -28,21 +28,20 @@
 #include "client/dump/i_chain_element.h"
 #include "client/dump/item_processing_data.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_object_reader : public virtual I_chain_element
-{
-public:
+class I_object_reader : public virtual I_chain_element {
+ public:
   /**
     Reads information on DB object related to task.
    */
-  virtual void read_object(Item_processing_data* item_to_process)= 0;
+  virtual void read_object(Item_processing_data *item_to_process) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

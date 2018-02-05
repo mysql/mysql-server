@@ -62,11 +62,11 @@ Steinar */
 #endif /* _MSC_VER */
 
 template <typename SizeT>
-inline void my_hash_combine(SizeT& seed, SizeT value) {
+inline void my_hash_combine(SizeT &seed, SizeT value) {
   seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-inline void my_hash_combine(std::uint32_t& h1, std::uint32_t k1) {
+inline void my_hash_combine(std::uint32_t &h1, std::uint32_t k1) {
   const uint32_t c1 = 0xcc9e2d51;
   const uint32_t c2 = 0x1b873593;
 
@@ -79,7 +79,7 @@ inline void my_hash_combine(std::uint32_t& h1, std::uint32_t k1) {
   h1 = h1 * 5 + 0xe6546b64;
 }
 
-inline void my_hash_combine(std::uint64_t& h, std::uint64_t k) {
+inline void my_hash_combine(std::uint64_t &h, std::uint64_t k) {
   const std::uint64_t m = 0xc6a4a7935bd1e995ull;
   const int r = 47;
 

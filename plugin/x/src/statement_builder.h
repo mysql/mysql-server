@@ -68,12 +68,12 @@ class Statement_builder {
       return *this;
     }
 
-    template<typename L, typename Op>
+    template <typename L, typename Op>
     const Generator &put_each(const L &list, Op generate) const {
       return put_each(list.begin(), list.end(), generate);
     }
 
-    template<typename I, typename Op>
+    template <typename I, typename Op>
     const Generator &put_list(I begin, I end, Op generate,
                               const std::string &separator = ",") const {
       if (std::distance(begin, end) == 0) return *this;
@@ -95,7 +95,7 @@ class Statement_builder {
     template <typename T>
     const Generator &put_list(
         const ::google::protobuf::RepeatedPtrField<T> &list,
-        const Generator &(Generator::*put_fun)(const T &) const,
+        const Generator &(Generator::*put_fun)(const T &)const,
         const std::string &separator = ",") const {
       return put_list(list.begin(), list.end(),
                       ngs::bind(put_fun, this, ngs::placeholders::_1),

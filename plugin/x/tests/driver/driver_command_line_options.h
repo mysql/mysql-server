@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -36,7 +36,6 @@
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
-
 class Driver_command_line_options : public Command_line_options {
  public:
   Driver_command_line_options(const int argc, char **argv);
@@ -45,20 +44,20 @@ class Driver_command_line_options : public Command_line_options {
   void print_help();
 
  public:
-  bool        m_run_without_auth;
+  bool m_run_without_auth;
   std::string m_run_file;
-  bool        m_has_file;
-  bool        m_cap_expired_password;
-  bool        m_client_interactive;
+  bool m_has_file;
+  bool m_cap_expired_password;
+  bool m_client_interactive;
   std::vector<std::string> m_auth_methods;
 
   Execution_context::Options m_context_options;
-  Console::Options           m_console_options;
-  Connection_options         m_connection_options;
+  Console::Options m_console_options;
+  Connection_options m_connection_options;
   std::map<std::string, std::string> m_variables;
 
   std::string m_uri;
-  bool        m_daemon;
+  bool m_daemon;
   std::string m_sql;
 
  private:

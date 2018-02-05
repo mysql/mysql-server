@@ -28,8 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace fil {
 
-void page_init(buf_block_t* block);
-
+void page_init(buf_block_t *block);
 }
 
-#endif // _lot0fil_h_
+#endif  // _lot0fil_h_

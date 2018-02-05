@@ -49,8 +49,7 @@ struct THR_LOCK;
   A row of table
   PERFORMANCE_SCHEMA.TABLE_IO_WAIT_SUMMARY_BY_INDEX.
 */
-struct row_tiws_by_index_usage
-{
+struct row_tiws_by_index_usage {
   /** Column OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME. */
   PFS_index_row m_index;
   /** Columns COUNT/SUM/MIN/AVG/MAX (+_READ, +WRITE). */
@@ -63,47 +62,35 @@ struct row_tiws_by_index_usage
   Index 1 on global_table_share_container (0 based)
   Index 2 on index (0 based)
 */
-struct pos_tiws_by_index_usage : public PFS_double_index
-{
-  pos_tiws_by_index_usage() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_tiws_by_index_usage : public PFS_double_index {
+  pos_tiws_by_index_usage() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  next_table(void)
-  {
+  inline void next_table(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
-class PFS_index_tiws_by_index_usage : public PFS_engine_index
-{
-public:
+class PFS_index_tiws_by_index_usage : public PFS_engine_index {
+ public:
   PFS_index_tiws_by_index_usage()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3, &m_key_4),
-      m_key_1("OBJECT_TYPE"),
-      m_key_2("OBJECT_SCHEMA"),
-      m_key_3("OBJECT_NAME"),
-      m_key_4("INDEX_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3, &m_key_4),
+        m_key_1("OBJECT_TYPE"),
+        m_key_2("OBJECT_SCHEMA"),
+        m_key_3("OBJECT_NAME"),
+        m_key_4("INDEX_NAME") {}
 
-  ~PFS_index_tiws_by_index_usage()
-  {
-  }
+  ~PFS_index_tiws_by_index_usage() {}
 
   virtual bool match(PFS_table_share *table);
   virtual bool match(PFS_table_share *share, uint index);
 
-private:
+ private:
   PFS_key_object_type m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
@@ -111,9 +98,8 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.TABLE_IO_WAIT_SUMMARY_BY_INDEX. */
-class table_tiws_by_index_usage : public PFS_engine_table
-{
-public:
+class table_tiws_by_index_usage : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -129,22 +115,18 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_tiws_by_index_usage();
 
-public:
-  ~table_tiws_by_index_usage()
-  {
-  }
+ public:
+  ~table_tiws_by_index_usage() {}
 
-protected:
+ protected:
   int make_row(PFS_table_share *table_share, uint index);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */
@@ -157,7 +139,7 @@ private:
   /** Next position. */
   pos_tiws_by_index_usage m_next_pos;
 
-protected:
+ protected:
   PFS_index_tiws_by_index_usage *m_opened_index;
 };
 

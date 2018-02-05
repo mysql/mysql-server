@@ -23,9 +23,8 @@
 #ifndef DD__DICTIONARY_INCLUDED
 #define DD__DICTIONARY_INCLUDED
 
-
 #include "my_compiler.h"
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
 class MDL_ticket;
@@ -40,15 +39,14 @@ class Object_table;
 class Schema;
 
 namespace cache {
-  class Dictionary_client;
+class Dictionary_client;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 /// Main interface class enabling users to operate on data dictionary.
-class Dictionary
-{
-public:
+class Dictionary {
+ public:
   /**
     Get dictionary object for a given dictionary table name.
     If the given schema_name and table_name is not a dictionary
@@ -58,10 +56,9 @@ public:
              dictionary table name, else NULL.
   */
   virtual const Object_table *get_dd_table(
-    const String_type &schema_name,
-    const String_type &table_name) const = 0;
+      const String_type &schema_name, const String_type &table_name) const = 0;
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // Auxiliary operations.
   /////////////////////////////////////////////////////////////////////////
@@ -110,8 +107,8 @@ public:
     @param schema_name    Schema name to check.
     @param table_name     Table name to check.
 
-    @returns The error code representing the type name associated with the table,
-             for being used in error messages.
+    @returns The error code representing the type name associated with the
+    table, for being used in error messages.
   */
   virtual int table_type_error_code(const String_type &schema_name,
                                     const String_type &table_name) const = 0;
@@ -133,7 +130,7 @@ public:
                                           bool is_ddl_statement,
                                           const char *schema_name,
                                           size_t schema_length,
-                                          const char *table_name) const= 0;
+                                          const char *table_name) const = 0;
 
   /**
     Check if given table name is a system view name.
@@ -162,10 +159,9 @@ public:
   virtual bool is_system_view_name(const char *schema_name,
                                    const char *table_name) const = 0;
 
-public:
+ public:
   // Destructor to cleanup data dictionary instance upon server shutdown.
-  virtual ~Dictionary()
-  { }
+  virtual ~Dictionary() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -189,12 +185,10 @@ public:
                           upon successful lock attempt.
 
 */
-bool acquire_shared_table_mdl(THD *thd,
-                              const char *schema_name,
-                              const char *table_name,
-                              bool no_wait,
+bool acquire_shared_table_mdl(THD *thd, const char *schema_name,
+                              const char *table_name, bool no_wait,
                               MDL_ticket **out_mdl_ticket)
-  MY_ATTRIBUTE((warn_unused_result));
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Predicate to check if we have a shared meta data lock on the
@@ -208,10 +202,8 @@ bool acquire_shared_table_mdl(THD *thd,
   @retval   false          The thread context does not have a lock.
 */
 
-bool has_shared_table_mdl(THD *thd,
-                          const char *schema_name,
+bool has_shared_table_mdl(THD *thd, const char *schema_name,
                           const char *table_name);
-
 
 /**
   Predicate to check if we have an exclusive meta data lock on the
@@ -225,10 +217,8 @@ bool has_shared_table_mdl(THD *thd,
   @retval   false          The thread context does not have a lock.
 */
 
-bool has_exclusive_table_mdl(THD *thd,
-                             const char *schema_name,
+bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
                              const char *table_name);
-
 
 /**
   Acquire an exclusive metadata lock on the given tablespace name with
@@ -244,11 +234,9 @@ bool has_exclusive_table_mdl(THD *thd,
   @retval      false          Successful lock acquisition.
 */
 
-bool acquire_exclusive_tablespace_mdl(THD *thd,
-                                      const char *tablespace_name,
+bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
                                       bool no_wait)
-  MY_ATTRIBUTE((warn_unused_result));
-
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Acquire a shared metadata lock on the given tablespace name with
@@ -263,11 +251,9 @@ bool acquire_exclusive_tablespace_mdl(THD *thd,
   @retval      true           Failure, e.g. a lock wait timeout.
   @retval      false          Successful lock acquisition.
 */
-bool acquire_shared_tablespace_mdl(THD *thd,
-                                   const char *tablespace_name,
+bool acquire_shared_tablespace_mdl(THD *thd, const char *tablespace_name,
                                    bool no_wait)
-  MY_ATTRIBUTE((warn_unused_result));
-
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Predicate to check if we have a shared meta data lock on the
@@ -280,9 +266,7 @@ bool acquire_shared_tablespace_mdl(THD *thd,
   @retval   false            The thread context does not have a lock.
 */
 
-bool has_shared_tablespace_mdl(THD *thd,
-                               const char *tablespace_name);
-
+bool has_shared_tablespace_mdl(THD *thd, const char *tablespace_name);
 
 /**
   Predicate to check if we have an exclusive meta data lock on the
@@ -295,9 +279,7 @@ bool has_shared_tablespace_mdl(THD *thd,
   @retval   false            The thread context does not have a lock.
 */
 
-bool has_exclusive_tablespace_mdl(THD *thd,
-                                  const char *tablespace_name);
-
+bool has_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name);
 
 /**
   Acquire exclusive metadata lock on the given table name with
@@ -313,13 +295,10 @@ bool has_exclusive_tablespace_mdl(THD *thd,
                                attempt.
 */
 
-bool acquire_exclusive_table_mdl(THD *thd,
-                                 const char *schema_name,
-                                 const char *table_name,
-                                 bool no_wait,
+bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
+                                 const char *table_name, bool no_wait,
                                  MDL_ticket **out_mdl_ticket)
-  MY_ATTRIBUTE((warn_unused_result));
-
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Acquire exclusive metadata lock on the given table name with
@@ -333,13 +312,11 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                 attempt.
 */
 
-bool acquire_exclusive_table_mdl(THD *thd,
-                                 const char *schema_name,
+bool acquire_exclusive_table_mdl(THD *thd, const char *schema_name,
                                  const char *table_name,
                                  unsigned long int lock_wait_timeout,
                                  MDL_ticket **out_mdl_ticket)
-  MY_ATTRIBUTE((warn_unused_result));
-
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Acquire exclusive metadata lock on the given schema name with
@@ -354,11 +331,9 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                attempt.
 */
 
-bool acquire_exclusive_schema_mdl(THD *thd,
-                                 const char *schema_name,
-                                 bool no_wait,
-                                 MDL_ticket **out_mdl_ticket)
-  MY_ATTRIBUTE((warn_unused_result));
+bool acquire_exclusive_schema_mdl(THD *thd, const char *schema_name,
+                                  bool no_wait, MDL_ticket **out_mdl_ticket)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /**
   @brief
@@ -373,7 +348,6 @@ void release_mdl(THD *thd, MDL_ticket *mdl_ticket);
 /** Get Dictionary_client from THD object (the latter is opaque * in SEs). */
 cache::Dictionary_client *get_dd_client(THD *thd);
 
-
 /**
   Create plugin native table. The API would only write metadata to DD
   and skip calling handler::create().
@@ -387,7 +361,6 @@ cache::Dictionary_client *get_dd_client(THD *thd);
 
 bool create_native_table(THD *thd, const Plugin_table *pt);
 
-
 /**
   Remove plugin native table from DD. The API would only update
   metadata to DD and skip calling handler::drop().
@@ -399,8 +372,8 @@ bool create_native_table(THD *thd, const Plugin_table *pt);
   @returns false on success, otherwise true.
 */
 
-bool drop_native_table(THD *thd, const char* schema_name, const char* table_name);
-
+bool drop_native_table(THD *thd, const char *schema_name,
+                       const char *table_name);
 
 /**
   Reset the tables and tablespace partitions in the DD cache,
@@ -412,7 +385,6 @@ bool drop_native_table(THD *thd, const char* schema_name, const char* table_name
   @returns false on success, otherwise true.
 */
 bool reset_tables_and_tablespaces();
-
 
 /**
   Get the Object_table instance storing the given entity object type.
@@ -426,6 +398,6 @@ bool reset_tables_and_tablespaces();
 */
 template <typename Entity_object_type>
 const Object_table &get_dd_table();
-}
+}  // namespace dd
 
-#endif // DD__DICTIONARY_INCLUDED
+#endif  // DD__DICTIONARY_INCLUDED

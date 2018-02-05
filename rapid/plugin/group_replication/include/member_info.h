@@ -35,8 +35,8 @@
 
 #include <map>
 #include <set>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "my_inttypes.h"
@@ -50,71 +50,69 @@
   Encoding of the group_replication_enforce_update_everywhere_checks
   config value in the member info structure.
 */
-#define CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F    0x1
+#define CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F 0x1
 
 /*
   Encoding of the group_replication_single_primary_mode config value
   in the member info structure.
 */
-#define CNF_SINGLE_PRIMARY_MODE_F                 0x2
+#define CNF_SINGLE_PRIMARY_MODE_F 0x2
 
 /*
   @class Group_member_info
 
   Describes all the properties of a group member
 */
-class Group_member_info: public Plugin_gcs_message
-{
-public:
-  enum enum_payload_item_type
-  {
+class Group_member_info : public Plugin_gcs_message {
+ public:
+  enum enum_payload_item_type {
     // This type should not be used anywhere.
-    PIT_UNKNOWN= 0,
+    PIT_UNKNOWN = 0,
 
     // Length of the payload item: variable
-    PIT_HOSTNAME= 1,
+    PIT_HOSTNAME = 1,
 
     // Length of the payload item: 2 bytes
-    PIT_PORT= 2,
+    PIT_PORT = 2,
 
     // Length of the payload item: variable
-    PIT_UUID= 3,
+    PIT_UUID = 3,
 
     // Length of the payload item: variable
-    PIT_GCS_ID= 4,
+    PIT_GCS_ID = 4,
 
     // Length of the payload item: 1 byte
-    PIT_STATUS= 5,
+    PIT_STATUS = 5,
 
     // Length of the payload item: 4 bytes
-    PIT_VERSION= 6,
+    PIT_VERSION = 6,
 
     // Length of the payload item: 2 bytes
-    PIT_WRITE_SET_EXTRACTION_ALGORITHM= 7,
+    PIT_WRITE_SET_EXTRACTION_ALGORITHM = 7,
 
     // Length of the payload item: variable
-    PIT_EXECUTED_GTID= 8,
+    PIT_EXECUTED_GTID = 8,
 
     // Length of the payload item: variable
-    PIT_RETRIEVED_GTID= 9,
+    PIT_RETRIEVED_GTID = 9,
 
     // Length of the payload item: 8 bytes
-    PIT_GTID_ASSIGNMENT_BLOCK_SIZE= 10,
+    PIT_GTID_ASSIGNMENT_BLOCK_SIZE = 10,
 
     // length of the role item: 1 byte
-    PIT_MEMBER_ROLE= 11,
+    PIT_MEMBER_ROLE = 11,
 
     // length of the configuration flags: 4 bytes
-    PIT_CONFIGURATION_FLAGS= 12,
+    PIT_CONFIGURATION_FLAGS = 12,
 
     // length of the conflict detection enabled: 1 byte
-    PIT_CONFLICT_DETECTION_ENABLE= 13,
+    PIT_CONFLICT_DETECTION_ENABLE = 13,
 
     // Length of the payload item: 2 bytes
-    PIT_MEMBER_WEIGHT= 14,
+    PIT_MEMBER_WEIGHT = 14,
 
     // No valid type codes can appear after this one.
-    PIT_MAX= 15
+    PIT_MAX = 15
   };
 
   /*
@@ -123,9 +121,8 @@ public:
    This enumeration describes all the states that a member can assume while in a
    group.
    */
-  typedef enum
-  {
-    MEMBER_ONLINE= 1,
+  typedef enum {
+    MEMBER_ONLINE = 1,
     MEMBER_OFFLINE,
     MEMBER_IN_RECOVERY,
     MEMBER_ERROR,
@@ -138,13 +135,11 @@ public:
 
     This enumeration describes all the roles a server can have.
   */
-  typedef enum
-  {
-    MEMBER_ROLE_PRIMARY= 1,
+  typedef enum {
+    MEMBER_ROLE_PRIMARY = 1,
     MEMBER_ROLE_SECONDARY,
     MEMBER_ROLE_END
   } Group_member_role;
-
 
   /**
     Group_member_info constructor
@@ -152,23 +147,26 @@ public:
     @param[in] hostname_arg                           member hostname
     @param[in] port_arg                               member port
     @param[in] uuid_arg                               member uuid
-    @param[in] write_set_extraction_algorithm         write set extraction algorithm
-    @param[in] gcs_member_id_arg                      member GCS member identifier
+    @param[in] write_set_extraction_algorithm         write set extraction
+    algorithm
+    @param[in] gcs_member_id_arg                      member GCS member
+    identifier
     @param[in] status_arg                             member Recovery status
     @param[in] member_version_arg                     member version
-    @param[in] gtid_assignment_block_size_arg         member gtid assignment block size
-    @param[in] role_arg                               member role within the group
+    @param[in] gtid_assignment_block_size_arg         member gtid assignment
+    block size
+    @param[in] role_arg                               member role within the
+    group
     @param[in] in_single_primary_mode                 is member in single mode
-    @param[in] has_enforces_update_everywhere_checks  has member enforce update check
+    @param[in] has_enforces_update_everywhere_checks  has member enforce update
+    check
     @param[in] member_weight_arg                      member_weight
    */
-  Group_member_info(char* hostname_arg,
-                    uint port_arg,
-                    char* uuid_arg,
+  Group_member_info(char *hostname_arg, uint port_arg, char *uuid_arg,
                     int write_set_extraction_algorithm,
-                    const std::string& gcs_member_id_arg,
+                    const std::string &gcs_member_id_arg,
                     Group_member_info::Group_member_status status_arg,
-                    Member_version& member_version_arg,
+                    Member_version &member_version_arg,
                     ulonglong gtid_assignment_block_size_arg,
                     Group_member_info::Group_member_role role_arg,
                     bool in_single_primary_mode,
@@ -180,7 +178,7 @@ public:
 
     @param other source of the copy
    */
-  Group_member_info(Group_member_info& other);
+  Group_member_info(Group_member_info &other);
 
   /**
    * Group_member_info raw data constructor
@@ -188,7 +186,7 @@ public:
    * @param[in] data raw data
    * @param[in] len raw data length
    */
-  Group_member_info(const uchar* data, size_t len);
+  Group_member_info(const uchar *data, size_t len);
 
   /**
     Destructor
@@ -198,7 +196,7 @@ public:
   /**
     @return the member hostname
    */
-  const std::string& get_hostname();
+  const std::string &get_hostname();
 
   /**
     @return the member port
@@ -208,12 +206,12 @@ public:
   /**
     @return the member uuid
    */
-  const std::string& get_uuid();
+  const std::string &get_uuid();
 
   /**
     @return the member identifier in the GCS layer
    */
-  const Gcs_member_identifier& get_gcs_member_id();
+  const Gcs_member_identifier &get_gcs_member_id();
 
   /**
     @return the member recovery status
@@ -228,22 +226,22 @@ public:
   /**
     @return the member role type code in string
    */
-  const char* get_member_role_string();
+  const char *get_member_role_string();
 
   /**
     @return the member plugin version
    */
-  const Member_version& get_member_version();
+  const Member_version &get_member_version();
 
   /**
     @return the member GTID_EXECUTED set
    */
-  const std::string& get_gtid_executed();
+  const std::string &get_gtid_executed();
 
   /**
     @return the member GTID_RETRIEVED set for the applier channel
   */
-  const std::string& get_gtid_retrieved();
+  const std::string &get_gtid_retrieved();
 
   /**
     @return the member algorithm for extracting write sets
@@ -285,8 +283,8 @@ public:
     @param[in] executed_gtids the status to set
     @param[in] retrieve_gtids the status to set
    */
-  void update_gtid_sets(std::string& executed_gtids,
-                        std::string& retrieve_gtids);
+  void update_gtid_sets(std::string &executed_gtids,
+                        std::string &retrieve_gtids);
 
   /**
     Updates this object member role.
@@ -298,34 +296,39 @@ public:
   /**
     @return the member status as string.
    */
-  static const char* get_member_status_string(Group_member_status status);
+  static const char *get_member_status_string(Group_member_status status);
 
   /**
     @return configuration flag as string
    */
-  static const char* get_configuration_flag_string(const uint32 configuation_flag);
+  static const char *get_configuration_flag_string(
+      const uint32 configuation_flag);
 
   /**
     @return the member configuration flags as string
    */
-  static std::string get_configuration_flags_string(const uint32 configuation_flags);
+  static std::string get_configuration_flags_string(
+      const uint32 configuation_flags);
 
   /**
     @return Compare two members using member version
    */
-  static bool comparator_group_member_version(Group_member_info *m1, Group_member_info *m2);
+  static bool comparator_group_member_version(Group_member_info *m1,
+                                              Group_member_info *m2);
 
   /**
     @return Compare two members using server uuid
    */
-  static bool comparator_group_member_uuid(Group_member_info *m1, Group_member_info *m2);
+  static bool comparator_group_member_uuid(Group_member_info *m1,
+                                           Group_member_info *m2);
 
   /**
     @return Compare two members using member weight
     @note if the weight is same, the member is sorted in
           lexicographical order using its uuid.
    */
-  static bool comparator_group_member_weight(Group_member_info *m1, Group_member_info *m2);
+  static bool comparator_group_member_weight(Group_member_info *m1,
+                                             Group_member_info *m2);
 
   /**
     Return true if member version is higher than other member version
@@ -345,7 +348,7 @@ public:
   /**
     Redefinition of operate ==, which operate upon the uuid
    */
-  bool operator ==(Group_member_info& other);
+  bool operator==(Group_member_info &other);
 
   /**
     Sets this member as unreachable.
@@ -389,17 +392,17 @@ public:
    */
   uint get_member_weight();
 
-protected:
-  void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, const unsigned char*);
+ protected:
+  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void decode_payload(const unsigned char *buffer, const unsigned char *);
 
-private:
+ private:
   std::string hostname;
   uint port;
   std::string uuid;
   Group_member_status status;
-  Gcs_member_identifier* gcs_member_id;
-  Member_version* member_version;
+  Gcs_member_identifier *gcs_member_id;
+  Member_version *member_version;
   std::string executed_gtid_set;
   std::string retrieved_gtid_set;
   uint write_set_extraction_algorithm;
@@ -411,7 +414,6 @@ private:
   uint member_weight;
 };
 
-
 /*
   @interface Group_member_info_manager_interface
 
@@ -419,12 +421,11 @@ private:
   This is a component that lies on top of the GCS, on the application level,
   providing richer and relevant information to the plugin.
  */
-class Group_member_info_manager_interface
-{
-public:
+class Group_member_info_manager_interface {
+ public:
   virtual ~Group_member_info_manager_interface(){};
 
-  virtual size_t get_number_of_members()= 0;
+  virtual size_t get_number_of_members() = 0;
 
   /**
     Retrieves a registered Group member by its uuid
@@ -433,7 +434,7 @@ public:
     @return reference to a copy of Group_member_info. NULL if not managed.
             The return value must deallocated by the caller.
    */
-  virtual Group_member_info* get_group_member_info(const std::string& uuid)= 0;
+  virtual Group_member_info *get_group_member_info(const std::string &uuid) = 0;
 
   /**
     Retrieves a registered Group member by an index function.
@@ -443,7 +444,7 @@ public:
     @param[in] idx the index
     @return reference to a Group_member_info. NULL if not managed
    */
-  virtual Group_member_info* get_group_member_info_by_index(int idx)= 0;
+  virtual Group_member_info *get_group_member_info_by_index(int idx) = 0;
 
   /**
     Retrieves a registered Group member by its backbone GCS identifier
@@ -452,29 +453,29 @@ public:
     @return reference to a copy of Group_member_info. NULL if not managed.
             The return value must deallocated by the caller.
    */
-  virtual Group_member_info*
-  get_group_member_info_by_member_id(Gcs_member_identifier idx)= 0;
+  virtual Group_member_info *get_group_member_info_by_member_id(
+      Gcs_member_identifier idx) = 0;
 
   /**
     Retrieves all Group members managed by this site
 
     @return a vector with copies to all managed Group_member_info
    */
-  virtual std::vector<Group_member_info*>* get_all_members()= 0;
+  virtual std::vector<Group_member_info *> *get_all_members() = 0;
 
   /**
     Adds a new member to be managed by this Group manager
 
     @param[in] new_member new group member
    */
-  virtual void add(Group_member_info* new_member)= 0;
+  virtual void add(Group_member_info *new_member) = 0;
 
   /**
     Updates all members of the group. Typically used after a view change.
 
     @param[in] new_members new Group members
    */
-  virtual void update(std::vector<Group_member_info*>* new_members)= 0;
+  virtual void update(std::vector<Group_member_info *> *new_members) = 0;
 
   /**
     Updates the status of a single member
@@ -483,10 +484,10 @@ public:
     @param[in] new_status  status to change to
     @param[in,out] ctx     The notification context to update.
    */
-  virtual void
-  update_member_status(const std::string& uuid,
-                       Group_member_info::Group_member_status new_status,
-                       Notification_context& ctx)= 0;
+  virtual void update_member_status(
+      const std::string &uuid,
+      Group_member_info::Group_member_status new_status,
+      Notification_context &ctx) = 0;
 
   /**
     Updates the GTID sets on a single member
@@ -496,9 +497,9 @@ public:
     @param[in] gtid_executed   the member executed GTID set
     @param[in] gtid_retrieved  the member retrieved GTID set for the applier
   */
-  virtual void update_gtid_sets(const std::string& uuid,
-                                std::string& gtid_executed,
-                                std::string& gtid_retrieved)= 0;
+  virtual void update_gtid_sets(const std::string &uuid,
+                                std::string &gtid_executed,
+                                std::string &gtid_retrieved) = 0;
   /**
     Updates the role of a single member
 
@@ -506,17 +507,16 @@ public:
     @param[in] new_role    role to change to
     @param[in,out] ctx     The notification context to update.
    */
-  virtual void
-  update_member_role(const std::string& uuid,
-                     Group_member_info::Group_member_role new_role,
-                     Notification_context& ctx)= 0;
+  virtual void update_member_role(const std::string &uuid,
+                                  Group_member_info::Group_member_role new_role,
+                                  Notification_context &ctx) = 0;
 
   /**
     Encodes this object to send via the network
 
     @param[out] to_encode out parameter to receive the encoded data
    */
-  virtual void encode(std::vector<uchar>* to_encode)= 0;
+  virtual void encode(std::vector<uchar> *to_encode) = 0;
 
   /**
     Decodes the raw format of this object
@@ -525,17 +525,17 @@ public:
     @param[in] length    raw encoded data length
     @return a vector of Group_member_info references
    */
-  virtual std::vector<Group_member_info*>* decode(const uchar* to_decode,
-                                                  size_t length)= 0;
+  virtual std::vector<Group_member_info *> *decode(const uchar *to_decode,
+                                                   size_t length) = 0;
 
   /**¬
   Check if some member of the group has the conflict detection enable
 
   @return true if at least one member has  conflict detection enabled
   */
-  virtual bool is_conflict_detection_enabled()= 0;
+  virtual bool is_conflict_detection_enabled() = 0;
 
-  virtual void get_primary_member_uuid(std::string &primary_member_uuid)= 0;
+  virtual void get_primary_member_uuid(std::string &primary_member_uuid) = 0;
 
   /**¬
   Check if majority of the group is unreachable
@@ -545,7 +545,7 @@ public:
 
   @return true if majority of the group is unreachable
   */
-  virtual bool is_majority_unreachable()= 0;
+  virtual bool is_majority_unreachable() = 0;
 
   /**
     This method returns all ONLINE and RECOVERING members comma separated
@@ -556,51 +556,46 @@ public:
   virtual std::string get_string_current_view_active_hosts() const = 0;
 };
 
-
 /**
   @class Group_member_info_manager
 
   Implementation of the interface Group_member_info_manager_interface
  */
-class Group_member_info_manager: public Group_member_info_manager_interface
-{
-public:
-  Group_member_info_manager(Group_member_info* local_member_info);
+class Group_member_info_manager : public Group_member_info_manager_interface {
+ public:
+  Group_member_info_manager(Group_member_info *local_member_info);
 
   virtual ~Group_member_info_manager();
 
   size_t get_number_of_members();
 
-  Group_member_info* get_group_member_info(const std::string& uuid);
+  Group_member_info *get_group_member_info(const std::string &uuid);
 
-  Group_member_info* get_group_member_info_by_index(int idx);
+  Group_member_info *get_group_member_info_by_index(int idx);
 
-  Group_member_info*
-  get_group_member_info_by_member_id(Gcs_member_identifier idx);
+  Group_member_info *get_group_member_info_by_member_id(
+      Gcs_member_identifier idx);
 
-  std::vector<Group_member_info*>* get_all_members();
+  std::vector<Group_member_info *> *get_all_members();
 
-  void add(Group_member_info* new_member);
+  void add(Group_member_info *new_member);
 
-  void update(std::vector<Group_member_info*>* new_members);
+  void update(std::vector<Group_member_info *> *new_members);
 
-  void
-  update_member_status(const std::string& uuid,
-                       Group_member_info::Group_member_status new_status,
-                       Notification_context& ctx);
+  void update_member_status(const std::string &uuid,
+                            Group_member_info::Group_member_status new_status,
+                            Notification_context &ctx);
 
-  void update_gtid_sets(const std::string& uuid,
-                        std::string& gtid_executed,
-                        std::string& gtid_retrieved);
-  void
-  update_member_role(const std::string& uuid,
-                     Group_member_info::Group_member_role new_role,
-                     Notification_context& ctx);
+  void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
+                        std::string &gtid_retrieved);
+  void update_member_role(const std::string &uuid,
+                          Group_member_info::Group_member_role new_role,
+                          Notification_context &ctx);
 
-  void encode(std::vector<uchar>* to_encode);
+  void encode(std::vector<uchar> *to_encode);
 
-  std::vector<Group_member_info*>* decode(const uchar* to_decode,
-                                          size_t length);
+  std::vector<Group_member_info *> *decode(const uchar *to_decode,
+                                           size_t length);
 
   bool is_conflict_detection_enabled();
 
@@ -610,15 +605,14 @@ public:
 
   std::string get_string_current_view_active_hosts() const;
 
-private:
+ private:
   void clear_members();
 
-  std::map<std::string, Group_member_info*> *members;
-  Group_member_info* local_member_info;
+  std::map<std::string, Group_member_info *> *members;
+  Group_member_info *local_member_info;
 
   mysql_mutex_t update_lock;
 };
-
 
 /**
  This is the Group_member_info_manager message.
@@ -647,22 +641,20 @@ private:
  The last tree lines occur the number of times specified on
  PIT_MEMBERS_NUMBER.
 */
-class Group_member_info_manager_message: public Plugin_gcs_message
-{
-public:
-  enum enum_payload_item_type
-  {
+class Group_member_info_manager_message : public Plugin_gcs_message {
+ public:
+  enum enum_payload_item_type {
     // This type should not be used anywhere.
-    PIT_UNKNOWN= 0,
+    PIT_UNKNOWN = 0,
 
     // Length of the payload item: 2 bytes
-    PIT_MEMBERS_NUMBER= 1,
+    PIT_MEMBERS_NUMBER = 1,
 
     // Length of the payload item: variable
-    PIT_MEMBER_DATA= 2,
+    PIT_MEMBER_DATA = 2,
 
     // No valid type codes can appear after this one.
-    PIT_MAX= 3
+    PIT_MAX = 3
   };
 
   /**
@@ -675,14 +667,14 @@ public:
 
     @param[in] group_info  Group_member_info_manager members information
    */
-  Group_member_info_manager_message(Group_member_info_manager& group_info);
+  Group_member_info_manager_message(Group_member_info_manager &group_info);
 
   /**
     Group_member_info_manager_message constructor.
 
     @param[in] member_info  Group_member_info one member information
    */
-  Group_member_info_manager_message(Group_member_info* member_info);
+  Group_member_info_manager_message(Group_member_info *member_info);
 
   /**
     Group_member_info_manager_message destructor.
@@ -694,19 +686,19 @@ public:
 
     @return a vector with copies to all members.
    */
-  std::vector<Group_member_info*>* get_all_members();
+  std::vector<Group_member_info *> *get_all_members();
 
-protected:
-  void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, const unsigned char* end);
+ protected:
+  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void decode_payload(const unsigned char *buffer, const unsigned char *end);
 
-private:
+ private:
   /**
     Clear members and its allocated memory.
   */
   void clear_members();
 
-  std::vector<Group_member_info*> *members;
+  std::vector<Group_member_info *> *members;
 };
 
 #endif /* MEMBER_INFO_INCLUDE */

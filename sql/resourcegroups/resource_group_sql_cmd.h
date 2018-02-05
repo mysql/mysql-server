@@ -28,7 +28,7 @@
 #include "my_sqlcommand.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_tree_node_base.h"
-#include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
+#include "sql/resourcegroups/resource_group_basic_types.h"  // Type, Range
 #include "sql/sql_cmd.h"
 
 class PT_alter_resource_group;
@@ -37,32 +37,32 @@ class PT_drop_resource_group;
 class PT_set_resource_group;
 class THD;
 
-namespace resourcegroups
-{
-
+namespace resourcegroups {
 
 /**
   Sql_cmd_create_resource_group represents CREATE RESOURCE GROUP statement.
 */
 
-class Sql_cmd_create_resource_group : public Sql_cmd
-{
+class Sql_cmd_create_resource_group : public Sql_cmd {
   friend class ::PT_create_resource_group;
 
-public:
+ public:
   Sql_cmd_create_resource_group(const LEX_CSTRING &name, const Type type,
                                 const Mem_root_array<Range> *cpu_list,
                                 int priority, bool enabled)
-    : m_name(name), m_type(type), m_cpu_list(cpu_list), m_priority(priority),
-      m_enabled(enabled)
-  {}
+      : m_name(name),
+        m_type(type),
+        m_cpu_list(cpu_list),
+        m_priority(priority),
+        m_enabled(enabled) {}
 
-  enum_sql_command sql_command_code() const override
-  { return SQLCOM_CREATE_RESOURCE_GROUP; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_CREATE_RESOURCE_GROUP;
+  }
 
   bool execute(THD *thd) override;
 
-private:
+ private:
   const LEX_CSTRING m_name;
   const Type m_type;
   const Mem_root_array<Range> *m_cpu_list;
@@ -70,30 +70,32 @@ private:
   bool m_enabled;
 };
 
-
 /**
   Sql_cmd_alter_resource_group represents ALTER RESOURCE GROUP statement.
 */
 
-class Sql_cmd_alter_resource_group : public Sql_cmd
-{
+class Sql_cmd_alter_resource_group : public Sql_cmd {
   friend class ::PT_alter_resource_group;
 
-public:
-  Sql_cmd_alter_resource_group(const LEX_CSTRING& name,
+ public:
+  Sql_cmd_alter_resource_group(const LEX_CSTRING &name,
                                const Mem_root_array<Range> *cpu_list,
                                int priority, bool enable, bool force,
                                bool use_enable)
-    : m_name(name), m_cpu_list(cpu_list), m_priority(priority),
-      m_enable(enable), m_force(force), m_use_enable(use_enable)
-  {}
+      : m_name(name),
+        m_cpu_list(cpu_list),
+        m_priority(priority),
+        m_enable(enable),
+        m_force(force),
+        m_use_enable(use_enable) {}
 
-  enum_sql_command sql_command_code() const override
-  { return SQLCOM_ALTER_RESOURCE_GROUP; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_ALTER_RESOURCE_GROUP;
+  }
 
   bool execute(THD *thd) override;
 
-private:
+ private:
   const LEX_CSTRING m_name;
   const Mem_root_array<Range> *m_cpu_list;
   int m_priority;
@@ -102,54 +104,49 @@ private:
   bool m_use_enable;
 };
 
-
 /**
   Sql_cmd_drop_resource_group represents DROP RESOURCE GROUP statement.
 */
 
-class Sql_cmd_drop_resource_group : public Sql_cmd
-{
+class Sql_cmd_drop_resource_group : public Sql_cmd {
   friend class ::PT_drop_resource_group;
 
-public:
-  Sql_cmd_drop_resource_group(const LEX_CSTRING& name, bool force)
-    : m_name(name), m_force(force)
-  {}
+ public:
+  Sql_cmd_drop_resource_group(const LEX_CSTRING &name, bool force)
+      : m_name(name), m_force(force) {}
 
-  enum_sql_command sql_command_code() const override
-  { return SQLCOM_DROP_RESOURCE_GROUP; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_RESOURCE_GROUP;
+  }
 
   bool execute(THD *thd) override;
 
-private:
+ private:
   const LEX_CSTRING m_name;
   bool m_force;
 };
-
 
 /**
   Sql_cmd_set_resource_group represents SET RESOURCE GROUP statement.
 */
 
-class Sql_cmd_set_resource_group : public Sql_cmd
-{
+class Sql_cmd_set_resource_group : public Sql_cmd {
   friend class ::PT_set_resource_group;
 
-public:
-
+ public:
   Sql_cmd_set_resource_group(const LEX_CSTRING &name,
                              Mem_root_array<ulonglong> *thread_id_list)
-    : m_name(name), m_thread_id_list(thread_id_list)
-  {}
+      : m_name(name), m_thread_id_list(thread_id_list) {}
 
-  enum_sql_command sql_command_code() const override
-  { return SQLCOM_SET_RESOURCE_GROUP; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_SET_RESOURCE_GROUP;
+  }
 
   bool execute(THD *thd) override;
 
-private:
+ private:
   const LEX_CSTRING m_name;
   Mem_root_array<ulonglong> *m_thread_id_list;
 };
-} // resourcegroups
-#endif // RESOURCEGROUPS_RESOURCE_GROUP_SQL_CMD_H_
+}  // namespace resourcegroups
+#endif  // RESOURCEGROUPS_RESOURCE_GROUP_SQL_CMD_H_

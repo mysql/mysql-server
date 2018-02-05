@@ -26,9 +26,9 @@
 #include <sys/types.h>
 #include <new>
 
-#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/parameter_type_element.h" // dd::Parameter_type_element
+#include "sql/dd/types/parameter_type_element.h"  // dd::Parameter_type_element
 
 namespace dd {
 
@@ -45,25 +45,19 @@ class Weak_object;
 ///////////////////////////////////////////////////////////////////////////
 
 class Parameter_type_element_impl : public Weak_object_impl,
-                                    public Parameter_type_element
-{
-public:
-  Parameter_type_element_impl()
-   :m_index(0)
-  { }
+                                    public Parameter_type_element {
+ public:
+  Parameter_type_element_impl() : m_index(0) {}
 
   Parameter_type_element_impl(Parameter_impl *parameter)
-   :m_index(0),
-    m_parameter(parameter)
-  { }
+      : m_index(0), m_parameter(parameter) {}
 
   Parameter_type_element_impl(const Parameter_type_element_impl &src,
                               Parameter_impl *parent);
 
-  virtual ~Parameter_type_element_impl()
-  { }
+  virtual ~Parameter_type_element_impl() {}
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual const Object_table &object_table() const;
@@ -74,35 +68,30 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  void set_ordinal_position(uint ordinal_position)
-  { m_index= ordinal_position; }
+  void set_ordinal_position(uint ordinal_position) {
+    m_index = ordinal_position;
+  }
 
-  virtual uint ordinal_position() const
-  { return index(); }
+  virtual uint ordinal_position() const { return index(); }
 
-public:
-  static Parameter_type_element_impl *restore_item(Parameter_impl *parameter)
-  {
+ public:
+  static Parameter_type_element_impl *restore_item(Parameter_impl *parameter) {
     return new (std::nothrow) Parameter_type_element_impl(parameter);
   }
 
-  static Parameter_type_element_impl*
-    clone(const Parameter_type_element_impl &other,
-          Parameter_impl *parameter)
-  {
+  static Parameter_type_element_impl *clone(
+      const Parameter_type_element_impl &other, Parameter_impl *parameter) {
     return new (std::nothrow) Parameter_type_element_impl(other, parameter);
   }
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // Name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &name() const
-  { return m_name; }
+  virtual const String_type &name() const { return m_name; }
 
-  virtual void set_name(const String_type &name)
-  { m_name= name; }
+  virtual void set_name(const String_type &name) { m_name = name; }
 
   /////////////////////////////////////////////////////////////////////////
   // Parameter
@@ -114,17 +103,16 @@ public:
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint index() const
-  { return m_index; }
+  virtual uint index() const { return m_index; }
 
-public:
+ public:
   virtual void debug_print(String_type &outb) const;
 
-protected:
+ protected:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
-protected:
+ protected:
   // Fields
   String_type m_name;
   uint m_index;
@@ -135,6 +123,6 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARAMETER_TYPE_ELEMENT_IMPL_INCLUDED
+#endif  // DD__PARAMETER_TYPE_ELEMENT_IMPL_INCLUDED

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,11 +35,11 @@ class Update_statement_builder_stub : public Update_statement_builder {
  public:
   explicit Update_statement_builder_stub(Expression_generator *gen)
       : Update_statement_builder(*gen) {}
-  using Update_statement_builder::add_operation;
-  using Update_statement_builder::add_table_operation;
+  using Update_statement_builder::Operation_list;
   using Update_statement_builder::add_document_operation;
   using Update_statement_builder::add_document_operation_item;
-  using Update_statement_builder::Operation_list;
+  using Update_statement_builder::add_operation;
+  using Update_statement_builder::add_table_operation;
 };
 
 class Update_statement_builder_test : public ::testing::Test {
@@ -61,10 +61,7 @@ class Update_statement_builder_test : public ::testing::Test {
   Update_operation::Update_type operation_id =
       static_cast<Update_operation::Update_type>(-1);
 
-  enum {
-    DM_DOCUMENT = 0,
-    DM_TABLE = 1
-  };
+  enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 
   void fill_table_msg() {
     msg.set_data_model(Mysqlx::Crud::TABLE);

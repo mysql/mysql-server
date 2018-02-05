@@ -53,11 +53,10 @@ class Gcs_suspicions_manager;
 /**
   Struct that holds instances of this binding interface implementations.
 */
-typedef struct xcom_group_interfaces
-{
-  Gcs_control_interface          *control_interface;
-  Gcs_communication_interface    *communication_interface;
-  Gcs_statistics_interface       *statistics_interface;
+typedef struct xcom_group_interfaces {
+  Gcs_control_interface *control_interface;
+  Gcs_communication_interface *communication_interface;
+  Gcs_statistics_interface *statistics_interface;
   Gcs_group_management_interface *management_interface;
 
   /*
@@ -65,17 +64,15 @@ typedef struct xcom_group_interfaces
     deletion.
   */
   Gcs_xcom_view_change_control_interface *vce;
-  Gcs_xcom_state_exchange_interface      *se;
+  Gcs_xcom_state_exchange_interface *se;
 
 } gcs_xcom_group_interfaces;
-
 
 /**
   Implementation of the Gcs_interface for the XCom binding.
 */
-class Gcs_xcom_interface: public Gcs_interface
-{
-private:
+class Gcs_xcom_interface : public Gcs_interface {
+ private:
   // XCom single instance
   static Gcs_interface *interface_reference_singleton;
 
@@ -84,7 +81,7 @@ private:
   */
   explicit Gcs_xcom_interface();
 
-public:
+ public:
   /**
     Since one wants that a single instance exists, the interface implementation
     shall be retrieved via a Singleton pattern.
@@ -96,7 +93,6 @@ public:
   */
 
   static Gcs_interface *get_interface();
-
 
   /**
     Public method that finalizes and cleans the singleton.
@@ -125,17 +121,17 @@ public:
 
   enum_gcs_error finalize();
 
-  Gcs_control_interface *
-  get_control_session(const Gcs_group_identifier &group_identifier);
+  Gcs_control_interface *get_control_session(
+      const Gcs_group_identifier &group_identifier);
 
-  Gcs_communication_interface *
-  get_communication_session(const Gcs_group_identifier &group_identifier);
+  Gcs_communication_interface *get_communication_session(
+      const Gcs_group_identifier &group_identifier);
 
-  Gcs_statistics_interface *
-  get_statistics(const Gcs_group_identifier &group_identifier);
+  Gcs_statistics_interface *get_statistics(
+      const Gcs_group_identifier &group_identifier);
 
-  Gcs_group_management_interface *
-  get_management_session(const Gcs_group_identifier &group_identifier);
+  Gcs_group_management_interface *get_management_session(
+      const Gcs_group_identifier &group_identifier);
 
   enum_gcs_error configure_msg_stages(const Gcs_interface_parameters &p,
                                       const Gcs_group_identifier &gid);
@@ -159,8 +155,7 @@ public:
 
    @return The parameters configured at the time the interface was initialized.
    */
-  const Gcs_interface_parameters& get_initialization_parameters()
-  {
+  const Gcs_interface_parameters &get_initialization_parameters() {
     return m_initialization_parameters;
   }
 
@@ -169,15 +164,13 @@ public:
 
     @return the list of whitelisted IP addresses and subnet masks.
    */
-  const Gcs_ip_whitelist& get_ip_whitelist();
-
+  const Gcs_ip_whitelist &get_ip_whitelist();
 
   /*
      Notify all controllers that XCOM's thread has finished.
   */
 
   void process_xcom_exit();
-
 
   /**
     Contains all the code needed to stop the xcom daemon if it was not
@@ -186,15 +179,13 @@ public:
 
   void finalize_xcom();
 
-
   /**
     Used to initialize SSL assuming that the necessary parameters have already
     been read.
   */
   void initialize_ssl();
 
-
-private:
+ private:
   /**
     Method to initialize the logging and debugging systems. If something
     bad happens, an error is returned.
@@ -209,14 +200,12 @@ private:
   enum_gcs_error initialize_logging(const std::string *debug_file,
                                     const std::string *debug_path);
 
-
   /**
     Method to finalize the logging and debugging systems. If something
     bad happens, an error is returned.
   */
 
   enum_gcs_error finalize_logging();
-
 
   /**
     Internal helper method that retrieves all group interfaces for a certain
@@ -232,9 +221,8 @@ private:
     @return a reference to a struct gcs_xcom_group_interfaces
   */
 
-  gcs_xcom_group_interfaces *
-  get_group_interfaces(const Gcs_group_identifier &group_identifier);
-
+  gcs_xcom_group_interfaces *get_group_interfaces(
+      const Gcs_group_identifier &group_identifier);
 
   /**
     Contains all the code needed to initialize a connection to the xcom
@@ -245,20 +233,17 @@ private:
 
   bool initialize_xcom(const Gcs_interface_parameters &interface_params);
 
-
   /**
     Internal helper method to delete all previously created group interfaces.
   */
 
   void clean_group_interfaces();
 
-
   /**
     Internal helper method to delete all previously created group references.
   */
 
   void clean_group_references();
-
 
   /**
     Helper used to parse the peer_nodes parameter and to initialize XCom peer
@@ -270,14 +255,12 @@ private:
 
   void initialize_peer_nodes(const std::string *peer_nodes);
 
-
   /**
     Helper used to delete the existing XCom peer nodes in m_xcom_peers and to
     clear that vector.
   */
 
   void clear_peer_nodes();
-
 
   // Holder to the created group interfaces, in which the key is the group
   std::map<std::string, gcs_xcom_group_interfaces *> m_group_interfaces;
@@ -313,7 +296,8 @@ private:
   Gcs_xcom_app_cfg m_gcs_xcom_app_cfg;
 
   /**
-   The initialization parameters provided through the initialize member function.
+   The initialization parameters provided through the initialize member
+   function.
    */
   Gcs_interface_parameters m_initialization_parameters;
 
@@ -341,12 +325,12 @@ private:
   My_xp_cond_impl m_wait_for_ssl_init_cond;
   My_xp_mutex_impl m_wait_for_ssl_init_mutex;
 
-private:
+ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_interface(Gcs_xcom_interface const&);
-  Gcs_xcom_interface& operator=(Gcs_xcom_interface const&);
+  Gcs_xcom_interface(Gcs_xcom_interface const &);
+  Gcs_xcom_interface &operator=(Gcs_xcom_interface const &);
 };
 
 #ifdef __cplusplus
@@ -357,5 +341,4 @@ int cb_xcom_match_port(xcom_port if_port);
 }
 #endif
 
-
-#endif  /* GCS_XCOM_INTERFACE_INCLUDED */
+#endif /* GCS_XCOM_INTERFACE_INCLUDED */

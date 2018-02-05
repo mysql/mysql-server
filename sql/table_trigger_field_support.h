@@ -26,7 +26,7 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include "sql/trigger_def.h" // enum_trigger_variable_type
+#include "sql/trigger_def.h"  // enum_trigger_variable_type
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -40,18 +40,16 @@ class Field;
   about table trigger fields (NEW/OLD rows).
 */
 
-class Table_trigger_field_support
-{
-public:
-  virtual TABLE *get_subject_table()= 0;
+class Table_trigger_field_support {
+ public:
+  virtual TABLE *get_subject_table() = 0;
 
   virtual Field *get_trigger_variable_field(enum_trigger_variable_type v,
-                                            int field_index)= 0;
+                                            int field_index) = 0;
 
-  virtual ~Table_trigger_field_support()
-  { }
+  virtual ~Table_trigger_field_support() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-#endif // TABLE_TRIGGER_FIELD_SUPPORT_H_INCLUDED
+#endif  // TABLE_TRIGGER_FIELD_SUPPORT_H_INCLUDED

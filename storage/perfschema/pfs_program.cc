@@ -51,11 +51,8 @@ static bool program_hash_inited = false;
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM.
   @param param performance schema sizing
 */
-int
-init_program(const PFS_global_param *param)
-{
-  if (global_program_container.init(param->m_program_sizing))
-  {
+int init_program(const PFS_global_param *param) {
+  if (global_program_container.init(param->m_program_sizing)) {
     return 1;
   }
 
@@ -64,15 +61,9 @@ init_program(const PFS_global_param *param)
 }
 
 /** Cleanup table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM. */
-void
-cleanup_program(void)
-{
-  global_program_container.cleanup();
-}
+void cleanup_program(void) { global_program_container.cleanup(); }
 
-static const uchar *
-program_hash_get_key(const uchar *entry, size_t *length)
-{
+static const uchar *program_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_program *const *typed_entry;
   const PFS_program *program;
   const void *result;
@@ -89,42 +80,26 @@ program_hash_get_key(const uchar *entry, size_t *length)
   Initialize the program hash.
   @return 0 on success
 */
-int
-init_program_hash(const PFS_global_param *param)
-{
-  if ((!program_hash_inited) && (param->m_program_sizing != 0))
-  {
-    lf_hash_init(&program_hash,
-                 sizeof(PFS_program *),
-                 LF_HASH_UNIQUE,
-                 0,
-                 0,
-                 program_hash_get_key,
-                 &my_charset_bin);
+int init_program_hash(const PFS_global_param *param) {
+  if ((!program_hash_inited) && (param->m_program_sizing != 0)) {
+    lf_hash_init(&program_hash, sizeof(PFS_program *), LF_HASH_UNIQUE, 0, 0,
+                 program_hash_get_key, &my_charset_bin);
     program_hash_inited = true;
   }
   return 0;
 }
 
 /** Cleanup the program hash. */
-void
-cleanup_program_hash(void)
-{
-  if (program_hash_inited)
-  {
+void cleanup_program_hash(void) {
+  if (program_hash_inited) {
     lf_hash_destroy(&program_hash);
     program_hash_inited = false;
   }
 }
 
-static void
-set_program_key(PFS_program_key *key,
-                enum_object_type object_type,
-                const char *object_name,
-                uint object_name_length,
-                const char *schema_name,
-                uint schema_name_length)
-{
+static void set_program_key(PFS_program_key *key, enum_object_type object_type,
+                            const char *object_name, uint object_name_length,
+                            const char *schema_name, uint schema_name_length) {
   DBUG_ASSERT(object_name_length <= COL_OBJECT_NAME_SIZE);
   DBUG_ASSERT(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
 
@@ -138,8 +113,7 @@ set_program_key(PFS_program_key *key,
   ptr[0] = object_type;
   ptr++;
 
-  if (object_name_length > 0)
-  {
+  if (object_name_length > 0) {
     char tmp_object_name[COL_OBJECT_NAME_SIZE + 1];
     memcpy(tmp_object_name, object_name, object_name_length);
     tmp_object_name[object_name_length] = '\0';
@@ -150,8 +124,7 @@ set_program_key(PFS_program_key *key,
   ptr[0] = 0;
   ptr++;
 
-  if (schema_name_length > 0)
-  {
+  if (schema_name_length > 0) {
     char tmp_schema_name[COL_OBJECT_SCHEMA_SIZE + 1];
     memcpy(tmp_schema_name, schema_name, schema_name_length);
     tmp_schema_name[schema_name_length] = '\0';
@@ -165,32 +138,20 @@ set_program_key(PFS_program_key *key,
   key->m_key_length = ptr - &key->m_hash_key[0];
 }
 
-void
-PFS_program::reset_data()
-{
+void PFS_program::reset_data() {
   m_sp_stat.reset();
   m_stmt_stat.reset();
 }
 
-static void
-fct_reset_esms_by_program(PFS_program *pfs)
-{
-  pfs->reset_data();
-}
+static void fct_reset_esms_by_program(PFS_program *pfs) { pfs->reset_data(); }
 
-void
-reset_esms_by_program()
-{
+void reset_esms_by_program() {
   global_program_container.apply_all(fct_reset_esms_by_program);
 }
 
-static LF_PINS *
-get_program_hash_pins(PFS_thread *thread)
-{
-  if (unlikely(thread->m_program_hash_pins == NULL))
-  {
-    if (!program_hash_inited)
-    {
+static LF_PINS *get_program_hash_pins(PFS_thread *thread) {
+  if (unlikely(thread->m_program_hash_pins == NULL)) {
+    if (!program_hash_inited) {
       return NULL;
     }
     thread->m_program_hash_pins = lf_hash_get_pins(&program_hash);
@@ -198,31 +159,21 @@ get_program_hash_pins(PFS_thread *thread)
   return thread->m_program_hash_pins;
 }
 
-PFS_program *
-find_or_create_program(PFS_thread *thread,
-                       enum_object_type object_type,
-                       const char *object_name,
-                       uint object_name_length,
-                       const char *schema_name,
-                       uint schema_name_length)
-{
+PFS_program *find_or_create_program(
+    PFS_thread *thread, enum_object_type object_type, const char *object_name,
+    uint object_name_length, const char *schema_name, uint schema_name_length) {
   bool is_enabled, is_timed;
 
   LF_PINS *pins = get_program_hash_pins(thread);
-  if (unlikely(pins == NULL))
-  {
+  if (unlikely(pins == NULL)) {
     global_program_container.m_lost++;
     return NULL;
   }
 
   /* Prepare program key */
   PFS_program_key key;
-  set_program_key(&key,
-                  object_type,
-                  object_name,
-                  object_name_length,
-                  schema_name,
-                  schema_name_length);
+  set_program_key(&key, object_type, object_name, object_name_length,
+                  schema_name, schema_name_length);
 
   PFS_program **entry;
   PFS_program *pfs = NULL;
@@ -232,10 +183,9 @@ find_or_create_program(PFS_thread *thread,
 
 search:
   entry = reinterpret_cast<PFS_program **>(
-    lf_hash_search(&program_hash, pins, key.m_hash_key, key.m_key_length));
+      lf_hash_search(&program_hash, pins, key.m_hash_key, key.m_key_length));
 
-  if (entry && (entry != MY_LF_ERRPTR))
-  {
+  if (entry && (entry != MY_LF_ERRPTR)) {
     /* If record already exists then return its pointer. */
     pfs = *entry;
     lf_hash_search_unpin(pins);
@@ -248,19 +198,12 @@ search:
     First time while inserting this record to program array we need to
     find out if it is enabled and timed.
   */
-  lookup_setup_object(thread,
-                      object_type,
-                      schema_name,
-                      schema_name_length,
-                      object_name,
-                      object_name_length,
-                      &is_enabled,
-                      &is_timed);
+  lookup_setup_object(thread, object_type, schema_name, schema_name_length,
+                      object_name, object_name_length, &is_enabled, &is_timed);
 
   /* Else create a new record in program stat array. */
   pfs = global_program_container.allocate(&dirty_state);
-  if (pfs != NULL)
-  {
+  if (pfs != NULL) {
     /* Do the assignments. */
     memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
     pfs->m_key.m_key_length = key.m_key_length;
@@ -277,18 +220,15 @@ search:
     pfs->m_lock.dirty_to_allocated(&dirty_state);
     int res = lf_hash_insert(&program_hash, pins, &pfs);
 
-    if (likely(res == 0))
-    {
+    if (likely(res == 0)) {
       return pfs;
     }
 
     global_program_container.deallocate(pfs);
 
-    if (res > 0)
-    {
+    if (res > 0) {
       /* Duplicate insert by another thread */
-      if (++retry_count > retry_max)
-      {
+      if (++retry_count > retry_max) {
         /* Avoid infinite loops */
         global_program_container.m_lost++;
         return NULL;
@@ -303,35 +243,24 @@ search:
   return NULL;
 }
 
-void
-drop_program(PFS_thread *thread,
-             enum_object_type object_type,
-             const char *object_name,
-             uint object_name_length,
-             const char *schema_name,
-             uint schema_name_length)
-{
+void drop_program(PFS_thread *thread, enum_object_type object_type,
+                  const char *object_name, uint object_name_length,
+                  const char *schema_name, uint schema_name_length) {
   LF_PINS *pins = get_program_hash_pins(thread);
-  if (unlikely(pins == NULL))
-  {
+  if (unlikely(pins == NULL)) {
     return;
   }
 
   /* Prepare program key */
   PFS_program_key key;
-  set_program_key(&key,
-                  object_type,
-                  object_name,
-                  object_name_length,
-                  schema_name,
-                  schema_name_length);
+  set_program_key(&key, object_type, object_name, object_name_length,
+                  schema_name, schema_name_length);
 
   PFS_program **entry;
   entry = reinterpret_cast<PFS_program **>(
-    lf_hash_search(&program_hash, pins, key.m_hash_key, key.m_key_length));
+      lf_hash_search(&program_hash, pins, key.m_hash_key, key.m_key_length));
 
-  if (entry && (entry != MY_LF_ERRPTR))
-  {
+  if (entry && (entry != MY_LF_ERRPTR)) {
     PFS_program *pfs = NULL;
     pfs = *entry;
 
@@ -343,15 +272,8 @@ drop_program(PFS_thread *thread,
   return;
 }
 
-void
-PFS_program::refresh_setup_object_flags(PFS_thread *thread)
-{
-  lookup_setup_object(thread,
-                      m_type,
-                      m_schema_name,
-                      m_schema_name_length,
-                      m_object_name,
-                      m_object_name_length,
-                      &m_enabled,
+void PFS_program::refresh_setup_object_flags(PFS_thread *thread) {
+  lookup_setup_object(thread, m_type, m_schema_name, m_schema_name_length,
+                      m_object_name, m_object_name_length, &m_enabled,
                       &m_timed);
 }

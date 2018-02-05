@@ -28,12 +28,11 @@
 
 #include "plugin/group_replication/include/certifier.h"
 
-class Certification_handler : public Event_handler
-{
-public:
+class Certification_handler : public Event_handler {
+ public:
   Certification_handler();
   virtual ~Certification_handler();
-  int handle_event(Pipeline_event *ev,Continuation *cont);
+  int handle_event(Pipeline_event *ev, Continuation *cont);
   int handle_action(Pipeline_action *action);
   int initialize();
   int terminate();
@@ -42,12 +41,12 @@ public:
 
   Certifier_interface *get_certifier();
 
-  int set_certification_info(std::map<std::string, std::string>* cert_info);
+  int set_certification_info(std::map<std::string, std::string> *cert_info);
 
-private:
-  Certifier* cert_module;
+ private:
+  Certifier *cert_module;
 
-  THD* applier_module_thd;
+  THD *applier_module_thd;
 
   rpl_sidno group_sidno;
 

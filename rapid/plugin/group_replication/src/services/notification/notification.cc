@@ -27,56 +27,46 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 
-enum SvcTypes
-{
-  kGroupMembership= 0,
-  kGroupMemberStatus
-};
+enum SvcTypes { kGroupMembership = 0, kGroupMemberStatus };
 
-typedef int (*svc_notify_func) (Notification_context&, my_h_service);
+typedef int (*svc_notify_func)(Notification_context &, my_h_service);
 
-static int notify_group_membership(Notification_context& ctx, my_h_service svc)
-{
-  int svc_ko= 0;
-  const char *view_id= ctx.get_view_id().c_str();
-  SERVICE_TYPE(group_membership_listener) *listener= NULL;
+static int notify_group_membership(Notification_context &ctx,
+                                   my_h_service svc) {
+  int svc_ko = 0;
+  const char *view_id = ctx.get_view_id().c_str();
+  SERVICE_TYPE(group_membership_listener) *listener = NULL;
 
   /* now that we have the handler for it, notify */
-  listener= reinterpret_cast<
-    SERVICE_TYPE(group_membership_listener) *>(svc);
+  listener = reinterpret_cast<SERVICE_TYPE(group_membership_listener) *>(svc);
 
-  if (ctx.get_view_changed())
-  {
-    svc_ko= svc_ko + listener->notify_view_change(view_id);
+  if (ctx.get_view_changed()) {
+    svc_ko = svc_ko + listener->notify_view_change(view_id);
   }
 
-  if (ctx.get_quorum_lost())
-  {
-    svc_ko= svc_ko + listener->notify_quorum_loss(view_id);
+  if (ctx.get_quorum_lost()) {
+    svc_ko = svc_ko + listener->notify_quorum_loss(view_id);
   }
 
   return svc_ko;
 }
 
-static int notify_group_member_status(Notification_context& ctx,
-                                      my_h_service svc)
-{
-  int svc_ko= 0;
-  const char *view_id= ctx.get_view_id().c_str();
-  SERVICE_TYPE(group_member_status_listener) *listener= NULL;
+static int notify_group_member_status(Notification_context &ctx,
+                                      my_h_service svc) {
+  int svc_ko = 0;
+  const char *view_id = ctx.get_view_id().c_str();
+  SERVICE_TYPE(group_member_status_listener) *listener = NULL;
 
   /* now that we have the handler for it, notify */
-  listener= reinterpret_cast<
-    SERVICE_TYPE(group_member_status_listener) *>(svc);
+  listener =
+      reinterpret_cast<SERVICE_TYPE(group_member_status_listener) *>(svc);
 
-  if (ctx.get_member_state_changed())
-  {
-    svc_ko= svc_ko + listener->notify_member_state_change(view_id);
+  if (ctx.get_member_state_changed()) {
+    svc_ko = svc_ko + listener->notify_member_state_change(view_id);
   }
 
-  if (ctx.get_member_role_changed())
-  {
-    svc_ko= svc_ko + listener->notify_member_role_change(view_id);
+  if (ctx.get_member_role_changed()) {
+    svc_ko = svc_ko + listener->notify_member_role_change(view_id);
   }
 
   return svc_ko;
@@ -91,21 +81,19 @@ static int notify_group_member_status(Notification_context& ctx,
 
   @return false on success, true otherwise.
  */
-static bool notify(SvcTypes svc_type, Notification_context& ctx)
-{
-  SERVICE_TYPE(registry) *r= NULL;
-  SERVICE_TYPE(registry_query) *rq= NULL;
-  my_h_service_iterator h_ret_it= NULL;
-  my_h_service h_listener_svc= NULL;
-  my_h_service h_listener_default_svc= NULL;
-  bool res= false;
-  bool default_notified= false;
+static bool notify(SvcTypes svc_type, Notification_context &ctx) {
+  SERVICE_TYPE(registry) *r = NULL;
+  SERVICE_TYPE(registry_query) *rq = NULL;
+  my_h_service_iterator h_ret_it = NULL;
+  my_h_service h_listener_svc = NULL;
+  my_h_service h_listener_default_svc = NULL;
+  bool res = false;
+  bool default_notified = false;
   std::string svc_name;
   svc_notify_func notify_func_ptr;
 
-  if (!registry_module ||
-      !(r= registry_module->get_registry_handle()) ||
-      !(rq= registry_module->get_registry_query_handle()))
+  if (!registry_module || !(r = registry_module->get_registry_handle()) ||
+      !(rq = registry_module->get_registry_query_handle()))
     goto err; /* purecov: inspected */
 
   /*
@@ -116,22 +104,21 @@ static bool notify(SvcTypes svc_type, Notification_context& ctx)
     If the event is not to be notified, the function returns
     immediately.
    */
-  switch (svc_type)
-  {
-  case kGroupMembership:
-    notify_func_ptr= notify_group_membership;
-    svc_name= Registry_module_interface::SVC_NAME_MEMBERSHIP;
-    break;
-  case kGroupMemberStatus:
-    notify_func_ptr= notify_group_member_status;
-    svc_name= Registry_module_interface::SVC_NAME_STATUS;
-    break;
-  default:
-    DBUG_ASSERT(false); /* purecov: inspected */
-    /* production builds default to membership */
-    svc_name= Registry_module_interface::SVC_NAME_MEMBERSHIP;
-    notify_func_ptr= notify_group_membership;
-    break;
+  switch (svc_type) {
+    case kGroupMembership:
+      notify_func_ptr = notify_group_membership;
+      svc_name = Registry_module_interface::SVC_NAME_MEMBERSHIP;
+      break;
+    case kGroupMemberStatus:
+      notify_func_ptr = notify_group_member_status;
+      svc_name = Registry_module_interface::SVC_NAME_STATUS;
+      break;
+    default:
+      DBUG_ASSERT(false); /* purecov: inspected */
+      /* production builds default to membership */
+      svc_name = Registry_module_interface::SVC_NAME_MEMBERSHIP;
+      notify_func_ptr = notify_group_membership;
+      break;
   }
 
   /* acquire the default service */
@@ -144,22 +131,19 @@ static bool notify(SvcTypes svc_type, Notification_context& ctx)
     create iterator to navigate notification GMS change
     notification listeners
   */
-  if (rq->create(svc_name.c_str(), &h_ret_it))
-  {
+  if (rq->create(svc_name.c_str(), &h_ret_it)) {
     goto err; /* purecov: inspected */
   }
 
   /* notify all listeners */
-  while(h_ret_it != NULL &&
-        /* is_valid returns false on success */
-        rq->is_valid(h_ret_it) == false)
-  {
-    int svc_ko= 0;
-    const char *next_svc_name= NULL;
+  while (h_ret_it != NULL &&
+         /* is_valid returns false on success */
+         rq->is_valid(h_ret_it) == false) {
+    int svc_ko = 0;
+    const char *next_svc_name = NULL;
 
     /* get next registered listener */
-    if(rq->get(h_ret_it, &next_svc_name))
-      goto err; /* purecov: inspected */
+    if (rq->get(h_ret_it, &next_svc_name)) goto err; /* purecov: inspected */
 
     /*
       The iterator currently contains more service implementations than
@@ -170,87 +154,72 @@ static bool notify(SvcTypes svc_type, Notification_context& ctx)
       has a different service name.
     */
     std::string s(next_svc_name);
-    if (s.find(svc_name, 0) == std::string::npos)
-      break;
+    if (s.find(svc_name, 0) == std::string::npos) break;
 
     /* acquire next listener */
-    if(r->acquire(next_svc_name, &h_listener_svc))
+    if (r->acquire(next_svc_name, &h_listener_svc))
       goto err; /* purecov: inspected */
 
     /* don't notify the default service twice */
-    if (h_listener_svc != h_listener_default_svc ||
-        !default_notified)
-    {
+    if (h_listener_svc != h_listener_default_svc || !default_notified) {
       if (notify_func_ptr(ctx, h_listener_svc))
         LogPluginErr(WARNING_LEVEL,
                      ER_GRP_RPL_FAILED_TO_NOTIFY_GRP_MEMBERSHIP_EVENT,
                      next_svc_name); /* purecov: inspected */
 
-      default_notified= default_notified ||
-        (h_listener_svc == h_listener_default_svc);
+      default_notified =
+          default_notified || (h_listener_svc == h_listener_default_svc);
     }
 
     /* release the listener service */
-    if (r->release(h_listener_svc) || svc_ko)
-       goto err; /* purecov: inspected */
+    if (r->release(h_listener_svc) || svc_ko) goto err; /* purecov: inspected */
 
     /* update iterator */
-    if (rq->next(h_ret_it))
-      goto err; /* purecov: inspected */
+    if (rq->next(h_ret_it)) goto err; /* purecov: inspected */
   }
 
 end:
   /* release the iterator */
-  if (h_ret_it)
-    rq->release(h_ret_it);
+  if (h_ret_it) rq->release(h_ret_it);
 
   /* release the default service */
   if (h_listener_default_svc)
-    if (r->release(h_listener_default_svc))
-      res= true; /* purecov: inspected */
+    if (r->release(h_listener_default_svc)) res = true; /* purecov: inspected */
 
   return res;
 
 err:
-  res= true; /* purecov: inspected */
+  res = true; /* purecov: inspected */
   goto end;
 }
 
 /* Public Functions */
 
-bool
-notify_and_reset_ctx(Notification_context& ctx)
-{
-  bool res= false;
+bool notify_and_reset_ctx(Notification_context &ctx) {
+  bool res = false;
 
-  if (ctx.get_view_changed() || ctx.get_quorum_lost())
-  {
+  if (ctx.get_view_changed() || ctx.get_quorum_lost()) {
     /* notify membership events listeners. */
-    if (notify(kGroupMembership, ctx))
-    {
+    if (notify(kGroupMembership, ctx)) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_FAILED_TO_BROADCAST_GRP_MEMBERSHIP_NOTIFICATION);
       /* purecov: end */
-      res= true; /* purecov: inspected */
+      res = true; /* purecov: inspected */
     }
   }
 
-  if (ctx.get_member_state_changed() || ctx.get_member_role_changed())
-  {
+  if (ctx.get_member_state_changed() || ctx.get_member_role_changed()) {
     /* notify member status events listeners. */
-    if (notify(kGroupMemberStatus, ctx))
-    {
+    if (notify(kGroupMemberStatus, ctx)) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_FAILED_TO_BROADCAST_MEMBER_STATUS_NOTIFICATION);
       /* purecov: end */
-      res= true; /* purecov: inspected */
+      res = true; /* purecov: inspected */
     }
   }
 
   ctx.reset();
   return res;
 }
-
-

@@ -25,31 +25,27 @@
 
 #include <stdarg.h>
 
-#include <mysql/plugin.h>
 #include <mysql/components/services/log_builtins.h>
+#include <mysql/plugin.h>
 #include <mysqld_error.h>
 
 namespace keyring {
 
-class ILogger
-{
-public:
-  virtual void log(longlong level, const char *message)= 0;
-  virtual void log(longlong level, longlong errcode, ...)= 0;
+class ILogger {
+ public:
+  virtual void log(longlong level, const char *message) = 0;
+  virtual void log(longlong level, longlong errcode, ...) = 0;
   virtual ~ILogger() {}
 };
 
-class Logger : public ILogger
-{
-public:
+class Logger : public ILogger {
+ public:
   ~Logger() {}
-  void log(longlong level, const char *message)
-  {
+  void log(longlong level, const char *message) {
     LogPluginErr(level, ER_KEYRING_LOGGER_ERROR_MSG, message);
   }
 
-  void log(longlong level, longlong errcode, ...)
-  {
+  void log(longlong level, longlong errcode, ...) {
     va_list vl;
     va_start(vl, errcode);
     LogPluginErrV(level, errcode, vl);
@@ -57,6 +53,6 @@ public:
   }
 };
 
-} //namespace keyring
+}  // namespace keyring
 
-#endif //LOGGER_H
+#endif  // LOGGER_H

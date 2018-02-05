@@ -24,89 +24,70 @@
 
 #include <mysql/psi/mysql_file.h>
 
-#include "my_sys.h"          // MY_WME, MY_ALLOW_ZERO_PTR, MY_SEEK_SET
+#include "my_sys.h"  // MY_WME, MY_ALLOW_ZERO_PTR, MY_SEEK_SET
 
 PSI_memory_key csv_key_memory_Transparent_file;
 
-Transparent_file::Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
-{ 
-  buff= (uchar *) my_malloc(csv_key_memory_Transparent_file,
-                            buff_size*sizeof(uchar),  MYF(MY_WME)); 
+Transparent_file::Transparent_file() : lower_bound(0), buff_size(IO_SIZE) {
+  buff = (uchar *)my_malloc(csv_key_memory_Transparent_file,
+                            buff_size * sizeof(uchar), MYF(MY_WME));
 }
 
-Transparent_file::~Transparent_file()
-{ 
-  my_free(buff);
-}
+Transparent_file::~Transparent_file() { my_free(buff); }
 
-void Transparent_file::init_buff(File filedes_arg)
-{
-  filedes= filedes_arg;
+void Transparent_file::init_buff(File filedes_arg) {
+  filedes = filedes_arg;
   /* read the beginning of the file */
-  lower_bound= 0;
+  lower_bound = 0;
   mysql_file_seek(filedes, 0, MY_SEEK_SET, MYF(0));
   if (filedes && buff)
-    upper_bound= mysql_file_read(filedes, buff, buff_size, MYF(0));
+    upper_bound = mysql_file_read(filedes, buff, buff_size, MYF(0));
 }
 
-uchar *Transparent_file::ptr()
-{ 
-  return buff; 
-}
+uchar *Transparent_file::ptr() { return buff; }
 
-my_off_t Transparent_file::start()
-{ 
-  return lower_bound; 
-}
+my_off_t Transparent_file::start() { return lower_bound; }
 
-my_off_t Transparent_file::end()
-{ 
-  return upper_bound; 
-}
+my_off_t Transparent_file::end() { return upper_bound; }
 
-my_off_t Transparent_file::read_next()
-{
+my_off_t Transparent_file::read_next() {
   size_t bytes_read;
 
   /*
      No need to seek here, as the file managed by Transparent_file class
      always points to upper_bound byte
   */
-  if ((bytes_read= mysql_file_read(filedes, buff, buff_size, MYF(0)))
-      == MY_FILE_ERROR)
-    return (my_off_t) -1;
+  if ((bytes_read = mysql_file_read(filedes, buff, buff_size, MYF(0))) ==
+      MY_FILE_ERROR)
+    return (my_off_t)-1;
 
   /* end of file */
-  if (!bytes_read)
-    return (my_off_t) -1;
+  if (!bytes_read) return (my_off_t)-1;
 
-  lower_bound= upper_bound;
-  upper_bound+= bytes_read;
+  lower_bound = upper_bound;
+  upper_bound += bytes_read;
 
   return lower_bound;
 }
 
-
-char Transparent_file::get_value(my_off_t offset)
-{
+char Transparent_file::get_value(my_off_t offset) {
   size_t bytes_read;
 
   /* check boundaries */
-  if ((lower_bound <= offset) && (((my_off_t) offset) < upper_bound))
+  if ((lower_bound <= offset) && (((my_off_t)offset) < upper_bound))
     return buff[offset - lower_bound];
 
   mysql_file_seek(filedes, offset, MY_SEEK_SET, MYF(0));
   /* read appropriate portion of the file */
-  if ((bytes_read= mysql_file_read(filedes, buff, buff_size,
-                                   MYF(0))) == MY_FILE_ERROR)
+  if ((bytes_read = mysql_file_read(filedes, buff, buff_size, MYF(0))) ==
+      MY_FILE_ERROR)
     return 0;
 
-  lower_bound= offset;
-  upper_bound= lower_bound + bytes_read;
+  lower_bound = offset;
+  upper_bound = lower_bound + bytes_read;
 
   /* end of file */
-  if (upper_bound == (my_off_t) offset)
-    return 0;
+  if (upper_bound == (my_off_t)offset) return 0;
 
   return buff[0];
 }

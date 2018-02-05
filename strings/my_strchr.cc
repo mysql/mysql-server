@@ -30,7 +30,6 @@
 
 #include "m_ctype.h"
 
-
 /*
   Return pointer to first occurrence of character in a multi-byte string
   or NULL if the character doesn't appear in the multi-byte string or
@@ -45,25 +44,18 @@
 */
 
 char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
-                char c)
-{
-  while (str < end)
-  {
-    uint mbl= my_mbcharlen_ptr(cs, str, end);
-    if (mbl == 0)
-      return NULL;
-    if (mbl == 1)
-    {
-      if (*str == c)
-        return((char *)str);
+                char c) {
+  while (str < end) {
+    uint mbl = my_mbcharlen_ptr(cs, str, end);
+    if (mbl == 0) return NULL;
+    if (mbl == 1) {
+      if (*str == c) return ((char *)str);
       str++;
-    }
-    else
-      str+= mbl;
+    } else
+      str += mbl;
   }
-  return(0);
+  return (0);
 }
-
 
 /**
   Calculate the length of the initial segment of 'str' which consists
@@ -96,29 +88,22 @@ char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
   in 'reject'.
 */
 
-size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
-                  const char *str_end, const char *reject,
-                  size_t reject_length)
-{
+size_t my_strcspn(const CHARSET_INFO *cs, const char *str, const char *str_end,
+                  const char *reject, size_t reject_length) {
   const char *ptr_str, *ptr_reject;
-  const char *reject_end= reject + reject_length;
-  uint mbl= 0;
+  const char *reject_end = reject + reject_length;
+  uint mbl = 0;
 
-  for (ptr_str= str; ptr_str < str_end; ptr_str+= mbl)
-  {
-    mbl= my_mbcharlen_ptr(cs, ptr_str, str_end);
+  for (ptr_str = str; ptr_str < str_end; ptr_str += mbl) {
+    mbl = my_mbcharlen_ptr(cs, ptr_str, str_end);
 
-    if (mbl == 0)
-      return 0;
+    if (mbl == 0) return 0;
 
-    if (mbl == 1)
-    {
-      for (ptr_reject= reject; ptr_reject < reject_end; ++ptr_reject)
-      {
-        if (*ptr_reject == *ptr_str)
-          return (size_t) (ptr_str - str);
+    if (mbl == 1) {
+      for (ptr_reject = reject; ptr_reject < reject_end; ++ptr_reject) {
+        if (*ptr_reject == *ptr_str) return (size_t)(ptr_str - str);
       }
     }
   }
-  return (size_t) (ptr_str - str);
+  return (size_t)(ptr_str - str);
 }

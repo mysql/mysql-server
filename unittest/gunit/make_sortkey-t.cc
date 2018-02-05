@@ -33,8 +33,8 @@
 
 namespace make_sortkey_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
 /**
    Test that sortlength() and make_sortkey() agree on what to do:
@@ -45,17 +45,15 @@ using my_testing::Mock_error_handler;
    to put it's result somewhere in the middle.
    The buffer should be unchanged outside of the area determined by sortlength.
  */
-class MakeSortKeyTest : public ::testing::Test
-{
-protected:
-  MakeSortKeyTest()
-  {
-    m_sort_fields[0]= st_sort_field();
-    m_sort_fields[1]= st_sort_field();
-    m_sort_param.local_sortorder=
-      Bounds_checked_array<st_sort_field>(m_sort_fields, 1);
+class MakeSortKeyTest : public ::testing::Test {
+ protected:
+  MakeSortKeyTest() {
+    m_sort_fields[0] = st_sort_field();
+    m_sort_fields[1] = st_sort_field();
+    m_sort_param.local_sortorder =
+        Bounds_checked_array<st_sort_field>(m_sort_fields, 1);
     memset(m_buff, 'a', sizeof(m_buff));
-    m_to= &m_buff[8];
+    m_to = &m_buff[8];
   }
 
   virtual void SetUp() { initializer.SetUp(); }
@@ -63,14 +61,11 @@ protected:
 
   THD *thd() { return initializer.thd(); }
 
-  void verify_buff(uint length)
-  {
-    for (uchar *pu= m_buff; pu < m_to; ++pu)
-    {
+  void verify_buff(uint length) {
+    for (uchar *pu = m_buff; pu < m_to; ++pu) {
       EXPECT_EQ('a', *pu) << " position " << pu - m_buff;
     }
-    for (uchar *pu= m_to + length; pu < m_buff + 100; ++pu)
-    {
+    for (uchar *pu = m_to + length; pu < m_buff + 100; ++pu) {
       EXPECT_EQ('a', *pu) << " position " << pu - m_buff;
     }
   }
@@ -78,19 +73,17 @@ protected:
   Server_initializer initializer;
 
   Sort_param m_sort_param;
-  st_sort_field m_sort_fields[2]; // sortlength() adds an end marker !!
-  uchar m_ref_buff[4];         // unused, but needed for make_sortkey()
+  st_sort_field m_sort_fields[2];  // sortlength() adds an end marker !!
+  uchar m_ref_buff[4];             // unused, but needed for make_sortkey()
   uchar m_buff[100];
   uchar *m_to;
 };
 
+TEST_F(MakeSortKeyTest, IntResult) {
+  thd()->variables.max_sort_length = 4U;
+  m_sort_fields[0].item = new Item_int(42);
 
-TEST_F(MakeSortKeyTest, IntResult)
-{
-  thd()->variables.max_sort_length= 4U;
-  m_sort_fields[0].item= new Item_int(42);
-
-  const uint total_length= sortlength(thd(), m_sort_fields, 1);
+  const uint total_length = sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(sizeof(longlong), total_length);
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
@@ -100,15 +93,13 @@ TEST_F(MakeSortKeyTest, IntResult)
   verify_buff(total_length);
 }
 
+TEST_F(MakeSortKeyTest, IntResultNull) {
+  thd()->variables.max_sort_length = 4U;
+  Item *int_item = m_sort_fields[0].item = new Item_int(42);
+  int_item->maybe_null = true;
+  int_item->null_value = true;
 
-TEST_F(MakeSortKeyTest, IntResultNull)
-{
-  thd()->variables.max_sort_length= 4U;
-  Item *int_item= m_sort_fields[0].item= new Item_int(42);
-  int_item->maybe_null= true;
-  int_item->null_value= true;
-
-  const uint total_length= sortlength(thd(), m_sort_fields, 1);
+  const uint total_length = sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(1 + sizeof(longlong), total_length);
   EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
@@ -118,16 +109,15 @@ TEST_F(MakeSortKeyTest, IntResultNull)
   verify_buff(total_length);
 }
 
-TEST_F(MakeSortKeyTest, DecimalResult)
-{
-  const char dec_str[]= "1234567890.1234567890";
-  thd()->variables.max_sort_length= 4U;
-  m_sort_fields[0].item=
-    new Item_decimal(POS(), dec_str, strlen(dec_str), &my_charset_bin);
+TEST_F(MakeSortKeyTest, DecimalResult) {
+  const char dec_str[] = "1234567890.1234567890";
+  thd()->variables.max_sort_length = 4U;
+  m_sort_fields[0].item =
+      new Item_decimal(POS(), dec_str, strlen(dec_str), &my_charset_bin);
   Parse_context pc(thd(), thd()->lex->current_select());
   EXPECT_FALSE(m_sort_fields[0].item->itemize(&pc, &m_sort_fields[0].item));
 
-  const uint total_length= sortlength(thd(), m_sort_fields, 1);
+  const uint total_length = sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(10U, total_length);
   EXPECT_EQ(10U, m_sort_fields[0].length);
   EXPECT_EQ(DECIMAL_RESULT, m_sort_fields[0].result_type);
@@ -137,13 +127,12 @@ TEST_F(MakeSortKeyTest, DecimalResult)
   verify_buff(total_length);
 }
 
-TEST_F(MakeSortKeyTest, RealResult)
-{
-  const char dbl_str[]= "1234567890.1234567890";
-  thd()->variables.max_sort_length= 4U;
-  m_sort_fields[0].item= new Item_float(dbl_str, strlen(dbl_str));
+TEST_F(MakeSortKeyTest, RealResult) {
+  const char dbl_str[] = "1234567890.1234567890";
+  thd()->variables.max_sort_length = 4U;
+  m_sort_fields[0].item = new Item_float(dbl_str, strlen(dbl_str));
 
-  const uint total_length= sortlength(thd(), m_sort_fields, 1);
+  const uint total_length = sortlength(thd(), m_sort_fields, 1);
   EXPECT_EQ(sizeof(double), total_length);
   EXPECT_EQ(sizeof(double), m_sort_fields[0].length);
   EXPECT_EQ(REAL_RESULT, m_sort_fields[0].result_type);
@@ -153,4 +142,4 @@ TEST_F(MakeSortKeyTest, RealResult)
   verify_buff(total_length);
 }
 
-}
+}  // namespace make_sortkey_unittest

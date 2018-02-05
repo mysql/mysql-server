@@ -33,7 +33,6 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 
-
 #ifdef HAVE_PSI_INTERFACE
 
 extern PSI_thread_key KEY_thread_x_worker;
@@ -59,10 +58,8 @@ extern PSI_memory_key KEY_memory_x_objects;
 extern PSI_memory_key KEY_memory_x_recv_buffer;
 extern PSI_memory_key KEY_memory_x_send_buffer;
 
-#endif // HAVE_PSI_INTERFACE
-
+#endif  // HAVE_PSI_INTERFACE
 
 void xpl_init_performance_schema();
 
-
-#endif // _XPL_PERFORMANCE_SCHEMA_H_
+#endif  // _XPL_PERFORMANCE_SCHEMA_H_

@@ -29,7 +29,7 @@
   A few default values for shared memory, used in multiple places.
 */
 
-#if defined (_WIN32)
+#if defined(_WIN32)
 
 /* Shared memory and named pipe connections are supported. */
 #define shared_memory_buffer_length 16000

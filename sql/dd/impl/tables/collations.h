@@ -39,14 +39,12 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Collations : public Entity_object_table_impl
-{
-public:
+class Collations : public Entity_object_table_impl {
+ public:
   static const Collations &instance();
 
-  enum enum_fields
-  {
-    FIELD_ID= static_cast<uint>(Common_field::ID),
+  enum enum_fields {
+    FIELD_ID = static_cast<uint>(Common_field::ID),
     FIELD_NAME,
     FIELD_CHARACTER_SET_ID,
     FIELD_IS_COMPILED,
@@ -55,17 +53,13 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_K_CHARACTER_SET_ID
   };
 
-  enum enum_foreign_keys
-  {
-    FK_CHARACTER_SET_ID
-  };
+  enum enum_foreign_keys { FK_CHARACTER_SET_ID };
 
   Collations();
 
@@ -79,7 +73,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__COLLATIONS_INCLUDED
+#endif  // DD_TABLES__COLLATIONS_INCLUDED

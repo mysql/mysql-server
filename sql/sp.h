@@ -35,8 +35,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "sql/item.h"        // Item::Type
-#include "sql/sp_head.h"     // Stored_program_creation_ctx
+#include "sql/item.h"     // Item::Type
+#include "sql/sp_head.h"  // Stored_program_creation_ctx
 #include "sql/sql_lex.h"
 #include "sql/thr_malloc.h"
 
@@ -46,9 +46,9 @@ class THD;
 struct LEX_USER;
 
 namespace dd {
-  class Routine;
-  class Schema;
-}
+class Routine;
+class Schema;
+}  // namespace dd
 
 class Field;
 class Sroutine_hash_entry;
@@ -58,7 +58,8 @@ struct TABLE;
 struct TABLE_LIST;
 
 typedef ulonglong sql_mode_t;
-template <typename T> class SQL_I_List;
+template <typename T>
+class SQL_I_List;
 
 enum class enum_sp_type;
 
@@ -69,14 +70,13 @@ enum class enum_sp_type;
 #define SP_DEFAULT_SUID_MAPPING SP_IS_SUID
 
 /* Max length(LONGBLOB field type length) of stored routine body */
-static const uint MYSQL_STORED_ROUTINE_BODY_LENGTH= 4294967295U;
+static const uint MYSQL_STORED_ROUTINE_BODY_LENGTH = 4294967295U;
 
 /* Max length(TEXT field type length) of stored routine comment */
-static const int MYSQL_STORED_ROUTINE_COMMENT_LENGTH= 65535;
+static const int MYSQL_STORED_ROUTINE_COMMENT_LENGTH = 65535;
 
-enum enum_sp_return_code
-{
-  SP_OK= 0,
+enum enum_sp_return_code {
+  SP_OK = 0,
 
   // Schema does not exists
   SP_NO_DB_ERROR,
@@ -103,7 +103,6 @@ enum enum_sp_return_code
   SP_INTERNAL_ERROR
 };
 
-
 /*
   Fields in mysql.proc table in 5.7. This enum is used to read and
   update mysql.routines dictionary table during upgrade scenario.
@@ -111,8 +110,7 @@ enum enum_sp_return_code
   Note:  This enum should not be used for other purpose
          as it will be removed eventually.
 */
-enum
-{
+enum {
   MYSQL_PROC_FIELD_DB = 0,
   MYSQL_PROC_FIELD_NAME,
   MYSQL_PROC_MYSQL_TYPE,
@@ -136,7 +134,6 @@ enum
   MYSQL_PROC_FIELD_COUNT
 };
 
-
 /*************************************************************************/
 
 /**
@@ -144,47 +141,37 @@ enum
   (stored procedures and functions).
 */
 
-class Stored_routine_creation_ctx : public Stored_program_creation_ctx
-{
-public:
-  static Stored_routine_creation_ctx *
-  create_routine_creation_ctx(const dd::Routine *routine);
+class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
+ public:
+  static Stored_routine_creation_ctx *create_routine_creation_ctx(
+      const dd::Routine *routine);
 
-  static Stored_routine_creation_ctx *
-  load_from_db(THD *thd, const sp_name *name, TABLE *proc_tbl);
-public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root)
-  {
-    return new (mem_root) Stored_routine_creation_ctx(m_client_cs,
-                                                      m_connection_cl,
-                                                      m_db_cl);
+  static Stored_routine_creation_ctx *load_from_db(THD *thd,
+                                                   const sp_name *name,
+                                                   TABLE *proc_tbl);
+
+ public:
+  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
+    return new (mem_root)
+        Stored_routine_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
   }
 
-protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
-  {
+ protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const {
     DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
     DBUG_RETURN(new (*THR_MALLOC) Stored_routine_creation_ctx(thd));
   }
 
-  virtual void delete_backup_ctx()
-  {
-    destroy(this);
-  }
+  virtual void delete_backup_ctx() { destroy(this); }
 
-private:
-  Stored_routine_creation_ctx(THD *thd)
-    : Stored_program_creation_ctx(thd)
-  { }
+ private:
+  Stored_routine_creation_ctx(THD *thd) : Stored_program_creation_ctx(thd) {}
 
   Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
                               const CHARSET_INFO *connection_cl,
                               const CHARSET_INFO *db_cl)
-    : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
-  { }
+      : Stored_program_creation_ctx(client_cs, connection_cl, db_cl) {}
 };
-
-
 
 /* Drop all routines in database 'db' */
 enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema);
@@ -205,7 +192,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only);
 
 sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
-                         sp_cache **cp);
+                          sp_cache **cp);
 
 enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                                      bool lookup_only, sp_head **sp);
@@ -217,14 +204,13 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
-enum_sp_return_code
-db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
-                size_t sp_db_len, const char *sp_name, size_t sp_name_len,
-                sp_head **sphp, sql_mode_t sql_mode, const char *params,
-                const char *returns, const char *body, st_sp_chistics *chistics,
-                const char *definer_user, const char *definer_host,
-                longlong created, longlong modified,
-                Stored_program_creation_ctx *creation_ctx);
+enum_sp_return_code db_load_routine(
+    THD *thd, enum_sp_type type, const char *sp_db, size_t sp_db_len,
+    const char *sp_name, size_t sp_name_len, sp_head **sphp,
+    sql_mode_t sql_mode, const char *params, const char *returns,
+    const char *body, st_sp_chistics *chistics, const char *definer_user,
+    const char *definer_host, longlong created, longlong modified,
+    Stored_program_creation_ctx *creation_ctx);
 
 bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
 
@@ -233,15 +219,13 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 
 enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 
-
 /**
   Structure that represents element in the set of stored routines
   used by statement or routine.
 */
 
-class Sroutine_hash_entry
-{
-public:
+class Sroutine_hash_entry {
+ public:
   /**
     Key identifiying routine or other object added to the set.
 
@@ -266,8 +250,7 @@ public:
   uint16 m_key_length;
   uint16 m_db_length;
 
-  enum entry_type
-  {
+  enum entry_type {
     FUNCTION,
     PROCEDURE,
     TRIGGER,
@@ -307,13 +290,14 @@ public:
   };
 
   entry_type type() const { return (entry_type)m_key[0]; }
-  const char *db() const { return (char*)m_key + 1; }
+  const char *db() const { return (char *)m_key + 1; }
   size_t db_length() const { return m_db_length; }
-  const char *name() const { return (char*)m_key + 1 + m_db_length + 1; }
-  size_t name_length() const
-  { return m_key_length - 1U - m_db_length - 1U - 1U; }
+  const char *name() const { return (char *)m_key + 1 + m_db_length + 1; }
+  size_t name_length() const {
+    return m_key_length - 1U - m_db_length - 1U - 1U;
+  }
 
-  const char *part_mdl_key() { return (char*)m_key + 1; }
+  const char *part_mdl_key() { return (char *)m_key + 1; }
   size_t part_mdl_key_length() { return m_key_length - 1U; }
 
   /**
@@ -340,14 +324,12 @@ public:
   int64 m_cache_version;
 };
 
-
 /*
   Procedures for handling sets of stored routines used by statement or routine.
 */
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         Sroutine_hash_entry::entry_type type,
-                         const char *db, size_t db_length,
-                         const char *name, size_t name_length,
+                         Sroutine_hash_entry::entry_type type, const char *db,
+                         size_t db_length, const char *name, size_t name_length,
                          bool lowercase_db, bool lowercase_name,
                          bool own_routine, TABLE_LIST *belong_to_view);
 
@@ -356,49 +338,42 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
   stored procedure or function which are explicitly used by the statement.
 */
 
-inline bool
-sp_add_own_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                        Sroutine_hash_entry::entry_type type, sp_name *sp_name)
-{
+inline bool sp_add_own_used_routine(Query_tables_list *prelocking_ctx,
+                                    Query_arena *arena,
+                                    Sroutine_hash_entry::entry_type type,
+                                    sp_name *sp_name) {
   DBUG_ASSERT(type == Sroutine_hash_entry::FUNCTION ||
               type == Sroutine_hash_entry::PROCEDURE);
 
-  return sp_add_used_routine(prelocking_ctx, arena, type,
-                             sp_name->m_db.str, sp_name->m_db.length,
-                             sp_name->m_name.str, sp_name->m_name.length,
-                             false, true, true, nullptr);
+  return sp_add_used_routine(
+      prelocking_ctx, arena, type, sp_name->m_db.str, sp_name->m_db.length,
+      sp_name->m_name.str, sp_name->m_name.length, false, true, true, nullptr);
 }
 
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
-void sp_update_stmt_used_routines
-  (THD *thd, Query_tables_list *prelocking_ctx,
-   malloc_unordered_map<std::string, Sroutine_hash_entry*> *src,
-   TABLE_LIST *belong_to_view);
+void sp_update_stmt_used_routines(
+    THD *thd, Query_tables_list *prelocking_ctx,
+    malloc_unordered_map<std::string, Sroutine_hash_entry *> *src,
+    TABLE_LIST *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   SQL_I_List<Sroutine_hash_entry> *src,
                                   TABLE_LIST *belong_to_view);
 
-const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen);
+const uchar *sp_sroutine_key(const uchar *ptr, size_t *plen);
 
 sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
                                         const dd::Routine *routine,
                                         bool *free_sp_head);
 
-bool load_charset(MEM_ROOT *mem_root,
-                  Field *field,
-                  const CHARSET_INFO *dflt_cs,
+bool load_charset(MEM_ROOT *mem_root, Field *field, const CHARSET_INFO *dflt_cs,
                   const CHARSET_INFO **cs);
 
-bool load_collation(MEM_ROOT *mem_root,
-                    Field *field,
-                    const CHARSET_INFO *dflt_cl,
-                    const CHARSET_INFO **cl);
+bool load_collation(MEM_ROOT *mem_root, Field *field,
+                    const CHARSET_INFO *dflt_cl, const CHARSET_INFO **cl);
 
 ///////////////////////////////////////////////////////////////////////////
 
-sp_head *sp_start_parsing(THD *thd,
-                          enum_sp_type sp_type,
-                          sp_name *sp_name);
+sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name);
 
 void sp_finish_parsing(THD *thd);
 
@@ -410,10 +385,10 @@ uint sp_get_flags_for_command(LEX *lex);
 
 bool sp_check_name(LEX_STRING *ident);
 
-TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
-                                   const char *db, const char *name);
+TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex, const char *db,
+                                   const char *name);
 
-Item *sp_prepare_func_item(THD* thd, Item **it_addr);
+Item *sp_prepare_func_item(THD *thd, Item **it_addr);
 
 bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
 

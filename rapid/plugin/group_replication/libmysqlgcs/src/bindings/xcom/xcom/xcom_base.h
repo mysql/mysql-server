@@ -32,7 +32,6 @@ extern "C" {
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
 #define XCOM_THREAD_DEBUG 1
@@ -125,16 +124,17 @@ void start_run_tasks();
 #define x_state_list \
   X(x_start)         \
   X(x_boot) X(x_recover) X(x_run) X(x_done) X(x_snapshot_wait) X(x_recover_wait)
-#define x_actions                                                       \
-  X(xa_wait)                                                            \
-  X(xa_poll)                                                            \
-  X(xa_init)                                                            \
-  X(xa_u_boot)                                                          \
-  X(xa_add)                                                             \
-  X(xa_net_boot)                                                        \
-  X(xa_force_config)                                                    \
-  X(xa_snapshot) X(xa_snapshot_wait) X(xa_need_snapshot) X(xa_complete) \
-      X(xa_terminate) X(xa_exit) X(xa_timeout)
+#define x_actions     \
+  X(xa_wait)          \
+  X(xa_poll)          \
+  X(xa_init)          \
+  X(xa_u_boot)        \
+  X(xa_add)           \
+  X(xa_net_boot)      \
+  X(xa_force_config)  \
+  X(xa_snapshot)      \
+  X(xa_snapshot_wait) \
+  X(xa_need_snapshot) X(xa_complete) X(xa_terminate) X(xa_exit) X(xa_timeout)
 #define X(a) a,
 enum xcom_state { x_state_list };
 typedef enum xcom_state xcom_state;
@@ -226,9 +226,8 @@ int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);
 
-static inline char *strerr_msg(char *buf, size_t len, int nr)
-{
-#if defined (_WIN32)
+static inline char *strerr_msg(char *buf, size_t len, int nr) {
+#if defined(_WIN32)
   strerror_s(buf, len, nr);
 #else
   snprintf(buf, len, "%s", strerror(nr));

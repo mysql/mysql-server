@@ -27,27 +27,26 @@
 
 #include "client/client_priv.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
 /**
   Interface for classes that are capable of creating connection to
   MySQL database server.
  */
-class I_connection_factory
-{
-public:
+class I_connection_factory {
+ public:
   virtual ~I_connection_factory() {}
 
   /**
     Provides new connection to MySQL database server.
    */
-  virtual MYSQL* create_connection()= 0;
+  virtual MYSQL *create_connection() = 0;
 };
 
-}
-}
-}
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

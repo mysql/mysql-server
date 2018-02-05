@@ -27,7 +27,6 @@
 
 #include "my_inttypes.h"
 
-
 /**
   This function retrieves serialized meta data from the data dictionary
   for the given schema and table. The serialized meta data may be used
@@ -46,10 +45,8 @@
 */
 
 bool create_serialized_meta_data(const char *schema_name,
-                                 const char *table_name,
-                                 uchar **meta_data,
+                                 const char *table_name, uchar **meta_data,
                                  size_t *meta_data_length);
-
 
 /**
   This function takes the submitted serialized meta data, de-serializes
@@ -66,9 +63,7 @@ bool create_serialized_meta_data(const char *schema_name,
 */
 
 bool import_serialized_meta_data(const uchar *meta_data,
-                                 size_t meta_data_length,
-                                 bool readonly);
-
+                                 size_t meta_data_length, bool readonly);
 
 /**
   This function takes the two submitted serialized meta data blobs,

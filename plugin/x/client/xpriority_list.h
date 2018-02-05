@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,13 +31,11 @@
 #include <algorithm>
 #include <list>
 
-
 namespace xcl {
 
-template<typename Element_type,
-         bool (*Priority_compare)(
-             const Element_type &,
-             const Element_type &) = Element_type::compare>
+template <typename Element_type,
+          bool (*Priority_compare)(const Element_type &, const Element_type &) =
+              Element_type::compare>
 class Priority_list {
  public:
   using Iterator = typename std::list<Element_type>::iterator;
@@ -45,11 +43,8 @@ class Priority_list {
  public:
   void push_front(const Element_type &n) {
     const auto i = std::find_if(
-        m_list.begin(),
-        m_list.end(),
-        [&n] (const Element_type &e) {
-          return !Priority_compare(e, n);
-        });
+        m_list.begin(), m_list.end(),
+        [&n](const Element_type &e) { return !Priority_compare(e, n); });
 
     if (m_list.end() == i) {
       m_list.push_back(n);
@@ -62,11 +57,8 @@ class Priority_list {
 
   void push_back(const Element_type &n) {
     const auto i = std::find_if(
-        m_list.rbegin(),
-        m_list.rend(),
-        [&n] (const Element_type &e) {
-            return !Priority_compare(n, e);
-        });
+        m_list.rbegin(), m_list.rend(),
+        [&n](const Element_type &e) { return !Priority_compare(n, e); });
 
     if (m_list.rend() == i) {
       m_list.push_front(n);
@@ -77,21 +69,13 @@ class Priority_list {
     m_list.insert(i.base(), n);
   }
 
-  void erase(Iterator i) {
-    m_list.erase(i);
-  }
+  void erase(Iterator i) { m_list.erase(i); }
 
-  void clear() {
-    m_list.clear();
-  }
+  void clear() { m_list.clear(); }
 
-  Iterator begin() {
-    return m_list.begin();
-  }
+  Iterator begin() { return m_list.begin(); }
 
-  Iterator end() {
-    return m_list.end();
-  }
+  Iterator end() { return m_list.end(); }
 
  private:
   std::list<Element_type> m_list;

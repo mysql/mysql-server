@@ -40,23 +40,18 @@
   @{
 */
 
-class PFS_index_esms_by_digest : public PFS_engine_index
-{
-public:
+class PFS_index_esms_by_digest : public PFS_engine_index {
+ public:
   PFS_index_esms_by_digest()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("SCHEMA_NAME"),
-      m_key_2("DIGEST")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("SCHEMA_NAME"),
+        m_key_2("DIGEST") {}
 
-  ~PFS_index_esms_by_digest()
-  {
-  }
+  ~PFS_index_esms_by_digest() {}
 
   virtual bool match(PFS_statements_digest_stat *pfs);
 
-private:
+ private:
   PFS_key_schema m_key_1;
   PFS_key_digest m_key_2;
 };
@@ -65,8 +60,7 @@ private:
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
 */
-struct row_esms_by_digest
-{
+struct row_esms_by_digest {
   /** Columns DIGEST/DIGEST_TEXT. */
   PFS_digest_row m_digest;
 
@@ -94,9 +88,8 @@ struct row_esms_by_digest
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
-class table_esms_by_digest : public PFS_engine_table
-{
-public:
+class table_esms_by_digest : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -111,23 +104,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_esms_by_digest();
 
-public:
-  ~table_esms_by_digest()
-  {
-  }
+ public:
+  ~table_esms_by_digest() {}
 
-protected:
+ protected:
   int make_row(PFS_statements_digest_stat *);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

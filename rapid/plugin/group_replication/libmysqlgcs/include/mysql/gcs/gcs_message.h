@@ -43,9 +43,8 @@
 
  For a full usage example, check the Gcs_message documentation.
  */
-class Gcs_message_data
-{
-public:
+class Gcs_message_data {
+ public:
   /**
     Constructor of Gcs_message_data which pre-allocates space to store
     the header and payload and should be used when creating messages to
@@ -65,9 +64,7 @@ public:
   */
   explicit Gcs_message_data(const uint64_t data_len);
 
-
   virtual ~Gcs_message_data();
-
 
   /**
     Appends data to the header of the message. The data MUST have been
@@ -84,7 +81,6 @@ public:
 
   bool append_to_header(const uchar *to_append, uint32_t to_append_len);
 
-
   /**
     Appends data to the payload of the message. The data MUST have been
     previously encoded in little endian format.
@@ -99,7 +95,6 @@ public:
   */
 
   bool append_to_payload(const uchar *to_append, uint64_t to_append_len);
-
 
   /**
    Release the buffer's owership which means that this object will not
@@ -132,22 +127,20 @@ public:
 
   bool encode(uchar **buffer, uint64_t *buffer_len);
 
-
   /**
    Encodes the header and payload into a buffer provided by the caller.
    If the buffer is not large enough to store the encoded data or is a
    NULL pointer, an error is returned.
 
    @param [in,out] buffer Buffer to store the encoded data in the message.
-   @param [in,out] buffer_len The length of the buffer where the data is to be stored.
-   It contains the length of the data dumped into the buffer once the function
-   succeeds.
+   @param [in,out] buffer_len The length of the buffer where the data is to be
+   stored. It contains the length of the data dumped into the buffer once the
+   function succeeds.
 
    @return true on error, false otherwise.
    */
 
   bool encode(uchar *buffer, uint64_t *buffer_len);
-
 
   /**
     Decodes data received via GCS and that belongs to a message. After
@@ -171,13 +164,11 @@ public:
 
   const uchar *get_header() const;
 
-
   /**
     @return the message header length
   */
 
   uint32_t get_header_length() const;
-
 
   /**
     @return the message payload in little endian format
@@ -185,13 +176,11 @@ public:
 
   const uchar *get_payload() const;
 
-
   /**
     @return the message payload_length
   */
 
   uint64_t get_payload_length() const;
-
 
   /**
     @return the size of the encoded data when put on the wire.
@@ -199,13 +188,11 @@ public:
 
   uint64_t get_encode_size() const;
 
-
   /**
     @return the size of the encoded payload when put on the wire.
   */
 
   uint64_t get_encode_payload_size() const;
-
 
   /**
     @return the size of the encoded header when put on the wire.
@@ -213,7 +200,7 @@ public:
 
   uint64_t get_encode_header_size() const;
 
-private:
+ private:
   /*
     Pointer to the header's buffer.
   */
@@ -275,10 +262,9 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_message_data(Gcs_message_data const&);
-  Gcs_message_data& operator=(Gcs_message_data const&);
+  Gcs_message_data(Gcs_message_data const &);
+  Gcs_message_data &operator=(Gcs_message_data const &);
 };
-
 
 /**
   @class Gcs_message
@@ -348,9 +334,8 @@ private:
   }
   @endcode
 */
-class Gcs_message
-{
-public:
+class Gcs_message {
+ public:
   /**
     Gcs_message 1st constructor. This is used to build full messages.
 
@@ -366,7 +351,6 @@ public:
                        const Gcs_group_identifier &destination,
                        Gcs_message_data *message_data);
 
-
   /**
     Gcs_message 2nd constructor. This is used to send messages but with
     an external Gcs_message_data object.
@@ -381,9 +365,7 @@ public:
   explicit Gcs_message(const Gcs_member_identifier &origin,
                        Gcs_message_data *message_data);
 
-
   virtual ~Gcs_message();
-
 
   /**
     @return the origin of this message
@@ -391,13 +373,11 @@ public:
 
   const Gcs_member_identifier &get_origin() const;
 
-
   /**
     @return the destination of this message. It might be NULL.
   */
 
   const Gcs_group_identifier *get_destination() const;
-
 
   /**
     @return the message data to be filled.
@@ -405,21 +385,20 @@ public:
 
   Gcs_message_data &get_message_data() const;
 
-
-private:
+ private:
   void init(const Gcs_member_identifier *origin,
             const Gcs_group_identifier *destination,
             Gcs_message_data *message_data);
 
   Gcs_member_identifier *m_origin;
-  Gcs_group_identifier  *m_destination;
-  Gcs_message_data      *m_data;
+  Gcs_group_identifier *m_destination;
+  Gcs_message_data *m_data;
 
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_message(Gcs_message const&);
-  Gcs_message& operator=(Gcs_message const&);
+  Gcs_message(Gcs_message const &);
+  Gcs_message &operator=(Gcs_message const &);
 };
 
-#endif // GCS_GCS_MESSAGE_INCLUDED
+#endif  // GCS_GCS_MESSAGE_INCLUDED

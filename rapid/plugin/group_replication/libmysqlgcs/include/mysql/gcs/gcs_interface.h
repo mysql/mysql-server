@@ -32,7 +32,6 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_statistics_interface.h"
 
-
 /**
   @interface Gcs_interface
 
@@ -79,10 +78,8 @@
     group_if->finalize();
   @endcode
 */
-class Gcs_interface
-{
-public:
-
+class Gcs_interface {
+ public:
   /**
     Method used by a binding implementation in order to implement any
     internal startup procedure.
@@ -91,9 +88,8 @@ public:
             gcs_error in case of error.
   */
 
-  virtual enum_gcs_error
-  initialize(const Gcs_interface_parameters &interface_params)= 0;
-
+  virtual enum_gcs_error initialize(
+      const Gcs_interface_parameters &interface_params) = 0;
 
   /**
     Method used to report if the binding interface has already been
@@ -102,8 +98,7 @@ public:
     @retval true if already initialized
   */
 
-  virtual bool is_initialized()= 0;
-
+  virtual bool is_initialized() = 0;
 
   /**
     Method used by a binding implementation in order to implement any type of
@@ -119,9 +114,8 @@ public:
             gcs_error in case of error.
   */
 
-  virtual enum_gcs_error
-  configure(const Gcs_interface_parameters &interface_params)= 0;
-
+  virtual enum_gcs_error configure(
+      const Gcs_interface_parameters &interface_params) = 0;
 
   /**
     Method used by a binding implementation in order to implement any
@@ -131,8 +125,7 @@ public:
             gcs_error in case of error
   */
 
-  virtual enum_gcs_error finalize()= 0;
-
+  virtual enum_gcs_error finalize() = 0;
 
   /**
     Method that retrieves the binding implementation of the Control Session
@@ -144,9 +137,8 @@ public:
             in case of error.
   */
 
-  virtual Gcs_control_interface *
-  get_control_session(const Gcs_group_identifier &group_identifier)= 0;
-
+  virtual Gcs_control_interface *get_control_session(
+      const Gcs_group_identifier &group_identifier) = 0;
 
   /**
     Method that retrieves the binding implementation of the Communication
@@ -158,9 +150,8 @@ public:
             NULL, in case of error.
   */
 
-  virtual Gcs_communication_interface *
-  get_communication_session(const Gcs_group_identifier &group_identifier)= 0;
-
+  virtual Gcs_communication_interface *get_communication_session(
+      const Gcs_group_identifier &group_identifier) = 0;
 
   /**
     Method that retrieves the binding implementation of the Statistics
@@ -172,9 +163,8 @@ public:
             NULL, in case of error.
   */
 
-  virtual Gcs_statistics_interface *
-  get_statistics(const Gcs_group_identifier &group_identifier)= 0;
-
+  virtual Gcs_statistics_interface *get_statistics(
+      const Gcs_group_identifier &group_identifier) = 0;
 
   /**
     Method that retrieves the binding implementation of the Group
@@ -182,12 +172,11 @@ public:
 
     @param[in] group_identifier the group in which this implementation pertains
 
-    @return A valid reference to a Gcs_group_management_interface implementation,
-            NULL, in case of error.
+    @return A valid reference to a Gcs_group_management_interface
+    implementation, NULL, in case of error.
   */
-  virtual Gcs_group_management_interface *
-        get_management_session(const Gcs_group_identifier &group_identifier)= 0;
-
+  virtual Gcs_group_management_interface *get_management_session(
+      const Gcs_group_identifier &group_identifier) = 0;
 
   /**
     Method that retrieves the binding implementation of the Group
@@ -198,24 +187,20 @@ public:
     @retval GCS_OK in case of everything goes well. Any other value of
             gcs_error in case of error
   */
-  virtual enum_gcs_error set_logger(Logger_interface *logger)= 0;
-
+  virtual enum_gcs_error set_logger(Logger_interface *logger) = 0;
 
   virtual ~Gcs_interface() {}
 };
-
 
 /**
   Enum that lists all implementations of Gcs_interface available to be
   returned
 */
-enum enum_available_interfaces
-{
+enum enum_available_interfaces {
   /* XCom binding implementation */
   XCOM,
   NONE
 };
-
 
 /**
   @class Gcs_interface_factory
@@ -223,9 +208,8 @@ enum enum_available_interfaces
   @brief This class shall be used by an API user as an aggregator utility to
   retrieve implementations of Gcs_interface.
 */
-class Gcs_interface_factory
-{
-public:
+class Gcs_interface_factory {
+ public:
   /**
     Static method that allows retrieval of an instantiated implementation
     of a binding implementation.
@@ -236,9 +220,8 @@ public:
             error.
   */
 
-  static Gcs_interface*
-  get_interface_implementation(enum_available_interfaces binding);
-
+  static Gcs_interface *get_interface_implementation(
+      enum_available_interfaces binding);
 
   /**
     Static method that allows retrieval of an instantiated implementation
@@ -251,9 +234,8 @@ public:
             error.
   */
 
-  static Gcs_interface *
-  get_interface_implementation(const std::string &binding);
-
+  static Gcs_interface *get_interface_implementation(
+      const std::string &binding);
 
   /**
     Static method that allows the cleanup of the Gcs_interface singleton
@@ -262,9 +244,7 @@ public:
     @param[in] binding an enum value of the binding implementation to retrieve.
   */
 
-  static
-  void cleanup(enum_available_interfaces binding);
-
+  static void cleanup(enum_available_interfaces binding);
 
   /**
     Static method that allows the cleanup of the Gcs_interface singleton
@@ -274,9 +254,7 @@ public:
                        the binding implementation to retrieve.
   */
 
-  static
-  void cleanup(const std::string& binding);
-
+  static void cleanup(const std::string &binding);
 
   /**
     Static method that cleans up thread-local communication resources in the
@@ -286,9 +264,8 @@ public:
     @param[in] binding an enum value of the binding implementation to retrieve.
   */
 
-  static void
-  cleanup_thread_communication_resources(enum_available_interfaces binding);
-
+  static void cleanup_thread_communication_resources(
+      enum_available_interfaces binding);
 
   /**
     Static method that cleans up thread-local communication resources in the
@@ -299,12 +276,11 @@ public:
                        the binding implementation to retrieve.
   */
 
-  static
-  void cleanup_thread_communication_resources(const std::string& binding);
+  static void cleanup_thread_communication_resources(
+      const std::string &binding);
 
-
-private:
+ private:
   static enum_available_interfaces from_string(const std::string &binding);
 };
 
-#endif // gcs_interface_INCLUDED
+#endif  // gcs_interface_INCLUDED

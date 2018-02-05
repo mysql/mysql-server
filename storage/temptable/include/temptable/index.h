@@ -26,8 +26,8 @@ TempTable Index declarations. */
 #ifndef TEMPTABLE_INDEX_H
 #define TEMPTABLE_INDEX_H
 
-#include "my_dbug.h"              /* DBUG_ASSERT() */
-#include "sql/key.h"              /* KEY */
+#include "my_dbug.h"                                       /* DBUG_ASSERT() */
+#include "sql/key.h"                                       /* KEY */
 #include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
 #include "storage/temptable/include/temptable/containers.h" /* temptable::*container */
 #include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
@@ -61,9 +61,9 @@ class Index {
   Index(
       /** [in] Table where this index belongs, used only for fetching metadata
        * of its columns. */
-      const Table& table,
+      const Table &table,
       /** [in] MySQL index, for querying metadata. */
-      const KEY& mysql_index);
+      const KEY &mysql_index);
 
   /** Destructor. */
   virtual ~Index();
@@ -72,10 +72,10 @@ class Index {
    * @return Result::OK or another Result::* error code */
   virtual Result insert(
       /** [in] Indexed cells to insert. */
-      const Indexed_cells& indexed_cells,
+      const Indexed_cells &indexed_cells,
       /** [out] If insert succeeds (Result::OK) this will be set to the position
        * inside the index where the new indexed cells where inserted. */
-      Cursor* insert_position) = 0;
+      Cursor *insert_position) = 0;
 
   /** Lookup (search) an indexed cells.
    * @retval Lookup::FOUND the provided `search_cells` were found and `first`
@@ -87,9 +87,9 @@ class Index {
    * not found and `first` is undefined. */
   virtual Lookup lookup(
       /** [in] Indexed cells to search for. */
-      const Indexed_cells& search_cells,
+      const Indexed_cells &search_cells,
       /** [out] First indexed cells that were found, see above. */
-      Cursor* first) const = 0;
+      Cursor *first) const = 0;
 
   /** Lookup (search) an indexed cells.
    * @retval Lookup::FOUND the provided `search_cells` were found, `first`
@@ -100,13 +100,13 @@ class Index {
    * positioned on the next indexed cells in index order.
    * @retval Lookup::NOT_FOUND_CURSOR_UNDEFINED the provided `search_cells` were
    * not found and `first` and `after_last` are undefined. */
-  virtual Lookup lookup(const Indexed_cells& search_cells, Cursor* first,
-                        Cursor* after_last) const = 0;
+  virtual Lookup lookup(const Indexed_cells &search_cells, Cursor *first,
+                        Cursor *after_last) const = 0;
 
   /** Erase the indexed cells pointer to by a cursor. */
   virtual void erase(
       /** [in] Position to erase. */
-      const Cursor& target) = 0;
+      const Cursor &target) = 0;
 
   /** Truncate the index, deleting all of its entries. */
   virtual void truncate() = 0;
@@ -125,50 +125,50 @@ class Index {
 
   /** Get the Nth indexed column.
    * @return the Nth indexed column */
-  const Indexed_column& indexed_column(
+  const Indexed_column &indexed_column(
       /** [in] Index of the column to fetch,
        * must be < `number_of_indexed_columns()`. */
       size_t i) const;
 
   /** Get the table of the index.
    * @return table */
-  const Table& table() const;
+  const Table &table() const;
 
   /** Get the MySQL index structure which corresponds to this index.
    * @return mysql index */
-  const KEY& mysql_index() const;
+  const KEY &mysql_index() const;
 
  private:
   /** Number of indexed columns. */
   size_t m_number_of_indexed_columns;
 
   /** Table of the index. */
-  const Table& m_table;
+  const Table &m_table;
 
   /** Indexed columns metadata, from [0, m_number_of_indexed_columns). */
   std::array<Indexed_column, MAX_REF_PARTS> m_indexed_columns;
 
   /** MySQL index. */
-  const KEY* m_mysql_index;
+  const KEY *m_mysql_index;
 };
 
 class Tree : public Index {
  public:
   typedef Tree_container Container;
 
-  Tree(const Table& table, const KEY& mysql_index,
-       const Allocator<Indexed_cells>& allocator);
+  Tree(const Table &table, const KEY &mysql_index,
+       const Allocator<Indexed_cells> &allocator);
 
-  Result insert(const Indexed_cells& indexed_cells,
-                Cursor* insert_position) override;
+  Result insert(const Indexed_cells &indexed_cells,
+                Cursor *insert_position) override;
 
-  Lookup lookup(const Indexed_cells& search_cells,
-                Cursor* first) const override;
+  Lookup lookup(const Indexed_cells &search_cells,
+                Cursor *first) const override;
 
-  Lookup lookup(const Indexed_cells& search_cells, Cursor* first,
-                Cursor* after_last) const override;
+  Lookup lookup(const Indexed_cells &search_cells, Cursor *first,
+                Cursor *after_last) const override;
 
-  void erase(const Cursor& target) override;
+  void erase(const Cursor &target) override;
 
   void truncate() override;
 
@@ -184,19 +184,19 @@ class Hash_duplicates : public Index {
  public:
   typedef Hash_duplicates_container Container;
 
-  Hash_duplicates(const Table& table, const KEY& mysql_index,
-                  const Allocator<Indexed_cells>& allocator);
+  Hash_duplicates(const Table &table, const KEY &mysql_index,
+                  const Allocator<Indexed_cells> &allocator);
 
-  Result insert(const Indexed_cells& indexed_cells,
-                Cursor* insert_position) override;
+  Result insert(const Indexed_cells &indexed_cells,
+                Cursor *insert_position) override;
 
-  Lookup lookup(const Indexed_cells& search_cells,
-                Cursor* first) const override;
+  Lookup lookup(const Indexed_cells &search_cells,
+                Cursor *first) const override;
 
-  Lookup lookup(const Indexed_cells& search_cells, Cursor* first,
-                Cursor* after_last) const override;
+  Lookup lookup(const Indexed_cells &search_cells, Cursor *first,
+                Cursor *after_last) const override;
 
-  void erase(const Cursor& target) override;
+  void erase(const Cursor &target) override;
 
   void truncate() override;
 
@@ -211,19 +211,19 @@ class Hash_unique : public Index {
  public:
   typedef Hash_unique_container Container;
 
-  Hash_unique(const Table& table, const KEY& mysql_index,
-              const Allocator<Indexed_cells>& allocator);
+  Hash_unique(const Table &table, const KEY &mysql_index,
+              const Allocator<Indexed_cells> &allocator);
 
-  Result insert(const Indexed_cells& indexed_cells,
-                Cursor* insert_position) override;
+  Result insert(const Indexed_cells &indexed_cells,
+                Cursor *insert_position) override;
 
-  Lookup lookup(const Indexed_cells& search_cells,
-                Cursor* first) const override;
+  Lookup lookup(const Indexed_cells &search_cells,
+                Cursor *first) const override;
 
-  Lookup lookup(const Indexed_cells& search_cells, Cursor* first,
-                Cursor* after_last) const override;
+  Lookup lookup(const Indexed_cells &search_cells, Cursor *first,
+                Cursor *after_last) const override;
 
-  void erase(const Cursor& target) override;
+  void erase(const Cursor &target) override;
 
   void truncate() override;
 
@@ -240,14 +240,14 @@ inline size_t Index::number_of_indexed_columns() const {
   return m_number_of_indexed_columns;
 }
 
-inline const Indexed_column& Index::indexed_column(size_t i) const {
+inline const Indexed_column &Index::indexed_column(size_t i) const {
   DBUG_ASSERT(i < m_indexed_columns.size());
   return m_indexed_columns[i];
 }
 
-inline const Table& Index::table() const { return m_table; }
+inline const Table &Index::table() const { return m_table; }
 
-inline const KEY& Index::mysql_index() const { return *m_mysql_index; }
+inline const KEY &Index::mysql_index() const { return *m_mysql_index; }
 
 } /* namespace temptable */
 

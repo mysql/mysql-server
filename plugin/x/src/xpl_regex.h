@@ -36,6 +36,6 @@ class Regex {
  private:
   my_regex_t m_re;
 };
-}
+}  // namespace xpl
 
 #endif  // XPL_REGEX_H_

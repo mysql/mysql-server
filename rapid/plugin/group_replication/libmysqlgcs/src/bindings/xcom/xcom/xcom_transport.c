@@ -331,8 +331,7 @@ int apply_xdr(xcom_proto x_proto, void *buff, uint32_t bufflen,
 static void dump_header(char *buf) {
   char *end = buf + MSG_HDR_SIZE;
   GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-    return;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
   STRLIT("message header ");
   PTREXP(buf);
   while (buf < end) {
@@ -359,7 +358,7 @@ static bool_t x_putlong(XDR *xdrs,
 #else
                         const long *longp MY_ATTRIBUTE((unused))
 #endif
-                            ) {
+) {
   xdrs->x_handy += BYTES_PER_XDR_UNIT;
   return TRUE;
 }
@@ -834,7 +833,7 @@ int tcp_server(task_arg arg) {
       shut_close_socket(&ep->cfd);
       ep->cfd = -1;
     }
-    if(ep->cfd == -1){
+    if (ep->cfd == -1) {
       G_DEBUG("accept failed");
       ep->refused = 1;
       TASK_DELAY(0.1);
@@ -1127,7 +1126,8 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
 
   @param[in]     rfd Pointer to open connection.
   @param[in,out] buf Used for buffering reads.
-                     Originally initialized by caller, maintained by buffered_read_bytes.
+                     Originally initialized by caller, maintained by
+  buffered_read_bytes.
   @param[out]    p   Output buffer.
   @param[in]     n   Number of bytes to read
   @param[out]    s   Pointer to server.
@@ -1137,8 +1137,8 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
     @retval 0 if task should terminate.
     @retval 1 if it should continue.
 */
-static int	buffered_read_bytes(connection_descriptor const * rfd, srv_buf *buf,
-                                char *p, uint32_t n, server *s, int64_t *ret) {
+static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
+                               char *p, uint32_t n, server *s, int64_t *ret) {
   DECL_ENV
   uint32_t left;
   char *bytes;
@@ -1226,7 +1226,7 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
     ep->bytes = NULL;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
-    TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, s, &ep->n));
+    TASK_CALL(read_bytes(rfd, (char *)ep->header_buf, MSG_HDR_SIZE, s, &ep->n));
 
     if (ep->n != MSG_HDR_SIZE) {
       G_INFO("Failure reading from fd=%d n=%" PRIu64, rfd->fd, ep->n);
@@ -1303,8 +1303,8 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
   TASK_END;
 }
 
-int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf,
-                      pax_msg *p, server *s, int64_t *ret) {
+int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
+                      server *s, int64_t *ret) {
   int deserialize_ok = 0;
 
   DECL_ENV
@@ -1325,8 +1325,8 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf,
     ep->bytes = NULL;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
-    TASK_CALL(buffered_read_bytes(rfd, buf, (char*)ep->header_buf, MSG_HDR_SIZE,
-                                  s, &ep->n));
+    TASK_CALL(buffered_read_bytes(rfd, buf, (char *)ep->header_buf,
+                                  MSG_HDR_SIZE, s, &ep->n));
 
     if (ep->n != MSG_HDR_SIZE) {
       DBGOUT(FN; NDBG64(ep->n));
@@ -1410,7 +1410,7 @@ int recv_proto(connection_descriptor const *rfd, xcom_proto *x_proto,
 
   /* Read length field, protocol version, and checksum */
   ep->n = 0;
-  TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, 0, &ep->n));
+  TASK_CALL(read_bytes(rfd, (char *)ep->header_buf, MSG_HDR_SIZE, 0, &ep->n));
 
   if (ep->n != MSG_HDR_SIZE) {
     DBGOUT(FN; NDBG64(ep->n));
@@ -1498,7 +1498,8 @@ int sender_task(task_arg arg) {
       if (0 && link_empty(&ep->s->outgoing.data)) {
         TASK_DELAY(0.1 * xcom_drand48());
       }
-      /*      FWD_ITER(&ep->s->outgoing.data, msg_link, DBGOUT(FN; PTREXP(link_iter));); */
+      /*      FWD_ITER(&ep->s->outgoing.data, msg_link, DBGOUT(FN;
+       * PTREXP(link_iter));); */
       if (link_empty(&ep->s->outgoing.data)) {
         TASK_CALL(flush_srv_buf(ep->s, &ret));
       }
@@ -1657,7 +1658,7 @@ static xcom_port get_port(char *a) {
   return 0;
 }
 
-xcom_port xcom_get_port(char *a) { return a ? get_port(a): 0; }
+xcom_port xcom_get_port(char *a) { return a ? get_port(a) : 0; }
 
 static server *find_server(server *table[], int n, char *name, xcom_port port) {
   int i;
@@ -1689,8 +1690,7 @@ void update_servers(site_def *s, cargo_type operation) {
         G_INFO("Re-using server node %d host %s", i, name);
         free(name);
         s->servers[i] = sp;
-        if(sp->invalid)
-          sp->invalid= 0;
+        if (sp->invalid) sp->invalid = 0;
       } else { /* No server? Create one */
         G_INFO("Creating new server node %d host %s", i, name);
         if (port > 0)
@@ -1708,8 +1708,8 @@ void update_servers(site_def *s, cargo_type operation) {
      If we have a force config, mark the servers that do not belong to this
      configuration as invalid
      */
-    if(operation == force_config_type) {
-      const site_def* old_site_def= get_prev_site_def();
+    if (operation == force_config_type) {
+      const site_def *old_site_def = get_prev_site_def();
       invalidate_servers(old_site_def, s);
     }
   }
@@ -1721,26 +1721,24 @@ void update_servers(site_def *s, cargo_type operation) {
 
   This is only to be used if we are forcing a configuration.
  */
-void invalidate_servers(const site_def* old_site_def,
-                        const site_def* new_site_def) {
-  u_int node= 0;
-  for(; node < get_maxnodes(old_site_def); node++){
-    node_address* node_addr_from_old_site_def=
-                                  &old_site_def->nodes.node_list_val[node];
+void invalidate_servers(const site_def *old_site_def,
+                        const site_def *new_site_def) {
+  u_int node = 0;
+  for (; node < get_maxnodes(old_site_def); node++) {
+    node_address *node_addr_from_old_site_def =
+        &old_site_def->nodes.node_list_val[node];
 
-    if(!node_exists(node_addr_from_old_site_def, &new_site_def->nodes))
-    {
+    if (!node_exists(node_addr_from_old_site_def, &new_site_def->nodes)) {
       char *addr = node_addr_from_old_site_def->address;
       char *name = get_name(addr);
       xcom_port port = get_port(addr);
 
       server *sp = find_server(all_servers, maxservers, name, port);
       if (sp) {
-        sp->invalid= 1;
+        sp->invalid = 1;
       }
 
-      if(name)
-        free(name);
+      if (name) free(name);
     }
   }
 }
@@ -1903,7 +1901,7 @@ int client_task(task_arg arg) {
   free(ep->s);
   TASK_END;
 }
-/* purecov: end */
+  /* purecov: end */
 
 #ifdef XCOM_HAVE_OPENSSL
 void ssl_free_con(connection_descriptor *con) {

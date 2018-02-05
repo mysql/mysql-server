@@ -28,9 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/src/statement_builder.h"
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include "plugin/x/src/statement_builder.h"
 
 namespace ngs {
 class Sql_session_interface;
@@ -68,11 +68,10 @@ class Insert_statement_builder : public Crud_statement_builder {
 
  protected:
   using Projection_list =
-      ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Column>;
-  using Field_list =
-      ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::Expr>;
+      ::google::protobuf::RepeatedPtrField<::Mysqlx::Crud::Column>;
+  using Field_list = ::google::protobuf::RepeatedPtrField<::Mysqlx::Expr::Expr>;
   using Row_list =
-      ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Insert_TypedRow>;
+      ::google::protobuf::RepeatedPtrField<::Mysqlx::Crud::Insert_TypedRow>;
   using Placeholder = ::google::protobuf::uint32;
 
   void add_projection(const Projection_list &projection,

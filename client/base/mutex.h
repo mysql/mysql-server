@@ -25,35 +25,32 @@
 #ifndef MUTEX_INCLUDED
 #define MUTEX_INCLUDED
 
-
 #include "my_thread.h"
 #include "thr_mutex.h"
 
-namespace my_boost{
+namespace my_boost {
 
-class mutex
-{
-public:
+class mutex {
+ public:
   mutex();
   ~mutex();
   void lock();
   bool try_lock();
   void unlock();
 
-  class scoped_lock
-  {
-  public:
-    scoped_lock(my_boost::mutex& mutex_to_lock);
+  class scoped_lock {
+   public:
+    scoped_lock(my_boost::mutex &mutex_to_lock);
     ~scoped_lock();
 
-  private:
-    my_boost::mutex& m_mutex;
+   private:
+    my_boost::mutex &m_mutex;
   };
 
-private:
+ private:
   native_mutex_t m_mutex;
 };
 
-}
+}  // namespace my_boost
 
 #endif

@@ -44,20 +44,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Add new commands to the end of this list, otherwise old
   servers won't be able to handle them as 'unsupported'.
 */
-enum enum_server_command
-{
+enum enum_server_command {
   /**
     Currently refused by the server. See ::dispatch_command.
     Also used internally to mark the start of a session.
   */
   COM_SLEEP,
-  COM_QUIT,           /**< See @ref page_protocol_com_quit */
-  COM_INIT_DB,        /**< See @ref page_protocol_com_init_db */
-  COM_QUERY,          /**< See @ref page_protocol_com_query */
-  COM_FIELD_LIST,     /**< Depreated. See @ref page_protocol_com_field_list */
-  COM_CREATE_DB,      /**< Currently refused by the server. See ::dispatch_command */
-  COM_DROP_DB,        /**< Currently refused by the server. See ::dispatch_command */
-  COM_REFRESH,        /**< Depreated. See @ref page_protocol_com_refresh */
+  COM_QUIT,       /**< See @ref page_protocol_com_quit */
+  COM_INIT_DB,    /**< See @ref page_protocol_com_init_db */
+  COM_QUERY,      /**< See @ref page_protocol_com_query */
+  COM_FIELD_LIST, /**< Depreated. See @ref page_protocol_com_field_list */
+  COM_CREATE_DB, /**< Currently refused by the server. See ::dispatch_command */
+  COM_DROP_DB,   /**< Currently refused by the server. See ::dispatch_command */
+  COM_REFRESH,   /**< Depreated. See @ref page_protocol_com_refresh */
   COM_DEPRECATED_1,   /**< deprecated, used to be COM_SHUTDOWN */
   COM_STATISTICS,     /**< See @ref page_protocol_com_statistics */
   COM_PROCESS_INFO,   /**< Depreated. See @ref page_protocol_com_process_info */
@@ -72,11 +71,12 @@ enum enum_server_command
   COM_TABLE_DUMP,
   COM_CONNECT_OUT,
   COM_REGISTER_SLAVE,
-  COM_STMT_PREPARE,   /**< See @ref page_protocol_com_stmt_prepare */
-  COM_STMT_EXECUTE,   /**< See @ref page_protocol_com_stmt_execute */
-  COM_STMT_SEND_LONG_DATA,  /**< See @ref page_protocol_com_stmt_send_long_data */
-  COM_STMT_CLOSE,     /**< See @ref page_protocol_com_stmt_close */
-  COM_STMT_RESET,     /**< See @ref page_protocol_com_stmt_reset */
+  COM_STMT_PREPARE,        /**< See @ref page_protocol_com_stmt_prepare */
+  COM_STMT_EXECUTE,        /**< See @ref page_protocol_com_stmt_execute */
+  COM_STMT_SEND_LONG_DATA, /**< See @ref page_protocol_com_stmt_send_long_data
+                            */
+  COM_STMT_CLOSE,          /**< See @ref page_protocol_com_stmt_close */
+  COM_STMT_RESET,          /**< See @ref page_protocol_com_stmt_reset */
   COM_SET_OPTION,
   COM_STMT_FETCH,
   /**
@@ -91,11 +91,11 @@ enum enum_server_command
   */
   COM_DAEMON,
   COM_BINLOG_DUMP_GTID,
-  COM_RESET_CONNECTION,  /**< See @ref page_protocol_com_reset_connection */
+  COM_RESET_CONNECTION, /**< See @ref page_protocol_com_reset_connection */
   /* don't forget to update const char *command_name[] in sql_parse.cc */
 
   /* Must be last */
-  COM_END             /**< Not a real command. Refused. */
+  COM_END /**< Not a real command. Refused. */
 };
 
 #endif /* _mysql_command_h */

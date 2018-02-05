@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,10 +29,10 @@
 #include <cstring>
 #include <stdexcept>
 
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <wolfssl_fix_namespace_pollution.h>
+#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include "my_dbug.h"
 #include "plugin/x/client/mysql41_hash.h"
@@ -40,31 +40,24 @@
 #define PVERSION41_CHAR '*'
 #define SCRAMBLE_LENGTH 20
 
-
 namespace xcl {
 namespace password_hasher {
 namespace {
 
-const char *_dig_vec_upper =
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const char *_dig_vec_upper = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-void compute_two_stage_mysql41_hash(const char *password,
-                                    size_t pass_len,
+void compute_two_stage_mysql41_hash(const char *password, size_t pass_len,
                                     uint8_t *hash_stage1,
                                     uint8_t *hash_stage2) {
   /* Stage 1: hash pwd */
-  compute_mysql41_hash(
-      hash_stage1,
-      password,
-      static_cast<unsigned>(pass_len));
+  compute_mysql41_hash(hash_stage1, password, static_cast<unsigned>(pass_len));
 
   /* Stage 2 : hash first stage's output. */
   compute_mysql41_hash(hash_stage2, (const char *)hash_stage1,
                        MYSQL41_HASH_SIZE);
 }
 
-void my_crypt(char *to, const uint8_t *s1, const uint8_t *s2,
-                               size_t len) {
+void my_crypt(char *to, const uint8_t *s1, const uint8_t *s2, size_t len) {
   const uint8_t *s1_end = s1 + len;
 
   while (s1 < s1_end) *to++ = *s1++ ^ *s2++;
@@ -85,13 +78,12 @@ void my_crypt(char *to, const uint8_t *s1, const uint8_t *s2,
 char *octet2hex(char *to, const char *str, size_t len) {
   const char *str_end = str + len;
   for (; str != str_end; ++str) {
-    *to++ = _dig_vec_upper[((uint8_t) * str) >> 4];
-    *to++ = _dig_vec_upper[((uint8_t) * str) & 0x0F];
+    *to++ = _dig_vec_upper[((uint8_t)*str) >> 4];
+    *to++ = _dig_vec_upper[((uint8_t)*str) & 0x0F];
   }
   *to = '\0';
   return to;
 }
-
 
 /** Generate human readable string from the binary
  *  result from hashing function.
@@ -100,12 +92,11 @@ char *octet2hex(char *to, const char *str, size_t len) {
  *          human readable version of hash_stage2.
  */
 std::string get_password_from_salt(const std::string &hash_stage2) {
-  const std::uint8_t result_size = 2 * MYSQL41_HASH_SIZE +
-      1 /* '\0' sign */ + 1 /* '*' sign */;
+  const std::uint8_t result_size =
+      2 * MYSQL41_HASH_SIZE + 1 /* '\0' sign */ + 1 /* '*' sign */;
   char result[result_size] = {0};
 
-  if (hash_stage2.length() != MYSQL41_HASH_SIZE)
-    return "";
+  if (hash_stage2.length() != MYSQL41_HASH_SIZE) return "";
 
   result[0] = PVERSION41_CHAR;
   octet2hex(&result[1], &hash_stage2[0], MYSQL41_HASH_SIZE);
@@ -130,8 +121,7 @@ std::string generate_user_salt() {
   return result;
 }
 
-bool check_scramble_mysql41_hash(const char *scramble_arg,
-                                 const char *message,
+bool check_scramble_mysql41_hash(const char *scramble_arg, const char *message,
                                  const uint8_t *hash_stage2) {
   char buf[MYSQL41_HASH_SIZE];
   uint8_t hash_stage2_reassured[MYSQL41_HASH_SIZE];
@@ -153,8 +143,7 @@ bool check_scramble_mysql41_hash(const char *scramble_arg,
   return 0 == memcmp(hash_stage2, hash_stage2_reassured, MYSQL41_HASH_SIZE);
 }
 
-std::string scramble(const char *message,
-                     const char *password) {
+std::string scramble(const char *message, const char *password) {
   uint8_t hash_stage1[MYSQL41_HASH_SIZE];
   uint8_t hash_stage2[MYSQL41_HASH_SIZE];
   std::string result(SCRAMBLE_LENGTH, '\0');

@@ -41,51 +41,47 @@
 THR_LOCK table_performance_timers::m_table_lock;
 
 Plugin_table table_performance_timers::m_table_def(
-  /* Schema name */
-  "performance_schema",
-  /* Name */
-  "performance_timers",
-  /* Definition */
-  "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') NOT "
-  "NULL,\n"
-  "  TIMER_FREQUENCY BIGINT,\n"
-  "  TIMER_RESOLUTION BIGINT,\n"
-  "  TIMER_OVERHEAD BIGINT\n",
-  /* Options */
-  " ENGINE=PERFORMANCE_SCHEMA",
-  /* Tablespace */
-  nullptr);
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "performance_timers",
+    /* Definition */
+    "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') "
+    "NOT "
+    "NULL,\n"
+    "  TIMER_FREQUENCY BIGINT,\n"
+    "  TIMER_RESOLUTION BIGINT,\n"
+    "  TIMER_OVERHEAD BIGINT\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
 
 PFS_engine_table_share table_performance_timers::m_share = {
-  &pfs_readonly_acl,
-  table_performance_timers::create,
-  NULL, /* write_row */
-  NULL, /* delete_all_rows */
-  table_performance_timers::get_row_count,
-  sizeof(PFS_simple_index), /* ref length */
-  &m_table_lock,
-  &m_table_def,
-  false, /* perpetual */
-  PFS_engine_table_proxy(),
-  {0},
-  false /* m_in_purgatory */
+    &pfs_readonly_acl,
+    table_performance_timers::create,
+    NULL, /* write_row */
+    NULL, /* delete_all_rows */
+    table_performance_timers::get_row_count,
+    sizeof(PFS_simple_index), /* ref length */
+    &m_table_lock,
+    &m_table_def,
+    false, /* perpetual */
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
 };
 
-PFS_engine_table *
-table_performance_timers::create(PFS_engine_table_share *)
-{
+PFS_engine_table *table_performance_timers::create(PFS_engine_table_share *) {
   return new table_performance_timers();
 }
 
-ha_rows
-table_performance_timers::get_row_count(void)
-{
+ha_rows table_performance_timers::get_row_count(void) {
   return COUNT_TIMER_NAME;
 }
 
 table_performance_timers::table_performance_timers()
-  : PFS_engine_table(&m_share, &m_pos), m_row(NULL), m_pos(0), m_next_pos(0)
-{
+    : PFS_engine_table(&m_share, &m_pos), m_row(NULL), m_pos(0), m_next_pos(0) {
   int index;
 
   index = (int)TIMER_NAME_CYCLE - FIRST_TIMER_NAME;
@@ -105,28 +101,21 @@ table_performance_timers::table_performance_timers()
   m_data[index].m_info = pfs_timer_info.milliseconds;
 }
 
-void
-table_performance_timers::reset_position(void)
-{
+void table_performance_timers::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int
-table_performance_timers::rnd_next(void)
-{
+int table_performance_timers::rnd_next(void) {
   int result;
 
   m_pos.set_at(&m_next_pos);
 
-  if (m_pos.m_index < COUNT_TIMER_NAME)
-  {
+  if (m_pos.m_index < COUNT_TIMER_NAME) {
     m_row = &m_data[m_pos.m_index];
     m_next_pos.set_after(&m_pos);
     result = 0;
-  }
-  else
-  {
+  } else {
     m_row = NULL;
     result = HA_ERR_END_OF_FILE;
   }
@@ -134,21 +123,15 @@ table_performance_timers::rnd_next(void)
   return result;
 }
 
-int
-table_performance_timers::rnd_pos(const void *pos)
-{
+int table_performance_timers::rnd_pos(const void *pos) {
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index < COUNT_TIMER_NAME);
   m_row = &m_data[m_pos.m_index];
   return 0;
 }
 
-int
-table_performance_timers::read_row_values(TABLE *table,
-                                          unsigned char *buf,
-                                          Field **fields,
-                                          bool read_all)
-{
+int table_performance_timers::read_row_values(TABLE *table, unsigned char *buf,
+                                              Field **fields, bool read_all) {
   Field *f;
 
   DBUG_ASSERT(m_row);
@@ -157,47 +140,35 @@ table_performance_timers::read_row_values(TABLE *table,
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  for (; (f = *fields); fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch (f->field_index)
-      {
-      case 0: /* TIMER_NAME */
-        set_field_enum(f, m_row->m_timer_name);
-        break;
-      case 1: /* TIMER_FREQUENCY */
-        if (m_row->m_info.routine != 0)
-        {
-          set_field_ulonglong(f, m_row->m_info.frequency);
-        }
-        else
-        {
-          f->set_null();
-        }
-        break;
-      case 2: /* TIMER_RESOLUTION */
-        if (m_row->m_info.routine != 0)
-        {
-          set_field_ulonglong(f, m_row->m_info.resolution);
-        }
-        else
-        {
-          f->set_null();
-        }
-        break;
-      case 3: /* TIMER_OVERHEAD */
-        if (m_row->m_info.routine != 0)
-        {
-          set_field_ulonglong(f, m_row->m_info.overhead);
-        }
-        else
-        {
-          f->set_null();
-        }
-        break;
-      default:
-        DBUG_ASSERT(false);
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /* TIMER_NAME */
+          set_field_enum(f, m_row->m_timer_name);
+          break;
+        case 1: /* TIMER_FREQUENCY */
+          if (m_row->m_info.routine != 0) {
+            set_field_ulonglong(f, m_row->m_info.frequency);
+          } else {
+            f->set_null();
+          }
+          break;
+        case 2: /* TIMER_RESOLUTION */
+          if (m_row->m_info.routine != 0) {
+            set_field_ulonglong(f, m_row->m_info.resolution);
+          } else {
+            f->set_null();
+          }
+          break;
+        case 3: /* TIMER_OVERHEAD */
+          if (m_row->m_info.routine != 0) {
+            set_field_ulonglong(f, m_row->m_info.overhead);
+          } else {
+            f->set_null();
+          }
+          break;
+        default:
+          DBUG_ASSERT(false);
       }
     }
   }

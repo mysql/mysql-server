@@ -25,12 +25,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/src/udf/registrator.h"
 
-
 namespace xpl {
 namespace udf {
 Registrator::Record get_mysqlx_error_record();
-}  // namespace xpl
-} // namespace xpl
+}  // namespace udf
+}  // namespace xpl
 
 #endif  // PLUGIN_X_SRC_UDF_MYSQLX_ERROR_H
-

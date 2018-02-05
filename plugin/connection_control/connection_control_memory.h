@@ -26,35 +26,24 @@
 #include <limits>
 #include <memory>
 
-namespace connection_control
-{
-  template <class T>
-  T Connection_control_malloc(size_t size)
-  {
-    void *allocated_memory= my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(MY_WME));
-    return allocated_memory ? reinterpret_cast<T>(allocated_memory) : NULL;
-  }
-
-  class Connection_control_alloc
-  {
-    public:
-      static void *operator new(size_t size) throw ()
-      {
-        return Connection_control_malloc<void*>(size);
-      }
-      static void *operator new[](size_t size) throw ()
-      {
-        return Connection_control_malloc<void*>(size);
-      }
-      static void operator delete(void* ptr, std::size_t)
-      {
-          my_free(ptr);
-      }
-      static void operator delete[](void* ptr, std::size_t)
-      {
-          my_free(ptr);
-      }
-  };
+namespace connection_control {
+template <class T>
+T Connection_control_malloc(size_t size) {
+  void *allocated_memory = my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(MY_WME));
+  return allocated_memory ? reinterpret_cast<T>(allocated_memory) : NULL;
 }
 
-#endif //CONNECTION_CONTROL_MEMORY_H
+class Connection_control_alloc {
+ public:
+  static void *operator new(size_t size) throw() {
+    return Connection_control_malloc<void *>(size);
+  }
+  static void *operator new[](size_t size) throw() {
+    return Connection_control_malloc<void *>(size);
+  }
+  static void operator delete(void *ptr, std::size_t) { my_free(ptr); }
+  static void operator delete[](void *ptr, std::size_t) { my_free(ptr); }
+};
+}  // namespace connection_control
+
+#endif  // CONNECTION_CONTROL_MEMORY_H

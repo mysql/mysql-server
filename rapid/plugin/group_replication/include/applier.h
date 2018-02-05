@@ -35,13 +35,12 @@
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin_utils.h"
 
-
-//Define the applier packet types
-#define ACTION_PACKET_TYPE  2
-#define VIEW_CHANGE_PACKET_TYPE  3
+// Define the applier packet types
+#define ACTION_PACKET_TYPE 2
+#define VIEW_CHANGE_PACKET_TYPE 3
 #define SINGLE_PRIMARY_PACKET_TYPE 4
 
-//Define the applier return error codes
+// Define the applier return error codes
 #define APPLIER_GTID_CHECK_TIMEOUT_ERROR -1
 #define APPLIER_RELAY_LOG_NOT_INITED -2
 #define APPLIER_THREAD_ABORTED -3
@@ -49,31 +48,26 @@
 extern char applier_module_channel_name[];
 
 /* Types of action packets used in the context of the applier module */
-enum enum_packet_action
-{
-  TERMINATION_PACKET=0,  //Packet for a termination action
-  SUSPENSION_PACKET,     //Packet to signal something to suspend
-  ACTION_NUMBER= 2       //The number of actions
+enum enum_packet_action {
+  TERMINATION_PACKET = 0,  // Packet for a termination action
+  SUSPENSION_PACKET,       // Packet to signal something to suspend
+  ACTION_NUMBER = 2        // The number of actions
 };
 
 /**
   @class Action_packet
   A packet to control the applier in a event oriented way.
 */
-class Action_packet: public Packet
-{
-public:
-
+class Action_packet : public Packet {
+ public:
   /**
     Create a new action packet.
     @param  action           the packet action
   */
   Action_packet(enum_packet_action action)
-    :Packet(ACTION_PACKET_TYPE), packet_action(action)
-  {
-  }
+      : Packet(ACTION_PACKET_TYPE), packet_action(action) {}
 
-  ~Action_packet()  {}
+  ~Action_packet() {}
 
   enum_packet_action packet_action;
 };
@@ -82,18 +76,15 @@ public:
   @class View_change_packet
   A packet to send view change related info to the applier
 */
-class View_change_packet: public Packet
-{
-public:
+class View_change_packet : public Packet {
+ public:
   /**
     Create a new data packet with associated data.
 
     @param  view_id_arg    The view id associated to this view
   */
-  View_change_packet(std::string& view_id_arg)
-    :Packet(VIEW_CHANGE_PACKET_TYPE), view_id(view_id_arg)
-  {
-  }
+  View_change_packet(std::string &view_id_arg)
+      : Packet(VIEW_CHANGE_PACKET_TYPE), view_id(view_id_arg) {}
 
   ~View_change_packet() {}
 
@@ -105,14 +96,9 @@ public:
   @class Single_primary_action_packet
   A packet to send new primary election related info to the applier
 */
-class Single_primary_action_packet: public Packet
-{
-public:
-  enum enum_action
-  {
-    NEW_PRIMARY= 0,
-    QUEUE_APPLIED= 1
-  };
+class Single_primary_action_packet : public Packet {
+ public:
+  enum enum_action { NEW_PRIMARY = 0, QUEUE_APPLIED = 1 };
 
   /**
     Create a new single primary action packet with associated data.
@@ -120,9 +106,7 @@ public:
     @param  action_arg       the packet action
   */
   Single_primary_action_packet(enum enum_action action_arg)
-    :Packet(SINGLE_PRIMARY_PACKET_TYPE), action(action_arg)
-  {
-  }
+      : Packet(SINGLE_PRIMARY_PACKET_TYPE), action(action_arg) {}
 
   virtual ~Single_primary_action_packet() {}
 
@@ -130,42 +114,40 @@ public:
 };
 
 typedef enum enum_applier_state {
-  APPLIER_STATE_ON= 1,
+  APPLIER_STATE_ON = 1,
   APPLIER_STATE_OFF,
   APPLIER_ERROR
 } Member_applier_state;
 
-class Applier_module_interface
-{
-
-public:
+class Applier_module_interface {
+ public:
   virtual ~Applier_module_interface() {}
-  virtual Certification_handler* get_certification_handler()= 0;
-  virtual int wait_for_applier_complete_suspension(bool *abort_flag,
-                                                   bool wait_for_execution= true)= 0;
-  virtual void awake_applier_module()= 0;
-  virtual void interrupt_applier_suspension_wait()= 0;
-  virtual int wait_for_applier_event_execution(double timeout,
-                                               bool check_and_purge_partial_transactions)= 0;
-  virtual size_t get_message_queue_size()= 0;
-  virtual Member_applier_state get_applier_status()= 0;
-  virtual void add_suspension_packet()= 0;
-  virtual void add_view_change_packet(View_change_packet *packet)= 0;
-  virtual void add_single_primary_action_packet(Single_primary_action_packet *packet)= 0;
-  virtual int handle(const uchar *data, ulong len)= 0;
-  virtual int handle_pipeline_action(Pipeline_action *action)= 0;
-  virtual Flow_control_module* get_flow_control_module()= 0;
-  virtual void run_flow_control_step()= 0;
-  virtual int purge_applier_queue_and_restart_applier_module()= 0;
+  virtual Certification_handler *get_certification_handler() = 0;
+  virtual int wait_for_applier_complete_suspension(
+      bool *abort_flag, bool wait_for_execution = true) = 0;
+  virtual void awake_applier_module() = 0;
+  virtual void interrupt_applier_suspension_wait() = 0;
+  virtual int wait_for_applier_event_execution(
+      double timeout, bool check_and_purge_partial_transactions) = 0;
+  virtual size_t get_message_queue_size() = 0;
+  virtual Member_applier_state get_applier_status() = 0;
+  virtual void add_suspension_packet() = 0;
+  virtual void add_view_change_packet(View_change_packet *packet) = 0;
+  virtual void add_single_primary_action_packet(
+      Single_primary_action_packet *packet) = 0;
+  virtual int handle(const uchar *data, ulong len) = 0;
+  virtual int handle_pipeline_action(Pipeline_action *action) = 0;
+  virtual Flow_control_module *get_flow_control_module() = 0;
+  virtual void run_flow_control_step() = 0;
+  virtual int purge_applier_queue_and_restart_applier_module() = 0;
   virtual void kill_pending_transactions(bool set_read_mode,
-                                         bool threaded_sql_session)= 0;
-  virtual uint64 get_pipeline_stats_member_collector_transactions_applied_during_recovery()= 0;
+                                         bool threaded_sql_session) = 0;
+  virtual uint64
+  get_pipeline_stats_member_collector_transactions_applied_during_recovery() = 0;
 };
 
-class Applier_module: public Applier_module_interface
-{
-
-public:
+class Applier_module : public Applier_module_interface {
+ public:
   Applier_module();
   ~Applier_module();
 
@@ -194,8 +176,7 @@ public:
       @retval 0      no
       @retval !=0    yes
   */
-  bool is_applier_thread_aborted()
-  {
+  bool is_applier_thread_aborted() {
     return (applier_aborted || applier_thd->killed);
   }
 
@@ -206,10 +187,7 @@ public:
       @retval 0      no
       @retval !=0    yes
   */
-  bool is_running()
-  {
-    return (applier_thd_state.is_running());
-  }
+  bool is_running() { return (applier_thd_state.is_running()); }
 
   /**
     Configure the applier pipeline according to the given configuration
@@ -225,10 +203,8 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int setup_applier_module(Handler_pipeline_type pipeline_type,
-                           bool reset_logs,
-                           ulong stop_timeout,
-                           rpl_sidno group_sidno,
+  int setup_applier_module(Handler_pipeline_type pipeline_type, bool reset_logs,
+                           ulong stop_timeout, rpl_sidno group_sidno,
                            ulonglong gtid_assignment_block_size,
                            Shared_writelock *shared_stop_lock);
 
@@ -249,7 +225,6 @@ public:
       @retval !=0    Error
   */
   virtual int purge_applier_queue_and_restart_applier_module();
-
 
   /**
     Runs the applier thread process, reading events and processing them.
@@ -273,8 +248,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle(const uchar *data, ulong len)
-  {
+  int handle(const uchar *data, ulong len) {
     this->incoming->push(new Data_packet(data, len));
     return 0;
   }
@@ -288,8 +262,7 @@ public:
       @retval 0      OK
       @retval !=0    Error executing the action
   */
-  int handle_pipeline_action(Pipeline_action *action)
-  {
+  int handle_pipeline_action(Pipeline_action *action) {
     return this->pipeline->handle_action(action);
   }
 
@@ -303,7 +276,7 @@ public:
        @retval 0      OK
        @retval !=0    Error on queue
    */
-  int inject_event_into_pipeline(Pipeline_event* pevent, Continuation* cont);
+  int inject_event_into_pipeline(Pipeline_event *pevent, Continuation *cont);
 
   /**
     Terminates the pipeline, shutting down the handlers and deleting them.
@@ -321,12 +294,12 @@ public:
 
     @param[in]  timeout      the timeout
   */
-  void set_stop_wait_timeout (ulong timeout){
-    stop_wait_timeout= timeout;
+  void set_stop_wait_timeout(ulong timeout) {
+    stop_wait_timeout = timeout;
 
-    //Configure any thread based applier
-    Handler_applier_configuration_action *conf_action=
-      new Handler_applier_configuration_action(timeout);
+    // Configure any thread based applier
+    Handler_applier_configuration_action *conf_action =
+        new Handler_applier_configuration_action(timeout);
     pipeline->handle_action(conf_action);
 
     delete conf_action;
@@ -335,7 +308,7 @@ public:
   /**
    This method informs the applier module that an applying thread stopped
   */
-  void inform_of_applier_stop(char* channel_name, bool aborted);
+  void inform_of_applier_stop(char *channel_name, bool aborted);
 
   // Packet based interface methods
 
@@ -345,8 +318,7 @@ public:
 
     @note This will happen only after all the previous packets are processed.
   */
-  virtual void add_suspension_packet()
-  {
+  virtual void add_suspension_packet() {
     this->incoming->push(new Action_packet(SUSPENSION_PACKET));
   }
 
@@ -357,8 +329,7 @@ public:
 
     @note This will happen only after all the previous packets are processed.
   */
-  void add_termination_packet()
-  {
+  void add_termination_packet() {
     this->incoming->push(new Action_packet(TERMINATION_PACKET));
   }
 
@@ -371,8 +342,7 @@ public:
 
     @param[in]  packet              The view change packet to be queued
   */
-  virtual void add_view_change_packet(View_change_packet *packet)
-  {
+  virtual void add_view_change_packet(View_change_packet *packet) {
     incoming->push(packet);
   }
 
@@ -383,18 +353,16 @@ public:
 
     @param[in]  packet              The packet to be queued
   */
-  void add_single_primary_action_packet(Single_primary_action_packet *packet)
-  {
+  void add_single_primary_action_packet(Single_primary_action_packet *packet) {
     incoming->push(packet);
   }
 
   /**
    Awakes the applier module
   */
-  virtual void awake_applier_module()
-  {
+  virtual void awake_applier_module() {
     mysql_mutex_lock(&suspend_lock);
-    suspended= false;
+    suspended = false;
     mysql_mutex_unlock(&suspend_lock);
     mysql_cond_broadcast(&suspend_cond);
   }
@@ -412,8 +380,8 @@ public:
      @retval 0      OK
      @retval !=0    Error when accessing the applier module status
   */
-  virtual int wait_for_applier_complete_suspension(bool *abort_flag,
-                                                   bool wait_for_execution= true);
+  virtual int wait_for_applier_complete_suspension(
+      bool *abort_flag, bool wait_for_execution = true);
 
   /**
    Interrupts the current applier waiting process either for it's suspension
@@ -451,8 +419,8 @@ public:
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  virtual int wait_for_applier_event_execution(double timeout,
-                                               bool check_and_purge_partial_transactions);
+  virtual int wait_for_applier_event_execution(
+      double timeout, bool check_and_purge_partial_transactions);
 
   /**
     Returns the handler instance in the applier module responsible for
@@ -464,40 +432,33 @@ public:
       @retval !=NULL The certification handler
       @retval NULL   No certification handler present
   */
-  virtual Certification_handler* get_certification_handler();
+  virtual Certification_handler *get_certification_handler();
 
   /**
     Returns the applier module's queue size.
 
     @return the size of the queue
   */
-  virtual size_t get_message_queue_size()
-  {
-    return incoming->size();
-  }
+  virtual size_t get_message_queue_size() { return incoming->size(); }
 
-  virtual Member_applier_state get_applier_status()
-  {
-    if(applier_thd_state.is_running())
+  virtual Member_applier_state get_applier_status() {
+    if (applier_thd_state.is_running())
       return APPLIER_STATE_ON;
-    else if(suspended)          /* purecov: inspected */
+    else if (suspended)         /* purecov: inspected */
       return APPLIER_STATE_OFF; /* purecov: inspected */
     else
-      return APPLIER_ERROR;     /* purecov: inspected */
+      return APPLIER_ERROR; /* purecov: inspected */
   }
 
-  Pipeline_stats_member_collector* get_pipeline_stats_member_collector()
-  {
+  Pipeline_stats_member_collector *get_pipeline_stats_member_collector() {
     return &pipeline_stats_member_collector;
   }
 
-  Flow_control_module* get_flow_control_module()
-  {
+  Flow_control_module *get_flow_control_module() {
     return &flow_control_module;
   }
 
-  virtual void run_flow_control_step()
-  {
+  virtual void run_flow_control_step() {
     flow_control_module.flow_control_step(&pipeline_stats_member_collector);
   }
 
@@ -508,8 +469,7 @@ public:
     @param threaded_sql_session  if true, creates a thread to open the
                                  SQL session
   */
-  void kill_pending_transactions(bool set_read_mode,
-                                 bool threaded_sql_session);
+  void kill_pending_transactions(bool set_read_mode, bool threaded_sql_session);
 
   /**
     Return the number of transactions applied during recovery from the pipeline
@@ -517,14 +477,14 @@ public:
 
     @return number of transactions applied during recovery
   */
-  uint64 get_pipeline_stats_member_collector_transactions_applied_during_recovery()
-  {
-    return pipeline_stats_member_collector.get_transactions_applied_during_recovery();
+  uint64
+  get_pipeline_stats_member_collector_transactions_applied_during_recovery() {
+    return pipeline_stats_member_collector
+        .get_transactions_applied_during_recovery();
   }
 
-private:
-
-  //Applier packet handlers
+ private:
+  // Applier packet handlers
 
   /**
     Apply an action packet received by the applier.
@@ -551,8 +511,7 @@ private:
   */
   int apply_view_change_packet(View_change_packet *view_change_packet,
                                Format_description_log_event *fde_evt,
-                               IO_CACHE *cache,
-                               Continuation *cont);
+                               IO_CACHE *cache, Continuation *cont);
 
   /**
     Apply a Data packet received by the applier.
@@ -568,8 +527,7 @@ private:
       @retval !=0    Error when injecting event
   */
   int apply_data_packet(Data_packet *data_packet,
-                        Format_description_log_event *fde_evt,
-                        IO_CACHE *cache,
+                        Format_description_log_event *fde_evt, IO_CACHE *cache,
                         Continuation *cont);
 
   /**
@@ -590,8 +548,7 @@ private:
     @note if the proper condition is set, possible listeners can be awaken by
     this method.
   */
-  void suspend_applier_module()
-  {
+  void suspend_applier_module() {
     mysql_mutex_lock(&suspend_lock);
 
     suspended = true;
@@ -600,11 +557,10 @@ private:
     THD_STAGE_INFO(applier_thd, stage_suspending);
 #endif
 
-    //Alert any interested party about the applier suspension
+    // Alert any interested party about the applier suspension
     mysql_cond_broadcast(&suspension_waiting_condition);
 
-    while (suspended)
-    {
+    while (suspended) {
       mysql_cond_wait(&suspend_cond, &suspend_lock);
     }
 
@@ -644,8 +600,8 @@ private:
         @retval 0   all went fine
         @retval !=0 error
   */
-  int intersect_group_executed_sets(std::vector<std::string>& gtid_sets,
-                                    Gtid_set* output_set);
+  int intersect_group_executed_sets(std::vector<std::string> &gtid_sets,
+                                    Gtid_set *output_set);
 
   /**
     This method checks if the primary did already apply all transactions
@@ -658,18 +614,18 @@ private:
   */
   int check_single_primary_queue_status();
 
-  //applier thread variables
+  // applier thread variables
   my_thread_handle applier_pthd;
   THD *applier_thd;
 
-  //configuration options
+  // configuration options
   bool reset_applier_logs;
   rpl_sidno group_replication_sidno;
   ulonglong gtid_assignment_block_size;
 
-  //run conditions and locks
+  // run conditions and locks
   mysql_mutex_t run_lock;
-  mysql_cond_t  run_cond;
+  mysql_cond_t run_cond;
   /* Applier thread state */
   thread_state applier_thd_state;
   /* Applier abort flag */
@@ -679,7 +635,7 @@ private:
   /* Applier killed status */
   bool applier_killed_status;
 
-  //condition and lock used to suspend/awake the applier module
+  // condition and lock used to suspend/awake the applier module
   /* The lock for suspending/wait for the awake of  the applier module */
   mysql_mutex_t suspend_lock;
   /* The condition for suspending/wait for the awake of  the applier module */

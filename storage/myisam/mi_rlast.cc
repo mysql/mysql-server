@@ -24,12 +24,11 @@
 #include "my_inttypes.h"
 #include "storage/myisam/myisamdef.h"
 
-	/* Read last row with the same key as the previous read. */
+/* Read last row with the same key as the previous read. */
 
-int mi_rlast(MI_INFO *info, uchar *buf, int inx)
-{
+int mi_rlast(MI_INFO *info, uchar *buf, int inx) {
   DBUG_ENTER("mi_rlast");
-  info->lastpos= HA_OFFSET_ERROR;
-  info->update|= HA_STATE_NEXT_FOUND;
-  DBUG_RETURN(mi_rprev(info,buf,inx));
+  info->lastpos = HA_OFFSET_ERROR;
+  info->update |= HA_STATE_NEXT_FOUND;
+  DBUG_RETURN(mi_rprev(info, buf, inx));
 } /* mi_rlast */

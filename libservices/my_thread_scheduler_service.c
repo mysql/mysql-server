@@ -24,5 +24,5 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION my_thread_scheduler_service=
-  (void**)VERSION_my_thread_scheduler;
+SERVICE_VERSION my_thread_scheduler_service =
+    (void **)VERSION_my_thread_scheduler;

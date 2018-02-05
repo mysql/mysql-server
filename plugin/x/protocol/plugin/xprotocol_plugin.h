@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,31 +33,26 @@
 
 #include "plugin/x/protocol/plugin/message_field_chain.h"
 
-
 class XProtocol_plugin : public google::protobuf::compiler::CodeGenerator {
  public:
   using GeneratorContext = google::protobuf::compiler::GeneratorContext;
-  using FileDescriptor   = google::protobuf::FileDescriptor;
+  using FileDescriptor = google::protobuf::FileDescriptor;
 
  public:
   explicit XProtocol_plugin(Chain_file_output *xcontext)
-  : m_xcontext(*xcontext) {
-  }
+      : m_xcontext(*xcontext) {}
 
-  bool Generate(
-      const FileDescriptor *file,
-      const std::string & /* parameter */,
-      GeneratorContext * generator_context,
-      std::string * /* error */) const override {
+  bool Generate(const FileDescriptor *file, const std::string & /* parameter */,
+                GeneratorContext *generator_context,
+                std::string * /* error */) const override {
     ++m_count;
 
     bool result = Message_field_chain(*file, generator_context, &m_xcontext)
-        .generate_chain_for_each_client_message();
-    std::vector<const FileDescriptor*> v;
+                      .generate_chain_for_each_client_message();
+    std::vector<const FileDescriptor *> v;
     generator_context->ListParsedFiles(&v);
 
-    if (m_count == v.size())
-      m_xcontext.close();
+    if (m_count == v.size()) m_xcontext.close();
 
     return result;
   }

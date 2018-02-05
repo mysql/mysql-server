@@ -47,9 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @param service  Name of the service to create the implementation for.
 
 */
-#define SERVICE_IMPLEMENTATION(component, service) \
-  imp_ ## component ## _ ## service
-
+#define SERVICE_IMPLEMENTATION(component, service) imp_##component##_##service
 
 /**
   Declares a Service Implementation. It builds standard implementation
@@ -62,12 +60,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 #define BEGIN_SERVICE_IMPLEMENTATION(component, service) \
   SERVICE_TYPE(service) SERVICE_IMPLEMENTATION(component, service) = {
-
 /**
   A macro to end the last declaration of a Service Implementation.
 */
 #define END_SERVICE_IMPLEMENTATION() \
-  } ;
+  }                                  \
+  ;
 
 /**
   A macro to ensure method implementation has required properties, that is it
@@ -79,8 +77,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @param name Method name.
   @param args a list of arguments in parenthesis.
 */
-#define DEFINE_METHOD(retval, name, args) \
-  retval name args noexcept
+#define DEFINE_METHOD(retval, name, args) retval name args noexcept
 
 /**
   A short macro to define method that returns bool, which is the most common

@@ -24,11 +24,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/dict0load.ic
-Loads to the memory cache database object definitions
-from dictionary tables
+/**************************************************/ /**
+ @file include/dict0load.ic
+ Loads to the memory cache database object definitions
+ from dictionary tables
 
-Created 4/24/1996 Heikki Tuuri
-*******************************************************/
-
+ Created 4/24/1996 Heikki Tuuri
+ *******************************************************/

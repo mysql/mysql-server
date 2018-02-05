@@ -29,22 +29,21 @@
 
 #include <atomic>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Simple_id_generator
-{
-public:
+class Simple_id_generator {
+ public:
   Simple_id_generator();
   uint64 create_id();
 
-private:
+ private:
   std::atomic<int64_t> m_next_id;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

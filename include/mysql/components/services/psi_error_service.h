@@ -23,15 +23,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_PSI_ERROR_SERVICE_H
 #define COMPONENTS_SERVICES_PSI_ERROR_SERVICE_H
 
-#include <mysql/components/services/psi_error_bits.h>
 #include <mysql/components/service.h>
+#include <mysql/components/services/psi_error_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_error_v1)
-  /** @sa log_error_v1_t. */
-  log_error_v1_t log_error;
+/** @sa log_error_v1_t. */
+log_error_v1_t log_error;
 END_SERVICE_DEFINITION(psi_error_v1)
 
 #define REQUIRES_PSI_ERROR_SERVICE REQUIRES_SERVICE(psi_error_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_ERROR_SERVICE_H */
-

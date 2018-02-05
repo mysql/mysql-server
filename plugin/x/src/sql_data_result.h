@@ -48,7 +48,7 @@ class Sql_data_result {
   void get_next_field(const char *&value);
   void get_next_field(char *&value);
 
-  template<typename T>
+  template <typename T>
   void get_next_field(T *value) {
     static_assert(std::is_integral<T>::value, "Integral required.");
     Field_value &field_value =
@@ -92,8 +92,8 @@ class Sql_data_result {
   Field_value *get_value() { return (*m_row_index).fields[m_field_index++]; }
   Field_value &validate_field_index_no_null(
       std::initializer_list<enum_field_types> field_types);
-  void validate_field_index(std::initializer_list<enum_field_types> field_types)
-      const;
+  void validate_field_index(
+      std::initializer_list<enum_field_types> field_types) const;
 
   Collect_resultset m_resultset;
   std::size_t m_field_index;

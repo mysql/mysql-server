@@ -24,11 +24,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0quiesce.ic
+/**************************************************/ /**
+ @file include/row0quiesce.ic
 
-Quiesce a tablespace.
+ Quiesce a tablespace.
 
-Created 2012-02-08 Sunny Bains
-*******************************************************/
-
+ Created 2012-02-08 Sunny Bains
+ *******************************************************/

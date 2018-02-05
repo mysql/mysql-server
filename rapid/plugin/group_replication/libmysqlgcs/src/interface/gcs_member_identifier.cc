@@ -28,25 +28,19 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
 
-Gcs_member_identifier::Gcs_member_identifier(const std::string &id):
-  m_member_id(id)
-{
-}
+Gcs_member_identifier::Gcs_member_identifier(const std::string &id)
+    : m_member_id(id) {}
 
-
-const std::string& Gcs_member_identifier::get_member_id() const
-{
+const std::string &Gcs_member_identifier::get_member_id() const {
   return m_member_id;
 }
 
-
-bool Gcs_member_identifier::operator<(const Gcs_member_identifier &other) const
-{
+bool Gcs_member_identifier::operator<(
+    const Gcs_member_identifier &other) const {
   return m_member_id.compare(other.m_member_id) < 0;
 }
 
-
-bool Gcs_member_identifier::operator==(const Gcs_member_identifier &other) const
-{
+bool Gcs_member_identifier::operator==(
+    const Gcs_member_identifier &other) const {
   return m_member_id.compare(other.m_member_id) == 0;
 }

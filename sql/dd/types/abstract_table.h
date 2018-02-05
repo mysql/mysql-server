@@ -24,9 +24,9 @@
 #define DD__ABSTRACT_TABLE_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/collection.h"            // dd::Collection
-#include "sql/dd/object_id.h"             // dd::Object_id
-#include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/dd/collection.h"           // dd::Collection
+#include "sql/dd/object_id.h"            // dd::Object_id
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 namespace dd {
 
@@ -40,7 +40,7 @@ class Properties;
 class Se_private_id_key;
 
 namespace tables {
-  class Tables;
+class Tables;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -49,14 +49,12 @@ namespace tables {
 // enum_table_type.
 /////////////////////////////////////////////////////////////////////////
 
-enum class enum_table_type
-{
+enum class enum_table_type {
   INVALID_TABLE,
   BASE_TABLE,
   USER_VIEW,
   SYSTEM_VIEW
 };
-
 
 /**
   Abstract base class for tables and views.
@@ -67,45 +65,43 @@ enum class enum_table_type
         must inherit this class virtually.
 */
 
-class Abstract_table : virtual public Entity_object
-{
-public:
+class Abstract_table : virtual public Entity_object {
+ public:
   typedef Abstract_table_impl Impl;
   typedef Abstract_table Cache_partition;
   typedef tables::Tables DD_table;
   typedef Primary_id_key Id_key;
   typedef Item_name_key Name_key;
   typedef Se_private_id_key Aux_key;
-  typedef Collection<Column*> Column_collection;
+  typedef Collection<Column *> Column_collection;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_name_key(key, schema_id(), name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_name_key(key, schema_id(), name());
+  }
 
   static bool update_name_key(Name_key *key, Object_id schema_id,
                               const String_type &name);
 
-  virtual bool update_aux_key(Aux_key*) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
-public:
-  virtual ~Abstract_table()
-  { };
+ public:
+  virtual ~Abstract_table(){};
 
-public:
+ public:
   /**
     Enumeration type which indicates whether the table is hidden,
     and if yes then which type of hidden table it is.
   */
-  enum enum_hidden_type
-  {
+  enum enum_hidden_type {
     /* Normal, user-visible table. */
-    HT_VISIBLE= 1,
+    HT_VISIBLE = 1,
     /* Hidden. System (e.g. data-dictionary) table. */
     HT_HIDDEN_SYSTEM,
     /*
@@ -131,7 +127,7 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual uint mysql_version_id() const = 0;
-  //virtual void set_mysql_version_id(uint mysql_version_id) = 0;
+  // virtual void set_mysql_version_id(uint mysql_version_id) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // options.
@@ -187,6 +183,6 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////
-}
+}  // namespace dd
 
-#endif // DD__ABSTRACT_TABLE_INCLUDED
+#endif  // DD__ABSTRACT_TABLE_INCLUDED

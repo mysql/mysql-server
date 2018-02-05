@@ -30,10 +30,10 @@
   string is still present in the binary; only the pointer is adjusted.
 */
 
-static constexpr int basename_index(const char * const path, const int index)
-{
-  return (index == -1 || path[index] == '/' || path[index] == '\\') ?
-    index + 1 : basename_index(path, index - 1);
+static constexpr int basename_index(const char *const path, const int index) {
+  return (index == -1 || path[index] == '/' || path[index] == '\\')
+             ? index + 1
+             : basename_index(path, index - 1);
 }
 
 #define MY_BASENAME (&__FILE__[basename_index(__FILE__, sizeof(__FILE__) - 1)])

@@ -26,19 +26,17 @@
 
 using namespace Mysql::Tools::Dump;
 
-std::string Abstract_plain_sql_object::get_sql_formatted_definition() const
-{
+std::string Abstract_plain_sql_object::get_sql_formatted_definition() const {
   return m_sql_formatted_definition;
 }
 
-void Abstract_plain_sql_object::set_sql_formatted_definition(std::string new_def)
-{
-  m_sql_formatted_definition= new_def;
+void Abstract_plain_sql_object::set_sql_formatted_definition(
+    std::string new_def) {
+  m_sql_formatted_definition = new_def;
 }
 
 Abstract_plain_sql_object::Abstract_plain_sql_object(
-  uint64 id, const std::string& name, const std::string& schema,
-  const std::string& sql_formatted_definition)
-  : Abstract_data_object(id, name, schema),
-  m_sql_formatted_definition(sql_formatted_definition)
-{}
+    uint64 id, const std::string &name, const std::string &schema,
+    const std::string &sql_formatted_definition)
+    : Abstract_data_object(id, name, schema),
+      m_sql_formatted_definition(sql_formatted_definition) {}

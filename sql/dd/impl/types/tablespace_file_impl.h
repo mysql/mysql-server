@@ -24,15 +24,15 @@
 #define DD__TABLESPACE_FILES_IMPL_INCLUDED
 
 #include <sys/types.h>
-#include <memory>   // std::unique_ptr
+#include <memory>  // std::unique_ptr
 #include <new>
 
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/properties.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/tablespace_file.h"   // dd::Tablespace_file
+#include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
 
 namespace dd {
 
@@ -49,10 +49,8 @@ class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace_file_impl : public Weak_object_impl,
-                             public Tablespace_file
-{
-public:
+class Tablespace_file_impl : public Weak_object_impl, public Tablespace_file {
+ public:
   Tablespace_file_impl();
 
   Tablespace_file_impl(Tablespace_impl *tablespace);
@@ -60,10 +58,9 @@ public:
   Tablespace_file_impl(const Tablespace_file_impl &src,
                        Tablespace_impl *parent);
 
-  virtual ~Tablespace_file_impl()
-  { }
+  virtual ~Tablespace_file_impl() {}
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   virtual bool store(Open_dictionary_tables_ctx *otx);
@@ -80,41 +77,40 @@ public:
 
   virtual void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint ordinal_position)
-  { m_ordinal_position= ordinal_position; }
+  void set_ordinal_position(uint ordinal_position) {
+    m_ordinal_position = ordinal_position;
+  }
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint ordinal_position() const
-  { return m_ordinal_position; }
+  virtual uint ordinal_position() const { return m_ordinal_position; }
 
   /////////////////////////////////////////////////////////////////////////
   // filename.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &filename() const
-  { return m_filename; }
+  virtual const String_type &filename() const { return m_filename; }
 
-  virtual void set_filename(const String_type &filename)
-  { m_filename= filename; }
+  virtual void set_filename(const String_type &filename) {
+    m_filename = filename;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const
-  { return *m_se_private_data; }
+  virtual const Properties &se_private_data() const {
+    return *m_se_private_data;
+  }
 
-  virtual Properties &se_private_data()
-  { return *m_se_private_data; }
+  virtual Properties &se_private_data() { return *m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(
-    const String_type &se_private_data_raw);
+  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
   /////////////////////////////////////////////////////////////////////////
   // tablespace.
@@ -124,23 +120,21 @@ public:
 
   virtual Tablespace &tablespace();
 
-public:
-  static Tablespace_file_impl *restore_item(Tablespace_impl *ts)
-  {
+ public:
+  static Tablespace_file_impl *restore_item(Tablespace_impl *ts) {
     return new (std::nothrow) Tablespace_file_impl(ts);
   }
 
   static Tablespace_file_impl *clone(const Tablespace_file_impl &other,
-                                     Tablespace_impl *ts)
-  {
+                                     Tablespace_impl *ts) {
     return new (std::nothrow) Tablespace_file_impl(other, ts);
   }
 
-public:
+ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
-private:
+ private:
   // Fields
   uint m_ordinal_position;
 
@@ -153,6 +147,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__TABLESPACE_FILES_IMPL_INCLUDED
+#endif  // DD__TABLESPACE_FILES_IMPL_INCLUDED

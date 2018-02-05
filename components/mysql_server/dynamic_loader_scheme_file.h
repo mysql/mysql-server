@@ -23,24 +23,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_SERVER_DYNAMIC_LOADER_SCHEMA_FILE_H
 #define MYSQL_SERVER_DYNAMIC_LOADER_SCHEMA_FILE_H
 
-#include <map>
-#include <unordered_set>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include <mysql/psi/mysql_rwlock.h>
+#include <map>
+#include <unordered_set>
 #include "server_component.h"
 
-class mysql_dynamic_loader_scheme_file_imp
-{
-  typedef std::map<std::string, void*> my_registry;
-  typedef mysql_component_t* (*list_components_func)();
+class mysql_dynamic_loader_scheme_file_imp {
+  typedef std::map<std::string, void *> my_registry;
+  typedef mysql_component_t *(*list_components_func)();
 
   static my_registry object_files_list;
   static std::unordered_set<list_components_func> library_entry_set;
   static mysql_rwlock_t LOCK_dynamic_loader_scheme_file;
 
-public:
+ public:
   /**
     Initializes file:// scheme for dynamic loader for usage. Initializes
     RW lock, all other structures should be empty. Shouldn't be called multiple
@@ -52,7 +51,7 @@ public:
   */
   static void deinit();
 
-public:
+ public:
   /**
     Loads components that are located in executable file specified by URN.
     We assume that URN starts with file://, but accept any. Will not success
@@ -68,7 +67,7 @@ public:
       initialization function.
   */
   static DEFINE_BOOL_METHOD(load,
-    (const char *urn, mysql_component_t** out_data));
+                            (const char *urn, mysql_component_t **out_data));
 
   /**
     Unloads file that was previously loaded. The URN string must be exactly
@@ -82,8 +81,7 @@ public:
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(unload,
-    (const char *urn));
+  static DEFINE_BOOL_METHOD(unload, (const char *urn));
 };
 
 #endif /* MYSQL_SERVER_DYNAMIC_LOADER_SCHEMA_FILE_H */

@@ -30,11 +30,12 @@
 #include "m_ctype.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
-#include "mysql_com.h"               // enum_server_command
-#include "sql/handler.h"             // enum_schema_tables
+#include "mysql_com.h"    // enum_server_command
+#include "sql/handler.h"  // enum_schema_tables
 
 struct mysql_rwlock_t;
-template <typename T> class SQL_I_List;
+template <typename T>
+class SQL_I_List;
 
 /**
   @addtogroup GROUP_PARSER
@@ -54,7 +55,6 @@ struct Parse_context;
 struct TABLE_LIST;
 union COM_DATA;
 
-
 extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
@@ -63,8 +63,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask);
 extern void turn_parser_debug_on();
 #endif
 
-bool parse_sql(THD *thd,
-               Parser_state *parser_state,
+bool parse_sql(THD *thd, Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
 
 void free_items(Item *item);
@@ -86,7 +85,7 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user);
 bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                               size_t max_char_length, const CHARSET_INFO *cs,
                               bool no_error);
-const CHARSET_INFO* merge_charset_and_collation(const CHARSET_INFO *cs,
+const CHARSET_INFO *merge_charset_and_collation(const CHARSET_INFO *cs,
                                                 const CHARSET_INFO *cl);
 bool merge_sp_var_charset_and_collation(const CHARSET_INFO **to,
                                         const CHARSET_INFO *cs,
@@ -101,7 +100,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
 bool create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
-int mysql_execute_command(THD *thd, bool first_level= false);
+int mysql_execute_command(THD *thd, bool first_level = false);
 bool do_command(THD *thd);
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
@@ -113,9 +112,8 @@ int append_file_to_dir(THD *thd, const char **filename_ptr,
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock);
 void add_to_list(SQL_I_List<ORDER> &list, ORDER *order);
-void add_join_on(TABLE_LIST *b,Item *expr);
-bool push_new_name_resolution_context(Parse_context *pc,
-                                      TABLE_LIST *left_op,
+void add_join_on(TABLE_LIST *b, Item *expr);
+bool push_new_name_resolution_context(Parse_context *pc, TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
 void init_sql_command_flags(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
@@ -129,8 +127,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 extern uint sql_command_flags[];
 extern const LEX_STRING command_name[];
 
-inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
-{
+inline bool is_supported_parser_charset(const CHARSET_INFO *cs) {
   return (cs->mbminlen == 1);
 }
 
@@ -148,14 +145,13 @@ bool set_default_charset(HA_CREATE_INFO *create_info,
 bool set_default_collation(HA_CREATE_INFO *create_info,
                            const CHARSET_INFO *value);
 
-
 /* Bits in sql_command_flags */
 
-#define CF_CHANGES_DATA           (1U << 0)
+#define CF_CHANGES_DATA (1U << 0)
 /* The 2nd bit is unused -- it used to be CF_HAS_ROW_COUNT. */
-#define CF_STATUS_COMMAND         (1U << 2)
-#define CF_SHOW_TABLE_COMMAND     (1U << 3)
-#define CF_WRITE_LOGS_COMMAND     (1U << 4)
+#define CF_STATUS_COMMAND (1U << 2)
+#define CF_SHOW_TABLE_COMMAND (1U << 3)
+#define CF_WRITE_LOGS_COMMAND (1U << 4)
 /**
   Must be set for SQL statements that may contain
   Item expressions and/or use joins and tables.
@@ -169,7 +165,7 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   reprepare. Consequently, complex item expressions and
   joins are currently prohibited in these statements.
 */
-#define CF_REEXECUTION_FRAGILE    (1U << 5)
+#define CF_REEXECUTION_FRAGILE (1U << 5)
 /**
   Implicitly commit before the SQL statement is executed.
 
@@ -181,7 +177,7 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   be rolled back or that do not expect any previously metadata
   locked tables.
 */
-#define CF_IMPLICIT_COMMIT_BEGIN  (1U << 6)
+#define CF_IMPLICIT_COMMIT_BEGIN (1U << 6)
 /**
   Implicitly commit after the SQL statement.
 
@@ -192,14 +188,14 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   open and take metadata locks on system tables that should not
   be carried for the whole duration of a active transaction.
 */
-#define CF_IMPLICIT_COMMIT_END    (1U << 7)
+#define CF_IMPLICIT_COMMIT_END (1U << 7)
 /**
   CF_IMPLICIT_COMMIT_BEGIN and CF_IMPLICIT_COMMIT_END are used
   to ensure that the active transaction is implicitly committed
   before and after every DDL statement and any statement that
   modifies our currently non-transactional system tables.
 */
-#define CF_AUTO_COMMIT_TRANS  (CF_IMPLICIT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
+#define CF_AUTO_COMMIT_TRANS (CF_IMPLICIT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
 
 /**
   Diagnostic statement.
@@ -209,7 +205,7 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   - GET DIAGNOSTICS (WL#2111)
   do not modify the Diagnostics Area during execution.
 */
-#define CF_DIAGNOSTIC_STMT        (1U << 8)
+#define CF_DIAGNOSTIC_STMT (1U << 8)
 
 /**
   Identifies statements that may generate row events
@@ -221,27 +217,27 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   Identifies statements which may deal with temporary tables and for which
   temporary tables should be pre-opened to simplify privilege checks.
 */
-#define CF_PREOPEN_TMP_TABLES   (1U << 10)
+#define CF_PREOPEN_TMP_TABLES (1U << 10)
 
 /**
   Identifies statements for which open handlers should be closed in the
   beginning of the statement.
 */
-#define CF_HA_CLOSE             (1U << 11)
+#define CF_HA_CLOSE (1U << 11)
 
 /**
   Identifies statements that can be explained with EXPLAIN.
 */
-#define CF_CAN_BE_EXPLAINED       (1U << 12)
+#define CF_CAN_BE_EXPLAINED (1U << 12)
 
 /** Identifies statements which may generate an optimizer trace */
-#define CF_OPTIMIZER_TRACE        (1U << 14)
+#define CF_OPTIMIZER_TRACE (1U << 14)
 
 /**
    Identifies statements that should always be disallowed in
    read only transactions.
 */
-#define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
+#define CF_DISALLOW_IN_RO_TRANS (1U << 15)
 
 /**
   Identifies statements and commands that can be used with Protocol Plugin
@@ -262,12 +258,12 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
         on low-level (see System_table_access:: close_table()) and
         thus can pre-maturely commit DDL if @@autocommit=1.
 */
-#define CF_NEEDS_AUTOCOMMIT_OFF   (1U << 17)
+#define CF_NEEDS_AUTOCOMMIT_OFF (1U << 17)
 
 /**
   Identifies statements which can return rows of data columns (SELECT, SHOW ...)
 */
-#define CF_HAS_RESULT_SET         (1U << 18)
+#define CF_HAS_RESULT_SET (1U << 18)
 
 /**
   Identifies DDL statements which can be atomic.
@@ -279,18 +275,18 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   @note At the momemnt of declaration the covered DDL subset coincides
         with the of CF_NEEDS_AUTOCOMMIT_OFF.
 */
-#define CF_POTENTIAL_ATOMIC_DDL   (1U << 19)
+#define CF_POTENTIAL_ATOMIC_DDL (1U << 19)
 
 /* Bits in server_command_flags */
 
 /**
   Skip the increase of the global query id counter. Commonly set for
   commands that are stateless (won't cause any change on the server
-  internal states). This is made obsolete as query id is incremented 
-  for ping and statistics commands as well because of race condition 
+  internal states). This is made obsolete as query id is incremented
+  for ping and statistics commands as well because of race condition
   (Bug#58785).
 */
-#define CF_SKIP_QUERY_ID        (1U << 0)
+#define CF_SKIP_QUERY_ID (1U << 0)
 
 /**
   Skip the increase of the number of statements that clients have
@@ -298,7 +294,7 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   a statement to be executed but the statement might have not been
   sent by the user (ie: stored procedure).
 */
-#define CF_SKIP_QUESTIONS       (1U << 1)
+#define CF_SKIP_QUESTIONS (1U << 1)
 
 /**
   Identifies statement that must acquire Backup Lock before
@@ -306,7 +302,7 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   and blocks all operations, that could cause an inconsistent
   backup, if done during a backup operation.
 */
-#define CF_ACQUIRE_BACKUP_LOCK  (1U << 20)
+#define CF_ACQUIRE_BACKUP_LOCK (1U << 20)
 
 /**
   1U << 16 is reserved for Protocol Plugin statements and commands

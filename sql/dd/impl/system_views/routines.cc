@@ -25,14 +25,12 @@
 namespace dd {
 namespace system_views {
 
-const Routines &Routines::instance()
-{
-  static Routines *s_instance= new Routines();
+const Routines &Routines::instance() {
+  static Routines *s_instance = new Routines();
   return *s_instance;
 }
 
-Routines::Routines()
-{
+Routines::Routines() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_SPECIFIC_NAME, "SPECIFIC_NAME", "rtn.name");
@@ -48,8 +46,7 @@ Routines::Routines()
                          "CHARACTER_MAXIMUM_LENGTH",
                          "INTERNAL_DD_CHAR_LENGTH(rtn.result_data_type,"
                          "  rtn.result_char_length, coll_result.name, 0)");
-  m_target_def.add_field(FIELD_CHARACTER_OCTET_LENGTH,
-                         "CHARACTER_OCTET_LENGTH",
+  m_target_def.add_field(FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
                          "INTERNAL_DD_CHAR_LENGTH(rtn.result_data_type,"
                          "  rtn.result_char_length, coll_result.name, 1)");
   m_target_def.add_field(FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
@@ -58,54 +55,58 @@ Routines::Routines()
                          "rtn.result_numeric_scale");
   m_target_def.add_field(FIELD_DATETIME_PRECISION, "DATETIME_PRECISION",
                          "rtn.result_datetime_precision");
-  m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
-                     "CASE rtn.result_data_type"
-                     "  WHEN 'MYSQL_TYPE_STRING' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_VAR_STRING' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_VARCHAR' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_BLOB' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_ENUM' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  WHEN 'MYSQL_TYPE_SET' THEN "
-                     "    (IF (cs_result.name='binary',NULL, cs_result.name))"
-                     "  ELSE NULL END");
-  m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME",
-                   "CASE rtn.result_data_type"
-                   "  WHEN 'MYSQL_TYPE_STRING' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_VAR_STRING' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_VARCHAR' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_BLOB' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_ENUM' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  WHEN 'MYSQL_TYPE_SET' THEN "
-                   "    (IF (cs_result.name='binary',NULL, coll_result.name))"
-                   "  ELSE NULL END");
-  m_target_def.add_field(FIELD_DTD_IDENTIFIER, "DTD_IDENTIFIER",
-                "IF(rtn.type = 'PROCEDURE', NULL, rtn.result_data_type_utf8)");
+  m_target_def.add_field(
+      FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
+      "CASE rtn.result_data_type"
+      "  WHEN 'MYSQL_TYPE_STRING' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_VAR_STRING' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_VARCHAR' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_ENUM' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  WHEN 'MYSQL_TYPE_SET' THEN "
+      "    (IF (cs_result.name='binary',NULL, cs_result.name))"
+      "  ELSE NULL END");
+  m_target_def.add_field(
+      FIELD_COLLATION_NAME, "COLLATION_NAME",
+      "CASE rtn.result_data_type"
+      "  WHEN 'MYSQL_TYPE_STRING' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_VAR_STRING' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_VARCHAR' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_ENUM' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  WHEN 'MYSQL_TYPE_SET' THEN "
+      "    (IF (cs_result.name='binary',NULL, coll_result.name))"
+      "  ELSE NULL END");
+  m_target_def.add_field(
+      FIELD_DTD_IDENTIFIER, "DTD_IDENTIFIER",
+      "IF(rtn.type = 'PROCEDURE', NULL, rtn.result_data_type_utf8)");
   m_target_def.add_field(FIELD_ROUTINE_BODY, "ROUTINE_BODY", "'SQL'");
-  m_target_def.add_field(FIELD_ROUTINE_DEFINITION, "ROUTINE_DEFINITION",
-     "IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),"
-     "    rtn.definition_utf8, NULL)");
+  m_target_def.add_field(
+      FIELD_ROUTINE_DEFINITION, "ROUTINE_DEFINITION",
+      "IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),"
+      "    rtn.definition_utf8, NULL)");
   m_target_def.add_field(FIELD_EXTERNAL_NAME, "EXTERNAL_NAME", "NULL");
   m_target_def.add_field(FIELD_EXTERNAL_LANGUAGE, "EXTERNAL_LANGUAGE", "NULL");
   m_target_def.add_field(FIELD_PARAMETER_STYLE, "PARAMETER_STYLE", "'SQL'");
@@ -133,22 +134,29 @@ Routines::Routines()
   m_target_def.add_from("mysql.routines rtn");
   m_target_def.add_from("JOIN mysql.schemata sch ON rtn.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
-  m_target_def.add_from("JOIN mysql.collations coll_client "
-                        "ON coll_client.id=rtn.client_collation_id");
-  m_target_def.add_from("JOIN mysql.character_sets cs_client "
-                        "ON cs_client.id=coll_client.character_set_id");
-  m_target_def.add_from("JOIN mysql.collations coll_conn "
-                        "ON coll_conn.id=rtn.connection_collation_id");
-  m_target_def.add_from("JOIN mysql.collations coll_db "
-                        "ON coll_db.id=rtn.schema_collation_id");
-  m_target_def.add_from("LEFT JOIN mysql.collations coll_result "
-                        "ON coll_result.id=rtn.result_collation_id");
-  m_target_def.add_from("LEFT JOIN mysql.character_sets cs_result "
-                        "ON cs_result.id=coll_result.character_set_id");
+  m_target_def.add_from(
+      "JOIN mysql.collations coll_client "
+      "ON coll_client.id=rtn.client_collation_id");
+  m_target_def.add_from(
+      "JOIN mysql.character_sets cs_client "
+      "ON cs_client.id=coll_client.character_set_id");
+  m_target_def.add_from(
+      "JOIN mysql.collations coll_conn "
+      "ON coll_conn.id=rtn.connection_collation_id");
+  m_target_def.add_from(
+      "JOIN mysql.collations coll_db "
+      "ON coll_db.id=rtn.schema_collation_id");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.collations coll_result "
+      "ON coll_result.id=rtn.result_collation_id");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.character_sets cs_result "
+      "ON cs_result.id=coll_result.character_set_id");
 
-  m_target_def.add_where("CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, "
-                         "rtn.definer, FALSE)");
+  m_target_def.add_where(
+      "CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, "
+      "rtn.definer, FALSE)");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

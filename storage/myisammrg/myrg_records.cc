@@ -23,13 +23,12 @@
 #include "my_dbug.h"
 #include "storage/myisammrg/myrg_def.h"
 
-ha_rows myrg_records(MYRG_INFO *info)
-{
-  ha_rows records=0;
+ha_rows myrg_records(MYRG_INFO *info) {
+  ha_rows records = 0;
   MYRG_TABLE *file;
   DBUG_ENTER("myrg_records");
 
-  for (file=info->open_tables ; file != info->end_table ; file++)
-    records+= file->table->s->state.state.records;
+  for (file = info->open_tables; file != info->end_table; file++)
+    records += file->table->s->state.state.records;
   DBUG_RETURN(records);
 }

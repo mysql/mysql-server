@@ -32,9 +32,8 @@ extern int cb_xcom_debugger_check(const int64_t options);
   Class that defines basic logging infra-structure to be used in the test
   cases, for example.
 */
-class Gcs_basic_logging
-{
-public:
+class Gcs_basic_logging {
+ public:
   /*
     Pointer to a logger object that is responsible for handling fatal, error,
     warning and information messages.
@@ -62,18 +61,20 @@ public:
   /**
     Constructor that creates the logger, debugger and sink.
   */
-  Gcs_basic_logging() : logger(NULL), debugger(NULL), sink(NULL),
-    saved_debug_options(GCS_DEBUG_NONE)
-  {
-    saved_debug_options= Gcs_debug_options::get_current_debug_options();
+  Gcs_basic_logging()
+      : logger(NULL),
+        debugger(NULL),
+        sink(NULL),
+        saved_debug_options(GCS_DEBUG_NONE) {
+    saved_debug_options = Gcs_debug_options::get_current_debug_options();
     Gcs_debug_options::force_debug_options(GCS_DEBUG_ALL);
 
-    sink= new Gcs_async_buffer(new Gcs_output_sink());
+    sink = new Gcs_async_buffer(new Gcs_output_sink());
 
-    logger= new Gcs_default_logger(sink);
+    logger = new Gcs_default_logger(sink);
     Gcs_log_manager::initialize(logger);
 
-    debugger= new Gcs_default_debugger(sink);
+    debugger = new Gcs_default_debugger(sink);
     Gcs_debug_manager::initialize(debugger);
 
     ::set_xcom_logger(cb_xcom_logger);
@@ -86,8 +87,7 @@ public:
   /**
     Destructor that cleans up and deallocates the logger, debugger and sink.
   */
-  virtual ~Gcs_basic_logging()
-  {
+  virtual ~Gcs_basic_logging() {
     Gcs_log_manager::finalize();
     logger->finalize();
     delete logger;

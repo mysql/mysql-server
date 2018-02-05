@@ -21,31 +21,30 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef COMPATIBILITY_MODULE_INCLUDED
-#define	COMPATIBILITY_MODULE_INCLUDED
+#define COMPATIBILITY_MODULE_INCLUDED
 
 #include <map>
 
 #include "plugin/group_replication/include/member_version.h"
 
 /* Possible outcomes when checking inter version compatibility */
-typedef enum st_compatibility_types
-{
-  INCOMPATIBLE= 0,            //Versions not compatible
-  INCOMPATIBLE_LOWER_VERSION, //Versions not compatible, member has lower version
-  COMPATIBLE,                 //Versions compatible
-  READ_COMPATIBLE             //Member can read but not write
+typedef enum st_compatibility_types {
+  INCOMPATIBLE = 0,            // Versions not compatible
+  INCOMPATIBLE_LOWER_VERSION,  // Versions not compatible, member has lower
+                               // version
+  COMPATIBLE,                  // Versions compatible
+  READ_COMPATIBLE              // Member can read but not write
 } Compatibility_type;
 
-class Compatibility_module
-{
-public:
+class Compatibility_module {
+ public:
   Compatibility_module();
   Compatibility_module(Member_version &local_version);
 
   /**
     Returns this member version
   */
-  Member_version& get_local_version();
+  Member_version &get_local_version();
 
   /**
     Set the module local version
@@ -66,8 +65,7 @@ public:
     @param to_min The minimum version with which 'from' is not compatible with
     @param to_max The maximum version with which 'from' is not compatible with
   */
-  void add_incompatibility(Member_version &from,
-                           Member_version &to_min,
+  void add_incompatibility(Member_version &from, Member_version &to_min,
                            Member_version &to_max);
 
   /**
@@ -90,7 +88,8 @@ public:
 
     @return the compatibility status
       @retval true   The version is in the range of the incompatible versions
-      @retval false  The version is not in the range of the incompatible versions
+      @retval false  The version is not in the range of the incompatible
+    versions
   */
   bool check_version_range_incompatibility(Member_version &from,
                                            unsigned int to_min,
@@ -107,14 +106,15 @@ public:
 
   virtual ~Compatibility_module();
 
-private:
+ private:
   /*The configured local version*/
   Member_version *local_version;
   /*
-    The incompatibility matrix: <version V, version incompatible with Vmin to Vmax>
+    The incompatibility matrix: <version V, version incompatible with Vmin to
+    Vmax>
   */
-  std::multimap<unsigned int, std::pair<unsigned int, unsigned int> > incompatibilities;
+  std::multimap<unsigned int, std::pair<unsigned int, unsigned int>>
+      incompatibilities;
 };
 
-#endif	/* COMPATIBILITY_MODULE_INCLUDED */
-
+#endif /* COMPATIBILITY_MODULE_INCLUDED */

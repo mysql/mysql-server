@@ -30,8 +30,7 @@
 
   Enumeration type for the different types of handlers.
 */
-enum Handler_id
-{
+enum Handler_id {
   CERTIFICATION_HANDLER,
   SQL_THREAD_APPLICATION_HANDLER,
   CATALOGING_HANDLER,
@@ -42,10 +41,7 @@ enum Handler_id
 
   Enumeration type for the different types of handlers.
 */
-enum Handler_pipeline_type
-{
-  STANDARD_GROUP_REPLICATION_PIPELINE= 0
-};
+enum Handler_pipeline_type { STANDARD_GROUP_REPLICATION_PIPELINE = 0 };
 
 /**
   This method joins the two above method, assembling a pipeline accordingly
@@ -58,8 +54,7 @@ enum Handler_pipeline_type
     @retval 0      OK
     @retval !=0    Error returned on the execution
 */
-int get_pipeline(Handler_pipeline_type pipeline_type,
-                 Event_handler** pipeline);
+int get_pipeline(Handler_pipeline_type pipeline_type, Event_handler **pipeline);
 
 /**
   This method returns the configured handlers for the received pipeline.
@@ -70,7 +65,7 @@ int get_pipeline(Handler_pipeline_type pipeline_type,
   @return the number of handlers in the pipeline
 */
 int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
-                               Handler_id** pipeline_conf);
+                               Handler_id **pipeline_conf);
 
 /**
   This method configures the pipeline accordingly to the received handlers.
@@ -87,7 +82,7 @@ int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
     @retval 0      OK
     @retval !=0    Error returned on the execution
 */
-int configure_pipeline(Event_handler** pipeline, Handler_id handler_list[],
+int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
                        int num_handlers);
 
 #endif /* PIPELINE_FACTORY_INCLUDED */

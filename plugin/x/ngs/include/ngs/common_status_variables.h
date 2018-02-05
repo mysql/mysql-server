@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,15 +29,14 @@
 
 #include <my_inttypes.h>
 
-
 namespace ngs {
 
 class Common_status_variables {
-public:
+ public:
   class Variable : private std::atomic<int64> {
-  public:
+   public:
     Variable() : std::atomic<int64>(0) {}
-    void operator=(const Variable& other) { store(other.load()); }
+    void operator=(const Variable &other) { store(other.load()); }
     using std::atomic<int64>::operator++;
     using std::atomic<int64>::operator--;
     using std::atomic<int64>::operator+=;
@@ -78,7 +77,7 @@ public:
   Variable m_crud_modify_view;
   Variable m_crud_drop_view;
 
-private:
+ private:
   Common_status_variables(const Common_status_variables &);
 };
 

@@ -32,9 +32,8 @@
 
   Please check a working example in Gcs_communication_interface.
 */
-class Gcs_communication_event_listener
-{
-public:
+class Gcs_communication_event_listener {
+ public:
   /**
     This method is called whenever a message is to be delivered.
 
@@ -43,10 +42,9 @@ public:
                        pointers.
   */
 
-  virtual void on_message_received(const Gcs_message &message) const= 0;
-
+  virtual void on_message_received(const Gcs_message &message) const = 0;
 
   virtual ~Gcs_communication_event_listener() {}
 };
 
-#endif // GCS_COMMUNICATION_EVENT_LISTENER_INCLUDED
+#endif  // GCS_COMMUNICATION_EVENT_LISTENER_INCLUDED

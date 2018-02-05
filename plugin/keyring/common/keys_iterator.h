@@ -23,29 +23,28 @@
 #ifndef MYSQL_KEYS_ITERATOR_H
 #define MYSQL_KEYS_ITERATOR_H
 
+#include <vector>
 #include "i_keys_container.h"
 #include "logger.h"
-#include <vector>
 
 namespace keyring {
 
-class Keys_iterator
-{
-public:
-  Keys_iterator() {};
-  Keys_iterator(ILogger* logger);
+class Keys_iterator {
+ public:
+  Keys_iterator(){};
+  Keys_iterator(ILogger *logger);
   void init(void);
   bool get_key(Key_metadata **km);
   void deinit(void);
 
   ~Keys_iterator(void);
-public:
+
+ public:
   ILogger *logger;
   std::vector<Key_metadata> key_metadata_list;
   std::vector<Key_metadata>::iterator key_metadata_list_iterator;
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_KEYS_ITERATOR_H
-
+#endif  // MYSQL_KEYS_ITERATOR_H

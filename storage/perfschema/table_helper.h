@@ -250,9 +250,7 @@ String *get_field_char_utf8(Field *f, String *val);
   @param str the string to assign
   @param len the length of the string to assign
 */
-void set_field_varchar(Field *f,
-                       const CHARSET_INFO *cs,
-                       const char *str,
+void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str,
                        uint len);
 
 /**
@@ -317,9 +315,7 @@ void set_field_blob(Field *f, const char *val, size_t len);
   @param len the length of the string to assign
   @param cs the charset of the string
 */
-void set_field_text(Field *f,
-                    const char *val,
-                    size_t len,
+void set_field_text(Field *f, const char *val, size_t len,
                     const CHARSET_INFO *cs);
 /**
   Helper, read a value from a @c blob field.
@@ -463,15 +459,12 @@ void set_field_json(Field *f, const Json_wrapper *json);
   @param truncated true if source_sqltext was truncated
   @param sqltext sqltext formatted for output
  */
-void format_sqltext(const char *source_sqltext,
-                    size_t source_length,
-                    const CHARSET_INFO *source_cs,
-                    bool truncated,
+void format_sqltext(const char *source_sqltext, size_t source_length,
+                    const CHARSET_INFO *source_cs, bool truncated,
                     String &sqltext);
 
 /** Name space, internal views used within table setup_instruments. */
-struct PFS_instrument_view_constants
-{
+struct PFS_instrument_view_constants {
   static const uint FIRST_INSTRUMENT = 1;
 
   static const uint FIRST_VIEW = 1;
@@ -501,8 +494,7 @@ struct PFS_instrument_view_constants
 };
 
 /** Name space, internal views used within object summaries. */
-struct PFS_object_view_constants
-{
+struct PFS_object_view_constants {
   static const uint FIRST_VIEW = 1;
   static const uint VIEW_TABLE = 1;
   static const uint VIEW_PROGRAM = 2;
@@ -510,8 +502,7 @@ struct PFS_object_view_constants
 };
 
 /** Row fragment for column HOST. */
-struct PFS_host_row
-{
+struct PFS_host_row {
   /** Column HOST. */
   char m_hostname[HOSTNAME_LENGTH];
   /** Length in bytes of @c m_hostname. */
@@ -524,8 +515,7 @@ struct PFS_host_row
 };
 
 /** Row fragment for column USER. */
-struct PFS_user_row
-{
+struct PFS_user_row {
   /** Column USER. */
   char m_username[USERNAME_LENGTH];
   /** Length in bytes of @c m_username. */
@@ -538,8 +528,7 @@ struct PFS_user_row
 };
 
 /** Row fragment for columns USER, HOST. */
-struct PFS_account_row
-{
+struct PFS_account_row {
   /** Column USER. */
   char m_username[USERNAME_LENGTH];
   /** Length in bytes of @c m_username. */
@@ -556,8 +545,7 @@ struct PFS_account_row
 };
 
 /** Row fragment for columns DIGEST, DIGEST_TEXT. */
-struct PFS_digest_row
-{
+struct PFS_digest_row {
   /** Column SCHEMA_NAME. */
   char m_schema_name[NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
@@ -576,33 +564,27 @@ struct PFS_digest_row
 };
 
 /** Row fragment for column EVENT_NAME. */
-struct PFS_event_name_row
-{
+struct PFS_event_name_row {
   /** Column EVENT_NAME. */
   const char *m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
 
   /** Build a row from a memory buffer. */
-  inline int
-  make_row(PFS_instr_class *pfs)
-  {
+  inline int make_row(PFS_instr_class *pfs) {
     m_name = pfs->m_name;
     m_name_length = pfs->m_name_length;
     return 0;
   }
 
   /** Set a table field from the row. */
-  inline void
-  set_field(Field *f)
-  {
+  inline void set_field(Field *f) {
     set_field_varchar_utf8(f, m_name, m_name_length);
   }
 };
 
 /** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
-struct PFS_object_row
-{
+struct PFS_object_row {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column SCHEMA_NAME. */
@@ -624,8 +606,7 @@ struct PFS_object_row
 
 /** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, COLUMN_NAME.
  */
-struct PFS_column_row
-{
+struct PFS_column_row {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column SCHEMA_NAME. */
@@ -649,8 +630,7 @@ struct PFS_column_row
 
 /** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME.
  */
-struct PFS_index_row
-{
+struct PFS_index_row {
   PFS_object_row m_object_row;
   /** Column INDEX_NAME. */
   char m_index_name[NAME_LEN];
@@ -659,16 +639,14 @@ struct PFS_index_row
 
   /** Build a row from a memory buffer. */
   int make_index_name(PFS_table_share_index *pfs_index, uint table_index);
-  int make_row(PFS_table_share *pfs,
-               PFS_table_share_index *pfs_index,
+  int make_row(PFS_table_share *pfs, PFS_table_share_index *pfs_index,
                uint table_index);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
 };
 
 /** Row fragment for single statistics columns (COUNT, SUM, MIN, AVG, MAX) */
-struct PFS_stat_row
-{
+struct PFS_stat_row {
   /** Column COUNT_STAR. */
   ulonglong m_count;
   /** Column SUM_TIMER_WAIT. */
@@ -680,9 +658,7 @@ struct PFS_stat_row
   /** Column MAX_TIMER_WAIT. */
   ulonglong m_max;
 
-  inline void
-  reset()
-  {
+  inline void reset() {
     m_count = 0;
     m_sum = 0;
     m_min = 0;
@@ -691,20 +667,15 @@ struct PFS_stat_row
   }
 
   /** Build a row with timer fields from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_single_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer, const PFS_single_stat *stat) {
     m_count = stat->m_count;
 
-    if ((m_count != 0) && stat->has_timed_stats())
-    {
+    if ((m_count != 0) && stat->has_timed_stats()) {
       m_sum = normalizer->wait_to_pico(stat->m_sum);
       m_min = normalizer->wait_to_pico(stat->m_min);
       m_max = normalizer->wait_to_pico(stat->m_max);
       m_avg = normalizer->wait_to_pico(stat->m_sum / m_count);
-    }
-    else
-    {
+    } else {
       m_sum = 0;
       m_min = 0;
       m_avg = 0;
@@ -713,50 +684,43 @@ struct PFS_stat_row
   }
 
   /** Set a table field from the row. */
-  void
-  set_field(uint index, Field *f)
-  {
-    switch (index)
-    {
-    case 0: /* COUNT */
-      set_field_ulonglong(f, m_count);
-      break;
-    case 1: /* SUM */
-      set_field_ulonglong(f, m_sum);
-      break;
-    case 2: /* MIN */
-      set_field_ulonglong(f, m_min);
-      break;
-    case 3: /* AVG */
-      set_field_ulonglong(f, m_avg);
-      break;
-    case 4: /* MAX */
-      set_field_ulonglong(f, m_max);
-      break;
-    default:
-      DBUG_ASSERT(false);
+  void set_field(uint index, Field *f) {
+    switch (index) {
+      case 0: /* COUNT */
+        set_field_ulonglong(f, m_count);
+        break;
+      case 1: /* SUM */
+        set_field_ulonglong(f, m_sum);
+        break;
+      case 2: /* MIN */
+        set_field_ulonglong(f, m_min);
+        break;
+      case 3: /* AVG */
+        set_field_ulonglong(f, m_avg);
+        break;
+      case 4: /* MAX */
+        set_field_ulonglong(f, m_max);
+        break;
+      default:
+        DBUG_ASSERT(false);
     }
   }
 };
 
 /** Row fragment for timer and byte count stats. Corresponds to PFS_byte_stat */
-struct PFS_byte_stat_row
-{
+struct PFS_byte_stat_row {
   PFS_stat_row m_waits;
   ulonglong m_bytes;
 
   /** Build a row with timer and byte count fields from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_byte_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer, const PFS_byte_stat *stat) {
     m_waits.set(normalizer, stat);
     m_bytes = stat->m_bytes;
   }
 };
 
 /** Row fragment for table I/O statistics columns. */
-struct PFS_table_io_stat_row
-{
+struct PFS_table_io_stat_row {
   PFS_stat_row m_all;
   PFS_stat_row m_all_read;
   PFS_stat_row m_all_write;
@@ -766,9 +730,7 @@ struct PFS_table_io_stat_row
   PFS_stat_row m_delete;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_table_io_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer, const PFS_table_io_stat *stat) {
     PFS_single_stat all_read;
     PFS_single_stat all_write;
     PFS_single_stat all;
@@ -795,8 +757,7 @@ struct PFS_table_io_stat_row
 };
 
 /** Row fragment for table lock statistics columns. */
-struct PFS_table_lock_stat_row
-{
+struct PFS_table_lock_stat_row {
   PFS_stat_row m_all;
   PFS_stat_row m_all_read;
   PFS_stat_row m_all_write;
@@ -812,9 +773,8 @@ struct PFS_table_lock_stat_row
   PFS_stat_row m_write_external;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_table_lock_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer,
+                  const PFS_table_lock_stat *stat) {
     PFS_single_stat all_read;
     PFS_single_stat all_write;
     PFS_single_stat all;
@@ -836,7 +796,7 @@ struct PFS_table_lock_stat_row
     m_write_allow_write.set(normalizer,
                             &stat->m_stat[PFS_TL_WRITE_ALLOW_WRITE]);
     m_write_concurrent_insert.set(
-      normalizer, &stat->m_stat[PFS_TL_WRITE_CONCURRENT_INSERT]);
+        normalizer, &stat->m_stat[PFS_TL_WRITE_CONCURRENT_INSERT]);
     m_write_low_priority.set(normalizer,
                              &stat->m_stat[PFS_TL_WRITE_LOW_PRIORITY]);
     m_write_normal.set(normalizer, &stat->m_stat[PFS_TL_WRITE]);
@@ -858,28 +818,20 @@ struct PFS_table_lock_stat_row
 };
 
 /** Row fragment for stage statistics columns. */
-struct PFS_stage_stat_row
-{
+struct PFS_stage_stat_row {
   PFS_stat_row m_timer1_row;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_stage_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer, const PFS_stage_stat *stat) {
     m_timer1_row.set(normalizer, &stat->m_timer1_stat);
   }
 
   /** Set a table field from the row. */
-  void
-  set_field(uint index, Field *f)
-  {
-    m_timer1_row.set_field(index, f);
-  }
+  void set_field(uint index, Field *f) { m_timer1_row.set_field(index, f); }
 };
 
 /** Row fragment for statement statistics columns. */
-struct PFS_statement_stat_row
-{
+struct PFS_statement_stat_row {
   PFS_stat_row m_timer1_row;
   ulonglong m_error_count;
   ulonglong m_warning_count;
@@ -902,11 +854,8 @@ struct PFS_statement_stat_row
   ulonglong m_no_good_index_used;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_statement_stat *stat)
-  {
-    if (stat->m_timer1_stat.m_count != 0)
-    {
+  inline void set(time_normalizer *normalizer, const PFS_statement_stat *stat) {
+    if (stat->m_timer1_stat.m_count != 0) {
       m_timer1_row.set(normalizer, &stat->m_timer1_stat);
 
       m_error_count = stat->m_error_count;
@@ -928,9 +877,7 @@ struct PFS_statement_stat_row
       m_sort_scan = stat->m_sort_scan;
       m_no_index_used = stat->m_no_index_used;
       m_no_good_index_used = stat->m_no_good_index_used;
-    }
-    else
-    {
+    } else {
       m_timer1_row.reset();
 
       m_error_count = 0;
@@ -960,28 +907,22 @@ struct PFS_statement_stat_row
 };
 
 /** Row fragment for stored program statistics. */
-struct PFS_sp_stat_row
-{
+struct PFS_sp_stat_row {
   PFS_stat_row m_timer1_row;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_sp_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer, const PFS_sp_stat *stat) {
     m_timer1_row.set(normalizer, &stat->m_timer1_stat);
   }
 
   /** Set a table field from the row. */
-  inline void
-  set_field(uint index, Field *f)
-  {
+  inline void set_field(uint index, Field *f) {
     m_timer1_row.set_field(index, f);
   }
 };
 
 /** Row fragment for transaction statistics columns. */
-struct PFS_transaction_stat_row
-{
+struct PFS_transaction_stat_row {
   PFS_stat_row m_timer1_row;
   PFS_stat_row m_read_write_row;
   PFS_stat_row m_read_only_row;
@@ -990,9 +931,8 @@ struct PFS_transaction_stat_row
   ulonglong m_release_savepoint_count;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(time_normalizer *normalizer, const PFS_transaction_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer,
+                  const PFS_transaction_stat *stat) {
     /* Combine read write/read only stats */
     PFS_single_stat all;
     all.aggregate(&stat->m_read_only_stat);
@@ -1008,8 +948,7 @@ struct PFS_transaction_stat_row
 };
 
 /** Row fragment for error statistics columns. */
-struct PFS_error_stat_row
-{
+struct PFS_error_stat_row {
   ulonglong m_count;
   ulonglong m_handled_count;
   uint m_error_index;
@@ -1017,9 +956,7 @@ struct PFS_error_stat_row
   ulonglong m_last_seen;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(const PFS_error_single_stat *stat, uint error_index)
-  {
+  inline void set(const PFS_error_single_stat *stat, uint error_index) {
     m_count = stat->m_count;
     m_handled_count = stat->m_handled_count;
     m_error_index = error_index;
@@ -1032,14 +969,11 @@ struct PFS_error_stat_row
 };
 
 /** Row fragment for connection statistics. */
-struct PFS_connection_stat_row
-{
+struct PFS_connection_stat_row {
   ulonglong m_current_connections;
   ulonglong m_total_connections;
 
-  inline void
-  set(const PFS_connection_stat *stat)
-  {
+  inline void set(const PFS_connection_stat *stat) {
     m_current_connections = stat->m_current_connections;
     m_total_connections = stat->m_total_connections;
   }
@@ -1057,16 +991,13 @@ void set_field_isolation_level(Field *f, enum_isolation_level iso_level);
 void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state);
 
 /** Row fragment for socket I/O statistics columns. */
-struct PFS_socket_io_stat_row
-{
+struct PFS_socket_io_stat_row {
   PFS_byte_stat_row m_read;
   PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
 
-  inline void
-  set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat) {
     PFS_byte_stat all;
 
     m_read.set(normalizer, &stat->m_read);
@@ -1083,16 +1014,13 @@ struct PFS_socket_io_stat_row
 };
 
 /** Row fragment for file I/O statistics columns. */
-struct PFS_file_io_stat_row
-{
+struct PFS_file_io_stat_row {
   PFS_byte_stat_row m_read;
   PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
 
-  inline void
-  set(time_normalizer *normalizer, const PFS_file_io_stat *stat)
-  {
+  inline void set(time_normalizer *normalizer, const PFS_file_io_stat *stat) {
     PFS_byte_stat all;
 
     m_read.set(normalizer, &stat->m_read);
@@ -1109,21 +1037,14 @@ struct PFS_file_io_stat_row
 };
 
 /** Row fragment for memory statistics columns. */
-struct PFS_memory_stat_row
-{
+struct PFS_memory_stat_row {
   PFS_memory_safe_stat m_stat;
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(const PFS_memory_safe_stat *stat)
-  {
-    m_stat = *stat;
-  }
+  inline void set(const PFS_memory_safe_stat *stat) { m_stat = *stat; }
 
   /** Build a row from a memory buffer. */
-  inline void
-  set(const PFS_memory_shared_stat *stat)
-  {
+  inline void set(const PFS_memory_shared_stat *stat) {
     m_stat.m_used = stat->m_used;
     m_stat.m_alloc_count = stat->m_alloc_count;
     m_stat.m_free_count = stat->m_free_count;
@@ -1139,11 +1060,9 @@ struct PFS_memory_stat_row
   void set_field(uint index, Field *f);
 };
 
-struct PFS_variable_name_row
-{
-public:
-  PFS_variable_name_row()
-  {
+struct PFS_variable_name_row {
+ public:
+  PFS_variable_name_row() {
     m_str[0] = '\0';
     m_length = 0;
   }
@@ -1154,9 +1073,8 @@ public:
   uint m_length;
 };
 
-struct PFS_variable_value_row
-{
-public:
+struct PFS_variable_value_row {
+ public:
   /** Set the row from a status variable. */
   int make_row(const Status_variable *var);
 
@@ -1166,18 +1084,10 @@ public:
   /** Set a table field from the row. */
   void set_field(Field *f);
 
-  const char *
-  get_str() const
-  {
-    return m_str;
-  }
-  uint
-  get_length() const
-  {
-    return m_length;
-  }
+  const char *get_str() const { return m_str; }
+  uint get_length() const { return m_length; }
 
-private:
+ private:
   int make_row(const CHARSET_INFO *cs, const char *str, size_t length);
 
   char m_str[1024];
@@ -1185,146 +1095,98 @@ private:
   const CHARSET_INFO *m_charset;
 };
 
-struct PFS_user_variable_value_row
-{
-public:
-  PFS_user_variable_value_row() : m_value(NULL), m_value_length(0)
-  {
-  }
+struct PFS_user_variable_value_row {
+ public:
+  PFS_user_variable_value_row() : m_value(NULL), m_value_length(0) {}
 
-  PFS_user_variable_value_row(const PFS_user_variable_value_row &rhs)
-  {
+  PFS_user_variable_value_row(const PFS_user_variable_value_row &rhs) {
     make_row(rhs.m_value, rhs.m_value_length);
   }
 
-  ~PFS_user_variable_value_row()
-  {
-    clear();
-  }
+  ~PFS_user_variable_value_row() { clear(); }
 
   int make_row(const char *val, size_t length);
 
-  const char *
-  get_value() const
-  {
-    return m_value;
-  }
+  const char *get_value() const { return m_value; }
 
-  size_t
-  get_value_length() const
-  {
-    return m_value_length;
-  }
+  size_t get_value_length() const { return m_value_length; }
 
   void clear();
 
-private:
+ private:
   char *m_value;
   size_t m_value_length;
 };
 
-class PFS_key_long : public PFS_engine_key
-{
-public:
-  PFS_key_long(const char *name) : PFS_engine_key(name), m_key_value(0)
-  {
-  }
+class PFS_key_long : public PFS_engine_key {
+ public:
+  PFS_key_long(const char *name) : PFS_engine_key(name), m_key_value(0) {}
 
-  virtual ~PFS_key_long()
-  {
-  }
+  virtual ~PFS_key_long() {}
 
-  static enum ha_rkey_function
-  stateless_read(PFS_key_reader &reader,
-                 enum ha_rkey_function find_flag,
-                 bool &is_null,
-                 long *key_value)
-  {
+  static enum ha_rkey_function stateless_read(PFS_key_reader &reader,
+                                              enum ha_rkey_function find_flag,
+                                              bool &is_null, long *key_value) {
     return reader.read_long(find_flag, is_null, key_value);
   }
 
-  virtual void
-  read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
-  {
+  virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     m_find_flag = stateless_read(reader, find_flag, m_is_null, &m_key_value);
   }
 
-  static bool stateless_match(bool record_null,
-                              long record_value,
-                              bool m_is_null,
-                              long m_key_value,
+  static bool stateless_match(bool record_null, long record_value,
+                              bool m_is_null, long m_key_value,
                               enum ha_rkey_function find_flag);
 
-protected:
-  bool
-  do_match(bool record_null, long record_value)
-  {
-    return stateless_match(
-      record_null, record_value, m_is_null, m_key_value, m_find_flag);
+ protected:
+  bool do_match(bool record_null, long record_value) {
+    return stateless_match(record_null, record_value, m_is_null, m_key_value,
+                           m_find_flag);
   }
 
-private:
+ private:
   long m_key_value;
 };
 
-class PFS_key_ulong : public PFS_engine_key
-{
-public:
-  PFS_key_ulong(const char *name) : PFS_engine_key(name), m_key_value(0)
-  {
-  }
+class PFS_key_ulong : public PFS_engine_key {
+ public:
+  PFS_key_ulong(const char *name) : PFS_engine_key(name), m_key_value(0) {}
 
-  virtual ~PFS_key_ulong()
-  {
-  }
+  virtual ~PFS_key_ulong() {}
 
-  virtual void
-  read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
-  {
+  virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     m_find_flag = reader.read_ulong(find_flag, m_is_null, &m_key_value);
   }
 
-protected:
+ protected:
   bool do_match(bool record_null, ulong record_value);
 
-private:
+ private:
   ulong m_key_value;
 };
 
-class PFS_key_ulonglong : public PFS_engine_key
-{
-public:
-  PFS_key_ulonglong(const char *name) : PFS_engine_key(name), m_key_value(0)
-  {
-  }
+class PFS_key_ulonglong : public PFS_engine_key {
+ public:
+  PFS_key_ulonglong(const char *name) : PFS_engine_key(name), m_key_value(0) {}
 
-  virtual ~PFS_key_ulonglong()
-  {
-  }
+  virtual ~PFS_key_ulonglong() {}
 
-  virtual void
-  read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
-  {
+  virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     m_find_flag = reader.read_ulonglong(find_flag, m_is_null, &m_key_value);
   }
 
-protected:
+ protected:
   bool do_match(bool record_null, ulonglong record_value);
 
-private:
+ private:
   ulonglong m_key_value;
 };
 
-class PFS_key_thread_id : public PFS_key_ulonglong
-{
-public:
-  PFS_key_thread_id(const char *name) : PFS_key_ulonglong(name)
-  {
-  }
+class PFS_key_thread_id : public PFS_key_ulonglong {
+ public:
+  PFS_key_thread_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_thread_id()
-  {
-  }
+  ~PFS_key_thread_id() {}
 
   bool match(ulonglong thread_id);
   bool match(const PFS_thread *pfs);
@@ -1336,16 +1198,11 @@ public:
   bool match_writer(const PFS_rwlock *pfs);
 };
 
-class PFS_key_event_id : public PFS_key_ulonglong
-{
-public:
-  PFS_key_event_id(const char *name) : PFS_key_ulonglong(name)
-  {
-  }
+class PFS_key_event_id : public PFS_key_ulonglong {
+ public:
+  PFS_key_event_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_event_id()
-  {
-  }
+  ~PFS_key_event_id() {}
 
   bool match(ulonglong event_id);
   bool match(const PFS_events *pfs);
@@ -1355,240 +1212,156 @@ public:
   bool match_owner(const PFS_metadata_lock *pfs);
 };
 
-class PFS_key_processlist_id : public PFS_key_ulonglong
-{
-public:
-  PFS_key_processlist_id(const char *name) : PFS_key_ulonglong(name)
-  {
-  }
+class PFS_key_processlist_id : public PFS_key_ulonglong {
+ public:
+  PFS_key_processlist_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_processlist_id()
-  {
-  }
+  ~PFS_key_processlist_id() {}
 
   bool match(const PFS_thread *pfs);
 };
 
-class PFS_key_engine_transaction_id : public PFS_key_ulonglong
-{
-public:
-  PFS_key_engine_transaction_id(const char *name) : PFS_key_ulonglong(name)
-  {
-  }
+class PFS_key_engine_transaction_id : public PFS_key_ulonglong {
+ public:
+  PFS_key_engine_transaction_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_engine_transaction_id()
-  {
-  }
+  ~PFS_key_engine_transaction_id() {}
 
   bool match(ulonglong engine_transaction_id);
 };
 
-class PFS_key_thread_os_id : public PFS_key_ulonglong
-{
-public:
-  PFS_key_thread_os_id(const char *name) : PFS_key_ulonglong(name)
-  {
-  }
+class PFS_key_thread_os_id : public PFS_key_ulonglong {
+ public:
+  PFS_key_thread_os_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_thread_os_id()
-  {
-  }
+  ~PFS_key_thread_os_id() {}
 
   bool match(const PFS_thread *pfs);
 };
 
-class PFS_key_statement_id : public PFS_key_ulonglong
-{
-public:
-  PFS_key_statement_id(const char *name) : PFS_key_ulonglong(name)
-  {
-  }
+class PFS_key_statement_id : public PFS_key_ulonglong {
+ public:
+  PFS_key_statement_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_statement_id()
-  {
-  }
+  ~PFS_key_statement_id() {}
 
   bool match(const PFS_prepared_stmt *pfs);
 };
 
-class PFS_key_worker_id : public PFS_key_ulonglong
-{
-public:
-  PFS_key_worker_id(const char *name) : PFS_key_ulonglong(name)
-  {
-  }
+class PFS_key_worker_id : public PFS_key_ulonglong {
+ public:
+  PFS_key_worker_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_worker_id()
-  {
-  }
+  ~PFS_key_worker_id() {}
 
   bool match_not_null(ulonglong worker_id);
 };
 
-class PFS_key_socket_id : public PFS_key_long
-{
-public:
-  PFS_key_socket_id(const char *name) : PFS_key_long(name)
-  {
-  }
+class PFS_key_socket_id : public PFS_key_long {
+ public:
+  PFS_key_socket_id(const char *name) : PFS_key_long(name) {}
 
-  ~PFS_key_socket_id()
-  {
-  }
+  ~PFS_key_socket_id() {}
 
   bool match(const PFS_socket *pfs);
 };
 
-class PFS_key_port : public PFS_key_long
-{
-public:
-  PFS_key_port(const char *name) : PFS_key_long(name)
-  {
-  }
+class PFS_key_port : public PFS_key_long {
+ public:
+  PFS_key_port(const char *name) : PFS_key_long(name) {}
 
-  ~PFS_key_port()
-  {
-  }
+  ~PFS_key_port() {}
 
   bool match(const PFS_socket *pfs);
 };
 
-class PFS_key_error_number : public PFS_key_long
-{
-public:
-  PFS_key_error_number(const char *name) : PFS_key_long(name)
-  {
-  }
+class PFS_key_error_number : public PFS_key_long {
+ public:
+  PFS_key_error_number(const char *name) : PFS_key_long(name) {}
 
-  ~PFS_key_error_number()
-  {
-  }
+  ~PFS_key_error_number() {}
 
   bool match_error_index(uint error_index);
 };
 
-class PFS_key_pstring : public PFS_engine_key
-{
-public:
-  PFS_key_pstring(const char *name) : PFS_engine_key(name)
-  {
-  }
+class PFS_key_pstring : public PFS_engine_key {
+ public:
+  PFS_key_pstring(const char *name) : PFS_engine_key(name) {}
 
-  virtual ~PFS_key_pstring()
-  {
-  }
+  virtual ~PFS_key_pstring() {}
 
-  static enum ha_rkey_function
-  stateless_read(PFS_key_reader &reader,
-                 enum ha_rkey_function find_flag,
-                 bool &is_null,
-                 char *key_value,
-                 uint *key_value_length,
-                 uint key_value_max_length)
-  {
-    if (reader.get_key_type() == HA_KEYTYPE_TEXT)
-    {
-      return (reader.read_text_utf8(
-        find_flag, is_null, key_value, key_value_length, key_value_max_length));
-    }
-    else
-    {
-      return (reader.read_varchar_utf8(
-        find_flag, is_null, key_value, key_value_length, key_value_max_length));
+  static enum ha_rkey_function stateless_read(PFS_key_reader &reader,
+                                              enum ha_rkey_function find_flag,
+                                              bool &is_null, char *key_value,
+                                              uint *key_value_length,
+                                              uint key_value_max_length) {
+    if (reader.get_key_type() == HA_KEYTYPE_TEXT) {
+      return (reader.read_text_utf8(find_flag, is_null, key_value,
+                                    key_value_length, key_value_max_length));
+    } else {
+      return (reader.read_varchar_utf8(find_flag, is_null, key_value,
+                                       key_value_length, key_value_max_length));
     }
   }
 
-  static bool stateless_match(bool record_null,
-                              const char *record_string,
+  static bool stateless_match(bool record_null, const char *record_string,
                               size_t record_string_length,
                               const char *m_key_value,
-                              size_t m_key_value_length,
-                              bool m_is_null,
+                              size_t m_key_value_length, bool m_is_null,
                               enum ha_rkey_function m_find_flag);
 
-protected:
-  bool do_match(bool record_null,
-                const char *record_value,
+ protected:
+  bool do_match(bool record_null, const char *record_value,
                 size_t record_value_length);
-  bool do_match_prefix(bool record_null,
-                       const char *record_value,
+  bool do_match_prefix(bool record_null, const char *record_value,
                        size_t record_value_length);
 };
 
 template <int SIZE>
-class PFS_key_string : public PFS_key_pstring
-{
-public:
+class PFS_key_string : public PFS_key_pstring {
+ public:
   PFS_key_string(const char *name)
-    : PFS_key_pstring(name), m_key_value_length(0)
-  {
+      : PFS_key_pstring(name), m_key_value_length(0) {}
+
+  virtual ~PFS_key_string() {}
+
+  virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
+    m_find_flag = stateless_read(reader, find_flag, m_is_null, m_key_value,
+                                 &m_key_value_length, sizeof(m_key_value));
   }
 
-  virtual ~PFS_key_string()
-  {
-  }
-
-  virtual void
-  read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
-  {
-    m_find_flag = stateless_read(reader,
-                                 find_flag,
-                                 m_is_null,
-                                 m_key_value,
-                                 &m_key_value_length,
-                                 sizeof(m_key_value));
-  }
-
-protected:
-  bool
-  do_match(bool record_null,
-           const char *record_value,
-           size_t record_value_length)
-  {
-    return stateless_match(record_null,
-                           record_value,
-                           record_value_length,
-                           m_key_value,
-                           m_key_value_length,
-                           m_is_null,
+ protected:
+  bool do_match(bool record_null, const char *record_value,
+                size_t record_value_length) {
+    return stateless_match(record_null, record_value, record_value_length,
+                           m_key_value, m_key_value_length, m_is_null,
                            m_find_flag);
   }
-  bool do_match_prefix(bool record_null,
-                       const char *record_value,
+  bool do_match_prefix(bool record_null, const char *record_value,
                        size_t record_value_length);
 
-private:
+ private:
   char m_key_value[SIZE *
                    SYSTEM_CHARSET_MBMAXLEN];  // FIXME FILENAME_CHARSET_MBMAXLEN
                                               // for file names
   uint m_key_value_length;
 };
 
-class PFS_key_thread_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
-{
-public:
-  PFS_key_thread_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_thread_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
+ public:
+  PFS_key_thread_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_thread_name()
-  {
-  }
+  ~PFS_key_thread_name() {}
 
   bool match(const PFS_thread *pfs);
   bool match(const PFS_thread_class *klass);
 };
 
-class PFS_key_event_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
-{
-public:
-  PFS_key_event_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_event_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
+ public:
+  PFS_key_event_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_event_name()
-  {
-  }
+  ~PFS_key_event_name() {}
 
   bool match(const PFS_instr_class *klass);
   bool match(const PFS_mutex *pfs);
@@ -1599,16 +1372,11 @@ public:
   bool match_view(uint view);
 };
 
-class PFS_key_user : public PFS_key_string<USERNAME_LENGTH>
-{
-public:
-  PFS_key_user(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_user : public PFS_key_string<USERNAME_LENGTH> {
+ public:
+  PFS_key_user(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_user()
-  {
-  }
+  ~PFS_key_user() {}
 
   bool match(const PFS_thread *pfs);
   bool match(const PFS_user *pfs);
@@ -1616,16 +1384,11 @@ public:
   bool match(const PFS_setup_actor *pfs);
 };
 
-class PFS_key_host : public PFS_key_string<HOSTNAME_LENGTH>
-{
-public:
-  PFS_key_host(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_host : public PFS_key_string<HOSTNAME_LENGTH> {
+ public:
+  PFS_key_host(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_host()
-  {
-  }
+  ~PFS_key_host() {}
 
   bool match(const PFS_thread *pfs);
   bool match(const PFS_host *pfs);
@@ -1634,73 +1397,48 @@ public:
   bool match(const char *host, size_t host_length);
 };
 
-class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH>
-{
-public:
-  PFS_key_role(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH> {
+ public:
+  PFS_key_role(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_role()
-  {
-  }
+  ~PFS_key_role() {}
 
   bool match(const PFS_setup_actor *pfs);
 };
 
-class PFS_key_schema : public PFS_key_string<NAME_CHAR_LEN>
-{
-public:
-  PFS_key_schema(const char *schema) : PFS_key_string(schema)
-  {
-  }
+class PFS_key_schema : public PFS_key_string<NAME_CHAR_LEN> {
+ public:
+  PFS_key_schema(const char *schema) : PFS_key_string(schema) {}
 
-  ~PFS_key_schema()
-  {
-  }
+  ~PFS_key_schema() {}
 
   bool match(const PFS_statements_digest_stat *pfs);
 };
 
-class PFS_key_digest : public PFS_key_string<MAX_KEY_LENGTH>
-{
-public:
-  PFS_key_digest(const char *digest) : PFS_key_string(digest)
-  {
-  }
+class PFS_key_digest : public PFS_key_string<MAX_KEY_LENGTH> {
+ public:
+  PFS_key_digest(const char *digest) : PFS_key_string(digest) {}
 
-  ~PFS_key_digest()
-  {
-  }
+  ~PFS_key_digest() {}
 
   bool match(PFS_statements_digest_stat *pfs);
 };
 
-class PFS_key_bucket_number : public PFS_key_ulong
-{
-public:
-  PFS_key_bucket_number(const char *name) : PFS_key_ulong(name)
-  {
-  }
+class PFS_key_bucket_number : public PFS_key_ulong {
+ public:
+  PFS_key_bucket_number(const char *name) : PFS_key_ulong(name) {}
 
-  ~PFS_key_bucket_number()
-  {
-  }
+  ~PFS_key_bucket_number() {}
 
   bool match(ulong value);
 };
 
 /* Generic NAME key */
-class PFS_key_name : public PFS_key_string<NAME_CHAR_LEN>
-{
-public:
-  PFS_key_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_name : public PFS_key_string<NAME_CHAR_LEN> {
+ public:
+  PFS_key_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_name()
-  {
-  }
+  ~PFS_key_name() {}
 
   bool match(const LEX_STRING *name);
   bool match(const char *name, size_t name_length);
@@ -1708,32 +1446,22 @@ public:
   bool match_not_null(const char *name, size_t name_length);
 };
 
-class PFS_key_group_name : public PFS_key_string<NAME_CHAR_LEN>
-{
-public:
-  PFS_key_group_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_group_name : public PFS_key_string<NAME_CHAR_LEN> {
+ public:
+  PFS_key_group_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_group_name()
-  {
-  }
+  ~PFS_key_group_name() {}
 
   bool match(const LEX_STRING *name);
   bool match(const char *name, size_t name_length);
   bool match(PFS_thread *pfs);
 };
 
-class PFS_key_variable_name : public PFS_key_string<NAME_CHAR_LEN>
-{
-public:
-  PFS_key_variable_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_variable_name : public PFS_key_string<NAME_CHAR_LEN> {
+ public:
+  PFS_key_variable_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_variable_name()
-  {
-  }
+  ~PFS_key_variable_name() {}
 
   bool match(const System_variable *pfs);
   bool match(const Status_variable *pfs);
@@ -1741,31 +1469,21 @@ public:
 };
 
 // FIXME: 32
-class PFS_key_engine_name : public PFS_key_string<32>
-{
-public:
-  PFS_key_engine_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_engine_name : public PFS_key_string<32> {
+ public:
+  PFS_key_engine_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_engine_name()
-  {
-  }
+  ~PFS_key_engine_name() {}
 
   bool match(const char *engine_name, size_t length);
 };
 
 // FIXME: 128
-class PFS_key_engine_lock_id : public PFS_key_string<128>
-{
-public:
-  PFS_key_engine_lock_id(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_engine_lock_id : public PFS_key_string<128> {
+ public:
+  PFS_key_engine_lock_id(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_engine_lock_id()
-  {
-  }
+  ~PFS_key_engine_lock_id() {}
 
   bool match(const char *engine_lock_id, size_t length);
 };
@@ -1774,58 +1492,40 @@ class PFS_key_ip : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>  // FIXME
 // <INET6_ADDRSTRLEN+1>
 // fails on freebsd
 {
-public:
-  PFS_key_ip(const char *name) : PFS_key_string(name)
-  {
-  }
+ public:
+  PFS_key_ip(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_ip()
-  {
-  }
+  ~PFS_key_ip() {}
 
   bool match(const PFS_socket *pfs);
   bool match(const char *ip, size_t ip_length);
 };
 
-class PFS_key_statement_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
-{
-public:
-  PFS_key_statement_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_statement_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
+ public:
+  PFS_key_statement_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_statement_name()
-  {
-  }
+  ~PFS_key_statement_name() {}
 
   bool match(const PFS_prepared_stmt *pfs);
 };
 
 class PFS_key_file_name
-  : public PFS_key_string<1350>  // FIXME FN_REFLEN or FN_REFLEN_SE
+    : public PFS_key_string<1350>  // FIXME FN_REFLEN or FN_REFLEN_SE
 {
-public:
-  PFS_key_file_name(const char *name) : PFS_key_string(name)
-  {
-  }
+ public:
+  PFS_key_file_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_file_name()
-  {
-  }
+  ~PFS_key_file_name() {}
 
   bool match(const PFS_file *pfs);
 };
 
-class PFS_key_object_schema : public PFS_key_string<NAME_CHAR_LEN>
-{
-public:
-  PFS_key_object_schema(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_object_schema : public PFS_key_string<NAME_CHAR_LEN> {
+ public:
+  PFS_key_object_schema(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_object_schema()
-  {
-  }
+  ~PFS_key_object_schema() {}
 
   bool match(const PFS_table_share *pfs);
   bool match(const PFS_program *pfs);
@@ -1836,16 +1536,11 @@ public:
   bool match(const char *schema_name, size_t schema_name_length);
 };
 
-class PFS_key_object_name : public PFS_key_string<NAME_CHAR_LEN>
-{
-public:
-  PFS_key_object_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_object_name : public PFS_key_string<NAME_CHAR_LEN> {
+ public:
+  PFS_key_object_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_object_name()
-  {
-  }
+  ~PFS_key_object_name() {}
 
   bool match(const PFS_table_share *pfs);
   bool match(const PFS_program *pfs);
@@ -1857,31 +1552,21 @@ public:
   bool match(const char *schema_name, size_t schema_name_length);
 };
 
-class PFS_key_column_name : public PFS_key_string<NAME_CHAR_LEN>
-{
-public:
-  PFS_key_column_name(const char *name) : PFS_key_string(name)
-  {
-  }
+class PFS_key_column_name : public PFS_key_string<NAME_CHAR_LEN> {
+ public:
+  PFS_key_column_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_column_name()
-  {
-  }
+  ~PFS_key_column_name() {}
 
   bool match(const PFS_column_row *pfs);
 };
 
-class PFS_key_object_type : public PFS_engine_key
-{
-public:
+class PFS_key_object_type : public PFS_engine_key {
+ public:
   PFS_key_object_type(const char *name)
-    : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE)
-  {
-  }
+      : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE) {}
 
-  virtual ~PFS_key_object_type()
-  {
-  }
+  virtual ~PFS_key_object_type() {}
 
   virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag);
 
@@ -1890,22 +1575,17 @@ public:
   bool match(const PFS_column_row *pfs);
   bool match(const PFS_program *pfs);
 
-private:
+ private:
   bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 
-class PFS_key_object_type_enum : public PFS_engine_key
-{
-public:
+class PFS_key_object_type_enum : public PFS_engine_key {
+ public:
   PFS_key_object_type_enum(const char *name)
-    : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE)
-  {
-  }
+      : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE) {}
 
-  virtual ~PFS_key_object_type_enum()
-  {
-  }
+  virtual ~PFS_key_object_type_enum() {}
 
   virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag);
 
@@ -1914,29 +1594,22 @@ public:
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_program *pfs);
 
-private:
+ private:
   bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 
-class PFS_key_object_instance : public PFS_engine_key
-{
-public:
+class PFS_key_object_instance : public PFS_engine_key {
+ public:
   PFS_key_object_instance(const char *name)
-    : PFS_engine_key(name), m_identity(NULL)
-  {
-  }
+      : PFS_engine_key(name), m_identity(NULL) {}
 
-  virtual ~PFS_key_object_instance()
-  {
-  }
+  virtual ~PFS_key_object_instance() {}
 
-  virtual void
-  read(PFS_key_reader &reader, enum ha_rkey_function find_flag)
-  {
+  virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     ulonglong object_instance_begin;
     m_find_flag =
-      reader.read_ulonglong(find_flag, m_is_null, &object_instance_begin);
+        reader.read_ulonglong(find_flag, m_is_null, &object_instance_begin);
     m_identity = (void *)object_instance_begin;
   }
 

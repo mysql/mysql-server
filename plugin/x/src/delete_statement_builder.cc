@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -26,9 +26,7 @@
 
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
-
-void xpl::Delete_statement_builder::build(const Delete &msg) const
-{
+void xpl::Delete_statement_builder::build(const Delete &msg) const {
   m_builder.put("DELETE FROM ");
   add_collection(msg.collection());
   add_filter(msg.criteria());

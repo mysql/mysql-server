@@ -20,27 +20,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #include "plugin/group_replication/include/observer_server_channels.h"
 
 #include <stddef.h>
 
 #include "plugin/group_replication/include/plugin.h"
 
+int group_replication_thread_start(Binlog_relay_IO_param *param) {
+  int error = 0;
 
-int group_replication_thread_start(Binlog_relay_IO_param *param)
-{
-  int error= 0;
-
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer* state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->thread_start(param);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->thread_start(param);
 
     observation_manager->unlock_channel_list();
   }
@@ -48,19 +44,17 @@ int group_replication_thread_start(Binlog_relay_IO_param *param)
   return error;
 }
 
-int group_replication_thread_stop(Binlog_relay_IO_param *param)
-{
-  int error= 0;
+int group_replication_thread_stop(Binlog_relay_IO_param *param) {
+  int error = 0;
 
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->thread_stop(param);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->thread_stop(param);
 
     observation_manager->unlock_channel_list();
   }
@@ -68,19 +62,17 @@ int group_replication_thread_stop(Binlog_relay_IO_param *param)
   return error;
 }
 
-int group_replication_applier_start(Binlog_relay_IO_param *param)
-{
-  int error= 0;
+int group_replication_applier_start(Binlog_relay_IO_param *param) {
+  int error = 0;
 
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->applier_start(param);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->applier_start(param);
 
     observation_manager->unlock_channel_list();
   }
@@ -88,19 +80,17 @@ int group_replication_applier_start(Binlog_relay_IO_param *param)
   return error;
 }
 
-int group_replication_applier_stop(Binlog_relay_IO_param *param, bool aborted)
-{
-  int error= 0;
+int group_replication_applier_stop(Binlog_relay_IO_param *param, bool aborted) {
+  int error = 0;
 
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->applier_stop(param, aborted);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->applier_stop(param, aborted);
 
     observation_manager->unlock_channel_list();
   }
@@ -109,69 +99,60 @@ int group_replication_applier_stop(Binlog_relay_IO_param *param, bool aborted)
 }
 
 int group_replication_before_request_transmit(Binlog_relay_IO_param *param,
-                                              uint32 flags)
-{
-  int error= 0;
+                                              uint32 flags) {
+  int error = 0;
 
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->before_request_transmit(param, flags);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->before_request_transmit(param, flags);
 
     observation_manager->unlock_channel_list();
   }
 
   return error;
 }
-
 
 int group_replication_after_read_event(Binlog_relay_IO_param *param,
                                        const char *packet, unsigned long len,
                                        const char **event_buf,
-                                       unsigned long *event_len)
-{
-  int error= 0;
+                                       unsigned long *event_len) {
+  int error = 0;
 
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->after_read_event(param, packet, len,
-                                                event_buf, event_len);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->after_read_event(param, packet, len, event_buf,
+                                                event_len);
 
     observation_manager->unlock_channel_list();
   }
 
   return error;
 }
-
 
 int group_replication_after_queue_event(Binlog_relay_IO_param *param,
                                         const char *event_buf,
-                                        unsigned long event_len,
-                                        uint32 flags)
-{
-  int error= 0;
+                                        unsigned long event_len, uint32 flags) {
+  int error = 0;
 
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->after_queue_event(param, event_buf,
-                                                 event_len, flags);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error +=
+          state_observer->after_queue_event(param, event_buf, event_len, flags);
 
     observation_manager->unlock_channel_list();
   }
@@ -179,43 +160,36 @@ int group_replication_after_queue_event(Binlog_relay_IO_param *param,
   return error;
 }
 
+int group_replication_after_reset_slave(Binlog_relay_IO_param *param) {
+  int error = 0;
 
-int group_replication_after_reset_slave(Binlog_relay_IO_param *param)
-{
-  int error= 0;
-
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->after_reset_slave(param);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->after_reset_slave(param);
 
     observation_manager->unlock_channel_list();
   }
 
   return error;
 }
-
 
 int group_replication_applier_log_event(Binlog_relay_IO_param *param,
-                                        Trans_param *trans_param,
-                                        int& out)
-{
-  int error= 0;
+                                        Trans_param *trans_param, int &out) {
+  int error = 0;
 
-  for (Channel_observation_manager* observation_manager :
-        channel_observation_manager_list->
-          get_channel_observation_manager_list())
-  {
+  for (Channel_observation_manager *observation_manager :
+       channel_observation_manager_list
+           ->get_channel_observation_manager_list()) {
     observation_manager->read_lock_channel_list();
 
-    for (Channel_state_observer * state_observer :
-          observation_manager->get_channel_state_observers())
-      error+= state_observer->applier_log_event(param, trans_param, out);
+    for (Channel_state_observer *state_observer :
+         observation_manager->get_channel_state_observers())
+      error += state_observer->applier_log_event(param, trans_param, out);
 
     observation_manager->unlock_channel_list();
   }
@@ -223,8 +197,7 @@ int group_replication_applier_log_event(Binlog_relay_IO_param *param,
   return error;
 }
 
-
-Binlog_relay_IO_observer binlog_IO_observer= {
+Binlog_relay_IO_observer binlog_IO_observer = {
     sizeof(Binlog_relay_IO_observer),
 
     group_replication_thread_start,
@@ -235,5 +208,4 @@ Binlog_relay_IO_observer binlog_IO_observer= {
     group_replication_after_read_event,
     group_replication_after_queue_event,
     group_replication_after_reset_slave,
-    group_replication_applier_log_event
-  };
+    group_replication_applier_log_event};

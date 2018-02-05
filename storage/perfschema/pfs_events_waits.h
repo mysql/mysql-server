@@ -52,8 +52,7 @@ struct PFS_host;
 struct PFS_metadata_lock;
 
 /** Class of a wait event. */
-enum events_waits_class
-{
+enum events_waits_class {
   NO_WAIT_CLASS = 0,
   WAIT_CLASS_MUTEX,
   WAIT_CLASS_RWLOCK,
@@ -66,8 +65,7 @@ enum events_waits_class
 };
 
 /** A wait event record. */
-struct PFS_events_waits : public PFS_events
-{
+struct PFS_events_waits : public PFS_events {
   /**
     The type of wait.
     Readers:

@@ -20,24 +20,23 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #include "sql_restart_server.h"
 
 #ifndef _WIN32
 #include <sys/types.h>
 #include <unistd.h>
 #include <sstream>
-#endif // _WIN32
+#endif  // _WIN32
 
-#include "my_thread.h"                 // my_thread_handle
-#include "mysql/components/services/log_builtins.h" // LogErr
-#include "mysqld.h"                    // opt_noacl
-#include "mysqld_error.h"              // ER_SPECIFIC_ACCESS_DENIED_ERROR
-#include "sql/auth/auth_acls.h"        // SHUTDOWN_ACL
-#include "sql/auth/sql_security_ctx.h" // Security_context
-#include "sql/sql_lex.h"               // LEX
-#include "sql/sql_class.h"             // THD
-#include "sql/log.h"                   // Query_logger
+#include "my_thread.h"                               // my_thread_handle
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysqld.h"                                  // opt_noacl
+#include "mysqld_error.h"               // ER_SPECIFIC_ACCESS_DENIED_ERROR
+#include "sql/auth/auth_acls.h"         // SHUTDOWN_ACL
+#include "sql/auth/sql_security_ctx.h"  // Security_context
+#include "sql/log.h"                    // Query_logger
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_lex.h"                // LEX
 
 extern my_thread_handle signal_thread_id;
 
@@ -51,41 +50,33 @@ extern my_thread_handle signal_thread_id;
   @retval true  A user doesn't have the privilege SHUTDOWN_ACL..
 */
 
-static inline bool check_restart_server_admin_privilege(THD *thd)
-{
+static inline bool check_restart_server_admin_privilege(THD *thd) {
   return !opt_noacl && check_global_access(thd, SHUTDOWN_ACL);
 }
 
-
 #ifndef _WIN32
-bool is_mysqld_managed()
-{
-  char *parent_pid= getenv("MYSQLD_PARENT_PID");
-  if (parent_pid == nullptr)
-    return false;
+bool is_mysqld_managed() {
+  char *parent_pid = getenv("MYSQLD_PARENT_PID");
+  if (parent_pid == nullptr) return false;
 
   return atoi(parent_pid) == getppid();
 }
-#endif // _WIN32
+#endif  // _WIN32
 
-bool Sql_cmd_restart_server::execute(THD *thd)
-{
+bool Sql_cmd_restart_server::execute(THD *thd) {
   DBUG_ENTER("Sql_cmd_restart_server");
 
-  if (check_restart_server_admin_privilege(thd))
-    DBUG_RETURN(true);
+  if (check_restart_server_admin_privilege(thd)) DBUG_RETURN(true);
 
   // RESTART shall not be binlogged.
-  thd->lex->no_write_to_binlog= 1;
+  thd->lex->no_write_to_binlog = 1;
 
   query_logger.general_log_print(thd, COM_QUERY, NullS);
   LogErr(SYSTEM_LEVEL, ER_RESTART_RECEIVED_INFO,
          thd->security_context()->user().str, server_version);
 
-  if (signal_restart_server())
-  {
-    my_error(ER_RESTART_SERVER_FAILED, MYF(0),
-             "Restart server failed");
+  if (signal_restart_server()) {
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Restart server failed");
     DBUG_RETURN(true);
   }
 

@@ -50,8 +50,7 @@ struct PFS_thread;
 */
 
 /** Hash key for a user. */
-struct PFS_user_key
-{
+struct PFS_user_key {
   /**
     Hash search key.
     This has to be a string for @c LF_HASH,
@@ -62,32 +61,15 @@ struct PFS_user_key
 };
 
 /** Per user statistics. */
-struct PFS_ALIGNED PFS_user : public PFS_connection_slice
-{
-public:
-  inline void
-  init_refcount(void)
-  {
-    m_refcount.store(1);
-  }
+struct PFS_ALIGNED PFS_user : public PFS_connection_slice {
+ public:
+  inline void init_refcount(void) { m_refcount.store(1); }
 
-  inline int
-  get_refcount(void)
-  {
-    return m_refcount.load();
-  }
+  inline int get_refcount(void) { return m_refcount.load(); }
 
-  inline void
-  inc_refcount(void)
-  {
-    ++m_refcount;
-  }
+  inline void inc_refcount(void) { ++m_refcount; }
 
-  inline void
-  dec_refcount(void)
-  {
-    --m_refcount;
-  }
+  inline void dec_refcount(void) { --m_refcount; }
 
   void aggregate(bool alive);
   void aggregate_waits(void);
@@ -105,28 +87,20 @@ public:
 
   void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
 
-  void
-  set_instr_class_memory_stats(PFS_memory_shared_stat *array)
-  {
+  void set_instr_class_memory_stats(PFS_memory_shared_stat *array) {
     m_has_memory_stats = false;
     m_instr_class_memory_stats = array;
   }
 
-  const PFS_memory_shared_stat *
-  read_instr_class_memory_stats() const
-  {
-    if (!m_has_memory_stats)
-    {
+  const PFS_memory_shared_stat *read_instr_class_memory_stats() const {
+    if (!m_has_memory_stats) {
       return NULL;
     }
     return m_instr_class_memory_stats;
   }
 
-  PFS_memory_shared_stat *
-  write_instr_class_memory_stats()
-  {
-    if (!m_has_memory_stats)
-    {
+  PFS_memory_shared_stat *write_instr_class_memory_stats() {
+    if (!m_has_memory_stats) {
       rebase_memory_stats();
       m_has_memory_stats = true;
     }
@@ -141,7 +115,7 @@ public:
 
   ulonglong m_disconnected_count;
 
-private:
+ private:
   std::atomic<int> m_refcount;
 
   /**
@@ -151,7 +125,6 @@ private:
     Immutable, safe to use without internal lock.
   */
   PFS_memory_shared_stat *m_instr_class_memory_stats;
-
 };
 
 int init_user(const PFS_global_param *param);
@@ -159,8 +132,7 @@ void cleanup_user(void);
 int init_user_hash(const PFS_global_param *param);
 void cleanup_user_hash(void);
 
-PFS_user *find_or_create_user(PFS_thread *thread,
-                              const char *username,
+PFS_user *find_or_create_user(PFS_thread *thread, const char *username,
                               uint username_length);
 
 PFS_user *sanitize_user(PFS_user *unsafe);

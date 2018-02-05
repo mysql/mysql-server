@@ -23,8 +23,7 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 
-namespace keyring
-{
-  PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
-  PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
-}
+namespace keyring {
+PSI_memory_key key_memory_KEYRING = PSI_NOT_INSTRUMENTED;
+PSI_memory_key key_LOCK_keyring = PSI_NOT_INSTRUMENTED;
+}  // namespace keyring

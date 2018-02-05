@@ -30,7 +30,7 @@ using std::string;
 using namespace Mysql::Tools::Base::Options;
 
 Disabled_option::Disabled_option(string name, string description)
-  : Abstract_option<Disabled_option>(NULL, GET_DISABLED, name, description, 0)
-{
-  this->m_option_structure.arg_type= OPT_ARG;
+    : Abstract_option<Disabled_option>(NULL, GET_DISABLED, name, description,
+                                       0) {
+  this->m_option_structure.arg_type = OPT_ARG;
 }

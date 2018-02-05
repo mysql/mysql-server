@@ -35,22 +35,20 @@
 #include <vector>
 
 #include "m_ctype.h"
-#include "unittest/gunit/benchmark.h"
 #include "my_sys.h"
+#include "unittest/gunit/benchmark.h"
 
 namespace collation_loader_unittest {
 
 namespace {
 
-CHARSET_INFO *lookup_collation(const char *name)
-{
+CHARSET_INFO *lookup_collation(const char *name) {
   MY_CHARSET_LOADER loader;
   my_charset_loader_init_mysys(&loader);
   return my_collation_get_by_name(&loader, name, MYF(0));
 }
 
-CHARSET_INFO *lookup_charset(const char *name, int flag)
-{
+CHARSET_INFO *lookup_charset(const char *name, int flag) {
   MY_CHARSET_LOADER loader;
   my_charset_loader_init_mysys(&loader);
   return my_charset_get_by_name(&loader, name, flag, MYF(0));
@@ -58,85 +56,46 @@ CHARSET_INFO *lookup_charset(const char *name, int flag)
 
 }  // namespace
 
-static void BM_LookupAllCollations(size_t num_iterations)
-{
+static void BM_LookupAllCollations(size_t num_iterations) {
   StopBenchmarkTiming();
 
   // Look up one collation to initialize the all_charsets array.
   lookup_collation("latin1_swedish_ci");
-  size_t num_charsets= array_elements(all_charsets);
+  size_t num_charsets = array_elements(all_charsets);
 
   StartBenchmarkTiming();
-  for (size_t i= 0; i < num_iterations; i++)
-  {
-    const CHARSET_INFO *cs= all_charsets[i % num_charsets];
-    if (cs)
-    {
+  for (size_t i = 0; i < num_iterations; i++) {
+    const CHARSET_INFO *cs = all_charsets[i % num_charsets];
+    if (cs) {
       EXPECT_NE(lookup_collation(cs->name), nullptr);
     }
   }
 }
 BENCHMARK(BM_LookupAllCollations);
 
-static std::vector<std::string> charsets= {
-  "armscii8",
-  "ascii",
-  "big5",
-  "binary",
-  "cp1250",
-  "cp1251",
-  "cp1256",
-  "cp1257",
-  "cp850",
-  "cp852",
-  "cp866",
-  "cp932",
-  "dec8",
-  "eucjpms",
-  "euckr",
-  "gb18030",
-  "gb2312",
-  "gbk",
-  "geostd8",
-  "greek",
-  "hebrew",
-  "hp8",
-  "keybcs2",
-  "koi8r",
-  "koi8u",
-  "latin1",
-  "latin2",
-  "latin5",
-  "latin7",
-  "macce",
-  "macroman",
-  "sjis",
-  "swe7",
-  "tis620",
-  "ucs2",
-  "ujis",
-  "utf16",
-  "utf16le",
-  "utf32",
-  "utf8",
-  "utf8mb4",
+static std::vector<std::string> charsets = {
+    "armscii8", "ascii",   "big5",   "binary",  "cp1250",  "cp1251",
+    "cp1256",   "cp1257",  "cp850",  "cp852",   "cp866",   "cp932",
+    "dec8",     "eucjpms", "euckr",  "gb18030", "gb2312",  "gbk",
+    "geostd8",  "greek",   "hebrew", "hp8",     "keybcs2", "koi8r",
+    "koi8u",    "latin1",  "latin2", "latin5",  "latin7",  "macce",
+    "macroman", "sjis",    "swe7",   "tis620",  "ucs2",    "ujis",
+    "utf16",    "utf16le", "utf32",  "utf8",    "utf8mb4",
 };
 
-static void BM_LookupAllCharsets(size_t num_iterations)
-{
+static void BM_LookupAllCharsets(size_t num_iterations) {
   StopBenchmarkTiming();
 
   // Look up one collation to initialize the all_charsets array.
   lookup_collation("latin1_swedish_ci");
 
   StartBenchmarkTiming();
-  for (size_t i= 0; i < num_iterations; i++)
-  {
-    const std::string &charset= charsets[i % charsets.size()];
+  for (size_t i = 0; i < num_iterations; i++) {
+    const std::string &charset = charsets[i % charsets.size()];
     EXPECT_NE(lookup_charset(charset.c_str(), MY_CS_PRIMARY), nullptr);
     EXPECT_NE(lookup_charset(charset.c_str(), MY_CS_BINSORT), nullptr);
   }
 }
 BENCHMARK(BM_LookupAllCharsets);
 
-}
+}  // namespace collation_loader_unittest

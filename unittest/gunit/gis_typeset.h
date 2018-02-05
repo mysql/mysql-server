@@ -60,7 +60,7 @@ struct Geographic {
 
 typedef ::testing::Types<Cartesian, Geographic> Test_both;
 
-}  // namespace gis_types
+}  // namespace gis_typeset
 }  // namespace
 
 #endif  // include guard

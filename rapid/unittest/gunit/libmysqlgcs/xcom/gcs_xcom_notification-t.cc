@@ -26,49 +26,31 @@
 
 #include "gcs_xcom_notification.h"
 
-namespace gcs_xcom_notification_unittest
-{
-class XcomNotificationTest : public GcsBaseTest
-{
+namespace gcs_xcom_notification_unittest {
+class XcomNotificationTest : public GcsBaseTest {};
+
+void function(int &val) { val += 1; }
+
+class Dummy_notification : public Parameterized_notification<false> {
+ public:
+  Dummy_notification(void (*functor)(int &), int &val)
+      : m_functor(functor), m_val(val) {}
+
+  ~Dummy_notification() {}
+
+  void (*m_functor)(int &);
+  int &m_val;
+
+ private:
+  void do_execute() { (*m_functor)(m_val); }
 };
 
-void function(int &val)
-{
-  val += 1;
-}
+static int var = 0;
+static void cleanup() { var += 1; }
 
-class Dummy_notification : public Parameterized_notification<false>
-{
-public:
-   Dummy_notification(void (*functor)(int &), int &val)
-     : m_functor(functor), m_val(val)
-   {
-   }
-
-   ~Dummy_notification()
-   {
-   }
-
-   void (*m_functor)(int &);
-   int &m_val;
-
-private:
-   void do_execute()
-   {
-     (*m_functor)(m_val);
-   }
-};
-
-static int var= 0;
-static void cleanup()
-{
-  var += 1;
-}
-
-TEST_F(XcomNotificationTest, ProcessDummyNotification)
-{
-  int val= 0;
-  Gcs_xcom_engine *engine= new Gcs_xcom_engine();
+TEST_F(XcomNotificationTest, ProcessDummyNotification) {
+  int val = 0;
+  Gcs_xcom_engine *engine = new Gcs_xcom_engine();
 
   ASSERT_EQ(val, 0);
 
@@ -80,9 +62,8 @@ TEST_F(XcomNotificationTest, ProcessDummyNotification)
   ASSERT_EQ(val, 1);
 }
 
-TEST_F(XcomNotificationTest, ProcessFinalizeNotification)
-{
-  Gcs_xcom_engine *engine= new Gcs_xcom_engine();
+TEST_F(XcomNotificationTest, ProcessFinalizeNotification) {
+  Gcs_xcom_engine *engine = new Gcs_xcom_engine();
 
   ASSERT_EQ(var, 0);
 
@@ -92,4 +73,4 @@ TEST_F(XcomNotificationTest, ProcessFinalizeNotification)
 
   ASSERT_EQ(var, 1);
 }
-}
+}  // namespace gcs_xcom_notification_unittest

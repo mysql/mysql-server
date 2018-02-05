@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,18 +27,16 @@
 
 #include "plugin/x/ngs/include/ngs/common_status_variables.h"
 
-
 namespace ngs {
 
 class Session_status_variables : public Common_status_variables {
-public:
+ public:
   Session_status_variables() {}
 
-private:
+ private:
   Session_status_variables(const Session_status_variables &);
 };
 
 }  // namespace ngs
-
 
 #endif  // PLUGIN_X_NGS_INCLUDE_NGS_SESSION_STATUS_VARIABLES_H_

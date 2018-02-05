@@ -83,10 +83,10 @@
 */
 namespace dd {
 
-  static const uint DD_VERSION= 80005;
+static const uint DD_VERSION = 80005;
 
-  static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD= 80005;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80005;
 
-}
+}  // namespace dd
 
 #endif /* DD__DD_VERSION_INCLUDED */

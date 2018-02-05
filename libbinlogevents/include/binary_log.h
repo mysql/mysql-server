@@ -21,18 +21,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef BINARY_LOG_INCLUDED
-#define	BINARY_LOG_INCLUDED
+#define BINARY_LOG_INCLUDED
 
 /*
   This file is a convenience header file meant for the users, for inclusion
   of other related header files. Please refrain from adding any definitions
   to this header.
 */
+#include "binary_log_types.h"
 #include "binlog_event.h"
 #include "control_events.h"
-#include "statement_events.h"
 #include "load_data_events.h"
 #include "rows_event.h"
-#include "binary_log_types.h"
+#include "statement_events.h"
 
-#endif	/* BINARY_LOG_INCLUDED */
+#endif /* BINARY_LOG_INCLUDED */

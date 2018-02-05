@@ -20,24 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "gcs_base_test.h"
 
 using std::vector;
 
-namespace gcs_whitelist_unittest
-{
+namespace gcs_whitelist_unittest {
 
-class GcsWhitelist : public GcsBaseTest
-{
-protected:
+class GcsWhitelist : public GcsBaseTest {
+ protected:
   GcsWhitelist() {}
 };
 
-TEST_F(GcsWhitelist, ValidIPs)
-{
+TEST_F(GcsWhitelist, ValidIPs) {
   Gcs_ip_whitelist wl;
   ASSERT_TRUE(wl.is_valid("192.168.1.1"));
   ASSERT_TRUE(wl.is_valid("192.168.1.2"));
@@ -50,8 +47,7 @@ TEST_F(GcsWhitelist, ValidIPs)
   ASSERT_TRUE(wl.is_valid("::1/64,192.168.1.2/24,192.168.1.1,10.1.1.1"));
 }
 
-TEST_F(GcsWhitelist, InvalidConfiguration)
-{
+TEST_F(GcsWhitelist, InvalidConfiguration) {
   Gcs_ip_whitelist wl;
   ASSERT_FALSE(wl.is_valid("192.168.1"));
   ASSERT_FALSE(wl.is_valid("192.168.1/24"));
@@ -59,10 +55,10 @@ TEST_F(GcsWhitelist, InvalidConfiguration)
   ASSERT_FALSE(wl.is_valid("192.168.1.0/24,192.168.2.0/33"));
 }
 
-TEST_F(GcsWhitelist, ValidListIPv6)
-{
+TEST_F(GcsWhitelist, ValidListIPv6) {
   Gcs_ip_whitelist wl;
-  std::string list= "::1/128,::ffff:192.168.1.1/24,fe80::2ab2:bdff:fe16:8d07/67";
+  std::string list =
+      "::1/128,::ffff:192.168.1.1/24,fe80::2ab2:bdff:fe16:8d07/67";
   wl.configure(list);
 
   ASSERT_FALSE(wl.shall_block("::1"));
@@ -71,8 +67,7 @@ TEST_F(GcsWhitelist, ValidListIPv6)
   ASSERT_TRUE(wl.shall_block("192.168.1.10"));
 }
 
-TEST_F(GcsWhitelist, ValidListIPv4)
-{
+TEST_F(GcsWhitelist, ValidListIPv4) {
   Gcs_ip_whitelist wl;
   wl.configure("192.168.1.0/31,localhost/32");
 
@@ -97,8 +92,7 @@ TEST_F(GcsWhitelist, ValidListIPv4)
   ASSERT_FALSE(wl.shall_block("192.168.2.254"));
 }
 
-TEST_F(GcsWhitelist, DefaultList)
-{
+TEST_F(GcsWhitelist, DefaultList) {
   Gcs_ip_whitelist wl;
 
   wl.configure(Gcs_ip_whitelist::DEFAULT_WHITELIST);
@@ -114,8 +108,7 @@ TEST_F(GcsWhitelist, DefaultList)
   ASSERT_TRUE(wl.shall_block("172.38.0.1"));
 }
 
-TEST_F(GcsWhitelist, ListAsText)
-{
+TEST_F(GcsWhitelist, ListAsText) {
   Gcs_ip_whitelist wl;
 
   wl.configure(Gcs_ip_whitelist::DEFAULT_WHITELIST);
@@ -123,8 +116,7 @@ TEST_F(GcsWhitelist, ListAsText)
                    wl.get_configured_ip_whitelist().c_str());
 }
 
-TEST_F(GcsWhitelist, AbsentList)
-{
+TEST_F(GcsWhitelist, AbsentList) {
   Gcs_interface_parameters params;
   params.add_parameter("group_name", "ola");
   params.add_parameter("peer_nodes", "127.0.0.1:24844");
@@ -132,20 +124,20 @@ TEST_F(GcsWhitelist, AbsentList)
   params.add_parameter("bootstrap_group", "true");
   params.add_parameter("poll_spin_loops", "100");
 
-  Gcs_interface *gcs= Gcs_xcom_interface::get_interface();
-  enum_gcs_error err= gcs->initialize(params);
+  Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
+  enum_gcs_error err = gcs->initialize(params);
   ASSERT_EQ(err, GCS_OK);
 
   // verify that a whitelist was provided by default
-  Gcs_xcom_interface *xcs= static_cast<Gcs_xcom_interface*>(gcs);
-  MYSQL_GCS_LOG_INFO("Whitelist as string with collected IP addresses: " <<
-                     xcs->get_ip_whitelist().to_string());
+  Gcs_xcom_interface *xcs = static_cast<Gcs_xcom_interface *>(gcs);
+  MYSQL_GCS_LOG_INFO("Whitelist as string with collected IP addresses: "
+                     << xcs->get_ip_whitelist().to_string());
   ASSERT_FALSE(xcs->get_ip_whitelist().get_configured_ip_whitelist().empty());
   ASSERT_FALSE(xcs->get_ip_whitelist().to_string().empty());
 
   // this finalizes the m_logger, so be careful to not add a call to
   // MYSQL_GCS_LOG after this line
-  err= gcs->finalize();
+  err = gcs->finalize();
 
   // claim interface memory back
   xcs->cleanup();
@@ -154,8 +146,7 @@ TEST_F(GcsWhitelist, AbsentList)
   ASSERT_EQ(err, GCS_OK);
 }
 
-TEST_F(GcsWhitelist, ListWithHostname)
-{
+TEST_F(GcsWhitelist, ListWithHostname) {
   Gcs_interface_parameters params;
   params.add_parameter("group_name", "ola");
   params.add_parameter("peer_nodes", "127.0.0.1:24844");
@@ -172,14 +163,14 @@ TEST_F(GcsWhitelist, ListWithHostname)
   assembled_whitelist << "localhost/32";
   params.add_parameter("ip_whitelist", assembled_whitelist.str().c_str());
 
-  Gcs_interface *gcs= Gcs_xcom_interface::get_interface();
-  enum_gcs_error err= gcs->initialize(params);
+  Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
+  enum_gcs_error err = gcs->initialize(params);
   ASSERT_EQ(err, GCS_OK);
 
   // verify that a whitelist was provided by default
-  Gcs_xcom_interface *xcs= static_cast<Gcs_xcom_interface*>(gcs);
-  MYSQL_GCS_LOG_INFO("Whitelist as string with collected IP addresses: " <<
-                                                                         xcs->get_ip_whitelist().to_string());
+  Gcs_xcom_interface *xcs = static_cast<Gcs_xcom_interface *>(gcs);
+  MYSQL_GCS_LOG_INFO("Whitelist as string with collected IP addresses: "
+                     << xcs->get_ip_whitelist().to_string());
   ASSERT_FALSE(xcs->get_ip_whitelist().get_configured_ip_whitelist().empty());
   ASSERT_FALSE(xcs->get_ip_whitelist().to_string().empty());
 
@@ -187,7 +178,7 @@ TEST_F(GcsWhitelist, ListWithHostname)
 
   // this finalizes the m_logger, so be careful to not add a call to
   // MYSQL_GCS_LOG after this line
-  err= gcs->finalize();
+  err = gcs->finalize();
 
   // claim interface memory back
   xcs->cleanup();
@@ -195,8 +186,7 @@ TEST_F(GcsWhitelist, ListWithHostname)
   ASSERT_EQ(err, GCS_OK);
 }
 
-TEST_F(GcsWhitelist, ListWithUnresolvableHostname)
-{
+TEST_F(GcsWhitelist, ListWithUnresolvableHostname) {
   Gcs_interface_parameters params;
   params.add_parameter("group_name", "ola");
   params.add_parameter("peer_nodes", "127.0.0.1:24844");
@@ -214,23 +204,24 @@ TEST_F(GcsWhitelist, ListWithUnresolvableHostname)
   assembled_whitelist << "localhost/32";
   params.add_parameter("ip_whitelist", assembled_whitelist.str().c_str());
 
-  Gcs_interface *gcs= Gcs_xcom_interface::get_interface();
-  enum_gcs_error err= gcs->initialize(params);
+  Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
+  enum_gcs_error err = gcs->initialize(params);
   ASSERT_EQ(err, GCS_OK);
 
   // verify that a whitelist was provided by default
-  Gcs_xcom_interface *xcs= static_cast<Gcs_xcom_interface*>(gcs);
-  MYSQL_GCS_LOG_INFO("Whitelist as string with collected IP addresses: " <<
-                                                                         xcs->get_ip_whitelist().to_string());
+  Gcs_xcom_interface *xcs = static_cast<Gcs_xcom_interface *>(gcs);
+  MYSQL_GCS_LOG_INFO("Whitelist as string with collected IP addresses: "
+                     << xcs->get_ip_whitelist().to_string());
   ASSERT_FALSE(xcs->get_ip_whitelist().get_configured_ip_whitelist().empty());
   ASSERT_FALSE(xcs->get_ip_whitelist().to_string().empty());
 
-  //This will force a whitelist validation and a failure on name resolution code
+  // This will force a whitelist validation and a failure on name resolution
+  // code
   ASSERT_TRUE(xcs->get_ip_whitelist().shall_block("192.12.13.14"));
 
   // this finalizes the m_logger, so be careful to not add a call to
   // MYSQL_GCS_LOG after this line
-  err= gcs->finalize();
+  err = gcs->finalize();
 
   // claim interface memory back
   xcs->cleanup();
@@ -238,13 +229,12 @@ TEST_F(GcsWhitelist, ListWithUnresolvableHostname)
   ASSERT_EQ(err, GCS_OK);
 }
 
-TEST_F(GcsWhitelist, XComMembers)
-{
+TEST_F(GcsWhitelist, XComMembers) {
   Gcs_ip_whitelist wl;
-  char const *members[]= { "8.8.8.8:12435", "8.8.4.4:1234" };
-  char **xcom_addrs= const_cast<char **>(members);
-  node_address *xcom_names= new_node_address(2, xcom_addrs);
-  site_def *xcom_config= new_site_def();
+  char const *members[] = {"8.8.8.8:12435", "8.8.4.4:1234"};
+  char **xcom_addrs = const_cast<char **>(members);
+  node_address *xcom_names = new_node_address(2, xcom_addrs);
+  site_def *xcom_config = new_site_def();
   init_site_def(2, xcom_names, xcom_config);
   wl.configure(Gcs_ip_whitelist::DEFAULT_WHITELIST);
 
@@ -270,14 +260,11 @@ TEST_F(GcsWhitelist, XComMembers)
   free_site_def(xcom_config);
 }
 
-
-TEST_F(GcsWhitelist, ComparisonBetweenIPv4AndIPv6)
-{
+TEST_F(GcsWhitelist, ComparisonBetweenIPv4AndIPv6) {
   Gcs_ip_whitelist wl;
   wl.configure("ac0f:0001::/32");
 
   ASSERT_TRUE(wl.shall_block("172.15.0.1"));
 }
 
-
-}
+}  // namespace gcs_whitelist_unittest

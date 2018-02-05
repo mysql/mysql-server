@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-/* 
+/*
 We require that the number of elements in the cache is big enough enough that
 it is always possible to find instances that are not busy.
 Under normal circumstances the number of busy instances will be
@@ -83,7 +83,6 @@ struct pax_machine {
   pax_op op;
   int force_delivery;
 };
-
 
 int is_busy_machine(pax_machine *p);
 int lock_pax_machine(pax_machine *p);

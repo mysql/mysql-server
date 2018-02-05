@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,7 +32,6 @@
 #include "plugin/x/tests/driver/processor/commands/macro.h"
 #include "plugin/x/tests/driver/processor/execution_context.h"
 
-
 class Macro_block_processor : public Block_processor {
  public:
   explicit Macro_block_processor(Execution_context *context)
@@ -42,9 +41,9 @@ class Macro_block_processor : public Block_processor {
   bool feed_ended_is_state_ok() override;
 
  private:
-  Execution_context     *m_context;
+  Execution_context *m_context;
   std::shared_ptr<Macro> m_macro;
-  std::string            m_rawbuffer;
+  std::string m_rawbuffer;
 };
 
 #endif  // X_TESTS_DRIVER_PROCESSOR_MACRO_BLOCK_PROCESSOR_H_

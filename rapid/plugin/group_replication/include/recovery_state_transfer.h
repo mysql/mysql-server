@@ -32,19 +32,16 @@
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
-
-class Recovery_state_transfer
-{
-public:
-
+class Recovery_state_transfer {
+ public:
   /**
     Recovery state transfer constructor
     @param recovery_channel_name  The channel name to be used
     @param member_uuid            This member uuid
     @param channel_obsr_mngr      The channel state observer manager
   */
-  Recovery_state_transfer(char* recovery_channel_name,
-                          const std::string& member_uuid,
+  Recovery_state_transfer(char *recovery_channel_name,
+                          const std::string &member_uuid,
                           Channel_observation_manager *channel_obsr_mngr);
 
   ~Recovery_state_transfer();
@@ -56,7 +53,7 @@ public:
 
     @param rec_view_id  The view id to use on this round
   */
-  void initialize(const std::string& rec_view_id);
+  void initialize(const std::string &rec_view_id);
 
   /** Abort the state transfer */
   void abort_state_transfer();
@@ -66,18 +63,16 @@ public:
   */
   void end_state_transfer();
 
-  //Methods for variable updates
+  // Methods for variable updates
 
   /** Sets the number of times recovery tries to connect to a given donor */
-  void set_recovery_donor_retry_count(ulong retry_count)
-  {
-    max_connection_attempts_to_donors= retry_count;
+  void set_recovery_donor_retry_count(ulong retry_count) {
+    max_connection_attempts_to_donors = retry_count;
   }
 
   /** Sets the sleep time between connection attempts to all possible donors */
-  void set_recovery_donor_reconnect_interval(ulong reconnect_interval)
-  {
-    donor_reconnect_interval= reconnect_interval;
+  void set_recovery_donor_reconnect_interval(ulong reconnect_interval) {
+    donor_reconnect_interval = reconnect_interval;
   }
 
   /**
@@ -93,86 +88,63 @@ public:
      @param ssl_crlpath             path with revocation list files
      @param ssl_verify_server_cert  verify the hostname against the certificate
   */
-  void set_recovery_ssl_options(bool use_ssl,
-                                const char *ssl_ca,
-                                const char *ssl_capath,
-                                const char *ssl_cert,
-                                const char *ssl_cipher,
-                                const char *ssl_key,
-                                const char *ssl_crl,
-                                const char *ssl_crlpath,
-                                bool ssl_verify_server_cert)
-  {
-    recovery_use_ssl= use_ssl;
-    if (ssl_ca != NULL)
-      set_recovery_ssl_ca(ssl_ca);
-    if (ssl_capath != NULL)
-      set_recovery_ssl_capath(ssl_capath);
-    if (ssl_cert != NULL)
-      set_recovery_ssl_cert(ssl_cert);
-    if (ssl_cipher != NULL)
-      set_recovery_ssl_cipher(ssl_cipher);
-    if (ssl_key != NULL)
-      set_recovery_ssl_key(ssl_key);
-    if (ssl_crl != NULL)
-      set_recovery_ssl_crl(ssl_crl);
-    if (ssl_crlpath != NULL)
-      set_recovery_ssl_crl(ssl_crlpath);
-    recovery_ssl_verify_server_cert= ssl_verify_server_cert;
+  void set_recovery_ssl_options(bool use_ssl, const char *ssl_ca,
+                                const char *ssl_capath, const char *ssl_cert,
+                                const char *ssl_cipher, const char *ssl_key,
+                                const char *ssl_crl, const char *ssl_crlpath,
+                                bool ssl_verify_server_cert) {
+    recovery_use_ssl = use_ssl;
+    if (ssl_ca != NULL) set_recovery_ssl_ca(ssl_ca);
+    if (ssl_capath != NULL) set_recovery_ssl_capath(ssl_capath);
+    if (ssl_cert != NULL) set_recovery_ssl_cert(ssl_cert);
+    if (ssl_cipher != NULL) set_recovery_ssl_cipher(ssl_cipher);
+    if (ssl_key != NULL) set_recovery_ssl_key(ssl_key);
+    if (ssl_crl != NULL) set_recovery_ssl_crl(ssl_crl);
+    if (ssl_crlpath != NULL) set_recovery_ssl_crl(ssl_crlpath);
+    recovery_ssl_verify_server_cert = ssl_verify_server_cert;
   }
 
   /** Set the option that forces the use of SSL on recovery connections */
-  void set_recovery_use_ssl(char use_ssl)
-  {
-    this->recovery_use_ssl= use_ssl;
-  }
+  void set_recovery_use_ssl(char use_ssl) { this->recovery_use_ssl = use_ssl; }
 
   /** Set a SSL trusted certificate authorities file */
-  void set_recovery_ssl_ca(const char* ssl_ca)
-  {
-    (void) strncpy(recovery_ssl_ca, ssl_ca, strlen(ssl_ca)+1);
+  void set_recovery_ssl_ca(const char *ssl_ca) {
+    (void)strncpy(recovery_ssl_ca, ssl_ca, strlen(ssl_ca) + 1);
   }
 
   /** Set a folder with SSL trusted CA files */
-  void set_recovery_ssl_capath(const char* ssl_capath)
-  {
-    (void) strncpy(recovery_ssl_capath, ssl_capath, strlen(ssl_capath)+1);
+  void set_recovery_ssl_capath(const char *ssl_capath) {
+    (void)strncpy(recovery_ssl_capath, ssl_capath, strlen(ssl_capath) + 1);
   }
 
   /** Set a SSL certificate for connection */
-  void set_recovery_ssl_cert(const char* ssl_cert)
-  {
-    (void) strncpy(recovery_ssl_cert, ssl_cert, strlen(ssl_cert)+1);
+  void set_recovery_ssl_cert(const char *ssl_cert) {
+    (void)strncpy(recovery_ssl_cert, ssl_cert, strlen(ssl_cert) + 1);
   }
 
   /** Set a SSL ciphers to be used */
-  void set_recovery_ssl_cipher(const char* ssl_cipher)
-  {
-    (void) strncpy(recovery_ssl_cipher, ssl_cipher, strlen(ssl_cipher)+1);
+  void set_recovery_ssl_cipher(const char *ssl_cipher) {
+    (void)strncpy(recovery_ssl_cipher, ssl_cipher, strlen(ssl_cipher) + 1);
   }
 
   /** Set a SSL key for connections */
-  void set_recovery_ssl_key(const char* ssl_key)
-  {
-    (void) strncpy(recovery_ssl_key, ssl_key, strlen(ssl_key)+1);
+  void set_recovery_ssl_key(const char *ssl_key) {
+    (void)strncpy(recovery_ssl_key, ssl_key, strlen(ssl_key) + 1);
   }
 
   /** Set a SSL revocation list file*/
-  void set_recovery_ssl_crl(const char* ssl_crl)
-  {
-    (void) strncpy(recovery_ssl_crl, ssl_crl, strlen(ssl_crl)+1);
+  void set_recovery_ssl_crl(const char *ssl_crl) {
+    (void)strncpy(recovery_ssl_crl, ssl_crl, strlen(ssl_crl) + 1);
   }
 
   /** Set a folder with SSL revocation list files*/
-  void set_recovery_ssl_crlpath(const char* ssl_crlpath)
-  {
-    (void) strncpy(recovery_ssl_crlpath, ssl_crlpath, strlen(ssl_crlpath)+1);
+  void set_recovery_ssl_crlpath(const char *ssl_crlpath) {
+    (void)strncpy(recovery_ssl_crlpath, ssl_crlpath, strlen(ssl_crlpath) + 1);
   }
 
   /** Set if recovery shall compare the used hostname against the certificate */
-  void set_recovery_ssl_verify_server_cert(char ssl_verify_server_cert)
-  {
-    this->recovery_ssl_verify_server_cert= ssl_verify_server_cert;
+  void set_recovery_ssl_verify_server_cert(char ssl_verify_server_cert) {
+    this->recovery_ssl_verify_server_cert = ssl_verify_server_cert;
   }
 
   /**
@@ -180,27 +152,22 @@ public:
 
     @param[in]  timeout      the timeout
   */
-  void set_stop_wait_timeout (ulong timeout){
+  void set_stop_wait_timeout(ulong timeout) {
     donor_connection_interface.set_stop_wait_timeout(timeout);
   }
 
   /** Set a public key file*/
-  void set_recovery_public_key_path(const char* public_key_path)
-  {
-    if (public_key_path != NULL)
-    {
-      (void) strncpy(recovery_public_key_path, public_key_path,
-        strlen(public_key_path)+1);
+  void set_recovery_public_key_path(const char *public_key_path) {
+    if (public_key_path != NULL) {
+      (void)strncpy(recovery_public_key_path, public_key_path,
+                    strlen(public_key_path) + 1);
     }
   }
 
   /** Get preference to get public key */
-  void set_recovery_get_public_key(bool set)
-  {
-    recovery_get_public_key= set;
-  }
+  void set_recovery_get_public_key(bool set) { recovery_get_public_key = set; }
 
-  //Methods that update the state transfer process
+  // Methods that update the state transfer process
 
   /** This method initializes the group membership info */
   void initialize_group_info();
@@ -233,7 +200,7 @@ public:
   */
   void inform_of_receiver_stop(my_thread_id thread_id);
 
-  //Status methods
+  // Status methods
 
   /**
     Checks if the given id matches the recovery applier thread
@@ -257,7 +224,7 @@ public:
   */
   int check_recovery_thread_status();
 
-  //class core method
+  // class core method
 
   /**
     Execute state transfer
@@ -269,8 +236,7 @@ public:
    */
   int state_transfer(THD *recovery_thd);
 
-private:
-
+ private:
   /**
     Removes the old list of group members and enquires about the current members
 
@@ -283,7 +249,7 @@ private:
 
     @param selected_donor the current selected donor to update its pointer
   */
-  void build_donor_list(std::string* selected_donor);
+  void build_donor_list(std::string *selected_donor);
 
   /** Method that sets the failover status to true and awakes recovery */
   void donor_failover();
@@ -346,19 +312,18 @@ private:
   */
   int purge_recovery_slave_threads_repos();
 
-private:
-
+ private:
   /* The member uuid*/
   std::string member_uuid;
   /* The associated view id for the current recovery session */
   std::string view_id;
 
   /* The selected donor member*/
-  Group_member_info* selected_donor;
+  Group_member_info *selected_donor;
   /* Vector with group members info*/
-  std::vector<Group_member_info*>* group_members;
+  std::vector<Group_member_info *> *group_members;
   /* Member with suitable donors for use on recovery*/
-  std::vector<Group_member_info*> suitable_donors;
+  std::vector<Group_member_info *> suitable_donors;
 
   /* Retry count on donor connections*/
   long donor_connection_retry_count;
@@ -374,16 +339,16 @@ private:
   /* Did an error happened in one of the threads*/
   bool donor_channel_thread_error;
 
-  //Recovery connection related structures
+  // Recovery connection related structures
 
   /** Interface class to interact with the donor connection threads*/
   Replication_thread_api donor_connection_interface;
 
   /* The plugin's control module for channel status observation */
-  Channel_observation_manager* channel_observation_manager;
+  Channel_observation_manager *channel_observation_manager;
 
   /* The recovery channel state observer */
-  Channel_state_observer* recovery_channel_observer;
+  Channel_state_observer *recovery_channel_observer;
 
   /** If the use of SSL is obligatory on recovery connections */
   bool recovery_use_ssl;

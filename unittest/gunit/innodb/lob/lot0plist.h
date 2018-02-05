@@ -42,12 +42,12 @@ struct plist_node_t {
   static const ulint SIZE = 4;
 
   plist_node_t() : m_frame(nullptr), m_node(nullptr) {}
-  plist_node_t(byte* frame, byte* node) : m_frame(frame), m_node(node) {}
+  plist_node_t(byte *frame, byte *node) : m_frame(frame), m_node(node) {}
 
-  bool is_before(const plist_node_t& node) const {
+  bool is_before(const plist_node_t &node) const {
     ut_ad(!is_null());
     ut_ad(!node.is_null());
-    return(addr() < node.addr());
+    return (addr() < node.addr());
   }
 
   void init() {
@@ -61,7 +61,7 @@ struct plist_node_t {
     mlog_write_ulint(m_node + OFFSET_PREV, addr, MLOG_2BYTES);
   }
 
-  void set_prev_node(plist_node_t& prev) { set_prev(prev.addr()); }
+  void set_prev_node(plist_node_t &prev) { set_prev(prev.addr()); }
 
   void set_next(paddr_t addr) {
     ut_ad(!is_null());
@@ -69,7 +69,7 @@ struct plist_node_t {
     mlog_write_ulint(m_node + OFFSET_NEXT, addr, MLOG_2BYTES);
   }
 
-  void set_next_node(const plist_node_t& next) { set_next(next.addr()); }
+  void set_next_node(const plist_node_t &next) { set_next(next.addr()); }
 
   paddr_t get_prev() const { return (mach_read_from_2(m_node + OFFSET_PREV)); }
 
@@ -77,7 +77,7 @@ struct plist_node_t {
 
   plist_node_t get_next_node() const {
     paddr_t addr = get_next();
-    byte* node = nullptr;
+    byte *node = nullptr;
     if (addr != 0) {
       node = m_frame + addr;
     }
@@ -86,36 +86,33 @@ struct plist_node_t {
 
   plist_node_t get_prev_node() const {
     paddr_t addr = get_prev();
-    byte* node = nullptr;
+    byte *node = nullptr;
     if (addr != 0) {
       node = m_frame + addr;
     }
     return (plist_node_t(m_frame, node));
   }
 
-  paddr_t addr() const {
-    return (m_node == nullptr) ? 0 : (m_node - m_frame);
-  }
+  paddr_t addr() const { return (m_node == nullptr) ? 0 : (m_node - m_frame); }
 
-  byte* ptr() const { return (m_node); }
+  byte *ptr() const { return (m_node); }
 
   bool is_null() const { return (m_node == nullptr); }
 
-  std::ostream& print(std::ostream& out) const {
+  std::ostream &print(std::ostream &out) const {
     out << "[plist_node_t: next=" << get_next() << ", prev=" << get_prev()
         << ", this=" << addr() << "]";
     return (out);
   }
 
-  void set_frame(byte* frame) { m_frame = frame; }
-  void set_node(byte* node) { m_node = node; }
+  void set_frame(byte *frame) { m_frame = frame; }
+  void set_node(byte *node) { m_node = node; }
 
-  byte* m_frame;
-  byte* m_node;
+  byte *m_frame;
+  byte *m_node;
 };
 
-inline
-std::ostream& operator<<(std::ostream& out, const plist_node_t& obj) {
+inline std::ostream &operator<<(std::ostream &out, const plist_node_t &obj) {
   return (obj.print(out));
 }
 
@@ -128,7 +125,7 @@ struct plist_base_node_t {
   /** The total size (in bytes) of a page list base node. */
   static const ulint SIZE = 8;
 
-  plist_base_node_t(byte* frame, byte* base) : m_frame(frame), m_base(base) {}
+  plist_base_node_t(byte *frame, byte *base) : m_frame(frame), m_base(base) {}
 
   void init() {
     mlog_write_ulint(m_base + OFFSET_LEN, 0, MLOG_4BYTES);
@@ -136,7 +133,7 @@ struct plist_base_node_t {
     mlog_write_ulint(m_base + OFFSET_LAST, 0, MLOG_2BYTES);
   }
 
-  void remove(plist_node_t& node) {
+  void remove(plist_node_t &node) {
     plist_node_t prev = node.get_prev_node();
     plist_node_t next = node.get_next_node();
 
@@ -158,7 +155,7 @@ struct plist_base_node_t {
     decr_len();
   }
 
-  void push_front(plist_node_t& node) {
+  void push_front(plist_node_t &node) {
     if (get_len() == 0) {
       add_to_empty(node);
     } else {
@@ -174,7 +171,7 @@ struct plist_base_node_t {
   }
 
   /** Insert node2 after node1. */
-  void insert_after(plist_node_t& node1, plist_node_t& node2) {
+  void insert_after(plist_node_t &node1, plist_node_t &node2) {
     if (node1.is_null()) {
       push_back(node2);
     } else {
@@ -195,7 +192,7 @@ struct plist_base_node_t {
   }
 
   /** Insert node2 before node3. */
-  void insert_before(plist_node_t& node3, plist_node_t& node2) {
+  void insert_before(plist_node_t &node3, plist_node_t &node2) {
     if (node3.is_null()) {
       push_back(node2);
     } else {
@@ -215,7 +212,7 @@ struct plist_base_node_t {
     }
   }
 
-  void add_to_empty(plist_node_t& node) {
+  void add_to_empty(plist_node_t &node) {
     ut_ad(get_len() == 0);
 
     set_first(node.addr());
@@ -223,7 +220,7 @@ struct plist_base_node_t {
     incr_len();
   }
 
-  void push_back(plist_node_t& node) {
+  void push_back(plist_node_t &node) {
     if (get_len() == 0) {
       add_to_empty(node);
     } else {
@@ -251,7 +248,7 @@ struct plist_base_node_t {
     result.set_frame(m_frame);
 
     if (!empty()) {
-      byte* node = m_frame + get_first();
+      byte *node = m_frame + get_first();
       result.set_node(node);
     }
     return (result);
@@ -291,19 +288,19 @@ struct plist_base_node_t {
   }
 
   plist_node_t get_node(paddr_t addr) {
-    byte* node = m_frame + addr;
+    byte *node = m_frame + addr;
     return (plist_node_t(m_frame, node));
   }
 
   paddr_t addr() const { return (m_base - m_frame); }
 
-  std::ostream& print(std::ostream& out) const {
+  std::ostream &print(std::ostream &out) const {
     out << "[plist_base_node_t: len=" << get_len() << ", first=" << get_first()
         << ", last=" << get_last() << ", this=" << addr() << "]";
     return (out);
   }
 
-  std::ostream& print_list(std::ostream& out) const {
+  std::ostream &print_list(std::ostream &out) const {
     print(out);
     out << std::endl;
     for (plist_node_t cur = get_first_node(); !cur.is_null();
@@ -313,12 +310,12 @@ struct plist_base_node_t {
     return (out);
   }
 
-  byte* m_frame;
-  byte* m_base;
+  byte *m_frame;
+  byte *m_base;
 };
 
-inline
-std::ostream& operator<<(std::ostream& out, const plist_base_node_t& obj) {
+inline std::ostream &operator<<(std::ostream &out,
+                                const plist_base_node_t &obj) {
   return (obj.print(out));
 }
 

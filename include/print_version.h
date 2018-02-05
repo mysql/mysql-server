@@ -51,6 +51,6 @@ void print_version_debug();
   @param[in] version  Null-terminated release version string
 */
 
-void print_explicit_version(const char* version);
+void print_explicit_version(const char *version);
 
 #endif /* _print_version_h_  */

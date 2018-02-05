@@ -40,10 +40,9 @@
 */
 
 DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
-  (MYSQL_THD opaque_thd,
-   enum enum_backup_lock_service_lock_kind lock_kind,
-   unsigned long lock_timeout));
-
+                   (MYSQL_THD opaque_thd,
+                    enum enum_backup_lock_service_lock_kind lock_kind,
+                    unsigned long lock_timeout));
 
 /**
   Service API to release Backup Lock.
@@ -55,7 +54,6 @@ DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
     @retval true  Failure
 */
 
-DEFINE_BOOL_METHOD(mysql_release_backup_lock,
-  (MYSQL_THD opaque_thd));
+DEFINE_BOOL_METHOD(mysql_release_backup_lock, (MYSQL_THD opaque_thd));
 
 #endif /* COMPONENTS_MYSQL_SERVER_MYSQL_BACKUP_LOCK_H_ */

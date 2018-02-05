@@ -20,7 +20,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
 @brief
 
@@ -89,18 +88,16 @@ not type or semantics), but this is very specifically NOT required of
 any service.
 */
 
-
 #ifndef LOG_SERVICE_IMP_H
 #define LOG_SERVICE_IMP_H
 
-#include <mysql/components/services/log_shared.h>
 #include <mysql/components/services/log_service.h>
+#include <mysql/components/services/log_shared.h>
 
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 
-class log_service_imp
-{
-public:
+class log_service_imp {
+ public:
   /**
     Initialize a loadable logging service.
   */
@@ -111,8 +108,7 @@ public:
   */
   static void exit();
 
-public: /* Service Implementations */
-
+ public: /* Service Implementations */
   /**
     Have the service process one log line.
     If a run function wishes to itself use error logging
@@ -127,7 +123,7 @@ public: /* Service Implementations */
     @retval  =0        no work was done
     @retval  >0        number of processed entities
   */
-  static DEFINE_METHOD(int, run,             (void *instance, log_line *ll));
+  static DEFINE_METHOD(int, run, (void *instance, log_line *ll));
 
   /**
     Flush any buffers.  This function will be called by the server
@@ -144,7 +140,7 @@ public: /* Service Implementations */
     @retval  =0        no work was done
     @retval  >0        flush completed without incident
   */
-  static DEFINE_METHOD(int, flush,           (void **instance));
+  static DEFINE_METHOD(int, flush, (void **instance));
 
   /**
     Open a new instance.
@@ -164,7 +160,7 @@ public: /* Service Implementations */
     @retval  <0        a new instance could not be created
     @retval  =0        success, returned hande is valid
   */
-  static DEFINE_METHOD(int, open,            (log_line *ll, void **instance));
+  static DEFINE_METHOD(int, open, (log_line * ll, void **instance));
 
   /**
     Close and release an instance. Flushes any buffers.
@@ -177,7 +173,7 @@ public: /* Service Implementations */
     @retval  <0        an error occurred
     @retval  =0        success
   */
-  static DEFINE_METHOD(int, close,           (void **instance));
+  static DEFINE_METHOD(int, close, (void **instance));
   /**
     Variable listener.  This is a temporary solution until we have
     per-component system variables.  "check" is called when the user
@@ -196,7 +192,7 @@ public: /* Service Implementations */
     @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
     @retval  >0  deny (user input rejected)
   */
-  static DEFINE_METHOD(int, variable_check,  (log_line *ll));
+  static DEFINE_METHOD(int, variable_check, (log_line * ll));
 
   /**
     Variable listener.  This is a temporary solution until we have
@@ -219,7 +215,7 @@ public: /* Service Implementations */
     @retval <0  for failure
     @retval >0  for success (at least one item was updated)
   */
-  static DEFINE_METHOD(int, variable_update, (log_line *ll));
+  static DEFINE_METHOD(int, variable_update, (log_line * ll));
 };
 
 #endif /* LOG_SERVICE_IMP_H */

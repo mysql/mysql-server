@@ -29,7 +29,6 @@ class THD;
 class sp_name;
 struct TABLE_LIST;
 
-
 /**
   Guard class which allows to invalidate TDC entries for specific tables/views.
 
@@ -37,24 +36,18 @@ struct TABLE_LIST;
   which definitions are not committed yet (and possibly won't be!).
 */
 
-class Uncommitted_tables_guard
-{
-public:
+class Uncommitted_tables_guard {
+ public:
   Uncommitted_tables_guard(THD *thd)
-    : m_thd(thd), m_uncommitted_tables(PSI_INSTRUMENT_ME)
-  { }
+      : m_thd(thd), m_uncommitted_tables(PSI_INSTRUMENT_ME) {}
   ~Uncommitted_tables_guard();
 
-  void add_table(TABLE_LIST *table)
-  {
-    m_uncommitted_tables.push_back(table);
-  }
+  void add_table(TABLE_LIST *table) { m_uncommitted_tables.push_back(table); }
 
-private:
+ private:
   THD *m_thd;
-  Prealloced_array<TABLE_LIST*, 1> m_uncommitted_tables;
+  Prealloced_array<TABLE_LIST *, 1> m_uncommitted_tables;
 };
-
 
 /**
   Update metadata of views referencing the table.
@@ -83,11 +76,9 @@ private:
   @retval     true                    Failure.
 */
 
-bool update_referencing_views_metadata(THD *thd,
-        const char *db_name, const char *table_name,
-        bool commit_dd_changes,
-        Uncommitted_tables_guard *uncommitted_tables);
-
+bool update_referencing_views_metadata(
+    THD *thd, const char *db_name, const char *table_name,
+    bool commit_dd_changes, Uncommitted_tables_guard *uncommitted_tables);
 
 /**
   Update metadata of views referencing the table.
@@ -115,10 +106,9 @@ bool update_referencing_views_metadata(THD *thd,
   @retval     true                    Failure.
 */
 
-bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
-        bool commit_dd_changes,
-        Uncommitted_tables_guard *uncommitted_tables);
-
+bool update_referencing_views_metadata(
+    THD *thd, const TABLE_LIST *table, bool commit_dd_changes,
+    Uncommitted_tables_guard *uncommitted_tables);
 
 /**
   Update metadata of views referencing "table" being renamed and views
@@ -150,11 +140,10 @@ bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
   @retval     true                    Failure.
 */
 
-bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
-        const char *new_db, const char *new_table_name,
-        bool commit_dd_changes,
-        Uncommitted_tables_guard *uncommitted_tables);
-
+bool update_referencing_views_metadata(
+    THD *thd, const TABLE_LIST *table, const char *new_db,
+    const char *new_table_name, bool commit_dd_changes,
+    Uncommitted_tables_guard *uncommitted_tables);
 
 /**
   Method to update metadata of views using stored function.
@@ -168,7 +157,6 @@ bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
 
 bool update_referencing_views_metadata(THD *thd, const sp_name *spname);
 
-
 /**
   Push error or warnings in case a view is invalid.
 
@@ -179,4 +167,4 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname);
 void push_view_warning_or_error(THD *thd, const char *db,
                                 const char *view_name);
 
-#endif // DD_SQL_VIEW_INCLUDED
+#endif  // DD_SQL_VIEW_INCLUDED

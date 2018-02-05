@@ -37,8 +37,7 @@
 
 #define PS_NAME_LENGTH NAME_LEN
 
-struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr
-{
+struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr {
   /** Column OBJECT_INSTANCE_BEGIN */
   const void *m_identity;
 
@@ -88,14 +87,9 @@ void cleanup_prepared_stmt(void);
 
 void reset_prepared_stmt_instances();
 
-PFS_prepared_stmt *create_prepared_stmt(void *identity,
-                                        PFS_thread *thread,
-                                        PFS_program *pfs_program,
-                                        PFS_events_statements *pfs_stmt,
-                                        uint stmt_id,
-                                        const char *stmt_name,
-                                        uint stmt_name_length,
-                                        const char *sqltext,
-                                        uint sqltext_length);
+PFS_prepared_stmt *create_prepared_stmt(
+    void *identity, PFS_thread *thread, PFS_program *pfs_program,
+    PFS_events_statements *pfs_stmt, uint stmt_id, const char *stmt_name,
+    uint stmt_name_length, const char *sqltext, uint sqltext_length);
 void delete_prepared_stmt(PFS_prepared_stmt *pfs_ps);
 #endif

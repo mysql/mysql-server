@@ -31,91 +31,70 @@ namespace like_range_unittest {
 /*
   Test that like_range() returns well-formed results.
 */
-static void
-test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
-{
+static void test_like_range_for_charset(CHARSET_INFO *cs, const char *src,
+                                        size_t src_len) {
   char min_str[32], max_str[32];
   size_t min_len, max_len, min_well_formed_len, max_well_formed_len;
-  int error= 0;
-  
-  cs->coll->like_range(cs, src, src_len, '\\', '_', '%',
-                       sizeof(min_str),  min_str, max_str, &min_len, &max_len);
+  int error = 0;
+
+  cs->coll->like_range(cs, src, src_len, '\\', '_', '%', sizeof(min_str),
+                       min_str, max_str, &min_len, &max_len);
   // diag("min_len=%d\tmax_len=%d\t%s", (int) min_len, (int) max_len, cs->name);
-  min_well_formed_len= cs->cset->well_formed_len(cs,
-                                                 min_str, min_str + min_len,
-                                                 10000, &error);
-  max_well_formed_len= cs->cset->well_formed_len(cs,
-                                                 max_str, max_str + max_len,
-                                                 10000, &error);
+  min_well_formed_len =
+      cs->cset->well_formed_len(cs, min_str, min_str + min_len, 10000, &error);
+  max_well_formed_len =
+      cs->cset->well_formed_len(cs, max_str, max_str + max_len, 10000, &error);
   EXPECT_EQ(min_len, min_well_formed_len)
-    << "Bad min_str: min_well_formed_len=" << min_well_formed_len
-    << " min_str[" << min_well_formed_len << "]="
-    <<  (uchar) min_str[min_well_formed_len];
+      << "Bad min_str: min_well_formed_len=" << min_well_formed_len
+      << " min_str[" << min_well_formed_len
+      << "]=" << (uchar)min_str[min_well_formed_len];
   EXPECT_EQ(max_len, max_well_formed_len)
-    << "Bad max_str: max_well_formed_len=" << max_well_formed_len
-    << " max_str[" << max_well_formed_len << "]="
-    << (uchar) max_str[max_well_formed_len];
+      << "Bad max_str: max_well_formed_len=" << max_well_formed_len
+      << " max_str[" << max_well_formed_len
+      << "]=" << (uchar)max_str[max_well_formed_len];
 }
 
+static const char *charset_list[] = {
+    "big5_chinese_ci",    "big5_bin",
 
-static const char *charset_list[]=
-{
-  "big5_chinese_ci",
-  "big5_bin",
+    "euckr_korean_ci",    "euckr_bin",
 
-  "euckr_korean_ci",
-  "euckr_bin",
+    "gb2312_chinese_ci",  "gb2312_bin",
 
-  "gb2312_chinese_ci",
-  "gb2312_bin",
+    "gbk_chinese_ci",     "gbk_bin",
 
-  "gbk_chinese_ci",
-  "gbk_bin",
+    "gb18030_chinese_ci", "gb18030_bin",
 
-  "gb18030_chinese_ci",
-  "gb18030_bin",
+    "latin1_swedish_ci",  "latin1_bin",
 
-  "latin1_swedish_ci",
-  "latin1_bin",
+    "sjis_japanese_ci",   "sjis_bin",
 
-  "sjis_japanese_ci",
-  "sjis_bin",
+    "tis620_thai_ci",     "tis620_bin",
 
-  "tis620_thai_ci",
-  "tis620_bin",
+    "ujis_japanese_ci",   "ujis_bin",
 
-  "ujis_japanese_ci",
-  "ujis_bin",
-
-  "utf8_general_ci",
-  "utf8_unicode_ci",
-  "utf8_bin",
+    "utf8_general_ci",    "utf8_unicode_ci", "utf8_bin",
 };
 
 #if defined(GTEST_HAS_PARAM_TEST)
 
-class LikeRangeTest : public ::testing::TestWithParam<const char *>
-{
-protected:
-  virtual void SetUp()
-  {
+class LikeRangeTest : public ::testing::TestWithParam<const char *> {
+ protected:
+  virtual void SetUp() {
     MY_CHARSET_LOADER loader;
     my_charset_loader_init_mysys(&loader);
-    m_charset= my_collation_get_by_name(&loader, GetParam(), MYF(0));
+    m_charset = my_collation_get_by_name(&loader, GetParam(), MYF(0));
     DBUG_ASSERT(m_charset);
   }
   CHARSET_INFO *m_charset;
 };
 
-INSTANTIATE_TEST_CASE_P(Foo1, LikeRangeTest,
-                        ::testing::ValuesIn(charset_list));
+INSTANTIATE_TEST_CASE_P(Foo1, LikeRangeTest, ::testing::ValuesIn(charset_list));
 
-
-TEST_P(LikeRangeTest, TestLikeRange)
-{
+TEST_P(LikeRangeTest, TestLikeRange) {
   test_like_range_for_charset(m_charset, "abc%", 4);
 }
 
 #endif
 
-}
+}  // namespace like_range_unittest

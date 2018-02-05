@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,17 +31,16 @@
 #include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs_common/socket_interface.h"
 
-
 namespace xpl {
 
-class Listener_unix_socket: public ngs::Listener_interface {
-public:
+class Listener_unix_socket : public ngs::Listener_interface {
+ public:
   typedef ngs::Socket_interface::Shared_ptr Socket_ptr;
 
-  Listener_unix_socket(ngs::Operations_factory_interface::Shared_ptr operations_factory,
-                       const std::string &unix_socket_path,
-                       ngs::Socket_events_interface &event,
-                       const uint32 backlog);
+  Listener_unix_socket(
+      ngs::Operations_factory_interface::Shared_ptr operations_factory,
+      const std::string &unix_socket_path, ngs::Socket_events_interface &event,
+      const uint32 backlog);
   ~Listener_unix_socket();
 
   bool is_handled_by_socket_event();
@@ -55,7 +54,7 @@ public:
   void close_listener();
   void loop();
 
-private:
+ private:
   ngs::Operations_factory_interface::Shared_ptr m_operations_factory;
   const std::string m_unix_socket_path;
   const uint32 m_backlog;
@@ -67,6 +66,6 @@ private:
   ::ngs::Socket_events_interface &m_event;
 };
 
-} // namespace xpl
+}  // namespace xpl
 
-#endif // XPL_LISTENER_UNIX_SOCKET_H_
+#endif  // XPL_LISTENER_UNIX_SOCKET_H_

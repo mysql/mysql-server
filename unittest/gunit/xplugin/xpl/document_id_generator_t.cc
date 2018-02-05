@@ -15,8 +15,8 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <limits>
 #include <gtest/gtest.h>
+#include <limits>
 
 #include "plugin/x/ngs/include/ngs/document_id_generator.h"
 
@@ -27,7 +27,7 @@ namespace test {
 
 class Document_id_generator_test : public ::testing::Test {
  public:
-  Document_id_generator& generator(const uint64_t timestamp,
+  Document_id_generator &generator(const uint64_t timestamp,
                                    const uint64_t serial) {
     gen.reset(new Document_id_generator(timestamp, serial));
     return *gen;
@@ -99,7 +99,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_0_1_serial_limit) {
 
 TEST_F(Document_id_generator_test, generate_id_sequence_1_5_serial_limit) {
   Document_id_generator::Variables vars{0, 1, 5};
-  generator(0, std::numeric_limits<uint64_t>::max() - 2*5);
+  generator(0, std::numeric_limits<uint64_t>::max() - 2 * 5);
   EXPECT_STREQ("000000000000fffffffffffffff6", gen->generate(vars).c_str());
   EXPECT_STREQ("000000000000fffffffffffffffb", gen->generate(vars).c_str());
   EXPECT_STREQ("0000000000010000000000000001", gen->generate(vars).c_str());
@@ -108,7 +108,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_1_5_serial_limit) {
 
 TEST_F(Document_id_generator_test, generate_id_sequence_0_5_serial_limit) {
   Document_id_generator::Variables vars{0, 0, 5};
-  generator(0, std::numeric_limits<uint64_t>::max() - 2*5);
+  generator(0, std::numeric_limits<uint64_t>::max() - 2 * 5);
   EXPECT_STREQ("000000000000fffffffffffffffa", gen->generate(vars).c_str());
   EXPECT_STREQ("000000000000ffffffffffffffff", gen->generate(vars).c_str());
   EXPECT_STREQ("0000000000010000000000000000", gen->generate(vars).c_str());
@@ -127,10 +127,11 @@ class Document_id_generator_param_test
 
 TEST_P(Document_id_generator_param_test, generate_id) {
   using Variables = ngs::Document_id_generator_interface::Variables;
-  const Param_document_id& param = GetParam();
+  const Param_document_id &param = GetParam();
   std::string result;
-  ASSERT_NO_THROW(result = generator(param.timestamp, param.serial).generate(
-                      Variables{param.prefix, param.offset, param.increment}));
+  ASSERT_NO_THROW(result = generator(param.timestamp, param.serial)
+                               .generate(Variables{param.prefix, param.offset,
+                                                   param.increment}));
   EXPECT_EQ(param.expect_id, result);
 }
 

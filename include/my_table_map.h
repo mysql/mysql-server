@@ -29,7 +29,7 @@
 /*
   TODO Convert these to use Bitmap class.
  */
-typedef ulonglong table_map;          /* Used for table bits in join */
-typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
+typedef ulonglong table_map;   /* Used for table bits in join */
+typedef ulonglong nesting_map; /* Used for flags of nesting constructs */
 
 #endif  // MY_TABLE_MAP_INCLUDED

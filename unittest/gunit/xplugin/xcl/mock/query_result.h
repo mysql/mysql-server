@@ -32,34 +32,23 @@
 
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
 
-
 namespace xcl {
 namespace test {
 
 class Mock_query_result : public XQuery_result {
  public:
-  MOCK_METHOD1(get_metadata,
-       const Metadata & (XError *out_error));
-  MOCK_METHOD0(get_warnings,
-      const Warnings &());
-  MOCK_METHOD2(get_next_row,
-      bool(const XRow **out_row, XError *out_error));
-  MOCK_METHOD1(get_next_row,
-      const XRow *(XError *));
-  MOCK_METHOD1(get_next_row_raw_raw,
-      XQuery_result::Row* (XError *));
-  MOCK_METHOD1(next_resultset,
-      bool(XError *));
-  MOCK_CONST_METHOD1(try_get_last_insert_id,
-      bool(uint64_t*));
-  MOCK_CONST_METHOD1(try_get_affected_rows,
-      bool(uint64_t*));
-  MOCK_CONST_METHOD1(try_get_info_message,
-      bool(std::string*));
+  MOCK_METHOD1(get_metadata, const Metadata &(XError *out_error));
+  MOCK_METHOD0(get_warnings, const Warnings &());
+  MOCK_METHOD2(get_next_row, bool(const XRow **out_row, XError *out_error));
+  MOCK_METHOD1(get_next_row, const XRow *(XError *));
+  MOCK_METHOD1(get_next_row_raw_raw, XQuery_result::Row *(XError *));
+  MOCK_METHOD1(next_resultset, bool(XError *));
+  MOCK_CONST_METHOD1(try_get_last_insert_id, bool(uint64_t *));
+  MOCK_CONST_METHOD1(try_get_affected_rows, bool(uint64_t *));
+  MOCK_CONST_METHOD1(try_get_info_message, bool(std::string *));
   MOCK_CONST_METHOD1(try_get_generated_document_ids,
-      bool(std::vector<std::string>*));
-  MOCK_METHOD1(has_resultset,
-      bool(XError *));
+                     bool(std::vector<std::string> *));
+  MOCK_METHOD1(has_resultset, bool(XError *));
 
  private:
   std::unique_ptr<XQuery_result::Row> get_next_row_raw(

@@ -36,12 +36,11 @@
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "my_sharedlib.h"
-#include "psi_base.h"
 #include "mysql/components/services/psi_statement_bits.h"
+#include "psi_base.h"
 
 /** Entry point for the performance schema interface. */
-struct PSI_statement_bootstrap
-{
+struct PSI_statement_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -60,8 +59,7 @@ typedef struct PSI_statement_bootstrap PSI_statement_bootstrap;
   Performance Schema Statement Interface, version 1.
   @since PSI_STATEMENT_VERSION_1
 */
-struct PSI_statement_service_v1
-{
+struct PSI_statement_service_v1 {
   /** @sa register_statement_v1_t. */
   register_statement_v1_t register_statement;
   /** @sa get_thread_statement_locker_v1_t. */

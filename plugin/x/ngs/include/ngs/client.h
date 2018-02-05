@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -46,144 +46,137 @@
 #include <netinet/in.h>
 #endif
 
+namespace ngs {
+class Server_interface;
 
-namespace ngs
-{
-  class Server_interface;
+class Client : public Client_interface {
+ public:
+  Client(Connection_ptr connection, Server_interface &server,
+         Client_id client_id, Protocol_monitor_interface &pmon,
+         const Global_timeouts &timeouts);
+  virtual ~Client();
 
-  class Client : public Client_interface
-  {
-  public:
-    Client(Connection_ptr connection,
-           Server_interface &server,
-           Client_id client_id,
-           Protocol_monitor_interface &pmon,
-           const Global_timeouts &timeouts);
-    virtual ~Client();
+  Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
+  Session_interface *session() override { return m_session.get(); }
+  ngs::shared_ptr<Session_interface> session_smart_ptr() override {
+    return m_session;
+  }
 
-    Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
-    Session_interface *session() override { return m_session.get(); }
-    ngs::shared_ptr<Session_interface> session_smart_ptr() override { return m_session; }
+ public:  // impl ngs::Client_interface
+  void run(const bool skip_resolve_name) override;
 
-  public: // impl ngs::Client_interface
-    void run(const bool skip_resolve_name) override;
+  void activate_tls() override;
 
-    void activate_tls() override;
+  void reset_accept_time() override;
 
-    void reset_accept_time() override;
+  void on_auth_timeout() override;
+  void on_server_shutdown() override;
 
-    void on_auth_timeout() override;
-    void on_server_shutdown() override;
+  Server_interface &server() const override { return m_server; }
+  Protocol_encoder_interface &protocol() const override { return *m_encoder; }
+  Connection_vio &connection() override { return *m_connection; };
 
-    Server_interface &server() const override { return m_server; }
-    Protocol_encoder_interface &protocol() const override { return *m_encoder; }
-    Connection_vio  &connection() override { return *m_connection; };
+  void on_session_auth_success(Session_interface &s) override;
+  void on_session_close(Session_interface &s) override;
+  void on_session_reset(Session_interface &s) override;
 
-    void on_session_auth_success(Session_interface &s) override;
-    void on_session_close(Session_interface &s) override;
-    void on_session_reset(Session_interface &s) override;
+  void disconnect_and_trigger_close() override;
 
-    void disconnect_and_trigger_close() override;
+  const char *client_address() const override { return m_client_addr.c_str(); }
+  const char *client_hostname() const override { return m_client_host.c_str(); }
+  const char *client_id() const override { return m_id; }
+  Client_id client_id_num() const override { return m_client_id; }
+  int client_port() const override { return m_client_port; }
 
-    const char *client_address() const override { return m_client_addr.c_str(); }
-    const char *client_hostname() const override { return m_client_host.c_str(); }
-    const char *client_id() const override { return m_id; }
-    Client_id client_id_num() const override { return m_client_id; }
-    int client_port() const override { return m_client_port; }
+  Client_state get_state() const override { return m_state.load(); };
+  chrono::time_point get_accept_time() const override;
 
-    Client_state  get_state() const override { return m_state.load(); };
-    chrono::time_point get_accept_time() const override;
+  void set_supports_expired_passwords(bool flag) {
+    m_supports_expired_passwords = flag;
+  }
 
-    void set_supports_expired_passwords(bool flag)
-    {
-      m_supports_expired_passwords = flag;
-    }
+  bool is_interactive() const override { return m_is_interactive; }
 
-    bool is_interactive() const override {
-      return m_is_interactive;
-    }
+  bool supports_expired_passwords() const override {
+    return m_supports_expired_passwords;
+  }
 
-    bool supports_expired_passwords() const override
-    {
-      return m_supports_expired_passwords;
-    }
+  void set_wait_timeout(const uint32_t) override;
+  void set_read_timeout(const uint32_t) override;
+  void set_write_timeout(const uint32_t) override;
 
-    void set_wait_timeout(const uint32_t) override;
-    void set_read_timeout(const uint32_t) override;
-    void set_write_timeout(const uint32_t) override;
+ protected:
+  char m_id[2 + sizeof(Client_id) * 2 + 1];  // 64bits in hex, plus 0x plus \0
+  Client_id m_client_id;
+  Server_interface &m_server;
+  Connection_ptr m_connection;
 
-  protected:
-    char m_id[2+sizeof(Client_id)*2+1]; // 64bits in hex, plus 0x plus \0
-    Client_id m_client_id;
-    Server_interface &m_server;
-    Connection_ptr m_connection;
+  Message_decoder m_decoder;
 
-    Message_decoder m_decoder;
+  ngs::chrono::time_point m_accept_time;
 
-    ngs::chrono::time_point m_accept_time;
+  ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr m_encoder;
+  std::string m_client_addr;
+  std::string m_client_host;
+  uint16 m_client_port;
+  std::atomic<Client_state> m_state;
+  std::atomic<bool> m_removed;
 
-    ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr m_encoder;
-    std::string m_client_addr;
-    std::string m_client_host;
-    uint16      m_client_port;
-    std::atomic<Client_state> m_state;
-    std::atomic<bool> m_removed;
+  ngs::shared_ptr<Session_interface> m_session;
 
-    ngs::shared_ptr<Session_interface> m_session;
+  Protocol_monitor_interface &m_protocol_monitor;
 
-    Protocol_monitor_interface &m_protocol_monitor;
+  Mutex m_session_exit_mutex;
 
-    Mutex m_session_exit_mutex;
+  enum {
+    Not_closing,
+    Close_net_error,
+    Close_error,
+    Close_reject,
+    Close_normal,
+    Close_connect_timeout,
+    Close_write_timeout,
+    Close_read_timeout
+  } m_close_reason;
 
-    enum {
-      Not_closing,
-      Close_net_error,
-      Close_error,
-      Close_reject,
-      Close_normal,
-      Close_connect_timeout,
-      Close_write_timeout,
-      Close_read_timeout
-    } m_close_reason;
+  char *m_msg_buffer;
+  size_t m_msg_buffer_size;
+  bool m_supports_expired_passwords;
+  bool m_is_interactive = false;
 
-    char* m_msg_buffer;
-    size_t m_msg_buffer_size;
-    bool m_supports_expired_passwords;
-    bool m_is_interactive = false;
+  uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
+  uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
+  uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
 
-    uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
-    uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
-    uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
+  Request *read_one_message(Error_code &ret_error);
 
-    Request *read_one_message(Error_code &ret_error);
+  virtual ngs::Capabilities_configurator *capabilities_configurator();
+  void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);
+  void set_capabilities(const Mysqlx::Connection::CapabilitiesSet &msg);
 
-    virtual ngs::Capabilities_configurator *capabilities_configurator();
-    void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);
-    void set_capabilities(const Mysqlx::Connection::CapabilitiesSet &msg);
+  void remove_client_from_server();
 
-    void remove_client_from_server();
+  void handle_message(Request &message);
+  virtual std::string resolve_hostname() = 0;
+  virtual void on_network_error(int error);
+  void on_read_timeout(int error_code, const std::string &message);
 
-    void handle_message(Request &message);
-    virtual std::string resolve_hostname() = 0;
-    virtual void on_network_error(int error);
-    void on_read_timeout(int error_code, const std::string &message);
+  Protocol_monitor_interface &get_protocol_monitor();
 
-    Protocol_monitor_interface &get_protocol_monitor();
+  void set_encoder(ngs::Protocol_encoder_interface *enc);
 
-    void set_encoder(ngs::Protocol_encoder_interface* enc);
+ private:
+  Client(const Client &) = delete;
+  Client &operator=(const Client &) = delete;
 
-  private:
-    Client(const Client &) = delete;
-    Client &operator=(const Client &) = delete;
+  void get_last_error(int *out_error_code, std::string *out_message);
+  void shutdown_connection();
 
-    void get_last_error(int *out_error_code, std::string *out_message);
-    void shutdown_connection();
+  void on_client_addr(const bool skip_resolve_name);
+  void on_accept();
+  void on_kill(Session_interface &session);
+};
 
-    void on_client_addr(const bool skip_resolve_name);
-    void on_accept();
-    void on_kill(Session_interface &session);
-  };
-
-} // namespace ngs
+}  // namespace ngs
 
 #endif  // RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_

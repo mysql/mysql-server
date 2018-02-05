@@ -29,7 +29,7 @@
 #ifndef MYSQL_GET_PASSWORD_H_INCLUDED
 #define MYSQL_GET_PASSWORD_H_INCLUDED
 
-typedef char *(* strdup_handler_t)(const char *, int);
+typedef char *(*strdup_handler_t)(const char *, int);
 char *get_tty_password_ext(const char *opt_message,
                            strdup_handler_t strdup_function);
 

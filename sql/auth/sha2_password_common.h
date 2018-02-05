@@ -27,8 +27,8 @@
 #include <stddef.h>
 
 bool validate_sha256_scramble(const unsigned char *scramble,
-                              size_t scramble_size,
-                              const unsigned char *known, size_t known_size,
-                              const unsigned char *rnd, size_t rnd_size);
+                              size_t scramble_size, const unsigned char *known,
+                              size_t known_size, const unsigned char *rnd,
+                              size_t rnd_size);
 
-#endif // SHA2_PASSWORD_INCLUDED
+#endif  // SHA2_PASSWORD_INCLUDED

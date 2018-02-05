@@ -40,10 +40,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
-define_xdr_funcs(synode_no)
-define_xdr_funcs(app_data_ptr)
+define_xdr_funcs(synode_no) define_xdr_funcs(app_data_ptr)
 
-static app_data_list nextp(app_data_list l);
+    static app_data_list nextp(app_data_list l);
 static unsigned long msg_count(app_data_ptr a);
 
 /**
@@ -377,16 +376,15 @@ static unsigned long msg_count(app_data_ptr a) {
   return n;
 }
 
+/* {{{ Message constructors */
 
-    /* {{{ Message constructors */
-
-    /**
-       Sort an array of app_data pointers.
-       TODO: Maybe replace with Dewar's improved heap sort?
-       Quicksort is not optimal here, since the log is typically
-       already almost or completely sorted.
-     */
-    void sort_app_data(app_data_ptr x[], int n) {
+/**
+   Sort an array of app_data pointers.
+   TODO: Maybe replace with Dewar's improved heap sort?
+   Quicksort is not optimal here, since the log is typically
+   already almost or completely sorted.
+ */
+void sort_app_data(app_data_ptr x[], int n) {
 #define insert_sort_gt(a, b) synode_gt(a->app_key, b->app_key)
   insert_sort(app_data_ptr, x, n);
 #undef insert_sort_gt
@@ -442,9 +440,9 @@ app_data_ptr new_exit() {
   return retval;
 }
 
-/* }}} */
+  /* }}} */
 
-/* {{{ app_data_list functions */
+  /* {{{ app_data_list functions */
 
 #if 0 /* UNUSED */
 /**

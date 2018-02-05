@@ -36,9 +36,8 @@
   Instead one should use the Gcs_control_interface::get_local_information
   method to know our own identification within the group.
  */
-class Gcs_member_identifier
-{
-public:
+class Gcs_member_identifier {
+ public:
   /**
     Gcs_member_identifier constructor.
 
@@ -47,16 +46,13 @@ public:
 
   explicit Gcs_member_identifier(const std::string &member_id);
 
-
   virtual ~Gcs_member_identifier() {}
-
 
   /**
     @return the member identifier
   */
 
-  const std::string& get_member_id() const;
-
+  const std::string &get_member_id() const;
 
   /**
     Redefinition of the operator less, to allow usage as key in maps.
@@ -67,8 +63,7 @@ public:
             compare operation from the string object
   */
 
-  bool operator<(const Gcs_member_identifier& other) const;
-
+  bool operator<(const Gcs_member_identifier &other) const;
 
   /**
     Redefinition of the operator equals, to allow usage in sets.
@@ -79,10 +74,9 @@ public:
             compare operation from the string object
   */
 
-  bool operator==(const Gcs_member_identifier& other) const;
+  bool operator==(const Gcs_member_identifier &other) const;
 
-
-private:
+ private:
   std::string m_member_id;
 };
-#endif // GCS_MEMBER_IDENTIFIER_INCLUDED
+#endif  // GCS_MEMBER_IDENTIFIER_INCLUDED

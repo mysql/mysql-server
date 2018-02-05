@@ -30,110 +30,95 @@
 
 namespace member_version_unittest {
 
-class MemberVersionTest : public ::testing::Test
-{
-protected:
-  MemberVersionTest() {};
+class MemberVersionTest : public ::testing::Test {
+ protected:
+  MemberVersionTest(){};
 
-  virtual void SetUp()
-  {
-    version= new Member_version(0x010206); //version: 1.2.6
+  virtual void SetUp() {
+    version = new Member_version(0x010206);  // version: 1.2.6
   }
 
-  virtual void TearDown()
-  {
-    delete version;
-  }
+  virtual void TearDown() { delete version; }
 
   Member_version *version;
 };
 
-TEST_F(MemberVersionTest, AssertFullVersion)
-{
+TEST_F(MemberVersionTest, AssertFullVersion) {
   ASSERT_EQ(0x010206, (int)this->version->get_version());
 }
 
-TEST_F(MemberVersionTest, AssertMajorVersion)
-{
+TEST_F(MemberVersionTest, AssertMajorVersion) {
   ASSERT_EQ(1, (int)this->version->get_major_version());
 }
 
-TEST_F(MemberVersionTest, AssertMinorVersion)
-{
+TEST_F(MemberVersionTest, AssertMinorVersion) {
   ASSERT_EQ(2, (int)this->version->get_minor_version());
 }
 
-TEST_F(MemberVersionTest, AssertPatchVersion)
-{
+TEST_F(MemberVersionTest, AssertPatchVersion) {
   ASSERT_EQ(6, (int)this->version->get_patch_version());
 }
 
-TEST_F(MemberVersionTest, AssertEqualsOperator)
-{
-  Member_version another_version(0x010206); //version: 1.2.6
+TEST_F(MemberVersionTest, AssertEqualsOperator) {
+  Member_version another_version(0x010206);  // version: 1.2.6
 
   ASSERT_TRUE(*version == another_version);
 }
 
-TEST_F(MemberVersionTest, AssertLtOperator)
-{
-  Member_version same_version(0x010206); //version: 1.2.6
+TEST_F(MemberVersionTest, AssertLtOperator) {
+  Member_version same_version(0x010206);  // version: 1.2.6
 
   ASSERT_FALSE(*version < same_version);
 
-  Member_version major_major_version(0x020206); //version: 2.2.6
+  Member_version major_major_version(0x020206);  // version: 2.2.6
 
   ASSERT_TRUE(*version < major_major_version);
 
-  Member_version major_minor_version(0x010306); //version: 1.3.6
+  Member_version major_minor_version(0x010306);  // version: 1.3.6
 
   ASSERT_TRUE(*version < major_minor_version);
 
-  Member_version major_patch_version(0x010207); //version: 1.2.7
+  Member_version major_patch_version(0x010207);  // version: 1.2.7
 
   ASSERT_TRUE(*version < major_patch_version);
 }
 
-TEST_F(MemberVersionTest, AssertGtOperator)
-{
-  Member_version same_version(0x010206); //version: 1.2.6
+TEST_F(MemberVersionTest, AssertGtOperator) {
+  Member_version same_version(0x010206);  // version: 1.2.6
 
   ASSERT_FALSE(*version > same_version);
 
-  Member_version minor_major_version(0x000206); //version: 0.2.6
+  Member_version minor_major_version(0x000206);  // version: 0.2.6
 
   ASSERT_TRUE(*version > minor_major_version);
 
-  Member_version minor_minor_version(0x010106); //version: 1.1.6
+  Member_version minor_minor_version(0x010106);  // version: 1.1.6
 
   ASSERT_TRUE(*version > minor_minor_version);
 
-  Member_version minor_patch_version(0x010205); //version: 1.2.5
+  Member_version minor_patch_version(0x010205);  // version: 1.2.5
 
   ASSERT_TRUE(*version > minor_patch_version);
 }
 
-TEST_F(MemberVersionTest, AssertGtEqualsOperator)
-{
-  Member_version same_version(0x010206); //version: 1.2.6
+TEST_F(MemberVersionTest, AssertGtEqualsOperator) {
+  Member_version same_version(0x010206);  // version: 1.2.6
 
   ASSERT_TRUE(*version >= same_version);
 
-  Member_version lower_version(0x010205); //version: 1.2.5
+  Member_version lower_version(0x010205);  // version: 1.2.5
 
   ASSERT_TRUE(*version >= lower_version);
 }
 
-TEST_F(MemberVersionTest, AssertLtEqualsOperator)
-{
-  Member_version same_version(0x010206); //version: 1.2.6
+TEST_F(MemberVersionTest, AssertLtEqualsOperator) {
+  Member_version same_version(0x010206);  // version: 1.2.6
 
   ASSERT_TRUE(*version <= same_version);
 
-  Member_version higher_version(0x010207); //version: 1.2.7
+  Member_version higher_version(0x010207);  // version: 1.2.7
 
   ASSERT_TRUE(*version <= higher_version);
 }
 
-}
-
+}  // namespace member_version_unittest

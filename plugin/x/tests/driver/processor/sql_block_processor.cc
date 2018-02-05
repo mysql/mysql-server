@@ -33,7 +33,6 @@
 #include "plugin/x/tests/driver/common/utils_mysql_parsing.h"
 #include "plugin/x/tests/driver/connector/result_fetcher.h"
 
-
 Block_processor::Result Sql_block_processor::feed(std::istream &input,
                                                   const char *linebuf) {
   if (m_sql) {
@@ -68,12 +67,10 @@ Block_processor::Result Sql_block_processor::feed(std::istream &input,
 }
 
 bool Sql_block_processor::feed_ended_is_state_ok() {
-  if (!m_sql)
-    return true;
+  if (!m_sql) return true;
 
-  m_context->print_error(
-      m_context->m_script_stack,
-      "Unclosed -->sql directive\n");
+  m_context->print_error(m_context->m_script_stack,
+                         "Unclosed -->sql directive\n");
 
   return false;
 }
@@ -82,7 +79,7 @@ int Sql_block_processor::run_sql_batch(xcl::XSession *conn,
                                        const std::string &sql_batch,
                                        const bool be_quiet) {
   std::string delimiter = ";";
-  std::vector<std::pair<size_t, size_t> > ranges;
+  std::vector<std::pair<size_t, size_t>> ranges;
   std::stack<std::string> input_context_stack;
   std::string sql = sql_batch;
 
@@ -127,28 +124,24 @@ int Sql_block_processor::run_sql_batch(xcl::XSession *conn,
       if (m_context->m_options.m_show_warnings) {
         auto &warnings = result.get_warnings();
 
-        if (!warnings.empty())
-          m_context->print("Warnings generated:\n");
+        if (!warnings.empty()) m_context->print("Warnings generated:\n");
 
         for (const auto &w : warnings) {
           m_context->print((w.m_is_note ? "NOTE" : "WARNING"), " | ", w.m_code,
-                          " | ", w.m_text, "\n");
+                           " | ", w.m_text, "\n");
         }
       }
-    }
-    catch (xcl::XError &err) {
+    } catch (xcl::XError &err) {
       error = err;
       m_context->m_variables->clear_unreplace();
       m_context->print_error("While executing ",
-                            sql.substr(st.first, st.second), ":\n");
+                             sql.substr(st.first, st.second), ":\n");
 
-      if (!m_context->m_expected_error.check_error(err))
-        return 1;
+      if (!m_context->m_expected_error.check_error(err)) return 1;
     }
   }
 
-  if (!error)
-    m_context->m_expected_error.check_ok();
+  if (!error) m_context->m_expected_error.check_ok();
 
   m_context->m_variables->clear_unreplace();
 

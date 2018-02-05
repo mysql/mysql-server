@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,7 +33,6 @@
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 #include "plugin/x/tests/driver/processor/variable.h"
 
-
 class Variable_container {
  public:
   using Container_initialization = std::map<std::string, std::string>;
@@ -46,8 +45,7 @@ class Variable_container {
   }
 
   void replace(std::string *s) {
-    for (Container::const_iterator sub =
-             m_variables.begin();
+    for (Container::const_iterator sub = m_variables.begin();
          sub != m_variables.end(); ++sub) {
       std::string tmp(sub->second->get_value());
 
@@ -55,24 +53,21 @@ class Variable_container {
     }
   }
 
-  void make_special_variable(
-      const std::string &key,
-      Variable_interface *value) {
+  void make_special_variable(const std::string &key,
+                             Variable_interface *value) {
     m_variables[key].reset(value);
   }
 
   bool set(const std::string &key, const std::string &value) {
     auto &variable = m_variables[key];
 
-    if (!variable)
-      variable.reset(new Variable_string());
+    if (!variable) variable.reset(new Variable_string());
 
     return variable->set_value(value);
   }
 
   std::string get(const std::string &key) const {
-    if (!is_present(key))
-      return "";
+    if (!is_present(key)) return "";
 
     return m_variables.at(key)->get_value();
   }

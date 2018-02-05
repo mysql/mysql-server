@@ -25,15 +25,15 @@
 
 #include <mysql/group_replication_priv.h>
 
-class Certifier_stats
-{
-public:
+class Certifier_stats {
+ public:
   virtual ~Certifier_stats() {}
-  virtual ulonglong get_positive_certified()= 0;
-  virtual ulonglong get_negative_certified()= 0;
-  virtual ulonglong get_certification_info_size()= 0;
-  virtual int get_group_stable_transactions_set_string(char **buffer, size_t *length)= 0;
-  virtual void get_last_conflict_free_transaction(std::string* value)= 0;
+  virtual ulonglong get_positive_certified() = 0;
+  virtual ulonglong get_negative_certified() = 0;
+  virtual ulonglong get_certification_info_size() = 0;
+  virtual int get_group_stable_transactions_set_string(char **buffer,
+                                                       size_t *length) = 0;
+  virtual void get_last_conflict_free_transaction(std::string *value) = 0;
 };
 
 #endif /* CERTIFIER_STATS_INTERFACE_INCLUDE */

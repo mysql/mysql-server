@@ -21,11 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef GCS_XCOM_NETWORKING_H
-#define	GCS_XCOM_NETWORKING_H
+#define GCS_XCOM_NETWORKING_H
 
-#include<vector>
-#include<map>
-#include<string>
+#include <map>
+#include <string>
+#include <vector>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
 
@@ -37,9 +37,8 @@
                             to out
  @return false on sucess, true otherwise.
  */
-bool
-get_ipv4_local_addresses(std::map<std::string, int>& out,
-                         bool filter_out_inactive= false);
+bool get_ipv4_local_addresses(std::map<std::string, int> &out,
+                              bool filter_out_inactive = false);
 
 /**
   This function gets all private network addresses and their
@@ -49,9 +48,8 @@ get_ipv4_local_addresses(std::map<std::string, int>& out,
                             to out
  @return false on sucess, true otherwise.
  */
-bool
-get_ipv4_local_private_addresses(std::map<std::string, int>& out,
-                                 bool filter_out_inactive= false);
+bool get_ipv4_local_private_addresses(std::map<std::string, int> &out,
+                                      bool filter_out_inactive = false);
 
 /**
  This function translates hostnames to IP addresses.
@@ -61,8 +59,7 @@ get_ipv4_local_private_addresses(std::map<std::string, int>& out,
 
  @return false on success, true otherwise.
  */
-bool
-resolve_ip_addr_from_hostname(std::string name, std::string& ip);
+bool resolve_ip_addr_from_hostname(std::string name, std::string &ip);
 
 /**
  Converts an address in string format (X.X.X.X/XX) into network octet format
@@ -73,10 +70,9 @@ resolve_ip_addr_from_hostname(std::string name, std::string& ip);
 
  @return false on success, true otherwise.
  */
-bool
-get_address_for_whitelist(std::string addr, std::string mask,
-                          std::pair<std::vector<unsigned char>,
-                                    std::vector<unsigned char>> &out_pair);
+bool get_address_for_whitelist(std::string addr, std::string mask,
+                               std::pair<std::vector<unsigned char>,
+                                         std::vector<unsigned char>> &out_pair);
 
 /**
  @class Gcs_ip_whitelist_entry
@@ -87,9 +83,8 @@ get_address_for_whitelist(std::string addr, std::string mask,
  - init_value();
  - get_value();
  */
-class Gcs_ip_whitelist_entry
-{
-public:
+class Gcs_ip_whitelist_entry {
+ public:
   /**
    Constructor
 
@@ -113,36 +108,34 @@ public:
   /**
    Virtual Method that implements value retrieval for this entry.
 
-   The returned value must be an std::pair that contains both the address and the
-   mask in network octet value.
+   The returned value must be an std::pair that contains both the address and
+   the mask in network octet value.
 
    @return an std::pair with ip and mask in network octet form
    */
-  virtual std::pair< std::vector<unsigned char>,
-                     std::vector<unsigned char> > *get_value() = 0;
+  virtual std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+      *get_value() = 0;
 
   /** Getters */
-  std::string get_addr() const {return m_addr;};
-  std::string get_mask() const {return m_mask;};
+  std::string get_addr() const { return m_addr; };
+  std::string get_mask() const { return m_mask; };
 
-private:
+ private:
   std::string m_addr;
   std::string m_mask;
 };
 
 struct Gcs_ip_whitelist_entry_pointer_comparator {
-    bool operator() (const Gcs_ip_whitelist_entry* lhs,
-                     const Gcs_ip_whitelist_entry* rhs) const {
-      //Check if addresses are different in content
-      if(lhs->get_addr() != rhs->get_addr())
-      { //Then compare only the addresses
-        return lhs->get_addr() < rhs->get_addr();
-      }
-      else
-      { //If addresses are equal, then compare the masks to untie.
-        return lhs->get_mask() < rhs->get_mask();
-      }
+  bool operator()(const Gcs_ip_whitelist_entry *lhs,
+                  const Gcs_ip_whitelist_entry *rhs) const {
+    // Check if addresses are different in content
+    if (lhs->get_addr() != rhs->get_addr()) {  // Then compare only the
+                                               // addresses
+      return lhs->get_addr() < rhs->get_addr();
+    } else {  // If addresses are equal, then compare the masks to untie.
+      return lhs->get_mask() < rhs->get_mask();
     }
+  }
 };
 
 /**
@@ -150,16 +143,16 @@ struct Gcs_ip_whitelist_entry_pointer_comparator {
  @brief Implementation of Gcs_ip_whitelist_entry to use with
         raw IP addresses in format X.X.X.X/XX
  */
-class Gcs_ip_whitelist_entry_ip: public Gcs_ip_whitelist_entry
-{
-public:
+class Gcs_ip_whitelist_entry_ip : public Gcs_ip_whitelist_entry {
+ public:
   Gcs_ip_whitelist_entry_ip(std::string addr, std::string mask);
 
-public:
+ public:
   bool init_value();
-  std::pair<std::vector<unsigned char>, std::vector<unsigned char>> *get_value();
+  std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+      *get_value();
 
-private:
+ private:
   std::pair<std::vector<unsigned char>, std::vector<unsigned char>> m_value;
 };
 
@@ -168,22 +161,21 @@ private:
  @brief Implementation of Gcs_ip_whitelist_entry to use with
         hostnames
  */
-class Gcs_ip_whitelist_entry_hostname: public Gcs_ip_whitelist_entry
-{
-public:
+class Gcs_ip_whitelist_entry_hostname : public Gcs_ip_whitelist_entry {
+ public:
   Gcs_ip_whitelist_entry_hostname(std::string addr, std::string mask);
 
-public:
+ public:
   bool init_value();
-  std::pair<std::vector<unsigned char>, std::vector<unsigned char>> *get_value();
+  std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+      *get_value();
 };
 
-class Gcs_ip_whitelist
-{
-public:
+class Gcs_ip_whitelist {
+ public:
   static const std::string DEFAULT_WHITELIST;
 
-private:
+ private:
   /*
    The IP whitelist. It is a list of tuples Hexadecimal IP number
    and subnet mask also in Hexadecimal. E.g.: 192.168.1.2/24 or 127.0.0.1/32.
@@ -191,8 +183,8 @@ private:
    This is for optimization purposes, so that we don't calculate the
    values each time we want to check.
    */
-  std::set< Gcs_ip_whitelist_entry*,
-            Gcs_ip_whitelist_entry_pointer_comparator> m_ip_whitelist;
+  std::set<Gcs_ip_whitelist_entry *, Gcs_ip_whitelist_entry_pointer_comparator>
+      m_ip_whitelist;
 
   /**
    This is the list that originally submitted to be parsed and to configure
@@ -200,10 +192,8 @@ private:
    */
   std::string m_original_list;
 
-public:
-  Gcs_ip_whitelist() :
-    m_ip_whitelist(),
-    m_original_list() {}
+ public:
+  Gcs_ip_whitelist() : m_ip_whitelist(), m_original_list() {}
   virtual ~Gcs_ip_whitelist();
 
   /**
@@ -214,7 +204,7 @@ public:
                    a subnet range, e.g., IP/netbits.
    @return true if the configuration failed, false otherwise.
    */
-  bool configure(const std::string& the_list);
+  bool configure(const std::string &the_list);
 
   /**
    This member function shall be used to validate the list that is used as input
@@ -226,7 +216,7 @@ public:
 
    @return true if the configuration failed, false otherwise.
    */
-  bool is_valid(const std::string& the_list) const;
+  bool is_valid(const std::string &the_list) const;
 
   /**
    This member function SHALL return true if the given IP is to be blocked,
@@ -237,8 +227,8 @@ public:
 
    @return true if the ip should be blocked, false otherwise.
    */
-  bool shall_block(const std::string& ip_addr,
-                   site_def const *xcom_config= nullptr) const;
+  bool shall_block(const std::string &ip_addr,
+                   site_def const *xcom_config = nullptr) const;
 
   /**
    This member function SHALL return true if the IP of the given file descriptor
@@ -249,13 +239,15 @@ public:
 
    @return true if the ip should be blocked, false otherwise.
    */
-  bool shall_block(int fd, site_def const *xcom_config= nullptr) const;
+  bool shall_block(int fd, site_def const *xcom_config = nullptr) const;
 
   /**
    This member function gets the textual representation of the list as
    provided to the configure member function.
    */
-  const std::string& get_configured_ip_whitelist() const { return m_original_list; }
+  const std::string &get_configured_ip_whitelist() const {
+    return m_original_list;
+  }
 
   /**
    A string representation of the internal list of IP addresses. Can have
@@ -265,12 +257,12 @@ public:
    */
   std::string to_string() const;
 
-private:
+ private:
   bool do_check_block(struct sockaddr_storage *sa,
                       site_def const *xcom_config) const;
   bool do_check_block_whitelist(
-    std::vector<unsigned char> const& incoming_octets) const;
-  bool do_check_block_xcom(std::vector<unsigned char> const& incoming_octets,
+      std::vector<unsigned char> const &incoming_octets) const;
+  bool do_check_block_xcom(std::vector<unsigned char> const &incoming_octets,
                            site_def const *xcom_config) const;
   bool add_address(std::string addr, std::string mask);
 
@@ -280,11 +272,10 @@ private:
    It deletes all entries and clears the internal set.
    */
   void clear();
-private:
-  Gcs_ip_whitelist(Gcs_ip_whitelist const&);
-  Gcs_ip_whitelist& operator=(Gcs_ip_whitelist const&);
+
+ private:
+  Gcs_ip_whitelist(Gcs_ip_whitelist const &);
+  Gcs_ip_whitelist &operator=(Gcs_ip_whitelist const &);
 };
 
-
-#endif	/* GCS_XCOM_NETWORKING_H */
-
+#endif /* GCS_XCOM_NETWORKING_H */

@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef GCS_TYPES_INCLUDED
 #define GCS_TYPES_INCLUDED
 
@@ -30,7 +29,7 @@
 
 /* Helper definitions for types used in this interface */
 typedef unsigned char uchar;
-typedef unsigned int  uint32;
+typedef unsigned int uint32;
 
 /**
   @enum enum_gcs_error
@@ -38,16 +37,14 @@ typedef unsigned int  uint32;
   This enumeration describes errors which can occur during group
   communication operations.
 */
-enum enum_gcs_error
-{
+enum enum_gcs_error {
   /* Gcs operation was successfully completed. */
-  GCS_OK= 0,
+  GCS_OK = 0,
   /* Error occurred while message communication. */
   GCS_NOK,
   /* Message was bigger then what gcs can successfully communicate/handle. */
   GCS_MESSAGE_TOO_BIG
 };
-
 
 /**
  @class Gcs_interface_parameters
@@ -58,9 +55,8 @@ enum enum_gcs_error
  Each binding must document which parameters it needs and it is the
  responsibility of the client to provide them at initialize() time.
  */
-class Gcs_interface_parameters
-{
-public:
+class Gcs_interface_parameters {
+ public:
   /**
     Adds a parameter to the parameter catalog.
     If the value already exists, it is overridden by the new one.
@@ -71,7 +67,6 @@ public:
 
   void add_parameter(const std::string &name, const std::string &value);
 
-
   /**
     Retrieves a parameter from the object.
 
@@ -79,7 +74,6 @@ public:
   */
 
   const std::string *get_parameter(const std::string &name) const;
-
 
   /**
     Check whether any of the paramters were provided.
@@ -90,7 +84,6 @@ public:
 
   bool check_parameters(const std::vector<std::string> &params) const;
 
-
   /**
     Check whether any of the parameters were provided.
 
@@ -99,25 +92,21 @@ public:
     @return True if any of the parameters is stored.
   */
 
-  bool check_parameters(const char* params[], int size) const;
-
+  bool check_parameters(const char *params[], int size) const;
 
   /**
    Adds the parameters provided to the existing set of parameters.
    @param p Parameters to add.
   */
 
-  void add_parameters_from(const Gcs_interface_parameters& p)
-  {
-    std::map<std::string,std::string>::const_iterator it;
-    for (it= p.parameters.begin(); it != p.parameters.end(); it++)
-    {
-      std::string name= (*it).first;
-      std::string val= (*it).second;
+  void add_parameters_from(const Gcs_interface_parameters &p) {
+    std::map<std::string, std::string>::const_iterator it;
+    for (it = p.parameters.begin(); it != p.parameters.end(); it++) {
+      std::string name = (*it).first;
+      std::string val = (*it).second;
       add_parameter(name, val);
     }
   }
-
 
   /**
    Clears all parameters.
@@ -128,9 +117,8 @@ public:
 
   virtual ~Gcs_interface_parameters() {}
 
-private:
+ private:
   std::map<std::string, std::string> parameters;
 };
 
-#endif  /* GCS_TYPES_INCLUDED */
-
+#endif /* GCS_TYPES_INCLUDED */

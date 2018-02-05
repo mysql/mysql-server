@@ -38,29 +38,21 @@
   @{
 */
 
-class PFS_index_accounts : public PFS_engine_index
-{
-public:
-  PFS_index_accounts(PFS_engine_key *key_1) : PFS_engine_index(key_1)
-  {
-  }
+class PFS_index_accounts : public PFS_engine_index {
+ public:
+  PFS_index_accounts(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
   PFS_index_accounts(PFS_engine_key *key_1, PFS_engine_key *key_2)
-    : PFS_engine_index(key_1, key_2)
-  {
-  }
+      : PFS_engine_index(key_1, key_2) {}
 
-  virtual ~PFS_index_accounts()
-  {
-  }
+  virtual ~PFS_index_accounts() {}
 
   virtual bool match(PFS_account *pfs) = 0;
 };
 
 /** Cursor CURSOR_BY_ACCOUNT. */
-class cursor_by_account : public PFS_engine_table
-{
-public:
+class cursor_by_account : public PFS_engine_table {
+ public:
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -70,24 +62,22 @@ public:
 
   virtual int index_next();
 
-protected:
+ protected:
   cursor_by_account(const PFS_engine_table_share *share);
 
-public:
-  ~cursor_by_account()
-  {
-  }
+ public:
+  ~cursor_by_account() {}
 
-protected:
+ protected:
   virtual int make_row(PFS_account *account) = 0;
 
-private:
+ private:
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
 
-protected:
+ protected:
   PFS_index_accounts *m_opened_index;
 };
 

@@ -40,7 +40,6 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
 
-
 /**
   This class extends Gtid_set to include a reference counter.
 
@@ -51,48 +50,40 @@
   certification info and released when the last reference to it
   needs to be freed.
 */
-class Gtid_set_ref: public Gtid_set
-{
-public:
+class Gtid_set_ref : public Gtid_set {
+ public:
   Gtid_set_ref(Sid_map *sid_map, int64 parallel_applier_sequence_number)
-    :Gtid_set(sid_map), reference_counter(0),
-     parallel_applier_sequence_number(parallel_applier_sequence_number)
-  {}
+      : Gtid_set(sid_map),
+        reference_counter(0),
+        parallel_applier_sequence_number(parallel_applier_sequence_number) {}
 
-  virtual ~Gtid_set_ref()
-  {}
+  virtual ~Gtid_set_ref() {}
 
   /**
     Increment the number of references by one.
 
     @return the number of references
   */
-  size_t link()
-  {
-    return ++reference_counter;
-  }
+  size_t link() { return ++reference_counter; }
 
   /**
     Decrement the number of references by one.
 
     @return the number of references
   */
-  size_t unlink()
-  {
+  size_t unlink() {
     DBUG_ASSERT(reference_counter > 0);
     return --reference_counter;
   }
 
-  int64 get_parallel_applier_sequence_number() const
-  {
+  int64 get_parallel_applier_sequence_number() const {
     return parallel_applier_sequence_number;
   }
 
-private:
+ private:
   size_t reference_counter;
   int64 parallel_applier_sequence_number;
 };
-
 
 /**
   This class is a core component of the database state machine
@@ -116,12 +107,10 @@ private:
   negatively certified. Otherwise, this transaction is marked
   certified and goes into applier.
 */
-typedef std::unordered_map<std::string, Gtid_set_ref*> Certification_info;
+typedef std::unordered_map<std::string, Gtid_set_ref *> Certification_info;
 
-
-class Certifier_broadcast_thread
-{
-public:
+class Certifier_broadcast_thread {
+ public:
   /**
     Certifier_broadcast_thread constructor
   */
@@ -155,9 +144,9 @@ public:
     Period (in seconds) between stable transactions set
     broadcast.
   */
-  static const int BROADCAST_GTID_EXECUTED_PERIOD= 60; // seconds
+  static const int BROADCAST_GTID_EXECUTED_PERIOD = 60;  // seconds
 
-private:
+ private:
   /**
     Thread control.
   */
@@ -182,27 +171,27 @@ private:
   int broadcast_gtid_executed();
 };
 
-
-class Certifier_interface : public Certifier_stats
-{
-public:
+class Certifier_interface : public Certifier_stats {
+ public:
   virtual ~Certifier_interface() {}
-  virtual void handle_view_change()= 0;
-  virtual int handle_certifier_data(const uchar *data, ulong len,
-                                    const Gcs_member_identifier& gcs_member_id)= 0;
+  virtual void handle_view_change() = 0;
+  virtual int handle_certifier_data(
+      const uchar *data, ulong len,
+      const Gcs_member_identifier &gcs_member_id) = 0;
 
-  virtual void get_certification_info(std::map<std::string, std::string> *cert_info)= 0;
-  virtual int set_certification_info(std::map<std::string, std::string> *cert_info)= 0;
-  virtual bool set_group_stable_transactions_set(Gtid_set* executed_gtid_set)= 0;
-  virtual void enable_conflict_detection()= 0;
-  virtual void disable_conflict_detection()= 0;
-  virtual bool is_conflict_detection_enable()= 0;
+  virtual void get_certification_info(
+      std::map<std::string, std::string> *cert_info) = 0;
+  virtual int set_certification_info(
+      std::map<std::string, std::string> *cert_info) = 0;
+  virtual bool set_group_stable_transactions_set(
+      Gtid_set *executed_gtid_set) = 0;
+  virtual void enable_conflict_detection() = 0;
+  virtual void disable_conflict_detection() = 0;
+  virtual bool is_conflict_detection_enable() = 0;
 };
 
-
-class Certifier: public Certifier_interface
-{
-public:
+class Certifier : public Certifier_interface {
+ public:
   Certifier();
   virtual ~Certifier();
 
@@ -243,7 +232,7 @@ public:
       @retval !=0    Error on queue
   */
   virtual int handle_certifier_data(const uchar *data, ulong len,
-                                    const Gcs_member_identifier& gcs_member_id);
+                                    const Gcs_member_identifier &gcs_member_id);
 
   /**
     This member function SHALL certify the set of items against transactions
@@ -267,10 +256,8 @@ public:
     @retval -1                error.
    */
   rpl_gno certify(Gtid_set *snapshot_version,
-                  std::list<const char*> *write_set,
-                  bool generate_group_id,
-                  const char *member_uuid,
-                  Gtid_log_event *gle,
+                  std::list<const char *> *write_set, bool generate_group_id,
+                  const char *member_uuid, Gtid_log_event *gle,
                   bool local_transaction);
 
   /**
@@ -297,7 +284,8 @@ public:
 
      @param[out] cert_info        a pointer to retrieve the certification info
   */
-  virtual void get_certification_info(std::map<std::string, std::string> *cert_info);
+  virtual void get_certification_info(
+      std::map<std::string, std::string> *cert_info);
 
   /**
     Sets the certification info according to the given value.
@@ -305,12 +293,14 @@ public:
     @note if concurrent access is introduce to these variables,
     locking is needed in this method
 
-    @param cert_info              certification info retrieved from recovery procedure
+    @param cert_info              certification info retrieved from recovery
+    procedure
 
     @retval  > 0  Error during setting certfication info.
     @retval  = 0  Everything went fine.
   */
-  virtual int set_certification_info(std::map<std::string, std::string> *cert_info);
+  virtual int set_certification_info(
+      std::map<std::string, std::string> *cert_info);
 
   /**
     Get the number of postively certified transactions by the certifier
@@ -332,7 +322,7 @@ public:
 
     @param[out] value The last conflict free transaction
     */
-  void get_last_conflict_free_transaction(std::string* value);
+  void get_last_conflict_free_transaction(std::string *value);
 
   /**
     Get method to retrieve the size of the members.
@@ -352,9 +342,9 @@ public:
     which is used to support skip gtid functionality.
 
     @param[in] gno  The gno of the transaction which will be added to the
-                    group_gtid executed GTID set. The sidno used for this transaction
-                    will be the group_sidno. The gno here belongs specifically
-                    to the group UUID.
+                    group_gtid executed GTID set. The sidno used for this
+    transaction will be the group_sidno. The gno here belongs specifically to
+    the group UUID.
     @param[in] local If the gtid value is local or comes from a remote server
 
     @retval  1  error during addition.
@@ -373,7 +363,8 @@ public:
     @retval  1  error during addition.
     @retval  0  success.
   */
-  int add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle, bool local);
+  int add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
+                                                bool local);
 
   /**
     This member function shall add transactions to the stable set
@@ -388,17 +379,18 @@ public:
       @retval False  if adds successfully,
       @retval True   otherwise.
    */
-  bool set_group_stable_transactions_set(Gtid_set* executed_gtid_set);
+  bool set_group_stable_transactions_set(Gtid_set *executed_gtid_set);
 
   /**
     Method to get a string that represents the last local certified GTID
 
-    @param[out] local_gtid_certified_string  The last local GTID transaction string
+    @param[out] local_gtid_certified_string  The last local GTID transaction
+    string
 
     @retval 0    if there is no GTID / the string is empty
     @retval !=0  the size of the string
   */
-  size_t get_local_certified_gtid(std::string& local_gtid_certified_string);
+  size_t get_local_certified_gtid(std::string &local_gtid_certified_string);
 
   /**
     Enables conflict detection.
@@ -419,7 +411,7 @@ public:
   */
   bool is_conflict_detection_enable();
 
-private:
+ private:
   /**
    Key used to store group_gtid_executed on certification
    info on View_change_log_event.
@@ -448,7 +440,7 @@ private:
     @retval 0  success
 
   */
-  int initialize_server_gtid_set(bool get_server_gtid_retrieved= false);
+  int initialize_server_gtid_set(bool get_server_gtid_retrieved = false);
 
   /**
     This function computes the available GTID intervals from group
@@ -534,10 +526,7 @@ private:
   rpl_gno get_group_next_available_gtid_candidate(rpl_gno start,
                                                   rpl_gno end) const;
 
-  bool inline is_initialized()
-  {
-    return initialized;
-  }
+  bool inline is_initialized() { return initialized; }
 
   void clear_certification_info();
 
@@ -632,7 +621,7 @@ private:
     A Gtid_set containing the already executed for the group.
     This is used to support skip_gtid.
   */
-  Gtid_set* group_gtid_executed;
+  Gtid_set *group_gtid_executed;
 
   /**
     A Gtid_set which contains the gtid extracted from the certification info
@@ -691,7 +680,7 @@ private:
     @retval     False       successfully added to the map.
                 True        otherwise.
   */
-  bool add_item(const char* item, Gtid_set_ref *snapshot_version,
+  bool add_item(const char *item, Gtid_set_ref *snapshot_version,
                 int64 *item_previous_sequence_number);
 
   /**
@@ -702,7 +691,7 @@ private:
     @retval                   Gtid_set pointer if exists in the map.
                               Otherwise 0;
   */
-  Gtid_set *get_certified_write_set_snapshot_version(const char* item);
+  Gtid_set *get_certified_write_set_snapshot_version(const char *item);
 
   /**
     Computes intersection between all sets received, so that we
@@ -725,10 +714,10 @@ private:
   */
   void clear_incoming();
 
-/*
-  Update method to store the count of the positively and negatively
-  certified transaction on a particular group member.
-*/
+  /*
+    Update method to store the count of the positively and negatively
+    certified transaction on a particular group member.
+  */
   void update_certified_transaction_count(bool result, bool local_transaction);
 };
 
@@ -737,19 +726,17 @@ private:
 
   Class to convey the serialized contents of the previously executed GTIDs
  */
-class Gtid_Executed_Message: public Plugin_gcs_message
-{
-public:
-  enum enum_payload_item_type
-  {
+class Gtid_Executed_Message : public Plugin_gcs_message {
+ public:
+  enum enum_payload_item_type {
     // This type should not be used anywhere.
-    PIT_UNKNOWN= 0,
+    PIT_UNKNOWN = 0,
 
     // Length of the payload item: variable
-    PIT_GTID_EXECUTED= 1,
+    PIT_GTID_EXECUTED = 1,
 
     // No valid type codes can appear after this one.
-    PIT_MAX= 2
+    PIT_MAX = 2
   };
 
   /**
@@ -764,16 +751,16 @@ public:
    * @param[in] gtid_data encoded GTID data
    * @param[in] len GTID data length
    */
-  void append_gtid_executed(uchar* gtid_data, size_t len);
+  void append_gtid_executed(uchar *gtid_data, size_t len);
 
-protected:
+ protected:
   /*
    Implementation of the template methods of Gcs_plugin_message
    */
-  void encode_payload(std::vector<unsigned char>* buffer) const;
-  void decode_payload(const unsigned char* buffer, const unsigned char*);
+  void encode_payload(std::vector<unsigned char> *buffer) const;
+  void decode_payload(const unsigned char *buffer, const unsigned char *);
 
-private:
+ private:
   std::vector<uchar> data;
 };
 

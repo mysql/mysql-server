@@ -46,37 +46,33 @@
   system msync() only syncs mmap'ed area to fs cache.
   fsync() is required to really sync to disc
 */
-int my_msync(int fd, void *addr, size_t len, int flags)
-{
-  msync(static_cast<char*>(addr), len, flags);
+int my_msync(int fd, void *addr, size_t len, int flags) {
+  msync(static_cast<char *>(addr), len, flags);
   return my_sync(fd, MYF(0));
 }
 
 #elif defined(_WIN32)
 
-static SECURITY_ATTRIBUTES mmap_security_attributes=
-  {sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
+static SECURITY_ATTRIBUTES mmap_security_attributes = {
+    sizeof(SECURITY_ATTRIBUTES), 0, TRUE};
 
-void *my_mmap(void *addr, size_t len, int prot,
-               int flags, File fd, my_off_t offset)
-{
+void *my_mmap(void *addr, size_t len, int prot, int flags, File fd,
+              my_off_t offset) {
   HANDLE hFileMap;
   LPVOID ptr;
-  HANDLE hFile= (HANDLE)my_get_osfhandle(fd);
+  HANDLE hFile = (HANDLE)my_get_osfhandle(fd);
   DBUG_ENTER("my_mmap");
   DBUG_PRINT("mysys", ("map fd: %d", fd));
 
-  if (hFile == INVALID_HANDLE_VALUE)
-    DBUG_RETURN(MAP_FAILED);
+  if (hFile == INVALID_HANDLE_VALUE) DBUG_RETURN(MAP_FAILED);
 
-  hFileMap=CreateFileMapping(hFile, &mmap_security_attributes,
-                             PAGE_READWRITE, 0, (DWORD) len, NULL);
-  if (hFileMap == 0)
-    DBUG_RETURN(MAP_FAILED);
+  hFileMap = CreateFileMapping(hFile, &mmap_security_attributes, PAGE_READWRITE,
+                               0, (DWORD)len, NULL);
+  if (hFileMap == 0) DBUG_RETURN(MAP_FAILED);
 
-  ptr=MapViewOfFile(hFileMap,
-                    prot & PROT_WRITE ? FILE_MAP_WRITE : FILE_MAP_READ,
-                    (DWORD)(offset >> 32), (DWORD)offset, len);
+  ptr = MapViewOfFile(hFileMap,
+                      prot & PROT_WRITE ? FILE_MAP_WRITE : FILE_MAP_READ,
+                      (DWORD)(offset >> 32), (DWORD)offset, len);
 
   /*
     MSDN explicitly states that it's possible to close File Mapping Object
@@ -86,8 +82,7 @@ void *my_mmap(void *addr, size_t len, int prot,
    */
   CloseHandle(hFileMap);
 
-  if (ptr)
-  {
+  if (ptr) {
     DBUG_PRINT("mysys", ("mapped addr: %p", ptr));
     DBUG_RETURN(ptr);
   }
@@ -95,19 +90,16 @@ void *my_mmap(void *addr, size_t len, int prot,
   DBUG_RETURN(MAP_FAILED);
 }
 
-int my_munmap(void *addr, size_t len)
-{
+int my_munmap(void *addr, size_t len) {
   DBUG_ENTER("my_munmap");
   DBUG_PRINT("mysys", ("unmap addr: %p", addr));
   DBUG_RETURN(UnmapViewOfFile(addr) ? 0 : -1);
 }
 
-int my_msync(int fd, void *addr, size_t len, int flags)
-{
+int my_msync(int fd, void *addr, size_t len, int flags) {
   return FlushViewOfFile(addr, len) ? 0 : -1;
 }
 
 #else
 #error "no mmap!"
 #endif
-

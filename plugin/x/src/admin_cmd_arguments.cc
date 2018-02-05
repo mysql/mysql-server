@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -219,7 +219,7 @@ class General_argument_validator {
   void operator()(const T &input, T *output) { *output = input; }
 };
 
-template <typename T, typename V = General_argument_validator<T> >
+template <typename T, typename V = General_argument_validator<T>>
 class Argument_type_handler {
  public:
   Argument_type_handler(const char *name, T *value, ngs::Error_code *error)
@@ -348,7 +348,7 @@ Admin_command_arguments_object::get_object_field(const char *name,
 
   const Object_field_list &fld = m_object.fld();
   Object_field_list::const_iterator i = std::find_if(
-      fld.begin(), fld.end(), [name](const Object_field & fld)->bool {
+      fld.begin(), fld.end(), [name](const Object_field &fld) -> bool {
         return fld.has_key() && fld.key() == name;
       });
   if (i == fld.end()) {
@@ -364,8 +364,7 @@ void Admin_command_arguments_object::get_scalar_value(const Any &value,
                                                       H *handler) {
   try {
     ngs::Getter_any::put_scalar_value_to_functor(value, *handler);
-  }
-  catch (const ngs::Error_code &e) {
+  } catch (const ngs::Error_code &e) {
     m_error = e;
   }
 }

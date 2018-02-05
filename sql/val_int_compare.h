@@ -32,35 +32,29 @@
   Holds value/unsigned_flag for the result of val_int(),
   so that we can compare with operator<(), operator==() and operator<=()
  */
-class Integer_value
-{
-public:
+class Integer_value {
+ public:
   constexpr Integer_value(longlong val, bool unsigned_flag)
-    : m_val(val), m_unsigned_flag(unsigned_flag)
-  {}
+      : m_val(val), m_unsigned_flag(unsigned_flag) {}
 
   constexpr longlong val() const { return m_val; }
   constexpr bool is_unsigned() const { return m_unsigned_flag; }
 
-  ulonglong val_unsigned() const
-  {
+  ulonglong val_unsigned() const {
     DBUG_ASSERT(!is_negative());
     return static_cast<ulonglong>(m_val);
   }
 
-  constexpr bool is_negative() const
-  {
-    return !is_unsigned() && val() < 0;
-  }
-private:
+  constexpr bool is_negative() const { return !is_unsigned() && val() < 0; }
+
+ private:
   const longlong m_val;
   const bool m_unsigned_flag;
 };
 
-inline bool operator<(const Integer_value &lhs, const Integer_value &rhs)
-{
-  const bool lhs_is_neg= lhs.is_negative();
-  const bool rhs_is_neg= rhs.is_negative();
+inline bool operator<(const Integer_value &lhs, const Integer_value &rhs) {
+  const bool lhs_is_neg = lhs.is_negative();
+  const bool rhs_is_neg = rhs.is_negative();
   if (lhs_is_neg != rhs_is_neg)
     // Different signs, lhs is smaller if it is negative.
     return lhs_is_neg;
@@ -72,10 +66,9 @@ inline bool operator<(const Integer_value &lhs, const Integer_value &rhs)
   return std::less<ulonglong>()(lhs.val(), rhs.val());
 }
 
-inline bool operator==(const Integer_value &lhs, const Integer_value &rhs)
-{
-  const bool lhs_is_neg= lhs.is_negative();
-  const bool rhs_is_neg= rhs.is_negative();
+inline bool operator==(const Integer_value &lhs, const Integer_value &rhs) {
+  const bool lhs_is_neg = lhs.is_negative();
+  const bool rhs_is_neg = rhs.is_negative();
   if (lhs_is_neg != rhs_is_neg)
     // Different signs, cannot be equal
     return false;
@@ -84,8 +77,7 @@ inline bool operator==(const Integer_value &lhs, const Integer_value &rhs)
   return lhs.val() == rhs.val();
 }
 
-inline bool operator<=(const Integer_value &lhs, const Integer_value &rhs)
-{
+inline bool operator<=(const Integer_value &lhs, const Integer_value &rhs) {
   return lhs < rhs || lhs == rhs;
 }
 

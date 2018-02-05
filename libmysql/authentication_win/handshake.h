@@ -32,7 +32,7 @@
   We use "Negotiate" which will find the most secure SSP which can be used
   and redirect to that SSP.
 */
-#define SSP_NAME  "Negotiate"
+#define SSP_NAME "Negotiate"
 
 /**
   Maximal number of rounds in authentication handshake.
@@ -40,24 +40,21 @@
   Server will interrupt authentication handshake with error if client's
   identity can not be determined within this many rounds.
 */
-#define MAX_HANDSHAKE_ROUNDS  50
-
+#define MAX_HANDSHAKE_ROUNDS 50
 
 /// Convenience wrapper around @c SecBufferDesc.
 
-class Security_buffer: public SecBufferDesc
-{
-  SecBuffer m_buf;        ///< A @c SecBuffer instance.
+class Security_buffer : public SecBufferDesc {
+  SecBuffer m_buf;  ///< A @c SecBuffer instance.
 
-  void init(byte *ptr, size_t len)
-  {
-    ulVersion= 0;
-    cBuffers=  1;
-    pBuffers=  &m_buf;
+  void init(byte *ptr, size_t len) {
+    ulVersion = 0;
+    cBuffers = 1;
+    pBuffers = &m_buf;
 
-    m_buf.BufferType= SECBUFFER_TOKEN;
-    m_buf.pvBuffer= ptr;
-    m_buf.cbBuffer= (ulong)len;
+    m_buf.BufferType = SECBUFFER_TOKEN;
+    m_buf.pvBuffer = ptr;
+    m_buf.cbBuffer = (ulong)len;
   }
 
   /// If @c false, no deallocation will be done in the destructor.
@@ -65,74 +62,51 @@ class Security_buffer: public SecBufferDesc
 
   // Copying/assignment is not supported and can lead to memory leaks
   // So declaring copy constructor and assignment operator as private
-  Security_buffer( const Security_buffer& );
-  const Security_buffer& operator=( const Security_buffer& );
+  Security_buffer(const Security_buffer &);
+  const Security_buffer &operator=(const Security_buffer &);
 
  public:
-
-  Security_buffer(const Blob&);
+  Security_buffer(const Blob &);
   Security_buffer();
 
-  ~Security_buffer()
-  {
-    mem_free();
-  }
+  ~Security_buffer() { mem_free(); }
 
-  byte*  ptr() const
-  {
-    return (byte*)m_buf.pvBuffer;
-  }
+  byte *ptr() const { return (byte *)m_buf.pvBuffer; }
 
-  size_t len() const
-  {
-    return m_buf.cbBuffer;
-  }
+  size_t len() const { return m_buf.cbBuffer; }
 
-  const Blob as_blob() const
-  {
-    return Blob(ptr(), len());
-  }
+  const Blob as_blob() const { return Blob(ptr(), len()); }
 
   void mem_free(void);
 };
 
-
 /// Common base for Handshake_{server,client}.
 
-class Handshake
-{
-public:
-
-  typedef enum {CLIENT, SERVER} side_t;
+class Handshake {
+ public:
+  typedef enum { CLIENT, SERVER } side_t;
 
   Handshake(const char *ssp, side_t side);
   virtual ~Handshake();
 
   int packet_processing_loop();
 
-  bool virtual is_complete() const
-  {
-    return m_complete;
-  }
+  bool virtual is_complete() const { return m_complete; }
 
-  int error() const
-  {
-    return m_error;
-  }
+  int error() const { return m_error; }
 
-protected:
-
+ protected:
   /// Security context object created during the handshake.
-  CtxtHandle  m_sctx;
+  CtxtHandle m_sctx;
 
   /// Credentials of the principal performing this handshake.
-  CredHandle  m_cred;
+  CredHandle m_cred;
 
   /// Stores expiry date of the created security context.
-  TimeStamp  m_expire;
+  TimeStamp m_expire;
 
   /// Stores attributes of the created security context.
-  ULONG  m_atts;
+  ULONG m_atts;
 
   /**
     Round of the handshake (starting from round 1). One round
@@ -142,19 +116,19 @@ protected:
   unsigned int m_round;
 
   /// If non-zero, stores error code of the last failed operation.
-  int  m_error;
+  int m_error;
 
   /// @c true when handshake is complete.
-  bool  m_complete;
+  bool m_complete;
 
   /// @c true when the principal credentials has been determined.
-  bool  m_have_credentials;
+  bool m_have_credentials;
 
   /// @c true when the security context has been created.
-  bool  m_have_sec_context;
+  bool m_have_sec_context;
 
   /// Buffer for data to be send to the other side.
-  Security_buffer  m_output;
+  Security_buffer m_output;
 
   bool process_result(int);
 
@@ -167,23 +141,23 @@ protected:
     @return A blob with data to be sent to the other end or null blob if
     no more data needs to be exchanged.
   */
-  virtual Blob process_data(const Blob &data) =0;
+  virtual Blob process_data(const Blob &data) = 0;
 
   /// Read packet from the other end.
-  virtual Blob read_packet()  =0;
+  virtual Blob read_packet() = 0;
 
   /// Write packet to the other end.
-  virtual int  write_packet(Blob &data) =0;
+  virtual int write_packet(Blob &data) = 0;
 
 #ifndef DBUG_OFF
 
-private:
-  SecPkgInfo  *m_ssp_info;
-public:
-  const char* ssp_name();
+ private:
+  SecPkgInfo *m_ssp_info;
+
+ public:
+  const char *ssp_name();
 
 #endif
 };
-
 
 #endif

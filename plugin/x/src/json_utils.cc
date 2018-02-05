@@ -171,8 +171,9 @@ std::string quote_json_if_needed(const std::string &s) {
 }
 
 namespace {
-class Json_string_handler : public rapidjson::BaseReaderHandler<
-                                rapidjson::UTF8<>, Json_string_handler> {
+class Json_string_handler
+    : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
+                                          Json_string_handler> {
  public:
   bool Key(const char *str, rapidjson::SizeType /*length*/, bool /*copy*/) {
     return !(m_level == 1 && std::strcmp("_id", str) == 0);

@@ -38,12 +38,12 @@
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "my_time.h"                            /* interval_type */
+#include "my_time.h" /* interval_type */
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
-#include "mysql/psi/psi_memory.h"               // PSI_memory_key
+#include "mysql/psi/psi_memory.h"  // PSI_memory_key
 
 class Event_db_repository;
 class Event_parse_data;
@@ -53,7 +53,7 @@ class String;
 class THD;
 
 namespace dd {
-  class Schema;
+class Schema;
 }
 
 struct CHARSET_INFO;
@@ -71,9 +71,7 @@ extern PSI_stage_info stage_waiting_on_empty_queue;
 extern PSI_stage_info stage_waiting_for_next_activation;
 extern PSI_stage_info stage_waiting_for_scheduler_to_stop;
 
-int
-sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
-
+int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
 /**
   Convert name to lowercase.
@@ -84,7 +82,6 @@ sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 */
 
 void convert_name_lowercase(const char *from, char *to, size_t len);
-
 
 /**
   @brief A facade to the functionality of the Event Scheduler.
@@ -107,9 +104,8 @@ void convert_name_lowercase(const char *from, char *to, size_t len);
   subsystems (ACL, time zone tables, etc).
 */
 
-class Events
-{
-public:
+class Events {
+ public:
   /*
     the following block is to support --event-scheduler command line option
     and the @@global.event_scheduler SQL variable.
@@ -152,12 +148,12 @@ public:
 
   static void dump_internal_status();
 
-  Events(const Events &)= delete;
-  void operator=(Events &)= delete;
+  Events(const Events &) = delete;
+  void operator=(Events &) = delete;
 
-private:
-  static Event_queue         *event_queue;
-  static Event_scheduler     *scheduler;
+ private:
+  static Event_queue *event_queue;
+  static Event_scheduler *scheduler;
   static Event_db_repository *db_repository;
 };
 

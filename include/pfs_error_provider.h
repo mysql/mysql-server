@@ -40,7 +40,7 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_error.h"
 
-#define PSI_ERROR_CALL(M) pfs_ ## M ## _v1
+#define PSI_ERROR_CALL(M) pfs_##M##_v1
 
 void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation);
 
@@ -49,4 +49,3 @@ void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation);
 #endif /* HAVE_PSI_ERROR_INTERFACE */
 
 #endif
-

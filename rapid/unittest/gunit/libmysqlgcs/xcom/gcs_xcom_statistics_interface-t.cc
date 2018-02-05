@@ -26,35 +26,21 @@
 
 #include "gcs_xcom_statistics_interface.h"
 
-namespace gcs_xcom_statistics_unittest
-{
+namespace gcs_xcom_statistics_unittest {
 
-class XcomStatisticsTest : public GcsBaseTest
-{
-protected:
+class XcomStatisticsTest : public GcsBaseTest {
+ protected:
+  XcomStatisticsTest(){};
 
-  XcomStatisticsTest() {};
+  virtual void SetUp() { xcom_stats_if = new Gcs_xcom_statistics(); }
 
-
-  virtual void SetUp()
-  {
-    xcom_stats_if= new Gcs_xcom_statistics();
-  }
-
-
-  virtual void TearDown()
-  {
-    delete xcom_stats_if;
-  }
-
+  virtual void TearDown() { delete xcom_stats_if; }
 
   Gcs_xcom_statistics *xcom_stats_if;
 };
 
-
-TEST_F(XcomStatisticsTest, UpdateMessageSentTest)
-{
-  long message_length= 1000;
+TEST_F(XcomStatisticsTest, UpdateMessageSentTest) {
+  long message_length = 1000;
 
   xcom_stats_if->update_message_sent(message_length);
 
@@ -62,10 +48,8 @@ TEST_F(XcomStatisticsTest, UpdateMessageSentTest)
   ASSERT_EQ(1, xcom_stats_if->get_total_messages_sent());
 }
 
-
-TEST_F(XcomStatisticsTest, UpdateMessagesSentTest)
-{
-  long message_length= 1000;
+TEST_F(XcomStatisticsTest, UpdateMessagesSentTest) {
+  long message_length = 1000;
 
   xcom_stats_if->update_message_sent(message_length);
   xcom_stats_if->update_message_sent(message_length);
@@ -74,10 +58,8 @@ TEST_F(XcomStatisticsTest, UpdateMessagesSentTest)
   EXPECT_EQ(2, xcom_stats_if->get_total_messages_sent());
 }
 
-
-TEST_F(XcomStatisticsTest, UpdateMessageReceivedTest)
-{
-  long message_length= 1000;
+TEST_F(XcomStatisticsTest, UpdateMessageReceivedTest) {
+  long message_length = 1000;
 
   xcom_stats_if->update_message_received(message_length);
 
@@ -88,11 +70,9 @@ TEST_F(XcomStatisticsTest, UpdateMessageReceivedTest)
   EXPECT_EQ(message_length, xcom_stats_if->get_min_message_length());
 }
 
-
-TEST_F(XcomStatisticsTest, UpdateMessagesReceivedTest)
-{
-  long message_length_big=   1000;
-  long message_length_small= 1000;
+TEST_F(XcomStatisticsTest, UpdateMessagesReceivedTest) {
+  long message_length_big = 1000;
+  long message_length_small = 1000;
 
   xcom_stats_if->update_message_received(message_length_big);
   xcom_stats_if->update_message_received(message_length_small);
@@ -106,4 +86,4 @@ TEST_F(XcomStatisticsTest, UpdateMessagesReceivedTest)
   EXPECT_EQ(message_length_small, xcom_stats_if->get_min_message_length());
 }
 
-}
+}  // namespace gcs_xcom_statistics_unittest

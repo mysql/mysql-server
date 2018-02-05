@@ -23,22 +23,20 @@
 #ifndef GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
 #define GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
 
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_management_interface.h" // Base class: Gcs_group_management_interface
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_management_interface.h"  // Base class: Gcs_group_management_interface
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
-class Gcs_xcom_group_management : public Gcs_group_management_interface
-{
-public:
+class Gcs_xcom_group_management : public Gcs_group_management_interface {
+ public:
   explicit Gcs_xcom_group_management(
-    Gcs_xcom_proxy *xcom_proxy,
-    const Gcs_group_identifier& group_identifier);
+      Gcs_xcom_proxy *xcom_proxy, const Gcs_group_identifier &group_identifier);
   virtual ~Gcs_xcom_group_management();
 
-  enum_gcs_error
-       modify_configuration(const Gcs_interface_parameters& reconfigured_group);
+  enum_gcs_error modify_configuration(
+      const Gcs_interface_parameters &reconfigured_group);
 
   /**
     Save information on the latest nodes seen by this node so that it
@@ -62,9 +60,9 @@ public:
   */
   void set_xcom_nodes(const Gcs_xcom_nodes &xcom_nodes);
 
-private:
+ private:
   Gcs_xcom_proxy *m_xcom_proxy;
-  Gcs_group_identifier* m_gid;
+  Gcs_group_identifier *m_gid;
   Gcs_xcom_nodes m_xcom_nodes;
   unsigned int m_gid_hash;
 
@@ -76,7 +74,7 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_group_management(Gcs_xcom_group_management const&);
-  Gcs_xcom_group_management& operator=(Gcs_xcom_group_management const&);
+  Gcs_xcom_group_management(Gcs_xcom_group_management const &);
+  Gcs_xcom_group_management &operator=(Gcs_xcom_group_management const &);
 };
-#endif // GCS_XCOM_GROUP_MANAGEMENT_INCLUDED
+#endif  // GCS_XCOM_GROUP_MANAGEMENT_INCLUDED

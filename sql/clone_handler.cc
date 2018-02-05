@@ -41,31 +41,29 @@ Clone handler implementation
 #include "mysqld_error.h"
 #include "sql/mysqld.h"
 #include "sql/sql_parse.h"
-#include "sql/sql_plugin.h"       // plugin_unlock
-#include "sql_string.h"           // to_lex_cstring
+#include "sql/sql_plugin.h"  // plugin_unlock
+#include "sql_string.h"      // to_lex_cstring
 
 class THD;
 
 /** Clone handler global */
-Clone_handler* clone_handle= nullptr;
+Clone_handler *clone_handle = nullptr;
 
 /** Clone plugin name */
-const char* clone_plugin_nm= "clone";
+const char *clone_plugin_nm = "clone";
 
 /** Clone handler interface for local clone.
 @param[in]	thd		server thread handle
 @param[in]	data_dir	cloned data directory
 @return error code */
-int Clone_handler::clone_local(THD* thd, const char* data_dir)
-{
-  int  error;
+int Clone_handler::clone_local(THD *thd, const char *data_dir) {
+  int error;
   char dir_name[FN_REFLEN];
 
-  error= validate_dir(data_dir, dir_name);
+  error = validate_dir(data_dir, dir_name);
 
-  if (error == 0)
-  {
-    error= m_plugin_handle->clone_local(thd, dir_name);
+  if (error == 0) {
+    error = m_plugin_handle->clone_local(thd, dir_name);
   }
 
   return error;
@@ -76,8 +74,7 @@ TODO: Create remote connection: wl#9210
 @param[in]	thd		server thread handle
 @param[in]	data_dir	cloned data directory
 @return error code */
-int Clone_handler::clone_remote_client(THD* thd, const char* data_dir)
-{
+int Clone_handler::clone_remote_client(THD *thd, const char *data_dir) {
   return m_plugin_handle->clone_client(thd, data_dir, 0);
 }
 
@@ -85,27 +82,24 @@ int Clone_handler::clone_remote_client(THD* thd, const char* data_dir)
 @param[in]	thd	server thread handle
 @param[in]	socket	network socket to remote client
 @return error code */
-int Clone_handler::clone_remote_server(THD* thd, my_socket socket)
-{
+int Clone_handler::clone_remote_server(THD *thd, my_socket socket) {
   return m_plugin_handle->clone_server(thd, socket);
 }
 
 /** Initialize plugin handle
 @return error code */
-int Clone_handler::init()
-{
+int Clone_handler::init() {
   plugin_ref plugin;
 
-  plugin= my_plugin_lock_by_name(0, to_lex_cstring(m_plugin_name.c_str()),
-                                 MYSQL_CLONE_PLUGIN);
-  if (plugin == nullptr)
-  {
-    m_plugin_handle= nullptr;
+  plugin = my_plugin_lock_by_name(0, to_lex_cstring(m_plugin_name.c_str()),
+                                  MYSQL_CLONE_PLUGIN);
+  if (plugin == nullptr) {
+    m_plugin_handle = nullptr;
     LogErr(ERROR_LEVEL, ER_CLONE_PLUGIN_NOT_LOADED);
     return 1;
   }
 
-  m_plugin_handle= (Mysql_clone*)plugin_decl(plugin)->info;
+  m_plugin_handle = (Mysql_clone *)plugin_decl(plugin)->info;
   plugin_unlock(0, plugin);
 
   return 0;
@@ -115,20 +109,17 @@ int Clone_handler::init()
 @param[in]	in_dir	user specified clone directory
 @param[out]	out_dir	data directory in native os format
 @return error code */
-int Clone_handler::validate_dir(const char* in_dir, char* out_dir)
-{
+int Clone_handler::validate_dir(const char *in_dir, char *out_dir) {
   MY_STAT stat_info;
 
   /* Verify that it is absolute path. */
-  if(test_if_hard_path(in_dir) == 0) {
-
+  if (test_if_hard_path(in_dir) == 0) {
     my_error(ER_WRONG_VALUE, MYF(0), "path", in_dir);
     return ER_WRONG_VALUE;
   }
 
   /* Verify that the length is not too long. */
   if (strlen(in_dir) >= FN_REFLEN - 1) {
-
     my_error(ER_PATH_LENGTH, MYF(0), "DATA DIRECTORY");
     return ER_PATH_LENGTH;
   }
@@ -137,32 +128,25 @@ int Clone_handler::validate_dir(const char* in_dir, char* out_dir)
   convert_dirname(out_dir, in_dir, nullptr);
 
   /* Check if the data directory exists already. */
-  if (mysql_file_stat(key_file_misc, out_dir,
-      &stat_info, MYF(0)) != nullptr)
-  {
-
+  if (mysql_file_stat(key_file_misc, out_dir, &stat_info, MYF(0)) != nullptr) {
     my_error(ER_DB_CREATE_EXISTS, MYF(0), in_dir);
     return ER_DB_CREATE_EXISTS;
   }
 
   /* Check if path is within current data directory */
-  char    tmp_dir[FN_REFLEN];
-  size_t  length;
+  char tmp_dir[FN_REFLEN];
+  size_t length;
 
   strncpy(tmp_dir, out_dir, FN_REFLEN);
   length = strlen(out_dir);
 
   /* Loop and remove all non-existent directories from the tail */
-  while (length != 0)
-  {
+  while (length != 0) {
     /* Check if directory exists. */
-    if (mysql_file_stat(key_file_misc, tmp_dir,
-        &stat_info, MYF(0)) != nullptr)
-    {
+    if (mysql_file_stat(key_file_misc, tmp_dir, &stat_info, MYF(0)) !=
+        nullptr) {
       /* Check if the path is not within data directory. */
-      if (test_if_data_home_dir(tmp_dir))
-      {
-
+      if (test_if_data_home_dir(tmp_dir)) {
         my_error(ER_PATH_IN_DATADIR, MYF(0), in_dir);
         return ER_PATH_IN_DATADIR;
       }
@@ -170,15 +154,14 @@ int Clone_handler::validate_dir(const char* in_dir, char* out_dir)
       break;
     }
 
-    size_t  new_length;
+    size_t new_length;
 
     /* Remove the last directory separator from string */
     tmp_dir[length - 1] = '\0';
     dirname_part(tmp_dir, tmp_dir, &new_length);
 
     /* length must always decrease for the loop to terminate */
-    if (length <= new_length)
-    {
+    if (length <= new_length) {
       DBUG_ASSERT(false);
       break;
     }
@@ -193,18 +176,15 @@ int Clone_handler::validate_dir(const char* in_dir, char* out_dir)
 Called when Clone plugin is installed.
 @param[in]	plugin_name	clone plugin name
 @return error code */
-int clone_handle_create(const char* plugin_name)
-{
-  if (clone_handle != nullptr)
-  {
+int clone_handle_create(const char *plugin_name) {
+  if (clone_handle != nullptr) {
     LogErr(ERROR_LEVEL, ER_CLONE_HANDLER_EXISTS);
     return 1;
   }
 
-  clone_handle= new Clone_handler(plugin_name);
+  clone_handle = new Clone_handler(plugin_name);
 
-  if (clone_handle == nullptr)
-  {
+  if (clone_handle == nullptr) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_CREATE_CLONE_HANDLER);
     return 1;
   }
@@ -214,16 +194,14 @@ int clone_handle_create(const char* plugin_name)
 
 /** Drop clone handle. Called when Clone plugin is uninstalled.
 @return error code */
-int clone_handle_drop()
-{
-  if (clone_handle == nullptr)
-  {
+int clone_handle_drop() {
+  if (clone_handle == nullptr) {
     return 1;
   }
 
   delete clone_handle;
 
-  clone_handle= nullptr;
+  clone_handle = nullptr;
 
   return 0;
 }
@@ -233,17 +211,15 @@ return the handler to caller.
 @param[in]	thd	server thread handle
 @param[out]	plugin	plugin reference
 @return clone handler on success otherwise NULL */
-Clone_handler* clone_plugin_lock(THD* thd, plugin_ref* plugin)
-{
-  *plugin= my_plugin_lock_by_name(thd, to_lex_cstring(clone_plugin_nm),
-                                  MYSQL_CLONE_PLUGIN);
+Clone_handler *clone_plugin_lock(THD *thd, plugin_ref *plugin) {
+  *plugin = my_plugin_lock_by_name(thd, to_lex_cstring(clone_plugin_nm),
+                                   MYSQL_CLONE_PLUGIN);
 
   mysql_mutex_lock(&LOCK_plugin);
 
   /* Return handler only if the plugin is ready. We might successfully
   lock the plugin when initialization is progress. */
-  if (*plugin != nullptr && plugin_state(*plugin) == PLUGIN_IS_READY)
-  {
+  if (*plugin != nullptr && plugin_state(*plugin) == PLUGIN_IS_READY) {
     mysql_mutex_unlock(&LOCK_plugin);
 
     DBUG_ASSERT(clone_handle != nullptr);
@@ -258,7 +234,6 @@ Clone_handler* clone_plugin_lock(THD* thd, plugin_ref* plugin)
 /** Unlock the clone plugin.
 @param[in]	thd	server thread handle
 @param[out]	plugin	plugin reference */
-void clone_plugin_unlock(THD* thd, plugin_ref plugin)
-{
+void clone_plugin_unlock(THD *thd, plugin_ref plugin) {
   plugin_unlock(thd, plugin);
 }

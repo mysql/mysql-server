@@ -22,9 +22,7 @@
 
 #include "prealloced_array.h"
 
-struct Init_commands_array : public Prealloced_array<char*, 5>
-{
+struct Init_commands_array : public Prealloced_array<char *, 5> {
   explicit Init_commands_array(PSI_memory_key psi_key)
-    : Prealloced_array<char*, 5>(psi_key)
-  {}
+      : Prealloced_array<char *, 5>(psi_key) {}
 };

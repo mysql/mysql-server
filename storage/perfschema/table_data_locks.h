@@ -52,44 +52,32 @@ struct THR_LOCK;
   Index 1 on engine (0 based)
   Index 2 on engine index (0 based)
 */
-struct scan_pos_data_lock
-{
-  scan_pos_data_lock()
-  {
+struct scan_pos_data_lock {
+  scan_pos_data_lock() {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  void
-  set_at(const scan_pos_data_lock *other)
-  {
+  void set_at(const scan_pos_data_lock *other) {
     m_index_1 = other->m_index_1;
     m_index_2 = other->m_index_2;
   }
 
-  void
-  set_after(const scan_pos_data_lock *other)
-  {
+  void set_after(const scan_pos_data_lock *other) {
     m_index_1 = other->m_index_1;
     m_index_2 = other->m_index_2 + 1;
   }
 
-  inline bool
-  has_more_engine()
-  {
+  inline bool has_more_engine() {
     return (m_index_1 < COUNT_DATA_LOCK_ENGINES);
   }
 
-  inline void
-  next_engine()
-  {
+  inline void next_engine() {
     m_index_1++;
     m_index_2 = 0;
   }
@@ -99,12 +87,11 @@ struct scan_pos_data_lock
 };
 
 /** Table PERFORMANCE_SCHEMA.DATA_LOCKS. */
-class table_data_locks : public PFS_engine_table
-{
+class table_data_locks : public PFS_engine_table {
   typedef scan_pos_data_lock scan_pos_t;
   typedef pk_pos_data_lock pk_pos_t;
 
-public:
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -117,18 +104,16 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ private:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_data_locks();
 
-public:
+ public:
   ~table_data_locks();
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

@@ -24,7 +24,7 @@
 #define DD__OBJECT_TABLE_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
 
@@ -68,9 +68,8 @@ class Properties;
         must inherit this class virtually.
 */
 
-class Object_table
-{
-public:
+class Object_table {
+ public:
   /**
     Allocate a new Object_table instance on the heap.
 
@@ -103,23 +102,23 @@ public:
 
     @return Pointer to the definition of the table.
   */
-  virtual Object_table_definition *target_table_definition()= 0;
+  virtual Object_table_definition *target_table_definition() = 0;
 
-  virtual const Object_table_definition *target_table_definition() const= 0;
+  virtual const Object_table_definition *target_table_definition() const = 0;
 
   /**
     Mark the target definition for the dictionary table as abandoned.
 
     @param last_dd_version  Last version where this object table was used.
   */
-  virtual void set_abandoned(uint last_dd_version) const= 0;
+  virtual void set_abandoned(uint last_dd_version) const = 0;
 
   /**
     Check if the dictionary table is abandoned.
 
     @return   true if the table is abandoned.
   */
-  virtual bool is_abandoned() const= 0;
+  virtual bool is_abandoned() const = 0;
 
   /**
     Get the actual definition for the dictionary table.
@@ -131,7 +130,7 @@ public:
 
     @return Pointer to the definition of the table.
   */
-  virtual const Object_table_definition *actual_table_definition() const= 0;
+  virtual const Object_table_definition *actual_table_definition() const = 0;
 
   /**
     Set the actual definition for the dictionary table.
@@ -142,21 +141,21 @@ public:
     @return false if no error.
   */
   virtual bool set_actual_table_definition(
-    const Properties &table_def_properties) const= 0;
+      const Properties &table_def_properties) const = 0;
 
   /**
     Get the field ordinal position in the object table.
 
     @return Integer ordinal position.
   */
-  virtual int field_number(const String_type &field_label) const= 0;
+  virtual int field_number(const String_type &field_label) const = 0;
 
   /**
     Execute low level code for populating the table.
 
     @return Boolean operation outcome, false if success.
   */
-  virtual bool populate(THD *thd) const= 0;
+  virtual bool populate(THD *thd) const = 0;
 
   /**
     Check if the table should be hidden.
@@ -167,22 +166,21 @@ public:
 
     @returns true if the table should be hidden.
   */
-  virtual bool is_hidden() const= 0;
+  virtual bool is_hidden() const = 0;
 
   /**
     Mark the dictionary table as hidden or visible.
 
     @param hidden  Set to 'true' if the table should be hidden.
   */
-  virtual void set_hidden(bool hidden)= 0;
+  virtual void set_hidden(bool hidden) = 0;
 
-public:
-  virtual ~Object_table()
-  { }
+ public:
+  virtual ~Object_table() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__OBJECT_TABLE_INCLUDED
+#endif  // DD__OBJECT_TABLE_INCLUDED

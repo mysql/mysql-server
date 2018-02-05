@@ -24,12 +24,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/usr0types.h
-Users and sessions global types
+/**************************************************/ /**
+ @file include/usr0types.h
+ Users and sessions global types
 
-Created 6/25/1996 Heikki Tuuri
-*******************************************************/
+ Created 6/25/1996 Heikki Tuuri
+ *******************************************************/
 
 #ifndef usr0types_h
 #define usr0types_h

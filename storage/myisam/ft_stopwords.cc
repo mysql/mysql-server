@@ -31,52 +31,41 @@
 #include "my_io.h"
 #include "storage/myisam/ftdefs.h"
 
+static CHARSET_INFO *ft_stopword_cs = NULL;
 
-static CHARSET_INFO *ft_stopword_cs= NULL;
-
-
-struct FT_STOPWORD
-{
-  const char * pos;
-  uint   len;
+struct FT_STOPWORD {
+  const char *pos;
+  uint len;
 };
 
-static TREE *stopwords3=NULL;
+static TREE *stopwords3 = NULL;
 
-static int FT_STOPWORD_cmp(const void* cmp_arg MY_ATTRIBUTE((unused)),
-			   const void* a, const void* b)
-{
-  FT_STOPWORD *w1= (FT_STOPWORD*)a;
-  FT_STOPWORD *w2= (FT_STOPWORD*)b;
-  return ha_compare_text(ft_stopword_cs,
-			 (uchar *)w1->pos,w1->len,
-			 (uchar *)w2->pos,w2->len,0);
+static int FT_STOPWORD_cmp(const void *cmp_arg MY_ATTRIBUTE((unused)),
+                           const void *a, const void *b) {
+  FT_STOPWORD *w1 = (FT_STOPWORD *)a;
+  FT_STOPWORD *w2 = (FT_STOPWORD *)b;
+  return ha_compare_text(ft_stopword_cs, (uchar *)w1->pos, w1->len,
+                         (uchar *)w2->pos, w2->len, 0);
 }
 
 static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
-                             void *arg MY_ATTRIBUTE((unused)))
-{
-  if (action == free_free)
-    my_free((void*)w->pos);
+                             void *arg MY_ATTRIBUTE((unused))) {
+  if (action == free_free) my_free((void *)w->pos);
 }
 
-static int ft_add_stopword(const char *w)
-{
+static int ft_add_stopword(const char *w) {
   FT_STOPWORD sw;
   return !w ||
-         (((sw.len= (uint) strlen(sw.pos=w)) >= ft_min_word_len) &&
-          (tree_insert(stopwords3, &sw, 0, stopwords3->custom_arg)==NULL));
+         (((sw.len = (uint)strlen(sw.pos = w)) >= ft_min_word_len) &&
+          (tree_insert(stopwords3, &sw, 0, stopwords3->custom_arg) == NULL));
 }
 
-int ft_init_stopwords()
-{
-  if (!stopwords3)
-  {
-    if (!(stopwords3=(TREE *)my_malloc(mi_key_memory_ft_stopwords,
-                                       sizeof(TREE),MYF(0))))
+int ft_init_stopwords() {
+  if (!stopwords3) {
+    if (!(stopwords3 = (TREE *)my_malloc(mi_key_memory_ft_stopwords,
+                                         sizeof(TREE), MYF(0))))
       return -1;
-    init_tree(stopwords3,0,0,sizeof(FT_STOPWORD),&FT_STOPWORD_cmp,
-              0,
+    init_tree(stopwords3, 0, 0, sizeof(FT_STOPWORD), &FT_STOPWORD_cmp, 0,
               (ft_stopword_file ? (tree_element_free)&FT_STOPWORD_free : 0),
               NULL);
     /*
@@ -85,74 +74,63 @@ int ft_init_stopwords()
       Use latin1 to compare stopwords in case of these character sets.
       It's also fine to use latin1 with the built-in stopwords.
     */
-    ft_stopword_cs= default_charset_info->mbminlen == 1 ?
-                    default_charset_info : &my_charset_latin1;
+    ft_stopword_cs = default_charset_info->mbminlen == 1 ? default_charset_info
+                                                         : &my_charset_latin1;
   }
 
-  if (ft_stopword_file)
-  {
+  if (ft_stopword_file) {
     File fd;
     size_t len;
     uchar *buffer, *start, *end;
     FT_WORD w;
-    int error=-1;
+    int error = -1;
 
-    if (!*ft_stopword_file)
-      return 0;
+    if (!*ft_stopword_file) return 0;
 
-    if ((fd=my_open(ft_stopword_file, O_RDONLY, MYF(MY_WME))) == -1)
+    if ((fd = my_open(ft_stopword_file, O_RDONLY, MYF(MY_WME))) == -1)
       return -1;
-    len= (size_t)my_seek(fd, 0L, MY_SEEK_END, MYF(0));
+    len = (size_t)my_seek(fd, 0L, MY_SEEK_END, MYF(0));
     my_seek(fd, 0L, MY_SEEK_SET, MYF(0));
-    if (!(start=buffer= (uchar *)my_malloc(mi_key_memory_ft_stopwords,
-                                 len+1, MYF(MY_WME))))
+    if (!(start = buffer = (uchar *)my_malloc(mi_key_memory_ft_stopwords,
+                                              len + 1, MYF(MY_WME))))
       goto err0;
-    len=my_read(fd, buffer, len, MYF(MY_WME));
-    end=start+len;
-    while (ft_simple_get_word(ft_stopword_cs, &start, end, &w, true))
-    {
-      if (ft_add_stopword(my_strndup(mi_key_memory_ft_stopwords,
-                                     (char*) w.pos, w.len, MYF(0))))
+    len = my_read(fd, buffer, len, MYF(MY_WME));
+    end = start + len;
+    while (ft_simple_get_word(ft_stopword_cs, &start, end, &w, true)) {
+      if (ft_add_stopword(my_strndup(mi_key_memory_ft_stopwords, (char *)w.pos,
+                                     w.len, MYF(0))))
         goto err1;
     }
-    error=0;
-err1:
+    error = 0;
+  err1:
     my_free(buffer);
-err0:
+  err0:
     my_close(fd, MYF(MY_WME));
     return error;
-  }
-  else
-  {
+  } else {
     /* compatibility mode: to be removed */
-    char **sws=(char **)ft_precompiled_stopwords;
+    char **sws = (char **)ft_precompiled_stopwords;
 
-    for (;*sws;sws++)
-    {
-      if (ft_add_stopword(*sws))
-        return -1;
+    for (; *sws; sws++) {
+      if (ft_add_stopword(*sws)) return -1;
     }
-    ft_stopword_file="(built-in)"; /* for SHOW VARIABLES */
+    ft_stopword_file = "(built-in)"; /* for SHOW VARIABLES */
   }
   return 0;
 }
 
-int is_stopword(char *word, uint len)
-{
+int is_stopword(char *word, uint len) {
   FT_STOPWORD sw;
-  sw.pos=word;
-  sw.len=len;
-  return tree_search(stopwords3,&sw, stopwords3->custom_arg) != NULL;
+  sw.pos = word;
+  sw.len = len;
+  return tree_search(stopwords3, &sw, stopwords3->custom_arg) != NULL;
 }
 
-
-void ft_free_stopwords()
-{
-  if (stopwords3)
-  {
+void ft_free_stopwords() {
+  if (stopwords3) {
     delete_tree(stopwords3); /* purecov: inspected */
     my_free(stopwords3);
-    stopwords3=0;
+    stopwords3 = 0;
   }
-  ft_stopword_file= 0;
+  ft_stopword_file = 0;
 }

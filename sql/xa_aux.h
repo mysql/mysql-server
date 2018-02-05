@@ -43,10 +43,9 @@
 */
 
 inline char *serialize_xid(char *buf, long fmt, long gln, long bln,
-                           const char *dat)
-{
+                           const char *dat) {
   int i;
-  char *c= buf;
+  char *c = buf;
   /*
     Build a string like following pattern:
       X'hex11hex12...hex1m',X'hex21hex22...hex2n',11
@@ -55,27 +54,25 @@ inline char *serialize_xid(char *buf, long fmt, long gln, long bln,
     raw bytes (1 <= i <= m, 1 <= k <= n), and `m' and `n' even numbers
     half of which corresponding to the lengths of XID's components.
   */
-  *c++= 'X';
-  *c++= '\'';
-  for (i= 0; i < gln; i++)
-  {
-    *c++=_dig_vec_lower[((uchar*) dat)[i] >> 4];
-    *c++=_dig_vec_lower[((uchar*) dat)[i] & 0x0f];
+  *c++ = 'X';
+  *c++ = '\'';
+  for (i = 0; i < gln; i++) {
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] >> 4];
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] & 0x0f];
   }
-  *c++= '\'';
+  *c++ = '\'';
 
-  *c++= ',';
-  *c++= 'X';
-  *c++= '\'';
-  for (; i < gln + bln; i++)
-  {
-    *c++=_dig_vec_lower[((uchar*) dat)[i] >> 4];
-    *c++=_dig_vec_lower[((uchar*) dat)[i] & 0x0f];
+  *c++ = ',';
+  *c++ = 'X';
+  *c++ = '\'';
+  for (; i < gln + bln; i++) {
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] >> 4];
+    *c++ = _dig_vec_lower[((uchar *)dat)[i] & 0x0f];
   }
-  *c++= '\'';
+  *c++ = '\'';
   sprintf(c, ",%lu", fmt);
 
- return buf;
+  return buf;
 }
 
-#endif	/* XA_AUX_H */
+#endif /* XA_AUX_H */

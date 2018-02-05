@@ -53,7 +53,7 @@ PSI_memory_info pfs_info[] = {
 const size_t pfs_info_num_elements = sizeof(pfs_info) / sizeof(pfs_info[0]);
 #endif /* TEMPTABLE_PFS_MEMORY */
 
-thread_local uint8_t* shared_block = nullptr;
+thread_local uint8_t *shared_block = nullptr;
 
 std::atomic<size_t> bytes_allocated_in_ram(0);
 

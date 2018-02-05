@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -128,10 +128,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int
-    start_result_metadata(uint num_cols MY_ATTRIBUTE((unused)),
-                          uint flags MY_ATTRIBUTE((unused)),
-                          const CHARSET_INFO *resultcs MY_ATTRIBUTE((unused))) {
+  virtual int start_result_metadata(
+      uint num_cols MY_ATTRIBUTE((unused)), uint flags MY_ATTRIBUTE((unused)),
+      const CHARSET_INFO *resultcs MY_ATTRIBUTE((unused))) {
     m_field_types.clear();
     return false;
   }
@@ -146,9 +145,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int
-    field_metadata(struct st_send_field *field,
-                   const CHARSET_INFO *charset MY_ATTRIBUTE((unused))) {
+  virtual int field_metadata(struct st_send_field *field,
+                             const CHARSET_INFO *charset
+                                 MY_ATTRIBUTE((unused))) {
     Field_type type = {field->type, field->flags};
     m_field_types.push_back(type);
 
@@ -163,8 +162,9 @@ class Command_delegate {
     false ok
   */
   virtual int end_result_metadata(uint server_status MY_ATTRIBUTE((unused)),
-                                  uint warn_count MY_ATTRIBUTE((unused)))
-  { return false; }
+                                  uint warn_count MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Indicates the beginning of a new row in the result set/metadata
@@ -226,8 +226,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int get_integer(longlong value MY_ATTRIBUTE((unused)))
-  { return false; }
+  virtual int get_integer(longlong value MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Get LONGLONG value from server
@@ -240,8 +241,9 @@ class Command_delegate {
     false ok
   */
   virtual int get_longlong(longlong value MY_ATTRIBUTE((unused)),
-                           uint unsigned_flag MY_ATTRIBUTE((unused)))
-  { return false; }
+                           uint unsigned_flag MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Receive DECIMAL value from server
@@ -252,8 +254,9 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int get_decimal(const decimal_t *value MY_ATTRIBUTE((unused)))
-  { return false; }
+  virtual int get_decimal(const decimal_t *value MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Get FLOAT/DOUBLE from server
@@ -269,8 +272,9 @@ class Command_delegate {
     false ok
   */
   virtual int get_double(double value MY_ATTRIBUTE((unused)),
-                         uint32 decimals MY_ATTRIBUTE((unused)))
-  { return false; }
+                         uint32 decimals MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Get DATE value from server
@@ -281,8 +285,9 @@ class Command_delegate {
     true  an error occured during storing, server will abort the command
     false ok
   */
-  virtual int get_date(const MYSQL_TIME *value MY_ATTRIBUTE((unused)))
-  { return false; }
+  virtual int get_date(const MYSQL_TIME *value MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Get TIME value from server
@@ -295,8 +300,9 @@ class Command_delegate {
     false ok
   */
   virtual int get_time(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
-                       uint decimals MY_ATTRIBUTE((unused)))
-  { return false; }
+                       uint decimals MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Get DATETIME value from server
@@ -309,8 +315,9 @@ class Command_delegate {
     false ok
   */
   virtual int get_datetime(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
-                           uint decimals MY_ATTRIBUTE((unused)))
-  { return false; }
+                           uint decimals MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     Get STRING value from server
@@ -323,11 +330,12 @@ class Command_delegate {
     true  an error occured, server will abort the command
     false ok
   */
-  virtual int
-    get_string(const char *const value MY_ATTRIBUTE((unused)),
-               size_t length MY_ATTRIBUTE((unused)),
-               const CHARSET_INFO *const valuecs MY_ATTRIBUTE((unused)))
-  { return false; }
+  virtual int get_string(const char *const value MY_ATTRIBUTE((unused)),
+                         size_t length MY_ATTRIBUTE((unused)),
+                         const CHARSET_INFO *const valuecs
+                             MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /****** Getting execution status ******/
   /*
@@ -420,8 +428,8 @@ class Command_delegate {
   }
 
   static int call_get_longlong(void *ctx, longlong value, uint unsigned_flag) {
-    return static_cast<Command_delegate *>(ctx)
-        ->get_longlong(value, unsigned_flag);
+    return static_cast<Command_delegate *>(ctx)->get_longlong(value,
+                                                              unsigned_flag);
   }
 
   static int call_get_decimal(void *ctx, const decimal_t *value) {
@@ -447,8 +455,8 @@ class Command_delegate {
 
   static int call_get_string(void *ctx, const char *const value, size_t length,
                              const CHARSET_INFO *const valuecs) {
-    return static_cast<Command_delegate *>(ctx)
-        ->get_string(value, length, valuecs);
+    return static_cast<Command_delegate *>(ctx)->get_string(value, length,
+                                                            valuecs);
   }
 
   static void call_handle_ok(void *ctx, uint server_status,
@@ -457,16 +465,16 @@ class Command_delegate {
                              const char *const message) {
     static_cast<Command_delegate *>(ctx)->m_got_eof = (message == NULL);
 
-    static_cast<Command_delegate *>(ctx)
-        ->handle_ok(server_status, statement_warn_count, affected_rows,
-                    last_insert_id, message);
+    static_cast<Command_delegate *>(ctx)->handle_ok(
+        server_status, statement_warn_count, affected_rows, last_insert_id,
+        message);
   }
 
   static void call_handle_error(void *ctx, uint sql_errno,
                                 const char *const err_msg,
                                 const char *const sqlstate) {
-    static_cast<Command_delegate *>(ctx)
-        ->handle_error(sql_errno, err_msg, sqlstate);
+    static_cast<Command_delegate *>(ctx)->handle_error(sql_errno, err_msg,
+                                                       sqlstate);
   }
 
   static void call_shutdown(void *ctx, int flag) {

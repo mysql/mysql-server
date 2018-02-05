@@ -32,28 +32,24 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/sql_class.h"
 #include "sql/query_options.h"
+#include "sql/sql_class.h"
 #include "sql/system_variables.h"
 
 /*************************************************************************/
 
 /** RAII class for temporarily turning off @@autocommit in the connection. */
 
-class Disable_autocommit_guard
-{
-public:
-
+class Disable_autocommit_guard {
+ public:
   /**
     @param thd  non-NULL - pointer to the context of connection in which
                            @@autocommit mode needs to be disabled.
                 NULL     - if @@autocommit mode needs to be left as is.
   */
   Disable_autocommit_guard(THD *thd)
-    : m_thd(thd), m_save_option_bits(thd ? thd->variables.option_bits : 0)
-  {
-    if (m_thd)
-    {
+      : m_thd(thd), m_save_option_bits(thd ? thd->variables.option_bits : 0) {
+    if (m_thd) {
       /*
         We can't disable auto-commit if there is ongoing transaction as this
         might easily break statement/session transaction invariants.
@@ -61,85 +57,75 @@ public:
       DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
                   m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
 
-      m_thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-      m_thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+      m_thd->variables.option_bits &= ~OPTION_AUTOCOMMIT;
+      m_thd->variables.option_bits |= OPTION_NOT_AUTOCOMMIT;
     }
   }
 
-  ~Disable_autocommit_guard()
-  {
-    if (m_thd)
-    {
+  ~Disable_autocommit_guard() {
+    if (m_thd) {
       /*
         Both session and statement transactions need to be finished by the
         time when we enable auto-commit mode back.
       */
       DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
                   m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-      m_thd->variables.option_bits= m_save_option_bits;
+      m_thd->variables.option_bits = m_save_option_bits;
     }
   }
 
-private:
+ private:
   THD *m_thd;
   ulonglong m_save_option_bits;
 };
-
 
 /**
   RAII class which allows to temporary disable updating Gtid_state.
 */
 
-class Disable_gtid_state_update_guard
-{
-public:
+class Disable_gtid_state_update_guard {
+ public:
   Disable_gtid_state_update_guard(THD *thd)
-    : m_thd(thd),
-      m_save_is_operating_substatement_implicitly(
-          thd->is_operating_substatement_implicitly),
-      m_save_skip_gtid_rollback(thd->skip_gtid_rollback)
-  {
-    m_thd->is_operating_substatement_implicitly= true;
-    m_thd->skip_gtid_rollback= true;
+      : m_thd(thd),
+        m_save_is_operating_substatement_implicitly(
+            thd->is_operating_substatement_implicitly),
+        m_save_skip_gtid_rollback(thd->skip_gtid_rollback) {
+    m_thd->is_operating_substatement_implicitly = true;
+    m_thd->skip_gtid_rollback = true;
   }
 
-  ~Disable_gtid_state_update_guard()
-  {
-    m_thd->is_operating_substatement_implicitly=
-      m_save_is_operating_substatement_implicitly;
-    m_thd->skip_gtid_rollback= m_save_skip_gtid_rollback;
+  ~Disable_gtid_state_update_guard() {
+    m_thd->is_operating_substatement_implicitly =
+        m_save_is_operating_substatement_implicitly;
+    m_thd->skip_gtid_rollback = m_save_skip_gtid_rollback;
   }
-private:
+
+ private:
   THD *m_thd;
   bool m_save_is_operating_substatement_implicitly;
   bool m_save_skip_gtid_rollback;
 };
 
-
 /**
   RAII class to temporarily disable binlogging.
 */
 
-class Disable_binlog_guard
-{
-public:
+class Disable_binlog_guard {
+ public:
   Disable_binlog_guard(THD *thd)
-    : m_thd(thd), m_binlog_disabled(thd->variables.option_bits & OPTION_BIN_LOG)
-  {
+      : m_thd(thd),
+        m_binlog_disabled(thd->variables.option_bits & OPTION_BIN_LOG) {
     thd->variables.option_bits &= ~OPTION_BIN_LOG;
   }
 
-  ~Disable_binlog_guard()
-  {
-    if (m_binlog_disabled)
-      m_thd->variables.option_bits |= OPTION_BIN_LOG;
+  ~Disable_binlog_guard() {
+    if (m_binlog_disabled) m_thd->variables.option_bits |= OPTION_BIN_LOG;
   }
 
-private:
-  THD * const m_thd;
+ private:
+  THD *const m_thd;
   const bool m_binlog_disabled;
 };
-
 
 /**
   RAII class which allows to save, clear and store binlog format state
@@ -150,34 +136,31 @@ private:
   Saving or Clearing or Storing of binlog format state should be done
   for these two variables together all the time.
 */
-class Save_and_Restore_binlog_format_state
-{
-public:
+class Save_and_Restore_binlog_format_state {
+ public:
   Save_and_Restore_binlog_format_state(THD *thd)
-    : m_thd(thd),
-    m_global_binlog_format(thd->variables.binlog_format),
-    m_current_stmt_binlog_format(BINLOG_FORMAT_STMT)
-  {
+      : m_thd(thd),
+        m_global_binlog_format(thd->variables.binlog_format),
+        m_current_stmt_binlog_format(BINLOG_FORMAT_STMT) {
     if (thd->is_current_stmt_binlog_format_row())
-      m_current_stmt_binlog_format= BINLOG_FORMAT_ROW;
+      m_current_stmt_binlog_format = BINLOG_FORMAT_ROW;
 
-    thd->variables.binlog_format= BINLOG_FORMAT_STMT;
+    thd->variables.binlog_format = BINLOG_FORMAT_STMT;
     thd->clear_current_stmt_binlog_format_row();
   }
 
-  ~Save_and_Restore_binlog_format_state()
-  {
+  ~Save_and_Restore_binlog_format_state() {
     DBUG_ASSERT(!m_thd->is_current_stmt_binlog_format_row());
-    m_thd->variables.binlog_format= m_global_binlog_format;
+    m_thd->variables.binlog_format = m_global_binlog_format;
     if (m_current_stmt_binlog_format == BINLOG_FORMAT_ROW)
       m_thd->set_current_stmt_binlog_format_row();
   }
-private:
+
+ private:
   THD *m_thd;
   ulong m_global_binlog_format;
   enum_binlog_format m_current_stmt_binlog_format;
 };
-
 
 /**
   RAII class to temporarily turn off SQL modes that affect parsing
@@ -186,12 +169,10 @@ private:
   (these extra modes are harmless as they do not affect expression
   printing).
 */
-class Sql_mode_parse_guard
-{
-public:
+class Sql_mode_parse_guard {
+ public:
   Sql_mode_parse_guard(THD *thd)
-    : m_thd(thd), m_old_sql_mode(thd->variables.sql_mode)
-  {
+      : m_thd(thd), m_old_sql_mode(thd->variables.sql_mode) {
     /*
       Switch off modes which can prevent normal parsing of expressions:
 
@@ -218,16 +199,13 @@ public:
       ? MODE_NO_AUTO_VALUE_ON_ZERO    affect UPDATEs
       + MODE_NO_BACKSLASH_ESCAPES     affect expression parsing
     */
-    thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                                MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
+    thd->variables.sql_mode &= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
+                                 MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
   }
 
-  ~Sql_mode_parse_guard()
-  {
-    m_thd->variables.sql_mode= m_old_sql_mode;
-  }
+  ~Sql_mode_parse_guard() { m_thd->variables.sql_mode = m_old_sql_mode; }
 
-private:
+ private:
   THD *m_thd;
   const sql_mode_t m_old_sql_mode;
 };

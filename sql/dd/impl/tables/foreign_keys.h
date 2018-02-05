@@ -23,24 +23,22 @@
 #ifndef DD_TABLES__FOREIGN_KEYS_INCLUDED
 #define DD_TABLES__FOREIGN_KEYS_INCLUDED
 
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Object_key;
+class Object_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_keys : public Object_table_impl
-{
-public:
+class Foreign_keys : public Object_table_impl {
+ public:
   static const Foreign_keys &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_SCHEMA_ID,
     FIELD_TABLE_ID,
@@ -55,31 +53,26 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_UK_TABLE_ID_NAME,
     INDEX_K_REF_CATALOG_REF_SCHEMA_REF_TABLE
   };
 
-  enum enum_foreign_keys
-  {
-    FK_SCHEMA_ID
-  };
+  enum enum_foreign_keys { FK_SCHEMA_ID };
 
   Foreign_keys();
 
   static Object_key *create_key_by_foreign_key_name(
-    Object_id schema_id,
-    const String_type &foreign_key_name);
+      Object_id schema_id, const String_type &foreign_key_name);
 
   static Object_key *create_key_by_table_id(Object_id table_id);
 
   static Object_key *create_key_by_referenced_name(
-    const String_type &referenced_catalog,
-    const String_type &referenced_schema,
-    const String_type &referenced_table);
+      const String_type &referenced_catalog,
+      const String_type &referenced_schema,
+      const String_type &referenced_table);
 
   /**
     Check if schema contains foreign key with specified name.
@@ -102,7 +95,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__FOREIGN_KEYS_INCLUDED
+#endif  // DD_TABLES__FOREIGN_KEYS_INCLUDED

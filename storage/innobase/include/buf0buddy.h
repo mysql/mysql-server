@@ -26,19 +26,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 
-/**************************************************//**
-@file include/buf0buddy.h
-Binary buddy allocator for compressed pages
+/**************************************************/ /**
+ @file include/buf0buddy.h
+ Binary buddy allocator for compressed pages
 
-Created December 2006 by Marko Makela
-*******************************************************/
+ Created December 2006 by Marko Makela
+ *******************************************************/
 
 #ifndef buf0buddy_h
 #define buf0buddy_h
 
 #ifdef UNIV_MATERIALIZE
-# undef UNIV_INLINE
-# define UNIV_INLINE
+#undef UNIV_INLINE
+#define UNIV_INLINE
 #endif
 
 #include "buf0types.h"
@@ -50,26 +50,18 @@ buf_pool->LRU_list_mutex and must not hold buf_pool->zip_mutex or any
 block->mutex.
 @param[in,out]	buf_pool	buffer pool in which the page resides
 @param[in]	size		compressed page size, between
-				UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE
+                                UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE
 @return allocated block, never NULL */
 UNIV_INLINE
-byte*
-buf_buddy_alloc(
-	buf_pool_t*	buf_pool,
-	ulint		size)
-	MY_ATTRIBUTE((malloc));
+byte *buf_buddy_alloc(buf_pool_t *buf_pool, ulint size) MY_ATTRIBUTE((malloc));
 
 /** Deallocate a block.
 @param[in,out]	buf_pool	buffer pool in which the block resides
 @param[in]	buf		block to be freed, must not be pointed to
-				by the buffer pool
+                                by the buffer pool
 @param[in]	size		block size, up to UNIV_PAGE_SIZE */
 UNIV_INLINE
-void
-buf_buddy_free(
-	buf_pool_t*	buf_pool,
-	void*		buf,
-	ulint		size);
+void buf_buddy_free(buf_pool_t *buf_pool, void *buf, ulint size);
 
 /** Try to reallocate a block.
 @param[in]	buf_pool	buffer pool instance
@@ -78,17 +70,11 @@ to by the buffer pool
 @param[in]	size		block size, up to UNIV_PAGE_SIZE
 @retval true	if succeeded or if failed because the block was fixed
 @retval false	if failed because of no free blocks. */
-bool
-buf_buddy_realloc(
-	buf_pool_t*	buf_pool,
-	void*		buf,
-	ulint		size);
+bool buf_buddy_realloc(buf_pool_t *buf_pool, void *buf, ulint size);
 
 /** Combine all pairs of free buddies.
 @param[in]	buf_pool	buffer pool instance */
-void
-buf_buddy_condense_free(
-	buf_pool_t*	buf_pool);
+void buf_buddy_condense_free(buf_pool_t *buf_pool);
 
 #include "buf0buddy.ic"
 

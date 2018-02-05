@@ -25,12 +25,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file dict/dict.h
-Data dictionary system
+/**************************************************/ /**
+ @file dict/dict.h
+ Data dictionary system
 
-Created 1/8/1996 Heikki Tuuri
-*******************************************************/
+ Created 1/8/1996 Heikki Tuuri
+ *******************************************************/
 
 /** NOTE: The functions in this file should only use functions from
 other files in library. The code in this file is used to make a library for
@@ -44,12 +44,7 @@ external tools. */
 @param[in]	col		column
 @param[in]	prefix_len	column prefix length
 @param[in]	is_ascending	true=ASC, false=DESC */
-void
-dict_index_add_col(
-	dict_index_t*		index,
-	const dict_table_t*	table,
-	dict_col_t*		col,
-	ulint			prefix_len,
-	bool			is_ascending);
+void dict_index_add_col(dict_index_t *index, const dict_table_t *table,
+                        dict_col_t *col, ulint prefix_len, bool is_ascending);
 
 #endif

@@ -26,31 +26,29 @@
 #include "my_inttypes.h"
 #include "storage/myisam/myisamdef.h"
 
-int mi_scan_init(MI_INFO *info)
-{
+int mi_scan_init(MI_INFO *info) {
   DBUG_ENTER("mi_scan_init");
-  info->nextpos=info->s->pack.header_length;	/* Read first record */
-  info->lastinx= -1;				/* Can't forward or backward */
+  info->nextpos = info->s->pack.header_length; /* Read first record */
+  info->lastinx = -1;                          /* Can't forward or backward */
   if (info->opt_flag & WRITE_CACHE_USED && flush_io_cache(&info->rec_cache))
     DBUG_RETURN(my_errno());
   DBUG_RETURN(0);
 }
 
 /*
-	   Read a row based on position.
-	   If filepos= HA_OFFSET_ERROR then read next row
-	   Return values
-	   Returns one of following values:
-	   0 = Ok.
-	   HA_ERR_END_OF_FILE = EOF.
+           Read a row based on position.
+           If filepos= HA_OFFSET_ERROR then read next row
+           Return values
+           Returns one of following values:
+           0 = Ok.
+           HA_ERR_END_OF_FILE = EOF.
 */
 
-int mi_scan(MI_INFO *info, uchar *buf)
-{
+int mi_scan(MI_INFO *info, uchar *buf) {
   int result;
   DBUG_ENTER("mi_scan");
   /* Init all but update-flag */
-  info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  result= (*info->s->read_rnd)(info, buf, info->nextpos, 1);
+  info->update &= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+  result = (*info->s->read_rnd)(info, buf, info->nextpos, 1);
   DBUG_RETURN(result);
 }

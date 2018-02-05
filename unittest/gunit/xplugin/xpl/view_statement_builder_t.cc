@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,11 +35,11 @@ class View_statement_builder_impl : public View_statement_builder {
   explicit View_statement_builder_impl(const Expression_generator &gen)
       : View_statement_builder(gen) {}
 
-  using View_statement_builder::add_definer;
   using View_statement_builder::add_algorithm;
-  using View_statement_builder::add_sql_security;
   using View_statement_builder::add_check_option;
   using View_statement_builder::add_columns;
+  using View_statement_builder::add_definer;
+  using View_statement_builder::add_sql_security;
 };
 
 class View_statement_builder_test : public ::testing::Test {

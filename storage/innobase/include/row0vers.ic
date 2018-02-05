@@ -24,15 +24,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0vers.ic
-Row versions
+/**************************************************/ /**
+ @file include/row0vers.ic
+ Row versions
 
-Created 2/6/1997 Heikki Tuuri
-*******************************************************/
+ Created 2/6/1997 Heikki Tuuri
+ *******************************************************/
 
-#include "row0row.h"
 #include "dict0dict.h"
-#include "read0read.h"
-#include "page0page.h"
 #include "log0recv.h"
+#include "page0page.h"
+#include "read0read.h"
+#include "row0row.h"

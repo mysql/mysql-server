@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -45,9 +45,8 @@
 #define HAVE_MYSQLX_FULL_PROTO(Y, N) N
 #endif
 
-#define XCL_CLIENT_ID_NOT_VALID  0
+#define XCL_CLIENT_ID_NOT_VALID 0
 #define XCL_SESSION_ID_NOT_VALID 0
-
 
 namespace xcl {
 
@@ -81,7 +80,6 @@ enum class Handler_position {
   Begin,
   End,
 };
-
 
 /**
   Enum that defines a execution priority of a handler.
@@ -124,33 +122,25 @@ class XProtocol {
   using Handler_id = int;
 
   /** Alias for type that is able to hold X Plugins client identifier */
-  using Client_id  = uint64_t;
+  using Client_id = uint64_t;
 
   /** Alias for protobuf message type used by the lite or
       full version of the library */
-  using Message    = HAVE_MYSQLX_FULL_PROTO(
-      ::google::protobuf::Message,
-      ::google::protobuf::MessageLite);
+  using Message = HAVE_MYSQLX_FULL_PROTO(::google::protobuf::Message,
+                                         ::google::protobuf::MessageLite);
 
   /** Function wrapper that can be used for X Protocol notice processing */
-  using Notice_handler = std::function<Handler_result (
-      XProtocol *protocol,
-      const bool,
-      const Mysqlx::Notice::Frame::Type,
-      const char *,
-      const uint32_t)>;
+  using Notice_handler = std::function<Handler_result(
+      XProtocol *protocol, const bool, const Mysqlx::Notice::Frame::Type,
+      const char *, const uint32_t)>;
 
   /** Function wrapper that can be used for X Protocol message processing. */
-  using Client_message_handler = std::function<Handler_result (
-      XProtocol *protocol,
-      const Client_message_type_id,
-      const Message &)>;
-  using Server_message_handler = std::function<Handler_result (
-      XProtocol *protocol,
-      const Server_message_type_id,
-      const Message &)>;
+  using Client_message_handler = std::function<Handler_result(
+      XProtocol *protocol, const Client_message_type_id, const Message &)>;
+  using Server_message_handler = std::function<Handler_result(
+      XProtocol *protocol, const Server_message_type_id, const Message &)>;
 
-  using Capabilities   = ::Mysqlx::Connection::Capabilities;
+  using Capabilities = ::Mysqlx::Connection::Capabilities;
 
  public:
   virtual ~XProtocol() = default;
@@ -169,7 +159,8 @@ class XProtocol {
     * "Handler_consumed", the dispatch to next handler is stopped. Received
        notice is dropped causing the receive function to wait for next notice.
     * "Handler_error", the dispatch to next handler is stopped. Received message
-       is dropped and the receive functions gets and error CR_X_INTERNAL_ABORTED.
+       is dropped and the receive functions gets and error
+    CR_X_INTERNAL_ABORTED.
 
     @param handler     callback which is going to be called on each
                        notice received through current instance of XProtocol
@@ -206,7 +197,8 @@ class XProtocol {
     * "Handler_consumed", the dispatch to next handler is stopped, received
        message is dropped causing the receive function to wait for next message.
     * "Handler_error", the dispatch to next handler is stopped, received message
-       is dropped and the receive functions gets and error CR_X_INTERNAL_ABORTED.
+       is dropped and the receive functions gets and error
+    CR_X_INTERNAL_ABORTED.
 
     @param handler     callback which is going to be called on each
                        message received through current instance of XProtocol
@@ -300,8 +292,7 @@ class XProtocol {
                            error occurred
   */
   virtual std::unique_ptr<Message> recv_single_message(
-      Server_message_type_id *out_mid,
-      XError     *out_error) = 0;
+      Server_message_type_id *out_mid, XError *out_error) = 0;
 
   /**
     Receive raw payload (of X Protocol message).
@@ -327,8 +318,7 @@ class XProtocol {
       @retval != true     OK
       @retval == true     I/O error occurred
   */
-  virtual XError recv(Header_message_type_id *out_mid,
-                      uint8_t **buffer,
+  virtual XError recv(Header_message_type_id *out_mid, uint8_t **buffer,
                       std::size_t *buffer_size) = 0;
 
   /**
@@ -347,10 +337,8 @@ class XProtocol {
       @retval == true     deserialization error occurred
   */
   virtual std::unique_ptr<Message> deserialize_received_message(
-      const Header_message_type_id mid,
-      const uint8_t *payload,
-      const std::size_t payload_size,
-      XError *out_error) = 0;
+      const Header_message_type_id mid, const uint8_t *payload,
+      const std::size_t payload_size, XError *out_error) = 0;
 
   /**
     Serialize and send protobuf message.
@@ -366,9 +354,7 @@ class XProtocol {
       @retval != true     OK
       @retval == true     I/O error or timeout error occurred
   */
-  virtual XError send(
-      const Client_message_type_id mid,
-      const Message &msg) = 0;
+  virtual XError send(const Client_message_type_id mid, const Message &msg) = 0;
 
   /**
     Send the raw payload as message.
@@ -388,8 +374,7 @@ class XProtocol {
       @retval != true     OK
       @retval == true     I/O error occurred
   */
-  virtual XError send(const Header_message_type_id mid,
-                      const uint8_t *buffer,
+  virtual XError send(const Header_message_type_id mid, const uint8_t *buffer,
                       const std::size_t length) = 0;
 
   /**
@@ -655,8 +640,7 @@ class XProtocol {
                           or received "Mysqlx.Error" message
   */
   virtual std::unique_ptr<XQuery_result> execute_with_resultset(
-      const Client_message_type_id mid,
-      const Message &msg,
+      const Client_message_type_id mid, const Message &msg,
       XError *out_error) = 0;
 
   /**
@@ -671,8 +655,7 @@ class XProtocol {
                           or received "Mysqlx.Error" message
   */
   virtual std::unique_ptr<XQuery_result> execute_stmt(
-      const Mysqlx::Sql::StmtExecute &msg,
-      XError *out_error) = 0;
+      const Mysqlx::Sql::StmtExecute &msg, XError *out_error) = 0;
 
   /**
     Send crud find and expect resultset as response.
@@ -687,8 +670,7 @@ class XProtocol {
                           or received "Mysqlx.Error" message
   */
   virtual std::unique_ptr<XQuery_result> execute_find(
-      const Mysqlx::Crud::Find &msg,
-      XError *out_error) = 0;
+      const Mysqlx::Crud::Find &msg, XError *out_error) = 0;
 
   /**
     Send crud update and expect resultset as response.
@@ -703,8 +685,7 @@ class XProtocol {
                           or received "Mysqlx.Error" message
   */
   virtual std::unique_ptr<XQuery_result> execute_update(
-      const Mysqlx::Crud::Update &msg,
-      XError *out_error) = 0;
+      const Mysqlx::Crud::Update &msg, XError *out_error) = 0;
 
   /**
     Send crud insert and expect resultset as response.
@@ -719,8 +700,7 @@ class XProtocol {
                           or received "Mysqlx.Error" message
   */
   virtual std::unique_ptr<XQuery_result> execute_insert(
-      const Mysqlx::Crud::Insert &msg,
-      XError *out_error) = 0;
+      const Mysqlx::Crud::Insert &msg, XError *out_error) = 0;
 
   /**
     Send crud delete and expect resultset as response.
@@ -734,8 +714,7 @@ class XProtocol {
                           or received "Mysqlx.Error" message
   */
   virtual std::unique_ptr<XQuery_result> execute_delete(
-      const Mysqlx::Crud::Delete &msg,
-      XError *out_error) = 0;
+      const Mysqlx::Crud::Delete &msg, XError *out_error) = 0;
 
   /**
     Send "CapabilitiesGet" and expect Capabilities as response.

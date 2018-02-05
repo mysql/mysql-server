@@ -30,7 +30,6 @@
 #include "errmsg.h"
 #include "mysqlxclient/xerror.h"
 
-
 namespace xcl {
 
 class Decimal {
@@ -114,15 +113,14 @@ class Decimal {
 
   XError str(std::string *value_str) const {
     if (m_buffer.length() < 1) {
-      return XError{
-        CR_MALFORMED_PACKET, "Invalid decimal value " + m_buffer};
+      return XError{CR_MALFORMED_PACKET, "Invalid decimal value " + m_buffer};
     }
     size_t scale = m_buffer[0];
 
     for (std::string::const_iterator d = m_buffer.begin() + 1;
          d != m_buffer.end(); ++d) {
-      uint32_t n1 = ((uint32_t) * d & 0xf0) >> 4;
-      uint32_t n2 = (uint32_t) * d & 0xf;
+      uint32_t n1 = ((uint32_t)*d & 0xf0) >> 4;
+      uint32_t n2 = (uint32_t)*d & 0xf;
 
       if (n1 > 9) {
         if (n1 == 0xb || n1 == 0xd) (*value_str) = "-" + (*value_str);
@@ -139,8 +137,7 @@ class Decimal {
     }
 
     if (scale > (*value_str).length()) {
-      return XError{
-        CR_MALFORMED_PACKET, "Invalid decimal value " + m_buffer};
+      return XError{CR_MALFORMED_PACKET, "Invalid decimal value " + m_buffer};
     }
 
     if (scale > 0) {
@@ -152,19 +149,15 @@ class Decimal {
 
   std::string to_bytes() const { return m_buffer; }
 
-  bool is_valid() const {
-    return 0 != m_buffer.size();
-  }
-
+  bool is_valid() const { return 0 != m_buffer.size(); }
 
   static Decimal from_str(const std::string &s) { return Decimal(s); }
 
   explicit operator std::string() const {
     std::string result;
-    auto        error = str(&result);
+    auto error = str(&result);
 
-    if (error)
-      return "";
+    if (error) return "";
 
     return result;
   }

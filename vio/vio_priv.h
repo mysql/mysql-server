@@ -51,15 +51,15 @@ extern PSI_memory_key key_memory_vio_ssl_fd;
 #endif
 
 #ifdef _WIN32
-size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
-size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
+size_t vio_read_pipe(Vio *vio, uchar *buf, size_t size);
+size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t size);
 bool vio_is_connected_pipe(Vio *vio);
-int vio_shutdown_pipe(Vio * vio);
+int vio_shutdown_pipe(Vio *vio);
 
-size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
-size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
+size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size);
+size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size);
 bool vio_is_connected_shared_memory(Vio *vio);
-int vio_shutdown_shared_memory(Vio * vio);
+int vio_shutdown_shared_memory(Vio *vio);
 void vio_delete_shared_memory(Vio *vio);
 #endif /* _WIN32 */
 
@@ -68,8 +68,8 @@ int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event);
 int vio_socket_timeout(Vio *vio, uint which, bool old_mode);
 
 #ifdef HAVE_OPENSSL
-size_t	vio_ssl_read(Vio *vio,uchar* buf,	size_t size);
-size_t	vio_ssl_write(Vio *vio,const uchar* buf, size_t size);
+size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size);
+size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size);
 
 /* When the workday is over... */
 int vio_ssl_shutdown(Vio *vio);

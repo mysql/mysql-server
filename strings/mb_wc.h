@@ -53,8 +53,9 @@
 #include "my_compiler.h"
 #include "my_config.h"
 
-template<bool RANGE_CHECK, bool SUPPORT_MB4>
-static int my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s, const uchar *e);
+template <bool RANGE_CHECK, bool SUPPORT_MB4>
+static int my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s,
+                                   const uchar *e);
 
 static int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e);
 static int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e);
@@ -63,13 +64,11 @@ static int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e);
   Functor that converts a UTF-8 multibyte sequence (up to three bytes)
   to a wide character.
 */
-struct Mb_wc_utf8
-{
+struct Mb_wc_utf8 {
   Mb_wc_utf8() {}
 
   ALWAYS_INLINE
-  int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
-  {
+  int operator()(my_wc_t *pwc, const uchar *s, const uchar *e) const {
     return my_mb_wc_utf8(pwc, s, e);
   }
 };
@@ -78,13 +77,11 @@ struct Mb_wc_utf8
   Functor that converts a UTF-8 multibyte sequence (up to four bytes)
   to a wide character.
 */
-struct Mb_wc_utf8mb4
-{
+struct Mb_wc_utf8mb4 {
   Mb_wc_utf8mb4() {}
 
   ALWAYS_INLINE
-  int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
-  {
+  int operator()(my_wc_t *pwc, const uchar *s, const uchar *e) const {
     return my_mb_wc_utf8mb4(pwc, s, e);
   }
 };
@@ -93,58 +90,49 @@ struct Mb_wc_utf8mb4
   Functor that uses a function pointer to convert a multibyte sequence
   to a wide character.
 */
-class Mb_wc_through_function_pointer
-{
-public:
+class Mb_wc_through_function_pointer {
+ public:
   explicit Mb_wc_through_function_pointer(const CHARSET_INFO *cs)
-    : m_funcptr(cs->cset->mb_wc), m_cs(cs)
-  {}
+      : m_funcptr(cs->cset->mb_wc), m_cs(cs) {}
 
-  int operator() (my_wc_t *pwc, const uchar *s, const uchar *e) const
-  {
+  int operator()(my_wc_t *pwc, const uchar *s, const uchar *e) const {
     return m_funcptr(m_cs, pwc, s, e);
   }
 
-private:
-  typedef int (*mbwc_func_t)(const CHARSET_INFO *, my_wc_t *, const uchar *, const uchar *);
+ private:
+  typedef int (*mbwc_func_t)(const CHARSET_INFO *, my_wc_t *, const uchar *,
+                             const uchar *);
 
   const mbwc_func_t m_funcptr;
-  const CHARSET_INFO * const m_cs;
+  const CHARSET_INFO *const m_cs;
 };
 
-template<bool RANGE_CHECK, bool SUPPORT_MB4>
-static ALWAYS_INLINE int
-my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s, const uchar *e)
-{
-  if (RANGE_CHECK && s >= e)
-    return MY_CS_TOOSMALL;
+template <bool RANGE_CHECK, bool SUPPORT_MB4>
+static ALWAYS_INLINE int my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s,
+                                                 const uchar *e) {
+  if (RANGE_CHECK && s >= e) return MY_CS_TOOSMALL;
 
-  uchar c= s[0];
-  if (c < 0x80)
-  {
-    *pwc= c;
+  uchar c = s[0];
+  if (c < 0x80) {
+    *pwc = c;
     return 1;
   }
 
-  if (c < 0xe0)
-  {
+  if (c < 0xe0) {
     if (c < 0xc2)  // Resulting code point would be less than 0x80.
       return MY_CS_ILSEQ;
 
-    if (RANGE_CHECK && s + 2 > e)
-      return MY_CS_TOOSMALL2;
+    if (RANGE_CHECK && s + 2 > e) return MY_CS_TOOSMALL2;
 
     if ((s[1] & 0xc0) != 0x80)  // Next byte must be a continuation byte.
       return MY_CS_ILSEQ;
 
-    *pwc= ((my_wc_t) (c & 0x1f) << 6) + (my_wc_t) (s[1] & 0x3f);
+    *pwc = ((my_wc_t)(c & 0x1f) << 6) + (my_wc_t)(s[1] & 0x3f);
     return 2;
   }
 
-  if (c < 0xf0)
-  {
-    if (RANGE_CHECK && s + 3 > e)
-      return MY_CS_TOOSMALL3;
+  if (c < 0xf0) {
+    if (RANGE_CHECK && s + 3 > e) return MY_CS_TOOSMALL3;
 
     // Next two bytes must be continuation bytes.
     uint16 two_bytes;
@@ -152,23 +140,19 @@ my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s, const uchar *e)
     if ((two_bytes & 0xc0c0) != 0x8080)  // Endianness does not matter.
       return MY_CS_ILSEQ;
 
-    *pwc= ((my_wc_t) (c & 0x0f) << 12)   +
-          ((my_wc_t) (s[1] & 0x3f) << 6) +
-           (my_wc_t) (s[2] & 0x3f);
-    if (*pwc < 0x800)
-      return MY_CS_ILSEQ;
+    *pwc = ((my_wc_t)(c & 0x0f) << 12) + ((my_wc_t)(s[1] & 0x3f) << 6) +
+           (my_wc_t)(s[2] & 0x3f);
+    if (*pwc < 0x800) return MY_CS_ILSEQ;
     /*
       According to RFC 3629, UTF-8 should prohibit characters between
       U+D800 and U+DFFF, which are reserved for surrogate pairs and do
       not directly represent characters.
     */
-    if (*pwc >= 0xd800 && *pwc <= 0xdfff)
-      return MY_CS_ILSEQ;
+    if (*pwc >= 0xd800 && *pwc <= 0xdfff) return MY_CS_ILSEQ;
     return 3;
   }
 
-  if (SUPPORT_MB4)
-  {
+  if (SUPPORT_MB4) {
     if (RANGE_CHECK && s + 4 > e) /* We need 4 characters */
       return MY_CS_TOOSMALL4;
 
@@ -185,12 +169,9 @@ my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s, const uchar *e)
 #endif
       return MY_CS_ILSEQ;
 
-    *pwc= ((my_wc_t) (c & 0x07) << 18)    +
-          ((my_wc_t) (s[1] & 0x3f) << 12) +
-          ((my_wc_t) (s[2] & 0x3f) << 6)  +
-           (my_wc_t) (s[3] & 0x3f);
-    if (*pwc < 0x10000 || *pwc > 0x10ffff)
-      return MY_CS_ILSEQ;
+    *pwc = ((my_wc_t)(c & 0x07) << 18) + ((my_wc_t)(s[1] & 0x3f) << 12) +
+           ((my_wc_t)(s[2] & 0x3f) << 6) + (my_wc_t)(s[3] & 0x3f);
+    if (*pwc < 0x10000 || *pwc > 0x10ffff) return MY_CS_ILSEQ;
     return 4;
   }
 
@@ -207,11 +188,9 @@ my_mb_wc_utf8_prototype(my_wc_t *pwc, const uchar *s, const uchar *e)
   @return the number of bytes read from s, or a value <= 0 for failure
     (see m_ctype.h)
 */
-static inline int
-my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e)
-{
+static inline int my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e) {
   return my_mb_wc_utf8_prototype</*RANGE_CHECK=*/true, /*SUPPORT_MB4=*/false>(
-    pwc, s, e);
+      pwc, s, e);
 }
 
 /**
@@ -226,23 +205,20 @@ my_mb_wc_utf8(my_wc_t *pwc, const uchar *s, const uchar *e)
   @return the number of bytes read from s, or a value <= 0 for failure
     (see m_ctype.h)
 */
-static ALWAYS_INLINE int
-my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s, const uchar *e)
-{
+static ALWAYS_INLINE int my_mb_wc_utf8mb4(my_wc_t *pwc, const uchar *s,
+                                          const uchar *e) {
   return my_mb_wc_utf8_prototype</*RANGE_CHECK=*/true, /*SUPPORT_MB4=*/true>(
-    pwc, s, e);
+      pwc, s, e);
 }
 
 // Non-inlined versions of the above. These are used as function pointers
 // in MY_CHARSET_HANDLER structs, and you can compare againt them to see
 // if using the Mb_wc_utf8* functors would be appropriate.
 
-extern "C" int
-my_mb_wc_utf8_thunk(const CHARSET_INFO *cs,
-                    my_wc_t *pwc, const uchar *s, const uchar *e);
+extern "C" int my_mb_wc_utf8_thunk(const CHARSET_INFO *cs, my_wc_t *pwc,
+                                   const uchar *s, const uchar *e);
 
-extern "C" int
-my_mb_wc_utf8mb4_thunk(const CHARSET_INFO *cs,
-                       my_wc_t *pwc, const uchar *s, const uchar *e);
+extern "C" int my_mb_wc_utf8mb4_thunk(const CHARSET_INFO *cs, my_wc_t *pwc,
+                                      const uchar *s, const uchar *e);
 
 #endif  // MB_WC_INCLUDED

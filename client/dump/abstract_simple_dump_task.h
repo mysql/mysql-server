@@ -29,16 +29,15 @@
 
 #include "client/dump/i_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Base class for all individual dump process tasks.
  */
-class Abstract_simple_dump_task : public I_dump_task
-{
-public:
+class Abstract_simple_dump_task : public I_dump_task {
+ public:
   Abstract_simple_dump_task();
 
   virtual ~Abstract_simple_dump_task();
@@ -47,12 +46,12 @@ public:
 
   virtual void set_completed();
 
-private:
+ private:
   std::atomic<bool> m_is_completed;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

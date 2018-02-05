@@ -30,7 +30,7 @@
 #include <memory>
 #include <string>
 
-#include "m_string.h" // Needed because debug_sync.h is not self-sufficient.
+#include "m_string.h"  // Needed because debug_sync.h is not self-sufficient.
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "nullable.h"
@@ -40,15 +40,14 @@
 #include "sql/debug_sync.h"
 #include "template_utils.h"
 
-using std::string;
-using rules_table_service::Cursor;
 using Mysql::Nullable;
+using rules_table_service::Cursor;
+using std::string;
 namespace messages = rewriter_messages;
 
 namespace {
 
-std::string hash_key_from_digest(const uchar *digest)
-{
+std::string hash_key_from_digest(const uchar *digest) {
   return std::string(pointer_cast<const char *>(digest),
                      PARSER_SERVICE_DIGEST_LENGTH);
 }
@@ -60,54 +59,46 @@ std::string hash_key_from_digest(const uchar *digest)
   Implementation of the Rewriter class's member functions.
 */
 
+Rewriter::Rewriter() {}
 
-Rewriter::Rewriter()
-{
-}
+Rewriter::~Rewriter() {}
 
-
-Rewriter::~Rewriter()
-{
-}
-
-
-bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
-{
+bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
   std::unique_ptr<Rule> memrule_ptr(new Rule);
-  Rule *memrule= memrule_ptr.get();
-  Rule::Load_status load_status= memrule->load(thd, diskrule);
+  Rule *memrule = memrule_ptr.get();
+  Rule::Load_status load_status = memrule->load(thd, diskrule);
 
-  switch (load_status)
-  {
-  case Rule::OK:
-    m_digests.emplace(hash_key_from_digest(memrule_ptr->digest_buffer()),
-                      std::move(memrule_ptr));
-    diskrule->message= Nullable<string>();
-    diskrule->pattern_digest= services::print_digest(memrule->digest_buffer());
-    diskrule->normalized_pattern= memrule->normalized_pattern();
-    return false;
-    break;
-  case Rule::PATTERN_GOT_NO_DIGEST:
-    diskrule->set_message(messages::PATTERN_GOT_NO_DIGEST);
-    break;
-  case Rule::PATTERN_PARSE_ERROR:
-    diskrule->set_message(string(messages::PATTERN_PARSE_ERROR) + ": "
-                          ">>" +
-                          memrule->pattern_parse_error_message() +
-                          "<<");
-    break;
-  case Rule::PATTERN_NOT_A_SELECT_STATEMENT:
-    diskrule->set_message(messages::PATTERN_NOT_A_SELECT_STATEMENT);
-    break;
-  case Rule::REPLACEMENT_PARSE_ERROR:
-    diskrule->set_message(string(messages::REPLACEMENT_PARSE_ERROR) + ": "
-                          ">>" +
-                          memrule->replacement_parse_error_message() +
-                          "<<");
-    break;
-  case Rule::REPLACEMENT_HAS_MORE_MARKERS:
-    diskrule->set_message(messages::REPLACEMENT_HAS_MORE_MARKERS);
-    break;
+  switch (load_status) {
+    case Rule::OK:
+      m_digests.emplace(hash_key_from_digest(memrule_ptr->digest_buffer()),
+                        std::move(memrule_ptr));
+      diskrule->message = Nullable<string>();
+      diskrule->pattern_digest =
+          services::print_digest(memrule->digest_buffer());
+      diskrule->normalized_pattern = memrule->normalized_pattern();
+      return false;
+      break;
+    case Rule::PATTERN_GOT_NO_DIGEST:
+      diskrule->set_message(messages::PATTERN_GOT_NO_DIGEST);
+      break;
+    case Rule::PATTERN_PARSE_ERROR:
+      diskrule->set_message(string(messages::PATTERN_PARSE_ERROR) +
+                            ": "
+                            ">>" +
+                            memrule->pattern_parse_error_message() + "<<");
+      break;
+    case Rule::PATTERN_NOT_A_SELECT_STATEMENT:
+      diskrule->set_message(messages::PATTERN_NOT_A_SELECT_STATEMENT);
+      break;
+    case Rule::REPLACEMENT_PARSE_ERROR:
+      diskrule->set_message(string(messages::REPLACEMENT_PARSE_ERROR) +
+                            ": "
+                            ">>" +
+                            memrule->replacement_parse_error_message() + "<<");
+      break;
+    case Rule::REPLACEMENT_HAS_MORE_MARKERS:
+      diskrule->set_message(messages::REPLACEMENT_HAS_MORE_MARKERS);
+      break;
   }
 
   return true;
@@ -118,17 +109,15 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
   Normal debug sync points will not work in the THD that the plugin creates,
   so we have to call the debug sync functions ourselves.
 */
-static void do_debug_sync(MYSQL_THD thd)
-{
+static void do_debug_sync(MYSQL_THD thd) {
   DBUG_ASSERT(opt_debug_sync_timeout > 0);
-  const char act[]= "now signal parked wait_for go";
+  const char act[] = "now signal parked wait_for go";
   DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 }
 #endif
 
-void Rewriter::do_refresh(MYSQL_THD session_thd)
-{
-  bool saw_rule_error= false;
+void Rewriter::do_refresh(MYSQL_THD session_thd) {
+  bool saw_rule_error = false;
 
   DBUG_ENTER("Rewriter::do_refresh");
   Cursor c(session_thd);
@@ -136,69 +125,56 @@ void Rewriter::do_refresh(MYSQL_THD session_thd)
   DBUG_PRINT("info", ("Rewriter::do_refresh cursor opened"));
   DBUG_EXECUTE_IF("dbug.block_do_refresh", { do_debug_sync(session_thd); });
 
-  if (c.table_is_malformed())
-  {
-    m_refresh_status=  ER_REWRITER_TABLE_MALFORMED_ERROR;
+  if (c.table_is_malformed()) {
+    m_refresh_status = ER_REWRITER_TABLE_MALFORMED_ERROR;
     DBUG_VOID_RETURN;
   }
   m_digests.clear();
 
-  for (; c != rules_table_service::end(); ++c)
-  {
+  for (; c != rules_table_service::end(); ++c) {
     Persisted_rule diskrule(&c);
-    if (diskrule.is_enabled)
-    {
-      if (!diskrule.pattern.has_value())
-      {
+    if (diskrule.is_enabled) {
+      if (!diskrule.pattern.has_value()) {
         diskrule.set_message("Pattern is NULL.");
-        saw_rule_error= true;
-      }
-      else if (!diskrule.replacement.has_value())
-      {
+        saw_rule_error = true;
+      } else if (!diskrule.replacement.has_value()) {
         diskrule.set_message("Replacement is NULL.");
-        saw_rule_error= true;
-      }
-      else
-        saw_rule_error|= load_rule(session_thd, &diskrule);
+        saw_rule_error = true;
+      } else
+        saw_rule_error |= load_rule(session_thd, &diskrule);
       diskrule.write_to(&c);
     }
   }
   if (c.had_serious_read_error())
-    m_refresh_status= ER_REWRITER_READ_FAILED;
+    m_refresh_status = ER_REWRITER_READ_FAILED;
   else if (saw_rule_error)
-    m_refresh_status= ER_REWRITER_LOAD_FAILED;
+    m_refresh_status = ER_REWRITER_LOAD_FAILED;
   else
-    m_refresh_status= 0;
+    m_refresh_status = 0;
   DBUG_VOID_RETURN;
 }
 
-
 namespace {
 
-struct Refresh_callback_args
-{
+struct Refresh_callback_args {
   Rewriter *me;
   MYSQL_THD session_thd;
 };
 
-extern "C"
-void *refresh_callback(void *p_args)
-{
-  Refresh_callback_args *args= pointer_cast<Refresh_callback_args*>(p_args);
+extern "C" void *refresh_callback(void *p_args) {
+  Refresh_callback_args *args = pointer_cast<Refresh_callback_args *>(p_args);
   (args->me->do_refresh)(args->session_thd);
   return NULL;
 }
 
-} // namespace
+}  // namespace
 
-
-longlong Rewriter::refresh(MYSQL_THD thd)
-{
+longlong Rewriter::refresh(MYSQL_THD thd) {
   services::Session session(thd);
 
-  Refresh_callback_args args= { this, session.thd() };
+  Refresh_callback_args args = {this, session.thd()};
 
-  m_refresh_status= 0;
+  m_refresh_status = 0;
 
   my_thread_handle handle;
   mysql_parser_start_thread(session.thd(), refresh_callback, &args, &handle);
@@ -208,29 +184,22 @@ longlong Rewriter::refresh(MYSQL_THD thd)
   return m_refresh_status;
 }
 
-
-Rewrite_result Rewriter::rewrite_query(MYSQL_THD thd, const uchar *key)
-{
+Rewrite_result Rewriter::rewrite_query(MYSQL_THD thd, const uchar *key) {
   Rewrite_result result;
-  bool digest_matched= false;
+  bool digest_matched = false;
 
-  auto it_range= m_digests.equal_range(hash_key_from_digest(key));
-  for (auto it= it_range.first; it != it_range.second; ++it)
-  {
-    Rule *rule= it->second.get();
-    if (rule->matches(thd))
-    {
-      result= rule->create_new_query(thd);
-      if (result.was_rewritten)
-        return result;
-    }
-    else
-    {
-      digest_matched= true;
+  auto it_range = m_digests.equal_range(hash_key_from_digest(key));
+  for (auto it = it_range.first; it != it_range.second; ++it) {
+    Rule *rule = it->second.get();
+    if (rule->matches(thd)) {
+      result = rule->create_new_query(thd);
+      if (result.was_rewritten) return result;
+    } else {
+      digest_matched = true;
     }
   }
 
-  result.was_rewritten= false;
-  result.digest_matched= digest_matched;
+  result.was_rewritten = false;
+  result.digest_matched = digest_matched;
   return result;
 }

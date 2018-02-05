@@ -450,7 +450,8 @@ void set_max_synode_from_unified_boot(synode_no unified_boot_synode) {
    Set node group
 */
 void set_group(uint32_t id) {
-  MAY_DBG(FN; STRLIT("changing group id of global variables "); NDBG((unsigned long) id, lu););
+  MAY_DBG(FN; STRLIT("changing group id of global variables ");
+          NDBG((unsigned long)id, lu););
   /*	set_group_id(id); */
   current_message.group_id = id;
   executed_msg.group_id = id;
@@ -478,8 +479,7 @@ static bool_t is_dead_site(uint32_t id) {
 
 define_xdr_funcs(node_no)
 
-
-extern node_set *init_node_set(node_set *set, u_int n);
+    extern node_set *init_node_set(node_set *set, u_int n);
 extern node_set *alloc_node_set(node_set *set, u_int n);
 
 #if 0
@@ -549,7 +549,7 @@ static void pexitall(int i) {
   DBGOUT(FN; NDBG(i, d); STRLIT("time "); NDBG(task_now(), f););
   XCOM_FSM(xa_terminate, int_arg(i)); /* Tell xcom to stop */
 }
-/* purecov: end */
+  /* purecov: end */
 
 #ifndef _WIN32
 /* Ignore this signal */
@@ -568,7 +568,7 @@ static int ignoresig(int signum) {
 static int ignoresig(int signum) { return 0; }
 #endif
 
-/* }}} */
+  /* }}} */
 
 #if 0
 static void	dbg_machine_and_msg(pax_machine *p, pax_msg *pm)
@@ -872,8 +872,7 @@ static void free_forced_config_site_def() {
 static void dbg_proposers() MY_ATTRIBUTE((unused));
 static void dbg_proposers() {
   GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-    return;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
   NDBG(PROPOSERS, d);
   {
     PROP_ITER { PPUT(proposer[i]); }
@@ -1368,13 +1367,11 @@ static void dbg_reply_set(site_def const *site, const char *s, bit_set *bs) {
   unsigned int n = get_maxnodes(site);
   GET_GOUT;
 
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-    return;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
 
   STRLIT(s);
-  for (i = 0;
-       i < n &&
-       i < bs->bits.bits_len * sizeof(*bs->bits.bits_val) * BITS_PER_BYTE;
+  for (i = 0; i < n && i < bs->bits.bits_len * sizeof(*bs->bits.bits_val) *
+                               BITS_PER_BYTE;
        i++) {
     NPUT(BIT_ISSET(i, bs), d);
   }
@@ -1699,9 +1696,8 @@ void execute_msg(site_def const *site, pax_machine *pma, pax_msg *p) {
       case view_msg:
         MAY_DBG(FN; STRLIT(" learner.msg ");
                 COPY_AND_FREE_GOUT(dbg_pax_msg(pma->learner.msg)););
-        if (site &&
-            site->global_node_set.node_set_len ==
-                a->body.app_u_u.present.node_set_len) {
+        if (site && site->global_node_set.node_set_len ==
+                        a->body.app_u_u.present.node_set_len) {
           assert(site->global_node_set.node_set_len ==
                  a->body.app_u_u.present.node_set_len);
           copy_node_set(&a->body.app_u_u.present,
@@ -1871,8 +1867,7 @@ static void perf_dbg(int *_n, int *_old_n, double *_old_t) {
   int old_n = *_old_n;
   double old_t = *_old_t;
 
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-    return;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
 
   DBGOHK(FN; SYCEXP(executed_msg));
   if (!(n % 5000)) {
@@ -1931,8 +1926,7 @@ static inline int LOSER(synode_no x, site_def const *site) {
 static void debug_loser(synode_no x) MY_ATTRIBUTE((unused));
 #if defined(TASK_DBUG_ON) && TASK_DBUG_ON
 static void debug_loser(synode_no x) {
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-    return;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
   if (1 || x.msgno < 10) {
     GET_GOUT;
     NDBG(get_nodeno(find_site_def(x)), u);
@@ -1949,7 +1943,8 @@ static void debug_loser(synode_no x MY_ATTRIBUTE((unused))) {}
 /* purecov: end */
 #endif
 
-/* #define DBGFIX2(x){ if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return; GET_GOUT; ADD_F_GOUT("%f ",task_now()); x; PRINT_GOUT; FREE_GOUT; } */
+/* #define DBGFIX2(x){ if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
+ * GET_GOUT; ADD_F_GOUT("%f ",task_now()); x; PRINT_GOUT; FREE_GOUT; } */
 #define DBGFIX2(x)
 static void send_value(site_def const *site, node_no to, synode_no synode) {
   pax_machine *pm = get_cache(synode);
@@ -2497,7 +2492,7 @@ static int sweeper_task(task_arg arg MY_ATTRIBUTE((unused))) {
   TASK_END;
 }
 
-/* }}} */
+  /* }}} */
 
 #if 0
 static double	wakeup_delay(double old)
@@ -3139,17 +3134,15 @@ static inline void handle_alive(site_def const *site, linkage *reply_queue,
    we avoid sending need_boot_op, since it must be from a different
    reincarnation of this node.
    */
-  if(site && pm->a && pm->a->body.c_t == xcom_boot_type)
-  {
+  if (site && pm->a && pm->a->body.c_t == xcom_boot_type) {
     DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&pm->a->body.app_u_u.nodes)););
 
-    not_to_oneself &=
-               node_exists_with_uid(&pm->a->body.app_u_u.nodes.node_list_val[0],
-                                    &get_site_def()->nodes);
+    not_to_oneself &= node_exists_with_uid(
+        &pm->a->body.app_u_u.nodes.node_list_val[0], &get_site_def()->nodes);
   }
 
-  if (!client_boot_done &&                                  /* Already done? */
-      not_to_oneself && /* Not to oneself */
+  if (!client_boot_done &&           /* Already done? */
+      not_to_oneself &&              /* Not to oneself */
       accept &&                      /* Accept new site definition */
       !is_dead_site(pm->group_id)) { /* Avoid dealing with zombies */
     double t = task_now();
@@ -3248,12 +3241,11 @@ static u_int allow_add_node(app_data_ptr a) {
       to the system where there is an old incarnation will
       not fix this problem since other changes are required.
       */
-      G_MESSAGE("Old incarnation found while trying to "
-                                  "add node %s %.*s.",
-                                  nodes_to_change[i].address,
-                                  nodes_to_change[i].uuid.data.data_len,
-                                  nodes_to_change[i].uuid.data.data_val
-                                  );
+      G_MESSAGE(
+          "Old incarnation found while trying to "
+          "add node %s %.*s.",
+          nodes_to_change[i].address, nodes_to_change[i].uuid.data.data_len,
+          nodes_to_change[i].uuid.data.data_val);
       return 0;
     }
   }
@@ -3276,29 +3268,27 @@ static u_int allow_remove_node(app_data_ptr a) {
       If the UID does not exist, then 1) the node has already been
       removed or 2) it has reincarnated.
       */
-/* purecov: begin inspected */
+      /* purecov: begin inspected */
       if (node_exists(&nodes_to_change[i], &new_site_def->nodes)) {
         /*
         We also cannot allow an upper-layer to remove a new incarnation
         of a node when it tries to remove an old one.
         */
-        G_MESSAGE("New incarnation found while trying to "
-                                  "remove node %s %.*s.",
-                                  nodes_to_change[i].address,
-                                  nodes_to_change[i].uuid.data.data_len,
-                                  nodes_to_change[i].uuid.data.data_val
-                                  );
+        G_MESSAGE(
+            "New incarnation found while trying to "
+            "remove node %s %.*s.",
+            nodes_to_change[i].address, nodes_to_change[i].uuid.data.data_len,
+            nodes_to_change[i].uuid.data.data_val);
       } else {
         /* The node has already been removed, so we block the request */
-        G_MESSAGE("Node has already been removed: "
-                                  "%s %.*s.",
-                                  nodes_to_change[i].address,
-                                  nodes_to_change[i].uuid.data.data_len,
-                                  nodes_to_change[i].uuid.data.data_val);
-
+        G_MESSAGE(
+            "Node has already been removed: "
+            "%s %.*s.",
+            nodes_to_change[i].address, nodes_to_change[i].uuid.data.data_len,
+            nodes_to_change[i].uuid.data.data_val);
       }
-    return 0;
-/* purecov: end */
+      return 0;
+      /* purecov: end */
     }
   }
 
@@ -3446,8 +3436,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm = get_cache(p->synode);
       assert(pm);
 
-      if(client_boot_done)
-        handle_alive(site, reply_queue, p);
+      if (client_boot_done) handle_alive(site, reply_queue, p);
 
       handle_read(site, pm, reply_queue, p);
       break;
@@ -3458,8 +3447,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       pm->last_modified = task_now();
       MAY_DBG(FN; dbg_pax_msg(p));
 
-      if(client_boot_done)
-        handle_alive(site, reply_queue, p);
+      if (client_boot_done) handle_alive(site, reply_queue, p);
 
       handle_prepare(site, pm, reply_queue, p);
       break;
@@ -3622,14 +3610,14 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
 /* }}} */
 
 /* {{{ Acceptor-learner task */
-#define SERIALIZE_REPLY(msg)                                         \
-  msg->to = ep->p->from;                                         \
-  msg->from = ep->p->to;                                         \
-  msg->delivered_msg = get_delivered_msg();                      \
-  msg->max_synode = get_max_synode();                            \
-  serialize_msg(msg, ep->rfd.x_proto, &ep->buflen, &ep->buf);    \
+#define SERIALIZE_REPLY(msg)                \
+  msg->to = ep->p->from;                    \
+  msg->from = ep->p->to;                    \
+  msg->delivered_msg = get_delivered_msg(); \
+  msg->max_synode = get_max_synode();       \
+  serialize_msg(msg, ep->rfd.x_proto, &ep->buflen, &ep->buf);
 
-#define WRITE_REPLY \
+#define WRITE_REPLY                                              \
   if (ep->buflen) {                                              \
     int64_t sent;                                                \
     TASK_CALL(task_write(&ep->rfd, ep->buf, ep->buflen, &sent)); \
@@ -3785,7 +3773,8 @@ again:
             create_noop(reply);
             set_learn_type(reply);
             SERIALIZE_REPLY(reply);
-            delete_pax_msg(reply); /* Deallocate BEFORE potentially blocking call which will lose value of reply */
+            delete_pax_msg(reply); /* Deallocate BEFORE potentially blocking
+                                      call which will lose value of reply */
             WRITE_REPLY;
             goto again;
           }
@@ -3806,7 +3795,8 @@ again:
           assert(reply->p);
           assert(reply->p->refcnt > 0);
           SERIALIZE_REPLY(reply->p);
-          msg_link_delete(&reply); /* Deallocate BEFORE potentially blocking call which will lose value of reply */
+          msg_link_delete(&reply); /* Deallocate BEFORE potentially blocking
+                                      call which will lose value of reply */
           WRITE_REPLY;
         }
       } else {
@@ -3835,7 +3825,8 @@ again:
               DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
                      SYCEXP(executed_msg); SYCEXP(max_synode);
                      SYCEXP(np->synode));
-              unref_msg(&np); /* Deallocate BEFORE potentially blocking call which will lose value of np */
+              unref_msg(&np); /* Deallocate BEFORE potentially blocking call
+                                 which will lose value of np */
               WRITE_REPLY;
             }
           }
@@ -3917,8 +3908,8 @@ int reply_handler_task(task_arg arg) {
       pax_msg *p = ep->reply;
       server_handle_need_snapshot(ep->s, find_site_def(p->synode), p->from);
     } else {
-      //We only handle messages from this connection is the server is valid.
-      if(ep->s->invalid == 0)
+      // We only handle messages from this connection is the server is valid.
+      if (ep->s->invalid == 0)
         dispatch_op(find_site_def(ep->reply->synode), ep->reply, NULL);
     }
     TASK_YIELD;
@@ -3965,16 +3956,16 @@ long xcom_unique_long(void) {
 #endif
 }
 
-/* {{{ Coroutine macros */
-/*
-   Coroutine device (or more precisely, a finite state machine, as the
-   stack is not preserved), described by its inventor Tom Duff as
-   being "too horrid to go into". The basic idea is that the switch
-   can be used to jump anywhere in the code, so we note where we are
-   when we return, and jump there when we enter the routine again by
-   switching on the state, which is really a line number supplied by
-   the CO_RETURN macro.
-*/
+  /* {{{ Coroutine macros */
+  /*
+     Coroutine device (or more precisely, a finite state machine, as the
+     stack is not preserved), described by its inventor Tom Duff as
+     being "too horrid to go into". The basic idea is that the switch
+     can be used to jump anywhere in the code, so we note where we are
+     when we return, and jump there when we enter the routine again by
+     switching on the state, which is really a line number supplied by
+     the CO_RETURN macro.
+  */
 
 #define CO_BEGIN          \
   switch (state) {        \
@@ -4105,7 +4096,8 @@ static void server_push_log(server *srv, synode_no push, node_no node) {
   if (srv && s) {
     while (!synode_gt(push, get_max_synode())) {
       if (is_cached(push)) {
-        /* Need to clone message here since pax_machine may be re-used while message is sent */
+        /* Need to clone message here since pax_machine may be re-used while
+         * message is sent */
         pax_machine *p = get_cache_no_touch(push);
         if (pm_finished(p)) {
           pax_msg *pm = clone_pax_msg(p->learner.msg);
@@ -4184,8 +4176,7 @@ static void server_handle_need_snapshot(server *srv, site_def const *s,
   synode_no app_lsn = get_app_snap(&gs->app_snap);
   if (!synode_eq(null_synode, app_lsn) && synode_lt(app_lsn, gs->log_start)) {
     gs->log_start = app_lsn;
-  }
-  else if (!synode_eq(null_synode, last_config_modification_id)) {
+  } else if (!synode_eq(null_synode, last_config_modification_id)) {
     gs->log_start = last_config_modification_id;
   }
 
@@ -4605,7 +4596,9 @@ static inline result xcom_shut_close_socket(int *sock) {
   return res;
 }
 
-#define CONNECT_FAIL ret_fd = -1; goto end
+#define CONNECT_FAIL \
+  ret_fd = -1;       \
+  goto end
 
 static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size) {
   int timeout = 10000;
@@ -4688,7 +4681,7 @@ static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size) {
       } else {
         if (socket_errno != 0) {
           G_DEBUG("Connection to socket %d failed with error %d.", fd,
-                    socket_errno);
+                  socket_errno);
           ret_fd = -1;
         }
       }
@@ -4736,8 +4729,9 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   SET_OS_ERR(0);
   if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
     fd.funerr = to_errno(GET_OS_ERR);
-    G_DEBUG("Connecting socket to address %s in port %d failed with error %d - %s.",
-              server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
+    G_DEBUG(
+        "Connecting socket to address %s in port %d failed with error %d - %s.",
+        server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
     xcom_close_socket(&fd.val);
     return NULL;
   }
@@ -5044,7 +5038,7 @@ int xcom_client_boot(connection_descriptor *fd, node_list *nl,
 
 int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force) {
   int retval = 0;
-  int retry_count = 10; // Same as 'connection_attempts'
+  int retry_count = 10;  // Same as 'connection_attempts'
   pax_msg p;
   pax_msg *rp = 0;
 

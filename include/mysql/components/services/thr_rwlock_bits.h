@@ -52,8 +52,7 @@
 #include <mysql/components/services/thr_mutex_bits.h>
 
 #ifdef _WIN32
-struct native_rw_lock_t
-{
+struct native_rw_lock_t {
   SRWLOCK srwlock;             /* native reader writer lock */
   BOOL have_exclusive_srwlock; /* used for unlock */
 };

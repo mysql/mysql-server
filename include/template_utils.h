@@ -35,13 +35,11 @@
   Clears a container, but deletes all objects that the elements point to first.
   @tparam Container_type Container of pointers.
  */
-template<typename Container_type>
-void delete_container_pointers(Container_type &container)
-{
-  typename Container_type::iterator it1= container.begin();
-  typename Container_type::iterator it2= container.end();
-  for (; it1 != it2; ++it1)
-  {
+template <typename Container_type>
+void delete_container_pointers(Container_type &container) {
+  typename Container_type::iterator it1 = container.begin();
+  typename Container_type::iterator it2 = container.end();
+  for (; it1 != it2; ++it1) {
     delete (*it1);
   }
   container.clear();
@@ -51,18 +49,15 @@ void delete_container_pointers(Container_type &container)
   Clears a container, but frees all objects that the elements point to first.
   @tparam Container_type Container of pointers.
  */
-template<typename Container_type>
-void my_free_container_pointers(Container_type &container)
-{
-  typename Container_type::iterator it1= container.begin();
-  typename Container_type::iterator it2= container.end();
-  for (; it1 != it2; ++it1)
-  {
+template <typename Container_type>
+void my_free_container_pointers(Container_type &container) {
+  typename Container_type::iterator it1 = container.begin();
+  typename Container_type::iterator it2 = container.end();
+  for (; it1 != it2; ++it1) {
     my_free(*it1);
   }
   container.clear();
 }
-
 
 /**
   Casts from one pointer type, to another, without using
@@ -71,15 +66,13 @@ void my_free_container_pointers(Container_type &container)
   This avoids having to do:
     foo *f; bar *b= static_cast<bar*>(static_cast<void*>(f));
  */
-template<typename T>
-inline T pointer_cast(void *p)
-{
+template <typename T>
+inline T pointer_cast(void *p) {
   return static_cast<T>(p);
 }
 
-template<typename T>
-inline const T pointer_cast(const void *p)
-{
+template <typename T>
+inline const T pointer_cast(const void *p) {
   return static_cast<T>(p);
 }
 
@@ -94,13 +87,11 @@ inline const T pointer_cast(const void *p)
 
   @return A pointer of type Target.
 */
-template<typename Target, typename Source>
-inline Target down_cast(Source *arg)
-{
+template <typename Target, typename Source>
+inline Target down_cast(Source *arg) {
   DBUG_ASSERT(NULL != dynamic_cast<Target>(arg));
   return static_cast<Target>(arg);
 }
-
 
 /**
   Casts from one reference type to another in a type hierarchy.
@@ -113,17 +104,15 @@ inline Target down_cast(Source *arg)
 
   @return A reference of type Target.
 */
-template<typename Target, typename Source>
-inline Target down_cast(Source &arg)
-{
+template <typename Target, typename Source>
+inline Target down_cast(Source &arg) {
   // We still use the pointer version of dynamic_cast, as the
   // reference-accepting version throws exceptions, and we don't want to deal
   // with that.
-  DBUG_ASSERT(dynamic_cast<typename std::remove_reference<Target>::type*>(&arg)
-              != nullptr);
+  DBUG_ASSERT(dynamic_cast<typename std::remove_reference<Target>::type *>(
+                  &arg) != nullptr);
   return static_cast<Target>(arg);
 }
-
 
 /**
    Sometimes the compiler insists that types be the same and does not do any
@@ -137,7 +126,9 @@ inline Target down_cast(Source &arg)
    static_cast would work too, but would be less safe (allows any
    pointer-to-pointer conversion, not only up-casts).
 */
-template<typename To>
-inline To implicit_cast(To x) { return x; }
+template <typename To>
+inline To implicit_cast(To x) {
+  return x;
+}
 
 #endif  // TEMPLATE_UTILS_INCLUDED

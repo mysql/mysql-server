@@ -38,8 +38,7 @@
 
 #define TINA_VERSION 1
 
-struct TINA_SHARE
-{
+struct TINA_SHARE {
   char *table_name;
   char data_file_name[FN_REFLEN];
   uint table_name_length, use_count;
@@ -58,11 +57,11 @@ struct TINA_SHARE
   THR_LOCK lock;
   bool update_file_opened;
   bool tina_write_opened;
-  File meta_file;           /* Meta file we use */
-  File tina_write_filedes;  /* File handler for readers */
-  bool crashed;             /* Meta file is crashed */
-  ha_rows rows_recorded;    /* Number of rows in tables */
-  uint data_file_version;   /* Version of the data file used */
+  File meta_file;          /* Meta file we use */
+  File tina_write_filedes; /* File handler for readers */
+  bool crashed;            /* Meta file is crashed */
+  ha_rows rows_recorded;   /* Number of rows in tables */
+  uint data_file_version;  /* Version of the data file used */
 };
 
 struct tina_set {
@@ -70,17 +69,17 @@ struct tina_set {
   my_off_t end;
 };
 
-class ha_tina: public handler
-{
-  THR_LOCK_DATA lock;      /* MySQL lock */
-  TINA_SHARE *share;       /* Shared lock info */
-  my_off_t current_position;  /* Current position in the file during a file scan */
-  my_off_t next_position;     /* Next position in the file scan */
+class ha_tina : public handler {
+  THR_LOCK_DATA lock; /* MySQL lock */
+  TINA_SHARE *share;  /* Shared lock info */
+  my_off_t
+      current_position;   /* Current position in the file during a file scan */
+  my_off_t next_position; /* Next position in the file scan */
   my_off_t local_saved_data_file_length; /* save position for reads */
   my_off_t temp_file_length;
   uchar byte_buffer[IO_SIZE];
   Transparent_file *file_buff;
-  File data_file;                   /* File handler for readers */
+  File data_file; /* File handler for readers */
   File update_temp_file;
   String buffer;
   /*
@@ -93,35 +92,29 @@ class ha_tina: public handler
   tina_set *chain_ptr;
   uchar chain_alloced;
   uint32 chain_size;
-  uint local_data_file_version;  /* Saved version of the data file used */
+  uint local_data_file_version; /* Saved version of the data file used */
   bool records_is_known;
   MEM_ROOT blobroot;
 
-private:
+ private:
   bool get_write_pos(my_off_t *end_pos, tina_set *closest_hole);
   int open_update_temp_file_if_needed();
   int init_tina_writer();
   int init_data_file();
 
-public:
+ public:
   ha_tina(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_tina()
-  {
-    if (chain_alloced)
-      my_free(chain);
-    if (file_buff)
-      delete file_buff;
+  ~ha_tina() {
+    if (chain_alloced) my_free(chain);
+    if (file_buff) delete file_buff;
     free_root(&blobroot, MYF(0));
   }
   const char *table_type() const { return "CSV"; }
-  ulonglong table_flags() const
-  {
-    return (HA_NO_TRANSACTIONS | HA_NO_AUTO_INCREMENT |
-            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
-            HA_CAN_REPAIR);
+  ulonglong table_flags() const {
+    return (HA_NO_TRANSACTIONS | HA_NO_AUTO_INCREMENT | HA_BINLOG_ROW_CAPABLE |
+            HA_BINLOG_STMT_CAPABLE | HA_CAN_REPAIR);
   }
-  ulong index_flags(uint, uint, bool) const
-  {
+  ulong index_flags(uint, uint, bool) const {
     /*
       We will never have indexes so this will never be called(AKA we return
       zero)
@@ -129,16 +122,18 @@ public:
     return 0;
   }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return 0; }
-  uint max_key_parts()     const { return 0; }
-  uint max_key_length()    const { return 0; }
+  uint max_keys() const { return 0; }
+  uint max_key_parts() const { return 0; }
+  uint max_key_length() const { return 0; }
   /*
      Called in test_quick_select to determine if indexes should be used.
    */
-  virtual double scan_time() { return (double) (stats.records+stats.deleted) / 20.0+10; }
+  virtual double scan_time() {
+    return (double)(stats.records + stats.deleted) / 20.0 + 10;
+  }
   /* The next method will never be called */
-  virtual bool fast_key_read() { return 1;}
-  /* 
+  virtual bool fast_key_read() { return 1; }
+  /*
     TODO: return actual upper bound of number of records in the table.
     (e.g. save number of records seen on full table scan and/or use file size
     as upper bound)
@@ -148,17 +143,17 @@ public:
   int open(const char *name, int mode, uint open_options,
            const dd::Table *table_def);
   int close(void);
-  int write_row(uchar * buf);
-  int update_row(const uchar * old_data, uchar * new_data);
-  int delete_row(const uchar * buf);
-  int rnd_init(bool scan=1);
+  int write_row(uchar *buf);
+  int update_row(const uchar *old_data, uchar *new_data);
+  int delete_row(const uchar *buf);
+  int rnd_init(bool scan = 1);
   int rnd_next(uchar *buf);
-  int rnd_pos(uchar * buf, uchar *pos);
+  int rnd_pos(uchar *buf, uchar *pos);
   bool check_and_repair(THD *thd);
-  int check(THD* thd, HA_CHECK_OPT* check_opt);
+  int check(THD *thd, HA_CHECK_OPT *check_opt);
   bool is_crashed() const;
   int rnd_end();
-  int repair(THD* thd, HA_CHECK_OPT* check_opt);
+  int repair(THD *thd, HA_CHECK_OPT *check_opt);
   /* This is required for SQL layer to know that we support autorepair */
   bool auto_repair() const { return 1; }
   void position(const uchar *record);
@@ -167,11 +162,10 @@ public:
   int delete_all_rows(void);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def);
-  bool check_if_incompatible_data(HA_CREATE_INFO *info,
-                                  uint table_changes);
+  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-      enum thr_lock_type lock_type);
+                             enum thr_lock_type lock_type);
 
   /*
     These functions used to get/update status of the handler.
@@ -185,4 +179,3 @@ public:
   int find_current_row(uchar *buf);
   int chain_append();
 };
-

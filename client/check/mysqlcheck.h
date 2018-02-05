@@ -31,33 +31,37 @@
 
 #include "mysql.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Check{
+namespace Mysql {
+namespace Tools {
+namespace Check {
 
-enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations {
+  DO_CHECK = 1,
+  DO_REPAIR,
+  DO_ANALYZE,
+  DO_OPTIMIZE,
+  DO_UPGRADE
+};
 
-extern void mysql_check(MYSQL* connection, int what_to_do, bool opt_alldbs,
-                bool opt_check_only_changed, bool opt_extended,
-                bool opt_databases, bool opt_fast,
-                bool opt_medium_check, bool opt_quick,
-                bool opt_all_in_1, bool opt_silent,
-                bool opt_auto_repair, bool ignore_errors,
-                bool opt_frm, bool opt_fix_table_names,
-                bool opt_fix_db_names, bool opt_upgrade,
-                bool opt_write_binlog, unsigned int verbose,
-                std::string opt_skip_database,
-                std::vector<std::string> arguments,
-                void (*dberror)(MYSQL *mysql, std::string when));
+extern void mysql_check(MYSQL *connection, int what_to_do, bool opt_alldbs,
+                        bool opt_check_only_changed, bool opt_extended,
+                        bool opt_databases, bool opt_fast,
+                        bool opt_medium_check, bool opt_quick,
+                        bool opt_all_in_1, bool opt_silent,
+                        bool opt_auto_repair, bool ignore_errors, bool opt_frm,
+                        bool opt_fix_table_names, bool opt_fix_db_names,
+                        bool opt_upgrade, bool opt_write_binlog,
+                        unsigned int verbose, std::string opt_skip_database,
+                        std::vector<std::string> arguments,
+                        void (*dberror)(MYSQL *mysql, std::string when));
 
 /**
   This class is object wrapper to mysql_check function. It looks like
   it is implementing Abstract_program, but it is not explicitly implementing
   it now. This is to make future implementation of Abstract_program easier.
  */
-class Program
-{
-public:
+class Program {
+ public:
   /**
     Default constructor.
    */
@@ -66,63 +70,63 @@ public:
   /**
     Checks specified databases on MySQL server.
    */
-  int check_databases(MYSQL* connection, std::vector<std::string> databases);
+  int check_databases(MYSQL *connection, std::vector<std::string> databases);
   /**
     Checks all databases on MySQL server.
    */
-  int check_all_databases(MYSQL* connection);
+  int check_all_databases(MYSQL *connection);
   /**
     Upgrades specified on MySQL server.
    */
-  int upgrade_databases(MYSQL* connection, std::vector<std::string> databases);
+  int upgrade_databases(MYSQL *connection, std::vector<std::string> databases);
   /**
     Upgrades all databases on MySQL server.
    */
-  int upgrade_all_databases(MYSQL* connection);
+  int upgrade_all_databases(MYSQL *connection);
 
   /**
     Automatically try to fix table when upgrade is needed.
    */
-  Program* enable_auto_repair(bool enable);
+  Program *enable_auto_repair(bool enable);
   /**
     Check and upgrade tables.
    */
-  Program* enable_upgrade(bool enable);
+  Program *enable_upgrade(bool enable);
   /**
     Turns on verbose messages.
    */
-  Program* enable_verbosity(bool enable);
+  Program *enable_verbosity(bool enable);
   /**
     Enables logging repairing queries to binlog.
    */
-  Program* enable_writing_binlog(bool enable);
+  Program *enable_writing_binlog(bool enable);
   /**
     Enables table name fixing for all encountered tables.
    */
-  Program* enable_fixing_table_names(bool enable);
+  Program *enable_fixing_table_names(bool enable);
   /**
     Enables database name fixing for all encountered databases.
    */
-  Program* enable_fixing_db_names(bool enable);
+  Program *enable_fixing_db_names(bool enable);
   /**
     Ignores all errors and don't print error messages.
    */
-  Program* set_ignore_errors(bool ignore);
+  Program *set_ignore_errors(bool ignore);
   /**
     Sets a name of database to ignore during process.
    */
-  Program* set_skip_database(std::string database);
+  Program *set_skip_database(std::string database);
   /**
     Sets error callback to be called when error is encountered.
    */
-  Program* set_error_callback(
-    void (*error_callback)(MYSQL *mysql, std::string when));
+  Program *set_error_callback(void (*error_callback)(MYSQL *mysql,
+                                                     std::string when));
 
-private:
+ private:
   /**
     Sets mysqlcheck program operation type to perform.
    */
-  Program* set_what_to_do(int functionality);
+  Program *set_what_to_do(int functionality);
   /**
     Starts mysqlcheck process.
    */
@@ -137,13 +141,13 @@ private:
   bool m_process_all_dbs;
   bool m_fix_table_names;
   bool m_fix_db_names;
-  MYSQL* m_connection;
+  MYSQL *m_connection;
   std::string m_database_to_skip;
   void (*m_error_callback)(MYSQL *mysql, std::string when);
 };
 
-}
-}
-}
+}  // namespace Check
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

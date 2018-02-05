@@ -31,9 +31,8 @@
   This represents the unique identification of a group. The group uniqueness is
   relevant since it is the destination of data. Thus, it cannot be ambiguous.
 */
-class Gcs_group_identifier
-{
-public:
+class Gcs_group_identifier {
+ public:
   /**
     Gcs_group_identifier constructor.
 
@@ -42,16 +41,13 @@ public:
 
   explicit Gcs_group_identifier(const std::string &group_id);
 
-
   ~Gcs_group_identifier() {}
-
 
   /**
     @return the group identifier
   */
 
   const std::string &get_group_id() const;
-
 
   /**
     Redefinition of the operator less, to allow usage as key in maps.
@@ -64,7 +60,6 @@ public:
 
   bool operator<(const Gcs_group_identifier &other) const;
 
-
   /**
     Redefinition of the operator equals, to allow usage in sets.
 
@@ -76,9 +71,8 @@ public:
 
   bool operator==(const Gcs_group_identifier &other) const;
 
-
-private:
+ private:
   std::string group_id;
 };
 
-#endif // GCS_GROUP_IDENTIFIER_INCLUDED
+#endif  // GCS_GROUP_IDENTIFIER_INCLUDED

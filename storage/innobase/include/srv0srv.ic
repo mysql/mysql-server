@@ -24,9 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/srv0srv.ic
-Server main program
+/**************************************************/ /**
+ @file include/srv0srv.ic
+ Server main program
 
-Created 10/4/1995 Heikki Tuuri
-*******************************************************/
+ Created 10/4/1995 Heikki Tuuri
+ *******************************************************/

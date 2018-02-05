@@ -29,39 +29,31 @@
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 
-//Define the data packet type
-#define DATA_PACKET_TYPE  1
+// Define the data packet type
+#define DATA_PACKET_TYPE 1
 
 /**
   @class Packet
 
   A generic interface for different kinds of packets.
 */
-class Packet
-{
-public:
-
+class Packet {
+ public:
   /**
    Create a new generic packet of a certain type.
 
    @param[in]  type             the packet type
   */
-  Packet(int type)
-    :packet_type(type)
-  {
-  }
+  Packet(int type) : packet_type(type) {}
 
-  virtual ~Packet() {};
+  virtual ~Packet(){};
 
   /**
    @return the packet type
   */
-  int get_packet_type()
-  {
-    return packet_type;
-  }
+  int get_packet_type() { return packet_type; }
 
-private:
+ private:
   int packet_type;
 };
 
@@ -70,10 +62,8 @@ private:
 
   A wrapper for raw network packets.
 */
-class Data_packet: public Packet
-{
-public:
-
+class Data_packet : public Packet {
+ public:
   /**
     Create a new data packet wrapper.
 
@@ -81,29 +71,23 @@ public:
     @param[in]  len              the packet length
   */
   Data_packet(const uchar *data, ulong len)
-    : Packet(DATA_PACKET_TYPE), payload(NULL), len(len)
-  {
-    payload= (uchar*)my_malloc(
-                               PSI_NOT_INSTRUMENTED,
-                               len, MYF(0));
+      : Packet(DATA_PACKET_TYPE), payload(NULL), len(len) {
+    payload = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(0));
     memcpy(payload, data, len);
   }
 
-  ~Data_packet()
-  {
-    my_free(payload);
-  }
+  ~Data_packet() { my_free(payload); }
 
   uchar *payload;
   ulong len;
 };
 
-//Define the data packet type
-#define UNDEFINED_EVENT_MODIFIER  0
+// Define the data packet type
+#define UNDEFINED_EVENT_MODIFIER 0
 
-//Define the size of the pipeline IO_CACHEs
+// Define the size of the pipeline IO_CACHEs
 #define DEFAULT_EVENT_IO_CACHE_SIZE 16384
-#define SHARED_EVENT_IO_CACHE_SIZE (DEFAULT_EVENT_IO_CACHE_SIZE*16)
+#define SHARED_EVENT_IO_CACHE_SIZE (DEFAULT_EVENT_IO_CACHE_SIZE * 16)
 
 /**
   @class Pipeline_event
@@ -116,10 +100,8 @@ public:
         This is a generic field allowing modifiers to vary with use context.
         If not specified, this field has a default value of 0.
 */
-class Pipeline_event
-{
-public:
-
+class Pipeline_event {
+ public:
   /**
     Create a new pipeline wrapper based on a packet.
 
@@ -131,11 +113,14 @@ public:
     @param[in]  modifier         the event modifier
   */
   Pipeline_event(Data_packet *base_packet,
-                Format_description_log_event *fde_event,
-                IO_CACHE *cache, int modifier= UNDEFINED_EVENT_MODIFIER)
-    :packet(base_packet), log_event(NULL), event_context(modifier),
-    format_descriptor(fde_event), cache(cache), user_provided_cache(cache != NULL)
-  {}
+                 Format_description_log_event *fde_event, IO_CACHE *cache,
+                 int modifier = UNDEFINED_EVENT_MODIFIER)
+      : packet(base_packet),
+        log_event(NULL),
+        event_context(modifier),
+        format_descriptor(fde_event),
+        cache(cache),
+        user_provided_cache(cache != NULL) {}
 
   /**
     Create a new pipeline wrapper based on a log event.
@@ -147,26 +132,24 @@ public:
     @param[in]  cache            IO_CACHED to be used on this event
     @param[in]  modifier         the event modifier
   */
- Pipeline_event(Log_event *base_event,
-               Format_description_log_event *fde_event,
-               IO_CACHE *cache, int modifier= UNDEFINED_EVENT_MODIFIER)
-    :packet(NULL), log_event(base_event), event_context(modifier),
-    format_descriptor(fde_event), cache(cache), user_provided_cache(cache != NULL)
-  {}
+  Pipeline_event(Log_event *base_event, Format_description_log_event *fde_event,
+                 IO_CACHE *cache, int modifier = UNDEFINED_EVENT_MODIFIER)
+      : packet(NULL),
+        log_event(base_event),
+        event_context(modifier),
+        format_descriptor(fde_event),
+        cache(cache),
+        user_provided_cache(cache != NULL) {}
 
-  ~Pipeline_event()
-  {
-    if (packet != NULL)
-    {
+  ~Pipeline_event() {
+    if (packet != NULL) {
       delete packet;
     }
-    if (log_event != NULL)
-    {
-       delete log_event;
+    if (log_event != NULL) {
+      delete log_event;
     }
 
-    if (cache != NULL && !user_provided_cache)
-    {
+    if (cache != NULL && !user_provided_cache) {
       close_cached_file(cache); /* purecov: inspected */
       my_free(cache);           /* purecov: inspected */
     }
@@ -177,10 +160,7 @@ public:
 
     @return the IO_CACHE (which may be NULL)
   */
-  IO_CACHE *get_cache()
-  {
-    return cache;
-  }
+  IO_CACHE *get_cache() { return cache; }
 
   /**
     Return current format description event.
@@ -190,9 +170,8 @@ public:
     @return Operation status
       @retval 0      OK
   */
-  int get_FormatDescription(Format_description_log_event **out_fde)
-  {
-    *out_fde= format_descriptor;
+  int get_FormatDescription(Format_description_log_event **out_fde) {
+    *out_fde = format_descriptor;
     return 0;
   }
 
@@ -206,13 +185,12 @@ public:
       @retval 0      OK
       @retval !=0    error on conversion
   */
-  int get_LogEvent(Log_event **out_event)
-  {
-     if (log_event == NULL)
-       if (int error= convert_packet_to_log_event())
-         return error; /* purecov: inspected */
-     *out_event= log_event;
-     return 0;
+  int get_LogEvent(Log_event **out_event) {
+    if (log_event == NULL)
+      if (int error = convert_packet_to_log_event())
+        return error; /* purecov: inspected */
+    *out_event = log_event;
+    return 0;
   }
 
   /**
@@ -222,10 +200,7 @@ public:
 
     @param[in]  in_event    the given log event
   */
-  void set_LogEvent(Log_event *in_event)
-  {
-     log_event= in_event;
-  }
+  void set_LogEvent(Log_event *in_event) { log_event = in_event; }
 
   /**
     Sets the pipeline event's packet.
@@ -234,10 +209,7 @@ public:
 
     @param[in]  in_packet    the given packet
   */
-  void set_Packet(Data_packet *in_packet)
-  {
-     packet= in_packet;
-  }
+  void set_Packet(Data_packet *in_packet) { packet = in_packet; }
 
   /**
     Return a packet. If one does not exist, the contained log event will be
@@ -249,13 +221,12 @@ public:
       @retval 0      OK
       @retval !=0    error on conversion
   */
-  int get_Packet(Data_packet **out_packet)
-  {
-     if (packet == NULL)
-       if (int error= convert_log_event_to_packet())
-         return error; /* purecov: inspected */
-     *out_packet= packet;
-     return 0;
+  int get_Packet(Data_packet **out_packet) {
+    if (packet == NULL)
+      if (int error = convert_log_event_to_packet())
+        return error; /* purecov: inspected */
+    *out_packet = packet;
+    return 0;
   }
 
   /**
@@ -264,33 +235,26 @@ public:
 
     @return the pipeline event type
   */
-  Log_event_type get_event_type()
-  {
+  Log_event_type get_event_type() {
     if (packet != NULL)
-      return (Log_event_type) packet->payload[EVENT_TYPE_OFFSET];
+      return (Log_event_type)packet->payload[EVENT_TYPE_OFFSET];
     else
       return log_event->get_type_code();
-   }
+  }
 
   /**
     Sets the event context flag.
 
     @param[in]  modifier    the event modifier
   */
-  void mark_event(int modifier)
-  {
-    event_context= modifier;
-  }
+  void mark_event(int modifier) { event_context = modifier; }
 
   /**
     Returns the event context flag
 
     @return
   */
-  int get_event_context()
-  {
-    return event_context;
-  }
+  int get_event_context() { return event_context; }
 
   /**
     Resets all variables in the event for reuse.
@@ -302,23 +266,19 @@ public:
     This is due to the fact that they are given, and do not belong to the
     pipeline event.
   */
-  void reset_pipeline_event()
-  {
-    if (packet != NULL)
-    {
+  void reset_pipeline_event() {
+    if (packet != NULL) {
       delete packet; /* purecov: inspected */
       packet = NULL; /* purecov: inspected */
     }
-    if (log_event != NULL)
-    {
+    if (log_event != NULL) {
       delete log_event;
       log_event = NULL;
     }
-    event_context= UNDEFINED_EVENT_MODIFIER;
+    event_context = UNDEFINED_EVENT_MODIFIER;
   }
 
-private:
-
+ private:
   /**
     Converts the existing packet into a log event.
 
@@ -326,23 +286,23 @@ private:
       @retval 0      OK
       @retval 1      Error on packet conversion
   */
-  int convert_packet_to_log_event()
-  {
-    int error= 0;
+  int convert_packet_to_log_event() {
+    int error = 0;
     const char *errmsg = 0;
 
-    uint event_len= uint4korr(((uchar*)(packet->payload)) + EVENT_LEN_OFFSET);
-    log_event= Log_event::read_log_event((const char*)packet->payload, event_len,
-                                         &errmsg, format_descriptor, true);
+    uint event_len = uint4korr(((uchar *)(packet->payload)) + EVENT_LEN_OFFSET);
+    log_event =
+        Log_event::read_log_event((const char *)packet->payload, event_len,
+                                  &errmsg, format_descriptor, true);
 
-    if (unlikely(!log_event))
-    {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_PACKET_TO_EVENT, errmsg); /* purecov: inspected */
-      error= 1; /* purecov: inspected */
+    if (unlikely(!log_event)) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_PACKET_TO_EVENT,
+                   errmsg); /* purecov: inspected */
+      error = 1;            /* purecov: inspected */
     }
 
     delete packet;
-    packet= NULL;
+    packet = NULL;
 
     return error;
   }
@@ -354,109 +314,109 @@ private:
       @retval 0      OK
       @retval !=0    Error on log event conversion
   */
-  int convert_log_event_to_packet()
-  {
-    int error= 0;
+  int convert_log_event_to_packet() {
+    int error = 0;
     String packet_data;
 
     /*
       Reuse the same cache for improved performance.
     */
-    if (cache == NULL)
-    {
+    if (cache == NULL) {
       /* Open cache. */
-      cache= (IO_CACHE*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                   sizeof(IO_CACHE),
-                                   MYF(MY_ZEROFILL));
-      if (!cache || (!my_b_inited(cache) &&
-                     open_cached_file(cache, mysql_tmpdir,
-                                      "group_replication_pipeline_cache",
-                                      DEFAULT_EVENT_IO_CACHE_SIZE,
-                                      MYF(MY_WME))))
-      {
+      cache = (IO_CACHE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(IO_CACHE),
+                                    MYF(MY_ZEROFILL));
+      if (!cache ||
+          (!my_b_inited(cache) &&
+           open_cached_file(cache, mysql_tmpdir,
+                            "group_replication_pipeline_cache",
+                            DEFAULT_EVENT_IO_CACHE_SIZE, MYF(MY_WME)))) {
         my_free(cache); /* purecov: inspected */
-        cache= NULL;    /* purecov: inspected */
-        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_CREATE_FAILED); /* purecov: inspected */
-        return 1;       /* purecov: inspected */
+        cache = NULL;   /* purecov: inspected */
+        LogPluginErr(
+            ERROR_LEVEL,
+            ER_GRP_RPL_PIPELINE_CREATE_FAILED); /* purecov: inspected */
+        return 1;                               /* purecov: inspected */
       }
-    }
-    else
-    {
+    } else {
       /* Reinit cache. */
-      if ((error= reinit_io_cache(cache, WRITE_CACHE, 0, 0, 0)))
-      {
-        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_REINIT_FAILED_WRITE); /* purecov: inspected */
-        return error; /* purecov: inspected */
+      if ((error = reinit_io_cache(cache, WRITE_CACHE, 0, 0, 0))) {
+        LogPluginErr(
+            ERROR_LEVEL,
+            ER_GRP_RPL_PIPELINE_REINIT_FAILED_WRITE); /* purecov: inspected */
+        return error;                                 /* purecov: inspected */
       }
     }
 
-    if ((error= log_event->write(cache)))
-    {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET, error); /* purecov: inspected */
-      return error; /* purecov: inspected */
+    if ((error = log_event->write(cache))) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET,
+                   error); /* purecov: inspected */
+      return error;        /* purecov: inspected */
     }
 
     /*
       Avoid call flush_io_cache() before reinit_io_cache() to
       READ_CACHE if temporary file does not exist.
     */
-    if (cache->file != -1 && (error= flush_io_cache(cache)))
-    {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_FLUSH_FAIL); /* purecov: inspected */
-      return error; /* purecov: inspected */
+    if (cache->file != -1 && (error = flush_io_cache(cache))) {
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_PIPELINE_FLUSH_FAIL); /* purecov: inspected */
+      return error;                                 /* purecov: inspected */
     }
 
-    if ((error= reinit_io_cache(cache, READ_CACHE, 0, 0, 0)))
-    {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PIPELINE_REINIT_FAILED_READ); /* purecov: inspected */
-      return error; /* purecov: inspected */
+    if ((error = reinit_io_cache(cache, READ_CACHE, 0, 0, 0))) {
+      LogPluginErr(
+          ERROR_LEVEL,
+          ER_GRP_RPL_PIPELINE_REINIT_FAILED_READ); /* purecov: inspected */
+      return error;                                /* purecov: inspected */
     }
 
-    if ((error= Log_event::read_log_event(cache, &packet_data, 0,
-                                          binary_log::BINLOG_CHECKSUM_ALG_OFF)))
-    {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET, get_string_log_read_error_msg(error)); /* purecov: inspected */
-      return error; /* purecov: inspected */
+    if ((error = Log_event::read_log_event(
+             cache, &packet_data, 0, binary_log::BINLOG_CHECKSUM_ALG_OFF))) {
+      LogPluginErr(
+          ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET,
+          get_string_log_read_error_msg(error)); /* purecov: inspected */
+      return error;                              /* purecov: inspected */
     }
-    packet= new Data_packet((uchar*)packet_data.ptr(), static_cast<ulong>(packet_data.length()));
+    packet = new Data_packet((uchar *)packet_data.ptr(),
+                             static_cast<ulong>(packet_data.length()));
 
     delete log_event;
-    log_event= NULL;
+    log_event = NULL;
 
     return error;
   }
 
-  const char* get_string_log_read_error_msg(int error)
-  {
-    switch (error)
-    {
+  const char *get_string_log_read_error_msg(int error) {
+    switch (error) {
       case LOG_READ_BOGUS:
         return "corrupted data in log event";
       case LOG_READ_TOO_LARGE:
         return "log event entry exceeded slave_max_allowed_packet; Increase "
-          "slave_max_allowed_packet";
+               "slave_max_allowed_packet";
       case LOG_READ_IO:
         return "I/O error reading log event";
       case LOG_READ_MEM:
-        return "memory allocation failed reading log event, machine is out of memory";
+        return "memory allocation failed reading log event, machine is out of "
+               "memory";
       case LOG_READ_TRUNC:
-        return "binlog truncated in the middle of event; consider out of disk space";
+        return "binlog truncated in the middle of event; consider out of disk "
+               "space";
       case LOG_READ_CHECKSUM_FAILURE:
         return "event read from binlog did not pass checksum algorithm "
-          "check specified on --binlog-checksum option";
+               "check specified on --binlog-checksum option";
       default:
         return "unknown error reading log event";
     }
   }
 
-private:
-  Data_packet                  *packet;
-  Log_event                    *log_event;
-  int                          event_context;
+ private:
+  Data_packet *packet;
+  Log_event *log_event;
+  int event_context;
   /* Format description event used on conversions */
   Format_description_log_event *format_descriptor;
-  IO_CACHE                     *cache;
-  bool                         user_provided_cache;
+  IO_CACHE *cache;
+  bool user_provided_cache;
 };
 
 /**
@@ -466,22 +426,18 @@ private:
   The class can also be used to report whenever a transaction is discarded
   as a result of execution.
 */
-class Continuation
-{
-public:
-
-  Continuation()
-    :ready(false), error_code(0), transaction_discarded(false)
-  {
-    mysql_mutex_init(key_GR_LOCK_pipeline_continuation, &lock, MY_MUTEX_INIT_FAST);
+class Continuation {
+ public:
+  Continuation() : ready(false), error_code(0), transaction_discarded(false) {
+    mysql_mutex_init(key_GR_LOCK_pipeline_continuation, &lock,
+                     MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_GR_COND_pipeline_continuation, &cond);
   }
 
-  ~Continuation()
-   {
-     mysql_mutex_destroy(&lock);
-     mysql_cond_destroy(&cond);
-   }
+  ~Continuation() {
+    mysql_mutex_destroy(&lock);
+    mysql_cond_destroy(&cond);
+  }
 
   /**
     Wait until release.
@@ -493,14 +449,12 @@ public:
       @retval 0      OK
       @retval !=0    Error returned on the execution
   */
-  int wait()
-  {
+  int wait() {
     mysql_mutex_lock(&lock);
-    while (!ready && !error_code)
-    {
+    while (!ready && !error_code) {
       mysql_cond_wait(&cond, &lock); /* purecov: inspected */
     }
-    ready= false;
+    ready = false;
     mysql_mutex_unlock(&lock);
 
     return error_code;
@@ -513,13 +467,12 @@ public:
     @param[in]  tran_discarded    if the transaction to whom the event belongs
                                   was discarded
   */
-  void signal(int error=0, bool tran_discarded=false)
-  {
-    transaction_discarded= tran_discarded;
-    error_code= error;
+  void signal(int error = 0, bool tran_discarded = false) {
+    transaction_discarded = tran_discarded;
+    error_code = error;
 
     mysql_mutex_lock(&lock);
-    ready= true;
+    ready = true;
     mysql_mutex_unlock(&lock);
     mysql_cond_broadcast(&cond);
   }
@@ -527,19 +480,15 @@ public:
   /**
     Reset the error code after a reported error.
   */
-  void reset_error_code()
-  {
-    error_code= 0;
-  }
+  void reset_error_code() { error_code = 0; }
 
   /**
     Sets the value of the flag for discarded transactions.
 
     @param[in]  discarded          is the transaction discarded.
   */
-  void set_transation_discarded(bool discarded)
-  {
-    transaction_discarded= discarded;
+  void set_transation_discarded(bool discarded) {
+    transaction_discarded = discarded;
   }
 
   /**
@@ -549,20 +498,15 @@ public:
       @retval 0       not discarded
       @retval !=0     discarded
   */
-  bool is_transaction_discarded()
-  {
-    return transaction_discarded;
-  }
+  bool is_transaction_discarded() { return transaction_discarded; }
 
-private:
+ private:
   mysql_mutex_t lock;
-  mysql_cond_t  cond;
-  bool          ready;
-  int           error_code;
-  bool          transaction_discarded;
-
+  mysql_cond_t cond;
+  bool ready;
+  int error_code;
+  bool transaction_discarded;
 };
-
 
 /**
   @class Pipeline_action
@@ -577,16 +521,11 @@ private:
         Actions are good for executing start and stop actions for example, but
         also for configuring handlers.
 */
-class Pipeline_action
-{
-public:
+class Pipeline_action {
+ public:
+  Pipeline_action(int action_type) { type = action_type; }
 
-  Pipeline_action(int action_type)
-  {
-    type= action_type;
-  }
-
-  virtual ~Pipeline_action() {};
+  virtual ~Pipeline_action(){};
 
   /**
     Returns this action type.
@@ -595,12 +534,9 @@ public:
 
     @return the action type
   */
-  int get_action_type()
-  {
-    return type;
-  }
+  int get_action_type() { return type; }
 
-private:
+ private:
   int type;
 };
 
@@ -615,12 +551,11 @@ private:
   used to identify them in a pipeline.
   Roles are defined by the user of this class according to his context.
 */
-class Event_handler
-{
-public:
-  Event_handler() :next_in_pipeline(NULL) {}
+class Event_handler {
+ public:
+  Event_handler() : next_in_pipeline(NULL) {}
 
-  virtual ~Event_handler(){}
+  virtual ~Event_handler() {}
 
   /**
     Initialization as defined in the handler implementation.
@@ -630,12 +565,12 @@ public:
     then depend on Action packets to configure and start existing handler
     routines.
   */
-  virtual int initialize()= 0;
+  virtual int initialize() = 0;
 
   /**
     Terminate the execution as defined in the handler implementation.
   */
-  virtual int terminate()= 0;
+  virtual int terminate() = 0;
 
   /**
     Handling of an event as defined in the handler implementation.
@@ -651,7 +586,8 @@ public:
     @param[in]      event           the pipeline event to be handled
     @param[in,out]  continuation    termination notification object.
   */
-  virtual int handle_event(Pipeline_event *event, Continuation *continuation)= 0;
+  virtual int handle_event(Pipeline_event *event,
+                           Continuation *continuation) = 0;
 
   /**
     Handling of an action as defined in the handler implementation.
@@ -666,18 +602,17 @@ public:
 
     @param[in]      action         the pipeline event to be handled
   */
-  virtual int handle_action(Pipeline_action *action)= 0;
+  virtual int handle_action(Pipeline_action *action) = 0;
 
-  //pipeline appending methods
+  // pipeline appending methods
 
   /**
     Plug an handler to be the next in line for execution.
 
     @param[in]      next_handler       the next handler in line
   */
-  void plug_next_handler(Event_handler *next_handler)
-  {
-    next_in_pipeline= next_handler;
+  void plug_next_handler(Event_handler *next_handler) {
+    next_in_pipeline = next_handler;
   }
 
   /**
@@ -685,12 +620,10 @@ public:
 
     @param[in]      last_handler    the last handler in line
   */
-  void append(Event_handler *last_handler)
-  {
-    Event_handler *pipeline_iter= this;
-    while (pipeline_iter->next_in_pipeline)
-    {
-      pipeline_iter= pipeline_iter->next_in_pipeline;
+  void append(Event_handler *last_handler) {
+    Event_handler *pipeline_iter = this;
+    while (pipeline_iter->next_in_pipeline) {
+      pipeline_iter = pipeline_iter->next_in_pipeline;
     }
     pipeline_iter->plug_next_handler(last_handler);
   }
@@ -703,15 +636,15 @@ public:
     @param[in,out]  pipeline       the pipeline to append the handler
     @param[in]      event_handler  the event handler to append
   */
-  static void append_handler(Event_handler **pipeline, Event_handler *event_handler)
-  {
+  static void append_handler(Event_handler **pipeline,
+                             Event_handler *event_handler) {
     if (!(*pipeline))
-      *pipeline= event_handler;
+      *pipeline = event_handler;
     else
       (*pipeline)->append(event_handler);
   }
 
-  //pipeline information methods
+  // pipeline information methods
 
   /**
     Returns an handler that plays the given role
@@ -724,22 +657,18 @@ public:
     @param[out]     event_handler  the retrieved event handler
   */
   static void get_handler_by_role(Event_handler *pipeline, int role,
-                                  Event_handler **event_handler)
-  {
-    *event_handler= NULL;
+                                  Event_handler **event_handler) {
+    *event_handler = NULL;
 
-    if (pipeline == NULL)
-      return; /* purecov: inspected */
+    if (pipeline == NULL) return; /* purecov: inspected */
 
-    Event_handler *pipeline_iter= pipeline;
-    while (pipeline_iter)
-    {
-      if (pipeline_iter->get_role() == role )
-      {
-        *event_handler= pipeline_iter;
+    Event_handler *pipeline_iter = pipeline;
+    while (pipeline_iter) {
+      if (pipeline_iter->get_role() == role) {
+        *event_handler = pipeline_iter;
         return;
       }
-      pipeline_iter= pipeline_iter->next_in_pipeline;
+      pipeline_iter = pipeline_iter->next_in_pipeline;
     }
   }
 
@@ -756,7 +685,7 @@ public:
       @retval true      is a unique handler
       @retval false     is a repeatable handler
   */
-  virtual bool is_unique()= 0;
+  virtual bool is_unique() = 0;
 
   /**
     This method returns the handler role.
@@ -768,9 +697,9 @@ public:
 
     @return the handler role
   */
-  virtual int get_role()= 0;
+  virtual int get_role() = 0;
 
-  //pipeline destruction methods
+  // pipeline destruction methods
 
   /**
     Shutdown and delete all handlers in the pipeline.
@@ -779,30 +708,26 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int terminate_pipeline()
-  {
-
-    int error= 0;
-    while (next_in_pipeline != NULL)
-    {
-      Event_handler *pipeline_iter= this;
-      Event_handler *temp_handler= NULL;
-      while (pipeline_iter->next_in_pipeline != NULL)
-      {
-        temp_handler= pipeline_iter;
-        pipeline_iter= pipeline_iter->next_in_pipeline;
+  int terminate_pipeline() {
+    int error = 0;
+    while (next_in_pipeline != NULL) {
+      Event_handler *pipeline_iter = this;
+      Event_handler *temp_handler = NULL;
+      while (pipeline_iter->next_in_pipeline != NULL) {
+        temp_handler = pipeline_iter;
+        pipeline_iter = pipeline_iter->next_in_pipeline;
       }
       if (pipeline_iter->terminate())
-        error= 1;//report an error, but try to finish the job /* purecov: inspected */
+        error = 1;  // report an error, but try to finish the job /* purecov:
+                    // inspected */
       delete temp_handler->next_in_pipeline;
-      temp_handler->next_in_pipeline= NULL;
+      temp_handler->next_in_pipeline = NULL;
     }
     this->terminate();
     return error;
   }
 
-protected:
-
+ protected:
   /**
     Pass the event to the next handler in line. If none exists, this method
     will signal the continuation method and exit.
@@ -810,8 +735,7 @@ protected:
     @param[in]      event           the pipeline event to be handled
     @param[in,out]  continuation    termination notification object.
   */
-  int next(Pipeline_event *event, Continuation *continuation)
-  {
+  int next(Pipeline_event *event, Continuation *continuation) {
     if (next_in_pipeline)
       next_in_pipeline->handle_event(event, continuation);
     else
@@ -825,18 +749,16 @@ protected:
 
     @param[in]  action     the pipeline action to be handled
   */
-  int next(Pipeline_action *action)
-  {
-    int error= 0;
+  int next(Pipeline_action *action) {
+    int error = 0;
 
-    if (next_in_pipeline)
-      error= next_in_pipeline->handle_action(action);
+    if (next_in_pipeline) error = next_in_pipeline->handle_action(action);
 
     return error;
   }
 
-private:
-  //The next handler in the pipeline
+ private:
+  // The next handler in the pipeline
   Event_handler *next_in_pipeline;
 };
 

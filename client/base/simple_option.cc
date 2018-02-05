@@ -30,7 +30,6 @@ using namespace Mysql::Tools::Base::Options;
 using std::string;
 
 Simple_option::Simple_option(string name, string description)
-  : Abstract_option<Simple_option>(NULL, GET_NO_ARG, name, description, 0)
-{
-  this->m_option_structure.arg_type= NO_ARG;
+    : Abstract_option<Simple_option>(NULL, GET_NO_ARG, name, description, 0) {
+  this->m_option_structure.arg_type = NO_ARG;
 }

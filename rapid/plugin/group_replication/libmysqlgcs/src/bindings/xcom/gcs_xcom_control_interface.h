@@ -61,9 +61,8 @@
   parameters used by the thread that processes the suspicions.
   Suspicions are added and removed upon reception of a new global view.
 */
-class Gcs_suspicions_manager
-{
-public:
+class Gcs_suspicions_manager {
+ public:
   /**
     Constructor for Gcs_suspicions_manager, which sets m_proxy with the
     received pointer parameter.
@@ -72,13 +71,11 @@ public:
 
   explicit Gcs_suspicions_manager(Gcs_xcom_proxy *proxy);
 
-
   /**
     Destructor for Gcs_suspicions_manager.
   */
 
   ~Gcs_suspicions_manager();
-
 
   /**
     Invoked by Gcs_xcom_control::xcom_receive_global_view, it invokes the
@@ -98,7 +95,6 @@ public:
                     std::vector<Gcs_member_identifier *> expel_nodes,
                     std::vector<Gcs_member_identifier *> suspect_nodes);
 
-
   /**
     Invoked periodically by the suspicions processing thread, it picks a
     timestamp and verifies which suspect nodes should be removed as they
@@ -107,20 +103,17 @@ public:
 
   void process_suspicions();
 
-
   /**
     Retrieves current list of suspicions.
   */
 
-  const Gcs_xcom_nodes& get_suspicions() const;
-
+  const Gcs_xcom_nodes &get_suspicions() const;
 
   /**
     Retrieves suspicion thread period in seconds.
   */
 
   unsigned int get_period() const;
-
 
   /**
     Sets the period or sleep time, between iterations, for the suspicion
@@ -130,13 +123,11 @@ public:
 
   void set_period(unsigned int sec);
 
-
   /**
     Retrieves suspicion timeout in 100s of nanoseconds.
   */
 
   uint64_t get_timeout() const;
-
 
   /**
     Sets the time interval to wait before removing the suspect nodes
@@ -146,7 +137,6 @@ public:
 
   void set_timeout_seconds(unsigned long sec);
 
-
   /**
     Sets the hash for the current group identifier.
     @param[in] gid_h Group ID hash
@@ -154,8 +144,7 @@ public:
 
   void set_groupid_hash(unsigned int gid_h);
 
-private:
-
+ private:
   /**
     Invoked by Gcs_suspicions_manager::process_view, it verifies if any
     of the nodes in the received list was a suspect and removes it from
@@ -164,7 +153,6 @@ private:
   */
 
   void remove_suspicions(std::vector<Gcs_member_identifier *> nodes);
-
 
   /**
     Invoked by Gcs_suspicions_manager::process_view, it adds suspicions
@@ -177,7 +165,6 @@ private:
 
   void add_suspicions(Gcs_xcom_nodes *xcom_nodes,
                       std::vector<Gcs_member_identifier *> suspect_nodes);
-
 
   /**
     XCom proxy pointer
@@ -210,10 +197,9 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_suspicions_manager(Gcs_suspicions_manager const&);
-  Gcs_suspicions_manager& operator=(Gcs_suspicions_manager const&);
+  Gcs_suspicions_manager(Gcs_suspicions_manager const &);
+  Gcs_suspicions_manager &operator=(Gcs_suspicions_manager const &);
 };
-
 
 /**
   @class Gcs_xcom_control_interface
@@ -228,9 +214,8 @@ private:
      procedure is not finished, all applications are not allowed to execute
      operations based upon a possible inconsistent state.
 */
-class Gcs_xcom_control: public Gcs_control_interface
-{
-public:
+class Gcs_xcom_control : public Gcs_control_interface {
+ public:
   /**
     Gcs_xcom_control_interface constructor.
 
@@ -242,30 +227,29 @@ public:
     @param[in] xcom_proxy Proxy implementation reference
     @param[in] xcom_group_management Group management reference
     @param[in] gcs_engine MySQL GCS engine
-    @param[in] state_exchange Reference to the State Exchange algorithm implementation
+    @param[in] state_exchange Reference to the State Exchange algorithm
+    implementation
     @param[in] view_control View change control interface reference
     @param[in] boot Whether the node will be used to bootstrap the group
     @param[in] socket_util Reference to a socket utility
   */
 
   explicit Gcs_xcom_control(
-    Gcs_xcom_node_address *xcom_node_address,
-    std::vector<Gcs_xcom_node_address *> &xcom_peers,
-    Gcs_group_identifier group_identifier,
-    Gcs_xcom_proxy *xcom_proxy,
-    Gcs_xcom_group_management *xcom_group_management,
-    Gcs_xcom_engine *gcs_engine,
-    Gcs_xcom_state_exchange_interface *state_exchange,
-    Gcs_xcom_view_change_control_interface *view_control,
-    bool boot,
-    My_xp_socket_util *socket_util);
+      Gcs_xcom_node_address *xcom_node_address,
+      std::vector<Gcs_xcom_node_address *> &xcom_peers,
+      Gcs_group_identifier group_identifier, Gcs_xcom_proxy *xcom_proxy,
+      Gcs_xcom_group_management *xcom_group_management,
+      Gcs_xcom_engine *gcs_engine,
+      Gcs_xcom_state_exchange_interface *state_exchange,
+      Gcs_xcom_view_change_control_interface *view_control, bool boot,
+      My_xp_socket_util *socket_util);
 
   virtual ~Gcs_xcom_control();
 
   // Gcs_control_interface implementation
   enum_gcs_error join();
 
-  enum_gcs_error do_join(const bool retry=true);
+  enum_gcs_error do_join(const bool retry = true);
 
   /*
     Responsible for doing the heavy lifting related to the join
@@ -307,8 +291,7 @@ public:
   */
 
   bool xcom_receive_global_view(synode_no message_id,
-                                Gcs_xcom_nodes *xcom_nodes,
-                                bool same_view);
+                                Gcs_xcom_nodes *xcom_nodes, bool same_view);
 
   /*
     This method is called in order to give a hint on what the node thinks
@@ -319,7 +302,6 @@ public:
   */
   bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes);
 
-
   /**
     Process a message from the control interface and if necessary delegate it
     to the state exchange.
@@ -329,34 +311,27 @@ public:
 
   void process_control_message(Gcs_message *msg);
 
-
   std::map<int, const Gcs_control_event_listener &> *get_event_listeners();
-
 
   /**
     Return the address associated with the current node.
   */
   Gcs_xcom_node_address *get_node_address();
 
-
   /**
     Return a pointer to the proxy object used to access XCOM.
   */
   Gcs_xcom_proxy *get_xcom_proxy();
 
-
   Gcs_suspicions_manager *get_suspicions_manager();
-
 
   // For testing purposes
   void set_boot_node(bool boot);
-
 
   /**
     Set the address associated with the current node.
   */
   void set_node_address(Gcs_xcom_node_address *node_address);
-
 
   /**
     Inserts in m_initial_peers copies of the Gcs_xcom_node_address
@@ -367,7 +342,6 @@ public:
 
   void set_peer_nodes(std::vector<Gcs_xcom_node_address *> &xcom_peers);
 
-
   /**
     Deletes all the Gcs_xcom_node_address objects pointed by the
     elements of the m_initial_peers vector, clearing it at the end.
@@ -375,27 +349,23 @@ public:
 
   void clear_peer_nodes();
 
-
   /**
     Return a pointer to a socket utility.
 
     @return a pointer to a socket utility
   */
 
-  My_xp_socket_util* get_socket_util();
-
+  My_xp_socket_util *get_socket_util();
 
   /**
     This member function can be used to wait until xcom thread exits.
   */
   void wait_for_xcom_thread();
 
-
   /**
     Whether XCOM's Thread is running or not.
   */
   bool is_xcom_running();
-
 
   /*
     Configure how many times the node will try to join a group.
@@ -406,37 +376,37 @@ public:
   void set_join_behavior(unsigned int join_attempts,
                          unsigned int join_sleep_time);
 
-private:
+ private:
   void init_me();
 
   /*
     Utility methods to build lists from the data that arrives with a view.
    */
-  void build_total_members(Gcs_xcom_nodes *xcom_nodes,
-                           std::vector<Gcs_member_identifier *> &alive_members,
-                           std::vector<Gcs_member_identifier *> &failed_members);
+  void build_total_members(
+      Gcs_xcom_nodes *xcom_nodes,
+      std::vector<Gcs_member_identifier *> &alive_members,
+      std::vector<Gcs_member_identifier *> &failed_members);
 
-  void
-  build_left_members(std::vector<Gcs_member_identifier *> &left_members,
-                     std::vector<Gcs_member_identifier *> &alive_members,
-                     std::vector<Gcs_member_identifier *> &failed_members,
-                     const std::vector<Gcs_member_identifier> *current_members);
+  void build_left_members(
+      std::vector<Gcs_member_identifier *> &left_members,
+      std::vector<Gcs_member_identifier *> &alive_members,
+      std::vector<Gcs_member_identifier *> &failed_members,
+      const std::vector<Gcs_member_identifier> *current_members);
 
-  void
-  build_joined_members(std::vector<Gcs_member_identifier *> &joined_members,
-                       std::vector<Gcs_member_identifier *> &alive_members,
-                       const std::vector<Gcs_member_identifier> *current_members);
+  void build_joined_members(
+      std::vector<Gcs_member_identifier *> &joined_members,
+      std::vector<Gcs_member_identifier *> &alive_members,
+      const std::vector<Gcs_member_identifier> *current_members);
 
-  void
-  build_expel_members(std::vector<Gcs_member_identifier *> &expel_members,
-                      std::vector<Gcs_member_identifier *> &failed_members,
-                      const std::vector<Gcs_member_identifier> *current_members);
+  void build_expel_members(
+      std::vector<Gcs_member_identifier *> &expel_members,
+      std::vector<Gcs_member_identifier *> &failed_members,
+      const std::vector<Gcs_member_identifier> *current_members);
 
-  void
-  build_suspect_members(std::vector<Gcs_member_identifier *> &suspect_members,
-                        std::vector<Gcs_member_identifier *> &failed_members,
-                        const std::vector<Gcs_member_identifier> *current_members);
-
+  void build_suspect_members(
+      std::vector<Gcs_member_identifier *> &suspect_members,
+      std::vector<Gcs_member_identifier *> &failed_members,
+      const std::vector<Gcs_member_identifier> *current_members);
 
   /**
      Decides if this node shall be the one to kill failed nodes. The algorithm
@@ -471,13 +441,14 @@ private:
     @param[in] join members that joined from the last view
     @param[in] error_code Error code to set in the new view
   */
-  void install_view(Gcs_xcom_view_identifier *new_view_id,
-                    const Gcs_group_identifier &group_id,
-                    std::map<Gcs_member_identifier, Xcom_member_state *> *states,
-                    std::set<Gcs_member_identifier *> *total,
-                    std::set<Gcs_member_identifier *> *left,
-                    std::set<Gcs_member_identifier *> *join,
-		    Gcs_view::Gcs_view_error_code error_code=Gcs_view::OK);
+  void install_view(
+      Gcs_xcom_view_identifier *new_view_id,
+      const Gcs_group_identifier &group_id,
+      std::map<Gcs_member_identifier, Xcom_member_state *> *states,
+      std::set<Gcs_member_identifier *> *total,
+      std::set<Gcs_member_identifier *> *left,
+      std::set<Gcs_member_identifier *> *join,
+      Gcs_view::Gcs_view_error_code error_code = Gcs_view::OK);
 
   /**
     Check whether the current member is in the vector of failed members
@@ -486,7 +457,7 @@ private:
     @param[in] failed_members failed members
   */
   bool is_considered_faulty(
-    std::vector<Gcs_member_identifier *> *failed_members);
+      std::vector<Gcs_member_identifier *> *failed_members);
 
   /**
     Notify that the current member has left the group and whether it left
@@ -499,7 +470,7 @@ private:
 
   // The group that this interface pertains
   Gcs_group_identifier *m_gid;
-  unsigned int          m_gid_hash;
+  unsigned int m_gid_hash;
 
   // Reference to the proxy between xcom and this implementation
   Gcs_xcom_proxy *m_xcom_proxy;
@@ -523,7 +494,7 @@ private:
   My_xp_thread_impl m_xcom_thread;
 
   // Socket utility.
-  My_xp_socket_util* m_socket_util;
+  My_xp_socket_util *m_socket_util;
 
   /*
     Number of attempts to join a group before giving up and reporting
@@ -542,7 +513,7 @@ private:
   // Suspicions processing task
   My_xp_thread_impl m_suspicions_processing_thread;
 
-protected:
+ protected:
   /*
     Whether the XCOM was left running or not meaning that the join
     operation was successfuly executed. Note, however, that this
@@ -565,11 +536,11 @@ protected:
   // Reference to the MySQL GCS Engine
   Gcs_xcom_engine *m_gcs_engine;
 
-private:
+ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_control(const Gcs_xcom_control&);
-  Gcs_xcom_control& operator=(const Gcs_xcom_control&);
+  Gcs_xcom_control(const Gcs_xcom_control &);
+  Gcs_xcom_control &operator=(const Gcs_xcom_control &);
 };
 #endif /* GCS_XCOM_CONTROL_INTERFACE_INCLUDED */

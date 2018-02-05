@@ -30,12 +30,11 @@
 #include "sql/mdl.h"
 
 namespace dd {
-  class Spatial_reference_system;
+class Spatial_reference_system;
 }
 
-class Srs_fetcher
-{
-private:
+class Srs_fetcher {
+ private:
   THD *m_thd;
 
   /**
@@ -49,10 +48,8 @@ private:
   */
   bool lock(gis::srid_t srid, enum_mdl_type lock_type);
 
-public:
-  Srs_fetcher(THD *thd)
-    :m_thd(thd)
-  {}
+ public:
+  Srs_fetcher(THD *thd) : m_thd(thd) {}
 
   /**
     Acquire an SRS from the data dictionary. Take a shared read lock on the
@@ -82,4 +79,4 @@ public:
   static bool srs_exists(THD *thd, gis::srid_t srid, bool *exists);
 };
 
-#endif // SRS_FETCHER_H_INCLUDED
+#endif  // SRS_FETCHER_H_INCLUDED

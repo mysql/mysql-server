@@ -26,11 +26,8 @@
 #include "plugin/group_replication/include/plugin_utils.h"
 #include "plugin/group_replication/include/read_mode_handler.h"
 
-class Group_partition_handling
-{
-
-public:
-
+class Group_partition_handling {
+ public:
   Group_partition_handling(Shared_writelock *shared_stop_write_lock,
                            ulong unreachable_timeout);
 
@@ -114,14 +111,13 @@ public:
   */
   bool is_partition_handling_terminated();
 
-private:
-
+ private:
   /**
     Internal method that contains the logic for leaving and killing transactions
   */
   void kill_transactions_and_leave();
 
-  //Group_partition_handling variables
+  // Group_partition_handling variables
 
   /** Is member in partition */
   bool member_in_partition;
@@ -144,11 +140,11 @@ private:
   /* Thread related structures */
 
   my_thread_handle partition_trx_handler_pthd;
-  //run conditions and locks
+  // run conditions and locks
   mysql_mutex_t run_lock;
-  mysql_cond_t  run_cond;
+  mysql_cond_t run_cond;
   mysql_mutex_t trx_termination_aborted_lock;
-  mysql_cond_t  trx_termination_aborted_cond;
+  mysql_cond_t trx_termination_aborted_cond;
 };
 
 #endif /* GROUP_PARTITION_HANDLING_INCLUDE */

@@ -43,24 +43,20 @@
 void *consumer_function(void *ptr);
 
 Gcs_async_buffer::Gcs_async_buffer(Sink_interface *sink, int buffer_size)
-  :m_buffer(std::vector<Gcs_log_event>(buffer_size)),
-  m_buffer_size(buffer_size),
-  m_write_index(0),
-  m_read_index(0),
-  m_number_entries(0),
-  m_terminated(false),
-  m_initialized(false),
-  m_sink(sink),
-  m_consumer(new My_xp_thread_impl()),
-  m_wait_for_events_cond(new My_xp_cond_impl()),
-  m_free_buffer_cond(new My_xp_cond_impl()),
-  m_free_buffer_mutex(new My_xp_mutex_impl())
-{
-}
+    : m_buffer(std::vector<Gcs_log_event>(buffer_size)),
+      m_buffer_size(buffer_size),
+      m_write_index(0),
+      m_read_index(0),
+      m_number_entries(0),
+      m_terminated(false),
+      m_initialized(false),
+      m_sink(sink),
+      m_consumer(new My_xp_thread_impl()),
+      m_wait_for_events_cond(new My_xp_cond_impl()),
+      m_free_buffer_cond(new My_xp_cond_impl()),
+      m_free_buffer_mutex(new My_xp_mutex_impl()) {}
 
-
-Gcs_async_buffer::~Gcs_async_buffer()
-{
+Gcs_async_buffer::~Gcs_async_buffer() {
   delete m_consumer;
   delete m_wait_for_events_cond;
   delete m_free_buffer_cond;
@@ -68,50 +64,41 @@ Gcs_async_buffer::~Gcs_async_buffer()
   delete m_sink;
 }
 
+Sink_interface *Gcs_async_buffer::get_sink() const { return m_sink; }
 
-Sink_interface *Gcs_async_buffer::get_sink() const
-{
-  return m_sink;
-}
-
-
-enum_gcs_error Gcs_async_buffer::initialize()
-{
+enum_gcs_error Gcs_async_buffer::initialize() {
   int ret_thread;
-  enum_gcs_error ret_sink= m_sink->initialize();
+  enum_gcs_error ret_sink = m_sink->initialize();
 
-  if (ret_sink == GCS_NOK)
-  {
-/* purecov: begin deadcode */
+  if (ret_sink == GCS_NOK) {
+    /* purecov: begin deadcode */
     std::cerr << "Unable to create associated sink." << std::endl;
     return GCS_NOK;
-/* purecov: end */
+    /* purecov: end */
   }
 
-  if(m_initialized)
-    return GCS_OK;
+  if (m_initialized) return GCS_OK;
 
   /*
     Set that log events are not ready to be consumed. This is necessary when
     the same Gcs_async_buffer is reused several times and is not dynamically
     created every time group replication is started.
   */
-  for(auto& it : m_buffer) {
+  for (auto &it : m_buffer) {
     it.set_event(false);
   }
 
   m_wait_for_events_cond->init(
-    key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond);
+      key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond);
   m_free_buffer_cond->init(key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond);
   m_free_buffer_mutex->init(key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
                             NULL);
 
-  m_terminated= false;
-  if ((ret_thread= m_consumer->create(
-    key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
-    NULL, consumer_function, (void *) this)))
-  {
-/* purecov: begin deadcode */
+  m_terminated = false;
+  if ((ret_thread =
+           m_consumer->create(key_GCS_THD_Gcs_ext_logger_impl_m_consumer, NULL,
+                              consumer_function, (void *)this))) {
+    /* purecov: begin deadcode */
     std::cerr << "Unable to create Gcs_async_buffer consumer thread, "
               << ret_thread << std::endl;
 
@@ -120,23 +107,20 @@ enum_gcs_error Gcs_async_buffer::initialize()
     m_free_buffer_mutex->destroy();
 
     return GCS_NOK;
-/* purecov: end */
+    /* purecov: end */
   }
 
-  m_initialized= true;
+  m_initialized = true;
 
   return GCS_OK;
 }
 
-
-enum_gcs_error Gcs_async_buffer::finalize()
-{
-  if(!m_initialized)
-    return GCS_OK;
+enum_gcs_error Gcs_async_buffer::finalize() {
+  if (!m_initialized) return GCS_OK;
 
   // Wake up consumer before leaving
   m_free_buffer_mutex->lock();
-  m_terminated= true;
+  m_terminated = true;
   m_free_buffer_cond->broadcast();
   m_wait_for_events_cond->signal();
   m_free_buffer_mutex->unlock();
@@ -150,14 +134,12 @@ enum_gcs_error Gcs_async_buffer::finalize()
 
   m_sink->finalize();
 
-  m_initialized= false;
+  m_initialized = false;
 
   return GCS_OK;
 }
 
-
-Gcs_log_event &Gcs_async_buffer::get_entry()
-{
+Gcs_log_event &Gcs_async_buffer::get_entry() {
   /*
     Atomically get an entry to a buffer to write the message content into it,
     provided there is one. If there is no free entry, the caller will block
@@ -169,10 +151,8 @@ Gcs_log_event &Gcs_async_buffer::get_entry()
   return m_buffer[get_write_index()];
 }
 
-
-int64_t Gcs_async_buffer::get_write_index()
-{
-  int64_t write_index= 0;
+int64_t Gcs_async_buffer::get_write_index() {
+  int64_t write_index = 0;
 
   /*
     Get an entry to a buffer to write the message content into it, provided
@@ -186,24 +166,21 @@ int64_t Gcs_async_buffer::get_write_index()
   */
   m_free_buffer_mutex->lock();
   assert(m_number_entries <= m_buffer_size && m_number_entries >= 0);
-  while (m_number_entries == m_buffer_size)
-  {
-/* purecov: begin deadcode */
+  while (m_number_entries == m_buffer_size) {
+    /* purecov: begin deadcode */
     wake_up_consumer();
     m_free_buffer_cond->wait(m_free_buffer_mutex->get_native_mutex());
-/* purecov: end */
+    /* purecov: end */
   }
-  write_index= m_write_index++;
+  write_index = m_write_index++;
   m_number_entries++;
   m_free_buffer_mutex->unlock();
 
   return get_index(write_index);
 }
 
-
-void Gcs_async_buffer::notify_entry(Gcs_log_event &buffer_entry)
-{
-   buffer_entry.set_event(true);
+void Gcs_async_buffer::notify_entry(Gcs_log_event &buffer_entry) {
+  buffer_entry.set_event(true);
 
   /*
     Wake up the consumer that may have slept because, previously, there was
@@ -212,31 +189,25 @@ void Gcs_async_buffer::notify_entry(Gcs_log_event &buffer_entry)
   wake_up_consumer();
 }
 
-
-inline void Gcs_async_buffer::produce_events(const char* message, size_t message_size)
-{
-  Gcs_log_event &entry= get_entry();
-  char *buffer= entry.get_buffer();
-  size_t size= std::min(entry.get_max_buffer_size(), message_size);
+inline void Gcs_async_buffer::produce_events(const char *message,
+                                             size_t message_size) {
+  Gcs_log_event &entry = get_entry();
+  char *buffer = entry.get_buffer();
+  size_t size = std::min(entry.get_max_buffer_size(), message_size);
   strncpy(buffer, message, size);
   entry.set_buffer_size(size);
   notify_entry(entry);
 }
 
-
-inline void Gcs_async_buffer::produce_events(const std::string &message)
-{
+inline void Gcs_async_buffer::produce_events(const std::string &message) {
   produce_events(message.c_str(), message.length());
 }
 
+void Gcs_async_buffer::consume_events() {
+  int64_t number_entries = 0;
+  bool is_terminated = false;
 
-void Gcs_async_buffer::consume_events()
-{
-  int64_t number_entries= 0;
-  bool is_terminated= false;
-
-  do
-  {
+  do {
     /*
       Fetch information on possible new entries and whether the asynchronous
       queue has been stopped or not. Note that it is better to do it here and
@@ -245,17 +216,13 @@ void Gcs_async_buffer::consume_events()
       variable has been updated further down.
     */
     m_free_buffer_mutex->lock();
-    number_entries= m_number_entries;
-    is_terminated= m_terminated;
+    number_entries = m_number_entries;
+    is_terminated = m_terminated;
 
-    if (number_entries == 0)
-    {
-      if (!is_terminated)
-        sleep_consumer();
+    if (number_entries == 0) {
+      if (!is_terminated) sleep_consumer();
       m_free_buffer_mutex->unlock();
-    }
-    else
-    {
+    } else {
       /*
         Consume the entries in chunks to avoid acquiring and releasing the
         mutex for every entry. However, try to avoid really big chunks to
@@ -264,15 +231,14 @@ void Gcs_async_buffer::consume_events()
       */
       m_free_buffer_mutex->unlock();
       int64_t to_read, read;
-      int64_t max_entries= (m_buffer_size / 25);
+      int64_t max_entries = (m_buffer_size / 25);
       assert(number_entries != 0);
       if (number_entries > max_entries && max_entries != 0)
-/* purecov: begin deadcode */
-        number_entries= max_entries;
-/* purecov: end */
-      to_read= number_entries, read= number_entries;
-      while (to_read != 0)
-      {
+        /* purecov: begin deadcode */
+        number_entries = max_entries;
+      /* purecov: end */
+      to_read = number_entries, read = number_entries;
+      while (to_read != 0) {
         m_buffer[get_index(m_read_index)].flush_event(*m_sink);
         m_read_index++;
         to_read--;
@@ -287,14 +253,11 @@ void Gcs_async_buffer::consume_events()
       m_free_buffer_cond->signal();
       m_free_buffer_mutex->unlock();
     }
-  }
-  while(!is_terminated || number_entries != 0);
+  } while (!is_terminated || number_entries != 0);
 }
 
-
-void *consumer_function(void *ptr)
-{
-  Gcs_async_buffer *l= static_cast<Gcs_async_buffer *>(ptr);
+void *consumer_function(void *ptr) {
+  Gcs_async_buffer *l = static_cast<Gcs_async_buffer *>(ptr);
   l->consume_events();
 
   My_xp_thread_util::exit(0);
@@ -302,136 +265,92 @@ void *consumer_function(void *ptr)
   return NULL;
 }
 
-
-const std::string Gcs_async_buffer::get_information() const
-{
+const std::string Gcs_async_buffer::get_information() const {
   std::stringstream ss;
 
-  ss << "asynchronous:" << ":" << m_sink->get_information();
+  ss << "asynchronous:"
+     << ":" << m_sink->get_information();
 
   return ss.str();
 }
 
-
 /* purecov: begin deadcode */
-Gcs_output_sink::Gcs_output_sink() : m_initialized(false)
-{
-}
+Gcs_output_sink::Gcs_output_sink() : m_initialized(false) {}
 
+enum_gcs_error Gcs_output_sink::initialize() {
+  int ret_out = 0;
 
-enum_gcs_error Gcs_output_sink::initialize()
-{
-  int ret_out= 0;
-
-  if (!m_initialized)
-  {
-    ret_out= setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+  if (!m_initialized) {
+    ret_out = setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   }
 
-  if(ret_out == 0)
-  {
-    m_initialized= true;
-  }
-  else
-  {
+  if (ret_out == 0) {
+    m_initialized = true;
+  } else {
 #if defined(WIN_32) || defined(WIN_64)
-    int errno= WSAGetLastError();
+    int errno = WSAGetLastError();
 #endif
     std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno)
-      << std::endl;
+              << std::endl;
   }
   return ret_out ? GCS_NOK : GCS_OK;
 }
 
+enum_gcs_error Gcs_output_sink::finalize() { return GCS_OK; }
 
-enum_gcs_error Gcs_output_sink::finalize()
-{
-  return GCS_OK;
-}
-
-
-void Gcs_output_sink::log_event(const std::string &message)
-{
+void Gcs_output_sink::log_event(const std::string &message) {
   std::cout << message;
 }
 
-
-void Gcs_output_sink::log_event(const char* message, size_t message_size)
-{
+void Gcs_output_sink::log_event(const char *message, size_t message_size) {
   std::cout.width(message_size);
   std::cout << message;
 }
 
-
-const std::string Gcs_output_sink::get_information() const
-{
+const std::string Gcs_output_sink::get_information() const {
   return std::string("stdout");
 }
 
+Gcs_default_logger::Gcs_default_logger(Gcs_async_buffer *sink) : m_sink(sink) {}
 
-Gcs_default_logger::Gcs_default_logger(Gcs_async_buffer *sink) : m_sink(sink)
-{
-}
+enum_gcs_error Gcs_default_logger::initialize() { return m_sink->initialize(); }
 
-
-enum_gcs_error Gcs_default_logger::initialize()
-{
-  return m_sink->initialize();
-}
-
-
-enum_gcs_error Gcs_default_logger::finalize()
-{
-  return m_sink->finalize();
-}
-
+enum_gcs_error Gcs_default_logger::finalize() { return m_sink->finalize(); }
 
 void Gcs_default_logger::log_event(const gcs_log_level_t level,
-                                  const std::string &message)
-{
+                                   const std::string &message) {
   std::stringstream log;
   log << gcs_log_levels[level] << message << std::endl;
   m_sink->produce_events(log.str());
 }
 
+Gcs_default_debugger::Gcs_default_debugger(Gcs_async_buffer *sink)
+    : m_sink(sink) {}
 
-Gcs_default_debugger::Gcs_default_debugger(Gcs_async_buffer *sink) : m_sink(sink)
-{
-}
-
-
-enum_gcs_error Gcs_default_debugger::initialize()
-{
+enum_gcs_error Gcs_default_debugger::initialize() {
   return m_sink->initialize();
 }
 
+enum_gcs_error Gcs_default_debugger::finalize() { return m_sink->finalize(); }
 
-enum_gcs_error Gcs_default_debugger::finalize()
-{
-  return m_sink->finalize();
-}
-
-
-void Gcs_default_debugger::log_event(const std::string &message)
-{
+void Gcs_default_debugger::log_event(const std::string &message) {
   MYSQL_GCS_LOG_DEBUG(message.c_str());
 }
 
 /**
   Reference to the default debugger which is used internally by GCS and XCOM.
 */
-Gcs_default_debugger *Gcs_debug_manager::m_debugger= NULL;
+Gcs_default_debugger *Gcs_debug_manager::m_debugger = NULL;
 
 #ifndef XCOM_STANDALONE
 Gcs_file_sink::Gcs_file_sink(const std::string &file_name,
-                             const std::string &dir_name) :
-  m_fd(0), m_file_name(file_name), m_dir_name(dir_name), m_initialized(false)
-{
-}
+                             const std::string &dir_name)
+    : m_fd(0),
+      m_file_name(file_name),
+      m_dir_name(dir_name),
+      m_initialized(false) {}
 
-
-enum_gcs_error Gcs_file_sink::get_file_name(char *file_name_buffer) const
-{
+enum_gcs_error Gcs_file_sink::get_file_name(char *file_name_buffer) const {
   unsigned int flags = MY_REPLACE_DIR | MY_REPLACE_EXT | MY_SAFE_PATH;
 
   /*
@@ -451,20 +370,14 @@ enum_gcs_error Gcs_file_sink::get_file_name(char *file_name_buffer) const
   return GCS_OK;
 }
 
-
-enum_gcs_error Gcs_file_sink::initialize()
-{
+enum_gcs_error Gcs_file_sink::initialize() {
   MY_STAT f_stat;
   char file_name_buffer[FN_REFLEN];
 
-  if (m_initialized)
-    return GCS_OK;
+  if (m_initialized) return GCS_OK;
 
-  if (get_file_name(file_name_buffer))
-  {
-    MYSQL_GCS_LOG_ERROR(
-      "Error validating file name '" << m_file_name << "'."
-    );
+  if (get_file_name(file_name_buffer)) {
+    MYSQL_GCS_LOG_ERROR("Error validating file name '" << m_file_name << "'.");
     return GCS_NOK;
   }
 
@@ -472,11 +385,9 @@ enum_gcs_error Gcs_file_sink::initialize()
     Check if the directory where the file will be created exists
     and has the appropriate permissions.
   */
-  if (my_access(m_dir_name.c_str(), (F_OK | W_OK)))
-  {
-    MYSQL_GCS_LOG_ERROR(
-      "Error in associated permissions to path '" << m_dir_name.c_str() << "'."
-    );
+  if (my_access(m_dir_name.c_str(), (F_OK | W_OK))) {
+    MYSQL_GCS_LOG_ERROR("Error in associated permissions to path '"
+                        << m_dir_name.c_str() << "'.");
     return GCS_NOK;
   }
 
@@ -484,84 +395,65 @@ enum_gcs_error Gcs_file_sink::initialize()
     Check if the file exists and if so whether the owner has write
     permissions.
   */
-  if (my_stat(file_name_buffer, &f_stat, MYF(0)) != NULL)
-  {
-    if (!(f_stat.st_mode & MY_S_IWRITE))
-    {
-      MYSQL_GCS_LOG_ERROR(
-        "Error in associated permissions to file '" << file_name_buffer
-        << "'."
-      );
+  if (my_stat(file_name_buffer, &f_stat, MYF(0)) != NULL) {
+    if (!(f_stat.st_mode & MY_S_IWRITE)) {
+      MYSQL_GCS_LOG_ERROR("Error in associated permissions to file '"
+                          << file_name_buffer << "'.");
       return GCS_NOK;
     }
   }
 
-  if ((m_fd= my_create(file_name_buffer, 0640, O_CREAT | O_WRONLY | O_APPEND, MYF(0))) < 0)
-  {
+  if ((m_fd = my_create(file_name_buffer, 0640, O_CREAT | O_WRONLY | O_APPEND,
+                        MYF(0))) < 0) {
 #if defined(WIN_32) || defined(WIN_64)
-    int errno= WSAGetLastError();
+    int errno = WSAGetLastError();
 #endif
-    MYSQL_GCS_LOG_ERROR(
-      "Error openning file '" << file_name_buffer << "':" << strerror(errno)
-      << "."
-    );
+    MYSQL_GCS_LOG_ERROR("Error openning file '"
+                        << file_name_buffer << "':" << strerror(errno) << ".");
     return GCS_NOK;
   }
 
-  m_initialized= true;
+  m_initialized = true;
 
   return GCS_OK;
 }
 
-
-enum_gcs_error Gcs_file_sink::finalize()
-{
-  if (!m_initialized)
-    return GCS_OK;
+enum_gcs_error Gcs_file_sink::finalize() {
+  if (!m_initialized) return GCS_OK;
 
   my_sync(m_fd, MYF(0));
   my_close(m_fd, MYF(0));
 
-  m_initialized= false;
+  m_initialized = false;
 
   return GCS_OK;
 }
 
-
-void Gcs_file_sink::log_event(const std::string &message)
-{
+void Gcs_file_sink::log_event(const std::string &message) {
   log_event(message.c_str(), message.length());
 }
 
-
-void Gcs_file_sink::log_event(const char* message, size_t message_size)
-{
+void Gcs_file_sink::log_event(const char *message, size_t message_size) {
   size_t written;
 
-  written= my_write(m_fd, (const uchar *) message, message_size, MYF(0));
+  written = my_write(m_fd, (const uchar *)message, message_size, MYF(0));
 
-  if (written == MY_FILE_ERROR)
-  {
+  if (written == MY_FILE_ERROR) {
 #if defined(WIN_32) || defined(WIN_64)
-    int errno= WSAGetLastError();
+    int errno = WSAGetLastError();
 #endif
-    MYSQL_GCS_LOG_ERROR(
-      "Error writting to debug file: " << strerror(errno) << "."
-    );
+    MYSQL_GCS_LOG_ERROR("Error writting to debug file: " << strerror(errno)
+                                                         << ".");
   }
 }
 
-
-const std::string Gcs_file_sink::get_information() const
-{
+const std::string Gcs_file_sink::get_information() const {
   std::string invalid("invalid");
   char file_name_buffer[FN_REFLEN];
 
-  if (!m_initialized)
-    return invalid;
+  if (!m_initialized) return invalid;
 
-  if (get_file_name(file_name_buffer))
-    return invalid;
+  if (get_file_name(file_name_buffer)) return invalid;
 
   return std::string(file_name_buffer);
 }

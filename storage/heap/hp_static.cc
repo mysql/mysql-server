@@ -32,7 +32,7 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 
-LIST *heap_open_list=0,*heap_share_list=0;
+LIST *heap_open_list = 0, *heap_share_list = 0;
 
 PSI_memory_key hp_key_memory_HP_SHARE;
 PSI_memory_key hp_key_memory_HP_INFO;
@@ -41,24 +41,19 @@ PSI_memory_key hp_key_memory_HP_KEYDEF;
 
 #ifdef HAVE_PSI_INTERFACE
 
-static PSI_memory_info all_heap_memory[]=
-{
-  { & hp_key_memory_HP_SHARE, "HP_SHARE", 0, 0, PSI_DOCUMENT_ME},
-  { & hp_key_memory_HP_INFO, "HP_INFO", 0, 0, PSI_DOCUMENT_ME},
-  { & hp_key_memory_HP_PTRS, "HP_PTRS", 0, 0, PSI_DOCUMENT_ME},
-  { & hp_key_memory_HP_KEYDEF, "HP_KEYDEF", 0, 0, PSI_DOCUMENT_ME}
-};
+static PSI_memory_info all_heap_memory[] = {
+    {&hp_key_memory_HP_SHARE, "HP_SHARE", 0, 0, PSI_DOCUMENT_ME},
+    {&hp_key_memory_HP_INFO, "HP_INFO", 0, 0, PSI_DOCUMENT_ME},
+    {&hp_key_memory_HP_PTRS, "HP_PTRS", 0, 0, PSI_DOCUMENT_ME},
+    {&hp_key_memory_HP_KEYDEF, "HP_KEYDEF", 0, 0, PSI_DOCUMENT_ME}};
 
-void init_heap_psi_keys()
-{
-  const char* category= "memory";
+void init_heap_psi_keys() {
+  const char *category = "memory";
   int count;
 
   /* Note: THR_LOCK_heap is part of mysys, not storage/heap. */
 
-  count= array_elements(all_heap_memory);
+  count = array_elements(all_heap_memory);
   mysql_memory_register(category, all_heap_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
-
-

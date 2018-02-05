@@ -25,8 +25,8 @@
 
 #include <string>
 
-#include <mysql/service_plugin_registry.h>
 #include <mysql/components/services/registry.h>
+#include <mysql/service_plugin_registry.h>
 
 /**
   This is the interface for the registrty module. This is a convenience
@@ -34,10 +34,8 @@
   instance to cache relevant and frequently used references to service
   implementations.
  */
-class Registry_module_interface
-{
-public:
-
+class Registry_module_interface {
+ public:
   /** The name of the membership service. */
   static const std::string SVC_NAME_MEMBERSHIP;
   /** The name of the member status service. */
@@ -45,8 +43,7 @@ public:
   /** The name of the registry query service. */
   static const std::string SVC_NAME_REGISTRY_QUERY;
 
-public:
-
+ public:
   virtual ~Registry_module_interface() {}
 
   /**
@@ -55,7 +52,7 @@ public:
 
     @return true if there was an error, false otherwise.
    */
-  virtual bool initialize()= 0;
+  virtual bool initialize() = 0;
 
   /**
     SHALL release the registry handles and frees memory that
@@ -63,21 +60,21 @@ public:
 
     @return true if there was an error, false otherwise.
    */
-  virtual bool finalize()= 0;
+  virtual bool finalize() = 0;
 
   /**
     SHALL return the service registry handle if initialized already.
 
     @return the service registry handle if initialized. NULL otherwise.
    */
-  virtual SERVICE_TYPE(registry) *get_registry_handle()= 0;
+  virtual SERVICE_TYPE(registry) * get_registry_handle() = 0;
 
   /**
     SHALL return the service registry query handle if initialized already.
 
     @return the service registry query handle if initialized. NULL otherwise.
    */
-  virtual SERVICE_TYPE(registry_query) *get_registry_query_handle()= 0;
+  virtual SERVICE_TYPE(registry_query) * get_registry_query_handle() = 0;
 };
 
 /**
@@ -87,36 +84,31 @@ public:
   and to the registry query service when initialized. It will only release
   these references when the module is finalized.
  */
-class Registry_module : public Registry_module_interface
-{
-private:
-
+class Registry_module : public Registry_module_interface {
+ private:
   /**
     Cached reference to the service registry.
    */
-  SERVICE_TYPE(registry) *m_registry;
+  SERVICE_TYPE(registry) * m_registry;
 
   /**
     Cached reference to the registry query service.
    */
-  SERVICE_TYPE(registry_query) *m_registry_query;
+  SERVICE_TYPE(registry_query) * m_registry_query;
 
   /* Disable copy and assignment constructors. */
-  Registry_module(const Registry_module& rhs);
-  Registry_module& operator=(const Registry_module rhs);
+  Registry_module(const Registry_module &rhs);
+  Registry_module &operator=(const Registry_module rhs);
 
-public:
-  Registry_module() :
-    m_registry(NULL),
-    m_registry_query(NULL)
-  {}
+ public:
+  Registry_module() : m_registry(NULL), m_registry_query(NULL) {}
 
   virtual ~Registry_module() { finalize(); }
 
   bool initialize();
   bool finalize();
-  SERVICE_TYPE(registry) *get_registry_handle();
-  SERVICE_TYPE(registry_query) *get_registry_query_handle();
+  SERVICE_TYPE(registry) * get_registry_handle();
+  SERVICE_TYPE(registry_query) * get_registry_query_handle();
 };
 
 #endif

@@ -35,7 +35,7 @@
     - Number of distinct values in this bucket.
 */
 
-#include "my_base.h"      // ha_rows
+#include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
 #include "mysql_time.h"
 #include "sql/my_decimal.h"
@@ -50,9 +50,8 @@ namespace equi_height {
   Equi-height bucket.
 */
 template <class T>
-class Bucket
-{
-private:
+class Bucket {
+ private:
   /// Lower inclusive value contained in this bucket.
   const T m_lower_inclusive;
 
@@ -77,10 +76,10 @@ private:
 
     @return     true on error, false otherwise.
   */
-  static bool add_values_json_bucket(const T &lower_value,
-                                     const T &upper_value,
+  static bool add_values_json_bucket(const T &lower_value, const T &upper_value,
                                      Json_array *json_array);
-public:
+
+ public:
   /**
     Equi-height bucket constructor.
 
@@ -96,12 +95,12 @@ public:
   /**
     @return lower inclusive value
   */
-  const T& get_lower_inclusive() const { return m_lower_inclusive; }
+  const T &get_lower_inclusive() const { return m_lower_inclusive; }
 
   /**
     @return upper inclusive value
   */
-  const T& get_upper_inclusive() const { return m_upper_inclusive; }
+  const T &get_upper_inclusive() const { return m_upper_inclusive; }
 
   /**
     @return cumulative frequency
@@ -160,7 +159,7 @@ public:
   double value_probability() const;
 };
 
-} // namespace equi_height
-} // namespace histograms
+}  // namespace equi_height
+}  // namespace histograms
 
 #endif

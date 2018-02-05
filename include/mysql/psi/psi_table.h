@@ -53,8 +53,7 @@
 #define PSI_CURRENT_TABLE_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_table_bootstrap
-{
+struct PSI_table_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -73,8 +72,7 @@ typedef struct PSI_table_bootstrap PSI_table_bootstrap;
   Performance Schema Transaction Interface, version 1.
   @since PSI_TABLE_VERSION_1
 */
-struct PSI_table_service_v1
-{
+struct PSI_table_service_v1 {
   /** @sa get_table_share_v1_t. */
   get_table_share_v1_t get_table_share;
   /** @sa release_table_share_v1_t. */

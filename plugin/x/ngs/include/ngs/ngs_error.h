@@ -20,13 +20,12 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef _NGS_ERROR_H_
 #define _NGS_ERROR_H_
 
-#define ER_X_BAD_MESSAGE                 5000
+#define ER_X_BAD_MESSAGE 5000
 #define ER_X_CAPABILITIES_PREPARE_FAILED 5001
-#define ER_X_CAPABILITY_NOT_FOUND        5002
-#define ER_X_INVALID_PROTOCOL_DATA       5003
+#define ER_X_CAPABILITY_NOT_FOUND 5002
+#define ER_X_INVALID_PROTOCOL_DATA 5003
 
-#endif // _NGS_ERROR_H_
+#endif  // _NGS_ERROR_H_

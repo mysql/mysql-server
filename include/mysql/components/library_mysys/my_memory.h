@@ -49,4 +49,4 @@ extern "C" void *my_malloc(PSI_memory_key key, size_t size, int flags);
  @param ptr memory address to be freed
 */
 extern "C" void my_free(void *ptr);
-#endif // COMPONENT_MEMORY_H
+#endif  // COMPONENT_MEMORY_H

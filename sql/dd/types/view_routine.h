@@ -23,8 +23,7 @@
 #ifndef DD__VIEW_ROUTINE_INCLUDED
 #define DD__VIEW_ROUTINE_INCLUDED
 
-
-#include "sql/dd/types/weak_object.h" // dd::Weak_object
+#include "sql/dd/types/weak_object.h"  // dd::Weak_object
 
 namespace dd {
 
@@ -34,20 +33,18 @@ class View;
 class View_routine_impl;
 
 namespace tables {
-  class View_routine_usage;
+class View_routine_usage;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class View_routine: virtual public Weak_object
-{
-public:
+class View_routine : virtual public Weak_object {
+ public:
   typedef View_routine_impl Impl;
   typedef tables::View_routine_usage DD_table;
 
-public:
-  virtual ~View_routine()
-  { };
+ public:
+  virtual ~View_routine(){};
 
   /////////////////////////////////////////////////////////////////////////
   // View routine catalog name.
@@ -81,6 +78,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__VIEW_ROUTINE_INCLUDED
+#endif  // DD__VIEW_ROUTINE_INCLUDED

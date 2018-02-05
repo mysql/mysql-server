@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,51 +29,42 @@
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
-namespace ngs
-{
+namespace ngs {
+using ::Mysqlx::Datatypes::Any;
 using ::Mysqlx::Datatypes::Any;
 using ::Mysqlx::Datatypes::Scalar;
-using ::Mysqlx::Datatypes::Any;
 
-bool Capability_tls::is_supported() const
-{
+bool Capability_tls::is_supported() const {
   const Connection_type type = m_client.connection().connection_type();
-  const bool is_supported_connection_type = Connection_tcpip == type ||
-      Connection_tls == type;
+  const bool is_supported_connection_type =
+      Connection_tcpip == type || Connection_tls == type;
 
-  return m_client.connection().options()->supports_tls() && is_supported_connection_type;
+  return m_client.connection().options()->supports_tls() &&
+         is_supported_connection_type;
 }
 
-
-void Capability_tls::get(Any &any)
-{
+void Capability_tls::get(Any &any) {
   bool is_tls_active = m_client.connection().options()->active_tls();
 
   Setter_any::set_scalar(any, is_tls_active);
 }
 
-
-bool Capability_tls::set(const Any &any)
-{
+bool Capability_tls::set(const Any &any) {
   bool is_tls_active = m_client.connection().options()->active_tls();
 
-  tls_should_be_enabled = Getter_any::get_numeric_value_or_default<int>(any, false) &&
-                          ! is_tls_active &&
-                          is_supported();
+  tls_should_be_enabled =
+      Getter_any::get_numeric_value_or_default<int>(any, false) &&
+      !is_tls_active && is_supported();
 
   // Should fail if we try to turn it off
   // or if already activated
   return tls_should_be_enabled;
 }
 
-
-void Capability_tls::commit()
-{
-  if (tls_should_be_enabled)
-  {
+void Capability_tls::commit() {
+  if (tls_should_be_enabled) {
     m_client.activate_tls();
   }
 }
 
-
-} // namespace ngs
+}  // namespace ngs

@@ -24,16 +24,16 @@
 #define DD_TRIGGER_INCLUDED
 
 #include "lex_string.h"
-#include "sql/trigger_def.h" // enum_trigger_order_type
+#include "sql/trigger_def.h"  // enum_trigger_order_type
 
 struct MEM_ROOT;
 class THD;
 class Trigger;
 
-template <class T> class List;
+template <class T>
+class List;
 
-namespace dd
-{
+namespace dd {
 class Table;
 
 /**
@@ -56,7 +56,6 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
                     enum_trigger_order_type ordering_clause,
                     const LEX_CSTRING &referenced_trigger_name);
 
-
 /**
   Load table triggers from the data dictionary.
 
@@ -73,13 +72,9 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     @retval false  Success
 */
 
-bool load_triggers(THD *thd,
-                   MEM_ROOT *mem_root,
-                   const char *schema_name,
-                   const char *table_name,
-                   const dd::Table &table,
+bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
+                   const char *table_name, const dd::Table &table,
                    List<::Trigger> *triggers);
-
 
 /**
   Check in the data dictionary if there is any trigger associated with a table.
@@ -99,6 +94,6 @@ bool load_triggers(THD *thd,
 bool table_has_triggers(THD *thd, const char *schema_name,
                         const char *table_name, bool *table_has_trigger);
 
-}
+}  // namespace dd
 
 #endif /* DD_TRIGGER_INCLUDED */

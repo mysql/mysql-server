@@ -32,28 +32,23 @@
 #include "my_inttypes.h"
 #include "storage/heap/heapdef.h"
 
-void heap_clear(HP_INFO *info)
-{
-  hp_clear(info->s);
-}
+void heap_clear(HP_INFO *info) { hp_clear(info->s); }
 
-void hp_clear(HP_SHARE *info)
-{
+void hp_clear(HP_SHARE *info) {
   DBUG_ENTER("hp_clear");
 
   if (info->block.levels)
-    (void) hp_free_level(&info->block,info->block.levels,info->block.root,
-			(uchar*) 0);
-  info->block.levels=0;
+    (void)hp_free_level(&info->block, info->block.levels, info->block.root,
+                        (uchar *)0);
+  info->block.levels = 0;
   hp_clear_keys(info);
-  info->records= info->deleted= 0;
-  info->data_length= 0;
-  info->blength=1;
-  info->changed=0;
-  info->del_link=0;
+  info->records = info->deleted = 0;
+  info->data_length = 0;
+  info->blength = 1;
+  info->changed = 0;
+  info->del_link = 0;
   DBUG_VOID_RETURN;
 }
-
 
 /*
   Clear all keys.
@@ -69,11 +64,7 @@ void hp_clear(HP_SHARE *info)
     void
 */
 
-void heap_clear_keys(HP_INFO *info)
-{
-  hp_clear(info->s);
-}
-
+void heap_clear_keys(HP_INFO *info) { hp_clear(info->s); }
 
 /*
   Clear all keys.
@@ -89,32 +80,26 @@ void heap_clear_keys(HP_INFO *info)
     void
 */
 
-void hp_clear_keys(HP_SHARE *info)
-{
+void hp_clear_keys(HP_SHARE *info) {
   uint key;
   DBUG_ENTER("hp_clear_keys");
 
-  for (key=0 ; key < info->keys ; key++)
-  {
+  for (key = 0; key < info->keys; key++) {
     HP_KEYDEF *keyinfo = info->keydef + key;
-    if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
-    {
+    if (keyinfo->algorithm == HA_KEY_ALG_BTREE) {
       delete_tree(&keyinfo->rb_tree);
-    }
-    else
-    {
-      HP_BLOCK *block= &keyinfo->block;
+    } else {
+      HP_BLOCK *block = &keyinfo->block;
       if (block->levels)
-        (void) hp_free_level(block,block->levels,block->root,(uchar*) 0);
-      block->levels=0;
-      block->last_allocated=0;
-      keyinfo->hash_buckets= 0;
+        (void)hp_free_level(block, block->levels, block->root, (uchar *)0);
+      block->levels = 0;
+      block->last_allocated = 0;
+      keyinfo->hash_buckets = 0;
     }
   }
-  info->index_length=0;
+  info->index_length = 0;
   DBUG_VOID_RETURN;
 }
-
 
 /*
   Disable all indexes.
@@ -130,19 +115,16 @@ void hp_clear_keys(HP_SHARE *info)
     0  ok
 */
 
-int heap_disable_indexes(HP_INFO *info)
-{
-  HP_SHARE *share= info->s;
+int heap_disable_indexes(HP_INFO *info) {
+  HP_SHARE *share = info->s;
 
-  if (share->keys)
-  {
+  if (share->keys) {
     hp_clear_keys(share);
-    share->currently_disabled_keys= share->keys;
-    share->keys= 0;
+    share->currently_disabled_keys = share->keys;
+    share->keys = 0;
   }
   return 0;
 }
-
 
 /*
   Enable all indexes
@@ -163,22 +145,18 @@ int heap_disable_indexes(HP_INFO *info)
     HA_ERR_CRASHED data or index is non-empty.
 */
 
-int heap_enable_indexes(HP_INFO *info)
-{
-  int error= 0;
-  HP_SHARE *share= info->s;
+int heap_enable_indexes(HP_INFO *info) {
+  int error = 0;
+  HP_SHARE *share = info->s;
 
   if (share->data_length || share->index_length)
-    error= HA_ERR_CRASHED;
-  else
-    if (share->currently_disabled_keys)
-    {
-      share->keys= share->currently_disabled_keys;
-      share->currently_disabled_keys= 0;
-    }
+    error = HA_ERR_CRASHED;
+  else if (share->currently_disabled_keys) {
+    share->keys = share->currently_disabled_keys;
+    share->currently_disabled_keys = 0;
+  }
   return error;
 }
-
 
 /*
   Test if indexes are disabled.
@@ -196,10 +174,8 @@ int heap_enable_indexes(HP_INFO *info)
    [2  non-unique indexes are disabled - NOT YET IMPLEMENTED]
 */
 
-int heap_indexes_are_disabled(HP_INFO *info)
-{
-  HP_SHARE *share= info->s;
+int heap_indexes_are_disabled(HP_INFO *info) {
+  HP_SHARE *share = info->s;
 
-  return (! share->keys && share->currently_disabled_keys);
+  return (!share->keys && share->currently_disabled_keys);
 }
-

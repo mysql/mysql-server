@@ -29,41 +29,35 @@
 #include "my_inttypes.h"
 #include "storage/myisam/myisamdef.h"
 
+/*
+** If inx >= 0 update index pointer
+** Returns one of the following values:
+**  0 = Ok.
+** HA_ERR_KEY_NOT_FOUND = Row is deleted
+** HA_ERR_END_OF_FILE   = End of file
+*/
 
-	/*
-	** If inx >= 0 update index pointer
-	** Returns one of the following values:
-	**  0 = Ok.
-	** HA_ERR_KEY_NOT_FOUND = Row is deleted
-	** HA_ERR_END_OF_FILE   = End of file
-	*/
-
-int mi_rsame_with_pos(MI_INFO *info, uchar *record, int inx, my_off_t filepos)
-{
+int mi_rsame_with_pos(MI_INFO *info, uchar *record, int inx, my_off_t filepos) {
   DBUG_ENTER("mi_rsame_with_pos");
-  DBUG_PRINT("enter",("index: %d  filepos: %ld", inx, (long) filepos));
+  DBUG_PRINT("enter", ("index: %d  filepos: %ld", inx, (long)filepos));
 
   if (inx < -1 ||
-      (inx >= 0 && ! mi_is_key_active(info->s->state.key_map, inx)))
-  {
+      (inx >= 0 && !mi_is_key_active(info->s->state.key_map, inx))) {
     set_my_errno(HA_ERR_WRONG_INDEX);
     DBUG_RETURN(HA_ERR_WRONG_INDEX);
   }
 
-  info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  if ((*info->s->read_rnd)(info,record,filepos,0))
-  {
-    if (my_errno() == HA_ERR_RECORD_DELETED)
-      set_my_errno(HA_ERR_KEY_NOT_FOUND);
+  info->update &= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+  if ((*info->s->read_rnd)(info, record, filepos, 0)) {
+    if (my_errno() == HA_ERR_RECORD_DELETED) set_my_errno(HA_ERR_KEY_NOT_FOUND);
     DBUG_RETURN(my_errno());
   }
-  info->lastpos=filepos;
-  info->lastinx=inx;
-  if (inx >= 0)
-  {
-    info->lastkey_length=_mi_make_key(info,(uint) inx,info->lastkey,record,
-				      info->lastpos);
-    info->update|=HA_STATE_KEY_CHANGED;		/* Don't use indexposition */
+  info->lastpos = filepos;
+  info->lastinx = inx;
+  if (inx >= 0) {
+    info->lastkey_length =
+        _mi_make_key(info, (uint)inx, info->lastkey, record, info->lastpos);
+    info->update |= HA_STATE_KEY_CHANGED; /* Don't use indexposition */
   }
   DBUG_RETURN(0);
 } /* mi_rsame_pos */

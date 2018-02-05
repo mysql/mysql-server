@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -37,14 +37,14 @@ class Crud_statement_builder_stub : public Crud_statement_builder {
 
   using Crud_statement_builder::add_collection;
   using Crud_statement_builder::add_filter;
-  using Crud_statement_builder::add_order;
   using Crud_statement_builder::add_limit;
+  using Crud_statement_builder::add_order;
 };
 
 class Crud_statement_builder_test : public ::testing::Test {
  public:
-  Crud_statement_builder_stub &builder(const bool is_table_data_model =
-                                           DM_TABLE) {
+  Crud_statement_builder_stub &builder(
+      const bool is_table_data_model = DM_TABLE) {
     expr_gen.reset(
         new Expression_generator(&query, args, schema, is_table_data_model));
     stub.reset(new Crud_statement_builder_stub(expr_gen.get()));
@@ -57,10 +57,7 @@ class Crud_statement_builder_test : public ::testing::Test {
   std::unique_ptr<Expression_generator> expr_gen;
   std::unique_ptr<Crud_statement_builder_stub> stub;
 
-  enum {
-    DM_DOCUMENT = 0,
-    DM_TABLE = 1
-  };
+  enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 };
 
 TEST_F(Crud_statement_builder_test, add_table_only_name) {
@@ -137,9 +134,8 @@ TEST_F(Crud_statement_builder_test, add_order_two_items) {
 TEST_F(Crud_statement_builder_test, add_order_two_items_placeholder) {
   args = Expression_args{2};
 
-  ASSERT_NO_THROW(builder().add_order(
-      Order_list{{ColumnIdentifier("A"), Mysqlx::Crud::Order::DESC},
-                 {Placeholder(0)}}));
+  ASSERT_NO_THROW(builder().add_order(Order_list{
+      {ColumnIdentifier("A"), Mysqlx::Crud::Order::DESC}, {Placeholder(0)}}));
   EXPECT_EQ(" ORDER BY `A` DESC,2", query.get());
 }
 

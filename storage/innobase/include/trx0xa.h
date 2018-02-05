@@ -29,8 +29,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *
  * Define a symbol to prevent multiple inclusions of this header file
  */
-#ifndef	XA_H
-#define	XA_H
+#ifndef XA_H
+#define XA_H
 
 #include "sql/xa.h"
 
@@ -40,10 +40,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef XIDDATASIZE
 
 /** Sizes of transaction identifier */
-#define	XIDDATASIZE	128		/*!< maximum size of a transaction
-					identifier, in bytes */
-#define	MAXGTRIDSIZE	 64		/*!< maximum size in bytes of gtrid */
-#define	MAXBQUALSIZE	 64		/*!< maximum size in bytes of bqual */
+#define XIDDATASIZE                                        \
+  128                   /*!< maximum size of a transaction \
+                        identifier, in bytes */
+#define MAXGTRIDSIZE 64 /*!< maximum size in bytes of gtrid */
+#define MAXBQUALSIZE 64 /*!< maximum size in bytes of bqual */
 
 #endif
 

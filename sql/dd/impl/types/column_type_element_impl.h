@@ -26,10 +26,10 @@
 #include <sys/types.h>
 #include <new>
 
-#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/column_type_element.h"  // dd::Column_type_element
 
 namespace dd {
 
@@ -48,25 +48,19 @@ class Weak_object;
 ///////////////////////////////////////////////////////////////////////////
 
 class Column_type_element_impl : public Weak_object_impl,
-                                 public Column_type_element
-{
-public:
-  Column_type_element_impl()
-   :m_index(0)
-  { }
+                                 public Column_type_element {
+ public:
+  Column_type_element_impl() : m_index(0) {}
 
   Column_type_element_impl(Column_impl *column)
-   :m_index(0),
-    m_column(column)
-  { }
+      : m_index(0), m_column(column) {}
 
   Column_type_element_impl(const Column_type_element_impl &src,
                            Column_impl *parent);
 
-  virtual ~Column_type_element_impl()
-  { }
+  virtual ~Column_type_element_impl() {}
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
@@ -77,38 +71,34 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  void set_ordinal_position(uint ordinal_position)
-  { m_index= ordinal_position; }
+  void set_ordinal_position(uint ordinal_position) {
+    m_index = ordinal_position;
+  }
 
-  virtual uint ordinal_position() const
-  { return index(); }
+  virtual uint ordinal_position() const { return index(); }
 
   void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-public:
-  static Column_type_element_impl *restore_item(Column_impl *column)
-  {
+ public:
+  static Column_type_element_impl *restore_item(Column_impl *column) {
     return new (std::nothrow) Column_type_element_impl(column);
   }
 
   static Column_type_element_impl *clone(const Column_type_element_impl &other,
-                                         Column_impl *column)
-  {
+                                         Column_impl *column) {
     return new (std::nothrow) Column_type_element_impl(other, column);
   }
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // Name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &name() const
-  { return m_name; }
+  virtual const String_type &name() const { return m_name; }
 
-  virtual void set_name(const String_type &name)
-  { m_name= name; }
+  virtual void set_name(const String_type &name) { m_name = name; }
 
   /////////////////////////////////////////////////////////////////////////
   // Column
@@ -120,17 +110,16 @@ public:
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint index() const
-  { return m_index; }
+  virtual uint index() const { return m_index; }
 
-public:
+ public:
   virtual void debug_print(String_type &outb) const;
 
-protected:
+ protected:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
-protected:
+ protected:
   // Fields
   String_type m_name;
   uint m_index;
@@ -141,6 +130,6 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__COLUMN_TYPE_ELEMENT_IMPL_INCLUDED
+#endif  // DD__COLUMN_TYPE_ELEMENT_IMPL_INCLUDED

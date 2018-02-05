@@ -55,12 +55,14 @@ inline Mysqlx::Notice::Warning::Level get_warning_level(
 }
 
 bool end_warning_row(xpl::Process_resultset::Row *row,
-                     ngs::Protocol_encoder_interface &proto, bool skip_single_error,
-                     std::string &last_error, unsigned int &num_errors) {
+                     ngs::Protocol_encoder_interface &proto,
+                     bool skip_single_error, std::string &last_error,
+                     unsigned int &num_errors) {
   typedef Mysqlx::Notice::Warning Warning;
 
   if (!last_error.empty()) {
-    proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL, last_error);
+    proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL,
+                      last_error);
     last_error.clear();
   }
 
@@ -94,10 +96,8 @@ inline void send_local_notice(const Mysqlx::Notice::SessionStateChanged &notice,
                               ngs::Protocol_encoder_interface *proto) {
   std::string data;
   notice.SerializeToString(&data);
-  proto->send_notice(
-      ngs::Frame_type::SESSION_STATE_CHANGED,
-      ngs::Frame_scope::LOCAL,
-      data);
+  proto->send_notice(ngs::Frame_type::SESSION_STATE_CHANGED,
+                     ngs::Frame_scope::LOCAL, data);
 }
 
 }  // namespace
@@ -117,19 +117,15 @@ ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
   return da.execute(q.data(), q.length(), &resultset);
 }
 
-
-ngs::Error_code send_account_expired(
-    ngs::Protocol_encoder_interface &proto) {
+ngs::Error_code send_account_expired(ngs::Protocol_encoder_interface &proto) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::ACCOUNT_EXPIRED);
   send_local_notice(change, &proto);
   return ngs::Success();
 }
 
-
-ngs::Error_code send_generated_insert_id(
-    ngs::Protocol_encoder_interface &proto,
-    uint64_t i) {
+ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder_interface &proto,
+                                         uint64_t i) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::GENERATED_INSERT_ID);
   Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
@@ -139,16 +135,14 @@ ngs::Error_code send_generated_insert_id(
   return ngs::Success();
 }
 
-ngs::Error_code send_rows_affected(
-    ngs::Protocol_encoder_interface &proto,
-    uint64_t i) {
+ngs::Error_code send_rows_affected(ngs::Protocol_encoder_interface &proto,
+                                   uint64_t i) {
   proto.send_rows_affected(i);
   return ngs::Success();
 }
 
-ngs::Error_code send_client_id(
-    ngs::Protocol_encoder_interface &proto,
-    uint64_t i) {
+ngs::Error_code send_client_id(ngs::Protocol_encoder_interface &proto,
+                               uint64_t i) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::CLIENT_ID_ASSIGNED);
   Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
@@ -176,7 +170,7 @@ ngs::Error_code send_generated_document_ids(
 
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::GENERATED_DOCUMENT_IDS);
-  for(const auto &id : ids) {
+  for (const auto &id : ids) {
     Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
     v->set_type(Mysqlx::Datatypes::Scalar::V_OCTETS);
     v->mutable_v_octets()->set_value(id);

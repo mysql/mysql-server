@@ -24,70 +24,67 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/sync0arr.ic
-The wait array for synchronization primitives
+/**************************************************/ /**
+ @file include/sync0arr.ic
+ The wait array for synchronization primitives
 
-Inline code
+ Inline code
 
-Created 9/5/1995 Heikki Tuuri
-*******************************************************/
+ Created 9/5/1995 Heikki Tuuri
+ *******************************************************/
 
-extern ulint		sync_array_size;
-extern sync_array_t**	sync_wait_array;
+extern ulint sync_array_size;
+extern sync_array_t **sync_wait_array;
 
 #include "ut0counter.h"
 
-/**********************************************************************//**
-Get an instance of the sync wait array.
-@return an instance of the sync wait array. */
+/**********************************************************************/ /**
+ Get an instance of the sync wait array.
+ @return an instance of the sync wait array. */
 
 UNIV_INLINE
-sync_array_t*
-sync_array_get()
+sync_array_t *sync_array_get()
 /*============*/
 {
-	if (sync_array_size <= 1) {
-		return(sync_wait_array[0]);
-	}
+  if (sync_array_size <= 1) {
+    return (sync_wait_array[0]);
+  }
 
-	return(sync_wait_array[default_indexer_t<>::get_rnd_index()
-			       % sync_array_size]);
+  return (
+      sync_wait_array[default_indexer_t<>::get_rnd_index() % sync_array_size]);
 }
 
-/******************************************************************//**
-Get an instance of the sync wait array and reserve a wait array cell
-in the instance for waiting for an object. The event of the cell is
-reset to nonsignalled state.
-If reserving cell of the instance fails, try to get another new
-instance until we can reserve an empty cell of it.
-@return the sync array reserved, never NULL. */
+/******************************************************************/ /**
+ Get an instance of the sync wait array and reserve a wait array cell
+ in the instance for waiting for an object. The event of the cell is
+ reset to nonsignalled state.
+ If reserving cell of the instance fails, try to get another new
+ instance until we can reserve an empty cell of it.
+ @return the sync array reserved, never NULL. */
 UNIV_INLINE
-sync_array_t*
-sync_array_get_and_reserve_cell(
-/*============================*/
-	void*		object, /*!< in: pointer to the object to wait for */
-	ulint		type,	/*!< in: lock request type */
-	const char*	file,	/*!< in: file where requested */
-	ulint		line,	/*!< in: line where requested */
-	sync_cell_t**	cell)	/*!< out: the cell reserved, never NULL */
+sync_array_t *sync_array_get_and_reserve_cell(
+    /*============================*/
+    void *object,       /*!< in: pointer to the object to wait for */
+    ulint type,         /*!< in: lock request type */
+    const char *file,   /*!< in: file where requested */
+    ulint line,         /*!< in: line where requested */
+    sync_cell_t **cell) /*!< out: the cell reserved, never NULL */
 {
-	sync_array_t*	sync_arr = NULL;
+  sync_array_t *sync_arr = NULL;
 
-	*cell = NULL;
-	for (ulint i = 0; i < sync_array_size && *cell == NULL; ++i) {
-		/* Although the sync_array is get in a random way currently,
-		we still try at most sync_array_size times, in case any
-		of the sync_array we get is full */
-		sync_arr = sync_array_get();
-		*cell = sync_array_reserve_cell(sync_arr, object, type,
-					       file, line);
-        }
+  *cell = NULL;
+  for (ulint i = 0; i < sync_array_size && *cell == NULL; ++i) {
+    /* Although the sync_array is get in a random way currently,
+    we still try at most sync_array_size times, in case any
+    of the sync_array we get is full */
+    sync_arr = sync_array_get();
+    *cell = sync_array_reserve_cell(sync_arr, object, type, file, line);
+  }
 
-	/* This won't be true every time, for the loop above may execute
-	more than srv_sync_array_size times to reserve a cell.
-	But an assertion here makes the code more solid. */
-	ut_a(*cell != NULL);
+  /* This won't be true every time, for the loop above may execute
+  more than srv_sync_array_size times to reserve a cell.
+  But an assertion here makes the code more solid. */
+  ut_a(*cell != NULL);
 
-	return(sync_arr);
+  return (sync_arr);
 }

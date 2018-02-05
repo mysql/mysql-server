@@ -30,24 +30,16 @@
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 
-namespace ngs
-{
-  class Output_buffer;
+namespace ngs {
+class Output_buffer;
 
-  class Notice_builder: public Message_builder
-  {
-  public:
-    void encode_frame(
-      Output_buffer* out_buffer,
-      uint32 type,
-      const std::string &data,
-      int scope);
+class Notice_builder : public Message_builder {
+ public:
+  void encode_frame(Output_buffer *out_buffer, uint32 type,
+                    const std::string &data, int scope);
 
-    void encode_rows_affected(
-      Output_buffer* out_buffer,
-      uint64 value);
-  };
-}
+  void encode_rows_affected(Output_buffer *out_buffer, uint64 value);
+};
+}  // namespace ngs
 
-
-#endif //  _NGS_NOTICE_BUILDER_H_
+#endif  //  _NGS_NOTICE_BUILDER_H_

@@ -26,12 +26,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 
-/**************************************************//**
-@file include/row0uins.h
-Fresh insert undo
+/**************************************************/ /**
+ @file include/row0uins.h
+ Fresh insert undo
 
-Created 2/25/1997 Heikki Tuuri
-*******************************************************/
+ Created 2/25/1997 Heikki Tuuri
+ *******************************************************/
 
 #ifndef row0uins_h
 #define row0uins_h
@@ -44,19 +44,18 @@ Created 2/25/1997 Heikki Tuuri
 #include "trx0types.h"
 #include "univ.i"
 
-/***********************************************************//**
-Undoes a fresh insert of a row to a table. A fresh insert means that
-the same clustered index unique key did not have any record, even delete
-marked, at the time of the insert.  InnoDB is eager in a rollback:
-if it figures out that an index record will be removed in the purge
-anyway, it will remove it in the rollback.
-@return DB_SUCCESS */
-dberr_t
-row_undo_ins(
-/*=========*/
-	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr)	/*!< in: query thread */
-	MY_ATTRIBUTE((warn_unused_result));
+/***********************************************************/ /**
+ Undoes a fresh insert of a row to a table. A fresh insert means that
+ the same clustered index unique key did not have any record, even delete
+ marked, at the time of the insert.  InnoDB is eager in a rollback:
+ if it figures out that an index record will be removed in the purge
+ anyway, it will remove it in the rollback.
+ @return DB_SUCCESS */
+dberr_t row_undo_ins(
+    /*=========*/
+    undo_node_t *node, /*!< in: row undo node */
+    que_thr_t *thr)    /*!< in: query thread */
+    MY_ATTRIBUTE((warn_unused_result));
 
 #include "row0uins.ic"
 

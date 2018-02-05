@@ -44,36 +44,35 @@ static uint my_get_large_page_size_int(void);
 
 /* Gets the size of large pages from the OS */
 
-uint my_get_large_page_size(void)
-{
+uint my_get_large_page_size(void) {
   uint size;
   DBUG_ENTER("my_get_large_page_size");
 
   if (!(size = my_get_large_page_size_int()))
-    my_message_local(WARNING_LEVEL, "Failed to determine large page size"); /* purecov: inspected */
+    my_message_local(
+        WARNING_LEVEL,
+        "Failed to determine large page size"); /* purecov: inspected */
 
   DBUG_RETURN(size);
 }
 
 /* Linux-specific function to determine the size of large pages */
 
-uint my_get_large_page_size_int(void)
-{
+uint my_get_large_page_size_int(void) {
   MYSQL_FILE *f;
   uint size = 0;
   char buf[256];
   DBUG_ENTER("my_get_large_page_size_int");
 
-  if (!(f= mysql_file_fopen(key_file_proc_meminfo, "/proc/meminfo",
-                            O_RDONLY, MYF(MY_WME))))
+  if (!(f = mysql_file_fopen(key_file_proc_meminfo, "/proc/meminfo", O_RDONLY,
+                             MYF(MY_WME))))
     goto finish;
 
   while (mysql_file_fgets(buf, sizeof(buf), f))
-    if (sscanf(buf, "Hugepagesize: %u kB", &size))
-      break;
+    if (sscanf(buf, "Hugepagesize: %u kB", &size)) break;
 
   mysql_file_fclose(f, MYF(MY_WME));
-  
+
 finish:
   DBUG_RETURN(size * 1024);
 }

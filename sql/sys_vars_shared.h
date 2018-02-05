@@ -32,72 +32,76 @@
   classes in the sys_var hierarchy (sql_plugin.cc)
 */
 
-
-#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include "mysql/psi/mysql_thread.h"  // mysql_mutex_t
 #include "sql/sql_table.h"
 
 class THD;
 class sys_var;
 
-extern bool throw_bounds_warning(THD *thd, const char *name,
-                                 bool fixed, bool is_unsigned, longlong v);
+extern bool throw_bounds_warning(THD *thd, const char *name, bool fixed,
+                                 bool is_unsigned, longlong v);
 extern bool throw_bounds_warning(THD *thd, const char *name, bool fixed,
                                  double v);
 extern sys_var *intern_find_sys_var(const char *str, size_t length);
 
 /** wrapper to hide a mutex and an rwlock under a common interface */
-class PolyLock
-{
-public:
-  virtual void rdlock()= 0;
-  virtual void wrlock()= 0;
-  virtual void unlock()= 0;
+class PolyLock {
+ public:
+  virtual void rdlock() = 0;
+  virtual void wrlock() = 0;
+  virtual void unlock() = 0;
   virtual ~PolyLock() {}
 };
 
-class PolyLock_mutex: public PolyLock
-{
+class PolyLock_mutex : public PolyLock {
   mysql_mutex_t *mutex;
-public:
-  PolyLock_mutex(mysql_mutex_t *arg): mutex(arg) {}
+
+ public:
+  PolyLock_mutex(mysql_mutex_t *arg) : mutex(arg) {}
   void rdlock() { mysql_mutex_lock(mutex); }
   void wrlock() { mysql_mutex_lock(mutex); }
   void unlock() { mysql_mutex_unlock(mutex); }
 };
 
-class PolyLock_rwlock: public PolyLock
-{
+class PolyLock_rwlock : public PolyLock {
   mysql_rwlock_t *rwlock;
-public:
-  PolyLock_rwlock(mysql_rwlock_t *arg): rwlock(arg) {}
+
+ public:
+  PolyLock_rwlock(mysql_rwlock_t *arg) : rwlock(arg) {}
   void rdlock() { mysql_rwlock_rdlock(rwlock); }
   void wrlock() { mysql_rwlock_wrlock(rwlock); }
   void unlock() { mysql_rwlock_unlock(rwlock); }
 };
 
-class PolyLock_lock_log: public PolyLock
-{
-public:
+class PolyLock_lock_log : public PolyLock {
+ public:
   void rdlock();
   void wrlock();
   void unlock();
 };
 
-class AutoWLock
-{
+class AutoWLock {
   PolyLock *lock;
-public:
-  AutoWLock(PolyLock *l) : lock(l) { if (lock) lock->wrlock(); }
-  ~AutoWLock() { if (lock) lock->unlock(); }
+
+ public:
+  AutoWLock(PolyLock *l) : lock(l) {
+    if (lock) lock->wrlock();
+  }
+  ~AutoWLock() {
+    if (lock) lock->unlock();
+  }
 };
 
-class AutoRLock
-{
+class AutoRLock {
   PolyLock *lock;
-public:
-  AutoRLock(PolyLock *l) : lock(l) { if (lock) lock->rdlock(); }
-  ~AutoRLock() { if (lock) lock->unlock(); }
-};
 
+ public:
+  AutoRLock(PolyLock *l) : lock(l) {
+    if (lock) lock->rdlock();
+  }
+  ~AutoRLock() {
+    if (lock) lock->unlock();
+  }
+};
 
 #endif /* SYS_VARS_SHARED_INCLUDED */

@@ -35,52 +35,40 @@
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using namespace Mysql::Tools::Base::Options;
-using std::placeholders::_1;
 using Mysql::Tools::Base::Abstract_program;
+using std::placeholders::_1;
 using std::string;
 
 extern const char *load_default_groups[];
 
-Help_options::Help_options(Abstract_program *program)
-  : m_program(program)
-{}
+Help_options::Help_options(Abstract_program *program) : m_program(program) {}
 
-void Help_options::create_options()
-{
+void Help_options::create_options() {
   this->create_new_option("help", "Display this help message and exit.")
-    ->set_short_character('?')
-    ->add_callback(new std::function<void(char*)>(
-     std::bind(&Help_options::help_callback, this, _1)));
+      ->set_short_character('?')
+      ->add_callback(new std::function<void(char *)>(
+          std::bind(&Help_options::help_callback, this, _1)));
 
   this->create_new_option("version", "Output version information and exit.")
-    ->set_short_character('V')
-    ->add_callback(new std::function<void(char*)>(
-    std::bind(&Help_options::version_callback, this, _1)));
+      ->set_short_character('V')
+      ->add_callback(new std::function<void(char *)>(
+          std::bind(&Help_options::version_callback, this, _1)));
 }
 
-void Help_options::help_callback(char* argument MY_ATTRIBUTE((unused)))
-{
+void Help_options::help_callback(char *argument MY_ATTRIBUTE((unused))) {
   this->print_usage();
   exit(0);
 }
 
-void Help_options::version_callback(char* argument MY_ATTRIBUTE((unused)))
-{
+void Help_options::version_callback(char *argument MY_ATTRIBUTE((unused))) {
   this->print_version_line();
   exit(0);
 }
 
-
 /** A helper function. Prints the program version line. */
-void Help_options::print_version_line()
-{
-  print_version();
-}
+void Help_options::print_version_line() { print_version(); }
 
-
-void Mysql::Tools::Base::Options::Help_options::print_usage()
-{
-
+void Mysql::Tools::Base::Options::Help_options::print_usage() {
   this->print_version_line();
 
   std::ostringstream s;
@@ -88,22 +76,19 @@ void Mysql::Tools::Base::Options::Help_options::print_usage()
   string first_year_str(s.str());
   string copyright;
 
-  if (first_year_str == COPYRIGHT_NOTICE_CURRENT_YEAR)
-  {
-    copyright= ORACLE_WELCOME_COPYRIGHT_NOTICE(COPYRIGHT_NOTICE_CURRENT_YEAR);
-  }
-  else
-  {
+  if (first_year_str == COPYRIGHT_NOTICE_CURRENT_YEAR) {
+    copyright = ORACLE_WELCOME_COPYRIGHT_NOTICE(COPYRIGHT_NOTICE_CURRENT_YEAR);
+  } else {
 #define FIRST_YEAR_CONSTANT "$first_year$"
-    string first_year_constant_str= FIRST_YEAR_CONSTANT;
+    string first_year_constant_str = FIRST_YEAR_CONSTANT;
 
-    copyright= ORACLE_WELCOME_COPYRIGHT_NOTICE(FIRST_YEAR_CONSTANT);
-    copyright= copyright.replace(copyright.find(first_year_constant_str),
-                                 first_year_constant_str.length(), first_year_str);
+    copyright = ORACLE_WELCOME_COPYRIGHT_NOTICE(FIRST_YEAR_CONSTANT);
+    copyright =
+        copyright.replace(copyright.find(first_year_constant_str),
+                          first_year_constant_str.length(), first_year_str);
   }
 
-  printf("%s\n%s\n",
-         copyright.c_str(),
+  printf("%s\n%s\n", copyright.c_str(),
          this->m_program->get_description().c_str());
   this->m_program->short_usage();
   print_defaults("my", load_default_groups);

@@ -53,28 +53,25 @@
 #include <cassert>
 #include <iostream>
 
-#define INT_MAX32     0x7FFFFFFFL
-#define MY_MIN(a, b)  ((a) < (b) ? (a) : (b))
-
+#define INT_MAX32 0x7FFFFFFFL
+#define MY_MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #ifdef _WIN32
 
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+#define OFFSET_TO_EPOC ((__int64)134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
 #define MS 10000000
 
-#include<time.h>
+#include <time.h>
 
 #endif
-
 
 /**
   @class My_xp_util
 
   Class where cross platform utilities reside as static methods.
 */
-class My_xp_util
-{
-public:
+class My_xp_util {
+ public:
   /**
     Current thread sleeps for the parameterized number of seconds.
 
@@ -96,7 +93,6 @@ public:
 
   static void init_time();
 
-
   /**
     Get the system's time.
 
@@ -105,33 +101,29 @@ public:
 
   static uint64_t getsystime(void);
 
-
   /**
     Set the value of the timespec struct equal to the argument in nanoseconds.
   */
 
-  static inline void set_timespec_nsec(struct timespec *abstime, uint64_t nsec)
-  {
-    uint64_t now= My_xp_util::getsystime() + (nsec / 100);
-    uint64_t tv_sec= now / 10000000ULL;
-  #if SIZEOF_TIME_T < SIZEOF_LONG_LONG
+  static inline void set_timespec_nsec(struct timespec *abstime,
+                                       uint64_t nsec) {
+    uint64_t now = My_xp_util::getsystime() + (nsec / 100);
+    uint64_t tv_sec = now / 10000000ULL;
+#if SIZEOF_TIME_T < SIZEOF_LONG_LONG
     /* Ensure that the number of seconds don't overflow. */
-    tv_sec= MY_MIN(tv_sec, ((uint64_t)INT_MAX32));
-  #endif
-    abstime->tv_sec=  (time_t)tv_sec;
-    abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
+    tv_sec = MY_MIN(tv_sec, ((uint64_t)INT_MAX32));
+#endif
+    abstime->tv_sec = (time_t)tv_sec;
+    abstime->tv_nsec = (now % 10000000ULL) * 100 + (nsec % 100);
   }
-
 
   /**
     Set the value of the timespec struct equal to the argument in seconds.
   */
 
-  static inline void set_timespec(struct timespec *abstime, uint64_t sec)
-  {
+  static inline void set_timespec(struct timespec *abstime, uint64_t sec) {
     My_xp_util::set_timespec_nsec(abstime, sec * 1000000000ULL);
   }
-
 
   /**
     Compare two timespec structs.
@@ -141,8 +133,7 @@ public:
     @retval  0 If ts1 is equal to ts2.
   */
 
-  static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
-  {
+  static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2) {
     if (ts1->tv_sec > ts2->tv_sec ||
         (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
       return 1;
@@ -152,7 +143,6 @@ public:
     return 0;
   }
 
-
   /**
     Diff two timespec structs.
     ts1 has to be larger than ts2, otherwise it will return unexpected value.
@@ -161,41 +151,36 @@ public:
   */
 
   static inline uint64_t diff_timespec(struct timespec *ts1,
-                                       struct timespec *ts2)
-  {
+                                       struct timespec *ts2) {
     return static_cast<uint64_t>(ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
-      static_cast<uint64_t>(ts1->tv_nsec) - static_cast<uint32_t>(ts2->tv_nsec);
+           static_cast<uint64_t>(ts1->tv_nsec) -
+           static_cast<uint32_t>(ts2->tv_nsec);
   }
 };
-
 
 /**
   @class My_xp_socket_util
 
   Interface for socket utility methods.
 */
-class My_xp_socket_util
-{
-public:
-
+class My_xp_socket_util {
+ public:
   /**
     Disable Nagle algorithm in the specified socket.
 
     @param fd file descriptor of the socket
   */
 
-  virtual int disable_nagle_in_socket(int fd)= 0;
+  virtual int disable_nagle_in_socket(int fd) = 0;
 
-  virtual ~My_xp_socket_util() {};
+  virtual ~My_xp_socket_util(){};
 };
 
-
-class My_xp_socket_util_impl : public My_xp_socket_util
-{
-public:
+class My_xp_socket_util_impl : public My_xp_socket_util {
+ public:
   int disable_nagle_in_socket(int fd);
-  explicit My_xp_socket_util_impl() {};
-  ~My_xp_socket_util_impl() {};
+  explicit My_xp_socket_util_impl(){};
+  ~My_xp_socket_util_impl(){};
 };
 
-#endif // MY_XP_UTIL_INCLUDED
+#endif  // MY_XP_UTIL_INCLUDED

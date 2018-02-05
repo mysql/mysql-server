@@ -30,34 +30,31 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 
-class Single_primary_message : public Plugin_gcs_message
-{
-public:
-  enum enum_payload_item_type
-  {
+class Single_primary_message : public Plugin_gcs_message {
+ public:
+  enum enum_payload_item_type {
     // This type should not be used anywhere.
-    PIT_UNKNOWN= 0,
+    PIT_UNKNOWN = 0,
 
     // Length of the payload item: 2 bytes
-    PIT_SINGLE_PRIMARY_MESSAGE_TYPE= 1,
+    PIT_SINGLE_PRIMARY_MESSAGE_TYPE = 1,
 
     // No valid type codes can appear after this one.
-    PIT_MAX= 2
+    PIT_MAX = 2
   };
 
   /**
    The several single primary type messages.
   */
-  typedef enum
-  {
+  typedef enum {
     /**This type should not be used anywhere.*/
-    SINGLE_PRIMARY_UNKNOWN= 0,
+    SINGLE_PRIMARY_UNKNOWN = 0,
     /**A new primary was elected.*/
-    SINGLE_PRIMARY_NEW_PRIMARY_MESSAGE= 1,
+    SINGLE_PRIMARY_NEW_PRIMARY_MESSAGE = 1,
     /**Primary did apply queue after election.*/
-    SINGLE_PRIMARY_QUEUE_APPLIED_MESSAGE= 2,
+    SINGLE_PRIMARY_QUEUE_APPLIED_MESSAGE = 2,
     /**The end of the enum.*/
-    SINGLE_PRIMARY_MESSAGE_TYPE_END= 3
+    SINGLE_PRIMARY_MESSAGE_TYPE_END = 3
   } Single_primary_message_type;
 
   /**
@@ -78,31 +75,29 @@ public:
     @param[in] buf raw data
     @param[in] len raw length
   */
-  Single_primary_message(const uchar* buf, size_t len);
+  Single_primary_message(const uchar *buf, size_t len);
 
   /** Returns this single primary message type */
-  Single_primary_message_type get_single_primary_message_type()
-  {
+  Single_primary_message_type get_single_primary_message_type() {
     return single_primary_message_type;
   }
 
-protected:
+ protected:
   /**
     Encodes the message contents for transmission.
 
     @param[out] buffer   the message buffer to be written
   */
-  void encode_payload(std::vector<unsigned char>* buffer) const;
+  void encode_payload(std::vector<unsigned char> *buffer) const;
 
   /**
     Message decoding method
 
     @param[in] buffer the received data
   */
-  void decode_payload(const unsigned char* buffer,
-                      const unsigned char*);
+  void decode_payload(const unsigned char *buffer, const unsigned char *);
 
-private:
+ private:
   /**The message type*/
   Single_primary_message_type single_primary_message_type;
 };

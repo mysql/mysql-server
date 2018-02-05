@@ -33,8 +33,8 @@
 #include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_table_access.h"    // System_table_access
-#include "sql/sql_class.h"           // Open_tables_backup
+#include "sql/rpl_table_access.h"  // System_table_access
+#include "sql/sql_class.h"         // Open_tables_backup
 #include "sql/table.h"
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
@@ -42,15 +42,13 @@
 
 class Field;
 
-class Gtid_table_access_context : public System_table_access
-{
-
-public:
+class Gtid_table_access_context : public System_table_access {
+ public:
   static const LEX_STRING DB_NAME;
   static const LEX_STRING TABLE_NAME;
 
-  Gtid_table_access_context() : m_drop_thd_object(NULL) { };
-  virtual ~Gtid_table_access_context() { };
+  Gtid_table_access_context() : m_drop_thd_object(NULL){};
+  virtual ~Gtid_table_access_context(){};
 
   /**
     Initialize the gtid_executed table access context as following:
@@ -89,7 +87,7 @@ public:
 
     @param[in]  thd  Thread requesting to open the table
   */
-  void before_open(THD* thd);
+  void before_open(THD *thd);
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,
     a thread is created in order to be able to access a table. And reset a
@@ -99,7 +97,8 @@ public:
       @retval THD* Pointer to thread structure
   */
   THD *create_thd();
-private:
+
+ private:
   /* Pointer to new created THD. */
   THD *m_drop_thd_object;
   /* Modify the table if it is true. */
@@ -115,15 +114,12 @@ private:
   Gtid_table_access_context(const Gtid_table_access_context &info);
 };
 
+class Gtid_table_persistor {
+ public:
+  static const uint number_fields = 3;
 
-class Gtid_table_persistor
-{
-
-public:
-  static const uint number_fields= 3;
-
-  Gtid_table_persistor() { }
-  virtual ~Gtid_table_persistor() { }
+  Gtid_table_persistor() {}
+  virtual ~Gtid_table_persistor() {}
 
   /**
     Insert the gtid into table.
@@ -205,16 +201,14 @@ public:
     @retval 1 Push a warning to client.
     @retval 2 Push an error to client.
   */
-  int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table)
-  {
+  int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table) {
     DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
 
     if (!thd->is_operating_gtid_table_implicitly &&
         table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
-        !strcmp(table->table_name, Gtid_table_access_context::TABLE_NAME.str))
-    {
-      if (thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_ACTIVE))
-      {
+        !strcmp(table->table_name, Gtid_table_access_context::TABLE_NAME.str)) {
+      if (thd->get_transaction()->xid_state()->has_state(
+              XID_STATE::XA_ACTIVE)) {
         /*
           Push an error to client if user is modifying the gtid_executed
           table explicitly by a XA transaction.
@@ -222,9 +216,7 @@ public:
         thd->raise_error_printf(ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                 table->table_name);
         DBUG_RETURN(2);
-      }
-      else
-      {
+      } else {
         /*
           Push a warning to client if user is modifying the gtid_executed
           table explicitly by a non-XA transaction.
@@ -238,7 +230,7 @@ public:
     DBUG_RETURN(0);
   }
 
-private:
+ private:
   /* Count the append size of the table */
   std::atomic<int64> m_atomic_count{0};
   /**
@@ -295,8 +287,8 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int fill_fields(Field **fields, const char *sid,
-                  rpl_gno gno_start, rpl_gno gno_end);
+  int fill_fields(Field **fields, const char *sid, rpl_gno gno_start,
+                  rpl_gno gno_end);
   /**
     Write a gtid interval into the gtid_executed table.
 
@@ -309,8 +301,8 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int write_row(TABLE *table, const char *sid,
-                rpl_gno gno_start, rpl_gno gno_end);
+  int write_row(TABLE *table, const char *sid, rpl_gno gno_start,
+                rpl_gno gno_end);
   /**
     Update a gtid interval in the gtid_executed table.
     - locate the gtid interval by primary key (sid, gno_start)
@@ -325,8 +317,8 @@ private:
       @retval 0    OK.
       @retval -1   Error.
   */
-  int update_row(TABLE *table, const char *sid,
-                 rpl_gno gno_start, rpl_gno new_gno_end);
+  int update_row(TABLE *table, const char *sid, rpl_gno gno_start,
+                 rpl_gno new_gno_end);
   /**
     Delete all rows in the gtid_executed table.
 
@@ -352,8 +344,8 @@ private:
     @param [out] gno_start The first GNO of the gtid interval.
     @param [out] gno_end  The last GNO of the gtid interval.
   */
-  void get_gtid_interval(TABLE *table, std::string &sid,
-                         rpl_gno &gno_start, rpl_gno &gno_end);
+  void get_gtid_interval(TABLE *table, std::string &sid, rpl_gno &gno_start,
+                         rpl_gno &gno_end);
   /**
     Insert the gtid set into table.
 

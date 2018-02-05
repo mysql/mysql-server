@@ -51,17 +51,12 @@
     method Gcs_control_interface::get_current_view.
   - Cache the value received via Gcs_control_event_listener::on_view_changed.
 */
-class Gcs_view
-{
-public:
+class Gcs_view {
+ public:
   /**
     Define error codes associated to the view.
   */
-  enum Gcs_view_error_code
-  {
-    OK= 1,
-    MEMBER_EXPELLED
-  };
+  enum Gcs_view_error_code { OK = 1, MEMBER_EXPELLED };
 
   /**
     Gcs_view constructor.
@@ -79,7 +74,6 @@ public:
                     const std::vector<Gcs_member_identifier> &joined,
                     const Gcs_group_identifier &group_id);
 
-
   /**
     @param[in] members group members
     @param[in] view_id the view identifier
@@ -96,7 +90,6 @@ public:
                     const Gcs_group_identifier &group_id,
                     Gcs_view::Gcs_view_error_code error_code);
 
-
   /**
     Gcs_view constructor which does a deep copy of the object passed
     as parameter.
@@ -106,9 +99,7 @@ public:
 
   explicit Gcs_view(Gcs_view const &view);
 
-
   virtual ~Gcs_view();
-
 
   /**
     @return the current view identifier. This identifier marks a snapshot in
@@ -117,13 +108,11 @@ public:
 
   const Gcs_view_identifier &get_view_id() const;
 
-
   /**
     @return the group where this view pertains
   */
 
   const Gcs_group_identifier &get_group_id() const;
-
 
   /**
     @return the totality of members that currently belong to this group in a
@@ -132,13 +121,11 @@ public:
 
   const std::vector<Gcs_member_identifier> &get_members() const;
 
-
   /**
     @return the members that left from the view n-1 to the current view n
   */
 
   const std::vector<Gcs_member_identifier> &get_leaving_members() const;
-
 
   /**
     @return the new members in view from view n-1 to the current view n
@@ -146,22 +133,19 @@ public:
 
   const std::vector<Gcs_member_identifier> &get_joined_members() const;
 
-
   /**
     @return error code associated to the current view.
   */
 
   Gcs_view::Gcs_view_error_code get_error_code() const;
 
-
   /*
-    @param[in] address Member's identifier which is usually its address 
+    @param[in] address Member's identifier which is usually its address
     @return the member whose identifier matches the one provided as
             parameter
   */
 
   const Gcs_member_identifier *get_member(const std::string &member_id) const;
-
 
   /*
     @param[in] member_id Member's identifier which is usually its address
@@ -171,18 +155,18 @@ public:
 
   bool has_member(const std::string &member_id) const;
 
-private:
+ private:
   std::vector<Gcs_member_identifier> *m_members;
-  Gcs_view_identifier                *m_view_id;
+  Gcs_view_identifier *m_view_id;
   std::vector<Gcs_member_identifier> *m_leaving;
   std::vector<Gcs_member_identifier> *m_joined;
-  Gcs_group_identifier               *m_group_id;
+  Gcs_group_identifier *m_group_id;
   Gcs_view::Gcs_view_error_code m_error_code;
 
   /*
     Auxiliary function used by constructors.
   */
-  void clone(const std::vector<Gcs_member_identifier>& members,
+  void clone(const std::vector<Gcs_member_identifier> &members,
              const Gcs_view_identifier &view_id,
              const std::vector<Gcs_member_identifier> &leaving,
              const std::vector<Gcs_member_identifier> &joined,
@@ -192,7 +176,7 @@ private:
   /*
     Disabling the assignment operator.
   */
-  Gcs_view& operator=(Gcs_view const&);
+  Gcs_view &operator=(Gcs_view const &);
 };
 
-#endif // GCS_VIEW_INCLUDED
+#endif  // GCS_VIEW_INCLUDED

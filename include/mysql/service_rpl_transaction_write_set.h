@@ -52,16 +52,16 @@
   This structure is used to keep the list of the hash values of the records
   changed in the transaction.
 */
-struct Transaction_write_set
-{
-  unsigned int m_flags; // reserved
-  unsigned long write_set_size; // Size of the PKE set of the transaction.
-  unsigned long long* write_set;  // A pointer to the PKE set.
+struct Transaction_write_set {
+  unsigned int m_flags;           // reserved
+  unsigned long write_set_size;   // Size of the PKE set of the transaction.
+  unsigned long long *write_set;  // A pointer to the PKE set.
 };
 
 extern "C" struct transaction_write_set_service_st {
-  Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
-} *transaction_write_set_service;
+  Transaction_write_set *(*get_transaction_write_set)(
+      unsigned long m_thread_id);
+} * transaction_write_set_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
@@ -70,7 +70,7 @@ extern "C" struct transaction_write_set_service_st {
 
 #else
 
-Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id);
 
 #endif
 

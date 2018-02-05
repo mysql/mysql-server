@@ -29,35 +29,25 @@
 
 namespace keyring {
 
-  extern PSI_memory_key key_memory_KEYRING;
+extern PSI_memory_key key_memory_KEYRING;
 
-  template <class T>
-  T keyring_malloc(size_t size)
-  {
-    void *allocated_memory= my_malloc(key_memory_KEYRING, size, MYF(MY_WME));
-    return allocated_memory ? reinterpret_cast<T>(allocated_memory) : NULL;
+template <class T>
+T keyring_malloc(size_t size) {
+  void *allocated_memory = my_malloc(key_memory_KEYRING, size, MYF(MY_WME));
+  return allocated_memory ? reinterpret_cast<T>(allocated_memory) : NULL;
+}
+
+class Keyring_alloc {
+ public:
+  static void *operator new(size_t size) throw() {
+    return keyring_malloc<void *>(size);
   }
+  static void *operator new[](size_t size) throw() {
+    return keyring_malloc<void *>(size);
+  }
+  static void operator delete(void *ptr, std::size_t) { my_free(ptr); }
+  static void operator delete[](void *ptr, std::size_t) { my_free(ptr); }
+};
+}  // namespace keyring
 
-  class Keyring_alloc
-  {
-    public:
-      static void *operator new(size_t size) throw ()
-      {
-        return keyring_malloc<void*>(size);
-      }
-      static void *operator new[](size_t size) throw ()
-      {
-        return keyring_malloc<void*>(size);
-      }
-      static void operator delete(void* ptr, std::size_t)
-      {
-          my_free(ptr);
-      }
-      static void operator delete[](void* ptr, std::size_t)
-      {
-          my_free(ptr);
-      }
-  };
-} //namespace keyring
- 
-#endif //MYSQL_KEYRING_MEMORY_H
+#endif  // MYSQL_KEYRING_MEMORY_H

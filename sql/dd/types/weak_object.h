@@ -23,7 +23,7 @@
 #ifndef DD__WEAK_OBJECT_INCLUDED
 #define DD__WEAK_OBJECT_INCLUDED
 
-#include "sql/dd/string_type.h" // dd::String_type XXX: temporary, debug-only
+#include "sql/dd/string_type.h"  // dd::String_type XXX: temporary, debug-only
 
 namespace dd {
 
@@ -38,22 +38,19 @@ namespace dd {
         must inherit this class virtually.
 */
 
-class Weak_object
-{
-public:
+class Weak_object {
+ public:
   // XXX: temporary, debug-only.
   virtual void debug_print(String_type &outb) const = 0;
 
-public:
-  Weak_object()
-  {}
+ public:
+  Weak_object() {}
 
-  virtual ~Weak_object()
-  { }
+  virtual ~Weak_object() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__WEAK_OBJECT_INCLUDED
+#endif  // DD__WEAK_OBJECT_INCLUDED

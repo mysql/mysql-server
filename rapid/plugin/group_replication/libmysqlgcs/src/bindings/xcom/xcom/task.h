@@ -33,7 +33,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -237,7 +236,7 @@ struct task_env {
   linkage l;    /* Used for runnable tasks and wait queues */
   linkage all;  /* Links all tasks */
   int heap_pos; /* Index in time priority queue, necessary for efficient removal
-                   */
+                 */
   enum {
     RUN = 0,
     KILL = 1,
@@ -274,17 +273,18 @@ typedef struct task_queue task_queue;
 #define TASK_ALLOC(pool, type) (task_allocate(pool, (unsigned int)sizeof(type)))
 
 #if 0
-#define TASK_DEBUG(x)                                     \
-  if (stack->debug) {                                     \
-    DBGOUT(FN; STRLIT(x " task "); PTREXP((void *)stack); \
-           STRLIT(stack->name); NDBG(stack->sp->state,d));\
+#define TASK_DEBUG(x)                                                          \
+  if (stack->debug) {                                                          \
+    DBGOUT(FN; STRLIT(x " task "); PTREXP((void *)stack); STRLIT(stack->name); \
+           NDBG(stack->sp->state, d));                                         \
   }
 #else
 #define TASK_DEBUG(x)
 #endif
 
 /* Place cleanup code after this label */
-#define FINALLY task_cleanup:
+#define FINALLY \
+  task_cleanup:
 
 /* We have reached the top of the stack when sp == stack_top + 1 since the stack
  * grows downwards */

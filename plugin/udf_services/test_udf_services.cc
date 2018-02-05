@@ -43,53 +43,50 @@ static int test_udf_registration_deinit(MYSQL_PLUGIN p);
   No user-facing functionality in this plugin. Just test material !
 */
 
-static struct st_mysql_daemon test_udf_services_plugin=
-{ MYSQL_DAEMON_INTERFACE_VERSION  };
+static struct st_mysql_daemon test_udf_services_plugin = {
+    MYSQL_DAEMON_INTERFACE_VERSION};
 
-static struct st_mysql_daemon test_udf_registration_plugin=
-{ MYSQL_DAEMON_INTERFACE_VERSION };
+static struct st_mysql_daemon test_udf_registration_plugin = {
+    MYSQL_DAEMON_INTERFACE_VERSION};
 
-mysql_declare_plugin(test_udf_services)
-{
-  MYSQL_DAEMON_PLUGIN,
-  &test_udf_services_plugin,
-  "test_udf_services",
-  "Georgi Kodinov",
-  "MySQL mtr test framework",
-  PLUGIN_LICENSE_GPL,
-  NULL,                       /* Plugin Init          */
-  NULL,                       /* Plugin Check uninstall */
-  NULL,                       /* Plugin Deinit        */
-  0x0100,                     /* Plugin version: 1.0  */
-  NULL,                       /* status variables     */
-  NULL,                       /* system variables     */
-  NULL,                       /* config options       */
-  0,                          /* flags                */
+mysql_declare_plugin(test_udf_services){
+    MYSQL_DAEMON_PLUGIN,
+    &test_udf_services_plugin,
+    "test_udf_services",
+    "Georgi Kodinov",
+    "MySQL mtr test framework",
+    PLUGIN_LICENSE_GPL,
+    NULL,   /* Plugin Init          */
+    NULL,   /* Plugin Check uninstall */
+    NULL,   /* Plugin Deinit        */
+    0x0100, /* Plugin version: 1.0  */
+    NULL,   /* status variables     */
+    NULL,   /* system variables     */
+    NULL,   /* config options       */
+    0,      /* flags                */
 },
-{
-  MYSQL_DAEMON_PLUGIN,
-  &test_udf_registration_plugin,
-  "test_udf_registration",
-  "Georgi Kodinov",
-  "MySQL mtr test framework",
-  PLUGIN_LICENSE_GPL,
-  test_udf_registration_init, /* Plugin Init          */
-  NULL,                       /* Plugin Check uninstall */
-  test_udf_registration_deinit, /* Plugin Deinit        */
-  0x0100,                     /* Plugin version: 1.0  */
-  NULL,                       /* status variables     */
-  NULL,                       /* system variables     */
-  NULL,                       /* config options       */
-  0,                          /* flags                */
-}
-mysql_declare_plugin_end;
+    {
+        MYSQL_DAEMON_PLUGIN,
+        &test_udf_registration_plugin,
+        "test_udf_registration",
+        "Georgi Kodinov",
+        "MySQL mtr test framework",
+        PLUGIN_LICENSE_GPL,
+        test_udf_registration_init,   /* Plugin Init          */
+        NULL,                         /* Plugin Check uninstall */
+        test_udf_registration_deinit, /* Plugin Deinit        */
+        0x0100,                       /* Plugin version: 1.0  */
+        NULL,                         /* status variables     */
+        NULL,                         /* system variables     */
+        NULL,                         /* config options       */
+        0,                            /* flags                */
+    } mysql_declare_plugin_end;
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
 #else
 #define PLUGIN_EXPORT extern "C"
 #endif
-
 
 /**
   Initialization function for @ref test_udf_services_udf
@@ -102,14 +99,12 @@ mysql_declare_plugin_end;
   @retval     false     success
   @retval     true      Failure. Error in the message argument
 */
-PLUGIN_EXPORT bool
-test_udf_services_udf_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
-                           UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                           char *message MY_ATTRIBUTE((unused)))
-{
+PLUGIN_EXPORT bool test_udf_services_udf_init(
+    UDF_INIT *initid MY_ATTRIBUTE((unused)),
+    UDF_ARGS *args MY_ATTRIBUTE((unused)),
+    char *message MY_ATTRIBUTE((unused))) {
   return false;
 }
-
 
 /**
   A UDF function returning 0.
@@ -119,15 +114,13 @@ test_udf_services_udf_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
   @param[out] is_null   If the result is null, store 1 here
   @param[out] error     On error store 1 here
 */
-PLUGIN_EXPORT longlong
-test_udf_services_udf(UDF_INIT *initid MY_ATTRIBUTE((unused)),
-                      UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                      char *is_null MY_ATTRIBUTE((unused)),
-                      char *error MY_ATTRIBUTE((unused)))
-{
+PLUGIN_EXPORT longlong test_udf_services_udf(
+    UDF_INIT *initid MY_ATTRIBUTE((unused)),
+    UDF_ARGS *args MY_ATTRIBUTE((unused)), char *is_null MY_ATTRIBUTE((unused)),
+    char *error MY_ATTRIBUTE((unused))) {
   char buffer[10];
-  *is_null= 0;
-  *error= 0;
+  *is_null = 0;
+  *error = 0;
   /* use a plugin service function */
   snprintf(buffer, sizeof(buffer), "test");
   return 0;
@@ -138,65 +131,54 @@ test_udf_services_udf(UDF_INIT *initid MY_ATTRIBUTE((unused)),
 #include <mysql/service_plugin_registry.h>
 
 /** Sample plugin init function that registers a UDF */
-static int test_udf_registration_init(MYSQL_PLUGIN /*p */)
-{
-  SERVICE_TYPE(registry) *reg;
-  SERVICE_TYPE(udf_registration) *udf;
-  bool ret= false;
+static int test_udf_registration_init(MYSQL_PLUGIN /*p */) {
+  SERVICE_TYPE(registry) * reg;
+  SERVICE_TYPE(udf_registration) * udf;
+  bool ret = false;
 
-  reg= mysql_plugin_registry_acquire();
-  if (!reg)
-  {
-    ret= true;
+  reg = mysql_plugin_registry_acquire();
+  if (!reg) {
+    ret = true;
     goto end;
   }
-  reg->acquire("udf_registration", (my_h_service *) &udf);
-  if (!udf)
-  {
-    ret= true;
+  reg->acquire("udf_registration", (my_h_service *)&udf);
+  if (!udf) {
+    ret = true;
     goto end;
   }
-  ret= udf->udf_register("test_udf_registration_udf", INT_RESULT,
-                         (Udf_func_any) test_udf_services_udf,
-                         test_udf_services_udf_init,
-                         NULL);
+  ret = udf->udf_register("test_udf_registration_udf", INT_RESULT,
+                          (Udf_func_any)test_udf_services_udf,
+                          test_udf_services_udf_init, NULL);
 
-  reg->release((my_h_service) udf);
+  reg->release((my_h_service)udf);
 end:
-  if (reg)
-    mysql_plugin_registry_release(reg);
+  if (reg) mysql_plugin_registry_release(reg);
   return ret ? 1 : 0;
 }
 
-
 /** Sample plugin init function that unregisters a UDF */
-static int test_udf_registration_deinit(MYSQL_PLUGIN /* p */)
-{
-  SERVICE_TYPE(registry) *reg;
-  SERVICE_TYPE(udf_registration) *udf= nullptr;
-  bool ret= false;
+static int test_udf_registration_deinit(MYSQL_PLUGIN /* p */) {
+  SERVICE_TYPE(registry) * reg;
+  SERVICE_TYPE(udf_registration) *udf = nullptr;
+  bool ret = false;
   int was_present;
 
-  reg= mysql_plugin_registry_acquire();
-  if (!reg)
-  {
-    ret= true;
+  reg = mysql_plugin_registry_acquire();
+  if (!reg) {
+    ret = true;
     goto end;
   }
-  reg->acquire("udf_registration", (my_h_service *) &udf);
-  if (!udf)
-  {
-    ret= true;
+  reg->acquire("udf_registration", (my_h_service *)&udf);
+  if (!udf) {
+    ret = true;
     goto end;
   }
 
-  ret= udf->udf_unregister("test_udf_registration_udf", &was_present);
+  ret = udf->udf_unregister("test_udf_registration_udf", &was_present);
 
 end:
-  if (reg)
-  {
-    if (udf)
-      reg->release((my_h_service) udf);
+  if (reg) {
+    if (udf) reg->release((my_h_service)udf);
     mysql_plugin_registry_release(reg);
   }
   return ret ? 1 : 0;

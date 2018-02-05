@@ -28,38 +28,36 @@
 
 namespace keyring {
 
-struct Key_metadata
-{
+struct Key_metadata {
   std::string *id;
   std::string *user;
 
   Key_metadata() {}
-  Key_metadata(std::string *id, std::string *user)
-  {
-    this->id= id;
-    this->user= user;
+  Key_metadata(std::string *id, std::string *user) {
+    this->id = id;
+    this->user = user;
   }
 };
 
-class IKeys_container : public Keyring_alloc
-{
-public:
-  IKeys_container() : keyring_io(NULL)
-  {}
+class IKeys_container : public Keyring_alloc {
+ public:
+  IKeys_container() : keyring_io(NULL) {}
 
-  virtual bool init(IKeyring_io* keyring_io, std::string keyring_storage_url)= 0;
-  virtual bool store_key(IKey *key)= 0;
-  virtual IKey* fetch_key(IKey *key)= 0;
-  virtual bool remove_key(IKey *key)= 0;
-  virtual std::string get_keyring_storage_url()= 0;
-  virtual void set_keyring_io(IKeyring_io *keyring_io)= 0;
-  virtual std::vector<Key_metadata> get_keys_metadata()= 0;
+  virtual bool init(IKeyring_io *keyring_io,
+                    std::string keyring_storage_url) = 0;
+  virtual bool store_key(IKey *key) = 0;
+  virtual IKey *fetch_key(IKey *key) = 0;
+  virtual bool remove_key(IKey *key) = 0;
+  virtual std::string get_keyring_storage_url() = 0;
+  virtual void set_keyring_io(IKeyring_io *keyring_io) = 0;
+  virtual std::vector<Key_metadata> get_keys_metadata() = 0;
 
-  virtual ~IKeys_container() {};
-protected:
+  virtual ~IKeys_container(){};
+
+ protected:
   IKeyring_io *keyring_io;
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_I_KEYS_CONTAINER_H
+#endif  // MYSQL_I_KEYS_CONTAINER_H

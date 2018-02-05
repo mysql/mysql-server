@@ -34,40 +34,30 @@ using thread::Thread;
 namespace dbug_unittest {
 
 #if defined(DBUG_OFF)
-TEST(DebugTest, NoSuicide)
-{
-  DBUG_SUICIDE();
-}
+TEST(DebugTest, NoSuicide) { DBUG_SUICIDE(); }
 #else
-TEST(DebugDeathTest, Suicide)
-{
+TEST(DebugDeathTest, Suicide) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(DBUG_SUICIDE(), "");
 }
 #endif
 
-
 #if !defined(DBUG_OFF) && !defined(_WIN32)
-class DbugGcovThread : public Thread
-{
-public:
+class DbugGcovThread : public Thread {
+ public:
   DbugGcovThread(Notification *start_notification)
-    : m_start_notification(start_notification)
-  {}
+      : m_start_notification(start_notification) {}
 
-  virtual void run()
-  {
+  virtual void run() {
     m_start_notification->notify();
     _db_flush_gcov_();
   }
 
-private:
+ private:
   Notification *m_start_notification;
 };
 
-
-TEST(DebugFlushGcov, FlushGcovParallel)
-{
+TEST(DebugFlushGcov, FlushGcovParallel) {
   Notification start_notification;
   DbugGcovThread debug_thread(&start_notification);
   debug_thread.start();
@@ -79,31 +69,25 @@ TEST(DebugFlushGcov, FlushGcovParallel)
 }
 #endif
 
-
 #if !defined(DBUG_OFF)
-TEST(DebugPrintTest, PrintEval)
-{
-  int y= 0;
+TEST(DebugPrintTest, PrintEval) {
+  int y = 0;
 
   // This DBUG_PRINT args should never be evaluated.
-  DBUG_PRINT("never",("%d", y+= 1));
+  DBUG_PRINT("never", ("%d", y += 1));
   EXPECT_EQ(y, 0) << "DBUG_PRINT arg is evaluated.";
 }
 
-
-TEST(DebugPrintEvalTest, PrintEval)
-{
-  int y= 0;
+TEST(DebugPrintEvalTest, PrintEval) {
+  int y = 0;
 
   DBUG_SET("+d,never");
-  DBUG_PRINT("never",("%d", y+= 1));
+  DBUG_PRINT("never", ("%d", y += 1));
   DBUG_SET("");
   EXPECT_GE(y, 1) << "DBUG_PRINT arg is not evaluated.";
 }
 
-
-TEST(DebugSetTest, DebugKeywordsTest)
-{
+TEST(DebugSetTest, DebugKeywordsTest) {
   char buf[1024];
 
   /*
@@ -131,7 +115,7 @@ TEST(DebugSetTest, DebugKeywordsTest)
   */
   DBUG_SET("-d,keyword");
   DBUG_EXPLAIN(buf, sizeof(buf));
-  EXPECT_STREQ("",buf);
+  EXPECT_STREQ("", buf);
   DBUG_SET("");
 
   /*
@@ -140,39 +124,39 @@ TEST(DebugSetTest, DebugKeywordsTest)
   */
   DBUG_SET("+d,keyword");
   DBUG_SET("+d");
-  DBUG_EXPLAIN(buf,sizeof(buf));
-  EXPECT_STREQ("d",buf);
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d", buf);
   DBUG_SET("");
 
   // Add multiple debug keywords.
   DBUG_SET("+d,keyword1");
   DBUG_SET("+d,keyword2");
-  DBUG_EXPLAIN(buf,sizeof(buf));
-  EXPECT_STREQ("d,keyword1,keyword2",buf);
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d,keyword1,keyword2", buf);
   DBUG_SET("-d,keyword1");
-  DBUG_EXPLAIN(buf,sizeof(buf));
-  EXPECT_STREQ("d,keyword2",buf);
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d,keyword2", buf);
   DBUG_SET("-d,keyword2");
-  DBUG_EXPLAIN(buf,sizeof(buf));
-  EXPECT_STREQ("",buf);
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("", buf);
   DBUG_SET("");
 
   // Add two keywords, the second keyword being a prefix of the first keyword.
   DBUG_SET("+d,simulate_file_error_once,simulate_file_error");
-  DBUG_EXPLAIN(buf,sizeof(buf));
-  EXPECT_STREQ("d,simulate_file_error_once,simulate_file_error",buf);
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d,simulate_file_error_once,simulate_file_error", buf);
   DBUG_SET("");
 
   // Add same keyword thrice, keyword should show up once in debug list.
   DBUG_SET("+d,keyword,keyword,keyword");
-  DBUG_EXPLAIN(buf,sizeof(buf));
-  EXPECT_STREQ("d,keyword",buf);
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d,keyword", buf);
   DBUG_SET("");
 
   // Add some combination of keywords with whitespace and duplicates.
   DBUG_SET("+d, keyword1,  keyword2,   keyword1,keyword3   ");
-  DBUG_EXPLAIN(buf,sizeof(buf));
-  EXPECT_STREQ("d,keyword1,keyword2,keyword3",buf);
+  DBUG_EXPLAIN(buf, sizeof(buf));
+  EXPECT_STREQ("d,keyword1,keyword2,keyword3", buf);
   DBUG_SET("");
 }
 #endif /* DBUG_OFF */

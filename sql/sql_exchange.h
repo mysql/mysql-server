@@ -32,54 +32,40 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
   Helper for the sql_exchange class
 */
 
-struct Line_separators
-{
+struct Line_separators {
   const String *line_term;
   const String *line_start;
 
-  void cleanup() { line_term= line_start= nullptr; }
-  void merge_line_separators(const Line_separators &s)
-  {
-    if (s.line_term != nullptr)
-      line_term= s.line_term;
-    if (s.line_start != nullptr)
-      line_start= s.line_start;
+  void cleanup() { line_term = line_start = nullptr; }
+  void merge_line_separators(const Line_separators &s) {
+    if (s.line_term != nullptr) line_term = s.line_term;
+    if (s.line_start != nullptr) line_start = s.line_start;
   }
 };
-
 
 /**
   Helper for the sql_exchange class
 */
 
-struct Field_separators
-{
+struct Field_separators {
   const String *field_term;
   const String *escaped;
   const String *enclosed;
   bool opt_enclosed;
 
-  void cleanup()
-  {
-    field_term= escaped= enclosed= nullptr;
-    opt_enclosed= false;
+  void cleanup() {
+    field_term = escaped = enclosed = nullptr;
+    opt_enclosed = false;
   }
-  void merge_field_separators(const Field_separators &s)
-  {
-    if (s.field_term != nullptr)
-      field_term= s.field_term;
-    if (s.escaped != nullptr)
-      escaped= s.escaped;
-    if (s.enclosed != nullptr)
-      enclosed= s.enclosed;
+  void merge_field_separators(const Field_separators &s) {
+    if (s.field_term != nullptr) field_term = s.field_term;
+    if (s.escaped != nullptr) escaped = s.escaped;
+    if (s.enclosed != nullptr) enclosed = s.enclosed;
     // TODO: a bug?
     // OPTIONALLY ENCLOSED BY x ENCLOSED BY y == OPTIONALLY ENCLOSED BY y
-    if (s.opt_enclosed)
-      opt_enclosed= s.opt_enclosed;
+    if (s.opt_enclosed) opt_enclosed = s.opt_enclosed;
   }
 };
-
-
 
 /**
   Used to hold information about file and file structure in exchange
@@ -87,9 +73,8 @@ struct Field_separators
   XXX: We never call destructor for objects of this class.
 */
 
-class sql_exchange final
-{
-public:
+class sql_exchange final {
+ public:
   Field_separators field;
   Line_separators line;
   enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
@@ -98,10 +83,8 @@ public:
   unsigned long skip_lines;
   const CHARSET_INFO *cs;
   sql_exchange(const char *name, bool dumpfile_flag,
-               enum_filetype filetype_arg= FILETYPE_CSV);
+               enum_filetype filetype_arg = FILETYPE_CSV);
   bool escaped_given(void);
 };
 
 #endif
-
-

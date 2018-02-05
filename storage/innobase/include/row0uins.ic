@@ -24,10 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0uins.ic
-Fresh insert undo
+/**************************************************/ /**
+ @file include/row0uins.ic
+ Fresh insert undo
 
-Created 2/25/1997 Heikki Tuuri
-*******************************************************/
-
+ Created 2/25/1997 Heikki Tuuri
+ *******************************************************/

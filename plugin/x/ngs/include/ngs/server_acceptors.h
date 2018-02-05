@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,25 +35,20 @@
 #include "plugin/x/ngs/include/ngs/socket_events.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
+namespace ngs {
+typedef std::vector<ngs::shared_ptr<Server_task_interface>>
+    Server_tasks_interfaces;
 
-namespace ngs
-{
-typedef std::vector< ngs::shared_ptr<Server_task_interface> > Server_tasks_interfaces;
-
-class Server_acceptors
-{
-public:
+class Server_acceptors {
+ public:
   typedef Listener_interface::On_connection On_connection;
 
   Server_acceptors(Listener_factory_interface &listener_factory,
-                   const std::string &tcp_bind_address,
-                   const uint16 tcp_port,
+                   const std::string &tcp_bind_address, const uint16 tcp_port,
                    const uint32 tcp_port_open_timeout,
-                   const std::string &unix_socket_file,
-                   const uint32 backlog);
+                   const std::string &unix_socket_file, const uint32 backlog);
 
-  bool prepare(On_connection on_connection,
-               const bool skip_networking,
+  bool prepare(On_connection on_connection, const bool skip_networking,
                const bool use_unix_sockets);
   void abort();
   void stop(const bool is_called_from_timeout_handler = false);
@@ -63,14 +58,14 @@ public:
   bool was_prepared() const;
 
   Server_tasks_interfaces create_server_tasks_for_listeners();
-  void add_timer(const std::size_t delay_ms,
-                 ngs::function<bool ()> callback);
+  void add_timer(const std::size_t delay_ms, ngs::function<bool()> callback);
 
-private:
+ private:
   typedef std::vector<Listener_interface *> Listener_interfaces;
   class Server_task_time_and_event;
 
-  bool prepare_impl(On_connection on_connection, const bool skip_networking, const bool use_unix_sockets);
+  bool prepare_impl(On_connection on_connection, const bool skip_networking,
+                    const bool use_unix_sockets);
   Listener_interfaces get_array_of_listeners();
 
   static bool is_listener_configured(Listener_interface *listener);
@@ -83,7 +78,7 @@ private:
   Listener_interface_ptr m_tcp_socket;
   Listener_interface_ptr m_unix_socket;
 
-  Listener_interface::Sync_variable_state     m_time_and_event_state;
+  Listener_interface::Sync_variable_state m_time_and_event_state;
   ngs::shared_ptr<Server_task_time_and_event> m_time_and_event_task;
   Socket_events m_event;
   bool m_prepared;
@@ -91,4 +86,4 @@ private:
 
 }  // namespace ngs
 
-#endif // NGS_SERVER_ACCEPTORS_
+#endif  // NGS_SERVER_ACCEPTORS_

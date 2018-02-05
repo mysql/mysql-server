@@ -24,8 +24,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/dd/string_type.h"// String_type
-#include "sql/sql_list.h"      // List
+#include "sql/dd/string_type.h"  // String_type
+#include "sql/sql_list.h"        // List
 
 /**
   Class to hold information regarding a table to be created on
@@ -36,57 +36,47 @@
   @note The data members are not owned by the class, and will not
         be deleted when this instance is deleted.
 */
-class Plugin_table
-{
-private:
+class Plugin_table {
+ private:
   const char *m_schema_name;
   const char *m_table_name;
   const char *m_table_definition;
   const char *m_table_options;
   const char *m_tablespace_name;
 
-public:
-  Plugin_table(const char *schema_name,
-               const char *table_name,
-               const char *definition,
-               const char *options,
+ public:
+  Plugin_table(const char *schema_name, const char *table_name,
+               const char *definition, const char *options,
                const char *tablespace_name)
-  : m_schema_name(schema_name),
-    m_table_name(table_name),
-    m_table_definition(definition),
-    m_table_options(options),
-    m_tablespace_name(tablespace_name)
-  { }
+      : m_schema_name(schema_name),
+        m_table_name(table_name),
+        m_table_definition(definition),
+        m_table_options(options),
+        m_tablespace_name(tablespace_name) {}
 
-  const char *get_schema_name() const
-  { return m_schema_name; }
+  const char *get_schema_name() const { return m_schema_name; }
 
-  const char *get_name() const
-  { return m_table_name; }
+  const char *get_name() const { return m_table_name; }
 
-  const char *get_table_definition() const
-  { return m_table_definition; }
+  const char *get_table_definition() const { return m_table_definition; }
 
-  const char *get_table_options() const
-  { return m_table_options; }
+  const char *get_table_options() const { return m_table_options; }
 
-  const char *get_tablespace_name() const
-  { return m_tablespace_name; }
+  const char *get_tablespace_name() const { return m_tablespace_name; }
 
-  dd::String_type get_ddl() const
-  {
+  dd::String_type get_ddl() const {
     dd::Stringstream_type ss;
     ss << "CREATE TABLE ";
 
-    if (m_schema_name != nullptr)
-      ss << m_schema_name << ".";
+    if (m_schema_name != nullptr) ss << m_schema_name << ".";
 
     ss << m_table_name << "(\n";
     ss << m_table_definition << ")";
     ss << m_table_options;
 
     if (m_tablespace_name != nullptr)
-      ss << " " << "TABLESPACE=" << m_tablespace_name;
+      ss << " "
+         << "TABLESPACE=" << m_tablespace_name;
 
     return ss.str();
   }
@@ -101,28 +91,23 @@ public:
   @note The data members are not owned by the class, and will not
         be deleted when this instance is deleted.
 */
-class Plugin_tablespace
-{
-public:
-  class Plugin_tablespace_file
-  {
-  private:
+class Plugin_tablespace {
+ public:
+  class Plugin_tablespace_file {
+   private:
     const char *m_name;
     const char *m_se_private_data;
-  public:
-    Plugin_tablespace_file(const char *name, const char *se_private_data):
-      m_name(name),
-      m_se_private_data(se_private_data)
-    { }
 
-    const char *get_name() const
-    { return m_name; }
+   public:
+    Plugin_tablespace_file(const char *name, const char *se_private_data)
+        : m_name(name), m_se_private_data(se_private_data) {}
 
-    const char *get_se_private_data() const
-    { return m_se_private_data; }
+    const char *get_name() const { return m_name; }
+
+    const char *get_se_private_data() const { return m_se_private_data; }
   };
 
-private:
+ private:
   const char *m_name;
   const char *m_options;
   const char *m_se_private_data;
@@ -130,37 +115,31 @@ private:
   const char *m_engine;
   List<const Plugin_tablespace_file> m_files;
 
-public:
+ public:
   Plugin_tablespace(const char *name, const char *options,
                     const char *se_private_data, const char *comment,
-                    const char *engine):
-    m_name(name),
-    m_options(options),
-    m_se_private_data(se_private_data),
-    m_comment(comment),
-    m_engine(engine)
-  { }
+                    const char *engine)
+      : m_name(name),
+        m_options(options),
+        m_se_private_data(se_private_data),
+        m_comment(comment),
+        m_engine(engine) {}
 
-  void add_file(const Plugin_tablespace_file *file)
-  { m_files.push_back(file); }
+  void add_file(const Plugin_tablespace_file *file) { m_files.push_back(file); }
 
-  const char *get_name() const
-  { return m_name; }
+  const char *get_name() const { return m_name; }
 
-  const char *get_options() const
-  { return m_options; }
+  const char *get_options() const { return m_options; }
 
-  const char *get_se_private_data() const
-  { return m_se_private_data; }
+  const char *get_se_private_data() const { return m_se_private_data; }
 
-  const char *get_comment() const
-  { return m_comment; }
+  const char *get_comment() const { return m_comment; }
 
-  const char *get_engine() const
-  { return m_engine; }
+  const char *get_engine() const { return m_engine; }
 
-  const List<const Plugin_tablespace_file> &get_files() const
-  { return m_files; }
+  const List<const Plugin_tablespace_file> &get_files() const {
+    return m_files;
+  }
 };
 
 #endif  // PLUGIN_TABLE_INCLUDED

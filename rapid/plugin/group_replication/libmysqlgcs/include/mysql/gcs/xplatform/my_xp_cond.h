@@ -23,9 +23,9 @@
 #ifndef MY_XP_COND_INCLUDED
 #define MY_XP_COND_INCLUDED
 
+#include "mysql/psi/mysql_cond.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
-#include "mysql/psi/mysql_cond.h"
 
 /**
   @class My_xp_cond
@@ -43,9 +43,8 @@
 
   @endcode
 */
-class My_xp_cond
-{
-public:
+class My_xp_cond {
+ public:
   /**
     Initialize cond.
 
@@ -54,8 +53,7 @@ public:
     @return success status
   */
 
-  virtual int init(PSI_cond_key key)= 0;
-
+  virtual int init(PSI_cond_key key) = 0;
 
   /**
     Destroy cond.
@@ -63,8 +61,7 @@ public:
     @return success status
   */
 
-  virtual int destroy()= 0;
-
+  virtual int destroy() = 0;
 
   /**
     Wait for cond to be signaled during some time before unlocking mutex.
@@ -75,8 +72,7 @@ public:
   */
 
   virtual int timed_wait(mysql_mutex_t *mutex,
-                         const struct timespec *abstime)= 0;
-
+                         const struct timespec *abstime) = 0;
 
   /**
     Wait for cond to be signaled to unlock mutex.
@@ -85,8 +81,7 @@ public:
     @return success status
   */
 
-  virtual int wait(mysql_mutex_t *mutex)= 0;
-
+  virtual int wait(mysql_mutex_t *mutex) = 0;
 
   /**
     Signal cond.
@@ -94,8 +89,7 @@ public:
     @return success status
   */
 
-  virtual int signal()= 0;
-
+  virtual int signal() = 0;
 
   /**
     Broadcast cond.
@@ -103,8 +97,7 @@ public:
     @return success status
   */
 
-  virtual int broadcast()= 0;
-
+  virtual int broadcast() = 0;
 
   /**
     Get reference to native cond.
@@ -112,15 +105,14 @@ public:
     @return native cond
   */
 
-  virtual mysql_cond_t *get_native_cond()= 0;
+  virtual mysql_cond_t *get_native_cond() = 0;
 
   virtual ~My_xp_cond() {}
 };
 
 #ifndef XCOM_STANDALONE
-class My_xp_cond_server : public My_xp_cond
-{
-public:
+class My_xp_cond_server : public My_xp_cond {
+ public:
   explicit My_xp_cond_server();
   virtual ~My_xp_cond_server();
 
@@ -132,7 +124,7 @@ public:
   int broadcast();
   mysql_cond_t *get_native_cond();
 
-protected:
+ protected:
   mysql_cond_t *m_cond;
 };
 #endif
@@ -141,9 +133,9 @@ protected:
 class My_xp_cond_impl : public My_xp_cond_server
 #endif
 {
-public:
+ public:
   explicit My_xp_cond_impl() {}
   ~My_xp_cond_impl() {}
 };
 
-#endif // MY_XP_COND_INCLUDED
+#endif  // MY_XP_COND_INCLUDED

@@ -37,4 +37,3 @@ int caching_sha2_password_init(char *, size_t, int, va_list);
 int caching_sha2_password_deinit(void);
 
 #endif
-

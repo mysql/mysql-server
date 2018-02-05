@@ -51,9 +51,8 @@
   Class that conveys the state to be exchanged between members, which is not
   provided by XCom.
 */
-class Xcom_member_state
-{
-public:
+class Xcom_member_state {
+ public:
   /**
     Xcom_member_state constructor.
 
@@ -65,9 +64,8 @@ public:
   */
 
   explicit Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
-                             synode_no configuration_id,
-                             const uchar *data, uint64_t data_size);
-
+                             synode_no configuration_id, const uchar *data,
+                             uint64_t data_size);
 
   /**
     Xcom_member_state constructor.
@@ -78,13 +76,11 @@ public:
 
   explicit Xcom_member_state(const uchar *data, uint64_t data_size);
 
-
   /**
     Member state destructor.
   */
 
   ~Xcom_member_state();
-
 
   /**
     Encodes the Member State's header to be sent through the newtwork.
@@ -97,7 +93,6 @@ public:
             Otherwise, false.
   */
   bool encode_header(uchar *buffer, uint64_t *buffer_len);
-
 
   /**
     Encodes Member State to be sent through the network.
@@ -112,20 +107,17 @@ public:
 
   bool encode(uchar *buffer, uint64_t *buffer_len);
 
-
   /**
     @return the size of the encoded data when put on the wire.
   */
 
   uint64_t get_encode_size() const;
 
-
   /**
     @return the size of the encoded payload when put on the wire.
   */
 
   uint64_t get_encode_payload_size() const;
-
 
   /**
     @return the size of the encoded header when put on the wire.
@@ -137,43 +129,27 @@ public:
     @return the view identifier
   */
 
-  Gcs_xcom_view_identifier *get_view_id()
-  {
-    return m_view_id;
-  }
-
+  Gcs_xcom_view_identifier *get_view_id() { return m_view_id; }
 
   /**
     @return the configuration identifier
   */
 
-  synode_no get_configuration_id() const
-  {
-    return m_configuration_id;
-  }
-
+  synode_no get_configuration_id() const { return m_configuration_id; }
 
   /**
     @return the generic exchangeable data
   */
 
-  const uchar *get_data() const
-  {
-    return m_data;
-  }
-
+  const uchar *get_data() const { return m_data; }
 
   /**
     @return the size of the generic exchangeable data
   */
 
-  uint64_t get_data_size() const
-  {
-    return m_data_size;
-  }
+  uint64_t get_data_size() const { return m_data_size; }
 
-
-private:
+ private:
   /*
     View identifier installed by the current member if there
     is any.
@@ -199,8 +175,8 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Xcom_member_state(Xcom_member_state const&);
-  Xcom_member_state& operator=(Xcom_member_state const&);
+  Xcom_member_state(Xcom_member_state const &);
+  Xcom_member_state &operator=(Xcom_member_state const &);
 };
 
 /**
@@ -270,39 +246,36 @@ private:
   Note that the content of the state message is opaque to the MySQL GCS
   layer which only provides a synchronization point.
 */
-class Gcs_xcom_state_exchange_interface
-{
-public:
-  virtual ~Gcs_xcom_state_exchange_interface() {};
+class Gcs_xcom_state_exchange_interface {
+ public:
+  virtual ~Gcs_xcom_state_exchange_interface(){};
 
   /**
     Accomplishes all necessary initialization steps.
   */
 
-  virtual void init()= 0;
-
+  virtual void init() = 0;
 
   /**
     If messages were buffered during its processing, they are discarded
     and internal structures needed are cleaned up.
   */
 
-  virtual void reset()= 0;
+  virtual void reset() = 0;
 
   /**
     Has the same behavior as the reset but additionaly flushes buffered
     messages.
   */
 
-  virtual void reset_with_flush()= 0;
+  virtual void reset_with_flush() = 0;
 
   /**
     If messages were buffered during its processing, they are delivered
     to upper layers and internal structures needed are cleaned up.
   */
 
-  virtual void end()= 0;
-
+  virtual void end() = 0;
 
   /**
     Signals the module to start a State Exchange.
@@ -320,15 +293,13 @@ public:
     @return true if the member is leaving
   */
 
-  virtual bool state_exchange(synode_no configuration_id,
-                              std::vector<Gcs_member_identifier *> &total,
-                              std::vector<Gcs_member_identifier *> &left,
-                              std::vector<Gcs_member_identifier *> &joined,
-                              std::vector<Gcs_message_data *> &exchangeable_data,
-                              Gcs_view *current_view,
-                              std::string *group,
-                              const Gcs_member_identifier& local_info)= 0;
-
+  virtual bool state_exchange(
+      synode_no configuration_id, std::vector<Gcs_member_identifier *> &total,
+      std::vector<Gcs_member_identifier *> &left,
+      std::vector<Gcs_member_identifier *> &joined,
+      std::vector<Gcs_message_data *> &exchangeable_data,
+      Gcs_view *current_view, std::string *group,
+      const Gcs_member_identifier &local_info) = 0;
 
   /**
     Processes a member state message on an ongoing State Exchange round.
@@ -341,8 +312,7 @@ public:
   */
 
   virtual bool process_member_state(Xcom_member_state *ms_info,
-                                    const Gcs_member_identifier &p_id)= 0;
-
+                                    const Gcs_member_identifier &p_id) = 0;
 
   /**
     Retrieves the new view identifier after a State Exchange.
@@ -350,52 +320,45 @@ public:
     @return the new view identifier
   */
 
-  virtual Gcs_xcom_view_identifier *get_new_view_id()= 0;
-
+  virtual Gcs_xcom_view_identifier *get_new_view_id() = 0;
 
   /**
     @return the members that joined in this State Exchange round
   */
 
-  virtual std::set<Gcs_member_identifier *> *get_joined()= 0;
-
+  virtual std::set<Gcs_member_identifier *> *get_joined() = 0;
 
   /**
     @return the members that left in this State Exchange round
   */
 
-  virtual std::set<Gcs_member_identifier *> *get_left()= 0;
-
+  virtual std::set<Gcs_member_identifier *> *get_left() = 0;
 
   /**
     @return All the members in this State Exchange round
   */
 
-  virtual std::set<Gcs_member_identifier *> *get_total()= 0;
-
+  virtual std::set<Gcs_member_identifier *> *get_total() = 0;
 
   /**
     @return the group in which this State Exchange is occurring
   */
 
-  virtual std::string *get_group()= 0;
-
+  virtual std::string *get_group() = 0;
 
   /**
     @return the saved states
   */
 
-  virtual
-  std::map<Gcs_member_identifier, Xcom_member_state *> *get_member_states()= 0;
+  virtual std::map<Gcs_member_identifier, Xcom_member_state *>
+      *get_member_states() = 0;
 };
-
 
 /**
   Implementation of the gcs_xcom_state_exchange_interface.
 */
-class Gcs_xcom_state_exchange: public Gcs_xcom_state_exchange_interface
-{
-public:
+class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
+ public:
   /**
     State Exchange constructor.
 
@@ -421,8 +384,7 @@ public:
                       std::vector<Gcs_member_identifier *> &left,
                       std::vector<Gcs_member_identifier *> &joined,
                       std::vector<Gcs_message_data *> &exchangeable_data,
-                      Gcs_view *current_view,
-                      std::string *group,
+                      Gcs_view *current_view, std::string *group,
                       const Gcs_member_identifier &local_info);
 
   bool process_member_state(Xcom_member_state *ms_info,
@@ -430,38 +392,19 @@ public:
 
   Gcs_xcom_view_identifier *get_new_view_id();
 
+  std::set<Gcs_member_identifier *> *get_joined() { return &m_ms_joined; }
 
-  std::set<Gcs_member_identifier *> *get_joined()
-  {
-    return &m_ms_joined;
-  }
+  std::set<Gcs_member_identifier *> *get_left() { return &m_ms_left; }
 
+  std::set<Gcs_member_identifier *> *get_total() { return &m_ms_total; }
 
-  std::set<Gcs_member_identifier *> *get_left()
-  {
-    return &m_ms_left;
-  }
-
-
-  std::set<Gcs_member_identifier *> *get_total()
-  {
-    return &m_ms_total;
-  }
-
-
-  std::map<Gcs_member_identifier, Xcom_member_state *> *get_member_states()
-  {
+  std::map<Gcs_member_identifier, Xcom_member_state *> *get_member_states() {
     return &m_member_states;
   }
 
+  std::string *get_group() { return m_group_name; }
 
-  std::string *get_group()
-  {
-    return m_group_name;
-  }
-
-
-private:
+ private:
   /**
     Computes if the local member is leaving.
 
@@ -469,7 +412,6 @@ private:
   */
 
   bool is_leaving();
-
 
   /**
     Computes if the local member is joining.
@@ -479,7 +421,6 @@ private:
 
   bool is_joining();
 
-
   /**
     Broadcasts the local state to all nodes in the Cluster.
 
@@ -488,16 +429,14 @@ private:
   */
 
   enum_gcs_error broadcast_state(
-    const Gcs_xcom_view_identifier &proposed_view,
-    std::vector<Gcs_message_data *> &exchangeable_data);
-
+      const Gcs_xcom_view_identifier &proposed_view,
+      std::vector<Gcs_message_data *> &exchangeable_data);
 
   /**
     Updates the structure that waits for State Exchanges.
   */
 
   void update_awaited_vector();
-
 
   /**
     Converts xcom data to a set of internal representation.
@@ -531,10 +470,9 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_state_exchange(Gcs_xcom_state_exchange const&);
-  Gcs_xcom_state_exchange& operator=(Gcs_xcom_state_exchange const&);
+  Gcs_xcom_state_exchange(Gcs_xcom_state_exchange const &);
+  Gcs_xcom_state_exchange &operator=(Gcs_xcom_state_exchange const &);
 };
-
 
 /*
   @interface gcs_xcom_view_change_control_interface
@@ -547,45 +485,42 @@ private:
   end_view_exchange() the boundaries of the process. Those that want to wait
   for the end, will synchronize on wait_for_view_change_end().
 */
-class Gcs_xcom_view_change_control_interface
-{
-public:
+class Gcs_xcom_view_change_control_interface {
+ public:
   virtual ~Gcs_xcom_view_change_control_interface() {}
 
-  virtual void start_view_exchange()= 0;
-  virtual void end_view_exchange()= 0;
-  virtual void wait_for_view_change_end()= 0;
-  virtual bool is_view_changing()= 0;
+  virtual void start_view_exchange() = 0;
+  virtual void end_view_exchange() = 0;
+  virtual void wait_for_view_change_end() = 0;
+  virtual bool is_view_changing() = 0;
 
-  //Leave related information
-  virtual bool start_leave()= 0;
-  virtual void end_leave()= 0;
-  virtual bool is_leaving()= 0;
+  // Leave related information
+  virtual bool start_leave() = 0;
+  virtual void end_leave() = 0;
+  virtual bool is_leaving() = 0;
 
-  //Join related information
-  virtual bool start_join()= 0;
-  virtual void end_join()= 0;
-  virtual bool is_joining()= 0;
+  // Join related information
+  virtual bool start_join() = 0;
+  virtual void end_join() = 0;
+  virtual bool is_joining() = 0;
 
-  //Keep track of delivered views
-  virtual void set_current_view(Gcs_view* current_view)= 0;
-  virtual Gcs_view *get_current_view()= 0;
-  virtual bool belongs_to_group()= 0;
-  virtual void set_belongs_to_group(bool belong)= 0;
-  virtual void set_unsafe_current_view(Gcs_view* current_view)= 0;
-  virtual Gcs_view *get_unsafe_current_view()= 0;
+  // Keep track of delivered views
+  virtual void set_current_view(Gcs_view *current_view) = 0;
+  virtual Gcs_view *get_current_view() = 0;
+  virtual bool belongs_to_group() = 0;
+  virtual void set_belongs_to_group(bool belong) = 0;
+  virtual void set_unsafe_current_view(Gcs_view *current_view) = 0;
+  virtual Gcs_view *get_unsafe_current_view() = 0;
 };
-
 
 /*
   @class gcs_xcom_view_change_control
 
   Implementation of gcs_xcom_view_change_control_interface.
 */
-class Gcs_xcom_view_change_control:
-  public Gcs_xcom_view_change_control_interface
-{
-public:
+class Gcs_xcom_view_change_control
+    : public Gcs_xcom_view_change_control_interface {
+ public:
   explicit Gcs_xcom_view_change_control();
   virtual ~Gcs_xcom_view_change_control();
 
@@ -602,14 +537,14 @@ public:
   void end_join();
   bool is_joining();
 
-  void set_current_view(Gcs_view* current_view);
+  void set_current_view(Gcs_view *current_view);
   Gcs_view *get_current_view();
   bool belongs_to_group();
   void set_belongs_to_group(bool belong);
-  void set_unsafe_current_view(Gcs_view* current_view);
+  void set_unsafe_current_view(Gcs_view *current_view);
   Gcs_view *get_unsafe_current_view();
 
-private:
+ private:
   bool m_view_changing;
   bool m_leaving;
   bool m_joining;
@@ -637,7 +572,7 @@ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_view_change_control(Gcs_xcom_view_change_control const&);
-  Gcs_xcom_view_change_control& operator=(Gcs_xcom_view_change_control const&);
+  Gcs_xcom_view_change_control(Gcs_xcom_view_change_control const &);
+  Gcs_xcom_view_change_control &operator=(Gcs_xcom_view_change_control const &);
 };
-#endif  /* GCS_XCOM_STATE_EXCHANGE_INCLUDED */
+#endif /* GCS_XCOM_STATE_EXCHANGE_INCLUDED */

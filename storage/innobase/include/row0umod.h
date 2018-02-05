@@ -24,33 +24,32 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0umod.h
-Undo modify of a row
+/**************************************************/ /**
+ @file include/row0umod.h
+ Undo modify of a row
 
-Created 2/27/1997 Heikki Tuuri
-*******************************************************/
+ Created 2/27/1997 Heikki Tuuri
+ *******************************************************/
 
 #ifndef row0umod_h
 #define row0umod_h
 
-#include "univ.i"
 #include "data0data.h"
 #include "dict0types.h"
-#include "trx0types.h"
+#include "mtr0mtr.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "mtr0mtr.h"
+#include "trx0types.h"
+#include "univ.i"
 
-/***********************************************************//**
-Undoes a modify operation on a row of a table.
-@return DB_SUCCESS or error code */
-dberr_t
-row_undo_mod(
-/*=========*/
-	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr)	/*!< in: query thread */
-	MY_ATTRIBUTE((warn_unused_result));
+/***********************************************************/ /**
+ Undoes a modify operation on a row of a table.
+ @return DB_SUCCESS or error code */
+dberr_t row_undo_mod(
+    /*=========*/
+    undo_node_t *node, /*!< in: row undo node */
+    que_thr_t *thr)    /*!< in: query thread */
+    MY_ATTRIBUTE((warn_unused_result));
 
 #include "row0umod.ic"
 

@@ -42,35 +42,26 @@
 
 struct MDL_key;
 
-#define PSI_METADATA_CALL(M) pfs_ ## M ## _v1
+#define PSI_METADATA_CALL(M) pfs_##M##_v1
 
-PSI_metadata_lock* pfs_create_metadata_lock_v1
-  (void *identity,
-   const MDL_key *key,
-   opaque_mdl_type mdl_type,
-   opaque_mdl_duration mdl_duration,
-   opaque_mdl_status mdl_status,
-   const char *src_file,
-   uint src_line);
+PSI_metadata_lock *pfs_create_metadata_lock_v1(
+    void *identity, const MDL_key *key, opaque_mdl_type mdl_type,
+    opaque_mdl_duration mdl_duration, opaque_mdl_status mdl_status,
+    const char *src_file, uint src_line);
 
-void pfs_set_metadata_lock_status_v1
-  (PSI_metadata_lock *lock,
-   opaque_mdl_status mdl_status);
+void pfs_set_metadata_lock_status_v1(PSI_metadata_lock *lock,
+                                     opaque_mdl_status mdl_status);
 
 void pfs_destroy_metadata_lock_v1(PSI_metadata_lock *lock);
 
-struct PSI_metadata_locker*
-pfs_start_metadata_wait_v1
-  (struct PSI_metadata_locker_state_v1 *state,
-   struct PSI_metadata_lock *mdl,
-   const char *src_file, uint src_line);
+struct PSI_metadata_locker *pfs_start_metadata_wait_v1(
+    struct PSI_metadata_locker_state_v1 *state, struct PSI_metadata_lock *mdl,
+    const char *src_file, uint src_line);
 
-void pfs_end_metadata_wait_v1
-  (struct PSI_metadata_locker *locker, int rc);
+void pfs_end_metadata_wait_v1(struct PSI_metadata_locker *locker, int rc);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 
 #endif
-

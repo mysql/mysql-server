@@ -20,22 +20,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_basic_logging.h"
 
-using ::testing::Return;
-using ::testing::WithArgs;
-using ::testing::Invoke;
-using ::testing::_;
-using ::testing::Eq;
-using ::testing::DoAll;
-using ::testing::ByRef;
-using ::testing::SetArgReferee;
-using ::testing::SaveArg;
-using ::testing::ContainsRegex;
 using ::testing::AnyNumber;
+using ::testing::ByRef;
+using ::testing::ContainsRegex;
+using ::testing::DoAll;
+using ::testing::Eq;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::SaveArg;
+using ::testing::SetArgReferee;
+using ::testing::WithArgs;
+using ::testing::_;
 
 /**
   Class that defines basic common testing infra-structure to be used
@@ -45,12 +45,11 @@ using ::testing::AnyNumber;
   Note that any global change to the test classes should be made
   here. Currently, it only defines a simple logging object.
 */
-class GcsBaseTest : public ::testing::Test
-{
-public:
-  GcsBaseTest() {};
+class GcsBaseTest : public ::testing::Test {
+ public:
+  GcsBaseTest(){};
 
-  virtual ~GcsBaseTest() {};
+  virtual ~GcsBaseTest(){};
 
   /**
     Simple logging object that can be used in the test case.
@@ -58,16 +57,14 @@ public:
   Gcs_basic_logging logging;
 };
 
-
 /**
   Class that defines basic common testing infra-structure to be used
   in al test cases whenever they need to create its own logging
   objects.
 */
-class GcsBaseTestNoLogging : public ::testing::Test
-{
-public:
-  GcsBaseTestNoLogging() {};
+class GcsBaseTestNoLogging : public ::testing::Test {
+ public:
+  GcsBaseTestNoLogging(){};
 
-  virtual ~GcsBaseTestNoLogging() {};
+  virtual ~GcsBaseTestNoLogging(){};
 };

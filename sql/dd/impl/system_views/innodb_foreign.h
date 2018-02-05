@@ -33,12 +33,10 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.INNODB_FOREIGN system view
   definition
 */
-class Innodb_foreign :
-  public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Innodb_foreign
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_FOREIGN_ID,
     FIELD_FOREIGN_NAME,
     FIELD_REF_NAME,
@@ -46,21 +44,21 @@ public:
     FIELD_TYPE
   };
 
-  Innodb_foreign ();
+  Innodb_foreign();
 
   static const Innodb_foreign &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("INNODB_FOREIGN");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Innodb_foreign::view_name(); }
+  virtual const String_type &name() const {
+    return Innodb_foreign::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__INNODB_FOREIGN_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__INNODB_FOREIGN_INCLUDED

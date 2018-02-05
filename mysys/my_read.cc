@@ -64,72 +64,65 @@
       N  number of bytes read.
 */
 
-size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
-{
+size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
   size_t readbytes, save_count;
   DBUG_ENTER("my_read");
-  DBUG_PRINT("my",("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d",
-                   Filedes, Buffer, (ulong) Count, MyFlags));
-  save_count= Count;
+  DBUG_PRINT("my", ("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d", Filedes,
+                    Buffer, (ulong)Count, MyFlags));
+  save_count = Count;
 
-  for (;;)
-  {
-    errno= 0;					/* Linux, Windows don't reset this on EOF/success */
+  for (;;) {
+    errno = 0; /* Linux, Windows don't reset this on EOF/success */
 #ifdef _WIN32
-    readbytes= my_win_read(Filedes, Buffer, Count);
+    readbytes = my_win_read(Filedes, Buffer, Count);
 #else
-    readbytes= read(Filedes, Buffer, Count);
+    readbytes = read(Filedes, Buffer, Count);
 #endif
-    DBUG_EXECUTE_IF ("simulate_file_read_error",
-                     {
-                       errno= ENOSPC;
-                       readbytes= (size_t) -1;
-                       DBUG_SET("-d,simulate_file_read_error");
-                       DBUG_SET("-d,simulate_my_b_fill_error");
-                     });
+    DBUG_EXECUTE_IF("simulate_file_read_error", {
+      errno = ENOSPC;
+      readbytes = (size_t)-1;
+      DBUG_SET("-d,simulate_file_read_error");
+      DBUG_SET("-d,simulate_my_b_fill_error");
+    });
 
-    if (readbytes != Count)
-    {
+    if (readbytes != Count) {
       set_my_errno(errno);
-      if (errno == 0 || (readbytes != (size_t) -1 &&
-                         (MyFlags & (MY_NABP | MY_FNABP))))
+      if (errno == 0 ||
+          (readbytes != (size_t)-1 && (MyFlags & (MY_NABP | MY_FNABP))))
         set_my_errno(HA_ERR_FILE_TOO_SHORT);
-      DBUG_PRINT("warning",("Read only %d bytes off %lu from %d, errno: %d",
-                            (int) readbytes, (ulong) Count, Filedes,
-                            my_errno()));
+      DBUG_PRINT("warning",
+                 ("Read only %d bytes off %lu from %d, errno: %d",
+                  (int)readbytes, (ulong)Count, Filedes, my_errno()));
 
-      if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)
-      {  
+      if ((readbytes == 0 || (int)readbytes == -1) && errno == EINTR) {
         DBUG_PRINT("debug", ("my_read() was interrupted and returned %ld",
-                             (long) readbytes));
-        continue;                              /* Interrupted */
+                             (long)readbytes));
+        continue; /* Interrupted */
       }
 
-      if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
-      {
+      if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
         char errbuf[MYSYS_STRERROR_SIZE];
-        if (readbytes == (size_t) -1)
-          my_error(EE_READ, MYF(0), my_filename(Filedes),
-                   my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+        if (readbytes == (size_t)-1)
+          my_error(EE_READ, MYF(0), my_filename(Filedes), my_errno(),
+                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
         else if (MyFlags & (MY_NABP | MY_FNABP))
-          my_error(EE_EOFERR, MYF(0), my_filename(Filedes),
-                   my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+          my_error(EE_EOFERR, MYF(0), my_filename(Filedes), my_errno(),
+                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
       }
-      if (readbytes == (size_t) -1 ||
+      if (readbytes == (size_t)-1 ||
           ((MyFlags & (MY_FNABP | MY_NABP)) && !(MyFlags & MY_FULL_IO)))
-        DBUG_RETURN(MY_FILE_ERROR);	/* Return with error */
-      if (readbytes != (size_t) -1 && (MyFlags & MY_FULL_IO))
-      {
-        Buffer+= readbytes;
-        Count-= readbytes;
+        DBUG_RETURN(MY_FILE_ERROR); /* Return with error */
+      if (readbytes != (size_t)-1 && (MyFlags & MY_FULL_IO)) {
+        Buffer += readbytes;
+        Count -= readbytes;
         continue;
       }
     }
 
     if (MyFlags & (MY_NABP | MY_FNABP))
-      readbytes= 0;			/* Ok on read */
+      readbytes = 0; /* Ok on read */
     else if (MyFlags & MY_FULL_IO)
-      readbytes= save_count;
+      readbytes = save_count;
     break;
   }
   DBUG_RETURN(readbytes);

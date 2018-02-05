@@ -243,24 +243,18 @@ bool plugin_table_service_initialized = false;
  * @param buf       Buffer (not used)
  * @param fields    Array of fields in the table
  */
-static int
-write_row(PFS_engine_table *pfs_table,
-          TABLE *table,
-          unsigned char *buf MY_ATTRIBUTE((unused)),
-          Field **fields)
-{
+static int write_row(PFS_engine_table *pfs_table, TABLE *table,
+                     unsigned char *buf MY_ATTRIBUTE((unused)),
+                     Field **fields) {
   int result = 0;
   Field *f;
   table_plugin_table *temp = (table_plugin_table *)pfs_table;
 
-  for (; (f = *fields); fields++)
-  {
-    if (bitmap_is_set(table->write_set, f->field_index))
-    {
+  for (; (f = *fields); fields++) {
+    if (bitmap_is_set(table->write_set, f->field_index)) {
       result = temp->m_st_table->write_column_value(
-        temp->plugin_table_handle, (PSI_field *)f, f->field_index);
-      if (result)
-        return result;
+          temp->plugin_table_handle, (PSI_field *)f, f->field_index);
+      if (result) return result;
     }
   }
 
@@ -276,28 +270,25 @@ write_row(PFS_engine_table *pfs_table,
  *
  * return 0 for success
  */
-static int
-initialize_table_share(PFS_engine_table_share *share,
-                       PFS_engine_table_share_proxy *proxy_share)
-{
+static int initialize_table_share(PFS_engine_table_share *share,
+                                  PFS_engine_table_share_proxy *proxy_share) {
   /* Set acl */
-  switch (proxy_share->m_acl)
-  {
-  case READONLY:
-    share->m_acl = &pfs_readonly_acl;
-    break;
-  case TRUNCATABLE:
-    share->m_acl = &pfs_truncatable_acl;
-    break;
-  case UPDATABLE:
-    share->m_acl = &pfs_updatable_acl;
-    break;
-  case EDITABLE:
-    share->m_acl = &pfs_editable_acl;
-    break;
-  default: /* Unknown ACL */
-    share->m_acl = &pfs_unknown_acl;
-    break;
+  switch (proxy_share->m_acl) {
+    case READONLY:
+      share->m_acl = &pfs_readonly_acl;
+      break;
+    case TRUNCATABLE:
+      share->m_acl = &pfs_truncatable_acl;
+      break;
+    case UPDATABLE:
+      share->m_acl = &pfs_updatable_acl;
+      break;
+    case EDITABLE:
+      share->m_acl = &pfs_editable_acl;
+      break;
+    default: /* Unknown ACL */
+      share->m_acl = &pfs_unknown_acl;
+      break;
   }
 
   /* Open table pointer to open a table with share provided */
@@ -311,19 +302,17 @@ initialize_table_share(PFS_engine_table_share *share,
 
   share->m_thr_lock_ptr = new THR_LOCK();
 
-  share->m_table_def = new Plugin_table("performance_schema",
-                                        proxy_share->m_table_name,
-                                        proxy_share->m_table_definition,
-                                        "ENGINE = 'PERFORMANCE_SCHEMA'",
-                                        nullptr);
+  share->m_table_def =
+      new Plugin_table("performance_schema", proxy_share->m_table_name,
+                       proxy_share->m_table_definition,
+                       "ENGINE = 'PERFORMANCE_SCHEMA'", nullptr);
 
   share->m_perpetual = false;
 
   /* List of call back function pointers pointing to the interface functions
    * implemented by plugin/component.
    */
-  memcpy(&share->m_st_table,
-         &proxy_share->m_proxy_engine_table,
+  memcpy(&share->m_st_table, &proxy_share->m_proxy_engine_table,
          sizeof(PFS_engine_table_proxy));
 
   /*Initialize table share locks */
@@ -339,9 +328,7 @@ initialize_table_share(PFS_engine_table_share *share,
  *
  * @param share share to be destroyed.
  */
-static void
-destroy_table_share(PFS_engine_table_share *share)
-{
+static void destroy_table_share(PFS_engine_table_share *share) {
   DBUG_ASSERT(share);
 
   thr_lock_delete(share->m_thr_lock_ptr);
@@ -359,10 +346,8 @@ destroy_table_share(PFS_engine_table_share *share)
  *
  * @return 0 for success.
  */
-static int
-pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
-                  uint share_list_count)
-{
+static int pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
+                             uint share_list_count) {
   PFS_engine_table_share_proxy *temp_st_share;
 
   /* A list of table shares 'to be added' */
@@ -377,8 +362,7 @@ pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
    * when duplicate name was found at the end of the list when all earlier
    * shares are initialized.
    */
-  for (uint i = 0; i < share_list_count; i++)
-  {
+  for (uint i = 0; i < share_list_count; i++) {
     temp_st_share = st_share_list[i];
     DBUG_ASSERT(temp_st_share && temp_st_share->m_table_name &&
                 temp_st_share->m_table_name_length > 0);
@@ -388,9 +372,9 @@ pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
      * - Other (non native) PFS tables list (including purgatory)
      */
     if (PFS_engine_table::find_engine_table_share(
-          temp_st_share->m_table_name) ||
-        pfs_external_table_shares.find_share(temp_st_share->m_table_name, true))
-    {
+            temp_st_share->m_table_name) ||
+        pfs_external_table_shares.find_share(temp_st_share->m_table_name,
+                                             true)) {
       pfs_external_table_shares.unlock_share_list();
       return ER_TABLE_EXISTS_ERROR;
     }
@@ -399,27 +383,22 @@ pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
   /* Now traverse the share list again to initialize and add table shares to
      PFS shares list.
    */
-  for (uint i = 0; i < share_list_count; i++)
-  {
+  for (uint i = 0; i < share_list_count; i++) {
     temp_st_share = st_share_list[i];
 
     /* Create a new instance of table_share */
     PFS_engine_table_share *temp_share = new PFS_engine_table_share();
 
     /* Initialize table share for this new table */
-    if (initialize_table_share(temp_share, temp_st_share))
-    {
+    if (initialize_table_share(temp_share, temp_st_share)) {
       /* Delete all the initialized table shares till now */
-      for (auto share : share_list)
-      {
+      for (auto share : share_list) {
         pfs_external_table_shares.remove_share(share);
         destroy_table_share(share);
       }
       pfs_external_table_shares.unlock_share_list();
       return 1;
-    }
-    else
-    {
+    } else {
       /* Add share to PFS shares list */
       pfs_external_table_shares.add_share(temp_share);
       share_list.push_back(temp_share);
@@ -435,22 +414,17 @@ pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
   /* At this point, all the shares have been added to PFS share list. Now
      traverse the share list again and create tables using DD API
   */
-  for (uint i = 0; i < share_list_count; i++)
-  {
+  for (uint i = 0; i < share_list_count; i++) {
     temp_st_share = st_share_list[i];
 
-    Plugin_table t(PERFORMANCE_SCHEMA_str.str,
-                   temp_st_share->m_table_name,
+    Plugin_table t(PERFORMANCE_SCHEMA_str.str, temp_st_share->m_table_name,
                    temp_st_share->m_table_definition,
-                   "engine = 'performance_schema'",
-                   nullptr);
-    if (create_native_table_for_pfs(&t))
-    {
+                   "engine = 'performance_schema'", nullptr);
+    if (create_native_table_for_pfs(&t)) {
       /* ============== CRITICAL SECTION 2 (begin) ================= */
       pfs_external_table_shares.lock_share_list();
       /* Delete all the initialized table share till now */
-      for (auto share : share_list)
-      {
+      for (auto share : share_list) {
         pfs_external_table_shares.remove_share(share);
         destroy_table_share(share);
       }
@@ -472,10 +446,8 @@ pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
  *
  * @return 0 for success
  */
-static int
-pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
-                     uint share_list_count)
-{
+static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
+                                uint share_list_count) {
   /* A list of shares 'to be removed' */
   std::list<PFS_engine_table_share *> share_list;
 
@@ -483,18 +455,16 @@ pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
   pfs_external_table_shares.lock_share_list();
 
   /* Check if any of the table, in the list, doesn't exist. */
-  for (uint i = 0; i < share_list_count; i++)
-  {
+  for (uint i = 0; i < share_list_count; i++) {
     PFS_engine_table_share_proxy *temp_st_share = st_share_list[i];
     DBUG_ASSERT(temp_st_share && temp_st_share->m_table_name &&
                 temp_st_share->m_table_name_length > 0);
 
     /* Search table share for the table in other list (including purgatory) */
     PFS_engine_table_share *temp_share =
-      pfs_external_table_shares.find_share(temp_st_share->m_table_name, true);
+        pfs_external_table_shares.find_share(temp_st_share->m_table_name, true);
 
-    if (temp_share != NULL)
-    {
+    if (temp_share != NULL) {
       /* If share found in global list,
        *  - Move it to purgatory.
        *  - Add it to the list of shares to be removed.
@@ -513,11 +483,9 @@ pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
    *
    * Now traverse share_list and drop tables using DD API.
    */
-  for (auto share : share_list)
-  {
+  for (auto share : share_list) {
     if (drop_native_table_for_pfs(PERFORMANCE_SCHEMA_str.str,
-                                  share->m_table_def->get_name()))
-    {
+                                  share->m_table_def->get_name())) {
       return 1;
     }
   }
@@ -528,8 +496,7 @@ pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
   /* At this point tables have been dropped. So we can remove shares from
    * PFS shares list.
    */
-  for (auto share : share_list)
-  {
+  for (auto share : share_list) {
     pfs_external_table_shares.remove_share(share);
     destroy_table_share(share);
   }
@@ -545,30 +512,23 @@ pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
 /**************************************
  * Type TINYINT                       *
  **************************************/
-void
-set_field_tinyint_v1(PSI_field *f, PSI_tinyint value)
-{
+void set_field_tinyint_v1(PSI_field *f, PSI_tinyint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_tiny(f_ptr, value.val);
 }
-void
-set_field_utinyint_v1(PSI_field *f, PSI_utinyint value)
-{
+void set_field_utinyint_v1(PSI_field *f, PSI_utinyint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_utiny(f_ptr, value.val);
 }
-void
-get_field_tinyint_v1(PSI_field *f, PSI_tinyint *value)
-{
+void get_field_tinyint_v1(PSI_field *f, PSI_tinyint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -580,30 +540,23 @@ get_field_tinyint_v1(PSI_field *f, PSI_tinyint *value)
 /**************************************
  * Type SMALLINT                      *
  **************************************/
-void
-set_field_smallint_v1(PSI_field *f, PSI_smallint value)
-{
+void set_field_smallint_v1(PSI_field *f, PSI_smallint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_short(f_ptr, value.val);
 }
-void
-set_field_usmallint_v1(PSI_field *f, PSI_usmallint value)
-{
+void set_field_usmallint_v1(PSI_field *f, PSI_usmallint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_ushort(f_ptr, value.val);
 }
-void
-get_field_smallint_v1(PSI_field *f, PSI_smallint *value)
-{
+void get_field_smallint_v1(PSI_field *f, PSI_smallint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -615,30 +568,23 @@ get_field_smallint_v1(PSI_field *f, PSI_smallint *value)
 /**************************************
  * Type MEDIUMINT                     *
  **************************************/
-void
-set_field_mediumint_v1(PSI_field *f, PSI_mediumint value)
-{
+void set_field_mediumint_v1(PSI_field *f, PSI_mediumint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_medium(f_ptr, value.val);
 }
-void
-set_field_umediumint_v1(PSI_field *f, PSI_umediumint value)
-{
+void set_field_umediumint_v1(PSI_field *f, PSI_umediumint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_umedium(f_ptr, value.val);
 }
-void
-get_field_mediumint_v1(PSI_field *f, PSI_mediumint *value)
-{
+void get_field_mediumint_v1(PSI_field *f, PSI_mediumint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -650,30 +596,23 @@ get_field_mediumint_v1(PSI_field *f, PSI_mediumint *value)
 /**************************************
  * Type INTEGER (INT)                 *
  **************************************/
-void
-set_field_integer_v1(PSI_field *f, PSI_int value)
-{
+void set_field_integer_v1(PSI_field *f, PSI_int value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_long(f_ptr, value.val);
 }
-void
-set_field_uinteger_v1(PSI_field *f, PSI_uint value)
-{
+void set_field_uinteger_v1(PSI_field *f, PSI_uint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_ulong(f_ptr, value.val);
 }
-void
-get_field_integer_v1(PSI_field *f, PSI_int *value)
-{
+void get_field_integer_v1(PSI_field *f, PSI_int *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -685,30 +624,23 @@ get_field_integer_v1(PSI_field *f, PSI_int *value)
 /**************************************
  * Type BIGINT                        *
  **************************************/
-void
-set_field_bigint_v1(PSI_field *f, PSI_bigint value)
-{
+void set_field_bigint_v1(PSI_field *f, PSI_bigint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_longlong(f_ptr, value.val);
 }
-void
-set_field_ubigint_v1(PSI_field *f, PSI_ubigint value)
-{
+void set_field_ubigint_v1(PSI_field *f, PSI_ubigint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_ulonglong(f_ptr, value.val);
 }
-void
-get_field_bigint_v1(PSI_field *f, PSI_bigint *value)
-{
+void get_field_bigint_v1(PSI_field *f, PSI_bigint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -720,21 +652,16 @@ get_field_bigint_v1(PSI_field *f, PSI_bigint *value)
 /**************************************
  * Type DECIMAL                       *
  **************************************/
-void
-set_field_decimal_v1(PSI_field *f, PSI_double value)
-{
+void set_field_decimal_v1(PSI_field *f, PSI_double value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_decimal(f_ptr, value.val);
 }
-void
-get_field_decimal_v1(PSI_field *f, PSI_double *value)
-{
+void get_field_decimal_v1(PSI_field *f, PSI_double *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -746,21 +673,16 @@ get_field_decimal_v1(PSI_field *f, PSI_double *value)
 /**************************************
  * Type FLOAT                         *
  **************************************/
-void
-set_field_float_v1(PSI_field *f, PSI_double value)
-{
+void set_field_float_v1(PSI_field *f, PSI_double value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_float(f_ptr, value.val);
 }
-void
-get_field_float_v1(PSI_field *f, PSI_double *value)
-{
+void get_field_float_v1(PSI_field *f, PSI_double *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -772,21 +694,16 @@ get_field_float_v1(PSI_field *f, PSI_double *value)
 /**************************************
  * Type DOUBLE                        *
  **************************************/
-void
-set_field_double_v1(PSI_field *f, PSI_double value)
-{
+void set_field_double_v1(PSI_field *f, PSI_double value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_double(f_ptr, value.val);
 }
-void
-get_field_double_v1(PSI_field *f, PSI_double *value)
-{
+void get_field_double_v1(PSI_field *f, PSI_double *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -798,23 +715,18 @@ get_field_double_v1(PSI_field *f, PSI_double *value)
 /**************************************
  * Type CHAR                          *
  **************************************/
-void
-set_field_char_utf8_v1(PSI_field *f, const char *value, uint len)
-{
+void set_field_char_utf8_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_char_utf8(f_ptr, value, len);
   else
     f_ptr->set_null();
 }
-void
-get_field_char_utf8_v1(PSI_field *f, char *val, uint *len)
-{
+void get_field_char_utf8_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     *len = 0;
     val[0] = '\0';
     return;
@@ -826,9 +738,7 @@ get_field_char_utf8_v1(PSI_field *f, char *val, uint *len)
 /**************************************
  * Type VARCAHAR                      *
  **************************************/
-void
-set_field_varchar_utf8_len_v1(PSI_field *f, const char *str, uint len)
-{
+void set_field_varchar_utf8_len_v1(PSI_field *f, const char *str, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_varchar_utf8(f_ptr, str, len);
@@ -836,9 +746,7 @@ set_field_varchar_utf8_len_v1(PSI_field *f, const char *str, uint len)
     f_ptr->set_null();
 }
 
-void
-set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len)
-{
+void set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_varchar_utf8mb4(f_ptr, str, len);
@@ -846,28 +754,21 @@ set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len)
     f_ptr->set_null();
 }
 
-void
-set_field_varchar_utf8_v1(PSI_field *f, const char *str)
-{
+void set_field_varchar_utf8_v1(PSI_field *f, const char *str) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   set_field_varchar_utf8(f_ptr, str);
 }
 
-void
-set_field_varchar_utf8mb4_v1(PSI_field *f, const char *str)
-{
+void set_field_varchar_utf8mb4_v1(PSI_field *f, const char *str) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   set_field_varchar_utf8(f_ptr, str);
 }
 
-void
-get_field_varchar_utf8_v1(PSI_field *f, char *val, uint *len)
-{
+void get_field_varchar_utf8_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     *len = 0;
     val[0] = '\0';
     return;
@@ -879,23 +780,18 @@ get_field_varchar_utf8_v1(PSI_field *f, char *val, uint *len)
 /**************************************
  * Type BLOB/TEXT                     *
  **************************************/
-void
-set_field_blob_v1(PSI_field *f, const char *val, uint len)
-{
+void set_field_blob_v1(PSI_field *f, const char *val, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_blob(f_ptr, val, len);
   else
     f_ptr->set_null();
 }
-void
-get_field_blob_v1(PSI_field *f, char *val, uint *len)
-{
+void get_field_blob_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     *len = 0;
     val[0] = '\0';
     return;
@@ -907,21 +803,16 @@ get_field_blob_v1(PSI_field *f, char *val, uint *len)
 /**************************************
  * Type ENUM                          *
  **************************************/
-void
-set_field_enum_v1(PSI_field *f, PSI_enum value)
-{
+void set_field_enum_v1(PSI_field *f, PSI_enum value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_enum(f_ptr, value.val);
 }
-void
-get_field_enum_v1(PSI_field *f, PSI_enum *value)
-{
+void get_field_enum_v1(PSI_field *f, PSI_enum *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -933,23 +824,18 @@ get_field_enum_v1(PSI_field *f, PSI_enum *value)
 /**************************************
  * Type DATE                          *
  **************************************/
-void
-set_field_date_v1(PSI_field *f, const char *value, uint len)
-{
+void set_field_date_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_date(f_ptr, value, len);
   else
     f_ptr->set_null();
 }
-void
-get_field_date_v1(PSI_field *f, char *val, uint *len)
-{
+void get_field_date_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     *len = 0;
     val[0] = '\0';
     return;
@@ -961,23 +847,18 @@ get_field_date_v1(PSI_field *f, char *val, uint *len)
 /**************************************
  * Type TIME                          *
  **************************************/
-void
-set_field_time_v1(PSI_field *f, const char *value, uint len)
-{
+void set_field_time_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_time(f_ptr, value, len);
   else
     f_ptr->set_null();
 }
-void
-get_field_time_v1(PSI_field *f, char *val, uint *len)
-{
+void get_field_time_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     *len = 0;
     val[0] = '\0';
     return;
@@ -989,23 +870,18 @@ get_field_time_v1(PSI_field *f, char *val, uint *len)
 /**************************************
  * Type DATETIME                      *
  **************************************/
-void
-set_field_datetime_v1(PSI_field *f, const char *value, uint len)
-{
+void set_field_datetime_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_datetime(f_ptr, value, len);
   else
     f_ptr->set_null();
 }
-void
-get_field_datetime_v1(PSI_field *f, char *val, uint *len)
-{
+void get_field_datetime_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     *len = 0;
     val[0] = '\0';
     return;
@@ -1017,23 +893,18 @@ get_field_datetime_v1(PSI_field *f, char *val, uint *len)
 /**************************************
  * Type TIMESTAMP                     *
  **************************************/
-void
-set_field_timestamp_v1(PSI_field *f, const char *value, uint len)
-{
+void set_field_timestamp_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0)
     set_field_timestamp(f_ptr, value, len);
   else
     f_ptr->set_null();
 }
-void
-get_field_timestamp_v1(PSI_field *f, char *val, uint *len)
-{
+void get_field_timestamp_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     *len = 0;
     val[0] = '\0';
     return;
@@ -1045,21 +916,16 @@ get_field_timestamp_v1(PSI_field *f, char *val, uint *len)
 /**************************************
  * Type YEAR                          *
  **************************************/
-void
-set_field_year_v1(PSI_field *f, PSI_year value)
-{
+void set_field_year_v1(PSI_field *f, PSI_year value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null)
     f_ptr->set_null();
   else
     set_field_year(f_ptr, value.val);
 }
-void
-get_field_year_v1(PSI_field *f, PSI_year *value)
-{
+void get_field_year_v1(PSI_field *f, PSI_year *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (f_ptr->is_null())
-  {
+  if (f_ptr->is_null()) {
     value->is_null = true;
     return;
   }
@@ -1071,99 +937,70 @@ get_field_year_v1(PSI_field *f, PSI_year *value)
 /**************************************
  * NULL                               *
  **************************************/
-void
-set_field_null_v1(PSI_field *f)
-{
+void set_field_null_v1(PSI_field *f) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
   f_ptr->set_null();
 }
 
-void
-read_key_integer_v1(PSI_key_reader *reader,
-                    PSI_plugin_key_integer *key,
-                    int find_flag)
-{
+void read_key_integer_v1(PSI_key_reader *reader, PSI_plugin_key_integer *key,
+                         int find_flag) {
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
   long temp_value;
-  key->m_find_flags = PFS_key_long::stateless_read(
-    *pfs_reader, e_find_flag, key->m_is_null, &temp_value);
+  key->m_find_flags = PFS_key_long::stateless_read(*pfs_reader, e_find_flag,
+                                                   key->m_is_null, &temp_value);
   key->m_value = temp_value;
 }
 
-bool
-match_key_integer_v1(bool record_null,
-                     long record_value,
-                     PSI_plugin_key_integer *key)
-{
+bool match_key_integer_v1(bool record_null, long record_value,
+                          PSI_plugin_key_integer *key) {
   return PFS_key_long::stateless_match(
-    record_null,
-    record_value,
-    key->m_is_null,
-    key->m_value,
-    (enum ha_rkey_function)key->m_find_flags);
+      record_null, record_value, key->m_is_null, key->m_value,
+      (enum ha_rkey_function)key->m_find_flags);
 }
 
-void
-read_key_string_v1(PSI_key_reader *reader,
-                   PSI_plugin_key_string *key,
-                   int find_flag)
-{
+void read_key_string_v1(PSI_key_reader *reader, PSI_plugin_key_string *key,
+                        int find_flag) {
   PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
   enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
 
-  key->m_find_flags =
-    PFS_key_pstring::stateless_read(*pfs_reader,
-                                    e_find_flag,
-                                    key->m_is_null,
-                                    key->m_value_buffer,
-                                    &key->m_value_buffer_length,
-                                    key->m_value_buffer_capacity);
+  key->m_find_flags = PFS_key_pstring::stateless_read(
+      *pfs_reader, e_find_flag, key->m_is_null, key->m_value_buffer,
+      &key->m_value_buffer_length, key->m_value_buffer_capacity);
 }
 
-bool
-match_key_string_v1(bool record_null,
-                    const char *record_string_value,
-                    unsigned int record_string_length,
-                    PSI_plugin_key_string *key)
-{
+bool match_key_string_v1(bool record_null, const char *record_string_value,
+                         unsigned int record_string_length,
+                         PSI_plugin_key_string *key) {
   return PFS_key_pstring::stateless_match(
-    record_null,
-    record_string_value,
-    record_string_length,
-    key->m_value_buffer,
-    key->m_value_buffer_length,
-    key->m_is_null,
-    (enum ha_rkey_function)key->m_find_flags);
+      record_null, record_string_value, record_string_length,
+      key->m_value_buffer, key->m_value_buffer_length, key->m_is_null,
+      (enum ha_rkey_function)key->m_find_flags);
 }
 
-void
-init_pfs_plugin_table()
-{
+void init_pfs_plugin_table() {
   DBUG_ASSERT(!plugin_table_service_initialized);
 
   /* Asserts that ERRORS defined in pfs_plugin_table_service.h are in
      accordance with ERRORS defined in my_base.h
   */
-  static_assert((PFS_HA_ERR_WRONG_COMMAND == HA_ERR_WRONG_COMMAND) &&
-                  (PFS_HA_ERR_RECORD_DELETED == HA_ERR_RECORD_DELETED) &&
-                  (PFS_HA_ERR_END_OF_FILE == HA_ERR_END_OF_FILE) &&
-                  (PFS_HA_ERR_NO_REFERENCED_ROW == HA_ERR_NO_REFERENCED_ROW) &&
-                  (PFS_HA_ERR_FOUND_DUPP_KEY == HA_ERR_FOUND_DUPP_KEY) &&
-                  (PFS_HA_ERR_RECORD_FILE_FULL == HA_ERR_RECORD_FILE_FULL),
-                "");
+  static_assert(
+      (PFS_HA_ERR_WRONG_COMMAND == HA_ERR_WRONG_COMMAND) &&
+          (PFS_HA_ERR_RECORD_DELETED == HA_ERR_RECORD_DELETED) &&
+          (PFS_HA_ERR_END_OF_FILE == HA_ERR_END_OF_FILE) &&
+          (PFS_HA_ERR_NO_REFERENCED_ROW == HA_ERR_NO_REFERENCED_ROW) &&
+          (PFS_HA_ERR_FOUND_DUPP_KEY == HA_ERR_FOUND_DUPP_KEY) &&
+          (PFS_HA_ERR_RECORD_FILE_FULL == HA_ERR_RECORD_FILE_FULL),
+      "");
 
   pfs_external_table_shares.init_mutex();
   plugin_table_service_initialized = true;
   return;
 }
 
-void
-cleanup_pfs_plugin_table()
-{
-  if (plugin_table_service_initialized)
-  {
+void cleanup_pfs_plugin_table() {
+  if (plugin_table_service_initialized) {
     pfs_external_table_shares.destroy_mutex();
     plugin_table_service_initialized = false;
   }
@@ -1172,103 +1009,77 @@ cleanup_pfs_plugin_table()
 /* Initialization of service methods to actual PFS implementation */
 SERVICE_TYPE(pfs_plugin_table)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table){
-  pfs_add_tables_v1,
-  pfs_delete_tables_v1,
+    pfs_add_tables_v1, pfs_delete_tables_v1,
 
-  set_field_tinyint_v1,
-  set_field_utinyint_v1,
-  get_field_tinyint_v1,
-  // read_key_,
-  // match_key_,
+    set_field_tinyint_v1, set_field_utinyint_v1, get_field_tinyint_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_smallint_v1,
-  set_field_usmallint_v1,
-  get_field_smallint_v1,
-  // read_key_,
-  // match_key_,
+    set_field_smallint_v1, set_field_usmallint_v1, get_field_smallint_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_mediumint_v1,
-  set_field_umediumint_v1,
-  get_field_mediumint_v1,
-  // read_key_,
-  // match_key_,
+    set_field_mediumint_v1, set_field_umediumint_v1, get_field_mediumint_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_integer_v1,
-  set_field_uinteger_v1,
-  get_field_integer_v1,
-  read_key_integer_v1,
-  match_key_integer_v1,
+    set_field_integer_v1, set_field_uinteger_v1, get_field_integer_v1,
+    read_key_integer_v1, match_key_integer_v1,
 
-  set_field_bigint_v1,
-  set_field_ubigint_v1,
-  get_field_bigint_v1,
-  // read_key_,
-  // match_key_,
+    set_field_bigint_v1, set_field_ubigint_v1, get_field_bigint_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_decimal_v1,
-  get_field_decimal_v1,
-  // read_key_,
-  // match_key_,
+    set_field_decimal_v1, get_field_decimal_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_float_v1,
-  get_field_float_v1,
-  // read_key_,
-  // match_key_,
+    set_field_float_v1, get_field_float_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_double_v1,
-  get_field_double_v1,
-  // read_key_,
-  // match_key_,
+    set_field_double_v1, get_field_double_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_char_utf8_v1,
-  get_field_char_utf8_v1,
-  read_key_string_v1,
-  match_key_string_v1,
+    set_field_char_utf8_v1, get_field_char_utf8_v1, read_key_string_v1,
+    match_key_string_v1,
 
-  set_field_varchar_utf8_v1,
-  set_field_varchar_utf8_len_v1,
-  get_field_varchar_utf8_v1,
-  // read_key_,
-  // match_key_,
+    set_field_varchar_utf8_v1, set_field_varchar_utf8_len_v1,
+    get_field_varchar_utf8_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_varchar_utf8mb4_v1,
-  set_field_varchar_utf8mb4_len_v1,
-  // read_key_,
-  // match_key_,
+    set_field_varchar_utf8mb4_v1, set_field_varchar_utf8mb4_len_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_blob_v1,
-  get_field_blob_v1,
-  // read_key_,
-  // match_key_,
+    set_field_blob_v1, get_field_blob_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_enum_v1,
-  get_field_enum_v1,
-  // read_key_,
-  // match_key_,
+    set_field_enum_v1, get_field_enum_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_date_v1,
-  get_field_date_v1,
-  // read_key_,
-  // match_key_,
+    set_field_date_v1, get_field_date_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_time_v1,
-  get_field_time_v1,
-  // read_key_,
-  // match_key_,
+    set_field_time_v1, get_field_time_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_datetime_v1,
-  get_field_datetime_v1,
-  // read_key_,
-  // match_key_,
+    set_field_datetime_v1, get_field_datetime_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_timestamp_v1,
-  get_field_timestamp_v1,
-  // read_key_,
-  // match_key_,
+    set_field_timestamp_v1, get_field_timestamp_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_year_v1,
-  get_field_year_v1,
-  // read_key_,
-  // match_key_,
+    set_field_year_v1, get_field_year_v1,
+    // read_key_,
+    // match_key_,
 
-  set_field_null_v1};
+    set_field_null_v1};

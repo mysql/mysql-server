@@ -24,55 +24,53 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/usr0sess.h
-Sessions
+/**************************************************/ /**
+ @file include/usr0sess.h
+ Sessions
 
-Created 6/25/1996 Heikki Tuuri
-*******************************************************/
+ Created 6/25/1996 Heikki Tuuri
+ *******************************************************/
 
 #ifndef usr0sess_h
 #define usr0sess_h
 
-#include "univ.i"
-#include "ut0byte.h"
-#include "trx0types.h"
+#include "data0data.h"
+#include "que0types.h"
+#include "rem0rec.h"
 #include "srv0srv.h"
 #include "trx0types.h"
+#include "univ.i"
 #include "usr0types.h"
-#include "que0types.h"
-#include "data0data.h"
-#include "rem0rec.h"
+#include "ut0byte.h"
 
-/*********************************************************************//**
-Opens a session.
-@return own: session object */
-sess_t*
-sess_open(void);
+/*********************************************************************/ /**
+ Opens a session.
+ @return own: session object */
+sess_t *sess_open(void);
 /*============*/
-/*********************************************************************//**
-Closes a session, freeing the memory occupied by it. */
-void
-sess_close(
-/*=======*/
-	sess_t*		sess);		/* in, own: session object */
+/*********************************************************************/ /**
+ Closes a session, freeing the memory occupied by it. */
+void sess_close(
+    /*=======*/
+    sess_t *sess); /* in, own: session object */
 
 /* The session handle. This data structure is only used by purge and is
 not really necessary. We should get rid of it. */
-struct sess_t{
-	ulint		state;		/*!< state of the session */
-	trx_t*		trx;		/*!< transaction object permanently
-					assigned for the session: the
-					transaction instance designated by the
-					trx id changes, but the memory
-					structure is preserved */
+struct sess_t {
+  ulint state; /*!< state of the session */
+  trx_t *trx;  /*!< transaction object permanently
+               assigned for the session: the
+               transaction instance designated by the
+               trx id changes, but the memory
+               structure is preserved */
 };
 
 /* Session states */
-#define SESS_ACTIVE		1
-#define SESS_ERROR		2	/* session contains an error message
-					which has not yet been communicated
-					to the client */
+#define SESS_ACTIVE 1
+#define SESS_ERROR                       \
+  2 /* session contains an error message \
+    which has not yet been communicated  \
+    to the client */
 #include "usr0sess.ic"
 
 #endif

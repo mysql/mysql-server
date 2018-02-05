@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,7 +33,6 @@
 #include "mysql.h"
 #include "mysqlxclient/xerror.h"
 
-
 namespace xcl {
 
 /**
@@ -50,17 +49,10 @@ enum class Internet_protocol {
 };
 
 /** 'Enum' that defines how the network connection should be closed. */
-enum class Shutdown_type {
-  Send,
-  Recv,
-  Both
-};
+enum class Shutdown_type { Send, Recv, Both };
 
 /** 'Enum' that defines the connection type. */
-enum class Connection_type {
-  Unix_socket,
-  Tcp
-};
+enum class Connection_type { Unix_socket, Tcp };
 
 /**
  Interface defining network layer.

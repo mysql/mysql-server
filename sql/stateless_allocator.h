@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <limits>
 #include <new>
-#include <utility>                              // std::forward
+#include <utility>  // std::forward
 
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -35,8 +35,7 @@
   Functor struct which invokes my_free. Declared here as it is used as the
   defalt value for Stateless_allocator's DEALLOC_FUN template parameter.
 */
-struct My_free_functor
-{
+struct My_free_functor {
   void operator()(void *p, size_t) const;
 };
 
@@ -88,23 +87,22 @@ struct My_free_functor
 
 */
 
-template <class T, class ALLOC_FUN, class DEALLOC_FUN= My_free_functor>
-class Stateless_allocator
-{
-public:
+template <class T, class ALLOC_FUN, class DEALLOC_FUN = My_free_functor>
+class Stateless_allocator {
+ public:
   typedef T value_type;
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
 
-  typedef T* pointer;
-  typedef const T* const_pointer;
+  typedef T *pointer;
+  typedef const T *const_pointer;
 
-  typedef T& reference;
-  typedef const T& const_reference;
+  typedef T &reference;
+  typedef const T &const_reference;
 
   template <class T_>
   using Stateless_allocator_type =
-    Stateless_allocator<T_, ALLOC_FUN, DEALLOC_FUN>;
+      Stateless_allocator<T_, ALLOC_FUN, DEALLOC_FUN>;
 
   Stateless_allocator() = default;
 
@@ -112,76 +110,63 @@ public:
   const_pointer address(const_reference r) const { return &r; }
 
   template <class U>
-  Stateless_allocator(const Stateless_allocator_type<U> &)
-  {}
+  Stateless_allocator(const Stateless_allocator_type<U> &) {}
 
   template <class U>
-  Stateless_allocator & operator=(const Stateless_allocator_type<U> &)
-  {}
+  Stateless_allocator &operator=(const Stateless_allocator_type<U> &) {}
 
   ~Stateless_allocator() = default;
 
-  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused))= 0)
-  {
-    if (n == 0)
-      return NULL;
-    if (n > max_size())
-      throw std::bad_alloc();
+  pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
+    if (n == 0) return NULL;
+    if (n > max_size()) throw std::bad_alloc();
 
-    pointer p= static_cast<pointer>(ALLOC_FUN()(n * sizeof(T)));
-    if (p == NULL)
-      throw std::bad_alloc();
+    pointer p = static_cast<pointer>(ALLOC_FUN()(n * sizeof(T)));
+    if (p == NULL) throw std::bad_alloc();
     return p;
   }
 
-  void deallocate(pointer p, size_type n) { DEALLOC_FUN()(p,n); }
+  void deallocate(pointer p, size_type n) { DEALLOC_FUN()(p, n); }
 
   template <class U, class... Args>
-  void construct(U *p, Args&&... args)
-  {
+  void construct(U *p, Args &&... args) {
     DBUG_ASSERT(p != NULL);
     try {
-      ::new((void *)p) U(std::forward<Args>(args)...);
+      ::new ((void *)p) U(std::forward<Args>(args)...);
     } catch (...) {
-      DBUG_ASSERT(false); // Constructor should not throw an exception.
+      DBUG_ASSERT(false);  // Constructor should not throw an exception.
     }
   }
 
-  void destroy(pointer p)
-  {
+  void destroy(pointer p) {
     DBUG_ASSERT(p != NULL);
     try {
       p->~T();
     } catch (...) {
-      DBUG_ASSERT(false); // Destructor should not throw an exception
+      DBUG_ASSERT(false);  // Destructor should not throw an exception
     }
   }
 
-  size_type max_size() const
-  {
+  size_type max_size() const {
     return std::numeric_limits<size_t>::max() / sizeof(T);
   }
 
   template <class U>
-  struct rebind
-  {
+  struct rebind {
     typedef Stateless_allocator<U, ALLOC_FUN, DEALLOC_FUN> other;
   };
 };
 
 template <class T, class ALLOC_FUN, class DEALLOC_FUN>
-bool operator== (const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN>&,
-                 const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN>&)
-{
-   return true;
+bool operator==(const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN> &,
+                const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN> &) {
+  return true;
 }
 
-
 template <class T, class ALLOC_FUN, class DEALLOC_FUN>
-bool operator!= (const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN>&,
-                 const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN>&)
-{
+bool operator!=(const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN> &,
+                const Stateless_allocator<T, ALLOC_FUN, DEALLOC_FUN> &) {
   return false;
 }
 
-#endif // STATELESS_ALLOCATOR_INCLUDED
+#endif  // STATELESS_ALLOCATOR_INCLUDED

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,35 +27,32 @@
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 
-
 struct addrinfo;
 
 namespace ngs {
 
 class System_interface {
-public:
+ public:
   typedef ngs::shared_ptr<System_interface> Shared_ptr;
 
   virtual ~System_interface() {}
 
-  virtual int unlink(const char* name) = 0;
+  virtual int unlink(const char *name) = 0;
   virtual int kill(int pid, int signal) = 0;
 
   virtual int get_ppid() = 0;
   virtual int get_errno() = 0;
   virtual int get_pid() = 0;
 
-  virtual int  get_socket_errno() = 0;
-  virtual void get_socket_error_and_message(int& err, std::string& strerr) = 0;
+  virtual int get_socket_errno() = 0;
+  virtual void get_socket_error_and_message(int &err, std::string &strerr) = 0;
 
   virtual void freeaddrinfo(addrinfo *ai) = 0;
-  virtual int getaddrinfo(const char *node,
-                          const char *service,
-                          const addrinfo *hints,
-                          addrinfo **res) = 0;
+  virtual int getaddrinfo(const char *node, const char *service,
+                          const addrinfo *hints, addrinfo **res) = 0;
   virtual void sleep(uint32 seconds) = 0;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // NGS_SYSTEM_INTERFACE_H_
+#endif  // NGS_SYSTEM_INTERFACE_H_

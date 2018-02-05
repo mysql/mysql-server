@@ -23,19 +23,19 @@
 #ifndef DD__TABLESPACE_IMPL_INCLUDED
 #define DD__TABLESPACE_IMPL_INCLUDED
 
-#include <memory>   // std::unique_ptr
+#include <memory>  // std::unique_ptr
 #include <new>
 #include <string>
 
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/tablespace.h"          // dd::Tablespace
-#include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
+#include "sql/dd/types/tablespace.h"       // dd::Tablespace
+#include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
 
 class THD;
 
@@ -52,15 +52,13 @@ class Tablespace_file;
 class Weak_object;
 class Object_table;
 
-class Tablespace_impl : public Entity_object_impl,
-                        public Tablespace
-{
-public:
+class Tablespace_impl : public Entity_object_impl, public Tablespace {
+ public:
   Tablespace_impl();
 
   virtual ~Tablespace_impl();
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
@@ -83,28 +81,24 @@ public:
 
   virtual bool is_empty(THD *thd, bool *empty) const;
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const
-  { return m_comment; }
+  virtual const String_type &comment() const { return m_comment; }
 
-  virtual void set_comment(const String_type &comment)
-  { m_comment= comment; }
+  virtual void set_comment(const String_type &comment) { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const
-  { return *m_options; }
+  virtual const Properties &options() const { return *m_options; }
 
-  virtual Properties &options()
-  { return *m_options; }
+  virtual Properties &options() { return *m_options; }
 
   virtual bool set_options_raw(const String_type &options_raw);
 
@@ -112,11 +106,11 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const
-  { return *m_se_private_data; }
+  virtual const Properties &se_private_data() const {
+    return *m_se_private_data;
+  }
 
-  virtual Properties &se_private_data()
-  { return *m_se_private_data; }
+  virtual Properties &se_private_data() { return *m_se_private_data; }
 
   virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
@@ -124,11 +118,9 @@ public:
   // m_engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &engine() const
-  { return m_engine; }
+  virtual const String_type &engine() const { return m_engine; }
 
-  virtual void set_engine(const String_type &engine)
-  { m_engine= engine; }
+  virtual void set_engine(const String_type &engine) { m_engine = engine; }
 
   /////////////////////////////////////////////////////////////////////////
   // Tablespace file collection.
@@ -138,24 +130,23 @@ public:
 
   virtual bool remove_file(String_type data_file);
 
-  virtual const Tablespace_file_collection &files() const
-  { return m_files; }
+  virtual const Tablespace_file_collection &files() const { return m_files; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl()
-  { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const
-  { return Entity_object_impl::impl(); }
-  virtual Object_id id() const
-  { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const
-  { return Entity_object_impl::is_persistent(); }
-  virtual const String_type &name() const
-  { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name)
-  { Entity_object_impl::set_name(name); }
+  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const {
+    return Entity_object_impl::impl();
+  }
+  virtual Object_id id() const { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const {
+    return Entity_object_impl::is_persistent();
+  }
+  virtual const String_type &name() const { return Entity_object_impl::name(); }
+  virtual void set_name(const String_type &name) {
+    Entity_object_impl::set_name(name);
+  }
 
-private:
+ private:
   // Fields
 
   String_type m_comment;
@@ -169,14 +160,11 @@ private:
 
   Tablespace_impl(const Tablespace_impl &src);
 
-  Tablespace *clone() const
-  {
-    return new Tablespace_impl(*this);
-  }
+  Tablespace *clone() const { return new Tablespace_impl(*this); }
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-} // namespace dd
+}  // namespace dd
 
-#endif // DD__TABLESPACE_IMPL_INCLUDED
+#endif  // DD__TABLESPACE_IMPL_INCLUDED

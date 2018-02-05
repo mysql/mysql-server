@@ -24,95 +24,86 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/handler0alter.h
-Smart ALTER TABLE
-*******************************************************/
+/**************************************************/ /**
+ @file include/handler0alter.h
+ Smart ALTER TABLE
+ *******************************************************/
 
 #ifndef handler0alter_h
 #define handler0alter_h
 
-/*************************************************************//**
-Copies an InnoDB record to table->record[0]. */
-void
-innobase_rec_to_mysql(
-/*==================*/
-	struct TABLE*		table,	/*!< in/out: MySQL table */
-	const rec_t*		rec,	/*!< in: record */
-	const dict_index_t*	index,	/*!< in: index */
-	const ulint*		offsets);/*!< in: rec_get_offsets(
-					rec, index, ...) */
+/*************************************************************/ /**
+ Copies an InnoDB record to table->record[0]. */
+void innobase_rec_to_mysql(
+    /*==================*/
+    struct TABLE *table,       /*!< in/out: MySQL table */
+    const rec_t *rec,          /*!< in: record */
+    const dict_index_t *index, /*!< in: index */
+    const ulint *offsets);     /*!< in: rec_get_offsets(
+                              rec, index, ...) */
 
-/*************************************************************//**
-Copies an InnoDB index entry to table->record[0]. */
-void
-innobase_fields_to_mysql(
-/*=====================*/
-	struct TABLE*		table,	/*!< in/out: MySQL table */
-	const dict_index_t*	index,	/*!< in: InnoDB index */
-	const dfield_t*		fields);	/*!< in: InnoDB index fields */
+/*************************************************************/ /**
+ Copies an InnoDB index entry to table->record[0]. */
+void innobase_fields_to_mysql(
+    /*=====================*/
+    struct TABLE *table,       /*!< in/out: MySQL table */
+    const dict_index_t *index, /*!< in: InnoDB index */
+    const dfield_t *fields);   /*!< in: InnoDB index fields */
 
-/*************************************************************//**
-Copies an InnoDB row to table->record[0]. */
-void
-innobase_row_to_mysql(
-/*==================*/
-	struct TABLE*		table,	/*!< in/out: MySQL table */
-	const dict_table_t*	itab,	/*!< in: InnoDB table */
-	const dtuple_t*		row);	/*!< in: InnoDB row */
+/*************************************************************/ /**
+ Copies an InnoDB row to table->record[0]. */
+void innobase_row_to_mysql(
+    /*==================*/
+    struct TABLE *table,      /*!< in/out: MySQL table */
+    const dict_table_t *itab, /*!< in: InnoDB table */
+    const dtuple_t *row);     /*!< in: InnoDB row */
 
-/*************************************************************//**
-Resets table->record[0]. */
-void
-innobase_rec_reset(
-/*===============*/
-	struct TABLE*		table);		/*!< in/out: MySQL table */
+/*************************************************************/ /**
+ Resets table->record[0]. */
+void innobase_rec_reset(
+    /*===============*/
+    struct TABLE *table); /*!< in/out: MySQL table */
 
 /** Generate the next autoinc based on a snapshot of the session
 auto_increment_increment and auto_increment_offset variables. */
 struct ib_sequence_t {
+  /**
+  @param thd the session
+  @param start_value the lower bound
+  @param max_value the upper bound (inclusive) */
+  ib_sequence_t(THD *thd, ulonglong start_value, ulonglong max_value);
 
-	/**
-	@param thd the session
-	@param start_value the lower bound
-	@param max_value the upper bound (inclusive) */
-	ib_sequence_t(THD* thd, ulonglong start_value, ulonglong max_value);
+  /** Postfix increment
+  @return the value to insert */
+  ulonglong operator++(int)UNIV_NOTHROW;
 
-	/** Postfix increment
-	@return the value to insert */
-	ulonglong operator++(int) UNIV_NOTHROW;
+  /** Check if the autoinc "sequence" is exhausted.
+  @return true if the sequence is exhausted */
+  bool eof() const UNIV_NOTHROW { return (m_eof); }
 
-	/** Check if the autoinc "sequence" is exhausted.
-	@return true if the sequence is exhausted */
-	bool eof() const UNIV_NOTHROW
-	{
-		return(m_eof);
-	}
+  /**
+  @return the next value in the sequence */
+  ulonglong last() const UNIV_NOTHROW {
+    ut_ad(m_next_value > 0);
 
-	/**
-	@return the next value in the sequence */
-	ulonglong last() const UNIV_NOTHROW
-	{
-		ut_ad(m_next_value > 0);
+    return (m_next_value);
+  }
 
-		return(m_next_value);
-	}
+  /** Maximum calumn value if adding an AUTOINC column else 0. Once
+  we reach the end of the sequence it will be set to ~0. */
+  const ulonglong m_max_value;
 
-	/** Maximum calumn value if adding an AUTOINC column else 0. Once
-	we reach the end of the sequence it will be set to ~0. */
-	const ulonglong	m_max_value;
+  /** Value of auto_increment_increment */
+  ulong m_increment;
 
-	/** Value of auto_increment_increment */
-	ulong		m_increment;
+  /** Value of auto_increment_offset */
+  ulong m_offset;
 
-	/** Value of auto_increment_offset */
-	ulong		m_offset;
+  /** Next value in the sequence */
+  ulonglong m_next_value;
 
-	/** Next value in the sequence */
-	ulonglong	m_next_value;
-
-	/** true if no more values left in the sequence */
-	bool		m_eof;
+  /** true if no more values left in the sequence */
+  bool m_eof;
 };
 
 #endif /* handler0alter_h */

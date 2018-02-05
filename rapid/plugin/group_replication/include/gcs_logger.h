@@ -32,9 +32,8 @@
   produced by MySQL GCS will be routed by this logger to MySQL
   error log.
 */
-class Gcs_gr_logger_impl : public Logger_interface
-{
-public:
+class Gcs_gr_logger_impl : public Logger_interface {
+ public:
   /**
     Constructor.
   */
@@ -74,9 +73,9 @@ public:
   /*
     Disabling copy constructor and assignment operator.
   */
-  private:
-    Gcs_gr_logger_impl(Gcs_gr_logger_impl &l);
-    Gcs_gr_logger_impl& operator=(const Gcs_gr_logger_impl& l);
+ private:
+  Gcs_gr_logger_impl(Gcs_gr_logger_impl &l);
+  Gcs_gr_logger_impl &operator=(const Gcs_gr_logger_impl &l);
 };
 
-#endif	/* GCS_LOGGER_INCLUDED */
+#endif /* GCS_LOGGER_INCLUDED */

@@ -24,23 +24,22 @@
 
 #include "plugin/x/src/crud_cmd_handler.h"
 
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
 #include "plugin/x/src/insert_statement_builder.h"
 #include "plugin/x/src/notices.h"
+#include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/update_statement_builder.h"
 #include "plugin/x/src/view_statement_builder.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_resultset.h"
 #include "plugin/x/src/xpl_session.h"
-#include "plugin/x/src/sql_data_result.h"
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
-
 
 namespace xpl {
 
@@ -53,11 +52,9 @@ ngs::Error_code Crud_command_handler::execute(
   m_qb.clear();
   try {
     builder.build(msg);
-  }
-  catch (const Expression_generator::Error &exc) {
+  } catch (const Expression_generator::Error &exc) {
     return ngs::Error(exc.error(), "%s", exc.what());
-  }
-  catch (const ngs::Error_code &error) {
+  } catch (const ngs::Error_code &error) {
     return error;
   }
   log_debug("CRUD query: %s", m_qb.get().c_str());
@@ -98,11 +95,9 @@ ngs::Error_code Crud_command_handler::execute_crud_insert(
   const auto &server = session.client().server();
   Insert_statement_builder::Document_id_list id_list;
   Insert_statement_builder::Document_id_aggregator id_agg(
-      &server.get_document_id_generator(),
-      &id_list);
+      &server.get_document_id_generator(), &id_list);
   ngs::Error_code error = id_agg.configue(&session.data_context());
-  if (error)
-    return error;
+  if (error) return error;
 
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));

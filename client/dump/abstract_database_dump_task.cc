@@ -26,12 +26,10 @@
 
 using namespace Mysql::Tools::Dump;
 
-Database* Abstract_database_dump_task::get_related_database()
-{
-  return (Database*)this->get_related_db_object();
+Database *Abstract_database_dump_task::get_related_database() {
+  return (Database *)this->get_related_db_object();
 }
 
 Abstract_database_dump_task::Abstract_database_dump_task(
-  Database* related_database)
-  : Abstract_dump_task(related_database)
-{}
+    Database *related_database)
+    : Abstract_dump_task(related_database) {}

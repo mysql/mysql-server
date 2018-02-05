@@ -24,10 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/buf0lru.ic
-The database buffer replacement algorithm
+/**************************************************/ /**
+ @file include/buf0lru.ic
+ The database buffer replacement algorithm
 
-Created 11/5/1995 Heikki Tuuri
-*******************************************************/
-
+ Created 11/5/1995 Heikki Tuuri
+ *******************************************************/

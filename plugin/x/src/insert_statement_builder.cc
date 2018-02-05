@@ -68,8 +68,8 @@ void Insert_statement_builder::add_values(const Row_list &values,
 
   m_builder.put(" VALUES ")
       .put_list(values, [&](const Row_list::value_type &row) {
-         this->add_row(row.field(), projection_size);
-       });
+        this->add_row(row.field(), projection_size);
+      });
 }
 
 void Insert_statement_builder::add_row(const Field_list &row,
@@ -87,8 +87,8 @@ void Insert_statement_builder::add_documents(const Row_list &values) const {
 
   m_builder.put(" VALUES ")
       .put_list(values, [this](const Row_list::value_type &row) {
-         this->add_document(row.field());
-       });
+        this->add_document(row.field());
+      });
 }
 
 void Insert_statement_builder::add_document(const Field_list &row) const {
@@ -159,8 +159,8 @@ bool Insert_statement_builder::add_document_literal(
   return false;
 }
 
-bool Insert_statement_builder::add_document_placeholder(const Placeholder &arg)
-    const {
+bool Insert_statement_builder::add_document_placeholder(
+    const Placeholder &arg) const {
   if (arg < static_cast<Placeholder>(m_builder.args().size()))
     return add_document_literal(m_builder.args().Get(arg));
   return false;
@@ -213,8 +213,7 @@ ngs::Error_code Insert_statement_builder::Document_id_aggregator::configue(
     uint16_t prefix = 0, offset = 0, increment = 0;
     result.get(&prefix).get(&offset).get(&increment);
     m_variables = Variables{prefix, offset, increment};
-  }
-  catch (const ngs::Error_code &e) {
+  } catch (const ngs::Error_code &e) {
     log_debug("Unable to get document id variables; exception message: '%s'",
               e.message.c_str());
     return e;

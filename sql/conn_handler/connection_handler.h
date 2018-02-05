@@ -29,14 +29,12 @@ class THD;
 class Channel_info;
 class Connection_handler_manager;
 
-
 /**
   This abstract base class represents how connections are processed,
   most importantly how they map to OS threads.
 */
-class Connection_handler
-{
-protected:
+class Connection_handler {
+ protected:
   friend class Connection_handler_manager;
 
   Connection_handler() {}
@@ -53,7 +51,7 @@ protected:
 
     @return true if processing of the new connection failed, false otherwise.
   */
-  virtual bool add_connection(Channel_info* channel_info) = 0;
+  virtual bool add_connection(Channel_info *channel_info) = 0;
 
   /**
     @return Maximum number of threads that can be created
@@ -62,4 +60,4 @@ protected:
   virtual uint get_max_threads() const = 0;
 };
 
-#endif // CONNECTION_HANDLER_INCLUDED
+#endif  // CONNECTION_HANDLER_INCLUDED

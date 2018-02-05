@@ -23,7 +23,4 @@
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_defaults.h"
 
-void install_default_setup(PSI_thread_bootstrap *)
-{
-}
-
+void install_default_setup(PSI_thread_bootstrap *) {}

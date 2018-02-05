@@ -34,9 +34,8 @@
   This class will be used to configure auto_increment variables
   (auto_increment_increment and auto_increment_offset)
  */
-class Plugin_group_replication_auto_increment
-{
-public:
+class Plugin_group_replication_auto_increment {
+ public:
   /**
     Plugin_group_replication_auto_increment constructor
 
@@ -60,7 +59,7 @@ public:
 
   void reset_auto_increment_variables();
 
-private:
+ private:
   ulong group_replication_auto_increment;
   ulong group_replication_auto_offset;
 };

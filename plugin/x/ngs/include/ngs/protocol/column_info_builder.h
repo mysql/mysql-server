@@ -28,22 +28,19 @@
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 
-
 namespace ngs {
 
 class Column_info_builder {
  public:
   Column_info_builder() = default;
 
-  Column_info_builder(
-      const ::Mysqlx::Resultset::ColumnMetaData_FieldType type,
-      const char *col_name) {
+  Column_info_builder(const ::Mysqlx::Resultset::ColumnMetaData_FieldType type,
+                      const char *col_name) {
     m_column_info.m_type = type;
     set_non_compact_data("", col_name, "", "", "", "");
   }
 
-  void set_type(
-      const ::Mysqlx::Resultset::ColumnMetaData_FieldType type) {
+  void set_type(const ::Mysqlx::Resultset::ColumnMetaData_FieldType type) {
     m_column_info.m_type = type;
   }
 
@@ -71,13 +68,10 @@ class Column_info_builder {
     m_column_info.m_content_type = content_type;
   }
 
-  void set_non_compact_data(
-      const char *catalog,
-      const char *col_name,
-      const char *table_name,
-      const char *db_name,
-      const char *org_col_name,
-      const char *org_table_name) {
+  void set_non_compact_data(const char *catalog, const char *col_name,
+                            const char *table_name, const char *db_name,
+                            const char *org_col_name,
+                            const char *org_table_name) {
     m_column_info.m_compact = false;
 
     m_column_info.m_catalog = catalog;
@@ -88,9 +82,7 @@ class Column_info_builder {
     m_column_info.m_org_table_name = org_table_name;
   }
 
-  const Encode_column_info &get() const {
-    return m_column_info;
-  }
+  const Encode_column_info &get() const { return m_column_info; }
 
  private:
   Encode_column_info m_column_info;

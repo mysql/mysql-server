@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,15 +28,13 @@
 
 namespace xpl {
 
-const unsigned int STORED_SHA256_DIGEST_LENGTH= 43;
-const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH= MAX_PLAINTEXT_LENGTH;
+const unsigned int STORED_SHA256_DIGEST_LENGTH = 43;
+const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH = MAX_PLAINTEXT_LENGTH;
 const std::string Sha2_plain_verification::k_empty_salt;
 
 bool Sha2_plain_verification::verify_authentication_string(
-    const std::string &user,
-    const std::string &host,
-    const std::string &client_string,
-    const std::string &db_string) const {
+    const std::string &user, const std::string &host,
+    const std::string &client_string, const std::string &db_string) const {
   if (client_string.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
     return false;
 
@@ -46,27 +44,21 @@ bool Sha2_plain_verification::verify_authentication_string(
       m_sha256_password_cache->contains(user, host, client_string))
     return true;
 
-  bool client_string_matches =
-      client_string.empty() &&
-      db_string.empty();
+  bool client_string_matches = client_string.empty() && db_string.empty();
 
   if (!client_string_matches) {
     /* Format : $A$005$SALTHASH */
     std::string::size_type b = db_string.find('$');
-    if (b == std::string::npos)
-      return false;
+    if (b == std::string::npos) return false;
 
-    b= db_string.find('$', b + 1);
-    if (b == std::string::npos)
-      return false;
+    b = db_string.find('$', b + 1);
+    if (b == std::string::npos) return false;
 
-    b= db_string.find('$', b + 1);
-    if (b == std::string::npos)
-      return false;
+    b = db_string.find('$', b + 1);
+    if (b == std::string::npos) return false;
 
     std::string salt = db_string.substr(b + 1, CRYPT_SALT_LENGTH);
-    if (salt.size() != CRYPT_SALT_LENGTH)
-      return false;
+    if (salt.size() != CRYPT_SALT_LENGTH) return false;
 
     std::string digest = db_string.substr(b + CRYPT_SALT_LENGTH + 1);
 
@@ -88,7 +80,7 @@ std::string Sha2_plain_verification::compute_password_hash(
   ::my_crypt_genhash(hash, CRYPT_MAX_PASSWORD_SIZE, password.c_str(),
                      password.size(), salt.c_str(), nullptr);
   std::string generated_digest;
-  generated_digest.assign(hash+3+CRYPT_SALT_LENGTH+1,
+  generated_digest.assign(hash + 3 + CRYPT_SALT_LENGTH + 1,
                           STORED_SHA256_DIGEST_LENGTH);
   return generated_digest;
 }

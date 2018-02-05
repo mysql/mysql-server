@@ -31,26 +31,19 @@
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-
 /**
   Flow control modes:
     FCM_DISABLED  flow control disabled
     FCM_QUOTA introduces a delay only on transactions the exceed a quota
 */
-enum Flow_control_mode
-{
-  FCM_DISABLED= 0,
-  FCM_QUOTA
-};
+enum Flow_control_mode { FCM_DISABLED = 0, FCM_QUOTA };
 extern ulong flow_control_mode_var;
-
 
 /**
   Flow control queue threshold for certifier and for applier.
 */
 extern long flow_control_certifier_threshold_var;
 extern long flow_control_applier_threshold_var;
-
 
 /**
   Options to fine-tune flow-control behaviour
@@ -63,55 +56,52 @@ extern int flow_control_period_var;
 extern int flow_control_hold_percent_var;
 extern int flow_control_release_percent_var;
 
-
 /**
   @class Pipeline_stats_member_message
 
   Describes all statistics sent by members.
 */
-class Pipeline_stats_member_message : public Plugin_gcs_message
-{
-public:
-  enum enum_payload_item_type
-  {
+class Pipeline_stats_member_message : public Plugin_gcs_message {
+ public:
+  enum enum_payload_item_type {
     // This type should not be used anywhere.
-    PIT_UNKNOWN= 0,
+    PIT_UNKNOWN = 0,
 
     // Length of the payload item: 4 bytes
-    PIT_TRANSACTIONS_WAITING_CERTIFICATION= 1,
+    PIT_TRANSACTIONS_WAITING_CERTIFICATION = 1,
 
     // Length of the payload item: 4 bytes
-    PIT_TRANSACTIONS_WAITING_APPLY= 2,
+    PIT_TRANSACTIONS_WAITING_APPLY = 2,
 
     // Length of the payload item: 8 bytes
-    PIT_TRANSACTIONS_CERTIFIED= 3,
+    PIT_TRANSACTIONS_CERTIFIED = 3,
 
     // Length of the payload item: 8 bytes
-    PIT_TRANSACTIONS_APPLIED= 4,
+    PIT_TRANSACTIONS_APPLIED = 4,
 
     // Length of the payload item: 8 bytes
-    PIT_TRANSACTIONS_LOCAL= 5,
+    PIT_TRANSACTIONS_LOCAL = 5,
 
     // Length of the payload item: 8 bytes
-    PIT_TRANSACTIONS_NEGATIVE_CERTIFIED= 6,
+    PIT_TRANSACTIONS_NEGATIVE_CERTIFIED = 6,
 
     // Length of the payload item: 8 bytes
-    PIT_TRANSACTIONS_ROWS_VALIDATING= 7,
+    PIT_TRANSACTIONS_ROWS_VALIDATING = 7,
 
     // Length of the payload item: variable
-    PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS= 8,
+    PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS = 8,
 
     // Length of the payload item: variable
-    PIT_TRANSACTION_LAST_CONFLICT_FREE= 9,
+    PIT_TRANSACTION_LAST_CONFLICT_FREE = 9,
 
     // Length of the payload item: 8 bytes
-    PIT_TRANSACTIONS_LOCAL_ROLLBACK= 10,
+    PIT_TRANSACTIONS_LOCAL_ROLLBACK = 10,
 
     // Length of the payload item: 1 byte
-    PIT_FLOW_CONTROL_MODE= 11,
+    PIT_FLOW_CONTROL_MODE = 11,
 
     // No valid type codes can appear after this one.
-    PIT_MAX= 12
+    PIT_MAX = 12
   };
 
   /**
@@ -130,7 +120,8 @@ public:
     @param[in] transactions_negative_certified
                Number of transactions that were negatively certified
     @param[in] transactions_rows_validating
-               Number of transactions with which certification will be done against
+               Number of transactions with which certification will be done
+    against
     @param[in] transactions_committed_all_members
                Set of transactions committed on all members
     @param[in] transactions_last_conflict_free
@@ -140,17 +131,14 @@ public:
     @param[in] mode
                Flow-control mode
   */
-  Pipeline_stats_member_message(int32 transactions_waiting_certification,
-                                int32 transactions_waiting_apply,
-                                int64 transactions_certified,
-                                int64 transactions_applied,
-                                int64 transactions_local,
-                                int64 transactions_negative_certified,
-                                int64 transactions_rows_validating,
-                                const std::string& transactions_committed_all_members,
-                                const std::string& transactions_last_conflict_free,
-                                int64 transactions_local_rollback,
-                                Flow_control_mode mode);
+  Pipeline_stats_member_message(
+      int32 transactions_waiting_certification,
+      int32 transactions_waiting_apply, int64 transactions_certified,
+      int64 transactions_applied, int64 transactions_local,
+      int64 transactions_negative_certified, int64 transactions_rows_validating,
+      const std::string &transactions_committed_all_members,
+      const std::string &transactions_last_conflict_free,
+      int64 transactions_local_rollback, Flow_control_mode mode);
 
   /**
     Message constructor for raw data
@@ -219,14 +207,14 @@ public:
 
     @return the transaction identifier.
   */
-  const std::string& get_transaction_committed_all_members();
+  const std::string &get_transaction_committed_all_members();
 
   /**
     Get last positive certified transaction.
 
     @return the transaction identifier.
   */
-  const std::string& get_transaction_last_conflict_free();
+  const std::string &get_transaction_last_conflict_free();
 
   /**
     Get local transactions rolled back by the member.
@@ -242,7 +230,7 @@ public:
   */
   Flow_control_mode get_flow_control_mode();
 
-protected:
+ protected:
   /**
     Encodes the message contents for transmission.
 
@@ -258,7 +246,7 @@ protected:
   */
   void decode_payload(const unsigned char *buffer, const unsigned char *end);
 
-private:
+ private:
   int32 m_transactions_waiting_certification;
   int32 m_transactions_waiting_apply;
   int64 m_transactions_certified;
@@ -272,15 +260,13 @@ private:
   Flow_control_mode m_flow_control_mode;
 };
 
-
 /**
   @class Pipeline_stats_member_collector
 
   The pipeline collector for the local member stats.
 */
-class Pipeline_stats_member_collector
-{
-public:
+class Pipeline_stats_member_collector {
+ public:
   /**
     Default constructor.
   */
@@ -368,7 +354,7 @@ public:
   */
   uint64 get_transactions_applied_during_recovery();
 
-private:
+ private:
   std::atomic<int32> m_transactions_waiting_apply;
   std::atomic<int64> m_transactions_certified;
   std::atomic<int64> m_transactions_applied;
@@ -380,15 +366,13 @@ private:
   mysql_mutex_t m_transactions_waiting_apply_lock;
 };
 
-
 /**
   @class Pipeline_member_stats
 
   Computed statistics per member.
 */
-class Pipeline_member_stats
-{
-public:
+class Pipeline_member_stats {
+ public:
   /**
     Default constructor.
   */
@@ -407,8 +391,7 @@ public:
   /**
     Updates member statistics with a new message from the network
   */
-  void update_member_stats(Pipeline_stats_member_message &msg,
-                           uint64 stamp);
+  void update_member_stats(Pipeline_stats_member_message &msg, uint64 stamp);
 
   /**
     Returns true if the node is behind on some user-defined criteria
@@ -469,14 +452,14 @@ public:
 
     @return the transaction identifier.
   */
-  const std::string& get_transaction_committed_all_members();
+  const std::string &get_transaction_committed_all_members();
 
   /**
     Get last positive certified transaction.
 
     @return the transaction identifier.
   */
-  const std::string& get_transaction_last_conflict_free();
+  const std::string &get_transaction_last_conflict_free();
 
   /**
     Get local member transactions negatively certified.
@@ -525,7 +508,7 @@ public:
   void debug(const char *member, int64 quota_size, int64 quota_used);
 #endif
 
-private:
+ private:
   int32 m_transactions_waiting_certification;
   int32 m_transactions_waiting_apply;
   int64 m_transactions_certified;
@@ -543,13 +526,11 @@ private:
   uint64 m_stamp;
 };
 
-
 /**
   Data type that holds all members stats.
   The key value is the GCS member_id.
 */
-typedef std::map<std::string, Pipeline_member_stats>
-    Flow_control_module_info;
+typedef std::map<std::string, Pipeline_member_stats> Flow_control_module_info;
 
 /**
   @class Flow_control_module
@@ -557,9 +538,8 @@ typedef std::map<std::string, Pipeline_member_stats>
   The pipeline stats aggregator of all group members stats and
   flow control module.
 */
-class Flow_control_module
-{
-public:
+class Flow_control_module {
+ public:
   static const int64 MAXTPS;
 
   /**
@@ -585,13 +565,13 @@ public:
       @retval !=0    Error on queue
   */
   int handle_stats_data(const uchar *data, size_t len,
-                        const std::string& member_id);
+                        const std::string &member_id);
 
   /**
     Evaluate the information received in the last flow control period
     and adjust the system parameters accordingly
   */
-  void flow_control_step(Pipeline_stats_member_collector*);
+  void flow_control_step(Pipeline_stats_member_collector *);
 
   /**
     Returns copy of individual member stats information.
@@ -601,7 +581,7 @@ public:
     @return the reference to class Pipeline_member_stats of memberID
     storing network(GCS Broadcasted) received information
   */
-  Pipeline_member_stats * get_pipeline_stats(const std::string& member_id);
+  Pipeline_member_stats *get_pipeline_stats(const std::string &member_id);
 
   /**
     Compute and wait the amount of time in microseconds that must
@@ -614,9 +594,9 @@ public:
   */
   int32 do_wait();
 
-private:
+ private:
   mysql_mutex_t m_flow_control_lock;
-  mysql_cond_t  m_flow_control_cond;
+  mysql_cond_t m_flow_control_cond;
 
   Flow_control_module_info m_info;
 

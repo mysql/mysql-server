@@ -40,9 +40,7 @@ class Expect_condition_docid : public Expect_condition {
     return Expect_condition_ptr{new Expect_condition_docid(*this)};
   }
 
-  ngs::Error_code check_if_error() override {
-    return ngs::Success();
-  }
+  ngs::Error_code check_if_error() override { return ngs::Success(); }
 };
 
 }  // namespace xpl

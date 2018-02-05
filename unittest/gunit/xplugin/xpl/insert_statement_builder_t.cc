@@ -22,29 +22,29 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "plugin/x/src/insert_statement_builder.h"
-#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {
-using ::testing::StrictMock;
 using ::testing::Return;
+using ::testing::StrictMock;
 using ::testing::_;
 
 class Insert_statement_builder_stub : public Insert_statement_builder {
  public:
-  explicit Insert_statement_builder_stub(Expression_generator* gen)
+  explicit Insert_statement_builder_stub(Expression_generator *gen)
       : Insert_statement_builder(*gen, &m_id_agg) {}
-  using Insert_statement_builder::add_projection;
-  using Insert_statement_builder::add_values;
-  using Insert_statement_builder::add_row;
-  using Insert_statement_builder::add_documents;
   using Insert_statement_builder::add_document;
+  using Insert_statement_builder::add_documents;
+  using Insert_statement_builder::add_projection;
+  using Insert_statement_builder::add_row;
   using Insert_statement_builder::add_upsert;
+  using Insert_statement_builder::add_values;
   StrictMock<ngs::test::Mock_id_generator> mock_id_generator;
   Insert_statement_builder::Document_id_list m_id_list;
   Insert_statement_builder::Document_id_aggregator m_id_agg{&mock_id_generator,
@@ -62,24 +62,21 @@ class Insert_statement_builder_test : public ::testing::Test {
         .WillRepeatedly(Return("0ff0"));
   }
 
-  Insert_statement_builder_stub& builder() { return *stub; }
+  Insert_statement_builder_stub &builder() { return *stub; }
 
   Insert_statement_builder::Insert msg;
-  Expression_generator::Args& args = *msg.mutable_args();
+  Expression_generator::Args &args = *msg.mutable_args();
   Query_string_builder query;
   std::string schema;
   std::unique_ptr<Expression_generator> expr_gen;
   std::unique_ptr<Insert_statement_builder_stub> stub;
 
-  enum {
-    k_dm_document = 0,
-    k_dm_table = 1
-  };
+  enum { k_dm_document = 0, k_dm_table = 1 };
 };
 
-const char* const k_doc_example1 = R"({"_id":"abc1", "one":1})";
-const char* const k_doc_example2 = R"({"_id":"abc2", "two":2})";
-const char* const k_doc_example_no_id = R"({"three":3})";
+const char *const k_doc_example1 = R"({"_id":"abc1", "one":1})";
+const char *const k_doc_example2 = R"({"_id":"abc2", "two":2})";
+const char *const k_doc_example_no_id = R"({"three":3})";
 #define EXPECT_DOC_EXAMPLE1 "{\\\"_id\\\":\\\"abc1\\\", \\\"one\\\":1}"
 #define EXPECT_DOC_EXAMPLE2 "{\\\"_id\\\":\\\"abc2\\\", \\\"two\\\":2}"
 #define EXPECT_DOC_EXAMPLE_NO_ID "{\\\"three\\\":3}"
@@ -298,13 +295,14 @@ class Add_document_param_test
       public ::testing::WithParamInterface<Param_add_document> {};
 
 TEST_P(Add_document_param_test, add_document) {
-  const Param_add_document& param = GetParam();
+  const Param_add_document &param = GetParam();
   ASSERT_NO_THROW(builder().add_document(Field_list{param.fields}));
   EXPECT_STREQ(param.expect.c_str(), query.get().c_str());
 }
 
 Param_add_document add_document_param[] = {
-    {"('" EXPECT_DOC_EXAMPLE1 "')", k_doc_example1}, {"(3.14)", 3.14},
+    {"('" EXPECT_DOC_EXAMPLE1 "')", k_doc_example1},
+    {"(3.14)", 3.14},
     {"(JSON_OBJECT('_id','abc1','one',1))",
      Object{{"_id", "abc1"}, {"one", 1}}},
     {"('" EXPECT_DOC_EXAMPLE1 "')",

@@ -53,8 +53,7 @@ struct THR_LOCK;
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
 /** enum values for Service_State of coordinator thread */
-enum enum_rpl_yes_no
-{
+enum enum_rpl_yes_no {
   PS_RPL_YES = 1, /* Service_State= on */
   PS_RPL_NO       /* Service_State= off */
 };
@@ -64,8 +63,7 @@ enum enum_rpl_yes_no
   A row in coordinator's table. The fields with string values have an
   additional length field denoted by <field_name>_length.
 */
-struct st_row_coordinator
-{
+struct st_row_coordinator {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   ulonglong thread_id{0};
@@ -88,65 +86,50 @@ struct st_row_coordinator
   ulonglong processing_trx_start_buffer_timestamp;
 };
 
-class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index
-{
-public:
+class PFS_index_rpl_applier_status_by_coord : public PFS_engine_index {
+ public:
   PFS_index_rpl_applier_status_by_coord(PFS_engine_key *key)
-    : PFS_engine_index(key)
-  {
-  }
+      : PFS_engine_index(key) {}
 
-  ~PFS_index_rpl_applier_status_by_coord()
-  {
-  }
+  ~PFS_index_rpl_applier_status_by_coord() {}
 
   virtual bool match(Master_info *mi) = 0;
 };
 
 class PFS_index_rpl_applier_status_by_coord_by_channel
-  : public PFS_index_rpl_applier_status_by_coord
-{
-public:
+    : public PFS_index_rpl_applier_status_by_coord {
+ public:
   PFS_index_rpl_applier_status_by_coord_by_channel()
-    : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("CHANNEL_NAME")
-  {
-  }
+      : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("CHANNEL_NAME") {}
 
-  ~PFS_index_rpl_applier_status_by_coord_by_channel()
-  {
-  }
+  ~PFS_index_rpl_applier_status_by_coord_by_channel() {}
 
   virtual bool match(Master_info *mi);
 
-private:
+ private:
   PFS_key_name m_key;
 };
 
 class PFS_index_rpl_applier_status_by_coord_by_thread
-  : public PFS_index_rpl_applier_status_by_coord
-{
-public:
+    : public PFS_index_rpl_applier_status_by_coord {
+ public:
   PFS_index_rpl_applier_status_by_coord_by_thread()
-    : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("THREAD_ID")
-  {
-  }
+      : PFS_index_rpl_applier_status_by_coord(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_coord_by_thread()
-  {
-  }
+  ~PFS_index_rpl_applier_status_by_coord_by_thread() {}
 
   virtual bool match(Master_info *mi);
 
-private:
+ private:
   PFS_key_thread_id m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_coordinator */
-class table_replication_applier_status_by_coordinator : public PFS_engine_table
-{
+class table_replication_applier_status_by_coordinator
+    : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-private:
+ private:
   int make_row(Master_info *mi);
 
   /** Table share lock. */
@@ -161,7 +144,7 @@ private:
   /** Next position. */
   pos_t m_next_pos;
 
-protected:
+ protected:
   /**
     Read the current row values.
     @param table            Table handle
@@ -170,14 +153,12 @@ protected:
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_replication_applier_status_by_coordinator();
 
-public:
+ public:
   ~table_replication_applier_status_by_coordinator();
 
   /** Table share. */
@@ -192,7 +173,7 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
+ private:
   PFS_index_rpl_applier_status_by_coord *m_opened_index;
 };
 

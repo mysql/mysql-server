@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -41,14 +41,12 @@
 #include "plugin/x/tests/driver/formatters/console.h"
 #include "plugin/x/tests/driver/processor/variable_container.h"
 
-
 using Message_ptr = std::unique_ptr<xcl::XProtocol::Message>;
 
 class Connection_manager {
  public:
   Connection_manager(const Connection_options &co,
-                     Variable_container *variables,
-                     const Console &console);
+                     Variable_container *variables, const Console &console);
   ~Connection_manager();
 
   void get_credentials(std::string *ret_user, std::string *ret_pass);
@@ -58,10 +56,8 @@ class Connection_manager {
                        const bool client_interactive = false,
                        const bool no_auth = false,
                        const std::vector<std::string> &auth_methods = {});
-  void create(const std::string &name,
-              const std::string &user,
-              const std::string &password,
-              const std::string &db,
+  void create(const std::string &name, const std::string &user,
+              const std::string &password, const std::string &db,
               const std::vector<std::string> &auth_methods);
 
   void abort_active();
@@ -70,26 +66,26 @@ class Connection_manager {
   void close_active(const bool shutdown = false, const bool be_quiet = false);
   void set_active(const std::string &name, const bool be_quiet = false);
 
-  xcl::XSession    *active_xsession();
-  xcl::XProtocol   *active_xprotocol();
+  xcl::XSession *active_xsession();
+  xcl::XProtocol *active_xprotocol();
   xcl::XConnection *active_xconnection();
-  Session_holder   &active_holder();
+  Session_holder &active_holder();
 
   uint64_t active_session_messages_received(
-    const std::string &message_name) const;
+      const std::string &message_name) const;
 
   void setup_variables(xcl::XSession *session);
 
  private:
-  using Session_holder_ptr  = std::shared_ptr<Session_holder>;
+  using Session_holder_ptr = std::shared_ptr<Session_holder>;
   using Map_name_vs_session = std::map<std::string, Session_holder_ptr>;
 
   Map_name_vs_session m_session_holders;
-  Session_holder_ptr  m_active_holder;
-  std::string         m_active_session_name;
-  Connection_options  m_connection_options;
+  Session_holder_ptr m_active_holder;
+  std::string m_active_session_name;
+  Connection_options m_connection_options;
   Variable_container *m_variables;
-  const Console      &m_console;
+  const Console &m_console;
 };
 
 #endif  // X_TESTS_DRIVER_CONNECTOR_CONNECTION_MANAGER_H_

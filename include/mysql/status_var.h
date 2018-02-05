@@ -26,14 +26,17 @@
 /**
   Declarations for SHOW STATUS support in plugins
 */
-enum enum_mysql_show_type
-{
-  SHOW_UNDEF, SHOW_BOOL,
-  SHOW_INT,        ///< shown as _unsigned_ int
-  SHOW_LONG,       ///< shown as _unsigned_ long
-  SHOW_LONGLONG,   ///< shown as _unsigned_ longlong
-  SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+enum enum_mysql_show_type {
+  SHOW_UNDEF,
+  SHOW_BOOL,
+  SHOW_INT,       ///< shown as _unsigned_ int
+  SHOW_LONG,      ///< shown as _unsigned_ long
+  SHOW_LONGLONG,  ///< shown as _unsigned_ longlong
+  SHOW_CHAR,
+  SHOW_CHAR_PTR,
+  SHOW_ARRAY,
+  SHOW_FUNC,
+  SHOW_DOUBLE,
   /*
     This include defines server-only values of the enum.
     Using them in plugins is not supported.
@@ -56,8 +59,7 @@ enum enum_mysql_show_type
   Status variable scope.
   Only GLOBAL status variable scope is available in plugins.
 */
-enum enum_mysql_show_scope
-{
+enum enum_mysql_show_scope {
   SHOW_SCOPE_UNDEF,
   SHOW_SCOPE_GLOBAL,
   /* Server-only values. Not supported in plugins. */
@@ -68,8 +70,7 @@ enum enum_mysql_show_scope
 /**
   SHOW STATUS Server status variable
 */
-struct SHOW_VAR
-{
+struct SHOW_VAR {
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
@@ -80,10 +81,10 @@ struct SHOW_VAR
 #define SHOW_VAR_FUNC_BUFF_SIZE 1024
 #ifdef __cplusplus
 class THD;
-#define MYSQL_THD THD*
+#define MYSQL_THD THD *
 #else
-#define MYSQL_THD void*
+#define MYSQL_THD void *
 #endif
-typedef int (*mysql_show_var_func)(MYSQL_THD, SHOW_VAR*, char *);
+typedef int (*mysql_show_var_func)(MYSQL_THD, SHOW_VAR *, char *);
 
 #endif

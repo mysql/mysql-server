@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,7 +32,6 @@
 
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
-
 
 namespace {
 
@@ -91,18 +90,15 @@ Block_processor::Result Send_message_block_processor::feed(
       m_context->m_variables->replace(&processed_buffer);
 
       Message_ptr msg{
-          text_to_client_message(m_full_name, processed_buffer, &msg_id)
-      };
+          text_to_client_message(m_full_name, processed_buffer, &msg_id)};
 
       m_full_name.clear();
-      if (!msg.get())
-        return Result::Indigestion;
+      if (!msg.get()) return Result::Indigestion;
 
       int process_result = process(msg_id, *msg);
 
-      return (process_result != 0) ?
-          Result::Indigestion :
-          Result::Eaten_but_not_hungry;
+      return (process_result != 0) ? Result::Indigestion
+                                   : Result::Eaten_but_not_hungry;
     } else {
       m_buffer.append(linebuf).append("\n");
       return Result::Feed_more;
@@ -113,11 +109,10 @@ Block_processor::Result Send_message_block_processor::feed(
 }
 
 bool Send_message_block_processor::feed_ended_is_state_ok() {
-  if (m_full_name.empty())
-    return true;
+  if (m_full_name.empty()) return true;
 
   m_context->print_error(m_context->m_script_stack, "Incomplete message ",
-                        m_full_name, '\n');
+                         m_full_name, '\n');
   return false;
 }
 
@@ -138,11 +133,9 @@ int Send_message_block_processor::process(
 }
 
 int Send_message_block_processor::process_client_message(
-    xcl::XSession *session,
-    const xcl::XProtocol::Client_message_type_id msg_id,
+    xcl::XSession *session, const xcl::XProtocol::Client_message_type_id msg_id,
     const xcl::XProtocol::Message &msg) {
-  if (!m_context->m_options.m_quiet)
-    m_context->print("send ", msg , "\n");
+  if (!m_context->m_options.m_quiet) m_context->print("send ", msg, "\n");
 
   if (m_context->m_options.m_bindump)
     m_context->print(message_to_bindump(msg), "\n");
@@ -152,8 +145,7 @@ int Send_message_block_processor::process_client_message(
     session->get_protocol().send(msg_id, msg);
 
     if (!m_context->m_expected_error.check_ok()) return 1;
-  }
-  catch (xcl::XError &err) {
+  } catch (xcl::XError &err) {
     if (!m_context->m_expected_error.check_error(err)) return 1;
   }
   return 0;
@@ -187,14 +179,12 @@ xcl::XProtocol::Message *Send_message_block_processor::text_to_client_message(
     const std::string &name, const std::string &data,
     xcl::XProtocol::Client_message_type_id *msg_id) {
   if (client_msgs_by_full_name.find(name) == client_msgs_by_full_name.end()) {
-    m_context->print_error(m_context->m_script_stack,
-                           "Invalid message type ",
-                           name,
-                           '\n');
+    m_context->print_error(m_context->m_script_stack, "Invalid message type ",
+                           name, '\n');
     return nullptr;
   }
 
-  auto msg =  client_msgs_by_name.find(client_msgs_by_full_name[name]);
+  auto msg = client_msgs_by_name.find(client_msgs_by_full_name[name]);
 
   if (msg == client_msgs_by_name.end()) {
     m_context->print_error(m_context->m_script_stack, "Invalid message type ",
@@ -211,9 +201,7 @@ xcl::XProtocol::Message *Send_message_block_processor::text_to_client_message(
 
   if (!parser.ParseFromString(data, message)) {
     m_context->print_error(m_context->m_script_stack,
-                           "Invalid message in input: ",
-                           name,
-                           '\n');
+                           "Invalid message in input: ", name, '\n');
     int i = 1;
     for (std::string::size_type p = 0, n = data.find('\n', p + 1);
          p != std::string::npos; p = (n == std::string::npos ? n : n + 1),

@@ -27,7 +27,7 @@
 #include <sys/types.h>
 #include <new>
 
-#include "sql/sql_class.h"                      /* Query_arena */
+#include "sql/sql_class.h" /* Query_arena */
 
 class JOIN;
 class Query_result;
@@ -48,29 +48,27 @@ struct MEM_ROOT;
   its base class.
 */
 
-class Server_side_cursor: protected Query_arena
-{
-protected:
+class Server_side_cursor : protected Query_arena {
+ protected:
   /** Row destination used for fetch */
   Query_result *result;
-public:
+
+ public:
   Server_side_cursor(MEM_ROOT *mem_root_arg, Query_result *result_arg)
-    :Query_arena(mem_root_arg, STMT_INITIALIZED), result(result_arg)
-  {}
+      : Query_arena(mem_root_arg, STMT_INITIALIZED), result(result_arg) {}
 
-  virtual bool is_open() const= 0;
+  virtual bool is_open() const = 0;
 
-  virtual int open(JOIN *top_level_join)= 0;
-  virtual bool fetch(ulong num_rows)= 0;
-  virtual void close()= 0;
+  virtual int open(JOIN *top_level_join) = 0;
+  virtual bool fetch(ulong num_rows) = 0;
+  virtual void close() = 0;
   virtual ~Server_side_cursor();
 
   static void operator delete(void *ptr, size_t size);
-  static void operator delete(void*, MEM_ROOT*,
-                              const std::nothrow_t&) throw ()
-  { /* never called */ }
+  static void operator delete(
+      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
+  }
 };
-
 
 bool mysql_open_cursor(THD *thd, Query_result *result,
                        Server_side_cursor **res);

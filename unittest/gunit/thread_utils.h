@@ -35,13 +35,10 @@ namespace thread {
   An abstract class for creating/running/joining threads.
   Thread::start() will create a new pthread, and execute the run() function.
 */
-class Thread
-{
-public:
-  Thread()
-  {}
-  virtual ~Thread()
-  {}
+class Thread {
+ public:
+  Thread() {}
+  virtual ~Thread() {}
 
   /*
     Will create a new pthread, and invoke run();
@@ -63,9 +60,9 @@ public:
     Users should *not* call this function directly, they should rather
     invoke the start() function.
   */
-  static void run_wrapper(Thread*);
+  static void run_wrapper(Thread *);
 
-protected:
+ protected:
   /*
     Define this function in derived classes.
     Users should *not* call this function directly, they should rather
@@ -73,31 +70,30 @@ protected:
   */
   virtual void run() = 0;
 
-private:
+ private:
   my_thread_handle m_thread_handle;
 
-  Thread(const Thread&);                        /* Not copyable. */
-  void operator=(const Thread&);                /* Not assignable. */
+  Thread(const Thread &);         /* Not copyable. */
+  void operator=(const Thread &); /* Not assignable. */
 };
 
-
 // A barrier which can be used for one-time synchronization between threads.
-class Notification
-{
-public:
+class Notification {
+ public:
   Notification();
   ~Notification();
 
   bool has_been_notified();
   void wait_for_notification();
   void notify();
-private:
-  bool            m_notified;
-  mysql_cond_t    m_cond;
-  mysql_mutex_t   m_mutex;
 
-  Notification(const Notification&);            /* Not copyable. */
-  void operator=(const Notification&);          /* Not assignable. */
+ private:
+  bool m_notified;
+  mysql_cond_t m_cond;
+  mysql_mutex_t m_mutex;
+
+  Notification(const Notification &);   /* Not copyable. */
+  void operator=(const Notification &); /* Not assignable. */
 };
 
 }  // namespace thread

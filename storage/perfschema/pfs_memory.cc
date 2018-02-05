@@ -39,9 +39,7 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_user.h"
 
-static void
-fct_reset_memory_by_thread(PFS_thread *pfs)
-{
+static void fct_reset_memory_by_thread(PFS_thread *pfs) {
   PFS_account *account = sanitize_account(pfs->m_account);
   PFS_user *user = sanitize_user(pfs->m_user);
   PFS_host *host = sanitize_host(pfs->m_host);
@@ -49,63 +47,46 @@ fct_reset_memory_by_thread(PFS_thread *pfs)
 }
 
 /** Reset table MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME data. */
-void
-reset_memory_by_thread()
-{
+void reset_memory_by_thread() {
   global_thread_container.apply(fct_reset_memory_by_thread);
 }
 
-static void
-fct_reset_memory_by_account(PFS_account *pfs)
-{
+static void fct_reset_memory_by_account(PFS_account *pfs) {
   PFS_user *user = sanitize_user(pfs->m_user);
   PFS_host *host = sanitize_host(pfs->m_host);
   pfs->aggregate_memory(true, user, host);
 }
 
 /** Reset table MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME data. */
-void
-reset_memory_by_account()
-{
+void reset_memory_by_account() {
   global_account_container.apply(fct_reset_memory_by_account);
 }
 
-static void
-fct_reset_memory_by_user(PFS_user *pfs)
-{
+static void fct_reset_memory_by_user(PFS_user *pfs) {
   pfs->aggregate_memory(true);
 }
 
 /** Reset table MEMORY_SUMMARY_BY_USER_BY_EVENT_NAME data. */
-void
-reset_memory_by_user()
-{
+void reset_memory_by_user() {
   global_user_container.apply(fct_reset_memory_by_user);
 }
 
-static void
-fct_reset_memory_by_host(PFS_host *pfs)
-{
+static void fct_reset_memory_by_host(PFS_host *pfs) {
   pfs->aggregate_memory(true);
 }
 
 /** Reset table MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME data. */
-void
-reset_memory_by_host()
-{
+void reset_memory_by_host() {
   global_host_container.apply(fct_reset_memory_by_host);
 }
 
 /** Reset table MEMORY_GLOBAL_BY_EVENT_NAME data. */
-void
-reset_memory_global()
-{
+void reset_memory_global() {
   PFS_memory_shared_stat *stat = global_instr_class_memory_array;
   PFS_memory_shared_stat *stat_last =
-    global_instr_class_memory_array + memory_class_max;
+      global_instr_class_memory_array + memory_class_max;
 
-  for (; stat < stat_last; stat++)
-  {
+  for (; stat < stat_last; stat++) {
     stat->rebase();
   }
 }

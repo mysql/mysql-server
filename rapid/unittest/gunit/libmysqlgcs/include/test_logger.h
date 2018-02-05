@@ -22,8 +22,8 @@
 
 #ifndef TEST_LOGGER_INCLUDED
 #define TEST_LOGGER_INCLUDED
-#include "mysql/gcs/gcs_logging_system.h"
 #include "gcs_xcom_interface.h"
+#include "mysql/gcs/gcs_logging_system.h"
 
 /*
   It is a logger utility helps unit test to verify functions which will log
@@ -36,18 +36,13 @@
   ...
   test_logger.assert_error("Expected error message");
 */
-class Test_logger : public Logger_interface
-{
-private:
+class Test_logger : public Logger_interface {
+ private:
   std::stringstream m_log_stream;
 
-  std::string get_event()
-  {
-    return m_log_stream.str();
-  }
+  std::string get_event() { return m_log_stream.str(); }
 
-  void assert_event(gcs_log_level_t level, const std::string &expected)
-  {
+  void assert_event(gcs_log_level_t level, const std::string &expected) {
     std::string complete_log(gcs_log_levels[level]);
     complete_log += GCS_PREFIX;
     complete_log += expected;
@@ -55,45 +50,30 @@ private:
     ASSERT_EQ(complete_log, get_event());
   }
 
-public:
-  Test_logger()
-  {
-    Gcs_log_manager::initialize(this);
-  }
+ public:
+  Test_logger() { Gcs_log_manager::initialize(this); }
 
   ~Test_logger() {}
 
-  enum_gcs_error initialize()
-  {
-    return GCS_OK;
-  }
+  enum_gcs_error initialize() { return GCS_OK; }
 
-  enum_gcs_error finalize()
-  {
-    return GCS_OK;
-  }
+  enum_gcs_error finalize() { return GCS_OK; }
 
-  void log_event(const gcs_log_level_t level, const std::string &message)
-  {
+  void log_event(const gcs_log_level_t level, const std::string &message) {
     m_log_stream << gcs_log_levels[level] << message;
   }
 
-  void clear_event()
-  {
-    m_log_stream.str("");
-  }
+  void clear_event() { m_log_stream.str(""); }
 
-  void assert_error(const std::string &expected)
-  {
+  void assert_error(const std::string &expected) {
     assert_event(GCS_ERROR, expected);
   }
 
-  void assert_error(const std::stringstream &expected)
-  {
+  void assert_error(const std::stringstream &expected) {
     assert_error(expected.str());
   }
 };
 
 Test_logger test_logger;
 
-#endif // TEST_LOGGER_INCLUDED
+#endif  // TEST_LOGGER_INCLUDED

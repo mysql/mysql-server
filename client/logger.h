@@ -33,45 +33,36 @@ struct Datetime {};
 
 std::ostream &operator<<(std::ostream &os, const Datetime &dt);
 
-class Gen_spaces
-{
-public:
-  Gen_spaces(int s)
-  {
-    m_spaces.assign(s,' ');
-  }
-  std::ostream &operator<<(std::ostream &os)
-  {
-    return os;
-  }
+class Gen_spaces {
+ public:
+  Gen_spaces(int s) { m_spaces.assign(s, ' '); }
+  std::ostream &operator<<(std::ostream &os) { return os; }
   friend std::ostream &operator<<(std::ostream &os, const Gen_spaces &gen);
-private:
+
+ private:
   std::string m_spaces;
 };
 
 std::ostream &operator<<(std::ostream &os, const Gen_spaces &gen);
 
-class Log : public std::ostream
-{
-public:
-  Log(std::ostream &str, std::string logclass) :
-   std::ostream(NULL), m_buffer(str, logclass)
-  {
+class Log : public std::ostream {
+ public:
+  Log(std::ostream &str, std::string logclass)
+      : std::ostream(NULL), m_buffer(str, logclass) {
     this->init(&m_buffer);
   }
   void enabled(bool s) { m_buffer.enabled(s); }
-private:
 
-  class Log_buff : public std::stringbuf
-  {
-  public:
+ private:
+  class Log_buff : public std::stringbuf {
+   public:
     Log_buff(std::ostream &str, std::string &logc)
-      :m_os(str),m_logc(logc), m_enabled(true)
-    {}
-    void set_log_class(std::string &s) { m_logc= s; }
-    void enabled(bool s) { m_enabled= s; }
+        : m_os(str), m_logc(logc), m_enabled(true) {}
+    void set_log_class(std::string &s) { m_logc = s; }
+    void enabled(bool s) { m_enabled = s; }
     virtual int sync();
-  private:
+
+   private:
     std::ostream &m_os;
     std::string m_logc;
     bool m_enabled;

@@ -75,14 +75,15 @@
 /* Turn automatic batching on or off */
 #define AUTOBATCH 1
 
-enum{
-	EVENT_HORIZON_MIN = 10,
-	MAX_BATCH_SIZE = 0x3fffffff, /* Limit batch size to sensible ? amount */
-	MAX_DEAD = 10,
-	PROPOSERS = 10				/* The number of proposers on one node */
+enum {
+  EVENT_HORIZON_MIN = 10,
+  MAX_BATCH_SIZE = 0x3fffffff, /* Limit batch size to sensible ? amount */
+  MAX_DEAD = 10,
+  PROPOSERS = 10 /* The number of proposers on one node */
 };
 
-/* How long to wait for snapshots when trying to find the best node to recover from */
+/* How long to wait for snapshots when trying to find the best node to recover
+ * from */
 #define SNAPSHOT_WAIT_TIME 3.0
 
 #endif

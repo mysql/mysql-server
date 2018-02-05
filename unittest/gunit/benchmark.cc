@@ -22,80 +22,72 @@
 
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <algorithm>
 #include <chrono>
 
-using std::chrono::steady_clock;
 using std::chrono::duration;
 using std::chrono::duration_cast;
 using std::chrono::nanoseconds;
+using std::chrono::steady_clock;
 
-static bool timer_running= false;
+static bool timer_running = false;
 static double seconds_used;
 static steady_clock::time_point timer_start;
-static size_t bytes_processed= 0;
+static size_t bytes_processed = 0;
 
-void StartBenchmarkTiming()
-{
+void StartBenchmarkTiming() {
   assert(!timer_running);
-  timer_running= true;
-  timer_start= steady_clock::now();
+  timer_running = true;
+  timer_start = steady_clock::now();
 }
 
-void StopBenchmarkTiming()
-{
-  if (timer_running)
-  {
-    auto used= steady_clock::now() - timer_start;
-    seconds_used+= duration<double>(used).count();
-    timer_running= false;
+void StopBenchmarkTiming() {
+  if (timer_running) {
+    auto used = steady_clock::now() - timer_start;
+    seconds_used += duration<double>(used).count();
+    timer_running = false;
   }
 }
 
-void SetBytesProcessed(size_t bytes)
-{
-  bytes_processed= bytes;
-}
+void SetBytesProcessed(size_t bytes) { bytes_processed = bytes; }
 
-void internal_do_microbenchmark(const char *name, void (*func)(size_t))
-{
+void internal_do_microbenchmark(const char *name, void (*func)(size_t)) {
 #if !defined(DBUG_OFF)
-  printf("WARNING: Running microbenchmark in debug mode. "
-         "Timings will be misleading.\n");
+  printf(
+      "WARNING: Running microbenchmark in debug mode. "
+      "Timings will be misleading.\n");
 #endif
 
   // Do 100 iterations as rough calibration. (Often, this will over- or
   // undershoot by as much as 50%, but that's fine.)
   static constexpr size_t calibration_iterations = 100;
-  seconds_used= 0.0;
+  seconds_used = 0.0;
   StartBenchmarkTiming();
   func(calibration_iterations);
   StopBenchmarkTiming();
-  double seconds_used_per_iteration= seconds_used / calibration_iterations;
+  double seconds_used_per_iteration = seconds_used / calibration_iterations;
 
   // Scale so that we end up around one second per benchmark
   // (but never less than 100).
   size_t num_iterations =
-    std::max<size_t>(lrint(1.0 / seconds_used_per_iteration), 100);
+      std::max<size_t>(lrint(1.0 / seconds_used_per_iteration), 100);
 
   // Do the actual run.
-  seconds_used= 0.0;
+  seconds_used = 0.0;
   StartBenchmarkTiming();
   func(num_iterations);
   StopBenchmarkTiming();
 
-  printf("%-40s %10ld iterations %10.0f ns/iter",
-         name,
+  printf("%-40s %10ld iterations %10.0f ns/iter", name,
          static_cast<long>(num_iterations),
          1e9 * seconds_used / double(num_iterations));
 
-  if (bytes_processed > 0)
-  {
-    double bytes_per_second= bytes_processed / seconds_used;
-    if (bytes_per_second > (512 << 20))   // 0.5 GB/sec.
+  if (bytes_processed > 0) {
+    double bytes_per_second = bytes_processed / seconds_used;
+    if (bytes_per_second > (512 << 20))  // 0.5 GB/sec.
       printf(" %8.2f GB/sec", bytes_per_second / (1 << 30));
     else
       printf(" %8.2f MB/sec", bytes_per_second / (1 << 20));

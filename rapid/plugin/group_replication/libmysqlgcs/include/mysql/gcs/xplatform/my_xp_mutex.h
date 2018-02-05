@@ -43,9 +43,8 @@
 
   @endcode
 */
-class My_xp_mutex
-{
-public:
+class My_xp_mutex {
+ public:
   /**
     Initialize mutex.
 
@@ -54,8 +53,7 @@ public:
     @return success status
   */
 
-  virtual int init(PSI_mutex_key key, const native_mutexattr_t *attr)= 0;
-
+  virtual int init(PSI_mutex_key key, const native_mutexattr_t *attr) = 0;
 
   /**
     Destroy mutex.
@@ -63,8 +61,7 @@ public:
     @return success status
   */
 
-  virtual int destroy()= 0;
-
+  virtual int destroy() = 0;
 
   /**
     Lock mutex.
@@ -72,8 +69,7 @@ public:
     @return success status
   */
 
-  virtual int lock()= 0;
-
+  virtual int lock() = 0;
 
   /**
     Trylock mutex.
@@ -81,8 +77,7 @@ public:
     @return success status
   */
 
-  virtual int trylock()= 0;
-
+  virtual int trylock() = 0;
 
   /**
     Unlock mutex.
@@ -90,8 +85,7 @@ public:
     @return success status
   */
 
-  virtual int unlock()= 0;
-
+  virtual int unlock() = 0;
 
   /**
     To get native mutex reference.
@@ -99,16 +93,14 @@ public:
     @return native mutex pointer
   */
 
-  virtual mysql_mutex_t *get_native_mutex()= 0;
-
+  virtual mysql_mutex_t *get_native_mutex() = 0;
 
   virtual ~My_xp_mutex() {}
 };
 
 #ifndef XCOM_STANDALONE
-class My_xp_mutex_server : public My_xp_mutex
-{
-public:
+class My_xp_mutex_server : public My_xp_mutex {
+ public:
   explicit My_xp_mutex_server();
   virtual ~My_xp_mutex_server();
 
@@ -119,24 +111,22 @@ public:
   int unlock();
   mysql_mutex_t *get_native_mutex();
 
-protected:
+ protected:
   mysql_mutex_t *m_mutex;
 };
 #endif
-
 
 #ifndef XCOM_STANDALONE
 class My_xp_mutex_impl : public My_xp_mutex_server
 #endif
 {
-public:
+ public:
   explicit My_xp_mutex_impl() {}
   ~My_xp_mutex_impl() {}
 };
 
-class My_xp_mutex_util
-{
-public:
+class My_xp_mutex_util {
+ public:
   /**
     Initialize mutex attributes object
 
@@ -145,7 +135,6 @@ public:
   */
 
   static int attr_init(native_mutexattr_t *attr);
-
 
   /**
     Destroy mutex attributes object
@@ -157,4 +146,4 @@ public:
   static int attr_destroy(native_mutexattr_t *attr);
 };
 
-#endif // MY_XP_MUTEX_INCLUDED
+#endif  // MY_XP_MUTEX_INCLUDED

@@ -23,25 +23,18 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
 
 Gcs_group_identifier::Gcs_group_identifier(const std::string &gid)
-  : group_id(gid)
-{
-}
+    : group_id(gid) {}
 
-
-const std::string &Gcs_group_identifier::get_group_id() const
-{
+const std::string &Gcs_group_identifier::get_group_id() const {
   return group_id;
 }
 
 /* purecov: begin deadcode */
-bool Gcs_group_identifier::operator<(const Gcs_group_identifier &other) const
-{
+bool Gcs_group_identifier::operator<(const Gcs_group_identifier &other) const {
   return group_id.compare(other.group_id) < 0;
 }
 
-
-bool Gcs_group_identifier::operator==(const Gcs_group_identifier &other) const
-{
+bool Gcs_group_identifier::operator==(const Gcs_group_identifier &other) const {
   return group_id.compare(other.group_id) == 0;
 }
 /* purecov: end */

@@ -35,7 +35,7 @@ struct TABLE;
 
   @return the algorithm name
 */
-const char* get_write_set_algorithm_string(unsigned int algorithm);
+const char *get_write_set_algorithm_string(unsigned int algorithm);
 
 /**
   Function to add the hash of the PKE to the transaction context object.

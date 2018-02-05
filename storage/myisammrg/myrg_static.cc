@@ -33,11 +33,10 @@
 #include "mysql/psi/mysql_memory.h"
 #include "typelib.h"
 
-LIST	*myrg_open_list=0;
-static const char *merge_insert_methods[] =
-{ "FIRST", "LAST", NullS };
-TYPELIB merge_insert_method= { array_elements(merge_insert_methods)-1,"",
-			       merge_insert_methods, 0};
+LIST *myrg_open_list = 0;
+static const char *merge_insert_methods[] = {"FIRST", "LAST", NullS};
+TYPELIB merge_insert_method = {array_elements(merge_insert_methods) - 1, "",
+                               merge_insert_methods, 0};
 
 PSI_memory_key rg_key_memory_MYRG_INFO;
 PSI_memory_key rg_key_memory_children;
@@ -45,37 +44,29 @@ PSI_memory_key rg_key_memory_children;
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key rg_key_mutex_MYRG_INFO_mutex;
 
-static PSI_mutex_info all_myisammrg_mutexes[]=
-{
-  { &rg_key_mutex_MYRG_INFO_mutex, "MYRG_INFO::mutex", 0, 0, PSI_DOCUMENT_ME}
-};
+static PSI_mutex_info all_myisammrg_mutexes[] = {
+    {&rg_key_mutex_MYRG_INFO_mutex, "MYRG_INFO::mutex", 0, 0, PSI_DOCUMENT_ME}};
 
 PSI_file_key rg_key_file_MRG;
 
-static PSI_file_info all_myisammrg_files[]=
-{
-  { &rg_key_file_MRG, "MRG", 0, 0, PSI_DOCUMENT_ME}
-};
+static PSI_file_info all_myisammrg_files[] = {
+    {&rg_key_file_MRG, "MRG", 0, 0, PSI_DOCUMENT_ME}};
 
-static PSI_memory_info all_myisammrg_memory[]=
-{
-  { &rg_key_memory_MYRG_INFO, "MYRG_INFO", 0, 0, PSI_DOCUMENT_ME},
-  { &rg_key_memory_children, "children", 0, 0, PSI_DOCUMENT_ME}
-};
+static PSI_memory_info all_myisammrg_memory[] = {
+    {&rg_key_memory_MYRG_INFO, "MYRG_INFO", 0, 0, PSI_DOCUMENT_ME},
+    {&rg_key_memory_children, "children", 0, 0, PSI_DOCUMENT_ME}};
 
-void init_myisammrg_psi_keys()
-{
-  const char* category= "myisammrg";
+void init_myisammrg_psi_keys() {
+  const char *category = "myisammrg";
   int count;
 
-  count= array_elements(all_myisammrg_mutexes);
+  count = array_elements(all_myisammrg_mutexes);
   mysql_mutex_register(category, all_myisammrg_mutexes, count);
 
-  count= array_elements(all_myisammrg_files);
+  count = array_elements(all_myisammrg_files);
   mysql_file_register(category, all_myisammrg_files, count);
 
-  count= array_elements(all_myisammrg_memory);
+  count = array_elements(all_myisammrg_memory);
   mysql_memory_register(category, all_myisammrg_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
-

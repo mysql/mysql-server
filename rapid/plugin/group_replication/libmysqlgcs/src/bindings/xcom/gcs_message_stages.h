@@ -43,9 +43,8 @@
 
  An example of a stage is the LZ4 stage that compresses the payload.
  */
-class Gcs_message_stage
-{
-public:
+class Gcs_message_stage {
+ public:
   /**
    The offset of the header length within the stage header.
    */
@@ -71,26 +70,25 @@ public:
 
    NOTE: values from this enum must fit into WIRE_HD_TYPE_SIZE bytes storage.
    */
-  enum enum_type_code
-  {
-    ST_UNKNOWN= 0,
-    ST_LZ4= 1,
+  enum enum_type_code {
+    ST_UNKNOWN = 0,
+    ST_LZ4 = 1,
 
     /**
      No type codes can show after this one. If a type code is to be added,
      this needs to be incremented and the lowest type code available be
      assigned to the new stage.
      */
-    ST_MAX_STAGES= 2
+    ST_MAX_STAGES = 2
   };
 
-  virtual ~Gcs_message_stage() { }
+  virtual ~Gcs_message_stage() {}
 
   /**
    Returns the unique type code of this filter.
    @return the type code of this stage.
    */
-  virtual enum_type_code type_code()= 0;
+  virtual enum_type_code type_code() = 0;
 
   /**
    Applies this stage transformation to the outgoing message.
@@ -98,7 +96,7 @@ public:
    @param p the packet to which the transformation should be applied.
    @return false on success, true otherwise.
    */
-  virtual bool apply(Gcs_packet &p)= 0;
+  virtual bool apply(Gcs_packet &p) = 0;
 
   /**
    Reverts the stage transformation on the incoming message.
@@ -106,7 +104,7 @@ public:
    @param p the packat to which the transformation should be applied.
    @return false on success, true otherwise.
    */
-  virtual bool revert(Gcs_packet &p)= 0;
+  virtual bool revert(Gcs_packet &p) = 0;
 };
 
 /**
@@ -119,10 +117,8 @@ public:
  For incoming messages, the pipeline is built on the fly, according to the
  information contained in the message stage headers.
  */
-class Gcs_message_pipeline
-{
-private:
-
+class Gcs_message_pipeline {
+ private:
   /**
    The registered stages. These are all stages that are known by this version
    of MySQL GCS. This needs to contain an instance of all possible stages,
@@ -137,9 +133,8 @@ private:
    */
   std::vector<Gcs_message_stage::enum_type_code> m_pipeline;
 
-public:
-
-  explicit Gcs_message_pipeline(): m_stage_reg(), m_pipeline() { }
+ public:
+  explicit Gcs_message_pipeline() : m_stage_reg(), m_pipeline() {}
   virtual ~Gcs_message_pipeline();
 
   /**
@@ -177,8 +172,8 @@ public:
 
    @param stages the list of stages that build up the pipeline.
    */
-  void configure_outgoing_pipeline(std::vector<Gcs_message_stage::enum_type_code> stages)
-  {
+  void configure_outgoing_pipeline(
+      std::vector<Gcs_message_stage::enum_type_code> stages) {
     // clean up the current setup
     m_pipeline.clear();
 
@@ -186,9 +181,9 @@ public:
     std::copy(stages.begin(), stages.end(), std::back_inserter(m_pipeline));
   }
 
-private:
+ private:
   // make copy and assignment constructors private
   Gcs_message_pipeline(Gcs_message_pipeline &p);
-  Gcs_message_pipeline& operator=(const Gcs_message_pipeline& p);
+  Gcs_message_pipeline &operator=(const Gcs_message_pipeline &p);
 };
 #endif

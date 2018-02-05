@@ -24,44 +24,27 @@
 
 Event_cataloger::Event_cataloger() {}
 
-int
-Event_cataloger::initialize()
-{
-  return 0;
-}
+int Event_cataloger::initialize() { return 0; }
 
-int
-Event_cataloger::terminate()
-{
-  return 0;
-}
+int Event_cataloger::terminate() { return 0; }
 
-int
-Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont)
-{
-  Log_event_type event_type= pevent->get_event_type();
+int Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont) {
+  Log_event_type event_type = pevent->get_event_type();
 
-  if (event_type == binary_log::TRANSACTION_CONTEXT_EVENT)
-  {
+  if (event_type == binary_log::TRANSACTION_CONTEXT_EVENT) {
     pevent->mark_event(TRANSACTION_BEGIN);
-  }
-  else if (pevent->get_event_context() != SINGLE_VIEW_EVENT)
-  {
+  } else if (pevent->get_event_context() != SINGLE_VIEW_EVENT) {
     pevent->mark_event(UNMARKED_EVENT);
   }
 
-  //Check if the current transaction was discarded
-  if (cont->is_transaction_discarded())
-  {
-    if ((pevent->get_event_context() == TRANSACTION_BEGIN)||
-        (pevent->get_event_context() == SINGLE_VIEW_EVENT))
-    {
-      //a new transaction begins or we are handling a view change
+  // Check if the current transaction was discarded
+  if (cont->is_transaction_discarded()) {
+    if ((pevent->get_event_context() == TRANSACTION_BEGIN) ||
+        (pevent->get_event_context() == SINGLE_VIEW_EVENT)) {
+      // a new transaction begins or we are handling a view change
       cont->set_transation_discarded(false);
-    }
-    else
-    {
-      //The event belongs to a discarded transaction
+    } else {
+      // The event belongs to a discarded transaction
       cont->signal(0, true);
       return 0;
     }
@@ -71,17 +54,10 @@ Event_cataloger::handle_event(Pipeline_event *pevent, Continuation *cont)
   return 0;
 }
 
-int Event_cataloger::handle_action(Pipeline_action *action){
-  return(next(action));
+int Event_cataloger::handle_action(Pipeline_action *action) {
+  return (next(action));
 }
 
-bool Event_cataloger::is_unique()
-{
-  return true;
-}
+bool Event_cataloger::is_unique() { return true; }
 
-int Event_cataloger::get_role()
-{
-  return EVENT_CATALOGER;
-}
-
+int Event_cataloger::get_role() { return EVENT_CATALOGER; }

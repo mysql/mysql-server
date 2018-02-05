@@ -34,15 +34,12 @@
 /*
   _dig_vec arrays are public because they are used in several outer places.
 */
-char _dig_vec_upper[] =
-  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-char _dig_vec_lower[] =
-  "0123456789abcdefghijklmnopqrstuvwxyz";
-
+char _dig_vec_upper[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+char _dig_vec_lower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 /*
   Convert integer to its string representation in given scale of notation.
-   
+
   SYNOPSIS
     int2str()
       val     - value to convert
@@ -51,10 +48,10 @@ char _dig_vec_lower[] =
       upcase  - set to 1 if we should use upper-case digits
 
   DESCRIPTION
-    Converts the (long) integer value to its character form and moves it to 
-    the destination buffer followed by a terminating NUL. 
+    Converts the (long) integer value to its character form and moves it to
+    the destination buffer followed by a terminating NUL.
     If radix is -2..-36, val is taken to be SIGNED, if radix is  2..36, val is
-    taken to be UNSIGNED. That is, val is signed if and only if radix is. 
+    taken to be UNSIGNED. That is, val is signed if and only if radix is.
     All other radixes treated as bad and nothing will be changed in this case.
 
     For conversion to decimal representation (radix is -10 or 10) one can use
@@ -63,30 +60,23 @@ char _dig_vec_lower[] =
   RETURN VALUE
     Pointer to ending NUL character or NullS if radix is bad.
 */
-  
-char *
-int2str(long int val, char *dst, int radix, 
-        int upcase)
-{
+
+char *int2str(long int val, char *dst, int radix, int upcase) {
   char buffer[65];
   char *p;
   long int new_val;
-  char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
-  ulong uval= (ulong) val;
+  char *dig_vec = upcase ? _dig_vec_upper : _dig_vec_lower;
+  ulong uval = (ulong)val;
 
-  if (radix < 0)
-  {
-    if (radix < -36 || radix > -2)
-      return NullS;
-    if (val < 0)
-    {
+  if (radix < 0) {
+    if (radix < -36 || radix > -2) return NullS;
+    if (val < 0) {
       *dst++ = '-';
       /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval = (ulong)0 - uval;
     }
     radix = -radix;
-  }
-  else if (radix > 36 || radix < 2)
+  } else if (radix > 36 || radix < 2)
     return NullS;
 
   /*
@@ -101,26 +91,25 @@ int2str(long int val, char *dst, int radix,
     sensitive to minor details of style.  This works on a VAX, that's
     all I claim for it.
   */
-  p = &buffer[sizeof(buffer)-1];
+  p = &buffer[sizeof(buffer) - 1];
   *p = '\0';
-  new_val= uval / (ulong) radix;
-  *--p = dig_vec[(uchar) (uval- (ulong) new_val*(ulong) radix)];
+  new_val = uval / (ulong)radix;
+  *--p = dig_vec[(uchar)(uval - (ulong)new_val * (ulong)radix)];
   val = new_val;
-  while (val != 0)
-  {
+  while (val != 0) {
     ldiv_t res;
-    res=ldiv(val,radix);
+    res = ldiv(val, radix);
     *--p = dig_vec[res.rem];
-    val= res.quot;
+    val = res.quot;
   }
-  while ((*dst++ = *p++) != 0) ;
-  return dst-1;
+  while ((*dst++ = *p++) != 0)
+    ;
+  return dst - 1;
 }
-
 
 /*
   Converts integer to its string representation in decimal notation.
-   
+
   SYNOPSIS
     int10_to_str()
       val     - value to convert
@@ -129,42 +118,40 @@ int2str(long int val, char *dst, int radix,
 
   DESCRIPTION
     This is version of int2str() function which is optimized for normal case
-    of radix 10/-10. It takes only sign of radix parameter into account and 
+    of radix 10/-10. It takes only sign of radix parameter into account and
     not its absolute value.
 
   RETURN VALUE
     Pointer to ending NUL character.
 */
 
-char *int10_to_str(long int val,char *dst,int radix)
-{
+char *int10_to_str(long int val, char *dst, int radix) {
   char buffer[65];
   char *p;
   long int new_val;
-  unsigned long int uval = (unsigned long int) val;
+  unsigned long int uval = (unsigned long int)val;
 
-  if (radix < 0)				/* -10 */
+  if (radix < 0) /* -10 */
   {
-    if (val < 0)
-    {
+    if (val < 0) {
       *dst++ = '-';
       /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
       uval = (unsigned long int)0 - uval;
     }
   }
 
-  p = &buffer[sizeof(buffer)-1];
+  p = &buffer[sizeof(buffer) - 1];
   *p = '\0';
-  new_val= (long) (uval / 10);
-  *--p = '0'+ (char) (uval - (unsigned long) new_val * 10);
+  new_val = (long)(uval / 10);
+  *--p = '0' + (char)(uval - (unsigned long)new_val * 10);
   val = new_val;
 
-  while (val != 0)
-  {
-    new_val=val/10;
-    *--p = '0' + (char) (val-new_val*10);
-    val= new_val;
+  while (val != 0) {
+    new_val = val / 10;
+    *--p = '0' + (char)(val - new_val * 10);
+    val = new_val;
   }
-  while ((*dst++ = *p++) != 0) ;
-  return dst-1;
+  while ((*dst++ = *p++) != 0)
+    ;
+  return dst - 1;
 }

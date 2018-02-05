@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,13 +29,11 @@
 namespace xpl {
 
 const std::string Sha256_plain_verification::k_empty_salt;
-const size_t SHA256_PASSWORD_MAX_PASSWORD_LENGTH= MAX_PLAINTEXT_LENGTH;
+const size_t SHA256_PASSWORD_MAX_PASSWORD_LENGTH = MAX_PLAINTEXT_LENGTH;
 
 bool Sha256_plain_verification::verify_authentication_string(
-    const std::string &user,
-    const std::string &host,
-    const std::string &client_string,
-    const std::string &db_string) const {
+    const std::string &user, const std::string &host,
+    const std::string &client_string, const std::string &db_string) const {
   if (client_string.length() > SHA256_PASSWORD_MAX_PASSWORD_LENGTH)
     return false;
 
@@ -45,20 +43,16 @@ bool Sha256_plain_verification::verify_authentication_string(
       m_sha256_password_cache->contains(user, host, client_string))
     return true;
 
-  bool client_string_matches =
-      client_string.empty() &&
-      db_string.empty();
+  bool client_string_matches = client_string.empty() && db_string.empty();
 
   if (!client_string_matches) {
     std::string::size_type b = db_string.find('$', 1);
 
-    if (b == std::string::npos)
-      return false;
+    if (b == std::string::npos) return false;
 
     std::string salt = db_string.substr(b + 1, CRYPT_SALT_LENGTH);
 
-    if (salt.size() != CRYPT_SALT_LENGTH)
-      return false;
+    if (salt.size() != CRYPT_SALT_LENGTH) return false;
 
     if (compute_password_hash(client_string, salt) == db_string) {
       client_string_matches = true;

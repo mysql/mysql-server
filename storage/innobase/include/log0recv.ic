@@ -24,21 +24,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/log0recv.ic
-Recovery
+/**************************************************/ /**
+ @file include/log0recv.ic
+ Recovery
 
-Created 9/20/1997 Heikki Tuuri
-*******************************************************/
+ Created 9/20/1997 Heikki Tuuri
+ *******************************************************/
 
 #include "univ.i"
 
 /** Returns true if recovery is currently running.
 @return recv_recovery_on */
 UNIV_INLINE
-bool
-recv_recovery_is_on()
-{
-	return(recv_recovery_on);
-}
-
+bool recv_recovery_is_on() { return (recv_recovery_on); }

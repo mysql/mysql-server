@@ -26,18 +26,18 @@
 
 using namespace Mysql::Tools::Dump;
 
-void Mysql_object_reader_options::create_options()
-{
+void Mysql_object_reader_options::create_options() {
   this->create_new_option(&m_row_group_size, "extended-insert",
-    "Allow usage of multiple-row INSERT syntax that include several VALUES "
-    "lists. Specifies number of rows to include in single INSERT statement. "
-    "Must be greater than 0")
-    ->set_minimum_value(1)
-    ->set_maximum_value(MAX_EXTENDED_INSERT)
-    ->set_value(250);
+                          "Allow usage of multiple-row INSERT syntax that "
+                          "include several VALUES "
+                          "lists. Specifies number of rows to include in "
+                          "single INSERT statement. "
+                          "Must be greater than 0")
+      ->set_minimum_value(1)
+      ->set_maximum_value(MAX_EXTENDED_INSERT)
+      ->set_value(250);
 }
 
 Mysql_object_reader_options::Mysql_object_reader_options(
-  const Mysql_chain_element_options* mysql_chain_element_options)
-  : m_mysql_chain_element_options(mysql_chain_element_options)
-{}
+    const Mysql_chain_element_options *mysql_chain_element_options)
+    : m_mysql_chain_element_options(mysql_chain_element_options) {}

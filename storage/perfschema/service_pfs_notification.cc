@@ -53,25 +53,21 @@ int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
   PFS_notification_node
   Element of the notification registry containing callback functions.
 */
-struct PFS_notification_node
-{
+struct PFS_notification_node {
   PFS_notification_node()
-    : m_handle(0),
-      m_use_ref_count(false),
-      m_refs(0),
-      m_next(nullptr),
-      m_cb_map(0)
-  {
-  }
+      : m_handle(0),
+        m_use_ref_count(false),
+        m_refs(0),
+        m_next(nullptr),
+        m_cb_map(0) {}
 
   PFS_notification_node(const PSI_notification &cb)
-    : m_handle(0),
-      m_use_ref_count(false),
-      m_refs(0),
-      m_next(nullptr),
-      m_cb_map(0),
-      m_cb(cb)
-  {
+      : m_handle(0),
+        m_use_ref_count(false),
+        m_refs(0),
+        m_next(nullptr),
+        m_cb_map(0),
+        m_cb(cb) {
     m_cb_map = set_callback_map();
   }
 
@@ -94,25 +90,18 @@ struct PFS_notification_node
 /**
   Build a map of the registered callbacks.
 */
-std::uint32_t
-PFS_notification_node::set_callback_map()
-{
+std::uint32_t PFS_notification_node::set_callback_map() {
   std::uint32_t map = 0;
 
-  if (m_cb.thread_create != nullptr)
-    map |= EVENT_THREAD_CREATE;
+  if (m_cb.thread_create != nullptr) map |= EVENT_THREAD_CREATE;
 
-  if (m_cb.thread_destroy != nullptr)
-    map |= EVENT_THREAD_DESTROY;
+  if (m_cb.thread_destroy != nullptr) map |= EVENT_THREAD_DESTROY;
 
-  if (m_cb.session_connect != nullptr)
-    map |= EVENT_SESSION_CONNECT;
+  if (m_cb.session_connect != nullptr) map |= EVENT_SESSION_CONNECT;
 
-  if (m_cb.session_disconnect != nullptr)
-    map |= EVENT_SESSION_DISCONNECT;
+  if (m_cb.session_disconnect != nullptr) map |= EVENT_SESSION_DISCONNECT;
 
-  if (m_cb.session_change_user != nullptr)
-    map |= EVENT_SESSION_CHANGE_USER;
+  if (m_cb.session_change_user != nullptr) map |= EVENT_SESSION_CHANGE_USER;
 
   return map;
 }
@@ -124,28 +113,19 @@ PFS_notification_node::set_callback_map()
   callbacks before unloading. A reference count ensures that the
   callback functions remain valid until unregister is complete.
 */
-struct PFS_notification_registry
-{
-  PFS_notification_registry() : m_head(nullptr), m_count(0)
-  {
-  }
+struct PFS_notification_registry {
+  PFS_notification_registry() : m_head(nullptr), m_count(0) {}
 
-  ~PFS_notification_registry()
-  {
+  ~PFS_notification_registry() {
     auto node = m_head.load();
-    while (node != nullptr)
-    {
+    while (node != nullptr) {
       auto next = node->m_next.load();
       delete node;
       node = next;
     }
   }
 
-  bool
-  is_empty()
-  {
-    return m_count > 0;
-  }
+  bool is_empty() { return m_count > 0; }
 
   /**
     Add a new registration.
@@ -153,15 +133,11 @@ struct PFS_notification_registry
     @param use_ref_count true if callbacks can be unregistered
     @return handle of the node
   */
-  int
-  add(PFS_notification_node *new_node, bool use_ref_count)
-  {
-    if (new_node == nullptr)
-      return 0;
+  int add(PFS_notification_node *new_node, bool use_ref_count) {
+    if (new_node == nullptr) return 0;
 
     /* At least one callback required. */
-    if (new_node->m_cb_map == 0)
-      return 0;
+    if (new_node->m_cb_map == 0) return 0;
 
     new_node->m_handle = ++m_count; /* atomic */
     new_node->m_use_ref_count = use_ref_count;
@@ -172,8 +148,7 @@ struct PFS_notification_registry
       if (m_head.compare_exchange_strong(local_head, new_node))
         return new_node->m_handle;
 
-    while (true)
-    {
+    while (true) {
       local_head = m_head.load();
       new_node->m_next = local_head;
 
@@ -187,33 +162,26 @@ struct PFS_notification_registry
     @param  handle returned by add()
     @return 0 if successful, 1 otherwise
   */
-  int
-  disable(int handle)
-  {
+  int disable(int handle) {
     const int max_attempts = 8;
     const time_t timeout = 250000; /* .25s */
     auto node = m_head.load();
 
-    while (node != nullptr)
-    {
-      if (node->m_handle == handle)
-      {
+    while (node != nullptr) {
+      if (node->m_handle == handle) {
         /* Clear the callback bitmap and mark the node as disabled. */
         node->m_cb_map.store(0);
 
         /* Permanent registrations can only be disabled. */
-        if (!node->m_use_ref_count)
-          return 0;
+        if (!node->m_use_ref_count) return 0;
 
         /* Get the ref count, mark as FREE. */
         auto refs = node->m_refs.fetch_or(FREE_MASK);
 
         /* Wait a maximum of 2 seconds for all references to complete. */
         int attempts = 0;
-        while ((refs & REFS_MASK))
-        {
-          if (++attempts > max_attempts)
-            return 1;
+        while ((refs & REFS_MASK)) {
+          if (++attempts > max_attempts) return 1;
           my_sleep(timeout);
           refs = node->m_refs.load();
         }
@@ -231,28 +199,22 @@ struct PFS_notification_registry
     @param event_type notification event
     @return callback registration or nullptr
   */
-  PFS_notification_node *
-  get_first(int event_type)
-  {
+  PFS_notification_node *get_first(int event_type) {
     auto node = m_head.load();
 
-    while (node != nullptr)
-    {
+    while (node != nullptr) {
       /* Is a callback registered for this event? */
       auto cb_map = node->m_cb_map.load();
 
-      if ((cb_map & event_type) != 0)
-      {
+      if ((cb_map & event_type) != 0) {
         /* No ref count for permanent registrations. */
-        if (!node->m_use_ref_count)
-          return node;
+        if (!node->m_use_ref_count) return node;
 
         /* Bump ref count, decrement in get_next(). */
         auto refs = node->m_refs.fetch_add(1);
 
         /* Verify that node is still enabled. */
-        if ((refs & FREE_MASK) == 0)
-          return node;
+        if ((refs & FREE_MASK) == 0) return node;
 
         node->m_refs.fetch_add(-1);
       }
@@ -267,34 +229,28 @@ struct PFS_notification_registry
     @param event_type notification event
     @return callback registration or nullptr
   */
-  PFS_notification_node *
-  get_next(PFS_notification_node *current, int event_type)
-  {
+  PFS_notification_node *get_next(PFS_notification_node *current,
+                                  int event_type) {
     assert(current != nullptr);
 
     /* Get the next node, decrement ref count for the current node. */
     auto next = current->m_next.load();
 
-    if (current->m_use_ref_count)
-      current->m_refs.fetch_add(-1);
+    if (current->m_use_ref_count) current->m_refs.fetch_add(-1);
 
-    while (next != nullptr)
-    {
+    while (next != nullptr) {
       /* Is a callback registered for this event? */
       auto cb_map = next->m_cb_map.load();
 
-      if ((cb_map & event_type) != 0)
-      {
+      if ((cb_map & event_type) != 0) {
         /* No ref count for permanent registrations. */
-        if (!next->m_use_ref_count)
-          return next;
+        if (!next->m_use_ref_count) return next;
 
         /* Bump ref count, decrement in next call to get_next(). */
         auto refs = next->m_refs.fetch_add(1);
 
         /* Verify that node is still enabled. */
-        if ((refs & FREE_MASK) == 0)
-          return next;
+        if ((refs & FREE_MASK) == 0) return next;
 
         next->m_refs.fetch_add(-1);
       }
@@ -303,7 +259,7 @@ struct PFS_notification_registry
     return nullptr;
   }
 
-private:
+ private:
   static const std::uint32_t REFS_MASK = 0x7FFFFFFF;
   static const std::uint32_t FREE_MASK = 0x80000000;
 
@@ -323,12 +279,9 @@ static PFS_notification_registry pfs_notification_registry;
   @return handle unique handle needed to unregister, 0 on failure
   @sa PSI_v1::register_notification
 */
-int
-pfs_register_notification(const PSI_notification *callbacks,
-                          bool with_ref_count)
-{
-  if (unlikely(callbacks == nullptr))
-    return 0;
+int pfs_register_notification(const PSI_notification *callbacks,
+                              bool with_ref_count) {
+  if (unlikely(callbacks == nullptr)) return 0;
 
   return pfs_notification_registry.add(new PFS_notification_node(*callbacks),
                                        with_ref_count);
@@ -340,9 +293,7 @@ pfs_register_notification(const PSI_notification *callbacks,
   @return 0 if successful, non-zero otherwise
   @sa PSI_v1::unregister_notification
 */
-int
-pfs_unregister_notification(int handle)
-{
+int pfs_unregister_notification(int handle) {
   return pfs_notification_registry.disable(handle);
 }
 
@@ -352,23 +303,18 @@ pfs_unregister_notification(int handle)
   @param thread  instrumented thread
   @sa pfs_notify_thread_create
 */
-void
-pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused)))
-{
+void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
-  if (node == nullptr)
-    return;
+  if (node == nullptr) return;
 
   PSI_thread_attrs thread_attrs;
 
   if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
-  while (node != nullptr)
-  {
+  while (node != nullptr) {
     auto callback = *node->m_cb.thread_create;
-    if (callback != NULL)
-      callback(&thread_attrs);
+    if (callback != NULL) callback(&thread_attrs);
     node = pfs_notification_registry.get_next(node, EVENT_THREAD_CREATE);
   }
 }
@@ -379,23 +325,18 @@ pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused)))
   @param thread  instrumented thread
   @sa pfs_notify_thread_destroy
 */
-void
-pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused)))
-{
+void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
-  if (node == nullptr)
-    return;
+  if (node == nullptr) return;
 
   PSI_thread_attrs thread_attrs;
 
   if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
-  while (node != nullptr)
-  {
+  while (node != nullptr) {
     auto callback = *node->m_cb.thread_destroy;
-    if (callback != NULL)
-      callback(&thread_attrs);
+    if (callback != NULL) callback(&thread_attrs);
     node = pfs_notification_registry.get_next(node, EVENT_THREAD_DESTROY);
   }
 }
@@ -405,23 +346,18 @@ pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused)))
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_connect
 */
-void
-pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused)))
-{
+void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CONNECT);
-  if (node == nullptr)
-    return;
+  if (node == nullptr) return;
 
   PSI_thread_attrs thread_attrs;
 
   if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
-  while (node != nullptr)
-  {
+  while (node != nullptr) {
     auto callback = *node->m_cb.session_connect;
-    if (callback != NULL)
-      callback(&thread_attrs);
+    if (callback != NULL) callback(&thread_attrs);
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_CONNECT);
   }
 }
@@ -431,23 +367,18 @@ pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused)))
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_disconnect
 */
-void
-pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused)))
-{
+void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_DISCONNECT);
-  if (node == nullptr)
-    return;
+  if (node == nullptr) return;
 
   PSI_thread_attrs thread_attrs;
 
   if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
-  while (node != nullptr)
-  {
+  while (node != nullptr) {
     auto callback = *node->m_cb.session_disconnect;
-    if (callback != NULL)
-      callback(&thread_attrs);
+    if (callback != NULL) callback(&thread_attrs);
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_DISCONNECT);
   }
 }
@@ -457,23 +388,18 @@ pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused)))
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_change_user
 */
-void
-pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused)))
-{
+void pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
-  if (node == nullptr)
-    return;
+  if (node == nullptr) return;
 
   PSI_thread_attrs thread_attrs;
 
   if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
     return;
 
-  while (node != nullptr)
-  {
+  while (node != nullptr) {
     auto callback = *node->m_cb.session_change_user;
-    if (callback != NULL)
-      callback(&thread_attrs);
+    if (callback != NULL) callback(&thread_attrs);
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_CHANGE_USER);
   }
 }
@@ -481,43 +407,35 @@ pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused)))
 /**
   Notification Service implementation.
 */
-int
-impl_register_notification(const PSI_notification *callbacks,
-                           bool with_ref_count)
-{
+int impl_register_notification(const PSI_notification *callbacks,
+                               bool with_ref_count) {
   return pfs_register_notification(callbacks, with_ref_count);
 }
 
-int
-impl_unregister_notification(int handle)
-{
+int impl_unregister_notification(int handle) {
   return pfs_unregister_notification(handle);
 }
 
 SERVICE_TYPE(pfs_notification)
 SERVICE_IMPLEMENTATION(mysql_server, pfs_notification) = {
-  impl_register_notification, impl_unregister_notification};
+    impl_register_notification, impl_unregister_notification};
 
 /**
   Register the Notification service with the MySQL server registry.
   @return 0 if successful, 1 otherwise
 */
-int
-register_pfs_notification_service()
-{
+int register_pfs_notification_service() {
   SERVICE_TYPE(registry) *r = NULL;
   int result = 0;
 
   r = mysql_plugin_registry_acquire();
-  if (!r)
-    return 1;
+  if (!r) return 1;
 
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);
 
   if (reg->register_service("pfs_notification.mysql_server",
-                            (my_h_service)&imp_mysql_server_pfs_notification))
-  {
+                            (my_h_service)&imp_mysql_server_pfs_notification)) {
     result = 1;
   }
 
@@ -530,21 +448,17 @@ register_pfs_notification_service()
   Unregister the Notification service.
   @return 0 if successful, 1 otherwise
 */
-int
-unregister_pfs_notification_service()
-{
+int unregister_pfs_notification_service() {
   SERVICE_TYPE(registry) *r = NULL;
   int result = 0;
 
   r = mysql_plugin_registry_acquire();
-  if (!r)
-    return 1;
+  if (!r) return 1;
 
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);
 
-  if (reg->unregister("pfs_notification.mysql_server"))
-  {
+  if (reg->unregister("pfs_notification.mysql_server")) {
     result = 1;
   }
 

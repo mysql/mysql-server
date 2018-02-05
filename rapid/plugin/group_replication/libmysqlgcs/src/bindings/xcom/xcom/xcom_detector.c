@@ -395,15 +395,14 @@ int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
             ep->you_p->op = are_you_alive_op;
 
             ep->you_p->a = new_app_data();
-            ep->you_p->a->app_key.group_id =
-                                    ep->you_p->a->group_id = get_group_id(site);
+            ep->you_p->a->app_key.group_id = ep->you_p->a->group_id =
+                get_group_id(site);
             ep->you_p->a->body.c_t = xcom_boot_type;
-            init_node_list(1,
-                          &site->nodes.node_list_val[i],
-                          &ep->you_p->a->body.app_u_u.nodes);
+            init_node_list(1, &site->nodes.node_list_val[i],
+                           &ep->you_p->a->body.app_u_u.nodes);
 
-            DBGOUT(FN;
-                   COPY_AND_FREE_GOUT(dbg_list(&ep->you_p->a->body.app_u_u.nodes)););
+            DBGOUT(FN; COPY_AND_FREE_GOUT(
+                       dbg_list(&ep->you_p->a->body.app_u_u.nodes)););
 
             send_server_msg(site, i, ep->you_p);
           }

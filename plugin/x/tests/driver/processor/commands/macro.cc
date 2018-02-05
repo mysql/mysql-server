@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,17 +35,12 @@
 #include "plugin/x/tests/driver/processor/execution_context.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
 
-
-std::string Macro::get_expanded_macro_body(
-    const Strings &args,
-    const Script_stack *stack,
-    const Console &console) const {
+std::string Macro::get_expanded_macro_body(const Strings &args,
+                                           const Script_stack *stack,
+                                           const Console &console) const {
   if (!m_accepts_variadic_arguments) {
     if (args.size() != m_accepts_args.size()) {
-
-      if (m_accepts_args.empty() &&
-          1 == args.size() &&
-          args.front().empty())
+      if (m_accepts_args.empty() && 1 == args.size() && args.front().empty())
         return get_expanded_macro_body({}, stack, console);
 
       console.print_error(*stack, "Invalid number of arguments for macro ",
@@ -88,8 +83,7 @@ std::string Macro::get_expanded_macro_body(
       variadic_arguments += *(v++) + '\t';
     }
 
-    if (index_of_argument < args.size())
-      variadic_arguments += *(v++);
+    if (index_of_argument < args.size()) variadic_arguments += *(v++);
 
     aux::replace_all(text, "%VAR_ARGS%", variadic_arguments);
   }
@@ -98,20 +92,18 @@ std::string Macro::get_expanded_macro_body(
 }
 
 void Macro_container::add_macro(std::shared_ptr<Macro> macro) {
-    m_macros.push_back(macro);
+  m_macros.push_back(macro);
 }
 
-void Macro_container::set_compress_option(
-    const bool compress) {
+void Macro_container::set_compress_option(const bool compress) {
   m_compress = compress;
 }
 
-std::string Macro_container::get_expanded_macro(
-    Execution_context *context,
-    const std::string &cmd,
-    std::string *r_name,
-    const Script_stack *stack,
-    const Console &console) {
+std::string Macro_container::get_expanded_macro(Execution_context *context,
+                                                const std::string &cmd,
+                                                std::string *r_name,
+                                                const Script_stack *stack,
+                                                const Console &console) {
   Strings args;
   std::string::size_type p = std::min(cmd.find(' '), cmd.find('\t'));
 
@@ -130,9 +122,7 @@ std::string Macro_container::get_expanded_macro(
 
   context->m_variables->replace(r_name);
 
-  for (auto iter = m_macros.begin();
-       iter != m_macros.end();
-       ++iter) {
+  for (auto iter = m_macros.begin(); iter != m_macros.end(); ++iter) {
     if ((*iter)->name() == *r_name) {
       return (*iter)->get_expanded_macro_body(args, stack, console);
     }
@@ -143,28 +133,20 @@ std::string Macro_container::get_expanded_macro(
   return "";
 }
 
-bool Macro_container::call(Execution_context *context,
-                           const std::string &cmd) {
+bool Macro_container::call(Execution_context *context, const std::string &cmd) {
   std::string name;
   std::string macro = get_expanded_macro(
-                          context,
-                          cmd,
-                          &name,
-                          &context->m_script_stack,
-                          context->m_console);
+      context, cmd, &name, &context->m_script_stack, context->m_console);
 
   context->m_script_stack.push({0, "macro " + name});
 
-  std::stringstream                stream(macro);
+  std::stringstream stream(macro);
   std::vector<Block_processor_ptr> processors{
-      create_macro_block_processors(context)
-  };
+      create_macro_block_processors(context)};
 
-  const bool r =  0 == process_client_input(
-      stream,
-      &processors,
-      &context->m_script_stack,
-      context->m_console);
+  const bool r =
+      0 == process_client_input(stream, &processors, &context->m_script_stack,
+                                context->m_console);
 
   context->m_script_stack.pop();
 

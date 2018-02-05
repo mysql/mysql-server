@@ -24,7 +24,6 @@
   Parse tree node classes for optimizer hint syntax
 */
 
-
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
@@ -38,11 +37,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
-#include "sql/item_subselect.h" // Item_exists_subselect
-#include "sql/mem_root_array.h" // Mem_root_array
-#include "sql/sql_bitmap.h" // Bitmap
-#include "sql/sql_show.h"   // append_identifier
-#include "sql_string.h"     // String
+#include "sql/item_subselect.h"  // Item_exists_subselect
+#include "sql/mem_root_array.h"  // Mem_root_array
+#include "sql/sql_bitmap.h"      // Bitmap
+#include "sql/sql_show.h"        // append_identifier
+#include "sql_string.h"          // String
 
 class Item;
 class JOIN;
@@ -55,15 +54,13 @@ struct MEM_ROOT;
 struct TABLE;
 struct TABLE_LIST;
 
-
 /**
   Hint types, MAX_HINT_ENUM should be always last.
   This enum should be synchronized with opt_hint_info
   array(see opt_hints.cc).
 */
-enum opt_hints_enum
-{
-  BKA_HINT_ENUM= 0,
+enum opt_hints_enum {
+  BKA_HINT_ENUM = 0,
   BNL_HINT_ENUM,
   ICP_HINT_ENUM,
   MRR_HINT_ENUM,
@@ -82,10 +79,8 @@ enum opt_hints_enum
   MAX_HINT_ENUM
 };
 
-
-struct st_opt_hint_info
-{
-  const char* hint_name;  // Hint name.
+struct st_opt_hint_info {
+  const char *hint_name;  // Hint name.
   bool check_upper_lvl;   // true if upper level hint check is needed (for hints
                           // which can be specified on more than one level).
   bool switch_hint;       // true if hint is not complex.
@@ -94,18 +89,15 @@ struct st_opt_hint_info
                           ///< since they need special printing procedure.
 };
 
-
 /**
   Opt_hints_map contains information
   about hint state(specified or not, hint value).
 */
 
-class Opt_hints_map
-{
-  Bitmap<64> hints;           // hint state
-  Bitmap<64> hints_specified; // true if hint is specified
-public:
-
+class Opt_hints_map {
+  Bitmap<64> hints;            // hint state
+  Bitmap<64> hints_specified;  // true if hint is specified
+ public:
   /**
      Check if hint is specified.
 
@@ -113,8 +105,7 @@ public:
 
      @return true if hint is specified
   */
-  bool is_specified(opt_hints_enum type_arg) const
-  {
+  bool is_specified(opt_hints_enum type_arg) const {
     return hints_specified.is_set(type_arg);
   }
   /**
@@ -123,9 +114,7 @@ public:
      @param type_arg           hint type
      @param switch_state_arg   switch value
   */
-  void set_switch(opt_hints_enum type_arg,
-                  bool switch_state_arg)
-  {
+  void set_switch(opt_hints_enum type_arg, bool switch_state_arg) {
     if (switch_state_arg)
       hints.set_bit(type_arg);
     else
@@ -139,17 +128,14 @@ public:
 
      @return switch value.
   */
-  bool switch_on(opt_hints_enum type_arg) const
-  {
+  bool switch_on(opt_hints_enum type_arg) const {
     return hints.is_set(type_arg);
   }
 };
 
-
 class Opt_hints_key;
 class PT_hint;
 class PT_hint_max_execution_time;
-
 
 /**
   Opt_hints class is used as ancestor for Opt_hints_global,
@@ -164,8 +150,7 @@ class PT_hint_max_execution_time;
   Hint information(specified, on|off state) is stored in hints_map object.
 */
 
-class Opt_hints
-{
+class Opt_hints {
   /*
     Name of object referred by the hint.
     This name is empty for global level,
@@ -182,28 +167,27 @@ class Opt_hints
   */
   Opt_hints *parent;
 
-  Opt_hints_map hints_map;   // Hint map
+  Opt_hints_map hints_map;  // Hint map
 
   /* Array of child objects. i.e. array of the lower level objects */
-  Mem_root_array<Opt_hints*> child_array;
+  Mem_root_array<Opt_hints *> child_array;
   /* true if hint is connected to the real object */
   bool resolved;
   /* Number of resolved children */
   uint resolved_children;
 
-public:
-
-  Opt_hints(const LEX_CSTRING *name_arg,
-            Opt_hints *parent_arg,
+ public:
+  Opt_hints(const LEX_CSTRING *name_arg, Opt_hints *parent_arg,
             MEM_ROOT *mem_root_arg)
-    : name(name_arg), parent(parent_arg), child_array(mem_root_arg),
-      resolved(false), resolved_children(0)
-  { }
+      : name(name_arg),
+        parent(parent_arg),
+        child_array(mem_root_arg),
+        resolved(false),
+        resolved_children(0) {}
 
   virtual ~Opt_hints() {}
 
-  bool is_specified(opt_hints_enum type_arg) const
-  {
+  bool is_specified(opt_hints_enum type_arg) const {
     return hints_map.is_specified(type_arg);
   }
 
@@ -217,10 +201,8 @@ public:
     @return  true if hint is already specified,
              false otherwise
   */
-  bool set_switch(bool switch_state_arg,
-                  opt_hints_enum type_arg,
-                  bool check_parent)
-  {
+  bool set_switch(bool switch_state_arg, opt_hints_enum type_arg,
+                  bool check_parent) {
     if (is_specified(type_arg) ||
         (check_parent && parent->is_specified(type_arg)))
       return true;
@@ -240,9 +222,9 @@ public:
   bool get_switch(opt_hints_enum type_arg) const;
 
   virtual const LEX_CSTRING *get_name() const { return name; }
-  void set_name(const LEX_CSTRING *name_arg) { name= name_arg; }
+  void set_name(const LEX_CSTRING *name_arg) { name = name_arg; }
   Opt_hints *get_parent() const { return parent; }
-  virtual void set_resolved() { resolved= true; }
+  virtual void set_resolved() { resolved = true; }
   /**
     Returns 'resolved' flag value for depending on hint type.
 
@@ -250,15 +232,15 @@ public:
 
     @return  true if all hint objects are resolved, false otherwise.
   */
-  virtual bool is_resolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused)))
-  { return resolved; }
+  virtual bool is_resolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {
+    return resolved;
+  }
   /**
     Set hint to unresolved state.
 
     @param type_arg  hint type
   */
-  virtual void set_unresolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused)))
-  {}
+  virtual void set_unresolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {}
   /**
     If ignore_print() returns true, hint is not printed
     in Opt_hints::print() function. Atm used for
@@ -269,20 +251,18 @@ public:
     @return  true if the hint should not be printed
     in Opt_hints::print() function, false otherwise.
   */
-  virtual bool ignore_print(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) const
-  { return false; }
+  virtual bool ignore_print(
+      opt_hints_enum type_arg MY_ATTRIBUTE((unused))) const {
+    return false;
+  }
   void incr_resolved_children() { resolved_children++; }
-  Mem_root_array<Opt_hints*> *child_array_ptr() { return &child_array; }
+  Mem_root_array<Opt_hints *> *child_array_ptr() { return &child_array; }
 
-  bool is_all_resolved() const
-  {
+  bool is_all_resolved() const {
     return child_array.size() == resolved_children;
   }
 
-  void register_child(Opt_hints* hint_arg)
-  {
-    child_array.push_back(hint_arg);
-  }
+  void register_child(Opt_hints *hint_arg) { child_array.push_back(hint_arg); }
 
   /**
     Returns pointer to complex hint for a given type.
@@ -294,8 +274,8 @@ public:
 
     @return  pointer to complex hint for a given type.
   */
-  virtual PT_hint *get_complex_hints(opt_hints_enum type MY_ATTRIBUTE((unused)))
-  {
+  virtual PT_hint *get_complex_hints(
+      opt_hints_enum type MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(0);
     return NULL; /* error C4716: must return a value */
   };
@@ -327,9 +307,9 @@ public:
     @param thd             Pointer to THD object
   */
   void check_unresolved(THD *thd);
-  virtual void append_name(THD *thd, String *str)= 0;
+  virtual void append_name(THD *thd, String *str) = 0;
 
-private:
+ private:
   /**
     Append hint type.
 
@@ -351,34 +331,28 @@ private:
     @param str             pointer to String object
   */
   virtual void print_irregular_hints(THD *thd MY_ATTRIBUTE((unused)),
-                                     String *str MY_ATTRIBUTE((unused)))
-  { }
+                                     String *str MY_ATTRIBUTE((unused))) {}
 };
-
 
 /**
   Global level hints.
 */
 
-class Opt_hints_global : public Opt_hints
-{
-
-public:
+class Opt_hints_global : public Opt_hints {
+ public:
   PT_hint_max_execution_time *max_exec_time;
   Sys_var_hint *sys_var_hint;
 
   Opt_hints_global(MEM_ROOT *mem_root_arg)
-    : Opt_hints(NULL, NULL, mem_root_arg)
-  {
-    max_exec_time= NULL;
-    sys_var_hint= NULL;
+      : Opt_hints(NULL, NULL, mem_root_arg) {
+    max_exec_time = NULL;
+    sys_var_hint = NULL;
   }
 
-  virtual void append_name(THD*, String*) {}
+  virtual void append_name(THD *, String *) {}
   virtual PT_hint *get_complex_hints(opt_hints_enum type);
   virtual void print_irregular_hints(THD *thd, String *str);
 };
-
 
 class PT_qb_level_hint;
 
@@ -386,16 +360,15 @@ class PT_qb_level_hint;
   Query block level hints.
 */
 
-class Opt_hints_qb : public Opt_hints
-{
-  uint select_number;     // SELECT_LEX number
-  LEX_CSTRING sys_name;   // System QB name
-  char buff[32];          // Buffer to hold sys name
+class Opt_hints_qb : public Opt_hints {
+  uint select_number;    // SELECT_LEX number
+  LEX_CSTRING sys_name;  // System QB name
+  char buff[32];         // Buffer to hold sys name
 
   PT_qb_level_hint *subquery_hint, *semijoin_hint;
 
   /// Array of join order hints
-  Mem_root_array<PT_qb_level_hint*> join_order_hints;
+  Mem_root_array<PT_qb_level_hint *> join_order_hints;
   /// Bit map of which hints are ignored.
   ulonglong join_order_hints_ignored;
 
@@ -405,15 +378,12 @@ class Opt_hints_qb : public Opt_hints
   */
   friend class PT_qb_level_hint;
 
-public:
-
-  Opt_hints_qb(Opt_hints *opt_hints_arg,
-               MEM_ROOT *mem_root_arg,
+ public:
+  Opt_hints_qb(Opt_hints *opt_hints_arg, MEM_ROOT *mem_root_arg,
                uint select_number_arg);
 
-  const LEX_CSTRING *get_print_name()
-  {
-    const LEX_CSTRING *str= Opt_hints::get_name();
+  const LEX_CSTRING *get_print_name() {
+    const LEX_CSTRING *str = Opt_hints::get_name();
     return str ? str : &sys_name;
   }
 
@@ -423,10 +393,8 @@ public:
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  void append_qb_hint(THD *thd, String *str)
-  {
-    if (get_name())
-    {
+  void append_qb_hint(THD *thd, String *str) {
+    if (get_name()) {
       str->append(STRING_WITH_LEN("QB_NAME("));
       append_identifier(thd, str, get_name()->str, get_name()->length);
       str->append(STRING_WITH_LEN(") "));
@@ -438,10 +406,10 @@ public:
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str)
-  {
+  virtual void append_name(THD *thd, String *str) {
     str->append(STRING_WITH_LEN("@"));
-    append_identifier(thd, str, get_print_name()->str, get_print_name()->length);
+    append_identifier(thd, str, get_print_name()->str,
+                      get_print_name()->length);
   }
 
   virtual PT_hint *get_complex_hints(opt_hints_enum type);
@@ -461,11 +429,10 @@ public:
   /**
     Returns whether semi-join is enabled for this query block
 
-    A SEMIJOIN hint will force semi-join regardless of optimizer_switch settings.
-    A NO_SEMIJOIN hint will only turn off semi-join if the variant with no
-    strategies is used.
-    A SUBQUERY hint will turn off semi-join.
-    If there is no SEMIJOIN/SUBQUERY hint, optimizer_switch setting determines
+    A SEMIJOIN hint will force semi-join regardless of optimizer_switch
+    settings. A NO_SEMIJOIN hint will only turn off semi-join if the variant
+    with no strategies is used. A SUBQUERY hint will turn off semi-join. If
+    there is no SEMIJOIN/SUBQUERY hint, optimizer_switch setting determines
     whether SEMIJOIN is used.
 
     @param thd  Pointer to THD object for session.
@@ -505,38 +472,33 @@ public:
   */
   void apply_join_order_hints(JOIN *join);
 
-private:
-  void register_join_order_hint(PT_qb_level_hint* hint_arg)
-  {
+ private:
+  void register_join_order_hint(PT_qb_level_hint *hint_arg) {
     join_order_hints.push_back(hint_arg);
   }
 };
-
 
 class PT_key_level_hint;
 
 /**
   Auxiluary class for compound key objects.
 */
-class Compound_key_hint
-{
-  PT_key_level_hint *pt_hint; // Pointer to PT_key_level_hint object.
-  Key_map key_map;            // Indexes, specified in the hint.
-  bool resolved;              // true if hint does not have unresolved index.
+class Compound_key_hint {
+  PT_key_level_hint *pt_hint;  // Pointer to PT_key_level_hint object.
+  Key_map key_map;             // Indexes, specified in the hint.
+  bool resolved;               // true if hint does not have unresolved index.
 
-public:
-
-  Compound_key_hint()
-  {
+ public:
+  Compound_key_hint() {
     key_map.init();
-    resolved= false;
-    pt_hint= NULL;
+    resolved = false;
+    pt_hint = NULL;
   }
 
-  void set_pt_hint( PT_key_level_hint *pt_hint_arg) { pt_hint= pt_hint_arg; }
+  void set_pt_hint(PT_key_level_hint *pt_hint_arg) { pt_hint = pt_hint_arg; }
   PT_key_level_hint *get_pt_hint() { return pt_hint; }
 
-  void set_resolved(bool arg) { resolved= arg; }
+  void set_resolved(bool arg) { resolved = arg; }
   bool is_resolved() { return resolved; }
 
   void set_key_map(uint i) { key_map.set_bit(i); }
@@ -544,23 +506,19 @@ public:
   bool is_key_map_clear_all() { return key_map.is_clear_all(); }
 };
 
-
 /**
   Table level hints.
 */
 
-class Opt_hints_table : public Opt_hints
-{
-public:
-  Mem_root_array<Opt_hints_key*> keyinfo_array;
+class Opt_hints_table : public Opt_hints {
+ public:
+  Mem_root_array<Opt_hints_key *> keyinfo_array;
   Compound_key_hint index_merge;
 
-  Opt_hints_table(const LEX_CSTRING *table_name_arg,
-                  Opt_hints_qb *qb_hints_arg,
+  Opt_hints_table(const LEX_CSTRING *table_name_arg, Opt_hints_qb *qb_hints_arg,
                   MEM_ROOT *mem_root_arg)
-    : Opt_hints(table_name_arg, qb_hints_arg, mem_root_arg),
-      keyinfo_array(mem_root_arg)
-  { }
+      : Opt_hints(table_name_arg, qb_hints_arg, mem_root_arg),
+        keyinfo_array(mem_root_arg) {}
 
   /**
     Append table name.
@@ -568,8 +526,7 @@ public:
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str) override
-  {
+  virtual void append_name(THD *thd, String *str) override {
     append_identifier(thd, str, get_name()->str, get_name()->length);
     get_parent()->append_name(thd, str);
   }
@@ -582,47 +539,37 @@ public:
   void adjust_key_hints(TABLE_LIST *table);
   virtual PT_hint *get_complex_hints(opt_hints_enum type) override;
 
-  void set_resolved() override
-  {
+  void set_resolved() override {
     Opt_hints::set_resolved();
-    if (is_specified(INDEX_MERGE_HINT_ENUM))
-      index_merge.set_resolved(true);
+    if (is_specified(INDEX_MERGE_HINT_ENUM)) index_merge.set_resolved(true);
   }
 
-  void set_unresolved(opt_hints_enum type_arg) override
-  {
-    if (type_arg == INDEX_MERGE_HINT_ENUM && is_specified(INDEX_MERGE_HINT_ENUM))
+  void set_unresolved(opt_hints_enum type_arg) override {
+    if (type_arg == INDEX_MERGE_HINT_ENUM &&
+        is_specified(INDEX_MERGE_HINT_ENUM))
       index_merge.set_resolved(false);
   }
 
-  bool is_resolved(opt_hints_enum type_arg) override
-  {
+  bool is_resolved(opt_hints_enum type_arg) override {
     if (type_arg == INDEX_MERGE_HINT_ENUM)
       return Opt_hints::is_resolved(type_arg) && index_merge.is_resolved();
     return Opt_hints::is_resolved(type_arg);
   }
 
-  void set_compound_key_hint_map(Opt_hints* hint, uint arg)
-  {
-    if (hint->is_specified(INDEX_MERGE_HINT_ENUM))
-      index_merge.set_key_map(arg);
+  void set_compound_key_hint_map(Opt_hints *hint, uint arg) {
+    if (hint->is_specified(INDEX_MERGE_HINT_ENUM)) index_merge.set_key_map(arg);
   }
 };
-
 
 /**
   Key level hints.
 */
 
-class Opt_hints_key : public Opt_hints
-{
-public:
-
+class Opt_hints_key : public Opt_hints {
+ public:
   Opt_hints_key(const LEX_CSTRING *key_name_arg,
-                Opt_hints_table *table_hints_arg,
-                MEM_ROOT *mem_root_arg)
-    : Opt_hints(key_name_arg, table_hints_arg, mem_root_arg)
-  { }
+                Opt_hints_table *table_hints_arg, MEM_ROOT *mem_root_arg)
+      : Opt_hints(key_name_arg, table_hints_arg, mem_root_arg) {}
 
   /**
     Append key name.
@@ -630,8 +577,7 @@ public:
     @param thd   pointer to THD object
     @param str   pointer to String object
   */
-  virtual void append_name(THD *thd, String *str)
-  {
+  virtual void append_name(THD *thd, String *str) {
     get_parent()->append_name(thd, str);
     str->append(' ');
     append_identifier(thd, str, get_name()->str, get_name()->length);
@@ -640,39 +586,32 @@ public:
     Ignore printing of the object since parent complex hint has
     its own printing method.
   */
-  virtual bool ignore_print(opt_hints_enum type_arg) const
-  {
+  virtual bool ignore_print(opt_hints_enum type_arg) const {
     return (type_arg == INDEX_MERGE_HINT_ENUM);
   }
 };
-
 
 /**
   Container for set_var object and original variable value.
 */
 
-class Hint_set_var
-{
-public:
-  Hint_set_var(set_var *var_arg) : var(var_arg), save_value(NULL)
-  { }
+class Hint_set_var {
+ public:
+  Hint_set_var(set_var *var_arg) : var(var_arg), save_value(NULL) {}
   set_var *var;      // Pointer to set_var object
   Item *save_value;  // Original variable value
 };
-
 
 /**
   SET_VAR hints.
 */
 
-class Sys_var_hint
-{
+class Sys_var_hint {
   // List of str_var variables which need to be updated.
-  Mem_root_array<Hint_set_var*> var_list;
+  Mem_root_array<Hint_set_var *> var_list;
 
-public:
-  Sys_var_hint(MEM_ROOT *mem_root_arg) : var_list(mem_root_arg)
-  {}
+ public:
+  Sys_var_hint(MEM_ROOT *mem_root_arg) : var_list(mem_root_arg) {}
   /**
     Add variable to hint list.
 
@@ -707,7 +646,6 @@ public:
   void print(String *str);
 };
 
-
 /**
   Returns key hint value if hint is specified, returns
   optimizer switch value if hint is not specified.
@@ -721,9 +659,8 @@ public:
   @return key hint value if hint is specified,
           otherwise optimizer switch value.
 */
-bool hint_key_state(const THD *thd, const TABLE_LIST *table,
-                    uint keyno, opt_hints_enum type_arg,
-                    uint optimizer_switch);
+bool hint_key_state(const THD *thd, const TABLE_LIST *table, uint keyno,
+                    opt_hints_enum type_arg, uint optimizer_switch);
 
 /**
   Returns table hint value if hint is specified, returns
@@ -738,8 +675,7 @@ bool hint_key_state(const THD *thd, const TABLE_LIST *table,
           otherwise optimizer switch value.
 */
 bool hint_table_state(const THD *thd, const TABLE_LIST *table,
-                      opt_hints_enum type_arg,
-                      uint optimizer_switch);
+                      opt_hints_enum type_arg, uint optimizer_switch);
 /**
    Append table and query block name.
 
@@ -748,8 +684,7 @@ bool hint_table_state(const THD *thd, const TABLE_LIST *table,
   @param qb_name    pointer to query block name, may be null
   @param table_name pointer to table name
 */
-void append_table_name(THD *thd, String *str,
-                       const LEX_CSTRING *qb_name,
+void append_table_name(THD *thd, String *str, const LEX_CSTRING *qb_name,
                        const LEX_CSTRING *table_name);
 
 /**
@@ -767,7 +702,6 @@ void append_table_name(THD *thd, String *str,
           specified keys, otherwise returns false.
 */
 bool idx_merge_key_enabled(const TABLE *table, uint keyno);
-
 
 /**
   Returns true if index merge hint state is on otherwise returns false.

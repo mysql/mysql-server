@@ -45,7 +45,7 @@ enum class Result {
   WRONG_INDEX = HA_ERR_WRONG_INDEX,
 };
 
-const char* result_to_string(Result r);
+const char *result_to_string(Result r);
 
 } /* namespace temptable */
 

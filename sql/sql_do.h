@@ -31,23 +31,20 @@
 
 class Item;
 class THD;
-template <class T> class List;
+template <class T>
+class List;
 
-class Sql_cmd_do final : public Sql_cmd_select
-{
-public:
-  explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg)
-  {}
+class Sql_cmd_do final : public Sql_cmd_select {
+ public:
+  explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg) {}
 
   enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
 };
 
-class Query_result_do final : public Query_result
-{
-public:
-  Query_result_do(THD *thd): Query_result(thd) {}
-  bool send_result_set_metadata(List<Item>&, uint) override
-  { return false; }
+class Query_result_do final : public Query_result {
+ public:
+  Query_result_do(THD *thd) : Query_result(thd) {}
+  bool send_result_set_metadata(List<Item> &, uint) override { return false; }
   bool send_data(List<Item> &items) override;
   bool send_eof() override;
   bool check_simple_select() const override { return false; }

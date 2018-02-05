@@ -47,35 +47,28 @@ struct THR_LOCK;
 */
 
 /** A row of PERFORMANCE_SCHEMA.SETUP_THREADS. */
-struct row_setup_threads
-{
+struct row_setup_threads {
   /** Columns NAME, ENABLED, HISTORY, PROPERTIES, VOLATILITY, DOCUMENTATION. */
   PFS_thread_class *m_instr_class;
 };
 
-class PFS_index_setup_threads : public PFS_engine_index
-{
-public:
-  PFS_index_setup_threads() : PFS_engine_index(&m_key), m_key("NAME")
-  {
-  }
+class PFS_index_setup_threads : public PFS_engine_index {
+ public:
+  PFS_index_setup_threads() : PFS_engine_index(&m_key), m_key("NAME") {}
 
-  ~PFS_index_setup_threads()
-  {
-  }
+  ~PFS_index_setup_threads() {}
 
   bool match(PFS_instr_class *klass);
 
-private:
+ private:
   PFS_key_event_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
-class table_setup_threads : public PFS_engine_table
-{
+class table_setup_threads : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-public:
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -89,25 +82,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  virtual int update_row_values(TABLE *table,
-                                const unsigned char *old_buf,
-                                unsigned char *new_buf,
-                                Field **fields);
+  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
+                                unsigned char *new_buf, Field **fields);
 
   table_setup_threads();
 
-public:
-  ~table_setup_threads()
-  {
-  }
+ public:
+  ~table_setup_threads() {}
 
-private:
+ private:
   int make_row(PFS_thread_class *klass);
 
   /** Table share lock. */

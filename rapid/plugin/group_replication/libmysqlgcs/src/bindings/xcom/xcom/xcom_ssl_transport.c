@@ -49,9 +49,7 @@ static const char *ssl_mode_options[] = {
     "DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY",
 };
 
-static const char *ssl_fips_mode_options[] = {
-    "OFF", "ON", "STRICT"
-};
+static const char *ssl_fips_mode_options[] = {"OFF", "ON", "STRICT"};
 
 #define SSL_MODE_OPTIONS_COUNT \
   (sizeof(ssl_mode_options) / sizeof(*ssl_mode_options))
@@ -62,7 +60,7 @@ static const char *ssl_fips_mode_options[] = {
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
 
-static const char* tls_ciphers_list= 
+static const char *tls_ciphers_list =
     "ECDHE-ECDSA-AES128-GCM-SHA256:"
     "ECDHE-ECDSA-AES256-GCM-SHA384:"
     "ECDHE-RSA-AES128-GCM-SHA256:"
@@ -89,7 +87,8 @@ static const char* tls_ciphers_list=
     "DH-DSS-AES256-SHA256:ECDH-ECDSA-AES256-SHA384:AES128-SHA:"
     "DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
     "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DHE-RSA-AES256-GCM-SHA384:"
-    "DH-RSA-AES128-GCM-SHA256:ECDH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-SHA384:"
+    "DH-RSA-AES128-GCM-SHA256:ECDH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-"
+    "SHA384:"
     "ECDH-RSA-AES256-GCM-SHA384:DH-RSA-AES128-SHA256:"
     "ECDH-RSA-AES128-SHA256:DH-RSA-AES256-SHA256:"
     "ECDH-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:"
@@ -99,7 +98,7 @@ static const char* tls_ciphers_list=
     "AES128-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
     "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:"
     "ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:DES-CBC3-SHA";
-static const char* tls_cipher_blocked=
+static const char *tls_cipher_blocked =
     "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:"
     "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
     "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
@@ -150,8 +149,8 @@ static unsigned char dh2048_g[] = {
 static DH *get_dh2048(void) {
   DH *dh;
   if ((dh = DH_new())) {
-    BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-    BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
+    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
     if (!p || !g
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
         || !DH_set0_pqg(dh, p, NULL, g)
@@ -162,8 +161,8 @@ static DH *get_dh2048(void) {
       return NULL;
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-    dh->p= p;
-    dh->g= g;
+    dh->p = p;
+    dh->g = g;
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
   return (dh);
@@ -182,25 +181,21 @@ SSL_CTX *client_ctx = NULL;
   considering multiple-byte characters as the original server
   code does.
 */
-static long process_tls_version(const char *tls_version)
-{
-  const char *separator= ", ";
-  char *token= NULL;
-  const char *tls_version_name_list[]= {
-    "TLSv1", "TLSv1.1", "TLSv1.2"
-  };
-  #define TLS_VERSIONS_COUNTS \
-    (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
-  unsigned int tls_versions_count= TLS_VERSIONS_COUNTS;
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS]= {
-    SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2
-  };
-  const char* ctx_flag_default= "TLSv1,TLSv1.1,TLSv1.2";
-  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
-  unsigned int index= 0;
-  char tls_version_option[TLS_VERSION_OPTION_SIZE]= "";
-  int tls_found= 0;
-  char *saved_ctx= NULL;
+static long process_tls_version(const char *tls_version) {
+  const char *separator = ", ";
+  char *token = NULL;
+  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
+#define TLS_VERSIONS_COUNTS \
+  (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
+  unsigned int tls_versions_count = TLS_VERSIONS_COUNTS;
+  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
+      SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
+  const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2";
+  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+  unsigned int index = 0;
+  char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
+  int tls_found = 0;
+  char *saved_ctx = NULL;
 
   if (!tls_version || !xcom_strcasecmp(tls_version, ctx_flag_default)) return 0;
 
@@ -250,13 +245,9 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
     goto error;
   }
 
-  ssl_ctx_options= (ssl_ctx_options | ssl_ctx_flags) &
-                   (SSL_OP_NO_SSLv2 |
-                    SSL_OP_NO_SSLv3 |
-                    SSL_OP_NO_TLSv1 |
-                    SSL_OP_NO_TLSv1_1 |
-                    SSL_OP_NO_TLSv1_2
-                   );
+  ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
+                    (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
+                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2);
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
 
@@ -294,21 +285,21 @@ error:
 #define OPENSSL_ERROR_LENGTH 512
 static int configure_ssl_fips_mode(const uint fips_mode) {
   int rc = -1;
-  unsigned int fips_mode_old= -1;
+  unsigned int fips_mode_old = -1;
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   unsigned long err_library = 0;
   if (fips_mode > 2) {
     goto EXIT;
   }
-  fips_mode_old= FIPS_mode();
+  fips_mode_old = FIPS_mode();
   if (fips_mode_old == fips_mode) {
-    rc= 1;
+    rc = 1;
     goto EXIT;
   }
-  if(!(rc = FIPS_mode_set(fips_mode))) {
+  if (!(rc = FIPS_mode_set(fips_mode))) {
     err_library = ERR_get_error();
-    ERR_error_string_n(err_library, err_string, sizeof(err_string)-1);
-    err_string[sizeof(err_string)-1] = '\0';
+    ERR_error_string_n(err_library, err_string, sizeof(err_string) - 1);
+    err_string[sizeof(err_string) - 1] = '\0';
     G_ERROR("openssl fips mode set failed: %s", err_string);
   }
 EXIT:
@@ -346,10 +337,9 @@ static int configure_ssl_revocation(SSL_CTX *ssl_ctx MY_ATTRIBUTE((unused)),
                                     const char *crl_file,
                                     const char *crl_path) {
   int retval = 0;
-  if (crl_file || crl_path)
-  {
+  if (crl_file || crl_path) {
 #ifndef HAVE_WOLFSSL
-    X509_STORE *store= SSL_CTX_get_cert_store(ssl_ctx);
+    X509_STORE *store = SSL_CTX_get_cert_store(ssl_ctx);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
         X509_STORE_set_flags(
@@ -682,9 +672,9 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  cn = (char *) ASN1_STRING_data(cn_asn1);
-#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  cn = (char *) ASN1_STRING_get0_data(cn_asn1);
+  cn = (char *)ASN1_STRING_data(cn_asn1);
+#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  cn = (char *)ASN1_STRING_get0_data(cn_asn1);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   /* There should not be any NULL embedded in the CN */

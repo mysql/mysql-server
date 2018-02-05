@@ -40,45 +40,42 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_table.h"
 
-#define PSI_TABLE_CALL(M) pfs_ ## M ## _v1
+#define PSI_TABLE_CALL(M) pfs_##M##_v1
 
-PSI_table_share*
-pfs_get_table_share_v1(bool temporary, struct TABLE_SHARE *share);
+PSI_table_share *pfs_get_table_share_v1(bool temporary,
+                                        struct TABLE_SHARE *share);
 
-void pfs_release_table_share_v1(PSI_table_share* share);
+void pfs_release_table_share_v1(PSI_table_share *share);
 
-void
-pfs_drop_table_share_v1(bool temporary,
-                        const char *schema_name, int schema_name_length,
-                        const char *table_name, int table_name_length);
+void pfs_drop_table_share_v1(bool temporary, const char *schema_name,
+                             int schema_name_length, const char *table_name,
+                             int table_name_length);
 
-PSI_table*
-pfs_open_table_v1(PSI_table_share *share, const void *identity);
+PSI_table *pfs_open_table_v1(PSI_table_share *share, const void *identity);
 
 void pfs_unbind_table_v1(PSI_table *table);
 
-PSI_table *
-pfs_rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *table);
+PSI_table *pfs_rebind_table_v1(PSI_table_share *share, const void *identity,
+                               PSI_table *table);
 
 void pfs_close_table_v1(struct TABLE_SHARE *server_share, PSI_table *table);
 
-PSI_table_locker*
-pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
-                           PSI_table *table,
-                           PSI_table_io_operation op,
-                           uint index,
-                           const char *src_file, uint src_line);
+PSI_table_locker *pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
+                                             PSI_table *table,
+                                             PSI_table_io_operation op,
+                                             uint index, const char *src_file,
+                                             uint src_line);
 
-PSI_table_locker*
-pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
-                             PSI_table *table,
-                             PSI_table_lock_operation op,
-                             ulong op_flags,
-                             const char *src_file, uint src_line);
+PSI_table_locker *pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
+                                               PSI_table *table,
+                                               PSI_table_lock_operation op,
+                                               ulong op_flags,
+                                               const char *src_file,
+                                               uint src_line);
 
-void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows);
+void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows);
 
-void pfs_end_table_lock_wait_v1(PSI_table_locker* locker);
+void pfs_end_table_lock_wait_v1(PSI_table_locker *locker);
 
 void pfs_unlock_table_v1(PSI_table *table);
 
@@ -87,4 +84,3 @@ void pfs_unlock_table_v1(PSI_table *table);
 #endif /* HAVE_PSI_TABLE_INTERFACE */
 
 #endif
-

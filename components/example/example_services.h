@@ -29,52 +29,49 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   A Service to get greeting message.
 */
 BEGIN_SERVICE_DEFINITION(greetings)
-  /**
-    Retrieves a greeting message.
+/**
+  Retrieves a greeting message.
 
-    @param [out] hello_string A pointer to string data pointer to store result
-      in.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
-  */
-  DECLARE_BOOL_METHOD(say_hello,
-    (const char** hello_string));
+  @param [out] hello_string A pointer to string data pointer to store result
+    in.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+DECLARE_BOOL_METHOD(say_hello, (const char **hello_string));
 END_SERVICE_DEFINITION(greetings)
 
 /**
   A Service to get localization information on related greetings Service.
 */
 BEGIN_SERVICE_DEFINITION(greetings_localization)
-  /**
-    Retrieves a greeting message language of related greeting Service.
+/**
+  Retrieves a greeting message language of related greeting Service.
 
-    @param [out] language_string A pointer to string data pointer to store name
-      of the language in.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
-  */
-  DECLARE_BOOL_METHOD(get_language,
-    (const char** language_string));
+  @param [out] language_string A pointer to string data pointer to store name
+    of the language in.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+DECLARE_BOOL_METHOD(get_language, (const char **language_string));
 END_SERVICE_DEFINITION(greetings_localization)
 
 /**
   A Service for example basic math functionality.
 */
 BEGIN_SERVICE_DEFINITION(example_math)
-  /**
-    Calculates Greatest Common Divisor for given two non-negative numbers.
+/**
+  Calculates Greatest Common Divisor for given two non-negative numbers.
 
-    @param a First number to calculate GCD of.
-    @param b Second number to calculate GCD of.
-    @param [out] result A pointer to integer variable to store result in.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
-  */
-  DECLARE_BOOL_METHOD(calculate_gcd,
-    (int a, int b, int* result));
+  @param a First number to calculate GCD of.
+  @param b Second number to calculate GCD of.
+  @param [out] result A pointer to integer variable to store result in.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+DECLARE_BOOL_METHOD(calculate_gcd, (int a, int b, int *result));
 END_SERVICE_DEFINITION(example_math)
 
 #endif /* EXAMPLE_SERVICES_H */

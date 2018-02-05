@@ -26,10 +26,10 @@
 #include <string>
 
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/types/entity_object_table_impl.h" // dd::Dictionary_obj...
+#include "sql/dd/impl/types/entity_object_table_impl.h"  // dd::Dictionary_obj...
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/routine.h"                       // dd::Routine
+#include "sql/dd/types/routine.h"  // dd::Routine
 
 namespace dd {
 class Object_key;
@@ -39,13 +39,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Routines : public Entity_object_table_impl
-{
-public:
+class Routines : public Entity_object_table_impl {
+ public:
   static const Routines &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_SCHEMA_ID,
     FIELD_NAME,
@@ -76,8 +74,7 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
+  enum enum_indexes {
     INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
     INDEX_UK_SCHEMA_ID_TYPE_NAME,
     INDEX_K_RESULT_COLLATION_ID,
@@ -86,8 +83,7 @@ public:
     INDEX_K_SCHEMA_COLLATION_ID
   };
 
-  enum enum_foreign_keys
-  {
+  enum enum_foreign_keys {
     FK_SCHEMA_ID,
     FK_RESULT_COLLATION_ID,
     FK_CLIENT_COLLATION_ID,
@@ -99,8 +95,7 @@ public:
 
   virtual Routine *create_entity_object(const Raw_record &) const;
 
-  static bool update_object_key(Routine_name_key *key,
-                                Object_id schema_id,
+  static bool update_object_key(Routine_name_key *key, Object_id schema_id,
                                 Routine::enum_routine_type type,
                                 const String_type &routine_name);
 
@@ -109,7 +104,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__ROUTINES_INCLUDED
+#endif  // DD_TABLES__ROUTINES_INCLUDED

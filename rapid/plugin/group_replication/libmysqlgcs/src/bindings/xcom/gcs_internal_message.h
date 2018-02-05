@@ -66,12 +66,8 @@
  that is processing this header. @c Gcs_msg_stage for additional details.
  */
 
-
-
-class Gcs_internal_message_header
-{
-public:
-
+class Gcs_internal_message_header {
+ public:
   /**
    The protocol version number.
    */
@@ -80,27 +76,27 @@ public:
   /**
    The protocol version number.
    */
-  static const unsigned  short WIRE_VERSION_SIZE;
+  static const unsigned short WIRE_VERSION_SIZE;
 
   /**
    The on-the-wire size of the header length field.
    */
-  static const unsigned  short WIRE_HD_LEN_SIZE;
+  static const unsigned short WIRE_HD_LEN_SIZE;
 
   /**
    The on-the-wire size of the message size field.
    */
-  static const unsigned  short WIRE_MSG_LEN_SIZE;
+  static const unsigned short WIRE_MSG_LEN_SIZE;
 
   /**
    The on-the-wire size of the cargo type field.
    */
-  static const unsigned  short WIRE_CARGO_TYPE_SIZE;
+  static const unsigned short WIRE_CARGO_TYPE_SIZE;
 
   /**
    The on-the-wire size of the dynamic headers length field.
    */
-  static const unsigned  short WIRE_DYNAMIC_HDRS_LEN_SIZE;
+  static const unsigned short WIRE_DYNAMIC_HDRS_LEN_SIZE;
 
   /**
    The on-the-wire offset of the dynamic headers length field.
@@ -115,33 +111,33 @@ public:
   /**
    The on-the-wire size of the fixed header.
    */
-  static const unsigned  short WIRE_FIXED_HEADER_SIZE;
+  static const unsigned short WIRE_FIXED_HEADER_SIZE;
 
   /**
    The different cargo type codes.
 
    NOTE: all type values must fit into WIRE_CARGO_TYPE_SIZE bytes storage.
    */
-  enum enum_cargo_type
-  {
+  enum enum_cargo_type {
     // this type should not be used anywhere.
-    CT_UNKNOWN= 0,
+    CT_UNKNOWN = 0,
 
-    // this cargo type is used for internal messaging related to stage exchanges.
-    CT_INTERNAL_STATE_EXCHANGE= 1,
+    // this cargo type is used for internal messaging related to stage
+    // exchanges.
+    CT_INTERNAL_STATE_EXCHANGE = 1,
 
     // this cargo type is used for messages from the application
-    CT_USER_DATA= 2,
+    CT_USER_DATA = 2,
 
     /**
      No valid type codes can appear after this one. If a type code is to
      be added, this value needs to be incremented and the lowest type code
      available be assigned to the new stage.
      */
-    CT_MAX= 3
+    CT_MAX = 3
   };
 
-private:
+ private:
   /**
    This header instance protocol version.
    */
@@ -167,22 +163,20 @@ private:
    */
   enum_cargo_type m_cargo_type;
 
-public:
+ public:
   explicit Gcs_internal_message_header()
-  : m_version(GCS_PROTO_VERSION),
-    m_fixed_header_len(WIRE_FIXED_HEADER_SIZE),
-    m_msg_len(WIRE_FIXED_HEADER_SIZE),
-    m_dynamic_headers_len(0),
-    m_cargo_type(CT_UNKNOWN)
-  { }
+      : m_version(GCS_PROTO_VERSION),
+        m_fixed_header_len(WIRE_FIXED_HEADER_SIZE),
+        m_msg_len(WIRE_FIXED_HEADER_SIZE),
+        m_dynamic_headers_len(0),
+        m_cargo_type(CT_UNKNOWN) {}
 
   explicit Gcs_internal_message_header(enum_cargo_type cargo_type)
-  : m_version(GCS_PROTO_VERSION),
-    m_fixed_header_len(WIRE_FIXED_HEADER_SIZE),
-    m_msg_len(WIRE_FIXED_HEADER_SIZE),
-    m_dynamic_headers_len(0),
-    m_cargo_type(cargo_type)
- { }
+      : m_version(GCS_PROTO_VERSION),
+        m_fixed_header_len(WIRE_FIXED_HEADER_SIZE),
+        m_msg_len(WIRE_FIXED_HEADER_SIZE),
+        m_dynamic_headers_len(0),
+        m_cargo_type(cargo_type) {}
 
   /**
    @return the value of the version field.
@@ -207,14 +201,16 @@ public:
   /**
    @return sets the message length field value.
    */
-  void set_msg_length(unsigned long long len) { m_msg_len= len; }
+  void set_msg_length(unsigned long long len) { m_msg_len = len; }
 
   /**
    Sets the dynamic headers length field value.
 
    @param len the dynamic headers value.
    */
-  void set_dynamic_headers_length(unsigned int len) { m_dynamic_headers_len= len; }
+  void set_dynamic_headers_length(unsigned int len) {
+    m_dynamic_headers_len = len;
+  }
 
   /**
    @return the dynamic headers length field value.
@@ -226,7 +222,9 @@ public:
 
    @param type cargo type to set
   */
-  void set_cargo_type(Gcs_internal_message_header::enum_cargo_type type) { m_cargo_type = type; }
+  void set_cargo_type(Gcs_internal_message_header::enum_cargo_type type) {
+    m_cargo_type = type;
+  }
 
   /**
    Decodes the contents of the buffer and sets the field values according to
@@ -235,7 +233,7 @@ public:
    @param buffer the buffer to decode from.
    @return false on success, true otherwise.
    */
-  bool encode(unsigned char* buffer);
+  bool encode(unsigned char *buffer);
 
   /**
    Encodes the contents of this instance into the buffer. The encoding SHALL
@@ -244,16 +242,15 @@ public:
    @param buffer the buffer to encode to.
    @return false on success, true otherwise.
    */
-  bool decode(const unsigned char* buffer);
+  bool decode(const unsigned char *buffer);
 };
 
 /**
  This class is an abstraction for the packet concept. It is used to manipulate
  the contents of a buffer that is to be sent to the network in an optimal way.
  */
-class Gcs_packet
-{
-private:
+class Gcs_packet {
+ private:
   /**
    The buffer containing the data for this packet.
    */
@@ -277,15 +274,14 @@ private:
   /**
    The offset of the current dynamic header within the buffer.
    */
-  unsigned int m_dyn_headers_len;   // always points to the next header
+  unsigned int m_dyn_headers_len;  // always points to the next header
 
   /**
    The length of the payload.
    */
   unsigned long long m_payload_len;
 
-public:
-
+ public:
   /**
    Reallocations are done in chunks. This is the minimum amount of memory
    that is reallocated each time.
@@ -301,13 +297,12 @@ public:
    @param capacity the size of the buffer.
    */
   explicit Gcs_packet(unsigned char *buffer, unsigned long long capacity)
-  : m_buffer(buffer),
-    m_capacity(capacity),
-    m_length(0),
-    m_header_len(0),
-    m_dyn_headers_len(0),
-    m_payload_len(0)
-  {
+      : m_buffer(buffer),
+        m_capacity(capacity),
+        m_length(0),
+        m_header_len(0),
+        m_dyn_headers_len(0),
+        m_payload_len(0) {
     Gcs_internal_message_header hd;
     hd.decode(buffer);
 
@@ -322,94 +317,56 @@ public:
    @param capacity the capacity that this packet should be set to.
    */
   explicit Gcs_packet(unsigned long long capacity)
-  : m_buffer(NULL),
-    m_capacity(0),
-    m_length(0),
-    m_header_len(0),
-    m_dyn_headers_len(0),
-    m_payload_len(0)
-  {
-    if (capacity > 0)
-    {
-      m_capacity= (((capacity + BLOCK_SIZE) / BLOCK_SIZE) + 1) * BLOCK_SIZE;
-      m_buffer= (unsigned char *) malloc(m_capacity);
+      : m_buffer(NULL),
+        m_capacity(0),
+        m_length(0),
+        m_header_len(0),
+        m_dyn_headers_len(0),
+        m_payload_len(0) {
+    if (capacity > 0) {
+      m_capacity = (((capacity + BLOCK_SIZE) / BLOCK_SIZE) + 1) * BLOCK_SIZE;
+      m_buffer = (unsigned char *)malloc(m_capacity);
     }
   }
 
-  virtual ~Gcs_packet() { }
+  virtual ~Gcs_packet() {}
 
-  void set_payload_length(unsigned long long pl)
-  {
-    m_payload_len= pl;
-  }
+  void set_payload_length(unsigned long long pl) { m_payload_len = pl; }
 
-  unsigned long long get_payload_length()
-  {
-    return m_payload_len;
-  }
+  unsigned long long get_payload_length() { return m_payload_len; }
 
-  void set_length(unsigned long long l)
-  {
-    m_length= l;
-  }
+  void set_length(unsigned long long l) { m_length = l; }
 
-  unsigned long long get_length()
-  {
-    return m_length;
-  }
+  unsigned long long get_length() { return m_length; }
 
-  const unsigned char *get_header()
-  {
-    return m_buffer;
-  }
+  const unsigned char *get_header() { return m_buffer; }
 
-  unsigned char *get_payload()
-  {
-    return m_buffer + m_header_len;
-  }
+  unsigned char *get_payload() { return m_buffer + m_header_len; }
 
-  void set_dyn_headers_length(unsigned int o)
-  {
-    m_dyn_headers_len= o;
-  }
+  void set_dyn_headers_length(unsigned int o) { m_dyn_headers_len = o; }
 
-  unsigned int get_dyn_headers_length()
-  {
-    return m_dyn_headers_len;
-  }
+  unsigned int get_dyn_headers_length() { return m_dyn_headers_len; }
 
-  unsigned char *get_buffer()
-  {
-    return m_buffer;
-  }
+  unsigned char *get_buffer() { return m_buffer; }
 
-  unsigned char *swap_buffer(unsigned char *b, unsigned long long c)
-  {
-    unsigned char *cur= m_buffer;
-    m_buffer= b;
-    m_capacity= c;
+  unsigned char *swap_buffer(unsigned char *b, unsigned long long c) {
+    unsigned char *cur = m_buffer;
+    m_buffer = b;
+    m_capacity = c;
     return cur;
   }
 
-  void set_header_length(unsigned int hd_len)
-  {
-    m_header_len= hd_len;
-  }
+  void set_header_length(unsigned int hd_len) { m_header_len = hd_len; }
 
-  unsigned int get_header_length()
-  {
-    return m_header_len;
-  }
+  unsigned int get_header_length() { return m_header_len; }
 
-  unsigned long long get_capacity()
-  {
-    return m_capacity;
-  }
+  unsigned long long get_capacity() { return m_capacity; }
 
   void reload_header(Gcs_internal_message_header &hd);
-private:
+
+ private:
   // make copy and assignment constructors private
   Gcs_packet(Gcs_packet &p);
-  Gcs_packet& operator=(const Gcs_packet& p);
+  Gcs_packet &operator=(const Gcs_packet &p);
 };
 #endif

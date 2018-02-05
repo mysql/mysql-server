@@ -63,8 +63,7 @@
 #define mysql_mdl_set_status(L, S) inline_mysql_mdl_set_status(L, S)
 #else
 #define mysql_mdl_set_status(L, S) \
-  do                               \
-  {                                \
+  do {                             \
   } while (0)
 #endif
 
@@ -77,57 +76,42 @@
 #define mysql_mdl_destroy(M) inline_mysql_mdl_destroy(M, __FILE__, __LINE__)
 #else
 #define mysql_mdl_destroy(M) \
-  do                         \
-  {                          \
+  do {                       \
   } while (0)
 #endif
 
 #ifdef HAVE_PSI_METADATA_INTERFACE
 
-static inline PSI_metadata_lock *
-inline_mysql_mdl_create(void *identity,
-                        const MDL_key *mdl_key,
-                        enum_mdl_type mdl_type,
-                        enum_mdl_duration mdl_duration,
-                        MDL_ticket::enum_psi_status mdl_status,
-                        const char *src_file,
-                        uint src_line)
-{
+static inline PSI_metadata_lock *inline_mysql_mdl_create(
+    void *identity, const MDL_key *mdl_key, enum_mdl_type mdl_type,
+    enum_mdl_duration mdl_duration, MDL_ticket::enum_psi_status mdl_status,
+    const char *src_file, uint src_line) {
   PSI_metadata_lock *result;
 
   /* static_cast: Fit a round C++ enum peg into a square C int hole ... */
   result = PSI_METADATA_CALL(create_metadata_lock)(
-    identity,
-    mdl_key,
-    static_cast<opaque_mdl_type>(mdl_type),
-    static_cast<opaque_mdl_duration>(mdl_duration),
-    static_cast<opaque_mdl_status>(mdl_status),
-    src_file,
-    src_line);
+      identity, mdl_key, static_cast<opaque_mdl_type>(mdl_type),
+      static_cast<opaque_mdl_duration>(mdl_duration),
+      static_cast<opaque_mdl_status>(mdl_status), src_file, src_line);
 
   return result;
 }
 
-static inline void
-inline_mysql_mdl_set_status(PSI_metadata_lock *psi,
-                            MDL_ticket::enum_psi_status mdl_status)
-{
-  if (psi != NULL)
-  {
+static inline void inline_mysql_mdl_set_status(
+    PSI_metadata_lock *psi, MDL_ticket::enum_psi_status mdl_status) {
+  if (psi != NULL) {
     PSI_METADATA_CALL(set_metadata_lock_status)(psi, mdl_status);
   }
 }
 
-static inline void
-inline_mysql_mdl_destroy(PSI_metadata_lock *psi, const char *, uint)
-{
-  if (psi != NULL)
-  {
+static inline void inline_mysql_mdl_destroy(PSI_metadata_lock *psi,
+                                            const char *, uint) {
+  if (psi != NULL) {
     PSI_METADATA_CALL(destroy_metadata_lock)(psi);
   }
 }
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 
-/** @} (end of group psi_api_mdl) */
+  /** @} (end of group psi_api_mdl) */
 
 #endif

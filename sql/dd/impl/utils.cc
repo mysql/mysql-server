@@ -24,20 +24,17 @@
 
 #include <string>
 
-#include "sql/dd/properties.h"      // dd::Properties
+#include "sql/dd/properties.h"  // dd::Properties
 #include "sql/stateless_allocator.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-void escape(String_type *sp, const String_type &src)
-{
-  const String_type::const_iterator src_end= src.end();
-  for (String_type::const_iterator s= src.begin(); s != src_end; ++s)
-  {
-    if (*s == '\\' || *s == '=' || *s == ';')
-    {
+void escape(String_type *sp, const String_type &src) {
+  const String_type::const_iterator src_end = src.end();
+  for (String_type::const_iterator s = src.begin(); s != src_end; ++s) {
+    if (*s == '\\' || *s == '=' || *s == ';') {
       sp->append(1, '\\');
     }
     sp->append(1, *s);
@@ -46,13 +43,10 @@ void escape(String_type *sp, const String_type &src)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool unescape(String_type &dest)
-{
+bool unescape(String_type &dest) {
   String_type tmp_dest;
-  for (String_type::iterator d= dest.begin(); d != dest.end(); d++)
-  {
-    if (*d == '\\')
-    {
+  for (String_type::iterator d = dest.begin(); d != dest.end(); d++) {
+    if (*d == '\\') {
       // An escape character preceeding end is an error, it must be succeeded
       // by an escapable character.
       if ((d + 1) != dest.end() &&
@@ -63,35 +57,28 @@ bool unescape(String_type &dest)
     }
     tmp_dest.push_back(*d);
   }
-  dest= tmp_dest;
+  dest = tmp_dest;
 
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool eat_to(String_type::const_iterator &it,
-            String_type::const_iterator end,
-            char c)
-{
+bool eat_to(String_type::const_iterator &it, String_type::const_iterator end,
+            char c) {
   // Verify valid stop characters
-  if (c != '=' && c != ';')
-    return true;
+  if (c != '=' && c != ';') return true;
 
   // Loop until end of string or stop character
-  while (it != end && *it != c)
-  {
+  while (it != end && *it != c) {
     // Unexpected unescaped stop character is an error
-    if ((*it == '=' && c == ';') || (*it == ';' && c == '='))
-      return true;
+    if ((*it == '=' && c == ';') || (*it == ';' && c == '=')) return true;
 
     // The escape character must be succeeded by an escapable character
-    if (*it == '\\')
-    {
+    if (*it == '\\') {
       it++;
       // Hitting end here is an error, we must have an escapable character
-      if (it == end || (*it != '\\' && *it != '=' && *it != ';'))
-        return true;
+      if (it == end || (*it != '\\' && *it != '=' && *it != ';')) return true;
     }
 
     // Advance iterator, also after finding an escapable character
@@ -105,46 +92,38 @@ bool eat_to(String_type::const_iterator &it,
 ///////////////////////////////////////////////////////////////////////////
 
 bool eat_str(String_type &dest, String_type::const_iterator &it,
-             String_type::const_iterator end, char c)
-{
+             String_type::const_iterator end, char c) {
   // Save starting point for later copying
-  String_type::const_iterator start= it;
+  String_type::const_iterator start = it;
 
   // Find the first unescaped occurrence of c, or the end
-  if (eat_to(it, end, c))
-    return true;
+  if (eat_to(it, end, c)) return true;
 
   // Create destination string up to, but not including c
-  dest= String_type(start, it);
+  dest = String_type(start, it);
 
   // Remove escape characters
-  if (unescape(dest))
-    return true;
+  if (unescape(dest)) return true;
 
   // Make iterator point to character after c or at the end of the string
-  if (it != end)
-    it++;
+  if (it != end) it++;
 
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool eat_pairs(String_type::const_iterator &it,
-               String_type::const_iterator end,
-               dd::Properties *props)
-{
+bool eat_pairs(String_type::const_iterator &it, String_type::const_iterator end,
+               dd::Properties *props) {
   String_type key("");
   String_type val("");
 
   if (it == end) return false;
 
-  if (eat_str(key, it, end, '=') || eat_str(val, it, end, ';'))
-    return true;
+  if (eat_str(key, it, end, '=') || eat_str(val, it, end, ';')) return true;
 
   // Empty keys are rejected, empty values are ok
-  if (key == "")
-    return true;
+  if (key == "") return true;
 
   props->set(key, val);
 
@@ -153,4 +132,4 @@ bool eat_pairs(String_type::const_iterator &it,
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

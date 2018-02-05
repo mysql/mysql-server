@@ -25,24 +25,23 @@
 namespace dd {
 namespace system_views {
 
-const Collations &Collations::instance()
-{
-  static Collations *s_instance= new Collations();
+const Collations &Collations::instance() {
+  static Collations *s_instance = new Collations();
   return *s_instance;
 }
 
-Collations::Collations()
-{
+Collations::Collations() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "col.name");
   m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
                          "cs.name");
   m_target_def.add_field(FIELD_ID, "ID", "col.id");
-  m_target_def.add_field(FIELD_IS_DEFAULT, "IS_DEFAULT",
-    "IF(EXISTS(SELECT * FROM mysql.character_sets "
-    "          WHERE mysql.character_sets.default_collation_id= col.id),"
-    "   'Yes','')");
+  m_target_def.add_field(
+      FIELD_IS_DEFAULT, "IS_DEFAULT",
+      "IF(EXISTS(SELECT * FROM mysql.character_sets "
+      "          WHERE mysql.character_sets.default_collation_id= col.id),"
+      "   'Yes','')");
   m_target_def.add_field(FIELD_IS_COMPILED, "IS_COMPILED",
                          "IF(col.is_compiled,'Yes','')");
   m_target_def.add_field(FIELD_SORTLEN, "SORTLEN", "col.sort_length");
@@ -50,9 +49,10 @@ Collations::Collations()
                          "col.pad_attribute");
 
   m_target_def.add_from("mysql.collations col");
-  m_target_def.add_from("JOIN mysql.character_sets cs ON "
-                        "col.character_set_id=cs.id ");
+  m_target_def.add_from(
+      "JOIN mysql.character_sets cs ON "
+      "col.character_set_id=cs.id ");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

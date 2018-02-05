@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -26,15 +26,10 @@
 
 #include <algorithm>
 
-
-namespace details {
-
-}  // namespace details
+namespace details {}  // namespace details
 
 Block_processor::Result Command_multiline_processor::feed(
-    std::istream &input,
-    const char *command_line) {
-
+    std::istream &input, const char *command_line) {
   if (!is_multiline(command_line)) {
     return Result::Not_hungry;
   }
@@ -42,28 +37,20 @@ Block_processor::Result Command_multiline_processor::feed(
   const char *out_full_command = nullptr;
   bool out_wrong_format = false;
 
-  if (!append_and_check_command(
-      command_line,
-        &out_full_command,
-        &out_wrong_format)) {
-    return out_wrong_format ?
-        Result::Indigestion :
-        Result::Feed_more;
+  if (!append_and_check_command(command_line, &out_full_command,
+                                &out_wrong_format)) {
+    return out_wrong_format ? Result::Indigestion : Result::Feed_more;
   }
 
   return execute(input, out_full_command);
 }
 
-bool Command_multiline_processor::is_multiline(
-    const char *command_line) {
-  if (m_eating_multiline)
-    return true;
+bool Command_multiline_processor::is_multiline(const char *command_line) {
+  if (m_eating_multiline) return true;
 
   bool out_has_command_prefix;
   const bool command_found = m_command.is_command_registred(
-      command_line,
-      nullptr,
-      &out_has_command_prefix);
+      command_line, nullptr, &out_has_command_prefix);
 
   if (command_found && !out_has_command_prefix) {
     m_multiline_command = "";
@@ -75,10 +62,8 @@ bool Command_multiline_processor::is_multiline(
   return false;
 }
 
-
 bool Command_multiline_processor::append_and_check_command(
-    const char *command_line,
-    const char **out_full_command,
+    const char *command_line, const char **out_full_command,
     bool *out_wrong_format) {
   const char *end_of_command = strstr(command_line, ";");
 
@@ -88,17 +73,14 @@ bool Command_multiline_processor::append_and_check_command(
     return false;
   } else {
     m_eating_multiline = false;
-    m_multiline_command.append(
-        command_line,
-        end_of_command - command_line);
+    m_multiline_command.append(command_line, end_of_command - command_line);
   }
 
-  const bool are_whitespaces_only = std::all_of(
-      end_of_command + 1,
-      end_of_command + strlen(end_of_command),
-      [](const char element) -> bool {
-        return element == ' ' || element == '\t';
-      });
+  const bool are_whitespaces_only =
+      std::all_of(end_of_command + 1, end_of_command + strlen(end_of_command),
+                  [](const char element) -> bool {
+                    return element == ' ' || element == '\t';
+                  });
 
   m_eating_multiline = false;
   *out_full_command = m_multiline_command.c_str();

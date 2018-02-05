@@ -53,27 +53,25 @@
   hooks within libmysql code.
 */
 
-
+#include "mysql_trace.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql_trace.h"
 
 /*
   Definition of the global trace_plugin pointer - see plugin_trace.h
   for declaration and description.
 */
-struct st_mysql_client_plugin_TRACE *trace_plugin= NULL;
+struct st_mysql_client_plugin_TRACE *trace_plugin = NULL;
 
 /*
   Macros for manipulating trace_info structure.
 */
-#define GET_DATA(TI)      (TI)->trace_plugin_data
-#define GET_STAGE(TI)     (TI)->stage
-#define TEST_STAGE(TI,X)  (GET_STAGE(TI) == PROTOCOL_STAGE_ ## X)
-
+#define GET_DATA(TI) (TI)->trace_plugin_data
+#define GET_STAGE(TI) (TI)->stage
+#define TEST_STAGE(TI, X) (GET_STAGE(TI) == PROTOCOL_STAGE_##X)
 
 /**
   Initialize tracing in a given connection.
@@ -83,15 +81,13 @@ struct st_mysql_client_plugin_TRACE *trace_plugin= NULL;
   structure which is then attached to the connection handle.
 */
 
-void mysql_trace_start(MYSQL *m)
-{
+void mysql_trace_start(MYSQL *m) {
   struct st_mysql_trace_info *trace_info;
 
-  trace_info= (st_mysql_trace_info *)my_malloc(PSI_NOT_INSTRUMENTED,
-                        sizeof(struct st_mysql_trace_info),
-                        MYF(MY_ZEROFILL));
-  if (!trace_info)
-  {
+  trace_info = (st_mysql_trace_info *)my_malloc(
+      PSI_NOT_INSTRUMENTED, sizeof(struct st_mysql_trace_info),
+      MYF(MY_ZEROFILL));
+  if (!trace_info) {
     /*
       Note: in this case trace_data of the connection will
       remain NULL and thus tracing will be disabled.
@@ -106,30 +102,24 @@ void mysql_trace_start(MYSQL *m)
   */
   DBUG_ASSERT(trace_plugin);
 
-  trace_info->plugin= trace_plugin;
-  trace_info->stage=  PROTOCOL_STAGE_CONNECTING;
+  trace_info->plugin = trace_plugin;
+  trace_info->stage = PROTOCOL_STAGE_CONNECTING;
 
   /*
     Call plugin's tracing_start() method, if defined.
   */
 
-  if (trace_info->plugin->tracing_start)
-  {
-    trace_info->trace_plugin_data=
-      trace_info->plugin->tracing_start(
-        trace_info->plugin,
-        m, PROTOCOL_STAGE_CONNECTING);
-  }
-  else
-  {
-    trace_info->trace_plugin_data= NULL;
+  if (trace_info->plugin->tracing_start) {
+    trace_info->trace_plugin_data = trace_info->plugin->tracing_start(
+        trace_info->plugin, m, PROTOCOL_STAGE_CONNECTING);
+  } else {
+    trace_info->trace_plugin_data = NULL;
   }
 
   /* Store trace_info in the connection handle. */
 
-  TRACE_DATA(m)= trace_info;
+  TRACE_DATA(m) = trace_info;
 }
-
 
 /**
   Report a protocol trace event to trace plugin.
@@ -144,13 +134,12 @@ void mysql_trace_start(MYSQL *m)
   @param args     trace event arguments
 */
 
-void mysql_trace_trace(MYSQL  *m,
-                       enum trace_event ev,
-                       struct st_trace_event_args args)
-{
-  struct st_mysql_trace_info *trace_info= TRACE_DATA(m);
-  struct st_mysql_client_plugin_TRACE *plugin= trace_info ? trace_info->plugin : NULL;
-  int    quit_tracing= 0;
+void mysql_trace_trace(MYSQL *m, enum trace_event ev,
+                       struct st_trace_event_args args) {
+  struct st_mysql_trace_info *trace_info = TRACE_DATA(m);
+  struct st_mysql_client_plugin_TRACE *plugin =
+      trace_info ? trace_info->plugin : NULL;
+  int quit_tracing = 0;
 
   /*
     If trace_info is NULL then this connection is not traced and this
@@ -161,31 +150,28 @@ void mysql_trace_trace(MYSQL  *m,
 
   /* Call plugin's trace_event() method if defined */
 
-  if (plugin->trace_event)
-  {
+  if (plugin->trace_event) {
     /*
       Temporarily disable tracing while executing plugin's method
       by setting trace data pointer to NULL. Also, set reconnect
       flag to 0 in case plugin executes any queries.
     */
-    bool saved_reconnect_flag= m->reconnect;
+    bool saved_reconnect_flag = m->reconnect;
 
-    TRACE_DATA(m)= NULL;
-    m->reconnect=  0;
-    quit_tracing= plugin->trace_event(plugin, GET_DATA(trace_info), m,
-                                      GET_STAGE(trace_info), ev, args);
-    m->reconnect= saved_reconnect_flag;
-    TRACE_DATA(m)= trace_info;
+    TRACE_DATA(m) = NULL;
+    m->reconnect = 0;
+    quit_tracing = plugin->trace_event(plugin, GET_DATA(trace_info), m,
+                                       GET_STAGE(trace_info), ev, args);
+    m->reconnect = saved_reconnect_flag;
+    TRACE_DATA(m) = trace_info;
   }
 
   /* Stop tracing if requested or end of connection. */
 
-  if (quit_tracing
-      || TEST_STAGE(trace_info, DISCONNECTED)
-      || TRACE_EVENT_DISCONNECTED == ev)
-  {
+  if (quit_tracing || TEST_STAGE(trace_info, DISCONNECTED) ||
+      TRACE_EVENT_DISCONNECTED == ev) {
     /* Note: this disables further tracing */
-    TRACE_DATA(m)= NULL;
+    TRACE_DATA(m) = NULL;
 
     if (plugin->tracing_stop)
       plugin->tracing_stop(plugin, m, GET_DATA(trace_info));
@@ -194,35 +180,35 @@ void mysql_trace_trace(MYSQL  *m,
   }
 }
 
-
 #ifndef DBUG_OFF
-/*
-  These functions are declared in plugin_trace.h.
+  /*
+    These functions are declared in plugin_trace.h.
 
-  Consult documentation of *_LIST() macros (plugin_trace.h) to see how
-  switch() bodies are constructed with the *_get_name() macros.
-*/
+    Consult documentation of *_LIST() macros (plugin_trace.h) to see how
+    switch() bodies are constructed with the *_get_name() macros.
+  */
 
-#define protocol_stage_get_name(X) case PROTOCOL_STAGE_ ## X: return #X;
+#define protocol_stage_get_name(X) \
+  case PROTOCOL_STAGE_##X:         \
+    return #X;
 
-const char* protocol_stage_name(enum protocol_stage stage)
-{
-  switch(stage)
-  {
-  PROTOCOL_STAGE_LIST(get_name)
-  default: return "<unknown stage>";
+const char *protocol_stage_name(enum protocol_stage stage) {
+  switch (stage) {
+    PROTOCOL_STAGE_LIST(get_name)
+    default:
+      return "<unknown stage>";
   }
 }
 
+#define trace_event_get_name(X) \
+  case TRACE_EVENT_##X:         \
+    return #X;
 
-#define trace_event_get_name(X) case TRACE_EVENT_ ## X: return #X;
-
-const char* trace_event_name(enum trace_event ev)
-{
-  switch(ev)
-  {
-  TRACE_EVENT_LIST(get_name)
-  default: return "<unknown event>";
+const char *trace_event_name(enum trace_event ev) {
+  switch (ev) {
+    TRACE_EVENT_LIST(get_name)
+    default:
+      return "<unknown event>";
   }
 }
 

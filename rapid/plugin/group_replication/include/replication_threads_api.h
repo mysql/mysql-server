@@ -30,37 +30,31 @@
 #include "my_inttypes.h"
 
 #define DEFAULT_THREAD_PRIORITY 0
-//Applier thread InnoDB priority
+// Applier thread InnoDB priority
 #define GROUP_REPLICATION_APPLIER_THREAD_PRIORITY 1
 
-class Replication_thread_api
-{
-
-public:
+class Replication_thread_api {
+ public:
   Replication_thread_api(const char *channel_interface)
-    :stop_wait_timeout(LONG_TIMEOUT),
-    interface_channel(channel_interface)
-    {};
+      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface){};
 
   Replication_thread_api()
-    :stop_wait_timeout(LONG_TIMEOUT),
-    interface_channel(NULL)
-    {};
+      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(NULL){};
 
-  ~Replication_thread_api(){}
+  ~Replication_thread_api() {}
 
   /**
     Set the channel name to be used on the interface method invocation.
 
     @param channel_name the name to be used.
   */
-  void set_channel_name(const char *channel_name)
-  {
-    interface_channel= channel_name;
+  void set_channel_name(const char *channel_name) {
+    interface_channel = channel_name;
   }
 
   /**
-    Initializes a channel connection in a similar way to a change master command.
+    Initializes a channel connection in a similar way to a change master
+    command.
 
     @param hostname      The channel hostname
     @param port          The channel port
@@ -85,22 +79,13 @@ public:
       @retval 0      OK
       @retval !=0    Error on channel creation
   */
-  int initialize_channel(char* hostname, uint port,
-                         char* user, char* password,
-                         bool use_ssl,
-                         char *ssl_ca,
-                         char *ssl_capath,
-                         char *ssl_cert,
-                         char *ssl_cipher,
-                         char *ssl_key,
-                         char *ssl_crl,
-                         char *ssl_crlpath,
-                         bool ssl_verify_server_cert,
-                         int priority,
-                         int retry_count,
-                         bool preserve_logs,
-                         char *public_key_path,
-                         bool get_public_key);
+  int initialize_channel(char *hostname, uint port, char *user, char *password,
+                         bool use_ssl, char *ssl_ca, char *ssl_capath,
+                         char *ssl_cert, char *ssl_cipher, char *ssl_key,
+                         char *ssl_crl, char *ssl_crlpath,
+                         bool ssl_verify_server_cert, int priority,
+                         int retry_count, bool preserve_logs,
+                         char *public_key_path, bool get_public_key);
 
   /**
     Start the Applier/Receiver threads according to the given options.
@@ -122,7 +107,7 @@ public:
         Error when the threads start, but the IO thread cannot connect
    */
   int start_threads(bool start_receiver, bool start_applier,
-                    std::string* view_id, bool wait_for_connection);
+                    std::string *view_id, bool wait_for_connection);
 
   /**
     Stops the channel threads according to the given options.
@@ -195,7 +180,7 @@ public:
       @retval 0      OK
       @retval != 0   Error on queue
   */
-  int queue_packet(const char* buf, ulong event_len);
+  int queue_packet(const char *buf, ulong event_len);
 
   /**
     Checks if the applier, and its workers when parallel applier is
@@ -230,7 +215,7 @@ public:
       @retval <= 0  Some error occurred or the applier is not present
       @retval >  0  Number of appliers
   */
-  int get_applier_thread_ids(unsigned long** thread_ids);
+  int get_applier_thread_ids(unsigned long **thread_ids);
 
   /**
      Checks if the given id matches any of the event applying threads for
@@ -244,7 +229,7 @@ public:
        @retval true   the id matches a SQL or worker thread
        @retval false  the id doesn't match any thread
    */
-  bool is_own_event_applier(my_thread_id id, const char* channel_name= NULL);
+  bool is_own_event_applier(my_thread_id id, const char *channel_name = NULL);
 
   /**
      Checks if the given id matches the receiver thread for
@@ -275,9 +260,7 @@ public:
 
     @param[in]  timeout      the timeout
   */
-  void set_stop_wait_timeout (ulong timeout){
-    stop_wait_timeout= timeout;
-  }
+  void set_stop_wait_timeout(ulong timeout) { stop_wait_timeout = timeout; }
 
   /**
     Returns the retrieved gtid set from the receiver thread.
@@ -289,8 +272,8 @@ public:
       @retval true there was an error.
       @retval false the operation has succeeded.
   */
-  bool get_retrieved_gtid_set(std::string& retrieved_set,
-                              const char* channel_name= NULL);
+  bool get_retrieved_gtid_set(std::string &retrieved_set,
+                              const char *channel_name = NULL);
 
   /**
     Checks if the channel's relay log contains partial transaction.
@@ -300,9 +283,9 @@ public:
   */
   bool is_partial_transaction_on_relay_log();
 
-private:
+ private:
   ulong stop_wait_timeout;
-  const char* interface_channel;
+  const char *interface_channel;
 };
 
 #endif /* REPLICATION_THREADS_API_INCLUDE */

@@ -23,8 +23,8 @@
 #ifndef DD__WEAK_OBJECT_IMPL_INCLUDED
 #define DD__WEAK_OBJECT_IMPL_INCLUDED
 
-#include "sql/dd/object_id.h"      // Object_id
-#include "sql/dd/types/weak_object.h" // dd::Weak_object
+#include "sql/dd/object_id.h"          // Object_id
+#include "sql/dd/types/weak_object.h"  // dd::Weak_object
 
 namespace dd {
 
@@ -38,22 +38,18 @@ class Open_dictionary_tables_ctx;
 class Raw_new_record;
 class Raw_record;
 
-
 ///////////////////////////////////////////////////////////////////////////
 
-class Weak_object_impl : virtual public Weak_object
-{
-public:
-  Weak_object_impl()
-  { }
+class Weak_object_impl : virtual public Weak_object {
+ public:
+  Weak_object_impl() {}
 
-  virtual ~Weak_object_impl()
-  { }
+  virtual ~Weak_object_impl() {}
 
-public:
+ public:
   virtual const Object_table &object_table() const = 0;
 
-  virtual bool validate() const= 0;
+  virtual bool validate() const = 0;
 
   // NOTE: the store() operation can not be made constant as
   // the object state is modified when storing a newly created object
@@ -62,12 +58,12 @@ public:
 
   bool drop(Open_dictionary_tables_ctx *otx) const;
 
-public:
+ public:
   virtual bool restore_attributes(const Raw_record &r) = 0;
 
   virtual bool store_attributes(Raw_record *r) = 0;
 
-public:
+ public:
   // Restore's all the related collections.
   // There are 2 scenarions when collection is filled.
   // 1) Parent object is retrieved using restore()
@@ -83,15 +79,13 @@ public:
   //        is fetched and then Index_element collections per
   //        index is restored using restore_children().
   //
-  virtual bool restore_children(Open_dictionary_tables_ctx*)
-  { return false; }
+  virtual bool restore_children(Open_dictionary_tables_ctx *) { return false; }
 
-  virtual bool store_children(Open_dictionary_tables_ctx*)
-  { return false; }
+  virtual bool store_children(Open_dictionary_tables_ctx *) { return false; }
 
-  virtual bool drop_children(Open_dictionary_tables_ctx*) const
-  { return false; }
-
+  virtual bool drop_children(Open_dictionary_tables_ctx *) const {
+    return false;
+  }
 
   /**
     Indicates that object is guaranteed to have primary key value which
@@ -102,24 +96,21 @@ public:
   */
   virtual bool has_new_primary_key() const = 0;
 
-protected:
+ protected:
   virtual Object_key *create_primary_key() const = 0;
 
   // set_primary_key_value() is called after new object has been inserted into
   // the table, giving the chance to get inserted values of AUTO_INCREMENT
   // columns. It gives a chance for Entity_object to override it.
-  virtual void set_primary_key_value(const Raw_new_record&)
-  { }
+  virtual void set_primary_key_value(const Raw_new_record &) {}
 
   /*
     Called by store() method to allow resetting of has_new_primary_key()
     property after we completed loading of object and its children.
   */
-  virtual void fix_has_new_primary_key()
-  { }
+  virtual void fix_has_new_primary_key() {}
 
-protected:
-
+ protected:
   // Check if the parent object id matches with this object.
   bool check_parent_consistency(Entity_object_impl *parent,
                                 Object_id parent_id) const;
@@ -127,6 +118,6 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__WEAK_OBJECT_IMPL_INCLUDED
+#endif  // DD__WEAK_OBJECT_IMPL_INCLUDED

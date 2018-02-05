@@ -26,9 +26,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _fil0types_h_
 #define _fil0types_h_
 
-#define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID        34
-#define FIL_PAGE_SPACE_ID               FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
+#define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID 34
+#define FIL_PAGE_SPACE_ID FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
 
-#define FIL_PAGE_TYPE                   24
-#define FIL_PAGE_DATA_END               8
-#endif // _fil0types_h_
+#define FIL_PAGE_TYPE 24
+#define FIL_PAGE_DATA_END 8
+#endif  // _fil0types_h_

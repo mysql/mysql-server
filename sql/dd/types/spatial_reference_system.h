@@ -23,14 +23,14 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
-#include <cstddef>                        // std::nullptr_t
+#include <cstddef>  // std::nullptr_t
 
 #include "my_inttypes.h"
 #include "nullable.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
 #include "sql/gis/srid.h"
-#include "sql/gis/srs/srs.h"              // srid_t
+#include "sql/gis/srs/srs.h"  // srid_t
 
 class THD;
 
@@ -44,14 +44,13 @@ class Spatial_reference_system_impl;
 class Void_key;
 
 namespace tables {
-  class Spatial_reference_systems;
+class Spatial_reference_systems;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Spatial_reference_system : virtual public Entity_object
-{
-public:
+class Spatial_reference_system : virtual public Entity_object {
+ public:
   typedef Spatial_reference_system_impl Impl;
   typedef Spatial_reference_system Cache_partition;
   typedef tables::Spatial_reference_systems DD_table;
@@ -60,22 +59,22 @@ public:
   typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_name_key(key, name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_name_key(key, name());
+  }
 
   static bool update_name_key(Name_key *key, const String_type &name);
 
-  virtual bool update_aux_key(Aux_key*) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
-public:
-  virtual ~Spatial_reference_system()
-  { };
+ public:
+  virtual ~Spatial_reference_system(){};
 
   /////////////////////////////////////////////////////////////////////////
   // created
@@ -105,8 +104,8 @@ public:
 
   virtual const Mysql::Nullable<gis::srid_t> &organization_coordsys_id()
       const = 0;
-  virtual void
-    set_organization_coordsys_id(gis::srid_t organization_coordsys_id) = 0;
+  virtual void set_organization_coordsys_id(
+      gis::srid_t organization_coordsys_id) = 0;
   virtual void set_organization_coordsys_id(std::nullptr_t) = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -121,7 +120,7 @@ public:
 
   /**
     Check whether an SRS has latitude-longitude axis ordering.
-    
+
     @retval true the axis order is latitude-longitude
     @retval false the SRS is not geographic, or is geographic longitude-latitude
   */
@@ -154,6 +153,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__SPATIAL_REFERENCE_SYSTEM_INCLUDE
+#endif  // DD__SPATIAL_REFERENCE_SYSTEM_INCLUDE

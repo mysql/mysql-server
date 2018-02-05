@@ -27,38 +27,35 @@
 #include "storage/heap/heapdef.h"
 
 /*
-	   Returns one of following values:
-	   0 = Ok.
-	   HA_ERR_RECORD_DELETED = Record is deleted.
-	   HA_ERR_END_OF_FILE = EOF.
+           Returns one of following values:
+           0 = Ok.
+           HA_ERR_RECORD_DELETED = Record is deleted.
+           HA_ERR_END_OF_FILE = EOF.
 */
 
-int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos)
-{
-  HP_SHARE *share=info->s;
+int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos) {
+  HP_SHARE *share = info->s;
   DBUG_ENTER("heap_rrnd");
-  DBUG_PRINT("enter",("info: %p  pos: %p", info, pos));
+  DBUG_PRINT("enter", ("info: %p  pos: %p", info, pos));
 
-  info->lastinx= -1;
-  if (!(info->current_ptr= pos->ptr))
-  {
-    info->update= 0;
+  info->lastinx = -1;
+  if (!(info->current_ptr = pos->ptr)) {
+    info->update = 0;
     set_my_errno(HA_ERR_END_OF_FILE);
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  if (!info->current_ptr[share->reclength])
-  {
-    info->update= HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
+  if (!info->current_ptr[share->reclength]) {
+    info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
     set_my_errno(HA_ERR_RECORD_DELETED);
     DBUG_RETURN(HA_ERR_RECORD_DELETED);
   }
-  info->update=HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
-  memcpy(record,info->current_ptr,(size_t) share->reclength);
+  info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
+  memcpy(record, info->current_ptr, (size_t)share->reclength);
 
   // reposition scan state also
-  info->current_record= info->next_block= pos->record_no;
+  info->current_record = info->next_block = pos->record_no;
 
   DBUG_PRINT("exit", ("found record at %p", info->current_ptr));
-  info->current_hash_ptr=0;			/* Can't use rnext */
+  info->current_hash_ptr = 0; /* Can't use rnext */
   DBUG_RETURN(0);
 } /* heap_rrnd */

@@ -25,14 +25,14 @@
 
 #ifndef XCOM_STANDALONE
 
+#include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/psi/psi_thread.h"
-#include "my_sys.h"
 
-typedef my_thread_t        native_thread_t;
-typedef my_thread_handle   native_thread_handle;
-typedef my_thread_attr_t   native_thread_attr_t;
-typedef my_start_routine   native_start_routine;
+typedef my_thread_t native_thread_t;
+typedef my_thread_handle native_thread_handle;
+typedef my_thread_attr_t native_thread_attr_t;
+typedef my_start_routine native_start_routine;
 
 #define NATIVE_THREAD_CREATE_DETACHED MY_THREAD_CREATE_DETACHED
 #define NATIVE_THREAD_CREATE_JOINABLE MY_THREAD_CREATE_JOINABLE
@@ -57,9 +57,8 @@ typedef my_start_routine   native_start_routine;
 
   @endcode
 */
-class My_xp_thread
-{
-public:
+class My_xp_thread {
+ public:
   /**
     Creates thread.
 
@@ -71,8 +70,7 @@ public:
   */
 
   virtual int create(PSI_thread_key key, const native_thread_attr_t *attr,
-                     native_start_routine func, void *arg)= 0;
-
+                     native_start_routine func, void *arg) = 0;
 
   /**
     Creates a detached thread.
@@ -84,11 +82,8 @@ public:
     @return success status
   */
 
-  virtual int create_detached(PSI_thread_key key,
-                              native_thread_attr_t *attr,
-                              native_start_routine func,
-                              void *arg)= 0;
-
+  virtual int create_detached(PSI_thread_key key, native_thread_attr_t *attr,
+                              native_start_routine func, void *arg) = 0;
 
   /**
     Suspend invoking thread until this thread terminates.
@@ -97,8 +92,7 @@ public:
     @return success status
   */
 
-  virtual int join(void **value_ptr)= 0;
-
+  virtual int join(void **value_ptr) = 0;
 
   /**
     Cancel this thread.
@@ -106,8 +100,7 @@ public:
     @return success status
   */
 
-  virtual int cancel()= 0;
-
+  virtual int cancel() = 0;
 
   /**
     Retrieves native thread reference
@@ -115,16 +108,14 @@ public:
     @return native thread pointer
   */
 
-  virtual native_thread_t *get_native_thread()= 0;
+  virtual native_thread_t *get_native_thread() = 0;
 
   virtual ~My_xp_thread() {}
 };
 
-
 #ifndef XCOM_STANDALONE
-class My_xp_thread_server : public My_xp_thread
-{
-public:
+class My_xp_thread_server : public My_xp_thread {
+ public:
   explicit My_xp_thread_server();
   virtual ~My_xp_thread_server();
 
@@ -136,25 +127,22 @@ public:
   int cancel();
   native_thread_t *get_native_thread();
 
-protected:
+ protected:
   native_thread_handle *m_thread_handle;
 };
 #endif
-
 
 #ifndef XCOM_STANDALONE
 class My_xp_thread_impl : public My_xp_thread_server
 #endif
 {
-public:
+ public:
   explicit My_xp_thread_impl() {}
   ~My_xp_thread_impl() {}
 };
 
-
-class My_xp_thread_util
-{
-public:
+class My_xp_thread_util {
+ public:
   /**
     Terminate invoking thread.
 
@@ -162,7 +150,6 @@ public:
   */
 
   static void exit(void *value_ptr);
-
 
   /**
     Initialize thread attributes object.
@@ -173,7 +160,6 @@ public:
 
   static int attr_init(native_thread_attr_t *attr);
 
-
   /**
     Destroy thread attributes object.
 
@@ -183,7 +169,6 @@ public:
 
   static int attr_destroy(native_thread_attr_t *attr);
 
-
   /**
     Retrieve current thread id.
 
@@ -191,7 +176,6 @@ public:
   */
 
   static native_thread_t self();
-
 
   /**
     Compares two thread identifiers.
@@ -203,7 +187,6 @@ public:
   */
 
   static int equal(native_thread_t t1, native_thread_t t2);
-
 
   /**
     Sets the stack size attribute of the thread attributes object referred
@@ -217,7 +200,6 @@ public:
 
   static int attr_setstacksize(native_thread_attr_t *attr, size_t stacksize);
 
-
   /**
     Returns the stack size attribute of the thread attributes object referred
     to by attr in the buffer pointed to by stacksize.
@@ -229,7 +211,6 @@ public:
   */
 
   static int attr_getstacksize(native_thread_attr_t *attr, size_t *stacksize);
-
 
   /**
     Sets the detach state attribute of the thread attributes object referred
@@ -244,14 +225,12 @@ public:
 
   static int attr_setdetachstate(native_thread_attr_t *attr, int detachstate);
 
-
   /**
     Causes the calling thread to relinquish the CPU, and to be moved to the
     end of the queue and another thread gets to run.
   */
 
   static void yield();
-
 };
 
-#endif // MY_XP_THREAD_INCLUDED
+#endif  // MY_XP_THREAD_INCLUDED

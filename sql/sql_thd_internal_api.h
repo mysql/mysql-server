@@ -32,11 +32,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "dur_prop.h"      // durability_properties
+#include "dur_prop.h"  // durability_properties
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "mysql/components/services/psi_thread_bits.h"
-#include "sql/handler.h"   // enum_tx_isolation
+#include "sql/handler.h"  // enum_tx_isolation
 
 class THD;
 class partition_info;
@@ -66,7 +66,8 @@ int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
         SHOW PROCESSLIST and the server will not wait for them to
         terminate during shutdown.
 */
-THD *create_thd(bool enable_plugins, bool background_thread, bool bound, PSI_thread_key psi_key);
+THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
+                PSI_thread_key psi_key);
 
 /**
   Cleanup the THD object, remove it from the global list of THDs
@@ -92,9 +93,9 @@ void thd_set_thread_stack(THD *thd, const char *stack_start);
 
   @return Pointer to the working copy of partition_info or NULL.
 */
-partition_info* thd_get_work_part_info(THD* thd);
+partition_info *thd_get_work_part_info(THD *thd);
 
-enum_tx_isolation thd_get_trx_isolation(const THD* thd);
+enum_tx_isolation thd_get_trx_isolation(const THD *thd);
 
 const CHARSET_INFO *thd_charset(THD *thd);
 
@@ -175,7 +176,7 @@ durability_properties thd_get_durability_property(const THD *thd);
   @param off auto_increment_offset
   @param inc auto_increment_increment
 */
-void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc);
+void thd_get_autoinc(const THD *thd, ulong *off, ulong *inc);
 
 /**
   Is strict sql_mode set.
@@ -225,7 +226,6 @@ bool is_mysql_datadir_path(const char *path);
 
 int mysql_tmpfile_path(const char *path, const char *prefix);
 
-
 /**
   Check if the server is in the process of being initialized.
 
@@ -258,4 +258,4 @@ bool thd_is_bootstrap_thread(THD *thd);
   @retval false   Otherwise.
 */
 bool thd_is_dd_update_stmt(const THD *thd);
-#endif // SQL_THD_INTERNAL_API_INCLUDED
+#endif  // SQL_THD_INTERNAL_API_INCLUDED

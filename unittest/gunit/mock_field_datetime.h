@@ -25,18 +25,15 @@
 
 #include "sql/field.h"
 
-class Mock_field_datetime : public Field_datetime
-{
-  void initialize()
-  {
-    ptr= buffer;
+class Mock_field_datetime : public Field_datetime {
+  void initialize() {
+    ptr = buffer;
     memset(buffer, 0, PACK_LENGTH);
   }
 
-public:
+ public:
   uchar buffer[PACK_LENGTH];
   Mock_field_datetime() : Field_datetime(false, "") { initialize(); }
-
 };
 
-#endif // MOCK_FIELD_DATETIME_H
+#endif  // MOCK_FIELD_DATETIME_H

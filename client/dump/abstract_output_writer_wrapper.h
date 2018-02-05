@@ -31,33 +31,33 @@
 #include "client/dump/i_output_writer.h"
 #include "client/dump/i_output_writer_wrapper.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Implementation of common logic for classes that directs execution of
   dump tasks to Data Formatters.
  */
 class Abstract_output_writer_wrapper : public Abstract_chain_element,
-  public virtual I_output_writer_wrapper
-{
-public:
-  void register_output_writer(I_output_writer* new_output_writter);
+                                       public virtual I_output_writer_wrapper {
+ public:
+  void register_output_writer(I_output_writer *new_output_writter);
 
-protected:
+ protected:
   Abstract_output_writer_wrapper(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator);
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator);
 
-  void append_output(const std::string& data_to_append);
+  void append_output(const std::string &data_to_append);
 
-private:
-  std::vector<I_output_writer*> m_output_writers;
+ private:
+  std::vector<I_output_writer *> m_output_writers;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

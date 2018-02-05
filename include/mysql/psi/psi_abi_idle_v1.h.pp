@@ -23,8 +23,7 @@ typedef int myf;
 #include "mysql/components/services/psi_idle_bits.h"
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
-struct PSI_idle_locker_state_v1
-{
+struct PSI_idle_locker_state_v1 {
   unsigned int m_flags;
   struct PSI_thread *m_thread;
   unsigned long long m_timer_start;
@@ -33,16 +32,15 @@ struct PSI_idle_locker_state_v1
 };
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
 typedef struct PSI_idle_locker *(*start_idle_wait_v1_t)(
-  struct PSI_idle_locker_state_v1 *state, const char *src_file, unsigned int src_line);
+    struct PSI_idle_locker_state_v1 *state, const char *src_file,
+    unsigned int src_line);
 typedef void (*end_idle_wait_v1_t)(struct PSI_idle_locker *locker);
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
-struct PSI_idle_bootstrap
-{
+struct PSI_idle_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_idle_bootstrap PSI_idle_bootstrap;
-struct PSI_idle_service_v1
-{
+struct PSI_idle_service_v1 {
   start_idle_wait_v1_t start_idle_wait;
   end_idle_wait_v1_t end_idle_wait;
 };

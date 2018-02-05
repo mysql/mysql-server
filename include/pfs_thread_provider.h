@@ -31,8 +31,7 @@
 #include "my_psi_config.h"
 
 #if defined(HAVE_PSI_THREAD_INTERFACE) && defined(MYSQL_SERVER) && \
-    !defined(MYSQL_DYNAMIC_PLUGIN) && \
-    defined(__cplusplus)
+    !defined(MYSQL_DYNAMIC_PLUGIN) && defined(__cplusplus)
 
 #include <sys/types.h>
 #include <time.h>
@@ -44,54 +43,50 @@
 
 class THD;
 
-#define PSI_THREAD_CALL(M) pfs_ ## M ## _v1
+#define PSI_THREAD_CALL(M) pfs_##M##_v1
 
-void pfs_register_thread_v1(const char *category,
-                            PSI_thread_info_v1 *info,
+void pfs_register_thread_v1(const char *category, PSI_thread_info_v1 *info,
                             int count);
 
-int pfs_spawn_thread_v1(PSI_thread_key key,
-                        my_thread_handle *thread, const my_thread_attr_t *attr,
-                        void *(*start_routine)(void*), void *arg);
+int pfs_spawn_thread_v1(PSI_thread_key key, my_thread_handle *thread,
+                        const my_thread_attr_t *attr,
+                        void *(*start_routine)(void *), void *arg);
 
-PSI_thread*
-pfs_new_thread_v1(PSI_thread_key key, const void *identity, ulonglong processlist_id);
+PSI_thread *pfs_new_thread_v1(PSI_thread_key key, const void *identity,
+                              ulonglong processlist_id);
 
 void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id);
 void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd);
 void pfs_set_thread_os_id_v1(PSI_thread *thread);
 
-PSI_thread*
-pfs_get_thread_v1(void);
+PSI_thread *pfs_get_thread_v1(void);
 
 void pfs_set_thread_user_v1(const char *user, int user_len);
 
-void pfs_set_thread_account_v1(const char *user, int user_len,
-                               const char *host, int host_len);
+void pfs_set_thread_account_v1(const char *user, int user_len, const char *host,
+                               int host_len);
 
-void pfs_set_thread_db_v1(const char* db, int db_len);
+void pfs_set_thread_db_v1(const char *db, int db_len);
 
 void pfs_set_thread_command_v1(int command);
 
 void pfs_set_thread_start_time_v1(time_t start_time);
 
-void pfs_set_thread_state_v1(const char* state);
+void pfs_set_thread_state_v1(const char *state);
 
 void pfs_set_connection_type_v1(opaque_vio_type conn_type);
 
-void pfs_set_thread_info_v1(const char* info, uint info_len);
+void pfs_set_thread_info_v1(const char *info, uint info_len);
 
-int pfs_set_thread_resource_group_v1(const char *group_name,
-                                     int group_name_len,
+int pfs_set_thread_resource_group_v1(const char *group_name, int group_name_len,
                                      void *user_data);
 
 int pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
                                            ulonglong thread_id,
                                            const char *group_name,
-                                           int group_name_len,
-                                           void *user_data);
+                                           int group_name_len, void *user_data);
 
-void pfs_set_thread_v1(PSI_thread* thread);
+void pfs_set_thread_v1(PSI_thread *thread);
 
 void pfs_delete_current_thread_v1(void);
 
@@ -123,4 +118,3 @@ void pfs_notify_session_change_user_v1(PSI_thread *thread);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #endif
-

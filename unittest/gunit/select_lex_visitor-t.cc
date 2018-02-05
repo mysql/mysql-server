@@ -38,39 +38,31 @@ namespace select_lex_visitor_unittest {
 using my_testing::Server_initializer;
 using std::vector;
 
-class SelectLexVisitorTest : public ParserTest
-{
-protected:
+class SelectLexVisitorTest : public ParserTest {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 };
 
-
 /// A visitor that remembers what it has seen.
-class Remembering_visitor : public Select_lex_visitor
-{
-public:
+class Remembering_visitor : public Select_lex_visitor {
+ public:
   vector<int> seen_items;
 
-  Remembering_visitor() :
-    m_saw_select_lex(false),
-    m_saw_select_lex_unit(false)
-  {}
+  Remembering_visitor()
+      : m_saw_select_lex(false), m_saw_select_lex_unit(false) {}
 
-  virtual bool visit_union(SELECT_LEX_UNIT *)
-  {
-    m_saw_select_lex_unit= true;
+  virtual bool visit_union(SELECT_LEX_UNIT *) {
+    m_saw_select_lex_unit = true;
     return false;
   }
 
-  virtual bool visit_query_block(SELECT_LEX *)
-  {
-    m_saw_select_lex= true;
+  virtual bool visit_query_block(SELECT_LEX *) {
+    m_saw_select_lex = true;
     return false;
   }
 
-  virtual bool visit_item(Item *item)
-  {
+  virtual bool visit_item(Item *item) {
     seen_items.push_back(item->val_int());
     return false;
   }
@@ -80,10 +72,9 @@ public:
 
   ~Remembering_visitor() {}
 
-private:
+ private:
   bool m_saw_select_lex, m_saw_select_lex_unit;
 };
-
 
 /**
   Google mock only works for objects allocated on the stack, and the Item
@@ -93,29 +84,23 @@ private:
   how to use it.
 */
 template <class Item_class>
-class Stack_allocated_item : public Item_class
-{
-public:
-  Stack_allocated_item(int value) : Item_class(value)
-  {
+class Stack_allocated_item : public Item_class {
+ public:
+  Stack_allocated_item(int value) : Item_class(value) {
     // Undo what Item::Item() does.
-    THD *thd= current_thd;
-    thd->free_list= this->next;
-    this->next= NULL;
+    THD *thd = current_thd;
+    thd->free_list = this->next;
+    this->next = NULL;
   }
 };
 
-
-class Mock_item_int : public Stack_allocated_item<Item_int>
-{
-public:
+class Mock_item_int : public Stack_allocated_item<Item_int> {
+ public:
   Mock_item_int() : Stack_allocated_item<Item_int>(42) {}
   MOCK_METHOD3(walk, bool(Item_processor, Item::enum_walk, uchar *));
 };
 
-
-TEST_F(SelectLexVisitorTest, SelectLex)
-{
+TEST_F(SelectLexVisitorTest, SelectLex) {
   using ::testing::_;
 
   Mock_item_int where;
@@ -131,20 +116,18 @@ TEST_F(SelectLexVisitorTest, SelectLex)
   query_block.include_down(&lex, &unit);
   List<Item> items;
   JOIN join(thd(), &query_block);
-  join.where_cond= &where;
-  join.having_for_explain= &having;
+  join.where_cond = &where;
+  join.having_for_explain = &having;
 
-  query_block.join= &join;
+  query_block.join = &join;
   Remembering_visitor visitor;
   unit.accept(&visitor);
   EXPECT_TRUE(visitor.saw_select_lex());
   EXPECT_TRUE(visitor.saw_select_lex_unit());
 }
 
-
-TEST_F(SelectLexVisitorTest, InsertList)
-{
-  SELECT_LEX *select_lex= parse("INSERT INTO t VALUES (1, 2, 3)", 0);
+TEST_F(SelectLexVisitorTest, InsertList) {
+  SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2, 3)", 0);
   ASSERT_FALSE(select_lex == NULL);
 
   Remembering_visitor visitor;
@@ -155,10 +138,8 @@ TEST_F(SelectLexVisitorTest, InsertList)
   EXPECT_EQ(3, visitor.seen_items[2]);
 }
 
-
-TEST_F(SelectLexVisitorTest, InsertList2)
-{
-  SELECT_LEX *select_lex= parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
+TEST_F(SelectLexVisitorTest, InsertList2) {
+  SELECT_LEX *select_lex = parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
   ASSERT_FALSE(select_lex == NULL);
 
   Remembering_visitor visitor;
@@ -170,10 +151,8 @@ TEST_F(SelectLexVisitorTest, InsertList2)
   EXPECT_EQ(4, visitor.seen_items[3]);
 }
 
-
-TEST_F(SelectLexVisitorTest, InsertSet)
-{
-  SELECT_LEX *select_lex= parse("INSERT INTO t SET a=1, b=2, c=3", 0);
+TEST_F(SelectLexVisitorTest, InsertSet) {
+  SELECT_LEX *select_lex = parse("INSERT INTO t SET a=1, b=2, c=3", 0);
   ASSERT_FALSE(select_lex == NULL);
 
   Remembering_visitor visitor;
@@ -184,4 +163,4 @@ TEST_F(SelectLexVisitorTest, InsertSet)
   EXPECT_EQ(3, visitor.seen_items[2]);
 }
 
-}
+}  // namespace select_lex_visitor_unittest

@@ -46,8 +46,7 @@ struct THR_LOCK;
 */
 
 /** A row of PERFORMANCE_SCHEMA.SETUP_CONSUMERS. */
-struct row_setup_consumers
-{
+struct row_setup_consumers {
   /** Column NAME. */
   LEX_STRING m_name;
   /** Column ENABLED. */
@@ -58,27 +57,21 @@ struct row_setup_consumers
   bool m_thread_refresh;
 };
 
-class PFS_index_setup_consumers : public PFS_engine_index
-{
-public:
-  PFS_index_setup_consumers() : PFS_engine_index(&m_key), m_key("NAME")
-  {
-  }
+class PFS_index_setup_consumers : public PFS_engine_index {
+ public:
+  PFS_index_setup_consumers() : PFS_engine_index(&m_key), m_key("NAME") {}
 
-  ~PFS_index_setup_consumers()
-  {
-  }
+  ~PFS_index_setup_consumers() {}
 
   virtual bool match(row_setup_consumers *row);
 
-private:
+ private:
   PFS_key_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_CONSUMERS. */
-class table_setup_consumers : public PFS_engine_table
-{
-public:
+class table_setup_consumers : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -92,24 +85,18 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  virtual int update_row_values(TABLE *table,
-                                const unsigned char *old_buf,
-                                unsigned char *new_buf,
-                                Field **fields);
+  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
+                                unsigned char *new_buf, Field **fields);
   table_setup_consumers();
 
-public:
-  ~table_setup_consumers()
-  {
-  }
+ public:
+  ~table_setup_consumers() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

@@ -37,27 +37,20 @@
   A row in the table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
-struct st_row_instance_log_status
-{
+struct st_row_instance_log_status {
   char server_uuid[UUID_LENGTH];
   Json_wrapper w_master;
   Json_wrapper w_channels;
   Json_wrapper w_storage_engines;
 
-  st_row_instance_log_status()
-  {
-  }
+  st_row_instance_log_status() {}
 
-  void
-  cleanup()
-  {
-  }
+  void cleanup() {}
 };
 
 /** Table PERFORMANCE_SCHEMA.INSTANCE_LOG_STATUS. */
-class table_instance_log_status : public PFS_engine_table
-{
-private:
+class table_instance_log_status : public PFS_engine_table {
+ private:
   int make_row();
 
   /** Table share lock. */
@@ -72,7 +65,7 @@ private:
   /** Next position. */
   PFS_simple_index m_next_pos;
 
-protected:
+ protected:
   /**
     Read the current row values.
     @param table            Table handle
@@ -81,14 +74,12 @@ protected:
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_instance_log_status();
 
-public:
+ public:
   ~table_instance_log_status();
 
   /** Table share. */

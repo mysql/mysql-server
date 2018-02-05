@@ -47,12 +47,11 @@
 #include "m_string.h"
 #include "my_sys.h"
 
-TEST(StringToULLTest, OverflowedNumber)
-{
+TEST(StringToULLTest, OverflowedNumber) {
   unsigned long long number;
   int error;
-  const char * str= "18446744073709551915";
-  number= my_strtoll10(str, 0, &error);
+  const char *str = "18446744073709551915";
+  number = my_strtoll10(str, 0, &error);
   EXPECT_EQ(number, ULLONG_MAX);
   EXPECT_EQ(error, MY_ERRNO_ERANGE);
 }

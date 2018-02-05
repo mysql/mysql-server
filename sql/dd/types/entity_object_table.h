@@ -23,8 +23,7 @@
 #ifndef DD__ENTITY_OBJECT_TABLE_INCLUDED
 #define DD__ENTITY_OBJECT_TABLE_INCLUDED
 
-
-#include "sql/dd/types/object_table.h" // dd::Object_table
+#include "sql/dd/types/object_table.h"  // dd::Object_table
 
 namespace dd {
 
@@ -46,23 +45,20 @@ class Raw_record;
   mysql.tables and are not directly created/searched/dropped
   without accessing mysql.tables or dd::Table Dictionary object.
 */
-class Entity_object_table : virtual public Object_table
-{
-public:
-  virtual ~Entity_object_table()
-  { };
+class Entity_object_table : virtual public Object_table {
+ public:
+  virtual ~Entity_object_table(){};
 
   virtual Entity_object *create_entity_object(
-    const Raw_record &record) const = 0;
+      const Raw_record &record) const = 0;
 
-  virtual bool restore_object_from_record(
-    Open_dictionary_tables_ctx *otx,
-    const Raw_record &record,
-    Entity_object **o) const = 0;
+  virtual bool restore_object_from_record(Open_dictionary_tables_ctx *otx,
+                                          const Raw_record &record,
+                                          Entity_object **o) const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__ENTITY_OBJECT_TABLE_INCLUDED
+#endif  // DD__ENTITY_OBJECT_TABLE_INCLUDED

@@ -35,39 +35,34 @@ void unregister_listener_service_gr_example();
   An example implementation of the group_membership_listener
   service. It is actually used for testing purposes.
 */
-class group_membership_listener_example_impl
-{
-public:
+class group_membership_listener_example_impl {
+ public:
   /**
   @c notify_view_change(const char*)
   */
-  static DEFINE_BOOL_METHOD(notify_view_change, (const char*));
+  static DEFINE_BOOL_METHOD(notify_view_change, (const char *));
 
   /**
   @c notify_quorum_lost(const char*)
   */
-  static DEFINE_BOOL_METHOD(notify_quorum_lost, (const char*));
-
+  static DEFINE_BOOL_METHOD(notify_quorum_lost, (const char *));
 };
 
 /**
   An example implementation of the group_member_status_listener
   service. It is actually used for testing purposes.
 */
-class group_member_status_listener_example_impl
-{
-public:
+class group_member_status_listener_example_impl {
+ public:
   /**
   @c notify_member_role_change(const char*)
   */
-  static DEFINE_BOOL_METHOD(notify_member_role_change, (const char*));
+  static DEFINE_BOOL_METHOD(notify_member_role_change, (const char *));
 
   /**
   @c notify_member_state_change(const char*)
   */
-  static DEFINE_BOOL_METHOD(notify_member_state_change, (const char*));
-
+  static DEFINE_BOOL_METHOD(notify_member_state_change, (const char *));
 };
 
 #endif /* GMS_LISTENER_TEST_H */
-

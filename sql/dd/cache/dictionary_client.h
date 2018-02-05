@@ -30,7 +30,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "object_registry.h"                  // Object_registry
+#include "object_registry.h"  // Object_registry
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 
@@ -56,7 +56,8 @@ class SPI_lru_cache;
 */
 class SPI_lru_cache_owner_ptr {
   SPI_lru_cache *m_spi_lru_cache = nullptr;
-public:
+
+ public:
   /** Calls delete on m_spi_lru_cache unless nullptr. */
   ~SPI_lru_cache_owner_ptr();
 
@@ -71,19 +72,14 @@ public:
     returns the pointer.
     @return pointer to cache (may be nullptr)
   */
-  const SPI_lru_cache *operator->() const {
-    return m_spi_lru_cache;
-  }
+  const SPI_lru_cache *operator->() const { return m_spi_lru_cache; }
 
   /*
     Predicate for nullptr.
     @return true if points to valid cache, false otherwise.
    */
-  bool is_nullptr() const {
-    return (m_spi_lru_cache == nullptr);
-  }
+  bool is_nullptr() const { return (m_spi_lru_cache == nullptr); }
 };
-
 
 /**
   Implementation of a dictionary client.
@@ -143,13 +139,11 @@ public:
         client itself, or by the dictionary subsystem.
 */
 
-template <typename T> class Cache_element;
+template <typename T>
+class Cache_element;
 
-class Dictionary_client
-{
-public:
-
-
+class Dictionary_client {
+ public:
   /**
     Class to help releasing and deleting objects.
 
@@ -176,11 +170,10 @@ public:
     and are deleted when the auto releaser goes out of scope.
   */
 
-  class Auto_releaser
-  {
+  class Auto_releaser {
     friend class Dictionary_client;
 
-  private:
+   private:
     Dictionary_client *m_client;
     Object_registry m_release_registry;
     Auto_releaser *m_prev;
@@ -193,13 +186,11 @@ public:
     */
 
     template <typename T>
-    void auto_release(Cache_element<T> *element)
-    {
+    void auto_release(Cache_element<T> *element) {
       // Catch situations where we do not use a non-default releaser.
       DBUG_ASSERT(m_prev != NULL);
       m_release_registry.put(element);
     }
-
 
     /**
       Transfer an object from the current to the previous auto releaser.
@@ -209,8 +200,7 @@ public:
     */
 
     template <typename T>
-    void transfer_release(const T* object);
-
+    void transfer_release(const T *object);
 
     /**
       Remove an element from some auto releaser down the chain.
@@ -231,10 +221,7 @@ public:
     // Create a new empty auto releaser. Used only by the Dictionary_client.
     Auto_releaser();
 
-
-  public:
-
-
+   public:
     /**
       Create a new auto releaser and link it into the dictionary client
       as the current releaser.
@@ -245,26 +232,22 @@ public:
 
     explicit Auto_releaser(Dictionary_client *client);
 
-
     // Release all objects registered and restore previous releaser.
     ~Auto_releaser();
-
 
     // Debug dump to stderr.
     template <typename T>
     void dump() const;
   };
 
-
-private:
-  std::vector<Entity_object*> m_uncached_objects; // Objects to be deleted.
-  Object_registry m_registry_committed;   // Registry of committed objects.
-  Object_registry m_registry_uncommitted; // Registry of uncommitted objects.
-  Object_registry m_registry_dropped;     // Registry of dropped objects.
-  THD *m_thd;                             // Thread context, needed for cache misses.
-  Auto_releaser m_default_releaser;       // Default auto releaser.
-  Auto_releaser *m_current_releaser;      // Current auto releaser.
-
+ private:
+  std::vector<Entity_object *> m_uncached_objects;  // Objects to be deleted.
+  Object_registry m_registry_committed;    // Registry of committed objects.
+  Object_registry m_registry_uncommitted;  // Registry of uncommitted objects.
+  Object_registry m_registry_dropped;      // Registry of dropped objects.
+  THD *m_thd;                        // Thread context, needed for cache misses.
+  Auto_releaser m_default_releaser;  // Default auto releaser.
+  Auto_releaser *m_current_releaser;  // Current auto releaser.
 
   /**
     Se-private ids known not to exist in either TABLES or PARTITIONS
@@ -312,10 +295,8 @@ private:
   */
 
   template <typename K, typename T>
-  bool acquire(const K &key, const T **object,
-               bool *local_committed, bool *local_uncommitted)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool acquire(const K &key, const T **object, bool *local_committed,
+               bool *local_uncommitted) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Get an uncommitted dictionary object that can be modified safely.
@@ -337,7 +318,6 @@ private:
 
   template <typename K, typename T>
   void acquire_uncommitted(const K &key, T **object, bool *dropped);
-
 
   /**
     Mark all objects of a certain type as not being used by this client.
@@ -361,7 +341,6 @@ private:
   template <typename T>
   size_t release(Object_registry *registry);
 
-
   /**
     Release all objects in the submitted object registry.
 
@@ -383,26 +362,22 @@ private:
   */
 
   template <typename T>
-  void auto_delete(T *object)
-  {
+  void auto_delete(T *object) {
 #ifndef DBUG_OFF
     // Make sure we do not sign up a shared object for auto delete.
-    Cache_element<typename T::Cache_partition> *element= nullptr;
+    Cache_element<typename T::Cache_partition> *element = nullptr;
     m_registry_committed.get(
-      static_cast<const typename T::Cache_partition*>(object),
-      &element);
+        static_cast<const typename T::Cache_partition *>(object), &element);
     DBUG_ASSERT(element == nullptr);
 
     // Make sure we do not sign up an uncommitted object for auto delete.
     m_registry_uncommitted.get(
-      static_cast<const typename T::Cache_partition*>(object),
-      &element);
+        static_cast<const typename T::Cache_partition *>(object), &element);
     DBUG_ASSERT(element == nullptr);
 #endif
 
     m_uncached_objects.push_back(object);
   }
-
 
   /**
     Remove an object from the auto delete vector.
@@ -412,22 +387,18 @@ private:
   */
 
   template <typename T>
-  void no_auto_delete(T *object)
-  {
+  void no_auto_delete(T *object) {
 #ifndef DBUG_OFF
     // Make sure the object has been registered as uncommitted.
-    Cache_element<typename T::Cache_partition> *element= nullptr;
+    Cache_element<typename T::Cache_partition> *element = nullptr;
     m_registry_uncommitted.get(
-      static_cast<const typename T::Cache_partition*>(object),
-      &element);
+        static_cast<const typename T::Cache_partition *>(object), &element);
     DBUG_ASSERT(element != nullptr);
 #endif
     m_uncached_objects.erase(std::remove(m_uncached_objects.begin(),
-                                          m_uncached_objects.end(),
-                                          object),
+                                         m_uncached_objects.end(), object),
                              m_uncached_objects.end());
   }
-
 
   /**
     Transfer object ownership from caller to Dictionary_client,
@@ -445,8 +416,7 @@ private:
   */
 
   template <typename T>
-  void register_uncommitted_object(T* object);
-
+  void register_uncommitted_object(T *object);
 
   /**
     Transfer object ownership from caller to Dictionary_client,
@@ -469,8 +439,7 @@ private:
   */
 
   template <typename T>
-  void register_dropped_object(T* object);
-
+  void register_dropped_object(T *object);
 
   /**
     Remove the uncommitted objects from the client and (depending
@@ -495,16 +464,12 @@ private:
   template <typename T>
   void remove_uncommitted_objects(bool commit_to_shared_cache);
 
-public:
-
-
+ public:
   // Initialize an instance with a default auto releaser.
   explicit Dictionary_client(THD *thd);
 
-
   // Make sure all objects are released.
   ~Dictionary_client();
-
 
   /**
     Retrieve an object by its object id.
@@ -518,9 +483,8 @@ public:
   */
 
   template <typename T>
-  bool acquire(Object_id id, const T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool acquire(Object_id id, const T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its object id.
@@ -536,9 +500,8 @@ public:
   */
 
   template <typename T>
-  bool acquire_for_modification(Object_id id, T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool acquire_for_modification(Object_id id, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its object id without caching it.
@@ -557,9 +520,8 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached(Object_id id, T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool acquire_uncached(Object_id id, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a possibly uncommitted object by its object id without caching it.
@@ -582,9 +544,8 @@ public:
    */
 
   template <typename T>
-  bool acquire_uncached_uncommitted(Object_id id, T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool acquire_uncached_uncommitted(Object_id id, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its name.
@@ -598,9 +559,8 @@ public:
   */
 
   template <typename T>
-  bool acquire(const String_type &object_name, const T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool acquire(const String_type &object_name, const T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its name.
@@ -616,9 +576,8 @@ public:
   */
 
   template <typename T>
-  bool acquire_for_modification(const String_type &object_name, T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool acquire_for_modification(const String_type &object_name, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -644,9 +603,7 @@ public:
 
   template <typename T>
   bool acquire(const String_type &schema_name, const String_type &object_name,
-               const T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+               const T **object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -674,10 +631,8 @@ public:
 
   template <typename T>
   bool acquire_for_modification(const String_type &schema_name,
-                                const String_type &object_name,
-                                T** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+                                const String_type &object_name, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -709,9 +664,8 @@ public:
 
   template <typename T>
   bool acquire(const String_type &schema_name, const String_type &object_name,
-               const typename T::Cache_partition** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+               const typename T::Cache_partition **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve an object by its schema- and object name.
@@ -746,9 +700,8 @@ public:
   template <typename T>
   bool acquire_for_modification(const String_type &schema_name,
                                 const String_type &object_name,
-                                typename T::Cache_partition** object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+                                typename T::Cache_partition **object)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a table object by its se private id.
@@ -770,8 +723,7 @@ public:
   bool acquire_uncached_table_by_se_private_id(const String_type &engine,
                                                Object_id se_private_id,
                                                Table **table)
-    MY_ATTRIBUTE((warn_unused_result));
-
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a table object by its partition se private id.
@@ -785,11 +737,8 @@ public:
   */
 
   bool acquire_uncached_table_by_partition_se_private_id(
-         const String_type &engine,
-         Object_id se_partition_id,
-         Table **table)
-    MY_ATTRIBUTE((warn_unused_result));
-
+      const String_type &engine, Object_id se_partition_id, Table **table)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve schema and table name by the se private id of the table.
@@ -809,8 +758,7 @@ public:
                                        Object_id se_private_id,
                                        String_type *schema_name,
                                        String_type *table_name)
-    MY_ATTRIBUTE((warn_unused_result));
-
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve schema and table name by the se private id of the partition.
@@ -830,8 +778,7 @@ public:
                                                  Object_id se_partition_id,
                                                  String_type *schema_name,
                                                  String_type *table_name)
-    MY_ATTRIBUTE((warn_unused_result));
-
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Retrieve a table name of a given trigger name and schema.
@@ -849,8 +796,7 @@ public:
   bool get_table_name_by_trigger_name(const Schema &schema,
                                       const String_type &trigger_name,
                                       String_type *table_name)
-    MY_ATTRIBUTE((warn_unused_result));
-
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Check if schema contains foreign key with specified name.
@@ -868,7 +814,7 @@ public:
   bool check_foreign_key_exists(const Schema &schema,
                                 const String_type &foreign_key_name,
                                 bool *exists)
-    MY_ATTRIBUTE((warn_unused_result));
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch the names of the components in the schema. Hidden components are
@@ -888,8 +834,7 @@ public:
   template <typename T>
   bool fetch_schema_component_names(const Schema *schema,
                                     std::vector<String_type> *names) const
-    MY_ATTRIBUTE((warn_unused_result));
-
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch all components in the schema.
@@ -904,9 +849,8 @@ public:
 
   template <typename T>
   bool fetch_schema_components(const Schema *schema,
-                               std::vector<const T*> *coll) const
-    MY_ATTRIBUTE((warn_unused_result));
-
+                               std::vector<const T *> *coll) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch all global components of the given type.
@@ -919,9 +863,8 @@ public:
   */
 
   template <typename T>
-  bool fetch_global_components(std::vector<const T*> *coll) const
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool fetch_global_components(std::vector<const T *> *coll) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch Object ids of all the views referencing base table/ view/ stored
@@ -943,8 +886,7 @@ public:
   bool fetch_referencing_views_object_id(const char *schema,
                                          const char *tbl_or_sf_name,
                                          std::vector<Object_id> *view_ids) const
-    MY_ATTRIBUTE((warn_unused_result));
-
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch the names of tables (children) which have foreign keys
@@ -968,34 +910,32 @@ public:
           DROP TABLE or DROP FOREIGN KEY.
   */
 
-  bool fetch_fk_children_uncached(
-    const String_type &parent_schema,
-    const String_type &parent_name,
-    const String_type &parent_engine,
-    bool uncommitted,
-    std::vector<String_type> *children_schemas,
-    std::vector<String_type> *children_names)
-    MY_ATTRIBUTE((warn_unused_result));
+  bool fetch_fk_children_uncached(const String_type &parent_schema,
+                                  const String_type &parent_name,
+                                  const String_type &parent_engine,
+                                  bool uncommitted,
+                                  std::vector<String_type> *children_schemas,
+                                  std::vector<String_type> *children_names)
+      MY_ATTRIBUTE((warn_unused_result));
 
- /**
-    Invalidate a cache entry.
+  /**
+     Invalidate a cache entry.
 
-    This function will acquire a table object based on the schema qualified
-    table name, and call 'invalidate(table_object)'.
+     This function will acquire a table object based on the schema qualified
+     table name, and call 'invalidate(table_object)'.
 
-    @note This function only applies to tables yet.
+     @note This function only applies to tables yet.
 
-    @param        schema_name   Name of the schema containing the table.
-    @param        table_name    Name of the table.
+     @param        schema_name   Name of the schema containing the table.
+     @param        table_name    Name of the table.
 
-    @retval       false   No error.
-    @retval       true    Error (from handling a cache miss, or from
-                                 failing to get an MDL lock).
-  */
+     @retval       false   No error.
+     @retval       true    Error (from handling a cache miss, or from
+                                  failing to get an MDL lock).
+   */
 
-  bool invalidate(const String_type &schema_name,
-                  const String_type &table_name)
-    MY_ATTRIBUTE((warn_unused_result));
+  bool invalidate(const String_type &schema_name, const String_type &table_name)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Invalidate a cache entry.
@@ -1014,7 +954,6 @@ public:
 
   template <typename T>
   void invalidate(const T *object);
-
 
   /**
     Remove and delete an object from the cache and the dd tables.
@@ -1048,9 +987,7 @@ public:
   */
 
   template <typename T>
-  bool drop(const T *object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool drop(const T *object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Store a new dictionary object.
@@ -1078,9 +1015,7 @@ public:
   */
 
   template <typename T>
-  bool store(T* object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool store(T *object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Update a persisted dictionary object, but keep the shared cache unchanged.
@@ -1108,9 +1043,7 @@ public:
   */
 
   template <typename T>
-  bool update(T* new_object)
-    MY_ATTRIBUTE((warn_unused_result));
-
+  bool update(T *new_object) MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Remove the uncommitted objects from the client.
@@ -1126,7 +1059,6 @@ public:
 
   void rollback_modified_objects();
 
-
   /**
     Remove the uncommitted objects from the client and put them into
     the shared cache, thereby making them visible to other clients.
@@ -1135,7 +1067,6 @@ public:
   */
 
   void commit_modified_objects();
-
 
   /**
     Remove table statistics entries from mysql.table_stats and
@@ -1149,8 +1080,7 @@ public:
   */
   bool remove_table_dynamic_statistics(const String_type &schema_name,
                                        const String_type &table_name)
-    MY_ATTRIBUTE((warn_unused_result));
-
+      MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Debug dump of a partition of the client and its registry to stderr.
@@ -1162,13 +1092,13 @@ public:
   void dump() const;
 };
 
-} // namespace cache
-} // namespace dd
+}  // namespace cache
+}  // namespace dd
 
 // Functions declarations exported only to facilitate unit testing.
 namespace dd_cache_unittest {
 void insert(dd::cache::SPI_lru_cache_owner_ptr &c, dd::Object_id id);
 bool is_cached(const dd::cache::SPI_lru_cache_owner_ptr &c, dd::Object_id id);
-} // namespace dd_cache_unittest
+}  // namespace dd_cache_unittest
 
-#endif // DD_CACHE__DICTIONARY_CLIENT_INCLUDED
+#endif  // DD_CACHE__DICTIONARY_CLIENT_INCLUDED

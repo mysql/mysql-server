@@ -23,17 +23,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef SYSTEM_VARIABLE_SOURCE_IMP_H
 #define SYSTEM_VARIABLE_SOURCE_IMP_H
 
-#include <mysql/components/services/system_variable_source.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/system_variable_source.h>
 
 /**
   An implementation of the service method to give the source of given
   system variable.
 */
 
-class mysql_system_variable_source_imp
-{
-public:
+class mysql_system_variable_source_imp {
+ public:
   /**
     Get source information of given system variable.
 
@@ -45,9 +44,7 @@ public:
     @retval true Failure
   */
 
-  static DEFINE_BOOL_METHOD(get,
-  (const char* name, unsigned int length,
-     enum enum_variable_source* source));
-
+  static DEFINE_BOOL_METHOD(get, (const char *name, unsigned int length,
+                                  enum enum_variable_source *source));
 };
 #endif /* SYSTEM_VARIABLE_SOURCE_IMP_H */

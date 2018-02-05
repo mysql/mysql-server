@@ -28,20 +28,19 @@
 #include "client/dump/abstract_database_dump_task.h"
 #include "client/dump/database.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Database_end_dump_task : public Abstract_database_dump_task
-{
-public:
-  Database_end_dump_task(Database* related_database);
+class Database_end_dump_task : public Abstract_database_dump_task {
+ public:
+  Database_end_dump_task(Database *related_database);
 
   ~Database_end_dump_task();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

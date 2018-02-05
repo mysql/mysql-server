@@ -34,41 +34,39 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.KEY_COLUMN_USAGE system view
   definition.
 */
-class Key_column_usage :
-        public System_view_impl<System_view_union_definition_impl>
-{
-public:
-  enum enum_fields
-  {
-     FIELD_CONSTRAINT_CATALOG,
-     FIELD_CONSTRAINT_SCHEMA,
-     FIELD_CONSTRAINT_NAME,
-     FIELD_TABLE_CATALOG,
-     FIELD_TABLE_SCHEMA,
-     FIELD_TABLE_NAME,
-     FIELD_COLUMN_NAME,
-     FIELD_ORDINAL_POSITION,
-     FIELD_POSITION_IN_UNIQUE_CONSTRAINT,
-     FIELD_REFERENCED_TABLE_SCHEMA,
-     FIELD_REFERENCED_TABLE_NAME,
-     FIELD_REFERENCED_COLUMN_NAME
+class Key_column_usage
+    : public System_view_impl<System_view_union_definition_impl> {
+ public:
+  enum enum_fields {
+    FIELD_CONSTRAINT_CATALOG,
+    FIELD_CONSTRAINT_SCHEMA,
+    FIELD_CONSTRAINT_NAME,
+    FIELD_TABLE_CATALOG,
+    FIELD_TABLE_SCHEMA,
+    FIELD_TABLE_NAME,
+    FIELD_COLUMN_NAME,
+    FIELD_ORDINAL_POSITION,
+    FIELD_POSITION_IN_UNIQUE_CONSTRAINT,
+    FIELD_REFERENCED_TABLE_SCHEMA,
+    FIELD_REFERENCED_TABLE_NAME,
+    FIELD_REFERENCED_COLUMN_NAME
   };
 
   Key_column_usage();
 
   static const Key_column_usage &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("KEY_COLUMN_USAGE");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Key_column_usage::view_name(); }
+  virtual const String_type &name() const {
+    return Key_column_usage::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__KEY_COLUMN_USAGE_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__KEY_COLUMN_USAGE_INCLUDED

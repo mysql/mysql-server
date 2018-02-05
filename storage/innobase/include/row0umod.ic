@@ -24,9 +24,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/row0umod.ic
-Undo modify of a row
+/**************************************************/ /**
+ @file include/row0umod.ic
+ Undo modify of a row
 
-Created 2/27/1997 Heikki Tuuri
-*******************************************************/
+ Created 2/27/1997 Heikki Tuuri
+ *******************************************************/

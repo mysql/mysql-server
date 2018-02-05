@@ -20,18 +20,15 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef X_NGS_INCLUDE_NGS_COMMON_TYPES_H_
 #define X_NGS_INCLUDE_NGS_COMMON_TYPES_H_
 
 #include <vector>
 
+namespace ngs {
 
-namespace ngs
-{
+typedef std::vector<std::pair<const char *, std::size_t>> Const_buffer_sequence;
 
-typedef std::vector<std::pair<const char*, std::size_t> >   Const_buffer_sequence;
+}  // namespace ngs
 
-} // namespace ngs
-
-#endif // X_NGS_INCLUDE_NGS_COMMON_TYPES_H_
+#endif  // X_NGS_INCLUDE_NGS_COMMON_TYPES_H_

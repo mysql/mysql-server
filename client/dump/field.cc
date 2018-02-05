@@ -26,17 +26,9 @@
 
 using namespace Mysql::Tools::Dump;
 
-const std::string& Field::get_type_string() const
-{
-  return m_type_string;
-}
+const std::string &Field::get_type_string() const { return m_type_string; }
 
-const std::string& Field::get_name() const
-{
-  return m_name;
-}
+const std::string &Field::get_name() const { return m_name; }
 
 Field::Field(std::string name, std::string type_string)
-  : m_name(name),
-  m_type_string(type_string)
-{}
+    : m_name(name), m_type_string(type_string) {}

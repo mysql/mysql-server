@@ -24,12 +24,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************//**
-@file include/data0types.h
-Some type definitions
+/********************************************************************/ /**
+ @file include/data0types.h
+ Some type definitions
 
-Created 9/21/2000 Heikki Tuuri
-*************************************************************************/
+ Created 9/21/2000 Heikki Tuuri
+ *************************************************************************/
 
 #ifndef data0types_h
 #define data0types_h
@@ -41,4 +41,3 @@ struct dfield_t;
 struct dtuple_t;
 
 #endif
-

@@ -31,15 +31,15 @@ class Item;
 class THD;
 struct TABLE_LIST;
 struct TABLE_SHARE;
-template <class T> class List;
+template <class T>
+class List;
 
 enum class enum_view_create_mode;
 
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                           enum_view_create_mode mode);
 
-bool mysql_create_view(THD *thd, TABLE_LIST *view,
-                       enum_view_create_mode mode);
+bool mysql_create_view(THD *thd, TABLE_LIST *view, enum_view_create_mode mode);
 
 bool mysql_register_view(THD *thd, TABLE_LIST *view,
                          enum_view_create_mode mode);
@@ -52,10 +52,9 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view);
 
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 bool check_duplicate_names(const Create_col_name_list *column_names,
-                           List<Item>& item_list, bool gen_unique_view_names);
+                           List<Item> &item_list, bool gen_unique_view_names);
 
-bool open_and_read_view(THD *thd, TABLE_SHARE *share,
-                        TABLE_LIST *view_ref);
+bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref);
 
 bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
 

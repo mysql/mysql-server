@@ -44,8 +44,7 @@ struct THR_LOCK;
 */
 
 /** A row of PERFORMANCE_SCHEMA.PERFORMANCE_TIMERS. */
-struct row_performance_timers
-{
+struct row_performance_timers {
   /** Column TIMER_NAME. */
   enum_timer_name m_timer_name;
   /**
@@ -56,9 +55,8 @@ struct row_performance_timers
 };
 
 /** Table PERFORMANCE_SCHEMA.PERFORMANCE_TIMERS. */
-class table_performance_timers : public PFS_engine_table
-{
-public:
+class table_performance_timers : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -68,21 +66,17 @@ public:
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-protected:
+ protected:
   table_performance_timers();
 
-public:
-  ~table_performance_timers()
-  {
-  }
+ public:
+  ~table_performance_timers() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

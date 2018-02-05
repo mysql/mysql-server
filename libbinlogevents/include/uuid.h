@@ -23,8 +23,8 @@
 #ifndef UUID_H_INCLUDED
 #define UUID_H_INCLUDED 1
 
-#include <stdio.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <string>
@@ -32,8 +32,7 @@
 
 #include "template_utils.h"
 
-namespace binary_log
-{
+namespace binary_log {
 
 /**
   @struct  Uuid
@@ -58,24 +57,21 @@ namespace binary_log
   </table>
 */
 
-struct Uuid
-{
-
-   /// Set to all zeros.
+struct Uuid {
+  /// Set to all zeros.
   void clear() { memset(bytes, 0, BYTE_LENGTH); }
-   /// Copies the given 16-byte data to this UUID.
-  void copy_from(const unsigned char *data)
-  {
+  /// Copies the given 16-byte data to this UUID.
+  void copy_from(const unsigned char *data) {
     memcpy(bytes, data, BYTE_LENGTH);
   }
   /// Copies the given UUID object to this UUID.
   void copy_from(const Uuid &data) { copy_from((unsigned char *)data.bytes); }
   /// Copies the given UUID object to this UUID.
-  void copy_to(unsigned char *data) const { memcpy(data, bytes,
-                                           BYTE_LENGTH); }
+  void copy_to(unsigned char *data) const { memcpy(data, bytes, BYTE_LENGTH); }
   /// Returns true if this UUID is equal the given UUID.
-  bool equals(const Uuid &other) const
-  { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
+  bool equals(const Uuid &other) const {
+    return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0;
+  }
   /**
     Returns true if parse() would succeed, but doesn't store the result.
 
@@ -135,7 +131,7 @@ struct Uuid
   static bool read_section(int section_len, const char **section_str,
                            const unsigned char **out_binary_str);
   /** The number of bytes in the data of a Uuid. */
-  static const size_t BYTE_LENGTH= 16;
+  static const size_t BYTE_LENGTH = 16;
   /** The data for this Uuid. */
   unsigned char bytes[BYTE_LENGTH];
   /**
@@ -146,35 +142,29 @@ struct Uuid
   */
   size_t to_string(char *buf) const;
   /// Convert the given binary buffer to a UUID
-  static size_t to_string(const unsigned char* bytes_arg, char *buf);
-  void print() const
-  {
+  static size_t to_string(const unsigned char *bytes_arg, char *buf);
+  void print() const {
     char buf[TEXT_LENGTH + 1];
     to_string(buf);
     printf("%s\n", buf);
   }
   /// The number of bytes in the textual representation of a Uuid.
-  static const size_t TEXT_LENGTH= 36;
+  static const size_t TEXT_LENGTH = 36;
   /// The number of bits in the data of a Uuid.
-  static const size_t BIT_LENGTH= 128;
-  static const int NUMBER_OF_SECTIONS= 5;
+  static const size_t BIT_LENGTH = 128;
+  static const int NUMBER_OF_SECTIONS = 5;
   static const int bytes_per_section[NUMBER_OF_SECTIONS];
   static const int hex_to_byte[256];
 };
 
-struct Hash_Uuid
-{
-  size_t operator() (const Uuid &uuid) const
-  {
-    return std::hash<std::string>()
-      (std::string(pointer_cast<const char *>(uuid.bytes), Uuid::BYTE_LENGTH));
+struct Hash_Uuid {
+  size_t operator()(const Uuid &uuid) const {
+    return std::hash<std::string>()(
+        std::string(pointer_cast<const char *>(uuid.bytes), Uuid::BYTE_LENGTH));
   }
 };
 
-inline bool operator== (const Uuid &a, const Uuid &b)
-{
-  return a.equals(b);
-}
+inline bool operator==(const Uuid &a, const Uuid &b) { return a.equals(b); }
 
 }  // namespace binary_log
 

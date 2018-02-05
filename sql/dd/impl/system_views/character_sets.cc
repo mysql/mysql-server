@@ -25,14 +25,12 @@
 namespace dd {
 namespace system_views {
 
-const Character_sets &Character_sets::instance()
-{
-  static Character_sets *s_instance= new Character_sets();
+const Character_sets &Character_sets::instance() {
+  static Character_sets *s_instance = new Character_sets();
   return *s_instance;
 }
 
-Character_sets::Character_sets()
-{
+Character_sets::Character_sets() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
@@ -43,9 +41,10 @@ Character_sets::Character_sets()
   m_target_def.add_field(FIELD_MAXLEN, "MAXLEN", "cs.mb_max_length");
 
   m_target_def.add_from("mysql.character_sets cs");
-  m_target_def.add_from("JOIN mysql.collations col ON "
-                        "cs.default_collation_id=col.id ");
+  m_target_def.add_from(
+      "JOIN mysql.collations col ON "
+      "cs.default_collation_id=col.id ");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

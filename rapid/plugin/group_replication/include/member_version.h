@@ -21,15 +21,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef MEMBER_VERSION_INCLUDED
-#define	MEMBER_VERSION_INCLUDED
+#define MEMBER_VERSION_INCLUDED
 
 #include <string>
 
 #include "my_inttypes.h"
 
-class Member_version
-{
-public:
+class Member_version {
+ public:
   Member_version(unsigned int version);
 
   /**
@@ -54,17 +53,16 @@ public:
   */
   uint32 get_patch_version() const;
 
-  bool operator== (const Member_version &other) const;
-  bool operator<  (const Member_version &other) const;
-  bool operator>  (const Member_version &other) const;
-  bool operator>= (const Member_version &other) const;
-  bool operator<= (const Member_version &other) const;
-
+  bool operator==(const Member_version &other) const;
+  bool operator<(const Member_version &other) const;
+  bool operator>(const Member_version &other) const;
+  bool operator>=(const Member_version &other) const;
+  bool operator<=(const Member_version &other) const;
 
   virtual ~Member_version();
-private:
+
+ private:
   uint32 version;
 };
 
-#endif	/* MEMBER_VERSION_INCLUDED */
-
+#endif /* MEMBER_VERSION_INCLUDED */

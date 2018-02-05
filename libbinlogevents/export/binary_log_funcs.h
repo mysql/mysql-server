@@ -38,8 +38,7 @@
 #endif
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 unsigned int my_time_binary_length(unsigned int dec);
@@ -62,7 +61,6 @@ unsigned int my_timestamp_binary_length(unsigned int dec);
 uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
                          unsigned int metadata);
 
-
 /**
    Compute the maximum display length of a field.
 
@@ -84,6 +82,6 @@ int decimal_binary_size(int precision, int scale);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif  // __cplusplus
 
 #endif /* BINARY_LOG_FUNCS_INCLUDED */

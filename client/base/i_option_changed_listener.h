@@ -29,17 +29,16 @@
 
 #include "client/base/i_option.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Interface for listeners on some of option changes.
  */
-class I_option_changed_listener
-{
-public:
+class I_option_changed_listener {
+ public:
   virtual ~I_option_changed_listener() {}
 
   /**
@@ -47,19 +46,19 @@ public:
     It is also called when new option is added, old_name is empty string in
     that case.
    */
-  virtual void notify_option_name_changed(
-    I_option* source, std::string old_name)= 0;
+  virtual void notify_option_name_changed(I_option *source,
+                                          std::string old_name) = 0;
   /**
     Called after specified option has option ID changed.
     It is also called when new option is added, old_optid is 0 in that case.
    */
-  virtual void notify_option_optid_changed(
-    I_option* source, uint32 old_optid)= 0;
+  virtual void notify_option_optid_changed(I_option *source,
+                                           uint32 old_optid) = 0;
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

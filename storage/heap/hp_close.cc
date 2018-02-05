@@ -26,36 +26,32 @@
 #include "mysql/service_mysql_alloc.h"
 #include "storage/heap/heapdef.h"
 
-	/* Close a database open by hp_open() */
-	/* Data is normally not deallocated */
+/* Close a database open by hp_open() */
+/* Data is normally not deallocated */
 
-int heap_close(HP_INFO *info)
-{
+int heap_close(HP_INFO *info) {
   int tmp;
   DBUG_ENTER("heap_close");
   mysql_mutex_lock(&THR_LOCK_heap);
-  tmp= hp_close(info);
+  tmp = hp_close(info);
   mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(tmp);
 }
 
-
-int hp_close(HP_INFO *info)
-{
-  int error=0;
+int hp_close(HP_INFO *info) {
+  int error = 0;
   DBUG_ENTER("hp_close");
 #ifndef DBUG_OFF
-  if (info->s->changed && heap_check_heap(info,0))
-  {
-    error= HA_ERR_CRASHED;
+  if (info->s->changed && heap_check_heap(info, 0)) {
+    error = HA_ERR_CRASHED;
     set_my_errno(error);
   }
 #endif
-  info->s->changed=0;
+  info->s->changed = 0;
   if (info->open_list.data)
-    heap_open_list=list_delete(heap_open_list,&info->open_list);
+    heap_open_list = list_delete(heap_open_list, &info->open_list);
   if (!--info->s->open_count && info->s->delete_on_close)
-    hp_free(info->s);				/* Table was deleted */
+    hp_free(info->s); /* Table was deleted */
   my_free(info);
   DBUG_RETURN(error);
 }

@@ -27,9 +27,8 @@
 #include "my_dbug.h"
 #include "storage/myisammrg/myrg_def.h"
 
-int myrg_close(MYRG_INFO *info)
-{
-  int error=0,new_error;
+int myrg_close(MYRG_INFO *info) {
+  int error = 0, new_error;
   MYRG_TABLE *file;
   DBUG_ENTER("myrg_close");
 
@@ -50,28 +49,24 @@ int myrg_close(MYRG_INFO *info)
     So it is correct to use the branch where an empty list of tables is
     (not) closed.
   */
-  if (info->children_attached)
-  {
-    for (file= info->open_tables; file != info->end_table; file++)
-    {
+  if (info->children_attached) {
+    for (file = info->open_tables; file != info->end_table; file++) {
       /* purecov: begin inspected */
-      if ((new_error= mi_close(file->table)))
-        error= new_error;
+      if ((new_error = mi_close(file->table)))
+        error = new_error;
       else
-        file->table= NULL;
+        file->table = NULL;
       /* purecov: end */
     }
-  }
-  else
+  } else
     my_free(info->rec_per_key_part);
   delete_queue(&info->by_key);
   mysql_mutex_lock(&THR_LOCK_open);
-  myrg_open_list=list_delete(myrg_open_list,&info->open_list);
+  myrg_open_list = list_delete(myrg_open_list, &info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
   mysql_mutex_destroy(&info->mutex);
   my_free(info);
-  if (error)
-  {
+  if (error) {
     set_my_errno(error);
     DBUG_RETURN(error);
   }

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,7 +22,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _XPL_LOG_H_
 #define _XPL_LOG_H_
 
@@ -32,49 +31,53 @@
 
 #define LOG_SUBSYSTEM_TAG MYSQLX_PLUGIN_NAME
 
-#include <mysqld_error.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
+#include <mysqld_error.h>
 
-namespace xpl
-{
+namespace xpl {
 
 extern MYSQL_PLUGIN plugin_handle;
 
 void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *);
 
-} // namespace xpl
+}  // namespace xpl
 
+#define log_error(errcode, ...) \
+  LogPluginErr(ERROR_LEVEL, errcode, ##__VA_ARGS__)
 
-#define log_error(errcode, ...)\
-  LogPluginErr(ERROR_LEVEL, errcode, ## __VA_ARGS__)
+#define log_warning(errcode, ...) \
+  LogPluginErr(WARNING_LEVEL, errcode, ##__VA_ARGS__)
 
-#define log_warning(errcode, ...)\
-  LogPluginErr(WARNING_LEVEL, errcode, ## __VA_ARGS__)
-
-#define log_info(errcode, ...)\
-  LogPluginErr(INFORMATION_LEVEL, errcode, ## __VA_ARGS__)
+#define log_info(errcode, ...) \
+  LogPluginErr(INFORMATION_LEVEL, errcode, ##__VA_ARGS__)
 
 #ifdef XPLUGIN_LOG_DEBUG
-#define log_debug(...) LogPluginErrMsg(INFORMATION_LEVEL, ER_XPLUGIN_ERROR_MSG,\
-                                       ## __VA_ARGS__)
+#define log_debug(...) \
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_XPLUGIN_ERROR_MSG, ##__VA_ARGS__)
 #else
-#define log_debug(...) do {} while(0)
+#define log_debug(...) \
+  do {                 \
+  } while (0)
 #endif
 
+#else  // XPLUGIN_DISABLE_LOG
 
-#else // XPLUGIN_DISABLE_LOG
+#define log_debug(...) \
+  do {                 \
+  } while (0)
+#define log_info(...) \
+  do {                \
+  } while (0)
+#define log_warning(...) \
+  do {                   \
+  } while (0)
+#define log_error(...) \
+  do {                 \
+  } while (0)
 
+#endif  // XPLUGIN_DISABLE_LOG
 
-#define log_debug(...) do {} while(0)
-#define log_info(...) do {} while(0)
-#define log_warning(...) do {} while(0)
-#define log_error(...) do {} while(0)
-
-
-#endif // XPLUGIN_DISABLE_LOG
-
-
-#endif // _XPL_LOG_H_
+#endif  // _XPL_LOG_H_

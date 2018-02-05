@@ -34,9 +34,8 @@ struct st_sp_chistics;
 struct LEX_USER;
 
 namespace dd {
-  class Routine;
-  class Schema;
-
+class Routine;
+class Schema;
 
 /**
   Prepares dd:Routine object from sp_head and updates DD tables
@@ -54,7 +53,6 @@ namespace dd {
 bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
                     const LEX_USER *definer);
 
-
 /**
   Alters routine characteristics in the DD table.
 
@@ -67,5 +65,5 @@ bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
 */
 
 bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics);
-} //namespace dd
-#endif //DD_ROUTINE_INCLUDED
+}  // namespace dd
+#endif  // DD_ROUTINE_INCLUDED

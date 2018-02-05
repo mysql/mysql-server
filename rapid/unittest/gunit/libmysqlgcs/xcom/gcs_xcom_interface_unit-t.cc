@@ -20,13 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "gcs_base_test.h"
 
 #include "synode_no.h"
-
 
 using std::vector;
 
@@ -34,23 +33,17 @@ extern void do_cb_xcom_receive_data(synode_no message_id,
                                     Gcs_xcom_nodes *xcom_nodes, u_int size,
                                     char *data);
 
-namespace gcs_interface_unittest
-{
+namespace gcs_interface_unittest {
 
-class GcsInterfaceTest : public GcsBaseTest
-{
-};
-
+class GcsInterfaceTest : public GcsBaseTest {};
 
 /**
   This test is primarily to run valgrind to make sure
   that the interface can be initialized and finalized
   multiple times without any leak.
  */
-TEST_F(GcsInterfaceTest, DoubleInitFinalizeTest)
-{
-  Gcs_interface *gcs=
-    Gcs_xcom_interface::get_interface();
+TEST_F(GcsInterfaceTest, DoubleInitFinalizeTest) {
+  Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
 
   Gcs_interface_parameters if_params;
   if_params.add_parameter("group_name", "ola");
@@ -71,13 +64,11 @@ TEST_F(GcsInterfaceTest, DoubleInitFinalizeTest)
   gcs->finalize();
 
   // fake factory cleanup member function
-  static_cast<Gcs_xcom_interface*>(gcs)->cleanup();
+  static_cast<Gcs_xcom_interface *>(gcs)->cleanup();
 }
 
-TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest)
-{
-  Gcs_interface *gcs=
-    Gcs_xcom_interface::get_interface();
+TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest) {
+  Gcs_interface *gcs = Gcs_xcom_interface::get_interface();
 
   Gcs_interface_parameters if_params;
   if_params.add_parameter("group_name", "ola");
@@ -95,6 +86,6 @@ TEST_F(GcsInterfaceTest, ReceiveEmptyMessageTest)
   gcs->finalize();
 
   // fake factory cleanup member function
-  static_cast<Gcs_xcom_interface*>(gcs)->cleanup();
+  static_cast<Gcs_xcom_interface *>(gcs)->cleanup();
 }
-}
+}  // namespace gcs_interface_unittest

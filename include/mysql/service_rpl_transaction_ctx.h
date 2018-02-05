@@ -38,10 +38,9 @@
 #include <stdlib.h>
 #endif
 
-struct Transaction_termination_ctx
-{
+struct Transaction_termination_ctx {
   unsigned long m_thread_id;
-  unsigned int m_flags; // reserved
+  unsigned int m_flags;  // reserved
 
   /*
     If the instruction is to rollback the transaction,
@@ -59,17 +58,20 @@ struct Transaction_termination_ctx
 };
 
 extern "C" struct rpl_transaction_ctx_service_st {
-  int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);
-} *rpl_transaction_ctx_service;
+  int (*set_transaction_ctx)(
+      Transaction_termination_ctx transaction_termination_ctx);
+} * rpl_transaction_ctx_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
 #define set_transaction_ctx(transaction_termination_ctx) \
-  (rpl_transaction_ctx_service->set_transaction_ctx((transaction_termination_ctx)))
+  (rpl_transaction_ctx_service->set_transaction_ctx(     \
+      (transaction_termination_ctx)))
 
 #else
 
-int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
+int set_transaction_ctx(
+    Transaction_termination_ctx transaction_termination_ctx);
 
 #endif
 

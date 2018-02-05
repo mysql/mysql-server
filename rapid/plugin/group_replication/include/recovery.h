@@ -35,35 +35,32 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
 
 /* The possible policies used on recovery when applying cached transactions */
-enum enum_recovery_completion_policies
-{
-  RECOVERY_POLICY_WAIT_CERTIFIED= 0, // Wait for the certification of transactions
-  RECOVERY_POLICY_WAIT_EXECUTED,     // Wait for the execution of transactions
+enum enum_recovery_completion_policies {
+  RECOVERY_POLICY_WAIT_CERTIFIED =
+      0,                          // Wait for the certification of transactions
+  RECOVERY_POLICY_WAIT_EXECUTED,  // Wait for the execution of transactions
 };
 
-class Recovery_module
-{
+class Recovery_module {
+ public:
+  /**
+    Recovery_module constructor
 
-public:
-/**
-  Recovery_module constructor
-
-  @param applier
-            reference to the applier
-  @param channel_obsr_mngr
-            reference to the channel hooks observation manager
-  @param components_stop_timeout
-            timeout value for the recovery module during shutdown.
- */
+    @param applier
+              reference to the applier
+    @param channel_obsr_mngr
+              reference to the channel hooks observation manager
+    @param components_stop_timeout
+              timeout value for the recovery module during shutdown.
+   */
   Recovery_module(Applier_module_interface *applier,
                   Channel_observation_manager *channel_obsr_mngr,
                   ulong components_stop_timeout);
 
   ~Recovery_module();
 
-  void set_applier_module(Applier_module_interface *applier)
-  {
-    applier_module= applier;
+  void set_applier_module(Applier_module_interface *applier) {
+    applier_module = applier;
   }
 
   /**
@@ -81,8 +78,8 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int start_recovery(const std::string& group_name,
-                     const std::string& rec_view_id);
+  int start_recovery(const std::string &group_name,
+                     const std::string &rec_view_id);
 
   /**
     Recovery thread main execution method.
@@ -103,7 +100,7 @@ public:
       @retval 0      OK
       @retval !=0    Error
   */
-  int set_retrieved_cert_info(void* info);
+  int set_retrieved_cert_info(void *info);
 
   /**
     Stops the recovery process, shutting down the recovery thread.
@@ -135,19 +132,17 @@ public:
    */
   int update_recovery_process(bool did_members_left, bool is_leaving);
 
-  //Methods for variable updates
+  // Methods for variable updates
 
   /** Sets the number of times recovery tries to connect to a given donor. */
-  void set_recovery_donor_retry_count(ulong retry_count)
-  {
+  void set_recovery_donor_retry_count(ulong retry_count) {
     recovery_state_transfer.set_recovery_donor_retry_count(retry_count);
   }
 
   /** Sets the sleep time between connection attempts to all possible donors */
-  void set_recovery_donor_reconnect_interval(ulong reconnect_interval)
-  {
-    recovery_state_transfer.
-        set_recovery_donor_reconnect_interval(reconnect_interval);
+  void set_recovery_donor_reconnect_interval(ulong reconnect_interval) {
+    recovery_state_transfer.set_recovery_donor_reconnect_interval(
+        reconnect_interval);
   }
 
   /**
@@ -163,87 +158,71 @@ public:
      @param ssl_crlpath             path with revocation list files
      @param ssl_verify_server_cert  verify the hostname against the certificate
   */
-  void set_recovery_ssl_options(bool use_ssl,
-                                const char *ssl_ca,
-                                const char *ssl_capath,
-                                const char *ssl_cert,
-                                const char *ssl_cipher,
-                                const char *ssl_key,
-                                const char *ssl_crl,
-                                const char *ssl_crlpath,
-                                bool ssl_verify_server_cert)
-  {
+  void set_recovery_ssl_options(bool use_ssl, const char *ssl_ca,
+                                const char *ssl_capath, const char *ssl_cert,
+                                const char *ssl_cipher, const char *ssl_key,
+                                const char *ssl_crl, const char *ssl_crlpath,
+                                bool ssl_verify_server_cert) {
     recovery_state_transfer.set_recovery_use_ssl(use_ssl);
-    if (ssl_ca != NULL)
-      recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
+    if (ssl_ca != NULL) recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
     if (ssl_capath != NULL)
       recovery_state_transfer.set_recovery_ssl_capath(ssl_capath);
     if (ssl_cert != NULL)
       recovery_state_transfer.set_recovery_ssl_cert(ssl_cert);
     if (ssl_cipher != NULL)
       recovery_state_transfer.set_recovery_ssl_cipher(ssl_cipher);
-    if (ssl_key != NULL)
-      recovery_state_transfer.set_recovery_ssl_key(ssl_key);
-    if (ssl_crl != NULL)
-      recovery_state_transfer.set_recovery_ssl_crl(ssl_crl);
+    if (ssl_key != NULL) recovery_state_transfer.set_recovery_ssl_key(ssl_key);
+    if (ssl_crl != NULL) recovery_state_transfer.set_recovery_ssl_crl(ssl_crl);
     if (ssl_crlpath != NULL)
       recovery_state_transfer.set_recovery_ssl_crlpath(ssl_crlpath);
-    recovery_state_transfer.
-        set_recovery_ssl_verify_server_cert(ssl_verify_server_cert);
+    recovery_state_transfer.set_recovery_ssl_verify_server_cert(
+        ssl_verify_server_cert);
   }
 
   /** Set the option that forces the use of SSL on recovery connections */
-  void set_recovery_use_ssl(char use_ssl)
-  {
+  void set_recovery_use_ssl(char use_ssl) {
     recovery_state_transfer.set_recovery_use_ssl(use_ssl);
   }
 
   /** Set a SSL trusted certificate authorities file */
-  void set_recovery_ssl_ca(const char* ssl_ca)
-  {
+  void set_recovery_ssl_ca(const char *ssl_ca) {
     recovery_state_transfer.set_recovery_ssl_ca(ssl_ca);
   }
 
   /** Set a folder with SSL trusted CA files */
-  void set_recovery_ssl_capath(const char* ssl_capath)
-  {
+  void set_recovery_ssl_capath(const char *ssl_capath) {
     recovery_state_transfer.set_recovery_ssl_capath(ssl_capath);
   }
 
   /** Set a SSL certificate for connection */
-  void set_recovery_ssl_cert(const char* ssl_cert)
-  {
+  void set_recovery_ssl_cert(const char *ssl_cert) {
     recovery_state_transfer.set_recovery_ssl_cert(ssl_cert);
   }
 
   /** Set a SSL ciphers to be used */
-  void set_recovery_ssl_cipher(const char* ssl_cipher)
-  {
+  void set_recovery_ssl_cipher(const char *ssl_cipher) {
     recovery_state_transfer.set_recovery_ssl_cipher(ssl_cipher);
   }
 
   /** Set a SSL key for connections */
-  void set_recovery_ssl_key(const char* ssl_key)
-  {
+  void set_recovery_ssl_key(const char *ssl_key) {
     recovery_state_transfer.set_recovery_ssl_key(ssl_key);
   }
 
   /** Set a SSL revocation list file*/
-  void set_recovery_ssl_crl(const char* ssl_crl)
-  {
+  void set_recovery_ssl_crl(const char *ssl_crl) {
     recovery_state_transfer.set_recovery_ssl_crl(ssl_crl);
   }
 
   /** Set a folder with SSL revocation list files*/
-  void set_recovery_ssl_crlpath(const char* ssl_crlpath)
-  {
+  void set_recovery_ssl_crlpath(const char *ssl_crlpath) {
     recovery_state_transfer.set_recovery_ssl_crlpath(ssl_crlpath);
   }
 
   /** Set if recovery shall compare the used hostname against the certificate */
-  void set_recovery_ssl_verify_server_cert(char ssl_verify_server_cert)
-  {
-    recovery_state_transfer.set_recovery_ssl_verify_server_cert(ssl_verify_server_cert);
+  void set_recovery_ssl_verify_server_cert(char ssl_verify_server_cert) {
+    recovery_state_transfer.set_recovery_ssl_verify_server_cert(
+        ssl_verify_server_cert);
   }
 
   /**
@@ -251,8 +230,8 @@ public:
 
     @param[in]  timeout      the timeout
   */
-  void set_stop_wait_timeout (ulong timeout){
-    stop_wait_timeout= timeout;
+  void set_stop_wait_timeout(ulong timeout) {
+    stop_wait_timeout = timeout;
     recovery_state_transfer.set_stop_wait_timeout(timeout);
   }
 
@@ -261,22 +240,19 @@ public:
     @param completion_policy  if recovery shall wait for execution
                               or certification
   */
-  void
-  set_recovery_completion_policy(enum_recovery_completion_policies completion_policy)
-  {
-    this->recovery_completion_policy= completion_policy;
+  void set_recovery_completion_policy(
+      enum_recovery_completion_policies completion_policy) {
+    this->recovery_completion_policy = completion_policy;
   }
 
   /** Set a public key file*/
-  void set_recovery_public_key_path(const char* public_key_path)
-  {
+  void set_recovery_public_key_path(const char *public_key_path) {
     if (public_key_path != NULL)
       recovery_state_transfer.set_recovery_public_key_path(public_key_path);
   }
 
   /** Get public key automatically */
-  void set_recovery_get_public_key(bool set)
-  {
+  void set_recovery_get_public_key(bool set) {
     recovery_state_transfer.set_recovery_get_public_key(set);
   }
 
@@ -290,8 +266,7 @@ public:
   */
   bool is_own_event_channel(my_thread_id id);
 
-private:
-
+ private:
   /** Sets the thread context */
   void set_recovery_thread_context();
 
@@ -312,14 +287,14 @@ private:
       @retval 0      OK
       @retval !=0    Error
   */
-  int  wait_for_applier_module_recovery();
+  int wait_for_applier_module_recovery();
 
   /**
     Sends a message throughout the group stating the member as online.
   */
   void notify_group_recovery_end();
 
-  //recovery thread variables
+  // recovery thread variables
   my_thread_handle recovery_pthd;
   THD *recovery_thd;
 
@@ -337,9 +312,9 @@ private:
   /* Recovery abort flag */
   bool recovery_aborted;
 
-  //run conditions and locks
+  // run conditions and locks
   mysql_mutex_t run_lock;
-  mysql_cond_t  run_cond;
+  mysql_cond_t run_cond;
 
   /* Recovery strategy when waiting for the cache transaction handling*/
   enum_recovery_completion_policies recovery_completion_policy;

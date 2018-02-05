@@ -26,19 +26,13 @@
 
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 
+namespace xpl {
 
-namespace xpl
-{
+namespace test {
 
-namespace test
-{
-
-
-template<typename T>
-struct Result_collector
-{
-  void task(const T& value)
-  {
+template <typename T>
+struct Result_collector {
+  void task(const T &value) {
     {
       MUTEX_LOCK(lock, m_result_mutex);
 
@@ -48,15 +42,12 @@ struct Result_collector
     m_check_task_count_cond.signal(m_check_task_count_mutex);
   }
 
-  ngs::Scheduler_dynamic::Task* new_task(const T& value)
-  {
+  ngs::Scheduler_dynamic::Task *new_task(const T &value) {
     return new ngs::Scheduler_dynamic::Task(
-      ngs::bind(&Result_collector::task, this, value)
-    );
+        ngs::bind(&Result_collector::task, this, value));
   }
 
-  void wait(size_t task_count)
-  {
+  void wait(size_t task_count) {
     MUTEX_LOCK(lock, m_check_task_count_mutex);
 
     while (m_result.size() != task_count)
@@ -69,9 +60,7 @@ struct Result_collector
   std::vector<T> m_result;
 };
 
-
-TEST(xpl_scheduler_dynamic, DISABLED_run_1000_tasks)
-{
+TEST(xpl_scheduler_dynamic, DISABLED_run_1000_tasks) {
   const unsigned int TASK_COUNT = 1000;
 
   ngs::Scheduler_dynamic scheduler("name");
@@ -89,7 +78,6 @@ TEST(xpl_scheduler_dynamic, DISABLED_run_1000_tasks)
     ASSERT_EQ(idx, result_set.m_result[idx]);
 }
 
+}  // namespace test
 
-} // namespace test
-
-} // namespace xpl
+}  // namespace xpl

@@ -40,7 +40,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
@@ -48,18 +47,15 @@
 /**
   Stores connection information associated with a node.
 */
-class Gcs_xcom_node_address
-{
-public:
+class Gcs_xcom_node_address {
+ public:
   /**
     Gcs_xcom_node_address constructor.
   */
 
   explicit Gcs_xcom_node_address(std::string member_address);
 
-
   virtual ~Gcs_xcom_node_address();
-
 
   /**
     Return address using the format ip:port.
@@ -67,13 +63,11 @@ public:
 
   std::string &get_member_address();
 
-
   /**
     Return the IP address.
   */
 
   std::string &get_member_ip();
-
 
   /**
     Return the port number.
@@ -81,23 +75,22 @@ public:
 
   xcom_port get_member_port();
 
-
   /**
     Return an internal representation.
   */
 
   std::string *get_member_representation() const;
 
-private:
+ private:
   /*
     Member's address.
   */
-  std::string  m_member_address;
+  std::string m_member_address;
 
   /*
     Member's IP.
   */
-  std::string  m_member_ip;
+  std::string m_member_ip;
 
   /*
     Member's port.
@@ -105,19 +98,16 @@ private:
   xcom_port m_member_port;
 };
 
-
 /*
   Internal GCS unique identifier.
 */
-class Gcs_xcom_uuid
-{
-public:
+class Gcs_xcom_uuid {
+ public:
   /*
     Create a GCS unique identifier.
   */
 
   static Gcs_xcom_uuid create_uuid();
-
 
   /*
     Copies the internal buffer which is used to store a uuid to an
@@ -131,7 +121,6 @@ public:
 
   bool encode(uchar **buffer, unsigned int *size) const;
 
-
   /*
     Copies the external buffer to an internal buffer. If the
     parameter buffer points to NULL, nothing is returned.
@@ -143,7 +132,6 @@ public:
 
   bool decode(const uchar *buffer, const unsigned int size);
 
-
   /*
     Unique identifier which currently only accommodates 64 bits but
     can easily be extended to 128 bits and become a truly UUID in
@@ -152,7 +140,6 @@ public:
 
   std::string actual_value;
 };
-
 
 /**
   @class Gcs_xcom_node_information
@@ -170,9 +157,8 @@ public:
   operator and these properties are required by several other classes such
   as the Gcs_xcom_nodes.
  */
-class Gcs_xcom_node_information
-{
-public:
+class Gcs_xcom_node_information {
+ public:
   /**
     Gcs_xcom_node_information constructor.
 
@@ -181,7 +167,7 @@ public:
   */
 
   explicit Gcs_xcom_node_information(const std::string &member_id,
-                                     bool alive=true);
+                                     bool alive = true);
 
   /**
     Gcs_xcom_node_information constructor.
@@ -197,9 +183,7 @@ public:
                                      const unsigned int node_no,
                                      const bool alive);
 
-
   virtual ~Gcs_xcom_node_information() {}
-
 
   /**
     Sets the timestamp to indicate the creation of the suspicion.
@@ -207,13 +191,11 @@ public:
 
   void set_timestamp(uint64_t ts);
 
-
   /**
     Gets the timestamp that indicates the creation of the suspicion.
   */
 
   uint64_t get_timestamp() const;
-
 
   /**
     Compares the object's timestamp with the received one, in order
@@ -226,20 +208,17 @@ public:
 
   bool has_timed_out(uint64_t ts, uint64_t timeout);
 
-
   /**
     @return the member identifier
   */
 
-  const Gcs_member_identifier& get_member_id() const;
-
+  const Gcs_member_identifier &get_member_id() const;
 
   /**
     @return the member uuid
   */
 
-  const Gcs_xcom_uuid& get_member_uuid() const;
-
+  const Gcs_xcom_uuid &get_member_uuid() const;
 
   /**
     Regenerate the member uuid.
@@ -247,13 +226,11 @@ public:
 
   void regenerate_member_uuid();
 
-
   /**
     Set the member node_no.
   */
 
   void set_node_no(unsigned int);
-
 
   /**
     Return member node_no.
@@ -261,14 +238,13 @@ public:
 
   unsigned int get_node_no() const;
 
-
   /**
     Get whether the member is alive or not.
   */
 
   bool is_alive() const;
 
-private:
+ private:
   Gcs_member_identifier m_member_id;
 
   /**
@@ -292,7 +268,6 @@ private:
   uint64_t m_timestamp;
 };
 
-
 /**
   This class contains information on the configuration, i.e set of nodes
   or simply site definition.
@@ -307,9 +282,8 @@ private:
   not and as such duplicated entries are allowed. Users are responsible
   for guaranteeing that duplicated entries are not inserted.
 */
-class Gcs_xcom_nodes
-{
-public:
+class Gcs_xcom_nodes {
+ public:
   /**
     Constructor that reads the site definition and whether a node
     is considered dead or alive to build a list of addresses and
@@ -326,13 +300,11 @@ public:
 
   explicit Gcs_xcom_nodes(const site_def *site, node_set &nodes);
 
-
   /**
     Destructor for Gcs_xcom_nodes.
   */
 
   virtual ~Gcs_xcom_nodes();
-
 
   /*
     Set the index of the current node (i.e. member);
@@ -340,20 +312,17 @@ public:
 
   void set_node_no(unsigned int node_no);
 
-
   /**
     Return the index of the current node (i.e. member).
   */
 
   unsigned int get_node_no() const;
 
-
   /**
     Return with the configuration is valid or not.
   */
 
-  inline bool is_valid() const
-  {
+  inline bool is_valid() const {
     /*
       Unfortunately a node may get notifications even when its configuration
       inside XCOM is not properly established and this may trigger view
@@ -364,20 +333,18 @@ public:
     return m_node_no != VOID_NODE_NO;
   }
 
-
   /**
     Return a reference to the addresses' vector.
   */
 
   const std::vector<Gcs_xcom_node_information> &get_nodes() const;
 
-
   /**
     Return a pointer to a node if it exists, otherwise NULL.
   */
 
-  const Gcs_xcom_node_information *get_node(const Gcs_member_identifier &member_id) const;
-
+  const Gcs_xcom_node_information *get_node(
+      const Gcs_member_identifier &member_id) const;
 
   /**
     Return a pointer to a node if it exists, otherwise NULL.
@@ -385,13 +352,11 @@ public:
 
   const Gcs_xcom_node_information *get_node(const std::string &member_id) const;
 
-
   /**
     Return a pointer to a node if it exists, otherwise NULL.
   */
 
   const Gcs_xcom_node_information *get_node(unsigned int node_no) const;
-
 
   /**
     Return a pointer to a node if it exists, otherwise NULL.
@@ -399,14 +364,12 @@ public:
 
   const Gcs_xcom_node_information *get_node(const Gcs_xcom_uuid &uuid) const;
 
-
   /**
     Add a node to the set of nodes. Note that the method does not
     verify if the node already exists.
   */
 
   void add_node(const Gcs_xcom_node_information &node);
-
 
   /**
     Remove a node from the set of nodes.
@@ -416,7 +379,6 @@ public:
 
   void remove_node(const Gcs_xcom_node_information &node);
 
-
   /**
     Clear up the current set and add a new set of nodes.
 
@@ -425,20 +387,17 @@ public:
 
   void add_nodes(const Gcs_xcom_nodes &xcom_nodes);
 
-
   /**
     Clear the set of nodes.
   */
 
   void clear_nodes();
 
-
   /**
     Return the number of nodes in the set.
   */
 
   unsigned int get_size() const;
-
 
   /**
     Whether the set of nodes is empty or not.
@@ -447,13 +406,13 @@ public:
   bool empty() const;
 
   /**
-    Encode the information on the set of nodes in a format that can be interpreted
-    by XCOM to boot, add or remove nodes.
+    Encode the information on the set of nodes in a format that can be
+    interpreted by XCOM to boot, add or remove nodes.
   */
 
   bool encode(unsigned int *ptr_size, char ***ptr_addrs, blob **ptr_uuids);
 
-private:
+ private:
   /*
     Free memory allocated to encode the object.
   */
@@ -486,11 +445,11 @@ private:
   */
   blob *m_uuids;
 
-private:
+ private:
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Gcs_xcom_nodes(const Gcs_xcom_nodes&);
-  Gcs_xcom_nodes& operator=(const Gcs_xcom_nodes&);
+  Gcs_xcom_nodes(const Gcs_xcom_nodes &);
+  Gcs_xcom_nodes &operator=(const Gcs_xcom_nodes &);
 };
-#endif // GCS_XCOM_GROUP_MEMBER_INFORMATION_INCLUDED
+#endif  // GCS_XCOM_GROUP_MEMBER_INFORMATION_INCLUDED

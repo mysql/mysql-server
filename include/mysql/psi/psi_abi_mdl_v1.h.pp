@@ -29,8 +29,7 @@ struct PSI_metadata_lock;
 typedef struct PSI_metadata_lock PSI_metadata_lock;
 struct PSI_metadata_locker;
 typedef struct PSI_metadata_locker PSI_metadata_locker;
-struct PSI_metadata_locker_state_v1
-{
+struct PSI_metadata_locker_state_v1 {
   unsigned int m_flags;
   struct PSI_metadata_lock *m_metadata_lock;
   struct PSI_thread *m_thread;
@@ -40,31 +39,23 @@ struct PSI_metadata_locker_state_v1
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
 typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
-  void *identity,
-  const struct MDL_key *key,
-  opaque_mdl_type mdl_type,
-  opaque_mdl_duration mdl_duration,
-  opaque_mdl_status mdl_status,
-  const char *src_file,
-  unsigned int src_line);
+    void *identity, const struct MDL_key *key, opaque_mdl_type mdl_type,
+    opaque_mdl_duration mdl_duration, opaque_mdl_status mdl_status,
+    const char *src_file, unsigned int src_line);
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
 typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
-  struct PSI_metadata_locker_state_v1 *state,
-  struct PSI_metadata_lock *mdl,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_metadata_locker_state_v1 *state, struct PSI_metadata_lock *mdl,
+    const char *src_file, unsigned int src_line);
 typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
                                        int rc);
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
-struct PSI_mdl_bootstrap
-{
+struct PSI_mdl_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_mdl_bootstrap PSI_mdl_bootstrap;
-struct PSI_mdl_service_v1
-{
+struct PSI_mdl_service_v1 {
   create_metadata_lock_v1_t create_metadata_lock;
   set_metadata_lock_status_v1_t set_metadata_lock_status;
   destroy_metadata_lock_v1_t destroy_metadata_lock;

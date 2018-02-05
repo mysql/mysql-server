@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef GCS_PLUGIN_MESSAGES_INCLUDED
-#define	GCS_PLUGIN_MESSAGES_INCLUDED
+#define GCS_PLUGIN_MESSAGES_INCLUDED
 
 /*
   Since this file is used on unit tests, through member_info.h,
@@ -60,9 +60,8 @@
  The last tree lines can occur one or more times.
 */
 
-class Plugin_gcs_message
-{
-public:
+class Plugin_gcs_message {
+ public:
   /**
    The protocol version number.
    */
@@ -113,42 +112,42 @@ public:
 
    NOTE: all type values must fit into WIRE_CARGO_TYPE_SIZE bytes storage.
    */
-  enum enum_cargo_type
-  {
+  enum enum_cargo_type {
     // This type should not be used anywhere.
-    CT_UNKNOWN= 0,
+    CT_UNKNOWN = 0,
 
-    // This cargo type is used for certification events, GTID_EXECUTED broadcast.
-    CT_CERTIFICATION_MESSAGE= 1,
+    // This cargo type is used for certification events, GTID_EXECUTED
+    // broadcast.
+    CT_CERTIFICATION_MESSAGE = 1,
 
     // This cargo type is used for transaction data.
-    CT_TRANSACTION_MESSAGE= 2,
+    CT_TRANSACTION_MESSAGE = 2,
 
     // This cargo type is used for recovery events, signal when a given member
     // becomes online.
-    CT_RECOVERY_MESSAGE= 3,
+    CT_RECOVERY_MESSAGE = 3,
 
     // This cargo type is used for messaging related to stage exchanges,
     // on which it represents one member.
-    CT_MEMBER_INFO_MESSAGE= 4,
+    CT_MEMBER_INFO_MESSAGE = 4,
 
     // This cargo type is used for messaging related to stage exchanges,
     // on which it represents a set of members.
-    CT_MEMBER_INFO_MANAGER_MESSAGE= 5,
+    CT_MEMBER_INFO_MANAGER_MESSAGE = 5,
 
     // This cargo type is used for messaging related to members pipeline
     // stats.
-    CT_PIPELINE_STATS_MEMBER_MESSAGE= 6,
+    CT_PIPELINE_STATS_MEMBER_MESSAGE = 6,
 
     // This cargo type is used for messaging related to single primary
     // mode.
-    CT_SINGLE_PRIMARY_MESSAGE= 7,
+    CT_SINGLE_PRIMARY_MESSAGE = 7,
 
     // No valid type codes can appear after this one.
-    CT_MAX= 8
+    CT_MAX = 8
   };
 
-private:
+ private:
   /**
    This header instance protocol version.
    */
@@ -169,7 +168,7 @@ private:
    */
   enum_cargo_type m_cargo_type;
 
-public:
+ public:
   virtual ~Plugin_gcs_message() {}
 
   /**
@@ -197,7 +196,7 @@ public:
 
     @param[out] buffer the buffer to encode to.
   */
-  void encode(std::vector<unsigned char>* buffer) const;
+  void encode(std::vector<unsigned char> *buffer) const;
 
   /**
     Decodes the contents of the buffer and sets the field values
@@ -206,7 +205,7 @@ public:
     @param[in] buffer the buffer to decode from.
     @param[in] length the length of the buffer.
   */
-  void decode(const unsigned char* buffer, size_t length);
+  void decode(const unsigned char *buffer, size_t length);
 
   /**
     Return the cargo type of a given message buffer, without decode
@@ -216,7 +215,7 @@ public:
 
     @return the cargo type of a given message buffer
    */
-  static enum_cargo_type get_cargo_type(const unsigned char* buffer);
+  static enum_cargo_type get_cargo_type(const unsigned char *buffer);
 
   /**
     Return the raw data of the first payload item of a given message buffer,
@@ -228,11 +227,11 @@ public:
 
     @return the raw data of the first payload item
   */
-  static void get_first_payload_item_raw_data(const unsigned char* buffer,
-                                              const unsigned char** payload_item_data,
-                                              size_t* payload_item_length);
+  static void get_first_payload_item_raw_data(
+      const unsigned char *buffer, const unsigned char **payload_item_data,
+      size_t *payload_item_length);
 
-protected:
+ protected:
   /**
     Plugin_gcs_message constructor. Only to be called by derivative classes
 
@@ -245,7 +244,7 @@ protected:
 
     @param[out] buffer the buffer to encode to.
   */
-  virtual void encode_payload(std::vector<unsigned char>* buffer) const = 0;
+  virtual void encode_payload(std::vector<unsigned char> *buffer) const = 0;
 
   /**
     Decodes the contents of the buffer and sets the payload field
@@ -254,8 +253,8 @@ protected:
     @param[in] buffer the buffer to decode from.
     @param[in] end    the end of the buffer.
   */
-  virtual void decode_payload(const unsigned char* buffer,
-                              const unsigned char* end)= 0;
+  virtual void decode_payload(const unsigned char *buffer,
+                              const unsigned char *end) = 0;
 
   /**
     Encodes the given payload item type and length into the buffer.
@@ -264,10 +263,9 @@ protected:
     @param[in]  payload_item_type   the type of the payload item
     @param[in]  payload_item_length the length of the payload item
   */
-  void encode_payload_item_type_and_length(std::vector<unsigned char>* buffer,
-                                           uint16 payload_item_type,
-                                           unsigned long long payload_item_length)
-                                           const;
+  void encode_payload_item_type_and_length(
+      std::vector<unsigned char> *buffer, uint16 payload_item_type,
+      unsigned long long payload_item_length) const;
 
   /**
     Decodes the given payload item type and length from the buffer.
@@ -276,9 +274,9 @@ protected:
     @param[out] payload_item_type   the type of the payload item
     @param[out] payload_item_length the length of the payload item
   */
-  void decode_payload_item_type_and_length(const unsigned char** buffer,
-                                           uint16* payload_item_type,
-                                           unsigned long long* payload_item_length);
+  void decode_payload_item_type_and_length(
+      const unsigned char **buffer, uint16 *payload_item_type,
+      unsigned long long *payload_item_length);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -288,10 +286,8 @@ protected:
     @param[in]  type   the type of the payload item
     @param[in]  value  the value of the payload item
   */
-  void encode_payload_item_char(std::vector<unsigned char>* buffer,
-                                uint16 type,
-                                unsigned char value)
-                                const;
+  void encode_payload_item_char(std::vector<unsigned char> *buffer, uint16 type,
+                                unsigned char value) const;
 
   /**
     Decodes the given payload item (type, length and value) from the buffer as
@@ -301,9 +297,8 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_char(const unsigned char** buffer,
-                                uint16* type,
-                                unsigned char* value);
+  void decode_payload_item_char(const unsigned char **buffer, uint16 *type,
+                                unsigned char *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -313,10 +308,8 @@ protected:
     @param[in]  type   the type of the payload item
     @param[in]  value  the value of the payload item
   */
-  void encode_payload_item_int2(std::vector<unsigned char>* buffer,
-                                uint16 type,
-                                uint16 value)
-                                const;
+  void encode_payload_item_int2(std::vector<unsigned char> *buffer, uint16 type,
+                                uint16 value) const;
 
   /**
     Decodes the given payload item (type, length and value) from the buffer as
@@ -326,9 +319,8 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int2(const unsigned char** buffer,
-                                uint16* type,
-                                uint16* value);
+  void decode_payload_item_int2(const unsigned char **buffer, uint16 *type,
+                                uint16 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -338,10 +330,8 @@ protected:
     @param[in]  type   the type of the payload item
     @param[in]  value  the value of the payload item
   */
-  void encode_payload_item_int4(std::vector<unsigned char>* buffer,
-                                uint16 type,
-                                uint32 value)
-                                const;
+  void encode_payload_item_int4(std::vector<unsigned char> *buffer, uint16 type,
+                                uint32 value) const;
 
   /**
     Decodes the given payload item (type, length and value) from the buffer as
@@ -351,9 +341,8 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int4(const unsigned char** buffer,
-                                uint16* type,
-                                uint32* value);
+  void decode_payload_item_int4(const unsigned char **buffer, uint16 *type,
+                                uint32 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -363,10 +352,8 @@ protected:
     @param[in]  type   the type of the payload item
     @param[in]  value  the value of the payload item
   */
-  void encode_payload_item_int8(std::vector<unsigned char>* buffer,
-                                uint16 type,
-                                ulonglong value)
-                                const;
+  void encode_payload_item_int8(std::vector<unsigned char> *buffer, uint16 type,
+                                ulonglong value) const;
 
   /**
     Decodes the given payload item (type, length and value) from the buffer as
@@ -376,9 +363,8 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int8(const unsigned char** buffer,
-                                uint16* type,
-                                ulonglong* value);
+  void decode_payload_item_int8(const unsigned char **buffer, uint16 *type,
+                                ulonglong *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -389,11 +375,9 @@ protected:
     @param[in]  value  the value of the payload item
     @param[in]  length the length of the payload item
   */
-  void encode_payload_item_string(std::vector<unsigned char>* buffer,
-                                  uint16 type,
-                                  const char* value,
-                                  unsigned long long length)
-                                  const;
+  void encode_payload_item_string(std::vector<unsigned char> *buffer,
+                                  uint16 type, const char *value,
+                                  unsigned long long length) const;
 
   /**
     Decodes the given payload item (type, length and value) from the buffer as
@@ -404,10 +388,9 @@ protected:
     @param[out] value  the value of the payload item
     @param[out] length the length of the payload item
   */
-  void decode_payload_item_string(const unsigned char** buffer,
-                                  uint16* type,
-                                  std::string* value,
-                                  unsigned long long* length);
+  void decode_payload_item_string(const unsigned char **buffer, uint16 *type,
+                                  std::string *value,
+                                  unsigned long long *length);
 };
 
-#endif	/* GCS_PLUGIN_MESSAGES_INCLUDED */
+#endif /* GCS_PLUGIN_MESSAGES_INCLUDED */

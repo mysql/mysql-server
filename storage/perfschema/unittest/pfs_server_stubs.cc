@@ -34,53 +34,38 @@
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"
 
-
 struct System_status_var global_status_var;
 
 struct sql_digest_storage;
-volatile bool ready_to_exit= false;
+volatile bool ready_to_exit = false;
 
-uint lower_case_table_names= 0;
-CHARSET_INFO *files_charset_info= NULL;
-CHARSET_INFO *system_charset_info= NULL;
+uint lower_case_table_names = 0;
+CHARSET_INFO *files_charset_info = NULL;
+CHARSET_INFO *system_charset_info = NULL;
 
-void compute_digest_hash(const sql_digest_storage *, unsigned char *)
-{
-}
+void compute_digest_hash(const sql_digest_storage *, unsigned char *) {}
 
-void reset_status_vars()
-{
-}
+void reset_status_vars() {}
 
-struct System_status_var* get_thd_status_var(THD*)
-{
+struct System_status_var *get_thd_status_var(THD *) {
   return NULL;
 }
 
-unsigned int mysql_errno_to_sqlstate_index(unsigned int)
-{
+unsigned int mysql_errno_to_sqlstate_index(unsigned int) { return 0; }
+
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return NULL; }
+
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) *
+                                  reg MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
-SERVICE_TYPE(registry) * mysql_plugin_registry_acquire()
-{
-  return NULL;
-}
-
-int mysql_plugin_registry_release(SERVICE_TYPE(registry) *reg MY_ATTRIBUTE((unused)))
-{
-  return 0;
-}
-
-int log_message(int, ...)
-{
+int log_message(int, ...) {
   /* Do not pollute the unit test output with annoying messages. */
   return 0;
 }
 
 TABLE_SHARE::TABLE_SHARE()
-  : row_type(ROW_TYPE_DEFAULT),
-    real_row_type(ROW_TYPE_DEFAULT),
-    stats_auto_recalc(HA_STATS_AUTO_RECALC_DEFAULT)
-{
-}
+    : row_type(ROW_TYPE_DEFAULT),
+      real_row_type(ROW_TYPE_DEFAULT),
+      stats_auto_recalc(HA_STATS_AUTO_RECALC_DEFAULT) {}

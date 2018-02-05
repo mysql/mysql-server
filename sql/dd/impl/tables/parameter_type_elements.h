@@ -23,38 +23,26 @@
 #ifndef DD_TABLES__PARAMETER_TYPE_ELEMENTS_INCLUDED
 #define DD_TABLES__PARAMETER_TYPE_ELEMENTS_INCLUDED
 
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Object_key;
+class Object_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Parameter_type_elements : public Object_table_impl
-{
-public:
+class Parameter_type_elements : public Object_table_impl {
+ public:
   static const Parameter_type_elements &instance();
 
-  enum enum_fields
-  {
-    FIELD_PARAMETER_ID,
-    FIELD_ELEMENT_INDEX,
-    FIELD_NAME
-  };
+  enum enum_fields { FIELD_PARAMETER_ID, FIELD_ELEMENT_INDEX, FIELD_NAME };
 
-  enum enum_indexes
-  {
-    INDEX_PK_PARAMETER_ID_ELEMENT_INDEX
-  };
+  enum enum_indexes { INDEX_PK_PARAMETER_ID_ELEMENT_INDEX };
 
-  enum enum_foreign_keys
-  {
-    FK_PARAMETER_ID
-  };
+  enum enum_foreign_keys { FK_PARAMETER_ID };
 
   Parameter_type_elements();
 
@@ -65,7 +53,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__PARAMETER_TYPE_ELEMENTS_INCLUDED
+#endif  // DD_TABLES__PARAMETER_TYPE_ELEMENTS_INCLUDED

@@ -25,11 +25,11 @@
 
 #include "my_config.h"
 
-#include <atomic>
 #include <signal.h>
 #include <stdint.h>  // int32_t
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -40,9 +40,9 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "my_sqlcommand.h"                 // SQLCOM_END
-#include "my_sys.h"                        // MY_TMPDIR
-#include "my_thread.h"                     // my_thread_attr_t
+#include "my_sqlcommand.h"  // SQLCOM_END
+#include "my_sys.h"         // MY_TMPDIR
+#include "my_thread.h"      // my_thread_attr_t
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
@@ -55,12 +55,12 @@
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/status_var.h"
-#include "mysql_com.h"                     // SERVER_VERSION_LENGTH
+#include "mysql_com.h"  // SERVER_VERSION_LENGTH
 #ifdef _WIN32
 #include "sql/nt_servc.h"
-#endif // _WIN32
+#endif  // _WIN32
 #include "sql/sql_bitmap.h"
-#include "sql/sql_const.h"                 // UUID_LENGTH
+#include "sql/sql_const.h"  // UUID_LENGTH
 
 class Rpl_global_filter;
 class THD;
@@ -69,42 +69,43 @@ struct MEM_ROOT;
 struct handlerton;
 
 #if MAX_INDEXES <= 64
-typedef Bitmap<64>  Key_map;          /* Used for finding keys */
+typedef Bitmap<64> Key_map; /* Used for finding keys */
 #elif MAX_INDEXES > 255
 #error "MAX_INDEXES values greater than 255 is not supported."
 #else
-typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
+typedef Bitmap<((MAX_INDEXES + 7) / 8 * 8)> Key_map; /* Used for finding keys */
 #endif
 
-	/* Bits from testflag */
+/* Bits from testflag */
 #define TEST_PRINT_CACHED_TABLES 1
-#define TEST_NO_KEY_GROUP	 2
-#define TEST_MIT_THREAD		4
+#define TEST_NO_KEY_GROUP 2
+#define TEST_MIT_THREAD 4
 /*
   TEST_BLOCKING is made obsolete and is not used any
   where in the code base and is retained here so that
   the other bit flag values are not changed.
 */
-#define OBSOLETE_TEST_BLOCKING	8
-#define TEST_KEEP_TMP_TABLES	16
-#define TEST_READCHECK		64	/**< Force use of readcheck */
-#define TEST_NO_EXTRA		128
-#define TEST_CORE_ON_SIGNAL	256	/**< Give core if signal */
-#define TEST_NO_STACKTRACE	512
-#define TEST_SIGINT	        1024    /**< Allow sigint on threads */
-#define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
-                                           some places */
-#define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
-                                           each command. */
+#define OBSOLETE_TEST_BLOCKING 8
+#define TEST_KEEP_TMP_TABLES 16
+#define TEST_READCHECK 64 /**< Force use of readcheck */
+#define TEST_NO_EXTRA 128
+#define TEST_CORE_ON_SIGNAL 256 /**< Give core if signal */
+#define TEST_NO_STACKTRACE 512
+#define TEST_SIGINT 1024 /**< Allow sigint on threads */
+#define TEST_SYNCHRONIZATION          \
+  2048 /**< get server to do sleep in \
+          some places */
+#define TEST_DO_QUICK_LEAK_CHECK       \
+  4096 /**< Do Valgrind leak check for \
+          each command. */
 
-#define SPECIAL_NO_NEW_FUNC	2		/* Skip new functions */
-#define SPECIAL_SKIP_SHOW_DB    4               /* Don't allow 'show db' */
-#define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
-#define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
+#define SPECIAL_NO_NEW_FUNC 2     /* Skip new functions */
+#define SPECIAL_SKIP_SHOW_DB 4    /* Don't allow 'show db' */
+#define SPECIAL_NO_RESOLVE 64     /* Don't use gethostname */
+#define SPECIAL_NO_HOST_CACHE 512 /* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
 /* Function prototypes */
-
 
 /**
   Signal the server thread for restart.
@@ -119,7 +120,7 @@ void refresh_status();
 bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 
-struct System_status_var* get_thd_status_var(THD *thd);
+struct System_status_var *get_thd_status_var(THD *thd);
 
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
@@ -129,13 +130,12 @@ bool gtid_server_init();
 void gtid_server_cleanup();
 void clean_up_mysqld_mutexes();
 
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
 extern CHARSET_INFO *character_set_filesystem;
 
-enum enum_server_operational_state
-{
+enum enum_server_operational_state {
   SERVER_BOOTING,      /* Server is not operational. It is starting */
   SERVER_OPERATING,    /* Server is fully initialized and operating */
   SERVER_SHUTTING_DOWN /* erver is shutting down */
@@ -155,7 +155,8 @@ extern bool opt_skip_name_resolve;
 extern bool opt_help;
 extern bool opt_verbose;
 extern bool opt_character_set_client_handshake;
-extern MYSQL_PLUGIN_IMPORT std::atomic<int32> connection_events_loop_aborted_flag;
+extern MYSQL_PLUGIN_IMPORT std::atomic<int32>
+    connection_events_loop_aborted_flag;
 extern bool opt_no_dd_upgrade;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
@@ -166,20 +167,23 @@ extern Rpl_global_filter rpl_global_filter;
 extern int32_t opt_regexp_time_limit;
 extern int32_t opt_regexp_stack_limit;
 
-
-enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
+enum enum_slave_type_conversions {
+  SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
+  SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+  SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+  SLAVE_TYPE_CONVERSIONS_ALL_SIGNED
+};
 extern ulonglong slave_type_conversions_options;
 
 extern bool read_only, opt_readonly;
 extern bool super_read_only, opt_super_readonly;
 extern bool lower_case_file_system;
 
-enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
-                                         SLAVE_ROWS_INDEX_SCAN = (1U << 1),
-                                         SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
+enum enum_slave_rows_search_algorithms {
+  SLAVE_ROWS_TABLE_SCAN = (1U << 0),
+  SLAVE_ROWS_INDEX_SCAN = (1U << 1),
+  SLAVE_ROWS_HASH_SCAN = (1U << 2)
+};
 extern ulonglong slave_rows_search_algorithms_options;
 extern bool opt_require_secure_transport;
 
@@ -194,11 +198,12 @@ extern bool opt_enable_named_pipe;
 extern bool opt_enable_shared_memory;
 #endif
 extern bool opt_allow_suspicious_udfs;
-extern char* opt_secure_file_priv;
+extern char *opt_secure_file_priv;
 extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
-extern bool check_proxy_users, mysql_native_password_proxy_users, sha256_password_proxy_users;
+extern bool check_proxy_users, mysql_native_password_proxy_users,
+    sha256_password_proxy_users;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern char *default_tz_name;
 extern Time_zone *default_tz;
@@ -206,31 +211,33 @@ extern char *default_storage_engine;
 extern char *default_tmp_storage_engine;
 extern ulong internal_tmp_disk_storage_engine;
 extern ulonglong temptable_max_ram;
-extern bool  using_udf_functions;
+extern bool using_udf_functions;
 extern bool locked_in_memory;
 extern bool opt_using_transactions;
 extern ulong current_pid;
 extern ulong expire_logs_days;
 extern ulong binlog_expire_logs_seconds;
-extern uint sync_binlog_period, sync_relaylog_period,
-            sync_relayloginfo_period, sync_masterinfo_period,
-            opt_mts_checkpoint_period, opt_mts_checkpoint_group;
+extern uint sync_binlog_period, sync_relaylog_period, sync_relayloginfo_period,
+    sync_masterinfo_period, opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern bool relay_log_purge;
 extern bool relay_log_recovery;
 extern bool offline_mode;
-extern uint test_flags,select_errors,ha_open_options;
+extern uint test_flags, select_errors, ha_open_options;
 extern uint protocol_version, mysqld_port;
 
-enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
-			    DELAY_KEY_WRITE_ALL };
+enum enum_delay_key_write {
+  DELAY_KEY_WRITE_NONE,
+  DELAY_KEY_WRITE_ON,
+  DELAY_KEY_WRITE_ALL
+};
 extern ulong delay_key_write_options;
 
 extern ulong opt_log_timestamps;
 extern const char *timestamp_type_names[];
 extern char *opt_general_logname, *opt_slow_logname, *opt_bin_logname,
-            *opt_relay_logname;
+    *opt_relay_logname;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
 extern uint default_password_lifetime;
@@ -238,7 +245,7 @@ extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN];
 extern char system_time_zone[30], *opt_init_file;
 extern char *opt_tc_log_file;
-extern char server_uuid[UUID_LENGTH+1];
+extern char server_uuid[UUID_LENGTH + 1];
 extern const char *server_uuid_ptr;
 extern const double log_10[309];
 extern ulong binlog_cache_use, binlog_cache_disk_use;
@@ -258,12 +265,12 @@ extern ulong max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
 extern bool opt_slave_allow_batching;
 extern ulong slave_trans_retries;
-extern uint  slave_net_timeout;
+extern uint slave_net_timeout;
 extern ulong opt_mts_slave_parallel_workers;
 extern ulonglong opt_mts_pending_jobs_size_max;
 extern ulong rpl_stop_slave_timeout;
 extern bool log_bin_use_v1_row_events;
-extern ulong what_to_log,flush_time;
+extern ulong what_to_log, flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
 extern ulong binlog_cache_size, binlog_stmt_cache_size;
@@ -283,12 +290,11 @@ extern uint32 gtid_executed_compression_period;
 extern bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
 extern ulong locked_account_connection_count;
-enum enum_binlog_error_action
-{
+enum enum_binlog_error_action {
   /// Ignore the error and let server continue without binlogging
-  IGNORE_ERROR= 0,
+  IGNORE_ERROR = 0,
   /// Abort the server
-  ABORT_SERVER= 1
+  ABORT_SERVER = 1
 };
 extern const char *binlog_error_action_list[];
 
@@ -301,7 +307,7 @@ extern size_t mysql_unpacked_real_data_home_len;
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 extern const char *show_comp_option_name[];
 extern const char *first_keyword, *binary_keyword;
-extern MYSQL_PLUGIN_IMPORT const char  *my_localhost;
+extern MYSQL_PLUGIN_IMPORT const char *my_localhost;
 extern const char *in_left_expr_name;
 extern SHOW_VAR status_vars[];
 extern struct System_variables max_system_variables;
@@ -326,10 +332,10 @@ extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 extern char *opt_log_error_filter_rules;
 extern char *opt_log_error_services;
-extern bool  opt_log_syslog_enable;
+extern bool opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
 #ifndef _WIN32
-extern bool  opt_log_syslog_include_pid;
+extern bool opt_log_syslog_include_pid;
 extern char *opt_log_syslog_facility;
 #endif
 /** The size of the host_cache. */
@@ -351,8 +357,7 @@ extern ulong opt_keyring_migration_port;
 */
 extern bool migrate_connect_options;
 
-
-extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
+extern LEX_CSTRING sql_statement_names[(uint)SQLCOM_END + 1];
 
 extern thread_local MEM_ROOT **THR_MALLOC;
 
@@ -472,7 +477,6 @@ extern PSI_socket_key key_socket_client_connection;
 
 #endif /* HAVE_PSI_INTERFACE */
 
-
 /*
   MAINTAINER: Please keep this list in order, to limit merge collisions.
   Hint: grep PSI_stage_info | sort -u
@@ -504,7 +508,8 @@ extern PSI_stage_info stage_end;
 extern PSI_stage_info stage_executing;
 extern PSI_stage_info stage_execution_of_init_command;
 extern PSI_stage_info stage_explaining;
-extern PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog;
+extern PSI_stage_info
+    stage_finished_reading_one_binlog_switching_to_next_binlog;
 extern PSI_stage_info stage_flushing_relay_log_and_master_info_repository;
 extern PSI_stage_info stage_flushing_relay_log_info_file;
 extern PSI_stage_info stage_freeing_items;
@@ -586,13 +591,13 @@ extern PSI_stage_info stage_waiting_for_no_channel_reference;
   Statement instrumentation keys (sql).
   The last entry, at [SQLCOM_END], is for parsing errors.
 */
-extern PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
+extern PSI_statement_info sql_statement_info[(uint)SQLCOM_END + 1];
 
 /**
   Statement instrumentation keys (com).
   The last entry, at [COM_END], is for packet errors.
 */
-extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
+extern PSI_statement_info com_statement_info[(uint)COM_END + 1];
 
 /**
   Statement instrumentation key for replication.
@@ -601,7 +606,7 @@ extern PSI_statement_info stmt_info_rpl;
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #ifdef HAVE_OPENSSL
-extern struct st_VioSSLFd * ssl_acceptor_fd;
+extern struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
 extern bool opt_large_pages;
@@ -618,7 +623,7 @@ extern long tc_heuristic_recover;
 extern ulong specialflag;
 extern size_t mysql_data_home_len;
 extern const char *mysql_real_data_home_ptr;
-extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
+extern MYSQL_PLUGIN_IMPORT char *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
@@ -663,9 +668,9 @@ extern mysql_rwlock_t LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
-            *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
+    *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
 
-extern ulong  opt_ssl_fips_mode;
+extern ulong opt_ssl_fips_mode;
 
 extern char *opt_disabled_storage_engines;
 
@@ -678,23 +683,20 @@ int *get_remaining_argc();
 char ***get_remaining_argv();
 
 /* increment query_id and return it.  */
-inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
-{
+inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id() {
   return ++atomic_global_query_id;
 }
 
 #define ER(X) please_use_ER_THD_or_ER_DEFAULT_instead(X)
 
 /* Accessor function for _connection_events_loop_aborted flag */
-inline MY_ATTRIBUTE((warn_unused_result))
-bool connection_events_loop_aborted()
-{
+inline MY_ATTRIBUTE(
+    (warn_unused_result)) bool connection_events_loop_aborted() {
   return connection_events_loop_aborted_flag.load();
 }
 
 /* only here because of unireg_init(). */
-static inline void set_connection_events_loop_aborted(bool value)
-{
+static inline void set_connection_events_loop_aborted(bool value) {
   connection_events_loop_aborted_flag.store(value);
 }
 

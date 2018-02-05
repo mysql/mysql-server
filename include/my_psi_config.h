@@ -40,29 +40,30 @@
 
 #ifdef HAVE_PSI_INTERFACE
 
- /**
-  @def DISABLE_PSI_MUTEX
-  Compiling option to disable the mutex instrumentation.
-  This option is mostly intended to be used during development,
-  when doing special builds with only a subset of the performance schema instrumentation,
-  for code analysis / profiling / performance tuning of a specific instrumentation alone.
-  @sa DISABLE_PSI_RWLOCK
-  @sa DISABLE_PSI_COND
-  @sa DISABLE_PSI_FILE
-  @sa DISABLE_PSI_THREAD
-  @sa DISABLE_PSI_TABLE
-  @sa DISABLE_PSI_STAGE
-  @sa DISABLE_PSI_STATEMENT
-  @sa DISABLE_PSI_SP
-  @sa DISABLE_PSI_PS
-  @sa DISABLE_PSI_STATEMENT_DIGEST
-  @sa DISABLE_PSI_SOCKET
-  @sa DISABLE_PSI_MEMORY
-  @sa DISABLE_PSI_ERROR
-  @sa DISABLE_PSI_IDLE
-  @sa DISABLE_PSI_METADATA
-  @sa DISABLE_PSI_TRANSACTION
-  @sa DISABLE_PSI_DATA_LOCK
+/**
+ @def DISABLE_PSI_MUTEX
+ Compiling option to disable the mutex instrumentation.
+ This option is mostly intended to be used during development,
+ when doing special builds with only a subset of the performance schema
+ instrumentation, for code analysis / profiling / performance tuning of a
+ specific instrumentation alone.
+ @sa DISABLE_PSI_RWLOCK
+ @sa DISABLE_PSI_COND
+ @sa DISABLE_PSI_FILE
+ @sa DISABLE_PSI_THREAD
+ @sa DISABLE_PSI_TABLE
+ @sa DISABLE_PSI_STAGE
+ @sa DISABLE_PSI_STATEMENT
+ @sa DISABLE_PSI_SP
+ @sa DISABLE_PSI_PS
+ @sa DISABLE_PSI_STATEMENT_DIGEST
+ @sa DISABLE_PSI_SOCKET
+ @sa DISABLE_PSI_MEMORY
+ @sa DISABLE_PSI_ERROR
+ @sa DISABLE_PSI_IDLE
+ @sa DISABLE_PSI_METADATA
+ @sa DISABLE_PSI_TRANSACTION
+ @sa DISABLE_PSI_DATA_LOCK
 */
 
 #ifndef DISABLE_PSI_MUTEX

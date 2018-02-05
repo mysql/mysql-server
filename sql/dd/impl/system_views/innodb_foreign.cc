@@ -25,31 +25,31 @@
 namespace dd {
 namespace system_views {
 
-const Innodb_foreign &Innodb_foreign::instance()
-{
-  static Innodb_foreign *s_instance= new Innodb_foreign();
+const Innodb_foreign &Innodb_foreign::instance() {
+  static Innodb_foreign *s_instance = new Innodb_foreign();
   return *s_instance;
 }
 
-Innodb_foreign::Innodb_foreign()
-{
+Innodb_foreign::Innodb_foreign() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_FOREIGN_ID, "ID",
-                         "CONCAT(sch.name, '/', fk.name)" +
-                         m_target_def.fs_name_collation());
+  m_target_def.add_field(
+      FIELD_FOREIGN_ID, "ID",
+      "CONCAT(sch.name, '/', fk.name)" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_FOREIGN_NAME, "FOR_NAME",
-			 "CONCAT(sch.name, '/', tbl.name)");
-  m_target_def.add_field(FIELD_REF_NAME, "REF_NAME",
-    "CONCAT(fk.referenced_table_schema, '/', fk.referenced_table_name)");
+                         "CONCAT(sch.name, '/', tbl.name)");
+  m_target_def.add_field(
+      FIELD_REF_NAME, "REF_NAME",
+      "CONCAT(fk.referenced_table_schema, '/', fk.referenced_table_name)");
   m_target_def.add_field(FIELD_N_COLS, "N_COLS", "COUNT(*)");
   m_target_def.add_field(FIELD_TYPE, "TYPE", "0");
 
   m_target_def.add_from("mysql.foreign_keys fk");
   m_target_def.add_from("JOIN mysql.tables tbl ON fk.table_id=tbl.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON fk.schema_id=sch.id");
-  m_target_def.add_from("JOIN mysql.foreign_key_column_usage col "
-                        "ON fk.id=col.foreign_key_id");
+  m_target_def.add_from(
+      "JOIN mysql.foreign_key_column_usage col "
+      "ON fk.id=col.foreign_key_id");
 
   m_target_def.add_where("NOT tbl.type = 'VIEW'");
   m_target_def.add_where("AND tbl.hidden = 'Visible'");
@@ -58,5 +58,5 @@ Innodb_foreign::Innodb_foreign()
   m_target_def.add_where("GROUP BY fk.id");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

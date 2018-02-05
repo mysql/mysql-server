@@ -25,9 +25,8 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
-class Gcs_group_management_interface
-{
-public:
+class Gcs_group_management_interface {
+ public:
   /**
     Method that allows sending of a new group configuration. This is
     to be used when the group is blocked due to a loss of majority and
@@ -42,11 +41,10 @@ public:
     @param[in] reconfigured_group a list containing the new nodes
   */
 
-  virtual enum_gcs_error
-    modify_configuration(const Gcs_interface_parameters& reconfigured_group)= 0;
+  virtual enum_gcs_error modify_configuration(
+      const Gcs_interface_parameters &reconfigured_group) = 0;
 
-
-  virtual ~Gcs_group_management_interface() {};
+  virtual ~Gcs_group_management_interface(){};
 };
 
-#endif //GCS_GROUP_MANAGEMENT_INTERFACE_INCLUDED
+#endif  // GCS_GROUP_MANAGEMENT_INTERFACE_INCLUDED

@@ -24,45 +24,42 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*******************************************************************//**
-@file include/ut0list.ic
-A double-linked list
+/*******************************************************************/ /**
+ @file include/ut0list.ic
+ A double-linked list
 
-Created 4/26/2006 Osku Salerma
-************************************************************************/
+ Created 4/26/2006 Osku Salerma
+ ************************************************************************/
 
-/****************************************************************//**
-Get the first node in the list.
-@return first node, or NULL */
+/****************************************************************/ /**
+ Get the first node in the list.
+ @return first node, or NULL */
 UNIV_INLINE
-ib_list_node_t*
-ib_list_get_first(
-/*==============*/
-	ib_list_t*	list)	/*!< in: list */
+ib_list_node_t *ib_list_get_first(
+    /*==============*/
+    ib_list_t *list) /*!< in: list */
 {
-	return(list->first);
+  return (list->first);
 }
 
-/****************************************************************//**
-Get the last node in the list.
-@return last node, or NULL */
+/****************************************************************/ /**
+ Get the last node in the list.
+ @return last node, or NULL */
 UNIV_INLINE
-ib_list_node_t*
-ib_list_get_last(
-/*=============*/
-	ib_list_t*	list)	/*!< in: list */
+ib_list_node_t *ib_list_get_last(
+    /*=============*/
+    ib_list_t *list) /*!< in: list */
 {
-	return(list->last);
+  return (list->last);
 }
 
 /********************************************************************
 Check if list is empty. */
 UNIV_INLINE
-ibool
-ib_list_is_empty(
-/*=============*/
-					/* out: TRUE if empty else FALSE */
-	const ib_list_t*	list)	/* in: list */
+ibool ib_list_is_empty(
+    /*=============*/
+    /* out: TRUE if empty else FALSE */
+    const ib_list_t *list) /* in: list */
 {
-	return(!(list->first || list->last));
+  return (!(list->first || list->last));
 }

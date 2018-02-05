@@ -109,7 +109,7 @@ struct index_entry_t {
   void make_old_version_current(trx_id_t trxid, base_node_page_t &first_page);
 
   fil_addr_t purge_version(trx_id_t trxid, flst_base_node_t *ver_list,
-                     flst_base_node_t *free_list);
+                           flst_base_node_t *free_list);
 
   void add_version(index_entry_t &entry) const {
     flst_node_t *node = entry.get_node_ptr();
@@ -210,7 +210,6 @@ struct page_t {
     return (mach_read_from_4(frame() + FIL_PAGE_NEXT));
   }
 
-
   ulint get_data_len() {
     return (mach_read_from_4(frame() + FIL_PAGE_DATA + LOB_HDR_PART_LEN));
   }
@@ -297,8 +296,8 @@ struct base_node_page_t : public page_t {
   }
 
   bool empty() const {
-    flst_base_node_t* base = index_list();
-    return(flst_get_len(base) == 0);
+    flst_base_node_t *base = index_list();
+    return (flst_get_len(base) == 0);
   }
 
   /** Allocate one index entry. */
@@ -396,7 +395,7 @@ struct node_page_t : public page_t {
   node_page_t() {}
   node_page_t(buf_block_t *block) : page_t(block) {}
 
-  buf_block_t *alloc(base_node_page_t& first_page);
+  buf_block_t *alloc(base_node_page_t &first_page);
 
   static ulint payload() {
     return (UNIV_PAGE_SIZE - FIL_PAGE_DATA - FIL_PAGE_DATA_END);

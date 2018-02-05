@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -40,12 +40,7 @@ typedef ngs::Memory_instrumented<Authentication_interface>::Unique_ptr
 
 class Authentication_interface {
  public:
-  enum Status {
-    Ongoing,
-    Succeeded,
-    Failed,
-    Error
-  };
+  enum Status { Ongoing, Succeeded, Failed, Error };
 
   struct Response {
     Response(const Status status_ = Ongoing, const int error_ = 0,
@@ -56,8 +51,8 @@ class Authentication_interface {
     int error_code;
   };
 
-  using Create = Authentication_interface_ptr (*)(Session_interface *,
-      SHA256_password_cache_interface *);
+  using Create = Authentication_interface_ptr (*)(
+      Session_interface *, SHA256_password_cache_interface *);
 
   Authentication_interface() {}
   Authentication_interface(const Authentication_interface &) = delete;

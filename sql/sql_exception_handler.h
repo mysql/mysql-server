@@ -62,7 +62,6 @@
 */
 void handle_std_exception(const char *funcname);
 
-
 /**
   Handle a GIS exception of any type.
 
@@ -92,4 +91,4 @@ void handle_std_exception(const char *funcname);
  */
 void handle_gis_exception(const char *funcname);
 
-#endif // SQL_EXCEPTION_HANDLER_H_INCLUDED
+#endif  // SQL_EXCEPTION_HANDLER_H_INCLUDED

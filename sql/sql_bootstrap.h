@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef SQL_BOOTSTRAP_H
 #define SQL_BOOTSTRAP_H
 
@@ -42,20 +41,18 @@ struct MYSQL_FILE;
 #define MAX_BOOTSTRAP_LINE_SIZE 44000
 #define MAX_BOOTSTRAP_ERROR_LEN 256
 
-#define READ_BOOTSTRAP_SUCCESS     0
-#define READ_BOOTSTRAP_EOF         1
-#define READ_BOOTSTRAP_ERROR       2
-#define READ_BOOTSTRAP_QUERY_SIZE  3
+#define READ_BOOTSTRAP_SUCCESS 0
+#define READ_BOOTSTRAP_EOF 1
+#define READ_BOOTSTRAP_ERROR 2
+#define READ_BOOTSTRAP_QUERY_SIZE 3
 
-#define QUERY_SOURCE_FILE     0
+#define QUERY_SOURCE_FILE 0
 #define QUERY_SOURCE_COMPILED 1
 
 typedef MYSQL_FILE *fgets_input_t;
-typedef char * (*fgets_fn_t)(char *, size_t, fgets_input_t, int *error);
+typedef char *(*fgets_fn_t)(char *, size_t, fgets_input_t, int *error);
 
-int read_bootstrap_query(char *query, size_t *query_length,
-                         fgets_input_t input, fgets_fn_t fgets_fn, int *error);
+int read_bootstrap_query(char *query, size_t *query_length, fgets_input_t input,
+                         fgets_fn_t fgets_fn, int *error);
 
 #endif
-
-

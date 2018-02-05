@@ -36,10 +36,10 @@
 
 #ifdef HAVE_PSI_PS_INTERFACE
 
-#define MYSQL_CREATE_PS(                                            \
-  IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
-  inline_mysql_create_prepared_stmt(                                \
-    IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH)
+#define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT,    \
+                        SQLTEXT_LENGTH)                                      \
+  inline_mysql_create_prepared_stmt(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, \
+                                    SQLTEXT, SQLTEXT_LENGTH)
 #define MYSQL_EXECUTE_PS(LOCKER, PREPARED_STMT) \
   inline_mysql_execute_prepared_stmt(LOCKER, PREPARED_STMT)
 #define MYSQL_DESTROY_PS(PREPARED_STMT) \
@@ -51,86 +51,61 @@
 
 #else
 
-#define MYSQL_CREATE_PS(                                            \
-  IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
+#define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, \
+                        SQLTEXT_LENGTH)                                   \
   NULL
 #define MYSQL_EXECUTE_PS(LOCKER, PREPARED_STMT) \
-  do                                            \
-  {                                             \
+  do {                                          \
   } while (0)
 #define MYSQL_DESTROY_PS(PREPARED_STMT) \
-  do                                    \
-  {                                     \
+  do {                                  \
   } while (0)
 #define MYSQL_REPREPARE_PS(PREPARED_STMT) \
-  do                                      \
-  {                                       \
+  do {                                    \
   } while (0)
 #define MYSQL_SET_PS_TEXT(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH) \
-  do                                                              \
-  {                                                               \
+  do {                                                            \
   } while (0)
 
 #endif
 
 #ifdef HAVE_PSI_PS_INTERFACE
-static inline struct PSI_prepared_stmt *
-inline_mysql_create_prepared_stmt(void *identity,
-                                  uint stmt_id,
-                                  PSI_statement_locker *locker,
-                                  const char *stmt_name,
-                                  size_t stmt_name_length,
-                                  const char *sqltext,
-                                  size_t sqltext_length)
-{
-  if (locker == NULL)
-  {
+static inline struct PSI_prepared_stmt *inline_mysql_create_prepared_stmt(
+    void *identity, uint stmt_id, PSI_statement_locker *locker,
+    const char *stmt_name, size_t stmt_name_length, const char *sqltext,
+    size_t sqltext_length) {
+  if (locker == NULL) {
     return NULL;
   }
-  return PSI_PS_CALL(create_prepared_stmt)(identity,
-                                           stmt_id,
-                                           locker,
-                                           stmt_name,
-                                           stmt_name_length,
-                                           sqltext,
+  return PSI_PS_CALL(create_prepared_stmt)(identity, stmt_id, locker, stmt_name,
+                                           stmt_name_length, sqltext,
                                            sqltext_length);
 }
 
-static inline void
-inline_mysql_execute_prepared_stmt(PSI_statement_locker *locker,
-                                   PSI_prepared_stmt *prepared_stmt)
-{
-  if (prepared_stmt != NULL && locker != NULL)
-  {
+static inline void inline_mysql_execute_prepared_stmt(
+    PSI_statement_locker *locker, PSI_prepared_stmt *prepared_stmt) {
+  if (prepared_stmt != NULL && locker != NULL) {
     PSI_PS_CALL(execute_prepared_stmt)(locker, prepared_stmt);
   }
 }
 
-static inline void
-inline_mysql_destroy_prepared_stmt(PSI_prepared_stmt *prepared_stmt)
-{
-  if (prepared_stmt != NULL)
-  {
+static inline void inline_mysql_destroy_prepared_stmt(
+    PSI_prepared_stmt *prepared_stmt) {
+  if (prepared_stmt != NULL) {
     PSI_PS_CALL(destroy_prepared_stmt)(prepared_stmt);
   }
 }
 
-static inline void
-inline_mysql_reprepare_prepared_stmt(PSI_prepared_stmt *prepared_stmt)
-{
-  if (prepared_stmt != NULL)
-  {
+static inline void inline_mysql_reprepare_prepared_stmt(
+    PSI_prepared_stmt *prepared_stmt) {
+  if (prepared_stmt != NULL) {
     PSI_PS_CALL(reprepare_prepared_stmt)(prepared_stmt);
   }
 }
 
-static inline void
-inline_mysql_set_prepared_stmt_text(PSI_prepared_stmt *prepared_stmt,
-                                    const char *text,
-                                    uint text_len)
-{
-  if (prepared_stmt != NULL)
-  {
+static inline void inline_mysql_set_prepared_stmt_text(
+    PSI_prepared_stmt *prepared_stmt, const char *text, uint text_len) {
+  if (prepared_stmt != NULL) {
     PSI_PS_CALL(set_prepared_stmt_text)(prepared_stmt, text, text_len);
   }
 }

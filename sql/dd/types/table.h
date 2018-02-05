@@ -23,11 +23,11 @@
 #ifndef DD__TABLE_INCLUDED
 #define DD__TABLE_INCLUDED
 
-#include "sql/dd/sdi_fwd.h"            // Sdi_wcontext
-#include "sql/dd/types/abstract_table.h" // dd::Abstract_table
-#include "sql/dd/types/foreign_key.h"  // IWYU pragma: keep
-#include "sql/dd/types/index.h"        // IWYU pragma: keep
-#include "sql/dd/types/trigger.h"      // dd::Trigger::enum_*
+#include "sql/dd/sdi_fwd.h"               // Sdi_wcontext
+#include "sql/dd/types/abstract_table.h"  // dd::Abstract_table
+#include "sql/dd/types/foreign_key.h"     // IWYU pragma: keep
+#include "sql/dd/types/index.h"           // IWYU pragma: keep
+#include "sql/dd/types/trigger.h"         // dd::Trigger::enum_*
 
 namespace dd {
 
@@ -39,15 +39,14 @@ class Trigger;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table : virtual public Abstract_table
-{
-public:
+class Table : virtual public Abstract_table {
+ public:
   typedef Table_impl Impl;
-  typedef Collection<Index*> Index_collection;
-  typedef Collection<Foreign_key*> Foreign_key_collection;
-  typedef std::vector<Foreign_key_parent*> Foreign_key_parent_collection;
-  typedef Collection<Partition*> Partition_collection;
-  typedef Collection<Trigger*> Trigger_collection;
+  typedef Collection<Index *> Index_collection;
+  typedef Collection<Foreign_key *> Foreign_key_collection;
+  typedef std::vector<Foreign_key_parent *> Foreign_key_parent_collection;
+  typedef Collection<Partition *> Partition_collection;
+  typedef Collection<Trigger *> Trigger_collection;
 
   /*
     The type Partition_collection object 'own' the Partition* object. That
@@ -57,25 +56,23 @@ public:
     owned by Partition_collection. Deleting Partition_leaf_vector will not
     delete the Partition* objects pointed by it.
   */
-  typedef std::vector<Partition*> Partition_leaf_vector;
+  typedef std::vector<Partition *> Partition_leaf_vector;
 
   // We need a set of functions to update a preallocated se private id key,
   // which requires special handling for table objects.
-  virtual bool update_aux_key(Aux_key *key) const
-  { return update_aux_key(key, engine(), se_private_id()); }
+  virtual bool update_aux_key(Aux_key *key) const {
+    return update_aux_key(key, engine(), se_private_id());
+  }
 
-  static bool update_aux_key(Aux_key *key,
-                             const String_type &engine,
+  static bool update_aux_key(Aux_key *key, const String_type &engine,
                              Object_id se_private_id);
 
-public:
-  virtual ~Table()
-  { };
+ public:
+  virtual ~Table(){};
 
-public:
-  enum enum_row_format
-  {
-    RF_FIXED= 1,
+ public:
+  enum enum_row_format {
+    RF_FIXED = 1,
     RF_DYNAMIC,
     RF_COMPRESSED,
     RF_REDUNDANT,
@@ -84,9 +81,8 @@ public:
   };
 
   /* Keep in sync with subpartition type for forward compatibility.*/
-  enum enum_partition_type
-  {
-    PT_NONE= 0,
+  enum enum_partition_type {
+    PT_NONE = 0,
     PT_HASH,
     PT_KEY_51,
     PT_KEY_55,
@@ -101,9 +97,8 @@ public:
     PT_AUTO_LINEAR,
   };
 
-  enum enum_subpartition_type
-  {
-    ST_NONE= 0,
+  enum enum_subpartition_type {
+    ST_NONE = 0,
     ST_HASH,
     ST_KEY_51,
     ST_KEY_55,
@@ -113,17 +108,11 @@ public:
   };
 
   /* Also used for default subpartitioning. */
-  enum enum_default_partitioning
-  {
-    DP_NONE= 0,
-    DP_NO,
-    DP_YES,
-    DP_NUMBER
-  };
+  enum enum_default_partitioning { DP_NONE = 0, DP_NO, DP_YES, DP_NUMBER };
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
-  //collation.
+  // collation.
   /////////////////////////////////////////////////////////////////////////
 
   virtual Object_id collation_id() const = 0;
@@ -164,8 +153,9 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
-  virtual void set_se_private_data(const Properties &se_private_data)= 0;
+  virtual bool set_se_private_data_raw(
+      const String_type &se_private_data_raw) = 0;
+  virtual void set_se_private_data(const Properties &se_private_data) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_id.
@@ -183,41 +173,39 @@ public:
 
   virtual enum_default_partitioning default_partitioning() const = 0;
   virtual void set_default_partitioning(
-    enum_default_partitioning default_partitioning) = 0;
+      enum_default_partitioning default_partitioning) = 0;
 
   virtual const String_type &partition_expression() const = 0;
   virtual void set_partition_expression(
-    const String_type &partition_expression) = 0;
+      const String_type &partition_expression) = 0;
 
   virtual const String_type &partition_expression_utf8() const = 0;
   virtual void set_partition_expression_utf8(
-    const String_type &partition_expression) = 0;
+      const String_type &partition_expression) = 0;
 
   virtual enum_subpartition_type subpartition_type() const = 0;
   virtual void set_subpartition_type(
-    enum_subpartition_type subpartition_type) = 0;
+      enum_subpartition_type subpartition_type) = 0;
 
   virtual enum_default_partitioning default_subpartitioning() const = 0;
   virtual void set_default_subpartitioning(
-    enum_default_partitioning default_subpartitioning) = 0;
+      enum_default_partitioning default_subpartitioning) = 0;
 
   virtual const String_type &subpartition_expression() const = 0;
   virtual void set_subpartition_expression(
-    const String_type &subpartition_expression) = 0;
+      const String_type &subpartition_expression) = 0;
 
   virtual const String_type &subpartition_expression_utf8() const = 0;
   virtual void set_subpartition_expression_utf8(
-    const String_type &subpartition_expression) = 0;
+      const String_type &subpartition_expression) = 0;
 
   /** Dummy method to be able to use Partition and Table interchangeably
   in templates. */
-  const Table &table() const
-  { return *this; }
-  Table &table()
-  { return *this; }
+  const Table &table() const { return *this; }
+  Table &table() { return *this; }
 
   /////////////////////////////////////////////////////////////////////////
-  //Index collection.
+  // Index collection.
   /////////////////////////////////////////////////////////////////////////
 
   virtual Index *add_index() = 0;
@@ -286,7 +274,6 @@ public:
 
   virtual bool has_trigger() const = 0;
 
-
   /**
     Get const reference to Trigger_collection.
 
@@ -294,7 +281,6 @@ public:
   */
 
   virtual const Trigger_collection &triggers() const = 0;
-
 
   /**
     Get non-const pointer to Trigger_collection.
@@ -304,7 +290,6 @@ public:
 
   virtual Trigger_collection *triggers() = 0;
 
-
   /**
     Copy all the triggers from another dd::Table object.
 
@@ -313,7 +298,6 @@ public:
   */
 
   virtual void copy_triggers(const Table *tab_obj) = 0;
-
 
   /**
     Add new trigger to the table.
@@ -327,7 +311,6 @@ public:
   virtual Trigger *add_trigger(Trigger::enum_action_timing at,
                                Trigger::enum_event_type et) = 0;
 
-
   /**
     Get dd::Trigger object for the given trigger name.
 
@@ -335,7 +318,6 @@ public:
   */
 
   virtual const Trigger *get_trigger(const char *name) const = 0;
-
 
   /**
     Add new trigger just after the trigger specified in argument.
@@ -352,7 +334,6 @@ public:
                                          Trigger::enum_action_timing at,
                                          Trigger::enum_event_type et) = 0;
 
-
   /**
     Add new trigger just before the trigger specified in argument.
 
@@ -368,7 +349,6 @@ public:
                                          Trigger::enum_action_timing at,
                                          Trigger::enum_event_type et) = 0;
 
-
   /**
     Drop the given trigger object.
 
@@ -382,7 +362,6 @@ public:
 
   virtual void drop_trigger(const Trigger *trigger) = 0;
 
-
   /**
     Drop all the trigger on this dd::Table object.
 
@@ -394,9 +373,7 @@ public:
 
   virtual void drop_all_triggers() = 0;
 
-
-public:
-
+ public:
   /**
     Allocate a new object graph and invoke the copy contructor for
     each object.
@@ -404,7 +381,6 @@ public:
     @return pointer to dynamically allocated copy
   */
   virtual Table *clone() const = 0;
-
 
   /**
     Converts *this into json.
@@ -419,7 +395,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -440,6 +415,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__TABLE_INCLUDED
+#endif  // DD__TABLE_INCLUDED

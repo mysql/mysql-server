@@ -34,20 +34,18 @@ class Parameter;
 class Parameter_type_element_impl;
 
 namespace tables {
-  class Parameter_type_elements;
+class Parameter_type_elements;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Parameter_type_element : virtual public Weak_object
-{
-public:
+class Parameter_type_element : virtual public Weak_object {
+ public:
   typedef Parameter_type_element_impl Impl;
   typedef tables::Parameter_type_elements DD_table;
 
-public:
-  virtual ~Parameter_type_element()
-  { };
+ public:
+  virtual ~Parameter_type_element(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Name
@@ -71,6 +69,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARAMETER_TYPE_ELEMENT_INCLUDED
+#endif  // DD__PARAMETER_TYPE_ELEMENT_INCLUDED

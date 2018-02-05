@@ -25,25 +25,22 @@
 #include "byteorder.h"
 #include "statement_events.h"
 
-#include <algorithm>
 #include <stdint.h>
+#include <algorithm>
 
-const unsigned char checksum_version_split[3]= {5, 6, 1};
-const unsigned long checksum_version_product=
-  (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
-  checksum_version_split[2];
+const unsigned char checksum_version_split[3] = {5, 6, 1};
+const unsigned long checksum_version_product =
+    (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
+    checksum_version_split[2];
 
+namespace binary_log_debug {
+bool debug_query_mts_corrupt_db_names = false;
+bool debug_checksum_test = false;
+bool debug_simulate_invalid_address = false;
+bool debug_pretend_version_50034_in_binlog = false;
+}  // namespace binary_log_debug
 
-namespace binary_log_debug
-{
-  bool debug_query_mts_corrupt_db_names= false;
-  bool debug_checksum_test= false;
-  bool debug_simulate_invalid_address= false;
-  bool debug_pretend_version_50034_in_binlog= false;
-}
-
-namespace binary_log
-{
+namespace binary_log {
 /**
    The method returns the checksum algorithm used to checksum the binary log.
    For MySQL server versions < 5.6, the algorithm is undefined. For the higher
@@ -57,25 +54,24 @@ namespace binary_log
             checksum-unaware (effectively no checksum) and the actuall
             [1-254] range alg descriptor.
 */
-enum_binlog_checksum_alg
-Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
-{
+enum_binlog_checksum_alg Log_event_footer::get_checksum_alg(const char *buf,
+                                                            unsigned long len) {
   enum_binlog_checksum_alg ret;
   char version[ST_SERVER_VER_LEN];
   unsigned char version_split[3];
   BAPI_ASSERT(buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-  memcpy(version, buf +
-         buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET]
-         + ST_SERVER_VER_OFFSET, ST_SERVER_VER_LEN);
-  version[ST_SERVER_VER_LEN - 1]= 0;
+  memcpy(version,
+         buf + buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET] +
+             ST_SERVER_VER_OFFSET,
+         ST_SERVER_VER_LEN);
+  version[ST_SERVER_VER_LEN - 1] = 0;
 
   do_server_version_split(version, version_split);
   if (version_product(version_split) < checksum_version_product)
-    ret=  BINLOG_CHECKSUM_ALG_UNDEF;
+    ret = BINLOG_CHECKSUM_ALG_UNDEF;
   else
-    ret= static_cast<enum_binlog_checksum_alg>(*(buf + len -
-                                                 BINLOG_CHECKSUM_LEN -
-                                                 BINLOG_CHECKSUM_ALG_DESC_LEN));
+    ret = static_cast<enum_binlog_checksum_alg>(
+        *(buf + len - BINLOG_CHECKSUM_LEN - BINLOG_CHECKSUM_ALG_DESC_LEN));
   BAPI_ASSERT(ret == BINLOG_CHECKSUM_ALG_OFF ||
               ret == BINLOG_CHECKSUM_ALG_UNDEF ||
               ret == BINLOG_CHECKSUM_ALG_CRC32);
@@ -92,20 +88,18 @@ Log_event_footer::get_checksum_alg(const char* buf, unsigned long len)
                               version 4 is supported. It may be changed in
                               future for supporting different header content.
 */
-Log_event_header::
-Log_event_header(const char* buf,
-                 uint16_t binlog_version MY_ATTRIBUTE((unused)))
-: data_written(0), log_pos(0)
-{
+Log_event_header::Log_event_header(
+    const char *buf, uint16_t binlog_version MY_ATTRIBUTE((unused)))
+    : data_written(0), log_pos(0) {
   uint32_t tmp_sec;
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
-  when.tv_sec= le32toh(tmp_sec);
-  when.tv_usec= 0;
-  type_code= static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
-  memcpy(&unmasked_server_id,
-         buf + SERVER_ID_OFFSET, sizeof(unmasked_server_id));
+  when.tv_sec = le32toh(tmp_sec);
+  when.tv_usec = 0;
+  type_code = static_cast<Log_event_type>(buf[EVENT_TYPE_OFFSET]);
+  memcpy(&unmasked_server_id, buf + SERVER_ID_OFFSET,
+         sizeof(unmasked_server_id));
 
-  unmasked_server_id= le32toh(unmasked_server_id);
+  unmasked_server_id = le32toh(unmasked_server_id);
 
   /**
     @verbatim
@@ -130,17 +124,16 @@ Log_event_header(const char* buf,
     @endverbatim
    */
   memcpy(&data_written, buf + EVENT_LEN_OFFSET, 4);
-  data_written= le64toh(data_written);
+  data_written = le64toh(data_written);
 
   memcpy(&log_pos, buf + LOG_POS_OFFSET, 4);
-  log_pos= le64toh(log_pos);
+  log_pos = le64toh(log_pos);
 
   memcpy(&flags, buf + FLAGS_OFFSET, sizeof(flags));
-  flags= le16toh(flags);
+  flags = le16toh(flags);
 
   BAPI_ASSERT(type_code < ENUM_END_EVENT || flags & LOG_EVENT_IGNORABLE_F);
 }
-
 
 /**
   Tests the checksum algorithm used for the binary log, and asserts in case
@@ -156,69 +149,63 @@ Log_event_header(const char* buf,
 */
 bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
                                            unsigned long event_len,
-                                           enum_binlog_checksum_alg alg)
-{
-  bool res= false;
-  unsigned short flags= 0; // to store in FD's buffer flags orig value
+                                           enum_binlog_checksum_alg alg) {
+  bool res = false;
+  unsigned short flags = 0;  // to store in FD's buffer flags orig value
 
-  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF)
-  {
+  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF) {
     uint32_t incoming;
     uint32_t computed;
 
-    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
-    {
-    #ifndef DBUG_OFF
-      unsigned char fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
-                                      BINLOG_CHECKSUM_ALG_DESC_LEN];
-    #endif
+    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) {
+#ifndef DBUG_OFF
+      unsigned char fd_alg = event_buf[event_len - BINLOG_CHECKSUM_LEN -
+                                       BINLOG_CHECKSUM_ALG_DESC_LEN];
+#endif
       /*
         FD event is checksummed and therefore verified w/o
         the binlog-in-use flag.
       */
       memcpy(&flags, event_buf + FLAGS_OFFSET, sizeof(flags));
-      flags= le16toh(flags);
+      flags = le16toh(flags);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-      /*
-         The only algorithm currently is CRC32. Zero indicates
-         the binlog file is checksum-free *except* the FD-event.
-      */
-    #ifndef DBUG_OFF
+        /*
+           The only algorithm currently is CRC32. Zero indicates
+           the binlog file is checksum-free *except* the FD-event.
+        */
+#ifndef DBUG_OFF
       BAPI_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
-    #endif
+#endif
       BAPI_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
       /*
         Complile time guard to watch over  the max number of alg
       */
       static_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80, "");
     }
-    memcpy(&incoming,
-           event_buf + event_len - BINLOG_CHECKSUM_LEN, sizeof(incoming));
-    incoming= le32toh(incoming);
+    memcpy(&incoming, event_buf + event_len - BINLOG_CHECKSUM_LEN,
+           sizeof(incoming));
+    incoming = le32toh(incoming);
 
-    computed= checksum_crc32(0L, NULL, 0);
+    computed = checksum_crc32(0L, NULL, 0);
     /* checksum the event content but not the checksum part itself */
-    computed= binary_log::checksum_crc32(computed,
-                                         (const unsigned char*) event_buf,
-                                         event_len - BINLOG_CHECKSUM_LEN);
+    computed =
+        binary_log::checksum_crc32(computed, (const unsigned char *)event_buf,
+                                   event_len - BINLOG_CHECKSUM_LEN);
 
-    if (flags != 0)
-    {
+    if (flags != 0) {
       /* restoring the orig value of flags of FD */
       BAPI_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-      event_buf[FLAGS_OFFSET]= static_cast<unsigned char>(flags);
+      event_buf[FLAGS_OFFSET] = static_cast<unsigned char>(flags);
     }
 
-    res= !(computed == incoming);
+    res = !(computed == incoming);
   }
 #ifndef DBUG_OFF
-  if (binary_log_debug::debug_checksum_test)
-    return true;
+  if (binary_log_debug::debug_checksum_test) return true;
 #endif
   return res;
 }
-
 
 /**
   This ctor will create a new object of Log_event_header, and initialize
@@ -229,44 +216,38 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
   will be pointing to the start of event data
 */
 Binary_log_event::Binary_log_event(const char **buf, uint16_t binlog_version)
-: m_header(*buf, binlog_version)
-{
-  m_footer= Log_event_footer();
-  //buf is advanced in Binary_log_event constructor to point to beginning of
-  //post-header
-  (*buf)+= LOG_EVENT_HEADER_LEN;
+    : m_header(*buf, binlog_version) {
+  m_footer = Log_event_footer();
+  // buf is advanced in Binary_log_event constructor to point to beginning of
+  // post-header
+  (*buf) += LOG_EVENT_HEADER_LEN;
 }
 
 /*
   The destructor is pure virtual to prevent instantiation of the class.
 */
-Binary_log_event::~Binary_log_event()
-{
-}
+Binary_log_event::~Binary_log_event() {}
 
-  /**
-    This event type should never occur. It is never written to a binary log.
-    If an event is read from a binary log that cannot be recognized as something
-    else, it is treated as Unknown_event.
+/**
+  This event type should never occur. It is never written to a binary log.
+  If an event is read from a binary log that cannot be recognized as something
+  else, it is treated as Unknown_event.
 
-    @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
-  */
-Unknown_event::Unknown_event(const char* buf,
-                const Format_description_event *description_event)
-  : Binary_log_event(&buf,
-                     description_event->binlog_version)
-  {
-  }
+  @param buf                Contains the serialized event.
+  @param description_event  An FDE event, used to get the following information
+                            -binlog_version
+                            -server_version
+                            -post_header_len
+                            -common_header_len
+                            The content of this object
+                            depends on the binlog-version currently in use.
+*/
+Unknown_event::Unknown_event(const char *buf,
+                             const Format_description_event *description_event)
+    : Binary_log_event(&buf, description_event->binlog_version) {}
 #ifndef HAVE_MYSYS
-void Binary_log_event::print_event_info(std::ostream&) {}
-void Binary_log_event::print_long_info(std::ostream&) {}
+void Binary_log_event::print_event_info(std::ostream &) {}
+void Binary_log_event::print_long_info(std::ostream &) {}
 /**
   This method is used by the binlog_browser to print short and long
   information about the event. Since the body of Stop_event is empty
@@ -276,22 +257,19 @@ void Binary_log_event::print_long_info(std::ostream&) {}
 
   @param std output stream to which the event data is appended.
 */
-void Stop_event::print_long_info(std::ostream& info)
-{
+void Stop_event::print_long_info(std::ostream &info) {
   info << "Timestamp: " << header()->when.tv_sec;
   this->print_event_info(info);
 }
 
-void Unknown_event::print_event_info(std::ostream& info)
-{
+void Unknown_event::print_event_info(std::ostream &info) {
   info << "Unhandled event";
 }
 
-void Unknown_event::print_long_info(std::ostream& info)
-{
+void Unknown_event::print_long_info(std::ostream &info) {
   info << "Timestamp: " << header()->when.tv_sec;
   this->print_event_info(info);
 }
 
 #endif
-} // end namespace binary_log
+}  // end namespace binary_log

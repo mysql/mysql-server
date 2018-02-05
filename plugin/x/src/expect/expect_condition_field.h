@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,10 +29,9 @@
 
 #include "plugin/x/src/expect/expect_condition.h"
 
-
 namespace xpl {
 
-class Expect_condition_field: public Expect_condition {
+class Expect_condition_field : public Expect_condition {
  public:
   explicit Expect_condition_field(const std::string &expected_field);
   Expect_condition_field(const Expect_condition_field &other);

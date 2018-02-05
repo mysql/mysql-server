@@ -41,9 +41,7 @@
 uint max_server_errors;
 uint pfs_to_server_error_map[PFS_MAX_SERVER_ERRORS];
 
-static void
-fct_reset_events_errors_by_thread(PFS_thread *thread)
-{
+static void fct_reset_events_errors_by_thread(PFS_thread *thread) {
   PFS_account *account = sanitize_account(thread->m_account);
   PFS_user *user = sanitize_user(thread->m_user);
   PFS_host *host = sanitize_host(thread->m_host);
@@ -52,16 +50,14 @@ fct_reset_events_errors_by_thread(PFS_thread *thread)
 
 server_error error_names_array[] = {
 #ifndef IN_DOXYGEN
-  {0, 0, 0, 0, 0, 0},  // NULL ROW
+    {0, 0, 0, 0, 0, 0},  // NULL ROW
 #include <mysqld_ername.h>
 
-  {0, 0, 0, 0, 0, 0}  // DUMMY ROW
-#endif                /* IN_DOXYGEN */
+    {0, 0, 0, 0, 0, 0}  // DUMMY ROW
+#endif                  /* IN_DOXYGEN */
 };
 
-int
-init_error(const PFS_global_param *param)
-{
+int init_error(const PFS_global_param *param) {
   /* Set the number of errors to be instrumented */
   max_server_errors = param->m_error_sizing;
 
@@ -69,10 +65,8 @@ init_error(const PFS_global_param *param)
   global_error_stat.init(&builtin_memory_global_errors);
 
   /* Initialize error index mapping */
-  for (int i = 0; i < total_error_count + 1; i++)
-  {
-    if (error_names_array[i].error_index != 0)
-    {
+  for (int i = 0; i < total_error_count + 1; i++) {
+    if (error_names_array[i].error_index != 0) {
       pfs_to_server_error_map[error_names_array[i].error_index] = i;
     }
   }
@@ -80,88 +74,64 @@ init_error(const PFS_global_param *param)
   return 0;
 }
 
-void
-cleanup_error()
-{
+void cleanup_error() {
   /* cleanup global stats for errors */
   global_error_stat.cleanup(&builtin_memory_global_errors);
 }
 
 /** Reset table EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR data. */
-void
-reset_events_errors_by_thread()
-{
+void reset_events_errors_by_thread() {
   global_thread_container.apply(fct_reset_events_errors_by_thread);
 }
 
-static void
-fct_reset_events_errors_by_account(PFS_account *pfs)
-{
+static void fct_reset_events_errors_by_account(PFS_account *pfs) {
   PFS_user *user = sanitize_user(pfs->m_user);
   PFS_host *host = sanitize_host(pfs->m_host);
   pfs->aggregate_errors(user, host);
 }
 
 /** Reset table EVENTS_ERRORS_SUMMARY_BY_ACCOUNT_BY_ERROR data. */
-void
-reset_events_errors_by_account()
-{
+void reset_events_errors_by_account() {
   global_account_container.apply(fct_reset_events_errors_by_account);
 }
 
-static void
-fct_reset_events_errors_by_user(PFS_user *pfs)
-{
+static void fct_reset_events_errors_by_user(PFS_user *pfs) {
   pfs->aggregate_errors();
 }
 
 /** Reset table EVENTS_ERRORS_SUMMARY_BY_USER_BY_ERROR data. */
-void
-reset_events_errors_by_user()
-{
+void reset_events_errors_by_user() {
   global_user_container.apply(fct_reset_events_errors_by_user);
 }
 
-static void
-fct_reset_events_errors_by_host(PFS_host *pfs)
-{
+static void fct_reset_events_errors_by_host(PFS_host *pfs) {
   pfs->aggregate_errors();
 }
 
 /** Reset table EVENTS_ERRORS_SUMMARY_BY_HOST_BY_ERROR data. */
-void
-reset_events_errors_by_host()
-{
+void reset_events_errors_by_host() {
   global_host_container.apply(fct_reset_events_errors_by_host);
 }
 
 /** Reset table EVENTS_ERRORS_GLOBAL_BY_ERROR data. */
-void
-reset_events_errors_global()
-{
-  global_error_stat.reset();
-}
+void reset_events_errors_global() { global_error_stat.reset(); }
 
 /*
    Function to lookup for the index of this particular error
    in errors' stats array.
 */
-uint
-lookup_error_stat_index(uint mysql_errno)
-{
+uint lookup_error_stat_index(uint mysql_errno) {
   uint offset = 0; /* Position where the current section starts in the array. */
   uint index = 0;
 
-  if (mysql_errno < (uint)errmsg_section_start[0])
-  {
+  if (mysql_errno < (uint)errmsg_section_start[0]) {
     return error_names_array[0].error_index;
   }
 
-  for (uint i = 0; i < NUM_SECTIONS; i++)
-  {
+  for (uint i = 0; i < NUM_SECTIONS; i++) {
     if (mysql_errno >= (uint)errmsg_section_start[i] &&
-        mysql_errno < (uint)(errmsg_section_start[i] + errmsg_section_size[i]))
-    {
+        mysql_errno <
+            (uint)(errmsg_section_start[i] + errmsg_section_size[i])) {
       /* Following +1 is to accomodate NULL row in error_names_array */
       index = mysql_errno - errmsg_section_start[i] + offset + 1;
       break;

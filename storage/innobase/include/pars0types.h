@@ -24,12 +24,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/pars0types.h
-SQL parser global types
+/**************************************************/ /**
+ @file include/pars0types.h
+ SQL parser global types
 
-Created 1/11/1998 Heikki Tuuri
-*******************************************************/
+ Created 1/11/1998 Heikki Tuuri
+ *******************************************************/
 
 #ifndef pars0types_h
 #define pars0types_h
@@ -55,6 +55,6 @@ struct return_node_t;
 struct assign_node_t;
 struct col_assign_node_t;
 
-typedef UT_LIST_BASE_NODE_T(sym_node_t)	sym_node_list_t;
+typedef UT_LIST_BASE_NODE_T(sym_node_t) sym_node_list_t;
 
 #endif

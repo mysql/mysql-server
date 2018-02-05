@@ -24,8 +24,8 @@
 #define COMPONENTS_SERVICES_MYSQL_COND_H
 
 #include <mysql/components/component_implementation.h>
-#include <mysql/components/services/mysql_mutex_bits.h>
 #include <mysql/components/services/mysql_cond_service.h>
+#include <mysql/components/services/mysql_mutex_bits.h>
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_cond_v1);
 
@@ -50,7 +50,8 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_cond_v1);
   mysql_service_mysql_cond_v1->timedwait(C, M, T, F, L)
 
 #define mysql_cond_signal(C) mysql_cond_signal_with_src(C, __FILE__, __LINE__)
-#define mysql_cond_signal_with_src(C, F, L) mysql_service_mysql_cond_v1->signal(C, F, L)
+#define mysql_cond_signal_with_src(C, F, L) \
+  mysql_service_mysql_cond_v1->signal(C, F, L)
 
 #define mysql_cond_broadcast(C) \
   mysql_cond_broadcast_with_src(C, __FILE__, __LINE__)

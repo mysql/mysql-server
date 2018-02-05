@@ -40,7 +40,6 @@
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mi.h"
 
-
 /**
   @class Instance_log_resource
 
@@ -52,19 +51,17 @@
   resources participating in the process.
 */
 
-class Instance_log_resource
-{
+class Instance_log_resource {
   /* JSON object to be filled by the do_collect_info function */
-  Json_dom *json= nullptr;
+  Json_dom *json = nullptr;
 
-public:
+ public:
   /**
     There must be one function of this kind in order for the symbols in the
     server's dynamic library to be visible to plugins.
   */
 
   static int dummy_function_to_ensure_we_are_linked_into_the_server();
-
 
   /**
     Instance_log_resource constructor.
@@ -73,11 +70,7 @@ public:
                         resource log information.
   */
 
-  Instance_log_resource(Json_dom* json_arg)
-    : json(json_arg)
-  {
-  };
-
+  Instance_log_resource(Json_dom *json_arg) : json(json_arg){};
 
   /**
     Destructor.
@@ -85,11 +78,7 @@ public:
     This function will point the JSON object to nullptr.
   */
 
-  virtual ~Instance_log_resource()
-  {
-    json= nullptr;
-  };
-
+  virtual ~Instance_log_resource() { json = nullptr; };
 
   /**
     Return the pointer to the JSON object that should be used to fill the
@@ -98,11 +87,7 @@ public:
     @return  the Json_object pointer to be filled with the log information.
   */
 
-  Json_dom *get_json()
-  {
-    return json;
-  };
-
+  Json_dom *get_json() { return json; };
 
   /*
     Next three virtual functions need to be overridden by any more specialized
@@ -116,13 +101,11 @@ public:
 
   virtual void lock() = 0;
 
-
   /**
     Unlock the resource allowing updates.
   */
 
   virtual void unlock() = 0;
-
 
   /**
     Collect resource log information.
@@ -134,17 +117,15 @@ public:
   virtual bool collect_info() = 0;
 };
 
-
 /**
   @class Instance_log_resource_mi_wrapper
 
   This is the Instance_log_resource to handle Master_info resources.
 */
-class Instance_log_resource_mi_wrapper: public Instance_log_resource
-{
-  Master_info *mi= nullptr;
+class Instance_log_resource_mi_wrapper : public Instance_log_resource {
+  Master_info *mi = nullptr;
 
-public:
+ public:
   /**
     Instance_log_resource_mi_wrapper constructor.
 
@@ -154,28 +135,22 @@ public:
   */
 
   Instance_log_resource_mi_wrapper(Master_info *mi_arg, Json_dom *json_arg)
-    : Instance_log_resource(json_arg),
-      mi(mi_arg)
-  {
-  };
-
+      : Instance_log_resource(json_arg), mi(mi_arg){};
 
   void lock() override;
   void unlock() override;
   bool collect_info() override;
 };
 
-
 /**
   @class Instance_log_resource_binlog_wrapper
 
   This is the Instance_log_resource to handle MYSQL_BIN_LOG resources.
 */
-class Instance_log_resource_binlog_wrapper: public Instance_log_resource
-{
-  MYSQL_BIN_LOG *binlog= nullptr;
+class Instance_log_resource_binlog_wrapper : public Instance_log_resource {
+  MYSQL_BIN_LOG *binlog = nullptr;
 
-public:
+ public:
   /**
     Instance_log_resource_binlog_wrapper constructor.
 
@@ -186,28 +161,22 @@ public:
 
   Instance_log_resource_binlog_wrapper(MYSQL_BIN_LOG *binlog_arg,
                                        Json_dom *json_arg)
-    : Instance_log_resource(json_arg),
-      binlog(binlog_arg)
-  {
-  };
-
+      : Instance_log_resource(json_arg), binlog(binlog_arg){};
 
   void lock() override;
   void unlock() override;
   bool collect_info() override;
 };
 
-
 /**
   @class Instance_log_resource_gtid_state_wrapper
 
   This is the Instance_log_resource to handle Gtid_state resources.
 */
-class Instance_log_resource_gtid_state_wrapper: public Instance_log_resource
-{
-  Gtid_state *gtid_state= nullptr;
+class Instance_log_resource_gtid_state_wrapper : public Instance_log_resource {
+  Gtid_state *gtid_state = nullptr;
 
-public:
+ public:
   /**
     Instance_log_resource_gtid_state_wrapper constructor.
 
@@ -218,28 +187,22 @@ public:
 
   Instance_log_resource_gtid_state_wrapper(Gtid_state *gtid_state_arg,
                                            Json_dom *json_arg)
-    : Instance_log_resource(json_arg),
-      gtid_state(gtid_state_arg)
-  {
-  };
-
+      : Instance_log_resource(json_arg), gtid_state(gtid_state_arg){};
 
   void lock() override;
   void unlock() override;
   bool collect_info() override;
 };
 
-
 /**
   @class Instance_log_resource_hton_wrapper
 
   This is the Instance_log_resource to handle handlerton resources.
 */
-class Instance_log_resource_hton_wrapper: public Instance_log_resource
-{
-  handlerton *hton= nullptr;
+class Instance_log_resource_hton_wrapper : public Instance_log_resource {
+  handlerton *hton = nullptr;
 
-public:
+ public:
   /**
     Instance_log_resource_hton_wrapper constructor.
 
@@ -248,20 +211,13 @@ public:
                         resource log information.
   */
 
-  Instance_log_resource_hton_wrapper(handlerton *hton_arg,
-                                     Json_dom *json_arg)
-    : Instance_log_resource(json_arg),
-      hton(hton_arg)
-  {
-  };
-
+  Instance_log_resource_hton_wrapper(handlerton *hton_arg, Json_dom *json_arg)
+      : Instance_log_resource(json_arg), hton(hton_arg){};
 
   void lock() override;
   void unlock() override;
   bool collect_info() override;
-
 };
-
 
 /**
   @class Instance_log_resource_factory
@@ -269,9 +225,8 @@ public:
   This is the Instance_log_resource factory to create wrappers for supported
   resources.
 */
-class Instance_log_resource_factory
-{
-public:
+class Instance_log_resource_factory {
+ public:
   /**
     Creates a Instance_log_resource wrapper based on a Master_info object.
 
@@ -282,7 +237,6 @@ public:
   */
 
   static Instance_log_resource *get_wrapper(Master_info *mi, Json_dom *json);
-
 
   /**
     Creates a Instance_log_resource wrapper based on a Master_info object.
@@ -296,7 +250,6 @@ public:
   static Instance_log_resource *get_wrapper(MYSQL_BIN_LOG *binlog,
                                             Json_dom *json);
 
-
   /**
     Creates a Instance_log_resource wrapper based on a Gtid_state object.
 
@@ -309,7 +262,6 @@ public:
   static Instance_log_resource *get_wrapper(Gtid_state *gtid_state,
                                             Json_dom *json);
 
-
   /**
     Creates a Instance_log_resource wrapper based on a handlerton.
 
@@ -319,8 +271,7 @@ public:
     @return  the pointer to the new Instance_log_resource.
   */
 
-  static Instance_log_resource *get_wrapper(handlerton *hton,
-                                            Json_dom *json);
+  static Instance_log_resource *get_wrapper(handlerton *hton, Json_dom *json);
 };
 
 /**

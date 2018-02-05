@@ -36,16 +36,16 @@
 
 #ifdef __cplusplus
 
-template<typename T>
+template <typename T>
 bool is_aligned_to(T *t, int increment) {
   return reinterpret_cast<uintptr_t>(t) % increment == 0;
 }
 
-template<typename T>
+template <typename T>
 bool is_aligned(T *t) {
   return is_aligned_to(t, alignof(T));
 }
 
-#endif // __cplusplus
+#endif  // __cplusplus
 
 #endif  // MY_POINTER_ARITHMETIC_INCLUDED

@@ -33,12 +33,10 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.INNODB_TABLESPACE_BRIEF system
   view definition
 */
-class Innodb_tablespaces_brief :
-  public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Innodb_tablespaces_brief
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_SPACE,
     FIELD_NAME,
     FIELD_PATH,
@@ -46,21 +44,21 @@ public:
     FIELD_SPACE_TYPE
   };
 
-  Innodb_tablespaces_brief ();
+  Innodb_tablespaces_brief();
 
   static const Innodb_tablespaces_brief &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("INNODB_TABLESPACES_BRIEF");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Innodb_tablespaces_brief::view_name(); }
+  virtual const String_type &name() const {
+    return Innodb_tablespaces_brief::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__INNODB_TABLESPACES_BRIEF_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__INNODB_TABLESPACES_BRIEF_INCLUDED

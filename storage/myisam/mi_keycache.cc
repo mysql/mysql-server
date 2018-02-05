@@ -35,7 +35,7 @@
   SYNOPSIS
     mi_assign_to_key_cache()
       info          open table
-      key_map       map of indexes to assign to the key cache 
+      key_map       map of indexes to assign to the key cache
       key_cache_ptr pointer to the key cache handle
       assign_lock   Mutex to lock during assignment
 
@@ -57,21 +57,19 @@
 */
 
 int mi_assign_to_key_cache(MI_INFO *info,
-			   ulonglong key_map MY_ATTRIBUTE((unused)),
-			   KEY_CACHE *key_cache)
-{
-  int error= 0;
-  MYISAM_SHARE* share= info->s;
+                           ulonglong key_map MY_ATTRIBUTE((unused)),
+                           KEY_CACHE *key_cache) {
+  int error = 0;
+  MYISAM_SHARE *share = info->s;
   DBUG_ENTER("mi_assign_to_key_cache");
-  DBUG_PRINT("enter",("old_key_cache_handle: %p  new_key_cache_handle: %p",
-		      share->key_cache, key_cache));
+  DBUG_PRINT("enter", ("old_key_cache_handle: %p  new_key_cache_handle: %p",
+                       share->key_cache, key_cache));
 
   /*
     Skip operation if we didn't change key cache. This can happen if we
     call this for all open instances of the same table
   */
-  if (share->key_cache == key_cache)
-    DBUG_RETURN(0);
+  if (share->key_cache == key_cache) DBUG_RETURN(0);
 
   /*
     First flush all blocks for the table in the old key cache.
@@ -85,12 +83,11 @@ int mi_assign_to_key_cache(MI_INFO *info,
     in the old key cache.
   */
 
-  if (flush_key_blocks(share->key_cache, keycache_thread_var(),
-                       share->kfile, FLUSH_RELEASE))
-  {
-    error= my_errno();
+  if (flush_key_blocks(share->key_cache, keycache_thread_var(), share->kfile,
+                       FLUSH_RELEASE)) {
+    error = my_errno();
     mi_print_error(info->s, HA_ERR_CRASHED);
-    mi_mark_crashed(info);		/* Mark that table must be checked */
+    mi_mark_crashed(info); /* Mark that table must be checked */
   }
 
   /*
@@ -101,8 +98,8 @@ int mi_assign_to_key_cache(MI_INFO *info,
     (This can never fail as there is never any not written data in the
     new key cache)
   */
-  (void) flush_key_blocks(key_cache, keycache_thread_var(),
-                          share->kfile, FLUSH_RELEASE);
+  (void)flush_key_blocks(key_cache, keycache_thread_var(), share->kfile,
+                         FLUSH_RELEASE);
 
   /*
     ensure that setting the key cache and changing the multi_key_cache
@@ -113,17 +110,15 @@ int mi_assign_to_key_cache(MI_INFO *info,
     Tell all threads to use the new key cache
     This should be seen at the lastes for the next call to an myisam function.
   */
-  share->key_cache= key_cache;
+  share->key_cache = key_cache;
 
   /* store the key cache in the global hash structure for future opens */
-  if (multi_key_cache_set((uchar*) share->unique_file_name,
-                          share->unique_name_length,
-			  share->key_cache))
-    error= my_errno();
+  if (multi_key_cache_set((uchar *)share->unique_file_name,
+                          share->unique_name_length, share->key_cache))
+    error = my_errno();
   mysql_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 }
-
 
 /*
   Change all MyISAM entries that uses one key cache to another key cache
@@ -145,10 +140,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     key cache.
 */
 
-
-void mi_change_key_cache(KEY_CACHE *old_key_cache,
-			 KEY_CACHE *new_key_cache)
-{
+void mi_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache) {
   LIST *pos;
   DBUG_ENTER("mi_change_key_cache");
 
@@ -156,12 +148,11 @@ void mi_change_key_cache(KEY_CACHE *old_key_cache,
     Lock list to ensure that no one can close the table while we manipulate it
   */
   mysql_mutex_lock(&THR_LOCK_myisam);
-  for (pos=myisam_open_list ; pos ; pos=pos->next)
-  {
-    MI_INFO *info= (MI_INFO*) pos->data;
-    MYISAM_SHARE *share= info->s;
+  for (pos = myisam_open_list; pos; pos = pos->next) {
+    MI_INFO *info = (MI_INFO *)pos->data;
+    MYISAM_SHARE *share = info->s;
     if (share->key_cache == old_key_cache)
-      mi_assign_to_key_cache(info, (ulonglong) ~0, new_key_cache);
+      mi_assign_to_key_cache(info, (ulonglong)~0, new_key_cache);
   }
 
   /*

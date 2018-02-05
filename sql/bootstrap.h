@@ -23,7 +23,7 @@
 #ifndef BOOTSTRAP_H
 #define BOOTSTRAP_H
 
-#include "mysql/thread_type.h"              // enum_thread_type
+#include "mysql/thread_type.h"  // enum_thread_type
 
 struct MYSQL_FILE;
 
@@ -48,6 +48,6 @@ typedef bool (*bootstrap_functor)(THD *thd);
 */
 bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
                           enum_thread_type thread_type);
-}
+}  // namespace bootstrap
 
-#endif // BOOTSTRAP_H
+#endif  // BOOTSTRAP_H

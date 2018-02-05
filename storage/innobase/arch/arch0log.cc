@@ -24,11 +24,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file arch/arch0log.cc
-Innodb implementation for log archive
+/**************************************************/ /**
+ @file arch/arch0log.cc
+ Innodb implementation for log archive
 
-*******************************************************/
+ *******************************************************/
 
 #include "arch0log.h"
 #include "srv0start.h"
@@ -40,42 +40,33 @@ const uint ARCH_LOG_CHUNK_SIZE = 1024 * 1024;
 @param[out]	file_sz		redo file size
 @param[out]	header_sz	redo header size
 @param[out]	trailer_sz	redo trailer size */
-void
-Log_Arch_Client_Ctx::get_header_size(
-	ib_uint64_t&	file_sz,
-	uint&		header_sz,
-	uint&		trailer_sz)
-{
-	file_sz = srv_log_file_size * UNIV_PAGE_SIZE;
-	header_sz = LOG_FILE_HDR_SIZE;
-	trailer_sz = OS_FILE_LOG_BLOCK_SIZE;
+void Log_Arch_Client_Ctx::get_header_size(ib_uint64_t &file_sz, uint &header_sz,
+                                          uint &trailer_sz) {
+  file_sz = srv_log_file_size * UNIV_PAGE_SIZE;
+  header_sz = LOG_FILE_HDR_SIZE;
+  trailer_sz = OS_FILE_LOG_BLOCK_SIZE;
 }
 
 /** Start redo log archiving
 @param[out]	header	redo header. Caller must allocate buffer.
 @param[in]	len	buffer length
 @return error code */
-dberr_t
-Log_Arch_Client_Ctx::start(
-	byte*		header,
-	uint		len)
-{
-	dberr_t	err;
+dberr_t Log_Arch_Client_Ctx::start(byte *header, uint len) {
+  dberr_t err;
 
-	ut_ad(len >= LOG_FILE_HDR_SIZE);
+  ut_ad(len >= LOG_FILE_HDR_SIZE);
 
-	err = arch_log_sys->start(m_group, m_begin_lsn, header, false);
+  err = arch_log_sys->start(m_group, m_begin_lsn, header, false);
 
-	if (err != DB_SUCCESS) {
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
 
-		return(err);
-	}
+  m_state = ARCH_CLIENT_STATE_STARTED;
 
-	m_state = ARCH_CLIENT_STATE_STARTED;
+  ib::info() << "Clone Start LOG ARCH : start LSN : " << m_begin_lsn;
 
-	ib::info() << "Clone Start LOG ARCH : start LSN : " << m_begin_lsn;
-
-	return(err);
+  return (err);
 }
 
 /** Stop redo log archiving. Exact trailer length is returned as out
@@ -84,200 +75,180 @@ parameter which could be less than the redo block size.
 @param[in,out]	len	trailer length
 @param[out]	offset	trailer block offset
 @return error code */
-dberr_t
-Log_Arch_Client_Ctx::stop(
-	byte*		trailer,
-	uint32_t&	len,
-	uint64_t&	offset)
-{
-	dberr_t	err;
+dberr_t Log_Arch_Client_Ctx::stop(byte *trailer, uint32_t &len,
+                                  uint64_t &offset) {
+  dberr_t err;
 
-	lsn_t		start_lsn;
-	lsn_t		stop_lsn;
+  lsn_t start_lsn;
+  lsn_t stop_lsn;
 
-	ut_ad(m_state == ARCH_CLIENT_STATE_STARTED);
-	ut_ad(trailer == nullptr || len >= OS_FILE_LOG_BLOCK_SIZE);
+  ut_ad(m_state == ARCH_CLIENT_STATE_STARTED);
+  ut_ad(trailer == nullptr || len >= OS_FILE_LOG_BLOCK_SIZE);
 
-	err = arch_log_sys->stop(m_group, m_end_lsn, trailer, len);
+  err = arch_log_sys->stop(m_group, m_end_lsn, trailer, len);
 
-	start_lsn = m_group->get_begin_lsn();
+  start_lsn = m_group->get_begin_lsn();
 
-	start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
-	stop_lsn = ut_uint64_align_down(m_end_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  stop_lsn = ut_uint64_align_down(m_end_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-	lsn_t	file_capacity = m_group->get_file_size();
+  lsn_t file_capacity = m_group->get_file_size();
 
-	file_capacity -= LOG_FILE_HDR_SIZE;
+  file_capacity -= LOG_FILE_HDR_SIZE;
 
-	offset = (stop_lsn - start_lsn) % file_capacity;
+  offset = (stop_lsn - start_lsn) % file_capacity;
 
-	offset += LOG_FILE_HDR_SIZE;
+  offset += LOG_FILE_HDR_SIZE;
 
-	m_state = ARCH_CLIENT_STATE_STOPPED;
+  m_state = ARCH_CLIENT_STATE_STOPPED;
 
-	ib::info() << "Clone Stop  LOG ARCH : end LSN : " << m_end_lsn;
+  ib::info() << "Clone Stop  LOG ARCH : end LSN : " << m_end_lsn;
 
-	return(err);
+  return (err);
 }
 
 /** Get archived data file details
 @param[in]	cbk_func	callback called for each file
 @param[in]	ctx		callback function context
 @return error code */
-dberr_t
-Log_Arch_Client_Ctx::get_files(
-	Log_Arch_Cbk*	cbk_func,
-	void*		ctx)
-{
-	ut_ad(m_state == ARCH_CLIENT_STATE_STOPPED);
+dberr_t Log_Arch_Client_Ctx::get_files(Log_Arch_Cbk *cbk_func, void *ctx) {
+  ut_ad(m_state == ARCH_CLIENT_STATE_STOPPED);
 
-	dberr_t		err = DB_SUCCESS;
+  dberr_t err = DB_SUCCESS;
 
-	char		name[MAX_ARCH_LOG_FILE_NAME_LEN];
-	uint		idx;
-	ib_uint64_t	offset;
+  char name[MAX_ARCH_LOG_FILE_NAME_LEN];
+  uint idx;
+  ib_uint64_t offset;
 
-	ib_uint64_t	size;
-	ib_uint64_t	capacity;
+  ib_uint64_t size;
+  ib_uint64_t capacity;
 
-	lsn_t		start_lsn;
-	lsn_t		lsn_diff;
-	lsn_t		low_begin;
-	lsn_t		low_end;
+  lsn_t start_lsn;
+  lsn_t lsn_diff;
+  lsn_t low_begin;
+  lsn_t low_end;
 
-	size = m_group->get_file_size();
+  size = m_group->get_file_size();
 
-	/* Check if the archived redo log is less than one block size. In this
-	case we send the data in trailer buffer. */
-	low_begin = ut_uint64_align_down(m_begin_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  /* Check if the archived redo log is less than one block size. In this
+  case we send the data in trailer buffer. */
+  low_begin = ut_uint64_align_down(m_begin_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-	low_end = ut_uint64_align_down(m_end_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  low_end = ut_uint64_align_down(m_end_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-	if (low_begin == low_end) {
+  if (low_begin == low_end) {
+    err = cbk_func(nullptr, size, 0, ctx);
+    return (err);
+  }
 
-		err = cbk_func(nullptr, size, 0, ctx);
-		return(err);
-	}
+  /* Get the start lsn of the group */
+  start_lsn = m_group->get_begin_lsn();
+  start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-	/* Get the start lsn of the group */
-	start_lsn = m_group->get_begin_lsn();
-	start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  ut_ad(m_begin_lsn >= start_lsn);
 
-	ut_ad(m_begin_lsn >= start_lsn);
+  /* Calculate first file index and offset for this client. */
+  lsn_diff = m_begin_lsn - start_lsn;
+  capacity = size - LOG_FILE_HDR_SIZE;
 
-	/* Calculate first file index and offset for this client. */
-	lsn_diff = m_begin_lsn - start_lsn;
-	capacity = size - LOG_FILE_HDR_SIZE;
+  idx = static_cast<uint>(lsn_diff / capacity);
+  offset = lsn_diff % capacity;
 
-	idx = static_cast<uint>(lsn_diff / capacity);
-	offset = lsn_diff % capacity;
+  /* Set start lsn to the beginning of file. */
+  start_lsn = m_begin_lsn - offset;
 
-	/* Set start lsn to the beginning of file. */
-	start_lsn = m_begin_lsn - offset;
+  offset += LOG_FILE_HDR_SIZE;
 
-	offset += LOG_FILE_HDR_SIZE;
+  /* Callback with all archive file names that holds the range of log
+  data for this client. */
+  while (start_lsn < m_end_lsn) {
+    m_group->get_file_name(idx, name, MAX_ARCH_LOG_FILE_NAME_LEN);
 
-	/* Callback with all archive file names that holds the range of log
-	data for this client. */
-	while (start_lsn < m_end_lsn) {
+    idx++;
+    start_lsn += capacity;
 
-		m_group->get_file_name(idx, name, MAX_ARCH_LOG_FILE_NAME_LEN);
+    /* For last file adjust the size based on end lsn. */
+    if (start_lsn >= m_end_lsn) {
+      lsn_diff =
+          ut_uint64_align_up(start_lsn - m_end_lsn, OS_FILE_LOG_BLOCK_SIZE);
+      size -= lsn_diff;
+    }
 
-		idx++;
-		start_lsn += capacity;
+    err = cbk_func(name, size, offset, ctx);
 
-		/* For last file adjust the size based on end lsn. */
-		if (start_lsn >= m_end_lsn) {
+    if (err != DB_SUCCESS) {
+      break;
+    }
 
-			lsn_diff = ut_uint64_align_up(start_lsn - m_end_lsn,
-						      OS_FILE_LOG_BLOCK_SIZE);
-			size -= lsn_diff;
-		}
+    /* offset could be non-zero only for first file. */
+    offset = 0;
+  }
 
-		err = cbk_func(name, size, offset, ctx);
-
-		if (err != DB_SUCCESS) {
-
-			break;
-		}
-
-		/* offset could be non-zero only for first file. */
-		offset = 0;
-	}
-
-	return(err);
+  return (err);
 }
 
 /** Release archived data so that system can purge it */
-void
-Log_Arch_Client_Ctx::release()
-{
-	if (m_state == ARCH_CLIENT_STATE_INIT) {
+void Log_Arch_Client_Ctx::release() {
+  if (m_state == ARCH_CLIENT_STATE_INIT) {
+    return;
+  }
 
-		return;
-	}
+  if (m_state == ARCH_CLIENT_STATE_STARTED) {
+    uint64_t dummy_offset;
+    uint32_t dummy_len = 0;
 
-	if (m_state == ARCH_CLIENT_STATE_STARTED) {
+    /* This is for cleanup in error cases. */
+    stop(nullptr, dummy_len, dummy_offset);
+  }
 
-		uint64_t	dummy_offset;
-		uint32_t	dummy_len = 0;
+  ut_ad(m_state == ARCH_CLIENT_STATE_STOPPED);
 
-		/* This is for cleanup in error cases. */
-		stop(nullptr, dummy_len, dummy_offset);
-	}
+  arch_log_sys->release(m_group, false);
 
-	ut_ad(m_state == ARCH_CLIENT_STATE_STOPPED);
+  m_group = nullptr;
 
-	arch_log_sys->release(m_group, false);
+  m_begin_lsn = LSN_MAX;
+  m_end_lsn = LSN_MAX;
 
-	m_group = nullptr;
-
-	m_begin_lsn = LSN_MAX;
-	m_end_lsn = LSN_MAX;
-
-	m_state = ARCH_CLIENT_STATE_INIT;
+  m_state = ARCH_CLIENT_STATE_INIT;
 }
 
 /** Update checkpoint LSN and related information in redo
 log header block.
 @param[in,out]	header		redo log header buffer
 @param[in]	checkpoint_lsn	checkpoint LSN for recovery */
-void
-Arch_Log_Sys::update_header(
-	byte*	header,
-	lsn_t	checkpoint_lsn)
-{
-	lsn_t		start_lsn;
-	lsn_t		lsn_offset;
-	ib_uint64_t	file_size;
+void Arch_Log_Sys::update_header(byte *header, lsn_t checkpoint_lsn) {
+  lsn_t start_lsn;
+  lsn_t lsn_offset;
+  ib_uint64_t file_size;
 
-	start_lsn = m_current_group->get_begin_lsn();
-	file_size = m_current_group->get_file_size();
+  start_lsn = m_current_group->get_begin_lsn();
+  file_size = m_current_group->get_file_size();
 
-	start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-	/* Copy Header information. */
-	log_header_fill(header, start_lsn, LOG_HEADER_CREATOR_CLONE);
+  /* Copy Header information. */
+  log_header_fill(header, start_lsn, LOG_HEADER_CREATOR_CLONE);
 
-	ut_ad(checkpoint_lsn >= start_lsn);
+  ut_ad(checkpoint_lsn >= start_lsn);
 
-	lsn_offset = checkpoint_lsn - start_lsn;
-	file_size -= LOG_FILE_HDR_SIZE;
+  lsn_offset = checkpoint_lsn - start_lsn;
+  file_size -= LOG_FILE_HDR_SIZE;
 
-	lsn_offset = lsn_offset % file_size;
-	lsn_offset += LOG_FILE_HDR_SIZE;
+  lsn_offset = lsn_offset % file_size;
+  lsn_offset += LOG_FILE_HDR_SIZE;
 
-	/* Update checkpoint lsn and offset. */
-	byte*	src = header + LOG_CHECKPOINT_1;
+  /* Update checkpoint lsn and offset. */
+  byte *src = header + LOG_CHECKPOINT_1;
 
-	mach_write_to_8(src + LOG_CHECKPOINT_LSN, checkpoint_lsn);
-	mach_write_to_8(src + LOG_CHECKPOINT_OFFSET, lsn_offset);
-	log_block_set_checksum(src, log_block_calc_checksum_crc32(src));
+  mach_write_to_8(src + LOG_CHECKPOINT_LSN, checkpoint_lsn);
+  mach_write_to_8(src + LOG_CHECKPOINT_OFFSET, lsn_offset);
+  log_block_set_checksum(src, log_block_calc_checksum_crc32(src));
 
-	/* Copy to second checkpoint location */
-	byte* dest = header + LOG_CHECKPOINT_2;
+  /* Copy to second checkpoint location */
+  byte *dest = header + LOG_CHECKPOINT_2;
 
-	memcpy(dest, src, OS_FILE_LOG_BLOCK_SIZE);
+  memcpy(dest, src, OS_FILE_LOG_BLOCK_SIZE);
 }
 
 /** Start redo log archiving.
@@ -288,190 +259,164 @@ is attached to current group.
 @param[out]	header		redo log header
 @param[in]	is_durable	if client needs durable archiving
 @return error code */
-dberr_t
-Arch_Log_Sys::start(
-	Arch_Group*&	group,
-	lsn_t&		start_lsn,
-	byte*		header,
-	bool		is_durable)
-{
-	dberr_t		err = DB_SUCCESS;
-	bool		create_new_group = false;
+dberr_t Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
+                            bool is_durable) {
+  dberr_t err = DB_SUCCESS;
+  bool create_new_group = false;
 
-	log_group_t*	log_group;
+  log_group_t *log_group;
 
-	lsn_t		lsn_offset;
+  lsn_t lsn_offset;
 
-	uint		start_index;
-	ib_uint64_t	start_offset;
+  uint start_index;
+  ib_uint64_t start_offset;
 
-	void*		src;
-	void*		dest;
+  void *src;
+  void *dest;
 
-	dest = static_cast<void*>(header);
-	memset(dest, 0, LOG_FILE_HDR_SIZE);
+  dest = static_cast<void *>(header);
+  memset(dest, 0, LOG_FILE_HDR_SIZE);
 
-	log_checkpoint(true, false);
+  log_checkpoint(true, false);
 
-	mutex_enter(&m_mutex);
+  mutex_enter(&m_mutex);
 
-	if (m_state == ARCH_STATE_ABORT) {
+  if (m_state == ARCH_STATE_ABORT) {
+    mutex_exit(&m_mutex);
+    my_error(ER_QUERY_INTERRUPTED, MYF(0));
+    return (DB_INTERRUPTED);
+  }
 
-		mutex_exit(&m_mutex);
-		my_error(ER_QUERY_INTERRUPTED, MYF(0));
-		return(DB_INTERRUPTED);
-	}
+  /* Start archiver task, if needed. */
+  if (m_state == ARCH_STATE_INIT) {
+    bool start_archiver = true;
 
-	/* Start archiver task, if needed. */
-	if (m_state == ARCH_STATE_INIT) {
+    if (arch_page_sys) {
+      arch_page_sys->arch_mutex_enter();
 
-		bool	start_archiver = true;
+      /* Check if background is started by Page Archiver. */
+      start_archiver = arch_page_sys->is_init();
 
-		if (arch_page_sys) {
+      arch_page_sys->arch_mutex_exit();
+    }
 
-			arch_page_sys->arch_mutex_enter();
+    if (start_archiver) {
+      bool ret;
+      ret = start_archiver_background();
 
-			/* Check if background is started by Page Archiver. */
-			start_archiver = arch_page_sys->is_init();
+      if (!ret) {
+        mutex_exit(&m_mutex);
 
-			arch_page_sys->arch_mutex_exit();
-		}
+        ib::error() << "Could not start Archiver"
+                    << " background task";
 
-		if (start_archiver) {
+        return (DB_ERROR);
+      }
+    }
+  }
 
-			bool	ret;
-			ret = start_archiver_background();
+  /* Start archiving from checkpoint LSN. */
+  log_write_mutex_enter();
+  log_mutex_enter();
 
-			if (!ret) {
+  start_lsn = log_sys->last_checkpoint_lsn;
+  log_group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
-				mutex_exit(&m_mutex);
+  lsn_offset = log_group_calc_lsn_offset(start_lsn, log_group);
 
-				ib::error() << "Could not start Archiver"
-					<< " background task";
+  start_index = static_cast<uint>(lsn_offset / log_group->file_size);
+  start_offset = lsn_offset % log_group->file_size;
 
-				return(DB_ERROR);
-			}
-		}
-	}
+  /* Copy to first checkpoint location */
+  src = static_cast<void *>(log_group->checkpoint_buf);
+  dest = static_cast<void *>(header + LOG_CHECKPOINT_1);
+  memcpy(dest, src, OS_FILE_LOG_BLOCK_SIZE);
 
-	/* Start archiving from checkpoint LSN. */
-	log_write_mutex_enter();
-	log_mutex_enter();
+  /* Need to create a new group if archiving is not in progress. */
+  if (m_state == ARCH_STATE_IDLE || m_state == ARCH_STATE_INIT) {
+    m_archived_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
+    create_new_group = true;
+  }
 
-	start_lsn = log_sys->last_checkpoint_lsn;
-	log_group = UT_LIST_GET_FIRST(log_sys->log_groups);
+  log_mutex_exit();
 
-	lsn_offset = log_group_calc_lsn_offset(start_lsn, log_group);
+  /* Set archiver state to active. */
+  if (m_state != ARCH_STATE_ACTIVE) {
+    m_state = ARCH_STATE_ACTIVE;
+    os_event_set(archiver_thread_event);
+  }
 
-	start_index = static_cast<uint>(lsn_offset / log_group->file_size);
-	start_offset = lsn_offset % log_group->file_size;
+  log_write_mutex_exit();
 
-	/* Copy to first checkpoint location */
-	src = static_cast<void*>(log_group->checkpoint_buf);
-	dest = static_cast<void*>(header + LOG_CHECKPOINT_1);
-	memcpy(dest, src, OS_FILE_LOG_BLOCK_SIZE);
+  /* Create a new group. */
+  if (create_new_group) {
+    m_current_group = UT_NEW(Arch_Group(start_lsn, LOG_FILE_HDR_SIZE, &m_mutex),
+                             mem_key_archive);
 
-	/* Need to create a new group if archiving is not in progress. */
-	if (m_state == ARCH_STATE_IDLE || m_state == ARCH_STATE_INIT) {
+    if (m_current_group == nullptr) {
+      mutex_exit(&m_mutex);
 
-		m_archived_lsn = ut_uint64_align_down(start_lsn,
-			OS_FILE_LOG_BLOCK_SIZE);
-		create_new_group = true;
-	}
+      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Arch_Group));
+      err = DB_OUT_OF_MEMORY;
+      return (err);
+    }
 
-	log_mutex_exit();
+    /* Currently use log file size for archived files. */
+    err = m_current_group->init_file_ctx(
+        ARCH_DIR, ARCH_LOG_DIR, ARCH_LOG_FILE, 0,
+        static_cast<ib_uint64_t>(srv_log_file_size) * UNIV_PAGE_SIZE);
 
-	/* Set archiver state to active. */
-	if (m_state != ARCH_STATE_ACTIVE) {
+    if (err != DB_SUCCESS) {
+      mutex_exit(&m_mutex);
 
-		m_state = ARCH_STATE_ACTIVE;
-		os_event_set(archiver_thread_event);
-	}
+      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Arch_File_Ctx));
+      return (err);
+    }
 
-	log_write_mutex_exit();
+    start_offset = ut_uint64_align_down(start_offset, OS_FILE_LOG_BLOCK_SIZE);
 
-	/* Create a new group. */
-	if (create_new_group) {
+    m_start_log_index = start_index;
+    m_start_log_offset = start_offset;
 
-		m_current_group = UT_NEW(Arch_Group(start_lsn,
-			LOG_FILE_HDR_SIZE, &m_mutex), mem_key_archive);
+    m_chunk_size = ARCH_LOG_CHUNK_SIZE;
 
-		if (m_current_group == nullptr) {
+    m_group_list.push_back(m_current_group);
+  }
 
-			mutex_exit(&m_mutex);
+  /* Attach to the current group. */
+  m_current_group->attach(LSN_MAX, 0, is_durable);
 
-			my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Arch_Group));
-			err = DB_OUT_OF_MEMORY;
-			return(err);
-		}
+  group = m_current_group;
 
-		/* Currently use log file size for archived files. */
-		err = m_current_group->init_file_ctx(ARCH_DIR, ARCH_LOG_DIR,
-			ARCH_LOG_FILE,
-			0, static_cast<ib_uint64_t>(srv_log_file_size)
-			* UNIV_PAGE_SIZE);
+  mutex_exit(&m_mutex);
 
-		if (err != DB_SUCCESS) {
+  /* Update header with checkpoint LSN. */
+  update_header(header, start_lsn);
 
-			mutex_exit(&m_mutex);
-
-			my_error(ER_OUTOFMEMORY, MYF(0),
-				sizeof(Arch_File_Ctx));
-			return(err);
-		}
-
-		start_offset = ut_uint64_align_down(start_offset,
-			OS_FILE_LOG_BLOCK_SIZE);
-
-		m_start_log_index = start_index;
-		m_start_log_offset = start_offset;
-
-		m_chunk_size = ARCH_LOG_CHUNK_SIZE;
-
-		m_group_list.push_back(m_current_group);
-	}
-
-	/* Attach to the current group. */
-	m_current_group->attach(LSN_MAX, 0, is_durable);
-
-	group =  m_current_group;
-
-	mutex_exit(&m_mutex);
-
-	/* Update header with checkpoint LSN. */
-	update_header(header, start_lsn);
-
-	return(DB_SUCCESS);
+  return (DB_SUCCESS);
 }
 
 #ifdef UNIV_DEBUG
-void
-Arch_Group::adjust_end_lsn(lsn_t& stop_lsn, uint32_t& blk_len)
-{
-	stop_lsn = ut_uint64_align_down(get_begin_lsn(),
-		OS_FILE_LOG_BLOCK_SIZE);
+void Arch_Group::adjust_end_lsn(lsn_t &stop_lsn, uint32_t &blk_len) {
+  stop_lsn = ut_uint64_align_down(get_begin_lsn(), OS_FILE_LOG_BLOCK_SIZE);
 
-	stop_lsn += get_file_size() - LOG_FILE_HDR_SIZE;
-	blk_len = 0;
+  stop_lsn += get_file_size() - LOG_FILE_HDR_SIZE;
+  blk_len = 0;
 
-	/* Increase Stop LSN 64 bytes ahead of file end not exceeding
-	redo block size. */
-	DBUG_EXECUTE_IF("clone_arch_log_extra_bytes",
-		blk_len = 64;
-		stop_lsn += blk_len;);
+  /* Increase Stop LSN 64 bytes ahead of file end not exceeding
+  redo block size. */
+  DBUG_EXECUTE_IF("clone_arch_log_extra_bytes", blk_len = 64;
+                  stop_lsn += blk_len;);
 }
 
-void
-Arch_Group::adjust_copy_length(uint32_t& length)
-{
-	auto cmp_length = static_cast<uint64_t>(length);
+void Arch_Group::adjust_copy_length(uint32_t &length) {
+  auto cmp_length = static_cast<uint64_t>(length);
 
-	if (cmp_length > m_file_ctx.bytes_left()) {
+  if (cmp_length > m_file_ctx.bytes_left()) {
+    cmp_length = m_file_ctx.bytes_left();
 
-		cmp_length = m_file_ctx.bytes_left();
-
-		length = static_cast<uint32_t>(cmp_length);
-	}
+    length = static_cast<uint32_t>(cmp_length);
+  }
 }
 #endif /* UNIV_DEBUG */
 
@@ -483,79 +428,67 @@ the current group.
 @param[out]	log_blk		redo log trailer block
 @param[in,out]	blk_len		length in bytes
 @return error code */
-dberr_t
-Arch_Log_Sys::stop(
-	Arch_Group*	group,
-	lsn_t&		stop_lsn,
-	byte*		log_blk,
-	uint32_t&	blk_len)
-{
-	dberr_t	err = DB_SUCCESS;
-	uint	count_active;
+dberr_t Arch_Log_Sys::stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
+                           uint32_t &blk_len) {
+  dberr_t err = DB_SUCCESS;
+  uint count_active;
 
-	/* Get the current LSN and trailer block. */
-	log_get_last_block(stop_lsn, log_blk, blk_len);
+  /* Get the current LSN and trailer block. */
+  log_get_last_block(stop_lsn, log_blk, blk_len);
 
-	DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
-		group->adjust_end_lsn(stop_lsn, blk_len););
+  DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
+                  group->adjust_end_lsn(stop_lsn, blk_len););
 
-	/* Will throw error, if shutdown. We still continue
-	with detach but return the error. */
-	err = wait_archive_complete(stop_lsn);
+  /* Will throw error, if shutdown. We still continue
+  with detach but return the error. */
+  err = wait_archive_complete(stop_lsn);
 
-	mutex_enter(&m_mutex);
+  mutex_enter(&m_mutex);
 
-	count_active = group->detach(stop_lsn);
+  count_active = group->detach(stop_lsn);
 
-	if (count_active == 0) {
+  if (count_active == 0) {
+    /* No other active client. Prepare to get idle. */
+    log_write_mutex_enter();
 
-		/* No other active client. Prepare to get idle. */
-		log_write_mutex_enter();
+    if (m_state != ARCH_STATE_ABORT) {
+      ut_ad(m_state == ARCH_STATE_ACTIVE);
+      m_state = ARCH_STATE_PREPARE_IDLE;
+      os_event_set(archiver_thread_event);
+    }
 
-		if (m_state != ARCH_STATE_ABORT) {
+    log_write_mutex_exit();
+  }
 
-			ut_ad(m_state == ARCH_STATE_ACTIVE);
-			m_state = ARCH_STATE_PREPARE_IDLE;
-			os_event_set(archiver_thread_event);
-		}
+  mutex_exit(&m_mutex);
 
-		log_write_mutex_exit();
-	}
-
-	mutex_exit(&m_mutex);
-
-	return(err);
+  return (err);
 }
 
 /** Release the current group from client.
 @param[in]	group		group the client is attached to
 @param[in]	is_durable	if client needs durable archiving */
-void
-Arch_Log_Sys::release(
-	Arch_Group*	group,
-	bool		is_durable)
-{
-	uint	ref_count;
+void Arch_Log_Sys::release(Arch_Group *group, bool is_durable) {
+  uint ref_count;
 
-	mutex_enter(&m_mutex);
+  mutex_enter(&m_mutex);
 
-	ref_count = group->release(is_durable);
+  ref_count = group->release(is_durable);
 
-	/* Check if there are other references or archiving is still
-	in progress. */
-	if (ref_count != 0 || group->is_active()) {
+  /* Check if there are other references or archiving is still
+  in progress. */
+  if (ref_count != 0 || group->is_active()) {
+    mutex_exit(&m_mutex);
+    return;
+  }
 
-		mutex_exit(&m_mutex);
-		return;
-	}
+  /* Cleanup the group. */
+  ut_ad(group != m_current_group);
+  m_group_list.remove(group);
 
-	/* Cleanup the group. */
-	ut_ad(group != m_current_group);
-	m_group_list.remove(group);
+  UT_DELETE(group);
 
-	UT_DELETE(group);
-
-	mutex_exit(&m_mutex);
+  mutex_exit(&m_mutex);
 }
 
 /** Check and set log archive system state and output the
@@ -563,262 +496,224 @@ amount of redo log available for archiving.
 @param[in]	is_abort	need to abort
 @param[in,out]	archived_lsn	LSN up to which redo log is archived
 @param[out]	to_archive	amount of redo log to be archived */
-Arch_State
-Arch_Log_Sys::check_set_state(
-	bool	is_abort,
-	lsn_t*	archived_lsn,
-	uint*	to_archive)
-{
-	Arch_State	ret_state;
-	bool		is_shutdown;
-	bool		need_to_abort;
+Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
+                                         uint *to_archive) {
+  Arch_State ret_state;
+  bool is_shutdown;
+  bool need_to_abort;
 
-	is_shutdown = (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE
-		       || srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+  is_shutdown = (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE ||
+                 srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
-	need_to_abort = (is_abort || is_shutdown);
+  need_to_abort = (is_abort || is_shutdown);
 
-	*to_archive = 0;
+  *to_archive = 0;
 
-	mutex_enter(&m_mutex);
+  mutex_enter(&m_mutex);
 
-	switch (m_state) {
+  switch (m_state) {
+    case ARCH_STATE_ACTIVE:
 
-	case ARCH_STATE_ACTIVE:
+      log_write_mutex_enter();
+      if (*archived_lsn != LSN_MAX) {
+        /* Update system archived LSN from input */
+        ut_ad(*archived_lsn >= m_archived_lsn);
+        m_archived_lsn = *archived_lsn;
+      } else {
+        /* If input is not initialized,
+        set from system archived LSN */
+        *archived_lsn = m_archived_lsn;
+      }
 
-		log_write_mutex_enter();
-		if (*archived_lsn != LSN_MAX) {
+      lsn_t lsn_diff;
 
-			/* Update system archived LSN from input */
-			ut_ad(*archived_lsn >= m_archived_lsn);
-			m_archived_lsn = *archived_lsn;
-		} else {
+      /* Check redo log data ready to archive. */
+      ut_ad(log_sys->write_lsn >= m_archived_lsn);
+      lsn_diff = log_sys->write_lsn - m_archived_lsn;
 
-			/* If input is not initialized,
-			set from system archived LSN */
-			*archived_lsn = m_archived_lsn;
-		}
+      log_write_mutex_exit();
 
-		lsn_t	lsn_diff;
+      lsn_diff = ut_uint64_align_down(lsn_diff, OS_FILE_LOG_BLOCK_SIZE);
 
-		/* Check redo log data ready to archive. */
-		ut_ad(log_sys->write_lsn >= m_archived_lsn);
-		lsn_diff = log_sys->write_lsn - m_archived_lsn;
+      /* Adjust archive data length if bigger than chunks size. */
+      if (lsn_diff < m_chunk_size) {
+        *to_archive = static_cast<uint>(lsn_diff);
+      } else {
+        *to_archive = m_chunk_size;
+      }
 
-		log_write_mutex_exit();
+      need_to_abort = is_abort || (is_shutdown && *to_archive == 0);
 
-		lsn_diff = ut_uint64_align_down(lsn_diff,
-			OS_FILE_LOG_BLOCK_SIZE);
+      if (!need_to_abort) {
+        break;
+      }
+      /* fall through */
 
-		/* Adjust archive data length if bigger than chunks size. */
-		if (lsn_diff < m_chunk_size) {
+    case ARCH_STATE_PREPARE_IDLE:
+      /* No active clients. Mark the group inactive and move
+      to idle state. */
+      uint ref_count;
+      ref_count = m_current_group->disable(m_archived_lsn, 0);
 
-			*to_archive = static_cast<uint>(lsn_diff);
-		} else {
+      /* If no client reference, free the group. */
+      if (ref_count == 0) {
+        m_group_list.remove(m_current_group);
 
-			*to_archive = m_chunk_size;
-		}
+        UT_DELETE(m_current_group);
+      }
 
-		need_to_abort = is_abort || (is_shutdown && *to_archive == 0);
+      m_current_group = nullptr;
 
-		if (!need_to_abort) {
+      log_write_mutex_enter();
+      m_state = ARCH_STATE_IDLE;
+      log_write_mutex_exit();
 
-			break;
-		}
-		/* fall through */
+      /* fall through */
 
-	case ARCH_STATE_PREPARE_IDLE:
-		/* No active clients. Mark the group inactive and move
-		to idle state. */
-		uint	ref_count;
-		ref_count = m_current_group->disable(m_archived_lsn, 0);
+    case ARCH_STATE_IDLE:
+    case ARCH_STATE_INIT:
 
-		/* If no client reference, free the group. */
-		if (ref_count == 0) {
+      if (need_to_abort) {
+        log_write_mutex_enter();
+        m_state = ARCH_STATE_ABORT;
+        log_write_mutex_exit();
+      }
+      break;
 
-			m_group_list.remove(m_current_group);
+    case ARCH_STATE_ABORT:
 
-			UT_DELETE(m_current_group);
-		}
+    default:
+      ut_ad(false);
+  }
 
-		m_current_group = nullptr;
+  ret_state = m_state;
+  mutex_exit(&m_mutex);
 
-		log_write_mutex_enter();
-		m_state = ARCH_STATE_IDLE;
-		log_write_mutex_exit();
-
-		/* fall through */
-
-	case ARCH_STATE_IDLE:
-	case ARCH_STATE_INIT:
-
-		if (need_to_abort) {
-
-			log_write_mutex_enter();
-			m_state = ARCH_STATE_ABORT;
-			log_write_mutex_exit();
-		}
-		break;
-
-	case ARCH_STATE_ABORT:
-
-	default:
-		ut_ad(false);
-	}
-
-	ret_state = m_state;
-	mutex_exit(&m_mutex);
-
-	return(ret_state);
+  return (ret_state);
 }
 
 /** Copy redo log from file context to archiver files.
 @param[in]	file_ctx	file context for system redo logs
 @param[in]	length		data to copy in bytes
 @return error code */
-dberr_t
-Arch_Log_Sys::copy_log(
-	Arch_File_Ctx*	file_ctx,
-	uint		length)
-{
-	dberr_t		err = DB_SUCCESS;
+dberr_t Arch_Log_Sys::copy_log(Arch_File_Ctx *file_ctx, uint length) {
+  dberr_t err = DB_SUCCESS;
 
-	if (file_ctx->is_closed()) {
+  if (file_ctx->is_closed()) {
+    /* Open system redo log file context */
+    err = file_ctx->open(true, LSN_MAX, m_start_log_index, m_start_log_offset);
 
-		/* Open system redo log file context */
-		err = file_ctx->open(true, LSN_MAX,
-			m_start_log_index, m_start_log_offset);
+    if (err != DB_SUCCESS) {
+      return (err);
+    }
+  }
 
-		if (err != DB_SUCCESS) {
+  Arch_Group *curr_group;
+  uint write_size;
 
-			return(err);
-		}
-	}
+  curr_group = arch_log_sys->get_arch_group();
 
-	Arch_Group*	curr_group;
-	uint		write_size;
+  /* Copy log data into one or more files in archiver group. */
+  while (length > 0) {
+    ib_uint64_t len_copy;
+    ib_uint64_t len_left;
 
-	curr_group = arch_log_sys->get_arch_group();
+    len_copy = static_cast<ib_uint64_t>(length);
 
-	/* Copy log data into one or more files in archiver group. */
-	while (length > 0) {
+    len_left = file_ctx->bytes_left();
 
-		ib_uint64_t	len_copy;
-		ib_uint64_t	len_left;
+    /* Current file is over, switch to next file. */
+    if (len_left == 0) {
+      err = file_ctx->open_next(LSN_MAX, LOG_FILE_HDR_SIZE);
+      if (err != DB_SUCCESS) {
+        return (err);
+      }
 
-		len_copy = static_cast<ib_uint64_t>(length);
+      len_left = file_ctx->bytes_left();
+    }
 
-		len_left = file_ctx->bytes_left();
+    /* Write as much as possible from current file. */
+    if (len_left < len_copy) {
+      write_size = static_cast<uint>(len_left);
+    } else {
+      write_size = length;
+    }
 
-		/* Current file is over, switch to next file. */
-		if (len_left == 0) {
+    err = curr_group->write_to_file(file_ctx, nullptr, write_size);
 
-			err = file_ctx->open_next(LSN_MAX, LOG_FILE_HDR_SIZE);
-                        if (err != DB_SUCCESS) {
+    if (err != DB_SUCCESS) {
+      return (err);
+    }
 
-                                return(err);
-                        }
+    ut_ad(length >= write_size);
+    length -= write_size;
+  }
 
-			len_left = file_ctx->bytes_left();
-		}
-
-		/* Write as much as possible from current file. */
-                if (len_left < len_copy) {
-
-                        write_size = static_cast<uint>(len_left);
-                } else {
-
-                        write_size = length;
-                }
-
-		err = curr_group->write_to_file(file_ctx, nullptr, write_size);
-
-		if (err != DB_SUCCESS) {
-
-			return(err);
-		}
-
-		ut_ad(length >= write_size);
-		length -= write_size;
-	}
-
-	return(DB_SUCCESS);
+  return (DB_SUCCESS);
 }
 
 /** Wait for redo log archive up to the target LSN.
 We need to wait till current log sys LSN during archive stop.
 @param[in]	target_lsn	target archive LSN to wait for
 @return error code */
-dberr_t
-Arch_Log_Sys::wait_archive_complete(
-	lsn_t	target_lsn)
-{
-	uint	count = 0;
-	bool	wait = true;
-	bool	flush = false;
+dberr_t Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
+  uint count = 0;
+  bool wait = true;
+  bool flush = false;
 
-	target_lsn = ut_uint64_align_down(target_lsn, OS_FILE_LOG_BLOCK_SIZE);
+  target_lsn = ut_uint64_align_down(target_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-	while (true) {
+  while (true) {
+    log_write_mutex_enter();
 
-		log_write_mutex_enter();
+    wait = m_archived_lsn < target_lsn;
 
-		wait = m_archived_lsn < target_lsn;
+    flush = log_sys->write_lsn < target_lsn;
 
-		flush = log_sys->write_lsn < target_lsn;
+    if (m_state == ARCH_STATE_ABORT ||
+        srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+      log_write_mutex_exit();
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      return (DB_INTERRUPTED);
+    }
 
-		if (m_state == ARCH_STATE_ABORT
-		    || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    ut_ad(m_state == ARCH_STATE_ACTIVE);
 
-			log_write_mutex_exit();
-			my_error(ER_QUERY_INTERRUPTED, MYF(0));
-			return(DB_INTERRUPTED);
-		}
+    log_write_mutex_exit();
 
-		ut_ad(m_state == ARCH_STATE_ACTIVE);
+    if (!wait) {
+      break;
+    }
 
-		log_write_mutex_exit();
+    os_event_set(archiver_thread_event);
 
-		if (!wait) {
+    /* Sleep for 100ms */
+    os_thread_sleep(100000);
 
-			break;
-		}
+    /* Write system redo log if needed. */
+    if (flush) {
+      log_write_up_to(target_lsn, false);
+      continue;
+    }
 
-		os_event_set(archiver_thread_event);
+    ++count;
 
-		/* Sleep for 100ms */
-		os_thread_sleep(100000);
+    if (count % 50 == 0) {
+      ib::info() << "Waiting for archiver to"
+                    " finish archiving log till LSN "
+                 << target_lsn << " Archived LSN: " << m_archived_lsn;
 
-		/* Write system redo log if needed. */
-		if (flush) {
+      if (count > 600) {
+        /* Wait too long - 1 minutes */
+        ib::error() << "Log Archive wait too long";
 
-			log_write_up_to(target_lsn, false);
-			continue;
-		}
+        my_error(ER_INTERNAL_ERROR, MYF(0), "Log Archiver wait too long");
+        return (DB_ERROR);
+      }
+    }
+  }
 
-		++count;
-
-		if (count % 50 == 0) {
-
-			ib::info() << "Waiting for archiver to"
-				" finish archiving log till LSN "
-				<< target_lsn
-				<< " Archived LSN: "
-				<< m_archived_lsn;
-
-			if (count > 600) {
-
-				/* Wait too long - 1 minutes */
-				ib::error() << "Log Archive wait too long";
-
-				my_error(ER_INTERNAL_ERROR, MYF(0),
-					"Log Archiver wait too long");
-				return(DB_ERROR);
-			}
-		}
-	}
-
-	return(DB_SUCCESS);
+  return (DB_SUCCESS);
 }
 
 /** Archive accumulated redo log in current group.
@@ -829,85 +724,72 @@ data by calling it repeatedly over time.
 @param[out]	arch_lsn	LSN up to which archiving is completed
 @param[out]	wait		true, if no more redo to archive
 @return true, if archiving is aborted */
-bool
-Arch_Log_Sys::archive(
-	bool		init,
-	Arch_File_Ctx*	curr_ctx,
-	lsn_t*		arch_lsn,
-	bool*		wait)
-{
-	log_group_t*    log_group;
-	Arch_State	curr_state;
-	uint		arch_len;
+bool Arch_Log_Sys::archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn,
+                           bool *wait) {
+  log_group_t *log_group;
+  Arch_State curr_state;
+  uint arch_len;
 
-	dberr_t		err = DB_SUCCESS;
-	bool		is_abort = false;
+  dberr_t err = DB_SUCCESS;
+  bool is_abort = false;
 
-	/* Initialize system redo log file context first time. */
-	if (init) {
-		uint	num_files;
+  /* Initialize system redo log file context first time. */
+  if (init) {
+    uint num_files;
 
-		log_group = UT_LIST_GET_FIRST(log_sys->log_groups);
+    log_group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
-		num_files = static_cast<uint>(log_group->n_files);
+    num_files = static_cast<uint>(log_group->n_files);
 
-		err = curr_ctx->init(srv_log_group_home_dir, nullptr,
-			ib_logfile_basename, num_files,
-			log_group->file_size);
+    err = curr_ctx->init(srv_log_group_home_dir, nullptr, ib_logfile_basename,
+                         num_files, log_group->file_size);
 
-		if (err != DB_SUCCESS) {
+    if (err != DB_SUCCESS) {
+      is_abort = true;
+    }
+  }
 
-			is_abort = true;
-		}
-	}
+  /* Find archive system state and amount of log data to archive. */
+  curr_state = check_set_state(is_abort, arch_lsn, &arch_len);
 
-	/* Find archive system state and amount of log data to archive. */
-	curr_state = check_set_state(is_abort, arch_lsn, &arch_len);
+  if (curr_state == ARCH_STATE_ABORT) {
+    curr_ctx->close();
+    return (true);
 
-	if (curr_state == ARCH_STATE_ABORT) {
+  } else if (curr_state == ARCH_STATE_IDLE || curr_state == ARCH_STATE_INIT) {
+    curr_ctx->close();
 
-		curr_ctx->close();
-		return(true);
+    *arch_lsn = LSN_MAX;
+    *wait = true;
 
-	} else if (curr_state == ARCH_STATE_IDLE
-		   || curr_state == ARCH_STATE_INIT) {
+    return (false);
 
-		curr_ctx->close();
+  } else {
+    DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
+                    auto curr_group = get_arch_group();
+                    curr_group->adjust_copy_length(arch_len););
 
-		*arch_lsn = LSN_MAX;
-		*wait = true;
+    ut_ad(curr_state == ARCH_STATE_ACTIVE);
 
-		return(false);
+    if (arch_len == 0) {
+      /* Nothing to archive. Need to wait. */
+      *wait = true;
+      return (false);
+    }
 
-	} else {
+    /* Copy data from system redo log files to archiver files */
+    err = copy_log(curr_ctx, arch_len);
 
-		DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
-				auto curr_group = get_arch_group();
-				curr_group->adjust_copy_length(arch_len););
+    if (err == DB_SUCCESS) {
+      *arch_lsn += arch_len;
+      *wait = false;
+      return (false);
+    }
 
-		ut_ad(curr_state == ARCH_STATE_ACTIVE);
+    /* Force abort in case of an error archiving data. */
+    curr_state = check_set_state(true, arch_lsn, &arch_len);
+    ut_ad(curr_state == ARCH_STATE_ABORT);
 
-		if (arch_len == 0) {
-
-			/* Nothing to archive. Need to wait. */
-			*wait = true;
-			return(false);
-		}
-
-		/* Copy data from system redo log files to archiver files */
-		err = copy_log(curr_ctx, arch_len);
-
-		if (err == DB_SUCCESS) {
-
-			*arch_lsn += arch_len;
-			*wait = false;
-			return(false);
-		}
-
-		/* Force abort in case of an error archiving data. */
-		curr_state = check_set_state(true, arch_lsn, &arch_len);
-		ut_ad(curr_state == ARCH_STATE_ABORT);
-
-		return(true);
-	}
+    return (true);
+  }
 }

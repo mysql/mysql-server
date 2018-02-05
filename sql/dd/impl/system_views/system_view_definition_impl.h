@@ -26,31 +26,28 @@
 #include <map>
 #include <vector>
 
-#include "sql/dd/string_type.h"               // dd::String_type
-#include "sql/dd/types/system_view_definition.h" // dd::System_view_definition
-#include "sql/mysqld.h"                       // lower_case_table_names
+#include "sql/dd/string_type.h"                   // dd::String_type
+#include "sql/dd/types/system_view_definition.h"  // dd::System_view_definition
+#include "sql/mysqld.h"                           // lower_case_table_names
 
 namespace dd {
 namespace system_views {
 
-class System_view_definition_impl : public System_view_definition
-{
-public:
+class System_view_definition_impl : public System_view_definition {
+ public:
   /**
     Get view name.
 
     @return name of the view.
   */
-  virtual const String_type &view_name() const
-  { return m_view_name; }
+  virtual const String_type &view_name() const { return m_view_name; }
 
   /**
     Set view name.
 
     @return void.
   */
-  virtual void set_view_name(const String_type &name)
-  { m_view_name= name; }
+  virtual void set_view_name(const String_type &name) { m_view_name = name; }
 
   /**
     Get collation clause to append to view definition for some
@@ -58,25 +55,20 @@ public:
 
     @return Empty string if lctn=0, other wise " COLLATE utf8_tolower_ci".
   */
-  static const String_type fs_name_collation()
-  {
-     if (lower_case_table_names != 0)
-       return " COLLATE utf8_tolower_ci";
-     return "";
+  static const String_type fs_name_collation() {
+    if (lower_case_table_names != 0) return " COLLATE utf8_tolower_ci";
+    return "";
   }
 
   virtual String_type build_ddl_create_view() const = 0;
 
-private:
+ private:
   // Name of I_S system view;
   String_type m_view_name;
 };
 
-
-class System_view_select_definition_impl: public System_view_definition_impl
-{
-public:
-
+class System_view_select_definition_impl : public System_view_definition_impl {
+ public:
   /**
     Add a field definition for the SELECT projection.
     This function can be called more than once. The call will add a new
@@ -92,28 +84,25 @@ public:
   */
   virtual void add_field(int field_number, const String_type &field_name,
                          const String_type field_definition,
-                         bool add_quotes=false)
-  {
+                         bool add_quotes = false) {
     // Make sure the field_number and field_name are not added twise.
-    DBUG_ASSERT(
-      m_field_numbers.find(field_name) == m_field_numbers.end() &&
-      m_field_definitions.find(field_number) == m_field_definitions.end());
+    DBUG_ASSERT(m_field_numbers.find(field_name) == m_field_numbers.end() &&
+                m_field_definitions.find(field_number) ==
+                    m_field_definitions.end());
 
     // Store the field number.
-    m_field_numbers[field_name]= field_number;
+    m_field_numbers[field_name] = field_number;
 
     // Store the field definition expression.
     Stringstream_type ss;
-    if (add_quotes)
-    {
+    if (add_quotes) {
       DBUG_ASSERT(field_definition.find('\'') == String_type::npos);
       ss << '\'' << field_definition << '\'';
-    }
-    else
+    } else
       ss << field_definition;
 
     ss << " AS " << field_name;
-    m_field_definitions[field_number]= ss.str();
+    m_field_definitions[field_number] = ss.str();
   }
 
   /**
@@ -125,8 +114,9 @@ public:
 
     @return void.
   */
-  virtual void add_from(const String_type &from)
-  { m_from_clauses.push_back(from); }
+  virtual void add_from(const String_type &from) {
+    m_from_clauses.push_back(from);
+  }
 
   /**
     Add WHERE clause for the SELECT.
@@ -137,8 +127,9 @@ public:
 
     @return void.
   */
-  virtual void add_where(const String_type &where)
-  { m_where_clauses.push_back(where); }
+  virtual void add_where(const String_type &where) {
+    m_where_clauses.push_back(where);
+  }
 
   /**
     Get the field ordinal position number for the given field name.
@@ -147,8 +138,7 @@ public:
 
     @return Integer representing position of column in projection list.
   */
-  virtual int field_number(const String_type &field_name) const
-  {
+  virtual int field_number(const String_type &field_name) const {
     DBUG_ASSERT(m_field_numbers.find(field_name) != m_field_numbers.end());
     return m_field_numbers.find(field_name)->second;
   }
@@ -158,36 +148,29 @@ public:
 
     @return The SELECT query string.
   */
-  String_type build_select_query() const
-  {
+  String_type build_select_query() const {
     Stringstream_type ss;
 
     ss << "SELECT \n";
     // Output view column definitions
-    for (Field_definitions::const_iterator field= m_field_definitions.begin();
-         field != m_field_definitions.end(); ++field)
-    {
-      if (field != m_field_definitions.begin())
-        ss << ",\n";
+    for (Field_definitions::const_iterator field = m_field_definitions.begin();
+         field != m_field_definitions.end(); ++field) {
+      if (field != m_field_definitions.begin()) ss << ",\n";
       ss << "  " << field->second;
     }
 
     // Output FROM clauses
-    for (From_clauses::const_iterator from= m_from_clauses.begin();
-         from != m_from_clauses.end(); ++from)
-    {
-      if (from == m_from_clauses.begin())
-        ss << " FROM ";
+    for (From_clauses::const_iterator from = m_from_clauses.begin();
+         from != m_from_clauses.end(); ++from) {
+      if (from == m_from_clauses.begin()) ss << " FROM ";
 
       ss << "\n  " << *from;
     }
 
     // Output WHERE clauses
-    for (Where_clauses::const_iterator where= m_where_clauses.begin();
-         where != m_where_clauses.end(); ++where)
-    {
-      if (where == m_where_clauses.begin())
-        ss << " WHERE ";
+    for (Where_clauses::const_iterator where = m_where_clauses.begin();
+         where != m_where_clauses.end(); ++where) {
+      if (where == m_where_clauses.begin()) ss << " WHERE ";
 
       ss << "\n  " << *where;
     }
@@ -197,17 +180,15 @@ public:
     return ss.str();
   }
 
-  virtual String_type build_ddl_create_view() const
-  {
+  virtual String_type build_ddl_create_view() const {
     Stringstream_type ss;
     ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
-       << "information_schema." << view_name()
-       << " AS " + build_select_query();
+       << "information_schema." << view_name() << " AS " + build_select_query();
 
     return ss.str();
   }
 
-private:
+ private:
   // Map of field_names and the ordinal position in SELECT projection.
   typedef std::map<String_type, int> Field_numbers;
 
@@ -226,45 +207,43 @@ private:
   Where_clauses m_where_clauses;
 };
 
-
-class System_view_union_definition_impl: public System_view_definition_impl
-{
-
-public:
+class System_view_union_definition_impl : public System_view_definition_impl {
+ public:
   /**
     Get the object for first SELECT view definition to be used in UNION.
 
     @return The System_view_select_definition_impl*.
   */
-  System_view_select_definition_impl* get_first_select()
-  { return &m_first_select; }
+  System_view_select_definition_impl *get_first_select() {
+    return &m_first_select;
+  }
 
   /**
     Get the object for second SELECT view definition to be used in UNION.
 
     @return The System_view_select_definition_impl*.
   */
-  System_view_select_definition_impl* get_second_select()
-  { return &m_second_select; }
+  System_view_select_definition_impl *get_second_select() {
+    return &m_second_select;
+  }
 
-  virtual String_type build_ddl_create_view() const
-  {
+  virtual String_type build_ddl_create_view() const {
     Stringstream_type ss;
     ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
        << "information_schema." << view_name() << " AS "
        << "(" << m_first_select.build_select_query() << ")"
-       << " UNION " << "(" << m_second_select.build_select_query() << ")";
+       << " UNION "
+       << "(" << m_second_select.build_select_query() << ")";
 
     return ss.str();
   }
 
-private:
+ private:
   // Member that holds two SELECT's used for UNION
   System_view_select_definition_impl m_first_select, m_second_select;
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif	// DD_SYSTEM_VIEWS__SYSTEM_VIEW_DEFINITION_IMPL_INCLUDED
-
+#endif  // DD_SYSTEM_VIEWS__SYSTEM_VIEW_DEFINITION_IMPL_INCLUDED

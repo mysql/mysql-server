@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -63,7 +63,7 @@ bool is_line_break(const unsigned char *head, const unsigned char *line_break) {
  */
 size_t determineStatementRanges(const char *sql, size_t length,
                                 std::string &delimiter,
-                                std::vector<std::pair<size_t, size_t> > &ranges,
+                                std::vector<std::pair<size_t, size_t>> &ranges,
                                 const std::string &line_break,
                                 std::stack<std::string> &input_context_stack) {
   int full_statement_count = 0;
@@ -270,6 +270,6 @@ size_t determineStatementRanges(const char *sql, size_t length,
 
   return full_statement_count;
 }
-}
-}
-}
+}  // namespace splitter
+}  // namespace mysql
+}  // namespace shcore

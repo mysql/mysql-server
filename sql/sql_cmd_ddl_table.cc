@@ -29,44 +29,42 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h" // create_table_precheck()
-#include "sql/binlog.h"         // mysql_bin_log
+#include "sql/auth/auth_common.h"  // create_table_precheck()
+#include "sql/binlog.h"            // mysql_bin_log
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/derror.h"         // ER_THD
 #include "sql/error_handler.h"  // Ignore_error_handler
 #include "sql/handler.h"
 #include "sql/item.h"
-#include "sql/mysqld.h"         // opt_log_slow_admin_statements
-#include "sql/partition_info.h" // check_partition_tablespace_names()
+#include "sql/mysqld.h"          // opt_log_slow_admin_statements
+#include "sql/partition_info.h"  // check_partition_tablespace_names()
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/session_tracker.h"
 #include "sql/sql_alter.h"
-#include "sql/sql_base.h"       // open_tables_for_query()
+#include "sql/sql_base.h"  // open_tables_for_query()
 #include "sql/sql_class.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
-#include "sql/sql_insert.h"     // Query_result_create
+#include "sql/sql_insert.h"  // Query_result_create
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"      // prepare_index_and_data_dir_path()
-#include "sql/sql_select.h"     // handle_query()
-#include "sql/sql_table.h"      // mysql_create_like_table()
-#include "sql/sql_tablespace.h" // validate_tablespace_name()
+#include "sql/sql_parse.h"       // prepare_index_and_data_dir_path()
+#include "sql/sql_select.h"      // handle_query()
+#include "sql/sql_table.h"       // mysql_create_like_table()
+#include "sql/sql_tablespace.h"  // validate_tablespace_name()
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "thr_lock.h"
 
 #ifndef DBUG_OFF
 #include "sql/current_thd.h"
-#endif//DBUG_OFF
-
+#endif  // DBUG_OFF
 
 Sql_cmd_ddl_table::Sql_cmd_ddl_table(Alter_info *alter_info)
-  : m_alter_info(alter_info)
-{
+    : m_alter_info(alter_info) {
 #ifndef DBUG_OFF
-  LEX *lex= current_thd->lex;
+  LEX *lex = current_thd->lex;
   DBUG_ASSERT(lex->alter_info == m_alter_info);
   DBUG_ASSERT(lex->sql_command == SQLCOM_ALTER_TABLE ||
               lex->sql_command == SQLCOM_ANALYZE ||
@@ -78,21 +76,19 @@ Sql_cmd_ddl_table::Sql_cmd_ddl_table(Alter_info *alter_info)
               lex->sql_command == SQLCOM_OPTIMIZE ||
               lex->sql_command == SQLCOM_PRELOAD_KEYS ||
               lex->sql_command == SQLCOM_REPAIR);
-#endif//DBUG_OFF
+#endif  // DBUG_OFF
   DBUG_ASSERT(m_alter_info != nullptr);
 }
 
-
-bool Sql_cmd_create_table::execute(THD *thd)
-{
-  LEX *const lex= thd->lex;
-  SELECT_LEX *const select_lex= lex->select_lex;
-  SELECT_LEX_UNIT *const unit= lex->unit;
-  TABLE_LIST *const first_table= select_lex->get_table_list();
-  TABLE_LIST *const all_tables= first_table;
+bool Sql_cmd_create_table::execute(THD *thd) {
+  LEX *const lex = thd->lex;
+  SELECT_LEX *const select_lex = lex->select_lex;
+  SELECT_LEX_UNIT *const unit = lex->unit;
+  TABLE_LIST *const first_table = select_lex->get_table_list();
+  TABLE_LIST *const all_tables = first_table;
 
   bool link_to_local;
-  TABLE_LIST *create_table= first_table;
+  TABLE_LIST *create_table = first_table;
 
   /*
     Code below (especially in mysql_create_table() and Query_result_create
@@ -109,43 +105,40 @@ bool Sql_cmd_create_table::execute(THD *thd)
   */
   Alter_info alter_info(*m_alter_info, thd->mem_root);
 
-  if (thd->is_error())
-  {
+  if (thd->is_error()) {
     /* If out of memory when creating a copy of alter_info. */
     return true;
   }
 
   if (((lex->create_info->used_fields & HA_CREATE_USED_DATADIR) != 0 ||
        (lex->create_info->used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
-      check_access(thd, FILE_ACL, any_db, NULL, NULL, false, false))
-  {
+      check_access(thd, FILE_ACL, any_db, NULL, NULL, false, false)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
     return true;
   }
 
-  if (!thd->is_plugin_fake_ddl())
-  {
+  if (!thd->is_plugin_fake_ddl()) {
     if (create_table_precheck(thd, query_expression_tables, create_table))
       return true;
   }
 
   /* Might have been updated in create_table_precheck */
-  create_info.alias= create_table->alias;
+  create_info.alias = create_table->alias;
 
   /*
     If no engine type was given, work out the default now
     rather than at parse-time.
   */
   if (!(create_info.used_fields & HA_CREATE_USED_ENGINE))
-    create_info.db_type= create_info.options & HA_LEX_CREATE_TMP_TABLE ?
-            ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
+    create_info.db_type = create_info.options & HA_LEX_CREATE_TMP_TABLE
+                              ? ha_default_temp_handlerton(thd)
+                              : ha_default_handlerton(thd);
 
   /*
     Assign target tablespace name to enable locking in lock_table_names().
     Reject invalid names.
   */
-  if (create_info.tablespace)
-  {
+  if (create_info.tablespace) {
     if (validate_tablespace_name_length(create_info.tablespace) ||
         validate_tablespace_name(false, create_info.tablespace,
                                  create_info.db_type))
@@ -175,29 +168,27 @@ bool Sql_cmd_create_table::execute(THD *thd)
   */
   if ((create_info.used_fields &
        (HA_CREATE_USED_DEFAULT_CHARSET | HA_CREATE_USED_CHARSET)) ==
-      HA_CREATE_USED_CHARSET)
-  {
-    create_info.used_fields&= ~HA_CREATE_USED_CHARSET;
-    create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-    create_info.default_table_charset= create_info.table_charset;
-    create_info.table_charset= 0;
+      HA_CREATE_USED_CHARSET) {
+    create_info.used_fields &= ~HA_CREATE_USED_CHARSET;
+    create_info.used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
+    create_info.default_table_charset = create_info.table_charset;
+    create_info.table_charset = 0;
   }
 
   {
-    partition_info *part_info= thd->lex->part_info;
+    partition_info *part_info = thd->lex->part_info;
     if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
-        check_access(thd, FILE_ACL, any_db, NULL, NULL, false, false))
-    {
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, false, false)) {
       return true;
     }
-    if (part_info && !(part_info= thd->lex->part_info->get_clone(thd, true)))
+    if (part_info && !(part_info = thd->lex->part_info->get_clone(thd, true)))
       return true;
-    thd->work_part_info= part_info;
+    thd->work_part_info = part_info;
   }
 
-  bool res= false;
+  bool res = false;
 
-  if (select_lex->item_list.elements)		// With select
+  if (select_lex->item_list.elements)  // With select
   {
     Query_result *result;
 
@@ -210,8 +201,8 @@ bool Sql_cmd_create_table::execute(THD *thd)
     */
     if (lex->is_ignore())
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT);
-    
-    if(lex->duplicates == DUP_REPLACE)
+
+    if (lex->duplicates == DUP_REPLACE)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
 
     /*
@@ -222,67 +213,55 @@ bool Sql_cmd_create_table::execute(THD *thd)
       raise a warning, as it may cause problems
       (see 'NAME_CONST issues' in 'Binary Logging of Stored Programs')
      */
-    if (thd->query_name_consts && 
-        mysql_bin_log.is_open() &&
+    if (thd->query_name_consts && mysql_bin_log.is_open() &&
         thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-        !mysql_bin_log.is_query_in_union(thd, thd->query_id))
-    {
+        !mysql_bin_log.is_query_in_union(thd, thd->query_id)) {
       List_iterator_fast<Item> it(select_lex->item_list);
       Item *item;
-      uint splocal_refs= 0;
+      uint splocal_refs = 0;
       /* Count SP local vars in the top-level SELECT list */
-      while ((item= it++))
-      {
-        if (item->is_splocal())
-          splocal_refs++;
+      while ((item = it++)) {
+        if (item->is_splocal()) splocal_refs++;
       }
       /*
         If it differs from number of NAME_CONST substitution applied,
         we may have a SOME_FUNC(NAME_CONST()) in the SELECT list,
         that may cause a problem with binary log (see BUG#35383),
-        raise a warning. 
+        raise a warning.
       */
       if (splocal_refs != thd->query_name_consts)
-        push_warning(thd, 
-                     Sql_condition::SL_WARNING,
-                     ER_UNKNOWN_ERROR,
-"Invoked routine ran a statement that may cause problems with "
-"binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
-"section of the manual.");
+        push_warning(
+            thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
+            "Invoked routine ran a statement that may cause problems with "
+            "binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored "
+            "Programs' "
+            "section of the manual.");
     }
-    
-    if (unit->set_limit(thd, select_lex))
-      return true;
+
+    if (unit->set_limit(thd, select_lex)) return true;
 
     /*
       Disable non-empty MERGE tables with CREATE...SELECT. Too
       complicated. See Bug #26379. Empty MERGE tables are read-only
       and don't allow CREATE...SELECT anyway.
     */
-    if (create_info.used_fields & HA_CREATE_USED_UNION)
-    {
+    if (create_info.used_fields & HA_CREATE_USED_UNION) {
       my_error(ER_WRONG_OBJECT, MYF(0), create_table->db,
                create_table->table_name, "BASE TABLE");
       return true;
     }
 
-    if (open_tables_for_query(thd, all_tables, false))
-      return true;
+    if (open_tables_for_query(thd, all_tables, false)) return true;
 
     /* The table already exists */
-    if (create_table->table || create_table->is_view())
-    {
-      if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
-      {
-        push_warning_printf(thd, Sql_condition::SL_NOTE,
-                            ER_TABLE_EXISTS_ERROR,
+    if (create_table->table || create_table->is_view()) {
+      if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS) {
+        push_warning_printf(thd, Sql_condition::SL_NOTE, ER_TABLE_EXISTS_ERROR,
                             ER_THD(thd, ER_TABLE_EXISTS_ERROR),
                             create_info.alias);
         my_ok(thd);
         return false;
-      }
-      else
-      {
+      } else {
         my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_info.alias);
         return false;
       }
@@ -296,11 +275,9 @@ bool Sql_cmd_create_table::execute(THD *thd)
     lex->unlink_first_table(&link_to_local);
 
     /* Updating any other table is prohibited in CTS statement */
-    for (TABLE_LIST *table= lex->query_tables; table;
-         table= table->next_global)
-    {
-      if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
-      {
+    for (TABLE_LIST *table = lex->query_tables; table;
+         table = table->next_global) {
+      if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) {
         lex->link_first_table_back(create_table, link_to_local);
 
         my_error(ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT, MYF(0),
@@ -313,14 +290,10 @@ bool Sql_cmd_create_table::execute(THD *thd)
       Query_result_create is currently not re-execution friendly and
       needs to be created for every execution of a PS/SP.
     */
-    if ((result= new (thd->mem_root) Query_result_create(thd,
-                                                         create_table,
-                                                         &create_info,
-                                                         &alter_info,
-                                                         select_lex->item_list,
-                                                         lex->duplicates,
-                                                         query_expression_tables)))
-    {
+    if ((result = new (thd->mem_root)
+             Query_result_create(thd, create_table, &create_info, &alter_info,
+                                 select_lex->item_list, lex->duplicates,
+                                 query_expression_tables))) {
       // For objects acquired during table creation.
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -335,7 +308,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
         CREATE from SELECT give its SELECT_LEX for SELECT,
         and item_list belong to SELECT
       */
-      res= handle_query(thd, lex, result, SELECT_NO_UNLOCK, 0);
+      res = handle_query(thd, lex, result, SELECT_NO_UNLOCK, 0);
 
       if (thd->lex->is_ignore() || thd->is_strict_mode())
         thd->pop_internal_handler();
@@ -344,44 +317,38 @@ bool Sql_cmd_create_table::execute(THD *thd)
     }
 
     lex->link_first_table_back(create_table, link_to_local);
-  }
-  else
-  {
+  } else {
     Strict_error_handler strict_handler;
     /* Push Strict_error_handler */
     if (!thd->lex->is_ignore() && thd->is_strict_mode())
       thd->push_internal_handler(&strict_handler);
     /* regular create */
-    if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
-    {
+    if (create_info.options & HA_LEX_CREATE_TABLE_LIKE) {
       /* CREATE TABLE ... LIKE ... */
-      res= mysql_create_like_table(thd, create_table, query_expression_tables,
-                                   &create_info);
-    }
-    else
-    {
+      res = mysql_create_like_table(thd, create_table, query_expression_tables,
+                                    &create_info);
+    } else {
       /* Regular CREATE TABLE */
-      res= mysql_create_table(thd, create_table, &create_info, &alter_info);
+      res = mysql_create_table(thd, create_table, &create_info, &alter_info);
     }
     /* Pop Strict_error_handler */
     if (!thd->lex->is_ignore() && thd->is_strict_mode())
       thd->pop_internal_handler();
-    if (!res)
-    {
+    if (!res) {
       /* in case of create temp tables if @@session_track_state_change is
          ON then send session state notification in OK packet */
-      if(create_info.options & HA_LEX_CREATE_TMP_TABLE &&
-         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
+      if (create_info.options & HA_LEX_CREATE_TMP_TABLE &&
+          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
+              ->is_enabled())
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
+            ->mark_as_changed(thd, NULL);
       my_ok(thd);
     }
   }
   return res;
 }
 
-
-bool Sql_cmd_create_or_drop_index_base::execute(THD *thd)
-{
+bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
   /*
     CREATE INDEX and DROP INDEX are implemented by calling ALTER
     TABLE with proper arguments.
@@ -391,65 +358,56 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd)
     table without having to do a full rebuild.
   */
 
-  LEX *const lex= thd->lex;
-  SELECT_LEX *const select_lex= lex->select_lex;
-  TABLE_LIST *const first_table= select_lex->get_table_list();
-  TABLE_LIST *const all_tables= first_table;
+  LEX *const lex = thd->lex;
+  SELECT_LEX *const select_lex = lex->select_lex;
+  TABLE_LIST *const first_table = select_lex->get_table_list();
+  TABLE_LIST *const all_tables = first_table;
 
   /* Prepare stack copies to be re-execution safe */
   HA_CREATE_INFO create_info;
   Alter_info alter_info(*m_alter_info, thd->mem_root);
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-    return true; // OOM
+    return true;           // OOM
 
-  if (check_one_table_access(thd, INDEX_ACL, all_tables))
-    return true;
+  if (check_one_table_access(thd, INDEX_ACL, all_tables)) return true;
   /*
     Currently CREATE INDEX or DROP INDEX cause a full table rebuild
     and thus classify as slow administrative statements just like
     ALTER TABLE.
   */
-  thd->enable_slow_log= opt_log_slow_admin_statements;
+  thd->enable_slow_log = opt_log_slow_admin_statements;
 
-  create_info.db_type= 0;
-  create_info.row_type= ROW_TYPE_NOT_USED;
-  create_info.default_table_charset= thd->variables.collation_database;
+  create_info.db_type = 0;
+  create_info.row_type = ROW_TYPE_NOT_USED;
+  create_info.default_table_charset = thd->variables.collation_database;
 
   /* Push Strict_error_handler */
   Strict_error_handler strict_handler;
-  if (thd->is_strict_mode())
-    thd->push_internal_handler(&strict_handler);
+  if (thd->is_strict_mode()) thd->push_internal_handler(&strict_handler);
   DBUG_ASSERT(!select_lex->order_list.elements);
-  const bool res= mysql_alter_table(thd, first_table->db,
-                                    first_table->table_name,
-                                    &create_info, first_table, &alter_info);
+  const bool res =
+      mysql_alter_table(thd, first_table->db, first_table->table_name,
+                        &create_info, first_table, &alter_info);
   /* Pop Strict_error_handler */
-  if (thd->is_strict_mode())
-    thd->pop_internal_handler();
+  if (thd->is_strict_mode()) thd->pop_internal_handler();
   return res;
 }
 
-
-bool Sql_cmd_cache_index::execute(THD *thd)
-{
-  TABLE_LIST *const first_table= thd->lex->select_lex->get_table_list();
+bool Sql_cmd_cache_index::execute(THD *thd) {
+  TABLE_LIST *const first_table = thd->lex->select_lex->get_table_list();
   if (check_access(thd, INDEX_ACL, first_table->db,
                    &first_table->grant.privilege,
-                   &first_table->grant.m_internal,
-                   0, 0))
+                   &first_table->grant.m_internal, 0, 0))
     return true;
   return assign_to_keycache(thd, first_table);
 }
 
-
-bool Sql_cmd_load_index::execute(THD *thd)
-{
-  TABLE_LIST *const first_table= thd->lex->select_lex->get_table_list();
+bool Sql_cmd_load_index::execute(THD *thd) {
+  TABLE_LIST *const first_table = thd->lex->select_lex->get_table_list();
   if (check_access(thd, INDEX_ACL, first_table->db,
                    &first_table->grant.privilege,
-                   &first_table->grant.m_internal,
-                   0, 0))
+                   &first_table->grant.m_internal, 0, 0))
     return true;
   return preload_keys(thd, first_table);
 }

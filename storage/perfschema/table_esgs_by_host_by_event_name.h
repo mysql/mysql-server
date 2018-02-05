@@ -48,24 +48,19 @@ struct THR_LOCK;
   @{
 */
 
-class PFS_index_esgs_by_host_by_event_name : public PFS_engine_index
-{
-public:
+class PFS_index_esgs_by_host_by_event_name : public PFS_engine_index {
+ public:
   PFS_index_esgs_by_host_by_event_name()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("HOST"),
-      m_key_2("EVENT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("HOST"),
+        m_key_2("EVENT_NAME") {}
 
-  ~PFS_index_esgs_by_host_by_event_name()
-  {
-  }
+  ~PFS_index_esgs_by_host_by_event_name() {}
 
   virtual bool match(PFS_host *pfs);
   virtual bool match(PFS_instr_class *instr_class);
 
-private:
+ private:
   PFS_key_host m_key_1;
   PFS_key_event_name m_key_2;
 };
@@ -74,8 +69,7 @@ private:
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME.
 */
-struct row_esgs_by_host_by_event_name
-{
+struct row_esgs_by_host_by_event_name {
   /** Column HOST. */
   PFS_host_row m_host;
   /** Column EVENT_NAME. */
@@ -90,31 +84,23 @@ struct row_esgs_by_host_by_event_name
   Index 1 on host (0 based)
   Index 2 on stage class (1 based).
 */
-struct pos_esgs_by_host_by_event_name : public PFS_double_index
-{
-  pos_esgs_by_host_by_event_name() : PFS_double_index(0, 1)
-  {
-  }
+struct pos_esgs_by_host_by_event_name : public PFS_double_index {
+  pos_esgs_by_host_by_event_name() : PFS_double_index(0, 1) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 1;
   }
 
-  inline void
-  next_host(void)
-  {
+  inline void next_host(void) {
     m_index_1++;
     m_index_2 = 1;
   }
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME. */
-class table_esgs_by_host_by_event_name : public PFS_engine_table
-{
-public:
+class table_esgs_by_host_by_event_name : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -130,23 +116,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_esgs_by_host_by_event_name();
 
-public:
-  ~table_esgs_by_host_by_event_name()
-  {
-  }
+ public:
+  ~table_esgs_by_host_by_event_name() {}
 
-protected:
+ protected:
   int make_row(PFS_host *host, PFS_stage_class *klass);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

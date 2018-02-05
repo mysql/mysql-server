@@ -24,68 +24,50 @@
 
 #include "plugin/group_replication/include/plugin.h"
 
-Applier_channel_state_observer::
-Applier_channel_state_observer()
-{}
+Applier_channel_state_observer::Applier_channel_state_observer() {}
 
-int Applier_channel_state_observer::thread_start(Binlog_relay_IO_param*)
-{
+int Applier_channel_state_observer::thread_start(Binlog_relay_IO_param *) {
   return 0;
 }
 
-int Applier_channel_state_observer::thread_stop(Binlog_relay_IO_param*)
-{
+int Applier_channel_state_observer::thread_stop(Binlog_relay_IO_param *) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-applier_start(Binlog_relay_IO_param*)
-{
+int Applier_channel_state_observer::applier_start(Binlog_relay_IO_param *) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-applier_stop(Binlog_relay_IO_param *param, bool aborted)
-{
+int Applier_channel_state_observer::applier_stop(Binlog_relay_IO_param *param,
+                                                 bool aborted) {
   applier_module->inform_of_applier_stop(param->channel_name, aborted);
   return 0;
 }
 
-int Applier_channel_state_observer::
-before_request_transmit(Binlog_relay_IO_param*,
-                        uint32)
-{
+int Applier_channel_state_observer::before_request_transmit(
+    Binlog_relay_IO_param *, uint32) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-after_read_event(Binlog_relay_IO_param*,
-                 const char*, unsigned long,
-                 const char**,
-                 unsigned long*)
-{
+int Applier_channel_state_observer::after_read_event(Binlog_relay_IO_param *,
+                                                     const char *,
+                                                     unsigned long,
+                                                     const char **,
+                                                     unsigned long *) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-after_queue_event(Binlog_relay_IO_param*,
-                  const char*,
-                  unsigned long,
-                  uint32)
-{
+int Applier_channel_state_observer::after_queue_event(Binlog_relay_IO_param *,
+                                                      const char *,
+                                                      unsigned long, uint32) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-after_reset_slave(Binlog_relay_IO_param*)
-{
+int Applier_channel_state_observer::after_reset_slave(Binlog_relay_IO_param *) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-applier_log_event(Binlog_relay_IO_param*,
-                  Trans_param*,
-                  int&)
-{
+int Applier_channel_state_observer::applier_log_event(Binlog_relay_IO_param *,
+                                                      Trans_param *, int &) {
   return 0;
 }

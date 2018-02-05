@@ -25,13 +25,11 @@
 #include "my_inttypes.h"
 #include "storage/myisammrg/myrg_def.h"
 
-int myrg_update(MYRG_INFO *info,const uchar *oldrec, uchar *newrec)
-{
-  if (!info->current_table)
-  {
+int myrg_update(MYRG_INFO *info, const uchar *oldrec, uchar *newrec) {
+  if (!info->current_table) {
     set_my_errno(HA_ERR_NO_ACTIVE_RECORD);
     return HA_ERR_NO_ACTIVE_RECORD;
   }
 
-  return mi_update(info->current_table->table,oldrec,newrec);
+  return mi_update(info->current_table->table, oldrec, newrec);
 }

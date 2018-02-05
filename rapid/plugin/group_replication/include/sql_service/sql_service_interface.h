@@ -28,10 +28,8 @@
 #define MAX_NUMBER_RETRIES 100
 #define SESSION_WAIT_TIMEOUT 2
 
-class Sql_service_interface
-{
-private:
-
+class Sql_service_interface {
+ private:
   /** Pointer to Srv_session class */
   MYSQL_SESSION m_session;
 
@@ -42,7 +40,7 @@ private:
   enum cs_text_or_binary m_txt_or_bin;
 
   /* The charset for the input string data */
-  const CHARSET_INFO * m_charset;
+  const CHARSET_INFO *m_charset;
 
   /**
     Executes a server command in a session.
@@ -63,12 +61,9 @@ private:
       @retval -1    Internal server session failed or was killed
       @retval -2    Internal API failure
   */
-  long
-  execute_internal(Sql_resultset *rset,
-                   enum cs_text_or_binary cs_txt_bin,
-                   const CHARSET_INFO *cs_charset,
-                   COM_DATA cmd,
-                   enum enum_server_command cmd_type);
+  long execute_internal(Sql_resultset *rset, enum cs_text_or_binary cs_txt_bin,
+                        const CHARSET_INFO *cs_charset, COM_DATA cmd,
+                        enum enum_server_command cmd_type);
 
   /**
     Wait for server to be in SERVER_OPERATING state
@@ -83,8 +78,7 @@ private:
   */
   int wait_for_session_server(ulong total_timeout);
 
-public:
-
+ public:
   /**
     Sql_service_interface constructor - Non-threaded version
 
@@ -96,9 +90,8 @@ public:
     @param cs_charset    charset for the string data input
   */
   Sql_service_interface(
-                    enum cs_text_or_binary cs_txt_bin= CS_TEXT_REPRESENTATION,
-                    const CHARSET_INFO *cs_charset= &my_charset_utf8_general_ci);
-
+      enum cs_text_or_binary cs_txt_bin = CS_TEXT_REPRESENTATION,
+      const CHARSET_INFO *cs_charset = &my_charset_utf8_general_ci);
 
   /**
     Sql_service_interface destructor
@@ -139,7 +132,6 @@ public:
   */
   long execute_query(std::string query_string);
 
-
   /**
     Executes a server command in a session.
 
@@ -157,10 +149,10 @@ public:
       @retval >0    SQL Error Number returned from MySQL Service API
       @retval <0    local errors
   */
-  long execute_query(std::string sql_string,
-                     Sql_resultset *rset,
-                     enum cs_text_or_binary cs_txt_bin= CS_TEXT_REPRESENTATION,
-                     const CHARSET_INFO *cs_charset= &my_charset_utf8_general_ci);
+  long execute_query(
+      std::string sql_string, Sql_resultset *rset,
+      enum cs_text_or_binary cs_txt_bin = CS_TEXT_REPRESENTATION,
+      const CHARSET_INFO *cs_charset = &my_charset_utf8_general_ci);
 
   /**
     Executes a server command in a session.
@@ -180,12 +172,10 @@ public:
       @retval >0    SQL Error Number returned from MySQL Service API
       @retval <0    local errors
   */
-  long execute(COM_DATA cmd,
-               enum enum_server_command cmd_type,
+  long execute(COM_DATA cmd, enum enum_server_command cmd_type,
                Sql_resultset *rset,
-               enum cs_text_or_binary cs_txt_bin= CS_TEXT_REPRESENTATION,
-               const CHARSET_INFO *cs_charset= &my_charset_utf8_general_ci);
-
+               enum cs_text_or_binary cs_txt_bin = CS_TEXT_REPRESENTATION,
+               const CHARSET_INFO *cs_charset = &my_charset_utf8_general_ci);
 
   /**
     Set send result type to CS_TEXT_REPRESENTATION or
@@ -195,9 +185,8 @@ public:
                        i.e. to CS_TEXT_REPRESENTATION or
                        CS_BINARY_REPRESENTATION
   */
-  void set_send_resulttype(enum cs_text_or_binary field_type)
-  {
-    m_txt_or_bin= field_type;
+  void set_send_resulttype(enum cs_text_or_binary field_type) {
+    m_txt_or_bin = field_type;
   }
 
   /**
@@ -205,10 +194,7 @@ public:
 
     @param charset    charset for the string data input
   */
-  void set_charset(const CHARSET_INFO * charset)
-  {
-    m_charset= charset;
-  }
+  void set_charset(const CHARSET_INFO *charset) { m_charset = charset; }
 
   /**
     Returns whether the session was killed
@@ -217,19 +203,16 @@ public:
       @retval  0   not killed
       @retval  1   killed
   */
-  int is_session_killed(MYSQL_SESSION session)
-  {
+  int is_session_killed(MYSQL_SESSION session) {
     return srv_session_info_killed(session);
   }
-
 
   /**
     Returns the ID of a session.
 
     @return thread ID
   */
-  uint64_t get_session_id()
-  {
+  uint64_t get_session_id() {
     return srv_session_info_get_session_id(m_session);
   }
 
@@ -238,10 +221,7 @@ public:
 
     @return thread ID
   */
-  MYSQL_SESSION get_session()
-  {
-    return m_session;
-  }
+  MYSQL_SESSION get_session() { return m_session; }
 
   /**
     Set the session associated user.
@@ -264,4 +244,4 @@ public:
   bool is_acl_disabled();
 };
 
-#endif //SQL_SERVICE_INTERFACE_INCLUDE
+#endif  // SQL_SERVICE_INTERFACE_INCLUDE

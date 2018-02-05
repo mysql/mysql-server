@@ -25,7 +25,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   @file mysys_ssl/my_sha2.cc
   A compatibility layer to our built-in SSL implementation, to mimic the
@@ -34,17 +33,19 @@
 
 #include "sha2.h"
 
-/*  Low level digest API's are not allowed to access when FIPS mode is ON. This wrapper will allow to call different sha256 methods directly.*/
-#define GEN_OPENSSL_EVP_SHA2_BRIDGE(size) \
-unsigned char* SHA_EVP##size(const unsigned char *input_ptr, size_t input_length, \
-                            char unsigned *output_ptr) {            \
-  EVP_MD_CTX *md_ctx= EVP_MD_CTX_create();                          \
-  EVP_DigestInit_ex(md_ctx, EVP_sha##size(), NULL);                 \
-  EVP_DigestUpdate(md_ctx, input_ptr, input_length);                \
-  EVP_DigestFinal_ex(md_ctx, (unsigned char *)output_ptr, NULL);    \
-  EVP_MD_CTX_destroy(md_ctx);                                       \
-  return(output_ptr);                                               \
-}
+/*  Low level digest API's are not allowed to access when FIPS mode is ON. This
+ * wrapper will allow to call different sha256 methods directly.*/
+#define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                          \
+  unsigned char *SHA_EVP##size(const unsigned char *input_ptr,     \
+                               size_t input_length,                \
+                               char unsigned *output_ptr) {        \
+    EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();                      \
+    EVP_DigestInit_ex(md_ctx, EVP_sha##size(), NULL);              \
+    EVP_DigestUpdate(md_ctx, input_ptr, input_length);             \
+    EVP_DigestFinal_ex(md_ctx, (unsigned char *)output_ptr, NULL); \
+    EVP_MD_CTX_destroy(md_ctx);                                    \
+    return (output_ptr);                                           \
+  }
 
 /*
   @fn SHA_EVP512

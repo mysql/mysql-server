@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,10 +27,8 @@
 #include "plugin/x/tests/driver/processor/commands/command.h"
 #include "plugin/x/tests/driver/processor/execution_context.h"
 
-
-Block_processor::Result Command_processor::feed(
-    std::istream &input,
-    const char *command_line) {
+Block_processor::Result Command_processor::feed(std::istream &input,
+                                                const char *command_line) {
   bool out_command_has_prefix;
   const bool command_found = m_command.is_command_registred(
       command_line, nullptr, &out_command_has_prefix);
@@ -42,13 +40,10 @@ Block_processor::Result Command_processor::feed(
   return Result::Not_hungry;
 }
 
-Block_processor::Result Command_processor::execute(
-    std::istream &input,
-    const char *command_line) {
-  const auto execution_result = m_command.process(
-      input,
-      m_context,
-      command_line);
+Block_processor::Result Command_processor::execute(std::istream &input,
+                                                   const char *command_line) {
+  const auto execution_result =
+      m_command.process(input, m_context, command_line);
 
   switch (execution_result) {
     case Command::Result::Stop_with_failure:

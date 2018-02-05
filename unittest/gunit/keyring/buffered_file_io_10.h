@@ -23,19 +23,17 @@
 #include "my_inttypes.h"
 #include "plugin/keyring/buffered_file_io.h"
 
-namespace keyring
-{
-  class Buffered_file_io_10 : public Buffered_file_io
-  {
-  public:
-    Buffered_file_io_10(ILogger *logger) : Buffered_file_io(logger),
-      file_version("Keyring file version:1.0")
-    {}
-    bool flush_to_file(PSI_file_key *file_key, const std::string* filename,
-                       const Digest *digest);
-    size_t get_memory_needed_for_buffer();
-  private:
-    std::string file_version;
-  };
+namespace keyring {
+class Buffered_file_io_10 : public Buffered_file_io {
+ public:
+  Buffered_file_io_10(ILogger *logger)
+      : Buffered_file_io(logger), file_version("Keyring file version:1.0") {}
+  bool flush_to_file(PSI_file_key *file_key, const std::string *filename,
+                     const Digest *digest);
+  size_t get_memory_needed_for_buffer();
 
-} //namespace keyring
+ private:
+  std::string file_version;
+};
+
+}  // namespace keyring

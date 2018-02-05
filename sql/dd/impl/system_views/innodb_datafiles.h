@@ -33,31 +33,26 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.INNODB_DATAFILES system view
   definition
 */
-class Innodb_datafiles :
-  public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
-    FIELD_SPACE,
-    FIELD_PATH
-  };
+class Innodb_datafiles
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields { FIELD_SPACE, FIELD_PATH };
 
-  Innodb_datafiles ();
+  Innodb_datafiles();
 
   static const Innodb_datafiles &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("INNODB_DATAFILES");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Innodb_datafiles::view_name(); }
+  virtual const String_type &name() const {
+    return Innodb_datafiles::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__INNODB_DATAFILES_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__INNODB_DATAFILES_INCLUDED

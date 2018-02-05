@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -49,9 +49,9 @@ class Update_statement_builder : public Crud_statement_builder {
   void add_table_operation_items(Operation_iterator begin,
                                  Operation_iterator end) const;
   void add_document_operation(const Operation_list &operation) const;
-  void add_document_operation_item(const Update_operation &item,
-                                   Update_operation::UpdateType *operation_id)
-      const;
+  void add_document_operation_item(
+      const Update_operation &item,
+      Update_operation::UpdateType *operation_id) const;
   void add_member(const Update_operation &item) const;
   void add_value(const Update_operation &item) const;
   void add_member_with_value(const Update_operation &item) const;

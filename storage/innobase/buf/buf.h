@@ -24,12 +24,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file buf/buf.h
-The database buffer pool high-level routines
+/**************************************************/ /**
+ @file buf/buf.h
+ The database buffer pool high-level routines
 
-Created 11/5/1995 Heikki Tuuri
-*******************************************************/
+ Created 11/5/1995 Heikki Tuuri
+ *******************************************************/
 
 #ifndef buf_h
 #define buf_h
@@ -42,8 +42,5 @@ Created 11/5/1995 Heikki Tuuri
 @param[in]	read_buf	database page
 @param[in]	page_size	page size
 @return true if page is filled with zeroes */
-bool
-buf_page_is_zeroes(
-	const byte*		read_buf,
-	const page_size_t&	page_size);
+bool buf_page_is_zeroes(const byte *read_buf, const page_size_t &page_size);
 #endif

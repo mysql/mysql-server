@@ -35,20 +35,18 @@ class Column;
 class Column_type_element_impl;
 
 namespace tables {
-  class Column_type_elements;
+class Column_type_elements;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Column_type_element : virtual public Weak_object
-{
-public:
+class Column_type_element : virtual public Weak_object {
+ public:
   typedef Column_type_element_impl Impl;
   typedef tables::Column_type_elements DD_table;
 
-public:
-  virtual ~Column_type_element()
-  { };
+ public:
+  virtual ~Column_type_element(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Name
@@ -69,7 +67,6 @@ public:
 
   virtual uint index() const = 0;
 
-
   /**
     Converts *this into json.
 
@@ -80,7 +77,6 @@ public:
     @param wctx opaque context for data needed by serialization
     @param w rapidjson writer which will perform conversion to json
   */
-
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
 
@@ -106,6 +102,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__COLUMN_TYPE_ELEMENT_INCLUDED
+#endif  // DD__COLUMN_TYPE_ELEMENT_INCLUDED

@@ -28,31 +28,29 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "sql/rpl_info_handler.h"    // Rpl_info_handler
+#include "sql/rpl_info_handler.h"  // Rpl_info_handler
 
 class Rpl_info_table_access;
 class Server_ids;
 struct TABLE;
 
-
 /**
   Methods to find information in a table:
-  
+
   FIND_SCAN does a index scan and stops at n-th occurrence.
-  
+
   FIND_KEY retrieves the index entry previous populated at
   values if there is any.
 */
 enum enum_find_method { FIND_SCAN, FIND_KEY };
 
-class Rpl_info_table : public Rpl_info_handler
-{
+class Rpl_info_table : public Rpl_info_handler {
   friend class Rpl_info_factory;
 
-public:
+ public:
   virtual ~Rpl_info_table();
 
-private:
+ private:
   /**
     This property identifies the name of the schema where a
     replication table is created.
@@ -116,17 +114,15 @@ private:
     @retval false Success
     @retval true  Error
   */
-  static bool do_count_info(uint nparam, const char* param_schema,
-                            const char* param_table,  uint* counter);
-  static int do_reset_info(uint nparam, const char* param_schema,
-                           const char *param_table,
-                           const char *channel_name);
+  static bool do_count_info(uint nparam, const char *param_schema,
+                            const char *param_table, uint *counter);
+  static int do_reset_info(uint nparam, const char *param_schema,
+                           const char *param_table, const char *channel_name);
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
 
   bool do_set_info(const int pos, const char *value);
-  bool do_set_info(const int pos, const uchar *value,
-                   const size_t size);
+  bool do_set_info(const int pos, const uchar *value, const size_t size);
   bool do_set_info(const int pos, const int value);
   bool do_set_info(const int pos, const ulong value);
   bool do_set_info(const int pos, const float value);
@@ -135,15 +131,12 @@ private:
                    const char *default_value);
   bool do_get_info(const int pos, uchar *value, const size_t size,
                    const uchar *default_value);
-  bool do_get_info(const int pos, int *value,
-                   const int default_value);
-  bool do_get_info(const int pos, ulong *value,
-                   const ulong default_value);
-  bool do_get_info(const int pos, float *value,
-                   const float default_value);
+  bool do_get_info(const int pos, int *value, const int default_value);
+  bool do_get_info(const int pos, ulong *value, const ulong default_value);
+  bool do_get_info(const int pos, float *value, const float default_value);
   bool do_get_info(const int pos, Server_ids *value,
                    const Server_ids *default_value);
-  char* do_get_description_info();
+  char *do_get_description_info();
 
   bool do_is_transactional();
   bool do_update_is_transactional();
@@ -158,15 +151,13 @@ private:
     @return false if the table primary key fields are fine.
     @return true  if problems were found with table primary key fields.
   */
-  bool verify_table_primary_key_fields(TABLE* table);
+  bool verify_table_primary_key_fields(TABLE *table);
 
-  Rpl_info_table(uint nparam,
-                 const char* param_schema,
-                 const char *param_table,
-                 const uint param_n_pk_fields= 0,
-                 const uint *param_pk_field_indexes= NULL);
+  Rpl_info_table(uint nparam, const char *param_schema, const char *param_table,
+                 const uint param_n_pk_fields = 0,
+                 const uint *param_pk_field_indexes = NULL);
 
-  Rpl_info_table(const Rpl_info_table& info);
-  Rpl_info_table& operator=(const Rpl_info_table& info);
+  Rpl_info_table(const Rpl_info_table &info);
+  Rpl_info_table &operator=(const Rpl_info_table &info);
 };
 #endif /* RPL_INFO_TABLE_H */

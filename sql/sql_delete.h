@@ -26,11 +26,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_base.h"        // ha_rows
+#include "my_base.h"  // ha_rows
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
-#include "sql/query_result.h" // Query_result_interceptor
-#include "sql/sql_cmd_dml.h" // Sql_cmd_dml
+#include "sql/query_result.h"  // Query_result_interceptor
+#include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
 
 class Item;
 class SELECT_LEX_UNIT;
@@ -38,11 +38,12 @@ class THD;
 class Unique;
 struct TABLE;
 struct TABLE_LIST;
-template <class T> class List;
-template <typename T> class SQL_I_List;
+template <class T>
+class List;
+template <typename T>
+class SQL_I_List;
 
-class Query_result_delete final : public Query_result_interceptor
-{
+class Query_result_delete final : public Query_result_interceptor {
   /// Pointers to temporary files used for delayed deletion of rows
   Unique **tempfiles;
   /// Pointers to table objects matching tempfiles
@@ -73,58 +74,59 @@ class Query_result_delete final : public Query_result_interceptor
   */
   bool error_handled;
 
-public:
+ public:
   Query_result_delete(THD *thd)
-  : Query_result_interceptor(thd),
-    tempfiles(NULL), tables(NULL),
-    delete_table_count(0), found_rows(0), deleted_rows(0), error(0),
-    delete_table_map(0), delete_immediate(0),
-    transactional_table_map(0), non_transactional_table_map(0),
-    delete_completed(false), non_transactional_deleted(false),
-    error_handled(false)
-  {}
-  ~Query_result_delete()
-  {}
+      : Query_result_interceptor(thd),
+        tempfiles(NULL),
+        tables(NULL),
+        delete_table_count(0),
+        found_rows(0),
+        deleted_rows(0),
+        error(0),
+        delete_table_map(0),
+        delete_immediate(0),
+        transactional_table_map(0),
+        non_transactional_table_map(0),
+        delete_completed(false),
+        non_transactional_deleted(false),
+        error_handled(false) {}
+  ~Query_result_delete() {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool send_data(List<Item> &items) override;
   void send_error(uint errcode, const char *err) override;
   bool optimize() override;
-  bool start_execution() override
-  { delete_completed= false; return false; }
+  bool start_execution() override {
+    delete_completed = false;
+    return false;
+  }
   int do_deletes();
   int do_table_deletes(TABLE *table);
   bool send_eof() override;
-  inline ha_rows num_deleted()
-  {
-    return deleted_rows;
-  }
+  inline ha_rows num_deleted() { return deleted_rows; }
   void abort_result_set() override;
   void cleanup() override;
 };
 
+class Sql_cmd_delete final : public Sql_cmd_dml {
+ public:
+  Sql_cmd_delete(bool multitable_arg, SQL_I_List<TABLE_LIST> *delete_tables_arg)
+      : multitable(multitable_arg), delete_tables(delete_tables_arg) {}
 
-class Sql_cmd_delete final : public Sql_cmd_dml
-{
-public:
-  Sql_cmd_delete(bool multitable_arg,
-                 SQL_I_List<TABLE_LIST> *delete_tables_arg)
-  : multitable(multitable_arg), delete_tables(delete_tables_arg)
-  {}
-
-  enum_sql_command sql_command_code() const override
-  { return multitable ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE; }
+  enum_sql_command sql_command_code() const override {
+    return multitable ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE;
+  }
 
   bool is_single_table_plan() const override { return !multitable; }
 
-protected:
+ protected:
   bool precheck(THD *thd) override;
 
   bool prepare_inner(THD *thd) override;
 
   bool execute_inner(THD *thd) override;
 
-private:
+ private:
   bool delete_from_single_table(THD *thd);
 
   bool multitable;

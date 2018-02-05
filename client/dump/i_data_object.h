@@ -25,19 +25,17 @@
 #ifndef I_DATA_OBJECT_INCLUDED
 #define I_DATA_OBJECT_INCLUDED
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_data_object
-{
-public:
-  virtual ~I_data_object()
-  {}
+class I_data_object {
+ public:
+  virtual ~I_data_object() {}
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

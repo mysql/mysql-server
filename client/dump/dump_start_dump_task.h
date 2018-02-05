@@ -27,20 +27,19 @@
 
 #include "client/dump/abstract_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Dump_start_dump_task : public Abstract_dump_task
-{
-public:
+class Dump_start_dump_task : public Abstract_dump_task {
+ public:
   Dump_start_dump_task(std::string, std::string);
   std::string m_gtid_mode;
   std::string m_gtid_executed;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

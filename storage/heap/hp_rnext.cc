@@ -26,37 +26,31 @@
 
 /* Read next record with the same key */
 
-int heap_rnext(HP_INFO *info, uchar *record)
-{
+int heap_rnext(HP_INFO *info, uchar *record) {
   uchar *pos;
-  HP_SHARE *share=info->s;
+  HP_SHARE *share = info->s;
   HP_KEYDEF *keyinfo;
   DBUG_ENTER("heap_rnext");
-  
-  if (info->lastinx < 0)
-  {
+
+  if (info->lastinx < 0) {
     set_my_errno(HA_ERR_WRONG_INDEX);
     DBUG_RETURN(HA_ERR_WRONG_INDEX);
   }
 
   keyinfo = share->keydef + info->lastinx;
-  if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
-  {
+  if (keyinfo->algorithm == HA_KEY_ALG_BTREE) {
     heap_rb_param custom_arg;
 
-    if (info->last_pos)
-    {
+    if (info->last_pos) {
       /*
         We enter this branch for non-DELETE queries after heap_rkey()
         or heap_rfirst(). As last key position (info->last_pos) is available,
         we only need to climb the tree using tree_search_next().
       */
       pos = (uchar *)tree_search_next(&keyinfo->rb_tree, &info->last_pos,
-                             offsetof(TREE_ELEMENT, left),
-                             offsetof(TREE_ELEMENT, right));
-    }
-    else if (!info->lastkey_len)
-    {
+                                      offsetof(TREE_ELEMENT, left),
+                                      offsetof(TREE_ELEMENT, right));
+    } else if (!info->lastkey_len) {
       /*
         We enter this branch only for DELETE queries after heap_rfirst(). E.g.
         DELETE FROM t1 WHERE a<10. As last key position is not available
@@ -68,11 +62,10 @@ int heap_rnext(HP_INFO *info, uchar *record)
         zero. tree_search_edge() is a kind of optimisation here as it should be
         faster than tree_search_key().
       */
-      pos= (uchar *)tree_search_edge(&keyinfo->rb_tree, info->parents,
-                            &info->last_pos, offsetof(TREE_ELEMENT, left));
-    }
-    else
-    {
+      pos = (uchar *)tree_search_edge(&keyinfo->rb_tree, info->parents,
+                                      &info->last_pos,
+                                      offsetof(TREE_ELEMENT, left));
+    } else {
       /*
         We enter this branch only for DELETE queries after heap_rkey(). E.g.
         DELETE FROM t1 WHERE a=10. As last key position is not available
@@ -82,46 +75,37 @@ int heap_rnext(HP_INFO *info, uchar *record)
       custom_arg.keyseg = keyinfo->seg;
       custom_arg.key_length = info->lastkey_len;
       custom_arg.search_flag = SEARCH_SAME | SEARCH_FIND;
-      pos = (uchar *)tree_search_key(&keyinfo->rb_tree, info->lastkey, info->parents, 
-                           &info->last_pos, info->last_find_flag, &custom_arg);
+      pos = (uchar *)tree_search_key(&keyinfo->rb_tree, info->lastkey,
+                                     info->parents, &info->last_pos,
+                                     info->last_find_flag, &custom_arg);
     }
-    if (pos)
-    {
-      memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
-	     sizeof(uchar*));
+    if (pos) {
+      memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos),
+             sizeof(uchar *));
       info->current_ptr = pos;
-    }
-    else
-    {
+    } else {
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
     }
-  }
-  else
-  {
+  } else {
     if (info->current_hash_ptr)
-      pos= hp_search_next(info, keyinfo, info->lastkey,
-			   info->current_hash_ptr);
-    else
-    {
-      if (!info->current_ptr && (info->update & HA_STATE_NEXT_FOUND))
-      {
-	pos=0;					/* Read next after last */
-	set_my_errno(HA_ERR_KEY_NOT_FOUND);
-      }
-      else if (!info->current_ptr)		/* Deleted or first call */
-	pos= hp_search(info, keyinfo, info->lastkey, 0);
+      pos =
+          hp_search_next(info, keyinfo, info->lastkey, info->current_hash_ptr);
+    else {
+      if (!info->current_ptr && (info->update & HA_STATE_NEXT_FOUND)) {
+        pos = 0; /* Read next after last */
+        set_my_errno(HA_ERR_KEY_NOT_FOUND);
+      } else if (!info->current_ptr) /* Deleted or first call */
+        pos = hp_search(info, keyinfo, info->lastkey, 0);
       else
-	pos= hp_search(info, keyinfo, info->lastkey, 1);
+        pos = hp_search(info, keyinfo, info->lastkey, 1);
     }
   }
-  if (!pos)
-  {
-    info->update=HA_STATE_NEXT_FOUND;		/* For heap_rprev */
-    if (my_errno() == HA_ERR_KEY_NOT_FOUND)
-      set_my_errno(HA_ERR_END_OF_FILE);
+  if (!pos) {
+    info->update = HA_STATE_NEXT_FOUND; /* For heap_rprev */
+    if (my_errno() == HA_ERR_KEY_NOT_FOUND) set_my_errno(HA_ERR_END_OF_FILE);
     DBUG_RETURN(my_errno());
   }
-  memcpy(record,pos,(size_t) share->reclength);
-  info->update=HA_STATE_AKTIV | HA_STATE_NEXT_FOUND;
+  memcpy(record, pos, (size_t)share->reclength);
+  info->update = HA_STATE_AKTIV | HA_STATE_NEXT_FOUND;
   DBUG_RETURN(0);
 }

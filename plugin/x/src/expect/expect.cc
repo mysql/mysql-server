@@ -30,10 +30,9 @@
 
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/expect/expect_condition.h"
-#include "plugin/x/src/expect/expect_condition_field.h"
 #include "plugin/x/src/expect/expect_condition_docid.h"
+#include "plugin/x/src/expect/expect_condition_field.h"
 #include "plugin/x/src/xpl_error.h"
-
 
 namespace xpl {
 
@@ -125,9 +124,8 @@ namespace xpl {
 //
 
 Expectation::Expectation(const Expectation &other)
-// this is instance specific data, don't copy it
-: m_error(other.m_error),
-  m_fail_on_error(other.m_fail_on_error) {
+    // this is instance specific data, don't copy it
+    : m_error(other.m_error), m_fail_on_error(other.m_fail_on_error) {
   for (const auto &cond : other.m_conditions) {
     m_conditions.push_back(cond->clone());
   }
@@ -141,15 +139,13 @@ void Expectation::swap(Expectation &one, Expectation &other) {
   swap(one.m_conditions, other.m_conditions);
 }
 
-Expectation &Expectation::operator =(Expectation other) {
+Expectation &Expectation::operator=(Expectation other) {
   swap(*this, other);
 
   return *this;
 }
 
-ngs::Error_code Expectation::error() const {
-  return m_error;
-}
+ngs::Error_code Expectation::error() const { return m_error; }
 
 ngs::Error_code Expectation::check_conditions() {
   for (auto &cond : m_conditions) {
@@ -173,25 +169,19 @@ void Expectation::unset(const uint32_t key, const std::string &value) {
   const bool ignore_value = value.empty();
 
   auto elements_to_remove = std::remove_if(
-      m_conditions.begin(),
-      m_conditions.end(),
-      [ignore_value, &key, &value](
-          const Expect_condition_ptr &cond) {
-        return cond->key() == key &&
-            (ignore_value || cond->value() == value);
+      m_conditions.begin(), m_conditions.end(),
+      [ignore_value, &key, &value](const Expect_condition_ptr &cond) {
+        return cond->key() == key && (ignore_value || cond->value() == value);
       });
 
-  m_conditions.erase(elements_to_remove,
-                     m_conditions.end());
+  m_conditions.erase(elements_to_remove, m_conditions.end());
 }
 
 void Expectation::add_condition(Expect_condition_ptr cond) {
   m_conditions.emplace_back(std::move(cond));
 }
 
-ngs::Error_code Expectation::set(
-    const uint32_t key,
-    const std::string &value) {
+ngs::Error_code Expectation::set(const uint32_t key, const std::string &value) {
   switch (key) {
     case Mysqlx::Expect::Open_Condition_Key_EXPECT_NO_ERROR:
       if (value == "1" || value.empty())
@@ -201,7 +191,7 @@ ngs::Error_code Expectation::set(
       else
         return ngs::Error_code(
             ER_X_EXPECT_BAD_CONDITION_VALUE,
-            "Invalid value '"+value+"' for expectation no_error");
+            "Invalid value '" + value + "' for expectation no_error");
       break;
 
     case Mysqlx::Expect::Open_Condition_Key_EXPECT_FIELD_EXIST:
@@ -213,10 +203,8 @@ ngs::Error_code Expectation::set(
       break;
 
     default:
-      return ngs::Error(
-          ER_X_EXPECT_BAD_CONDITION,
-          "Unknown condition key: %u",
-          static_cast<unsigned>(key));
+      return ngs::Error(ER_X_EXPECT_BAD_CONDITION, "Unknown condition key: %u",
+                        static_cast<unsigned>(key));
   }
 
   return ngs::Error_code();

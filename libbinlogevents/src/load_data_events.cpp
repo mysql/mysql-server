@@ -24,71 +24,63 @@
 #include <stdlib.h>
 #include <string.h>
 
-namespace binary_log
-{
+namespace binary_log {
 /**
   The constructor is called by MySQL slave, while applying the events.
 */
-Execute_load_query_event::
-Execute_load_query_event(uint32_t file_id_arg,
-                         uint32_t fn_pos_start_arg,
-                         uint32_t fn_pos_end_arg,
-                         enum_load_dup_handling dup_arg)
-: Query_event(EXECUTE_LOAD_QUERY_EVENT),
-  file_id(file_id_arg), fn_pos_start(fn_pos_start_arg),
-  fn_pos_end(fn_pos_end_arg), dup_handling(dup_arg)
-{
-}
+Execute_load_query_event::Execute_load_query_event(
+    uint32_t file_id_arg, uint32_t fn_pos_start_arg, uint32_t fn_pos_end_arg,
+    enum_load_dup_handling dup_arg)
+    : Query_event(EXECUTE_LOAD_QUERY_EVENT),
+      file_id(file_id_arg),
+      fn_pos_start(fn_pos_start_arg),
+      fn_pos_end(fn_pos_end_arg),
+      dup_handling(dup_arg) {}
 
 /**
   The constructor used in order to decode EXECUTE_LOAD_QUERY_EVENT from a
   packet. It is used on the MySQL server acting as a slave.
 */
-Execute_load_query_event::
-Execute_load_query_event(const char* buf,
-                         unsigned int event_len,
-                         const Format_description_event *description_event)
-: Query_event(buf, event_len, description_event,
-              EXECUTE_LOAD_QUERY_EVENT),
-  file_id(0), fn_pos_start(0), fn_pos_end(0)
-{
-  if (!query)
-    return;
+Execute_load_query_event::Execute_load_query_event(
+    const char *buf, unsigned int event_len,
+    const Format_description_event *description_event)
+    : Query_event(buf, event_len, description_event, EXECUTE_LOAD_QUERY_EVENT),
+      file_id(0),
+      fn_pos_start(0),
+      fn_pos_end(0) {
+  if (!query) return;
 
-  buf+= description_event->common_header_len;
+  buf += description_event->common_header_len;
 
   memcpy(&fn_pos_start, buf + ELQ_FN_POS_START_OFFSET, sizeof(fn_pos_start));
-  fn_pos_start= le32toh(fn_pos_start);
+  fn_pos_start = le32toh(fn_pos_start);
   memcpy(&fn_pos_end, buf + ELQ_FN_POS_END_OFFSET, sizeof(fn_pos_end));
-  fn_pos_end= le32toh(fn_pos_end);
-  dup_handling= (enum_load_dup_handling)(*(buf + ELQ_DUP_HANDLING_OFFSET));
+  fn_pos_end = le32toh(fn_pos_end);
+  dup_handling = (enum_load_dup_handling)(*(buf + ELQ_DUP_HANDLING_OFFSET));
 
   if (fn_pos_start > q_len || fn_pos_end > q_len ||
       dup_handling > LOAD_DUP_REPLACE)
     return;
 
   memcpy(&file_id, buf + ELQ_FILE_ID_OFFSET, 4);
-  file_id= le32toh(file_id);
+  file_id = le32toh(file_id);
 }
 
 /**
   Delete_file_event constructor
 */
-Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
-                                     const Format_description_event*
-                                     description_event)
-: Binary_log_event(&buf, description_event->binlog_version),
-  file_id(0)
-{
-  //buf is advanced in Binary_log_event constructor to point to
-  //beginning of post-header
-  unsigned char common_header_len= description_event->common_header_len;
-  unsigned char delete_file_header_len=
-                     description_event->post_header_len[DELETE_FILE_EVENT - 1];
-  if (len < (unsigned int)(common_header_len + delete_file_header_len))
-    return;
+Delete_file_event::Delete_file_event(
+    const char *buf, unsigned int len,
+    const Format_description_event *description_event)
+    : Binary_log_event(&buf, description_event->binlog_version), file_id(0) {
+  // buf is advanced in Binary_log_event constructor to point to
+  // beginning of post-header
+  unsigned char common_header_len = description_event->common_header_len;
+  unsigned char delete_file_header_len =
+      description_event->post_header_len[DELETE_FILE_EVENT - 1];
+  if (len < (unsigned int)(common_header_len + delete_file_header_len)) return;
   memcpy(&file_id, buf + DF_FILE_ID_OFFSET, 4);
-  file_id= le32toh(file_id);
+  file_id = le32toh(file_id);
 }
 
 /**
@@ -96,33 +88,27 @@ Delete_file_event::Delete_file_event(const char* buf, unsigned int len,
   log, containing a block of data to be appended to the file being loaded via
   LOAD_DATA_INFILE query; and decodes it to create an Append_block_event.
 */
-Append_block_event::Append_block_event(const char* buf, unsigned int len,
-                                       const Format_description_event*
-                                       description_event)
-: Binary_log_event(&buf, description_event->binlog_version),
-  block(0)
-{
-  //buf is advanced in Binary_log_event constructor to point to
-  //beginning of post-header
-  unsigned char common_header_len= description_event->common_header_len;
-  unsigned char append_block_header_len=
-    description_event->post_header_len[APPEND_BLOCK_EVENT - 1];
-  unsigned int total_header_len= common_header_len + append_block_header_len;
-  if (len < total_header_len)
-    return;
+Append_block_event::Append_block_event(
+    const char *buf, unsigned int len,
+    const Format_description_event *description_event)
+    : Binary_log_event(&buf, description_event->binlog_version), block(0) {
+  // buf is advanced in Binary_log_event constructor to point to
+  // beginning of post-header
+  unsigned char common_header_len = description_event->common_header_len;
+  unsigned char append_block_header_len =
+      description_event->post_header_len[APPEND_BLOCK_EVENT - 1];
+  unsigned int total_header_len = common_header_len + append_block_header_len;
+  if (len < total_header_len) return;
 
   memcpy(&file_id, buf + AB_FILE_ID_OFFSET, 4);
-  file_id= le32toh(file_id);
+  file_id = le32toh(file_id);
 
-  block= (unsigned char*)buf + append_block_header_len;
-  block_len= len - total_header_len;
+  block = (unsigned char *)buf + append_block_header_len;
+  block_len = len - total_header_len;
 }
 
-
-Begin_load_query_event::
-Begin_load_query_event(const char* buf, unsigned int len,
-                       const Format_description_event* desc_event)
-: Append_block_event(buf, len, desc_event)
-{
-}
-} // end namespace binary_log
+Begin_load_query_event::Begin_load_query_event(
+    const char *buf, unsigned int len,
+    const Format_description_event *desc_event)
+    : Append_block_event(buf, len, desc_event) {}
+}  // end namespace binary_log
