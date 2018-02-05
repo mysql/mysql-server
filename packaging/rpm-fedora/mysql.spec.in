@@ -23,7 +23,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    dmr
+%global milestone    tr
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -971,7 +971,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Wed Jan 24 2018 Bjorn Munch <bjorn.munch@oracle.com> - 9.0.0-0.1
+* Wed Jan 24 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.6-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'

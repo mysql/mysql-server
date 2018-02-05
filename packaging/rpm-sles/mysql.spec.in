@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-%global milestone       dmr
+%global milestone       tr
 
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
@@ -1267,7 +1267,7 @@ fi
 %endif
 
 %changelog
-* Wed Jan 24 2018 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+* Wed Jan 24 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.6-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'
