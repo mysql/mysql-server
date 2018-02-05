@@ -137,7 +137,10 @@ UtilTransactions::clearTable(Ndb* pNdb,
 	if(err.status == NdbError::TemporaryError){
 	  NDB_ERR(err);
 	  closeTransaction(pNdb);
-	  NdbSleep_MilliSleep(50);
+          if (err.code == 410 || err.code == 1501)
+	    NdbSleep_MilliSleep(2000);
+          else
+	    NdbSleep_MilliSleep(50);
 	  par = 1;
 	  goto restart;
 	}
