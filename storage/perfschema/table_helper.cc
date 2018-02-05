@@ -391,7 +391,9 @@ void format_sqltext(const char *source_sqltext, size_t source_length,
   sqltext.set_charset(source_cs);
   sqltext.length(0);
 
-  if (source_length == 0) return;
+  if (source_length == 0) {
+    return;
+  }
 
   /* Adjust sqltext length to a valid number of bytes. */
   int cs_error = 0;
