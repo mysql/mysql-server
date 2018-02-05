@@ -9093,7 +9093,6 @@ Encryption::get_master_key(
 	char*		srv_uuid,
 	byte**		master_key)
 {
-#ifndef UNIV_HOTBACKUP
 	size_t	key_len = 0;
 	char*	key_type = nullptr;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
@@ -9117,10 +9116,17 @@ Encryption::get_master_key(
 			 server_id, master_key_id);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	/* We call key ring API to get master key here. */
 	int	ret = my_key_fetch(
 		key_name, &key_type, nullptr,
 		reinterpret_cast<void**>(master_key), &key_len);
+#else /* !UNIV_HOTBACKUP */
+	/* We call MEB to get master key here. */
+	int	ret = meb_key_fetch(
+		key_name, &key_type, NULL,
+		reinterpret_cast<void**>(master_key), &key_len);
+#endif /* !UNIV_HOTBACKUP */
 
 	if (key_type != nullptr) {
 		my_free(key_type);
@@ -9146,7 +9152,6 @@ Encryption::get_master_key(
 			<< "{" << msg.str() << "}";
 	}
 #endif /* UNIV_ENCRYPT_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Current master key id */

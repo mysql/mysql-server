@@ -10743,19 +10743,6 @@ fil_tablespace_redo_encryption(
 		return(nullptr);
 	}
 
-#ifdef UNIV_HOTBACKUP
-	if (fil_space_get(space_id)
-	    && !meb_get_encryption_key(space_id, key, iv)) {
-
-		recv_sys->found_corrupt_log = true;
-
-		ib::fatal()
-			<< "Encryption informaton"
-			<< " in the redo log of space "
-			<< space_id << " is invalid"
-			<< " MEB cannot proceed with the operation.";
-	}
-#else /* UNIV_HOTBACKUP */
 	if (!Encryption::decode_encryption_info(key, iv, ptr)) {
 
 		recv_sys->found_corrupt_log = true;
@@ -10767,7 +10754,6 @@ fil_tablespace_redo_encryption(
 
 		return(nullptr);
 	}
-#endif /* UNIV_HOTBACKUP */
 
 	ut_ad(len == ENCRYPTION_INFO_SIZE);
 
