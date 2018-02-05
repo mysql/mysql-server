@@ -15415,8 +15415,8 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
     c_cacheRecordPool.getPtr(cachePtr);
-    releaseAttrinfo(cachePtr, apiConnectptr.p);
     releaseKeys(cachePtr.p);
+    releaseAttrinfo(cachePtr, apiConnectptr.p);
   }//if
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
   while (tcConList.removeFirst(tcConnectptr))
