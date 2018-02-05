@@ -114,11 +114,20 @@ const char* ER_THD(const THD *thd, int mysql_errno)
 }
 
 
-const char *get_server_errmsgs(int mysql_errno)
-{
-  if (current_thd)
-    return ER_THD(current_thd, mysql_errno);
+/**
+  Get the error-message corresponding to the given MySQL error-code,
+  or nullptr if no message is available for that code (this may indicate
+  a bug in the caller).
 
+  If error messages have been loaded, return the appropriate message
+  in the configured default language; otherwise, retrieve the message
+  from the compiled-in set (in English).
+
+  @param   mysql_errno    MySQL error-code
+  @retval  an error-message if available, or nullptr
+*/
+static const char *error_message_fetch(int mysql_errno)
+{
   if ((my_default_lc_messages != nullptr) &&
       (my_default_lc_messages->errmsgs->is_loaded()))
     return ER_DEFAULT(mysql_errno);
@@ -135,6 +144,53 @@ const char *get_server_errmsgs(int mysql_errno)
 }
 
 
+C_MODE_START
+
+/**
+  Get the error-message corresponding to the given MySQL error-code,
+  or nullptr if no message is available for that code (this may indicate
+  a bug in the caller).
+
+  Use this variant for messages intended for the server's error-log.
+
+  If error messages have been loaded, return the appropriate message
+  in the configured default language; otherwise, retrieve the message
+  from the compiled-in set (in English).
+
+  @param   mysql_errno    MySQL error-code
+  @retval  an error-message if available, or nullptr
+*/
+const char *error_message_for_error_log(int mysql_errno)
+{
+  return error_message_fetch(mysql_errno);
+}
+
+
+/**
+  Get the error-message corresponding to the given MySQL error-code,
+  or nullptr if no message is available for that code (this may indicate
+  a bug in the caller).
+
+  Use this variant for messages intended for sending to a client.
+
+  If the session language is known, the message will be returned
+  in that language if available; otherwise, we will fall back on
+  the configured default language if loaded, or finally on the
+  built-in default, English.
+
+  @param   mysql_errno    MySQL error-code
+  @retval  an error-message if available, or nullptr
+*/
+const char *error_message_for_client(int mysql_errno)
+{
+  if (current_thd)
+    return ER_THD(current_thd, mysql_errno);
+
+  return error_message_fetch(mysql_errno);
+}
+C_MODE_END
+
+
 bool init_errmessage()
 {
   DBUG_ENTER("init_errmessage");
@@ -148,7 +204,7 @@ bool init_errmessage()
   /* Register messages for use with my_error(). */
   for (int i= 0; i < NUM_SECTIONS; i++)
   {
-    if (my_error_register(get_server_errmsgs,
+    if (my_error_register(error_message_for_client,
                           errmsg_section_start[i],
                           errmsg_section_start[i] +
                           errmsg_section_size[i] - 1))

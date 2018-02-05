@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ void mysql_registry_imp::deinit()
 */
 rwlock_scoped_lock mysql_registry_imp::lock_registry_for_write()
 {
-  return rwlock_scoped_lock(&LOCK_registry, false, __FILE__, __LINE__);
+  return rwlock_scoped_lock(&LOCK_registry, true, __FILE__, __LINE__);
 }
 
 /**
@@ -428,12 +428,12 @@ DEFINE_BOOL_METHOD(mysql_registry_imp::acquire_related,
     my_string service_implementation_name=
       my_string(service_name) + component_part;
     /* Try to acquire such Service. */
-    if (mysql_registry_imp::acquire(
+    if (mysql_registry_imp::acquire_nolock(
       service_implementation_name.c_str(), out_service))
     {
       /* If desired Service Implementation is not found, return the default
       one for Service specified. */
-      return mysql_registry_imp::acquire(service_name, out_service);
+      return mysql_registry_imp::acquire_nolock(service_name, out_service);
     }
     return false;
   }

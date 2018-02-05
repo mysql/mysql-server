@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -64,9 +64,15 @@ static const char                 *opt_enable=  "log_syslog";
 static const char                 *opt_tag=     "log_syslog_tag";
 static const char                 *opt_pid=     "log_syslog_include_pid";
 
+static bool                        inited=      false;
 
-static my_h_service                bls=                     nullptr;
-static bool                        inited=                  false;
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_syseventlog);
+#ifdef _WIN32
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_tmp);
+#endif
+
 SERVICE_TYPE(log_builtins)        *log_bi=                  nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs=                  nullptr;
 SERVICE_TYPE(log_builtins_syseventlog)
@@ -238,7 +244,7 @@ DEFINE_METHOD(int, log_service_imp::variable_check, (log_line *ll))
   log_item      *li;
   int            rr= -1;
 
-  if ((ll == nullptr) || ((it= log_bi->line_item_iter_acquire(ll)) == nullptr))
+  if ((it= log_bi->line_item_iter_acquire(ll)) == nullptr)
     return rr;
 
   if ((li= log_bi->line_item_iter_first(it)) == nullptr)
@@ -260,6 +266,8 @@ DEFINE_METHOD(int, log_service_imp::variable_check, (log_line *ll))
       if (strchr(option, FN_LIBCHAR) != nullptr)
         goto done;
     }
+    else
+      goto done;
   }
 
 #ifndef _WIN32
@@ -300,7 +308,7 @@ DEFINE_METHOD(int, log_service_imp::variable_update, (log_line *ll))
   log_item      *li;
   int            rr= -1;
 
-  if ((ll == nullptr) || ((it= log_bi->line_item_iter_acquire(ll)) == nullptr))
+  if ((it= log_bi->line_item_iter_acquire(ll)) == nullptr)
     return rr;
 
   if ((li= log_bi->line_item_iter_first(it)) == nullptr)
@@ -519,7 +527,10 @@ DEFINE_METHOD(int, log_service_imp::run,
     else if (item_type == LOG_ITEM_LOG_MESSAGE)
     {
       if (log_bi->sanitize(li) < 0)
+      {
+        log_bi->line_item_iter_release(it);
         return -2;
+      }
 
       msg= li->data.data_string.str;
     }
@@ -567,14 +578,14 @@ mysql_service_status_t log_service_exit()
   {
     log_syslog_exit();
 
-    inited= false;
-
-    log_service_release(log_bi);
-    log_service_release(log_bs);
+    log_bi= nullptr;
+    log_bs= nullptr;
+    log_se= nullptr;
 #ifdef _WIN32
-    log_service_release(log_bt);
+    log_bt= nullptr;
 #endif
-    log_service_release(log_se);
+
+    inited= false;
 
     return false;
   }
@@ -596,25 +607,12 @@ mysql_service_status_t log_service_init()
 
   inited= true;
 
-  if (mysql_service_registry->acquire("log_builtins", &bls) ||
-      ((log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins)*>(bls)) ==
-       nullptr) ||
+  log_bi= mysql_service_log_builtins;
+  log_bs= mysql_service_log_builtins_string;
+  log_se= mysql_service_log_builtins_syseventlog;
 #ifdef _WIN32
-      mysql_service_registry->acquire("log_builtins_tmp", &bls) ||
-      ((log_bt= reinterpret_cast<SERVICE_TYPE(log_builtins_tmp)*>(bls)) ==
-       nullptr) ||
+  log_bt= mysql_service_log_builtins_tmp;
 #endif
-      mysql_service_registry->acquire("log_builtins_syseventlog", &bls) ||
-      ((log_se=
-          reinterpret_cast<SERVICE_TYPE(log_builtins_syseventlog)*>(bls)) ==
-       nullptr) ||
-      mysql_service_registry->acquire("log_builtins_string", &bls) ||
-      ((log_bs= reinterpret_cast<SERVICE_TYPE(log_builtins_string)*>(bls)) ==
-       nullptr))
-  {
-    log_service_exit();
-    return true;
-  }
 
   /*
     If this component is loaded, we enable it by default, as that's
@@ -714,8 +712,14 @@ BEGIN_COMPONENT_PROVIDES(log_sink_syseventlog)
 END_COMPONENT_PROVIDES()
 
 
-/* component requires: n/a */
+/* component requires: log-builtins */
 BEGIN_COMPONENT_REQUIRES(log_sink_syseventlog)
+  REQUIRES_SERVICE(log_builtins)
+  REQUIRES_SERVICE(log_builtins_string)
+  REQUIRES_SERVICE(log_builtins_syseventlog)
+#ifdef _WIN32
+  REQUIRES_SERVICE(log_builtins_tmp)
+#endif
 END_COMPONENT_REQUIRES()
 
 

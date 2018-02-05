@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -33,15 +33,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_filter);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_filter_debug);
 
-static my_h_service                      bls=        nullptr;
+SERVICE_TYPE(log_builtins)              *log_bi=     nullptr;
+SERVICE_TYPE(log_builtins_string)       *log_bs=     nullptr;
+SERVICE_TYPE(log_builtins_filter)       *log_bf=     nullptr;
+SERVICE_TYPE(log_builtins_filter_debug) *log_fd=     nullptr;
+
 static bool                              inited=     false;
 static bool                              failed=     false;
 static bool                              run_tests=  true;
-SERVICE_TYPE(log_builtins)              *log_bi=     nullptr;
-SERVICE_TYPE(log_builtins_filter)       *log_bf=     nullptr;
-SERVICE_TYPE(log_builtins_filter_debug) *log_fd=     nullptr;
-SERVICE_TYPE(log_builtins_string)       *log_bs=     nullptr;
 log_filter_ruleset                      *test_rules= nullptr;
 
 
@@ -825,6 +829,8 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
     li= log_bi->line_item_iter_next(it);
   }
 
+  log_bi->line_item_iter_release(it);
+
   if (out_fields > 0)
   {
     if (!(out_types & LOG_ITEM_LOG_LABEL) && (out_left > 0) &&
@@ -887,8 +893,6 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
     test_rules= nullptr;
   }
 
-  log_bi->line_item_iter_release(it);
-
   return out_fields;  // returning number of processed items
 }
 
@@ -904,12 +908,13 @@ mysql_service_status_t log_service_exit()
 {
   if (inited)
   {
-    log_service_release(log_bi);
-    log_service_release(log_bs);
-    log_service_release(log_bf);
-    log_service_release(log_fd);
-
     inited=     false;
+
+    log_bi=     nullptr;
+    log_bs=     nullptr;
+    log_bf=     nullptr;
+    log_fd=     nullptr;
+
     failed=     false;
     run_tests=  false;
 
@@ -934,23 +939,10 @@ mysql_service_status_t log_service_init()
   inited= true;
   failed= false;
 
-  if (mysql_service_registry->acquire("log_builtins", &bls) ||
-      ((log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins)*>(bls)) ==
-       nullptr) ||
-      mysql_service_registry->acquire("log_builtins_string", &bls) ||
-      ((log_bs= reinterpret_cast<SERVICE_TYPE(log_builtins_string)*>(bls)) ==
-       nullptr) ||
-      mysql_service_registry->acquire("log_builtins_filter", &bls) ||
-      ((log_bf= reinterpret_cast<SERVICE_TYPE(log_builtins_filter)*>(bls)) ==
-       nullptr) ||
-      mysql_service_registry->acquire("log_builtins_filter_debug", &bls) ||
-      ((log_fd=
-        reinterpret_cast<SERVICE_TYPE(log_builtins_filter_debug)*>(bls)) ==
-       nullptr))
-  {
-    log_service_exit();
-    return true;
-  }
+  log_bi= mysql_service_log_builtins;
+  log_bs= mysql_service_log_builtins_string;
+  log_bf= mysql_service_log_builtins_filter;
+  log_fd= mysql_service_log_builtins_filter_debug;
 
   // run some examples/tests
   run_tests= true;
@@ -1040,8 +1032,12 @@ BEGIN_COMPONENT_PROVIDES(log_sink_test)
 END_COMPONENT_PROVIDES()
 
 
-/* component requires: n/a */
+/* component requires: log-builtins */
 BEGIN_COMPONENT_REQUIRES(log_sink_test)
+  REQUIRES_SERVICE(log_builtins)
+  REQUIRES_SERVICE(log_builtins_string)
+  REQUIRES_SERVICE(log_builtins_filter)
+  REQUIRES_SERVICE(log_builtins_filter_debug)
 END_COMPONENT_REQUIRES()
 
 

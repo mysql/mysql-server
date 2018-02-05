@@ -915,15 +915,8 @@ SERVICE_TYPE(log_builtins_string)               *log_bs;
 */
 bool log_service_init()
 {
-  my_h_service registry= NULL;
-  if (mysql_service_registry->acquire("log_builtins", &registry) ||
-      ((log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins)*>(registry)) ==
-       NULL) ||
-      mysql_service_registry->acquire("log_builtins_string", &registry) ||
-      ((log_bs=
-        reinterpret_cast<SERVICE_TYPE(log_builtins_string)*>(registry)) ==
-       NULL))
-    return true;
+  log_bi= mysql_service_log_builtins;
+  log_bs= mysql_service_log_builtins_string;
 
   return false;
 }
@@ -938,12 +931,6 @@ bool log_service_init()
 */
 bool log_service_deinit()
 {
-  if (log_bi && mysql_service_registry->release((my_h_service) (log_bi)))
-    return true;
-
-  if (log_bs && mysql_service_registry->release((my_h_service) (log_bs)))
-    return true;
-
   return false;
 }
 

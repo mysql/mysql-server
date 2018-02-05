@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/log_builtins.h>
 
 
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+
 SERVICE_TYPE(log_builtins)         *log_bi= nullptr;
 SERVICE_TYPE(log_builtins_string)  *log_bs= nullptr;
-static my_h_service                 bls=    nullptr;
+
 static bool                         inited= false;
 static int                          opened= 0;
 
@@ -436,9 +439,6 @@ mysql_service_status_t log_service_exit()
 {
   if (inited)
   {
-    log_service_release(log_bi);
-    log_service_release(log_bs);
-
     inited= false;
 
     return false;
@@ -462,16 +462,8 @@ mysql_service_status_t log_service_init()
   inited= true;
   opened= 0;
 
-  if (mysql_service_registry->acquire("log_builtins", &bls) ||
-      ((log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins)*>(bls)) ==
-       nullptr) ||
-      mysql_service_registry->acquire("log_builtins_string", &bls) ||
-      ((log_bs= reinterpret_cast<SERVICE_TYPE(log_builtins_string)*>(bls)) ==
-       nullptr))
-  {
-    log_service_exit();
-    return true;
-  }
+  log_bi= mysql_service_log_builtins;
+  log_bs= mysql_service_log_builtins_string;
 
   return false;
 }
@@ -494,8 +486,10 @@ BEGIN_COMPONENT_PROVIDES(log_sink_json)
 END_COMPONENT_PROVIDES()
 
 
-/* component requires: n/a */
+/* component requires: log-builtins */
 BEGIN_COMPONENT_REQUIRES(log_sink_json)
+  REQUIRES_SERVICE(log_builtins)
+  REQUIRES_SERVICE(log_builtins_string)
 END_COMPONENT_REQUIRES()
 
 

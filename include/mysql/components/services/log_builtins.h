@@ -690,7 +690,7 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
 #      define log_malloc(s)               my_malloc(0, (s), MYF(0))
 #      define log_free                    my_free
 #      define log_msg                     vsnprintf
-#      define error_msg_by_errcode        get_server_errmsgs
+#      define error_msg_by_errcode        error_message_for_error_log
 #      define error_code_by_errsymbol     mysql_symbol_to_errno
 #      define log_set_int                 log_item_set_int
 #      define log_set_float               log_item_set_float

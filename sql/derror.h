@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,10 +100,13 @@ public:
   const char *get_language() const { return language; }
 };
 
-const char* ER_DEFAULT(int mysql_errno);
-const char* ER_THD(const THD *thd, int mysql_errno);
+const char *ER_DEFAULT(int mysql_errno);
+const char *ER_THD(const THD *thd, int mysql_errno);
 
-const char *get_server_errmsgs(int mysql_errno);
+C_MODE_START
+const char *error_message_for_error_log(int mysql_errno);
+const char *error_message_for_client(int mysql_errno);
+C_MODE_END
 
 const char *mysql_errno_to_symbol(int mysql_errno);
 int         mysql_symbol_to_errno(const char *error_symbol);
