@@ -1,0 +1,143 @@
+###################################################################
+# WL#9426: Single Primary Mode in Group Replication
+#
+# Validate that leader election takes place after PRIMARY
+# sets is state to ERROR.
+#
+# Test:
+#
+# - Stage #1
+#   - set expected trace errors
+#   - create the group, one by one. The PRIMARY is the first
+#     server in the group
+#     - check if each server points to SERVER1 UUID's
+#       in system variable group_replication_primary_member_uuid
+#
+# - Stage #2
+#   - create table
+#   - server1 insert data to table with binlog disabled
+#   - server2 insert same row with super_read_only disabled
+#   - check server1 state, should be set to error
+#
+# - Stage #3
+#   - verify number of primaries and secondaries (with non ERROR
+#     state)
+#     - find the primary server in the group
+#   - verify old primary server status variable
+#     group_replication_primary_member which value should be set
+#     to 'UNDEFINED'
+#
+# - Stage #4
+#   - clean up
+#
+##################################################################
+
+--source include/have_group_replication_plugin.inc
+
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo #
+--echo # Stage 1. Watch PRIMARY and SECONDARIES being set as we grow the group.
+--echo #
+
+--echo
+--echo ## START SERVER 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SQL_LOG_BIN=0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.table1; Duplicate entry '1'");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*; Could not execute Write_rows event on table test.table1; Duplicate entry '1' for key 'PRIMARY'.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected");
+SET SQL_LOG_BIN=1;
+--let $server1_uuid= `SELECT @@server_uuid`
+--source include/start_and_bootstrap_group_replication.inc
+--let $group_replication_expected_uuid= $server1_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--echo
+--echo ## START SERVERS 2-3
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--let $group_replication_expected_uuid= $server1_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--let $group_replication_expected_uuid= $server1_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--echo #
+--echo # Stage 2. Disable binlog and insert same data on PRIMARY and on
+--echo #          of SECONDARY servers
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE `table1`(`id` INT PRIMARY KEY AUTO_INCREMENT, `value` VARCHAR(50));
+--source include/rpl_sync.inc
+
+--echo
+--echo ## INSERT SAME ROW ON SERVER1 AND SERVER2
+SET SQL_LOG_BIN= 0;
+INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
+SET SQL_LOG_BIN= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL super_read_only= 0;
+INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--let $wait_condition= SELECT @@super_read_only= 1
+--source include/wait_condition_or_abort.inc
+
+--let $wait_condition= SELECT @@read_only= 1
+--source include/wait_condition_or_abort.inc
+
+--echo #
+--echo # Stage 3. Verify state of each server
+--echo #
+# the PRIMARY server connection may not be deterministic
+--let $rpl_connection_silent=1
+--let $group_replication_primaries_count_in_var=1
+--let $group_replication_secondaries_count_in_var=1
+--source include/gr_wait_for_role_count.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= 'Old primary server should be in ERROR state';
+--let $assert_cond= [SELECT MEMBER_STATE="ERROR" as `Result` FROM performance_schema.replication_group_members WHERE MEMBER_ID = @@server_uuid, Result, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'group_replication_primary_member should be set to UNDEFINED when replication node is in error state';
+--let $assert_cond= [SELECT VARIABLE_VALUE = "UNDEFINED" as `Result` FROM performance_schema.global_status WHERE VARIABLE_NAME = "group_replication_primary_member", Result, 1] = 1
+--source include/assert.inc
+
+--echo #
+--echo # Stage 4. Clean up.
+--echo #
+--let $rpl_connection_name= $group_replication_primary_server_connection_var
+--source include/rpl_connection.inc
+DROP TABLE `table1`;
+
+# restore this
+--let $rpl_connection_silent=0
+--source include/group_replication_end.inc
+
+# Table1 can't be removed until plugin is stopped
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL read_only= 0;
+DROP TABLE `table1`;

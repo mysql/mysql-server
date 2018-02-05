@@ -16,7 +16,7 @@
 /plugin/innodb_memcached/daemon_memcached/** !filter
 /plugin/innodb_memcached/innodb_memcache/cache-src/** !filter
 /internal/plugin/keyring_okv/okv_client_sdk/** !filter
-/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/windeps/** !filter
+/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/windeps/** !filter
 
 # Generated from lex/yacc.
 /storage/innobase/fts/fts0blex.cc !filter

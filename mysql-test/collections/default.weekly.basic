@@ -30,5 +30,8 @@ perl mysql-test-run.pl --debug-server --timer --force  --parallel=auto --comment
 
 # Memcached tests
 perl mysql-test-run.pl --debug-server --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached  --no-skip
+
+# Group Replication
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=group_replication-debug --vardir=var-group_replication-debug --suite=group_replication --experimental=collections/default.experimental
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 

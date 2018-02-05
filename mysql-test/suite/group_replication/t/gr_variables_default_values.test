@@ -1,0 +1,327 @@
+################################################################################
+# Base test to verify the default values of the group replication variables.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Set global group replication variables to default.
+# 2. Verify default values of the group replication variables.
+# 3. Clean up.
+################################################################################
+
+--let $group_replication_group_name= dddddddd-dddd-dddd-dddd-dddddddddddd
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+# Try set DEFAULT values while Group Replication is running.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_auto_increment_increment= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_compression_threshold= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_single_primary_mode= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_group_name= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_ip_whitelist= default;
+
+--source include/stop_group_replication.inc
+
+--echo # Take backup of group replication variables
+--let $saved_gr_allow_local_lower_version_join = `SELECT @@GLOBAL.group_replication_allow_local_lower_version_join;`
+--let $saved_gr_auto_increment_increment = `SELECT @@GLOBAL.group_replication_auto_increment_increment;`
+--let $saved_gr_bootstrap_group = `SELECT @@GLOBAL.group_replication_bootstrap_group;`
+--let $saved_gr_components_stop_timeout = `SELECT @@GLOBAL.group_replication_components_stop_timeout;`
+--let $saved_gr_compression_threshold = `SELECT @@GLOBAL.group_replication_compression_threshold;`
+--let $saved_gr_enforce_update_everywhere_checks = `SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks;`
+--let $saved_gr_force_members = `SELECT @@GLOBAL.group_replication_force_members;`
+--let $saved_gr_group_name = `SELECT @@GLOBAL.group_replication_group_name;`
+--let $saved_gr_gtid_assignment_block_size = `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
+--let $saved_gr_ip_whitelist = `SELECT @@GLOBAL.group_replication_ip_whitelist;`
+--let $saved_gr_local_address = `SELECT @@GLOBAL.group_replication_local_address;`
+--let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
+--let $saved_gr_poll_spin_loops = `SELECT @@GLOBAL.group_replication_poll_spin_loops;`
+--let $saved_gr_recovery_complete_at = `SELECT @@GLOBAL.group_replication_recovery_complete_at;`
+--let $saved_gr_recovery_reconnect_interval = `SELECT @@GLOBAL.group_replication_recovery_reconnect_interval;`
+--let $saved_gr_recovery_retry_count = `SELECT @@GLOBAL.group_replication_recovery_retry_count;`
+--let $saved_gr_recovery_ssl_ca = `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
+--let $saved_gr_recovery_ssl_capath = `SELECT @@GLOBAL.group_replication_recovery_ssl_capath;`
+--let $saved_gr_recovery_ssl_cert = `SELECT @@GLOBAL.group_replication_recovery_ssl_cert;`
+--let $saved_gr_recovery_ssl_cipher = `SELECT @@GLOBAL.group_replication_recovery_ssl_cipher;`
+--let $saved_gr_recovery_ssl_crl = `SELECT @@GLOBAL.group_replication_recovery_ssl_crl;`
+--let $saved_gr_recovery_ssl_crlpath = `SELECT @@GLOBAL.group_replication_recovery_ssl_crlpath;`
+--let $saved_gr_recovery_ssl_key = `SELECT @@GLOBAL.group_replication_recovery_ssl_key;`
+--let $saved_gr_recovery_ssl_verify_server_cert = `SELECT @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;`
+--let $saved_gr_recovery_use_ssl = `SELECT @@GLOBAL.group_replication_recovery_use_ssl;`
+--let $saved_gr_single_primary_mode = `SELECT @@GLOBAL.group_replication_single_primary_mode;`
+--let $saved_gr_ssl_mode = `SELECT @@GLOBAL.group_replication_ssl_mode;`
+--let $saved_gr_start_on_boot = `SELECT @@GLOBAL.group_replication_start_on_boot;`
+--let $saved_gr_transaction_size_limit = `SELECT @@GLOBAL.group_replication_transaction_size_limit;`
+--let $saved_gr_communication_debug_options = `SELECT @@GLOBAL.group_replication_communication_debug_options;`
+--let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
+--let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
+--let $saved_gr_recovery_public_key_path = `SELECT @@GLOBAL.group_replication_recovery_public_key_path;`
+--let $saved_gr_recovery_get_public_key = `SELECT @@GLOBAL.group_replication_recovery_get_public_key;`
+
+--echo #
+--echo # Test Unit#1
+--echo # Set global group replication variables to default.
+--echo # Curently there are 44 group replication variables.
+--echo #
+
+# Note: If a new GR variable is added or an old GR variable is removed, then
+# update this testcase for the sanity check.
+--let $assert_text= There are 44 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 44
+--source include/assert.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_auto_increment_increment= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_compression_threshold= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_single_primary_mode= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_group_name= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.group_replication_ip_whitelist= default;
+
+SET @@GLOBAL.group_replication_allow_local_lower_version_join= default;
+SET @@GLOBAL.group_replication_bootstrap_group= default;
+SET @@GLOBAL.group_replication_components_stop_timeout= default;
+SET @@GLOBAL.group_replication_force_members= default;
+SET @@GLOBAL.group_replication_local_address= default;
+SET @@GLOBAL.group_replication_group_seeds= default;
+SET @@GLOBAL.group_replication_poll_spin_loops= default;
+SET @@GLOBAL.group_replication_recovery_complete_at= default;
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= default;
+SET @@GLOBAL.group_replication_recovery_retry_count= default;
+SET @@GLOBAL.group_replication_recovery_ssl_ca= default;
+SET @@GLOBAL.group_replication_recovery_ssl_capath= default;
+SET @@GLOBAL.group_replication_recovery_ssl_cert= default;
+SET @@GLOBAL.group_replication_recovery_ssl_cipher= default;
+SET @@GLOBAL.group_replication_recovery_ssl_crl= default;
+SET @@GLOBAL.group_replication_recovery_ssl_crlpath= default;
+SET @@GLOBAL.group_replication_recovery_ssl_key= default;
+SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= default;
+SET @@GLOBAL.group_replication_recovery_use_ssl= default;
+SET @@GLOBAL.group_replication_ssl_mode= default;
+SET @@GLOBAL.group_replication_start_on_boot= default;
+SET @@GLOBAL.group_replication_communication_debug_options= default;
+SET @@GLOBAL.group_replication_transaction_size_limit= default;
+SET @@GLOBAL.group_replication_unreachable_majority_timeout= default;
+SET @@GLOBAL.group_replication_member_weight= default;
+SET @@GLOBAL.group_replication_recovery_public_key_path= default;
+SET @@GLOBAL.group_replication_recovery_get_public_key= default;
+
+--echo #
+--echo # Test Unit#2
+--echo # Verify default values of the group replication variables.
+--echo #
+
+# group_replication_allow_local_lower_version_join
+--let $assert_text= Default group_replication_allow_local_lower_version_join is OFF/0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_allow_local_lower_version_join]" = 0
+--source include/assert.inc
+
+# group_replication_auto_increment_increment
+--let $assert_text= Default group_replication_auto_increment_increment is 7
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_auto_increment_increment]" = 7
+--source include/assert.inc
+
+# group_replication_bootstrap_group
+--let $assert_text= Default group_replication_bootstrap_group is OFF/0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_bootstrap_group]" = 0
+--source include/assert.inc
+
+# group_replication_components_stop_timeout
+--let $assert_text= Default group_replication_components_stop_timeout is 31536000
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_components_stop_timeout]" = 31536000
+--source include/assert.inc
+
+# group_replication_compression_threshold
+--let $assert_text= Default group_replication_compression_threshold is 1000000
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_compression_threshold]" = 1000000
+--source include/assert.inc
+
+# group_replication_force_members
+--let $assert_text= Default group_replication_force_members is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = ""
+--source include/assert.inc
+
+# group_replication_ip_whitelist
+--let $assert_text= Default group_replication_ip_whitelist is AUTOMATIC
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ip_whitelist]" = "AUTOMATIC"
+--source include/assert.inc
+
+# group_replication_local_address
+--let $assert_text= Default group_replication_local_address is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_local_address]" = ""
+--source include/assert.inc
+
+# group_replication_group_seeds
+--let $assert_text= Default group_replication_group_seeds is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_group_seeds]" = ""
+--source include/assert.inc
+
+# group_replication_poll_spin_loops
+--let $assert_text= Default group_replication_poll_spin_loops is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_poll_spin_loops]" = 0
+--source include/assert.inc
+
+# group_replication_recovery_complete_at
+--let $assert_text= Default group_replication_recovery_complete_at is TRANSACTIONS_APPLIED
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_complete_at]" = "TRANSACTIONS_APPLIED"
+--source include/assert.inc
+
+# group_replication_recovery_reconnect_interval
+--let $assert_text= Default group_replication_recovery_reconnect_interval is 60
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_reconnect_interval]" = 60
+--source include/assert.inc
+
+# group_replication_recovery_retry_count
+--let $assert_text= Default group_replication_recovery_retry_count is 10
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_retry_count]" = 10
+--source include/assert.inc
+
+# group_replication_recovery_ssl_ca
+--let $assert_text= Default group_replication_recovery_ssl_ca is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_ca]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_capath
+--let $assert_text= Default group_replication_recovery_ssl_capath is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_capath]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_cert
+--let $assert_text= Default group_replication_recovery_ssl_cert is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_cert]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_cipher
+--let $assert_text= Default group_replication_recovery_ssl_cipher is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_cipher]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_crl
+--let $assert_text= Default group_replication_recovery_ssl_crl is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_crl]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_crlpath
+--let $assert_text= Default group_replication_recovery_ssl_crlpath is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_crlpath]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_key
+--let $assert_text= Default group_replication_recovery_ssl_key is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_key]" = ""
+--source include/assert.inc
+
+# group_replication_recovery_ssl_verify_server_cert
+--let $assert_text= Default group_replication_recovery_ssl_verify_server_cert is OFF/0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_ssl_verify_server_cert]" = 0
+--source include/assert.inc
+
+# group_replication_recovery_use_ssl
+--let $assert_text= Default group_replication_recovery_use_ssl is OFF/0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_use_ssl]" = 0
+--source include/assert.inc
+
+# group_replication_ssl_mode
+--let $assert_text= Default group_replication_ssl_mode is DISABLED
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "DISABLED"
+--source include/assert.inc
+
+# group_replication_start_on_boot
+--let $assert_text= Default group_replication_start_on_boot is ON/1
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_start_on_boot]" = 1
+--source include/assert.inc
+
+# group_replication_transaction_size_limit
+--let $assert_text= Default group_replication_transaction_size_limit is 150000000
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_transaction_size_limit]" = 150000000
+--source include/assert.inc
+
+# group_replication_communication_debug_options
+--let $assert_text= Default group_replication_communication_debug_options is "GCS_DEBUG_NONE"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_NONE"
+--source include/assert.inc
+
+# group_replication_unreachable_majority_timeout
+--let $assert_text= Default group_replication_unreachable_majority_timeout is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_unreachable_majority_timeout]" = 0
+--source include/assert.inc
+
+# group_replication_member_weight
+--let $assert_text= Default group_replication_member_weight is 50
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_weight]" = 50
+--source include/assert.inc
+
+#group_replication_recovery_public_key_path
+--let $assert_text= Default group_replication_recovery_public_key_path is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_public_key_path]" = ""
+--source include/assert.inc
+
+#group_replication_recovery_get_public_key
+--let $assert_text= Default group_replication_recovery_get_public_key is OFF/0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_get_public_key]" = 0
+--source include/assert.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+# No need to print this into result file.
+
+--disable_query_log
+--eval SET @@GLOBAL.group_replication_allow_local_lower_version_join= $saved_gr_allow_local_lower_version_join
+--eval SET @@GLOBAL.group_replication_auto_increment_increment= $saved_gr_auto_increment_increment
+--eval SET @@GLOBAL.group_replication_bootstrap_group= $saved_gr_bootstrap_group
+--eval SET @@GLOBAL.group_replication_components_stop_timeout= $saved_gr_components_stop_timeout
+--eval SET @@GLOBAL.group_replication_compression_threshold= $saved_gr_compression_threshold
+--eval SET @@GLOBAL.group_replication_single_primary_mode= $saved_gr_single_primary_mode
+--eval SET @@GLOBAL.group_replication_enforce_update_everywhere_checks= $saved_gr_enforce_update_everywhere_checks
+--eval SET @@GLOBAL.group_replication_force_members= "$saved_gr_force_members"
+--eval SET @@GLOBAL.group_replication_group_name= "$saved_gr_group_name"
+--eval SET @@GLOBAL.group_replication_gtid_assignment_block_size= $saved_gr_gtid_assignment_block_size
+--eval SET @@GLOBAL.group_replication_ip_whitelist= "$saved_gr_ip_whitelist"
+--eval SET @@GLOBAL.group_replication_local_address= "$saved_gr_local_address"
+--eval SET @@GLOBAL.group_replication_group_seeds= "$saved_gr_group_seeds"
+--eval SET @@GLOBAL.group_replication_poll_spin_loops= $saved_gr_poll_spin_loops
+--eval SET @@GLOBAL.group_replication_recovery_complete_at= "$saved_gr_recovery_complete_at"
+--eval SET @@GLOBAL.group_replication_recovery_reconnect_interval= $saved_gr_recovery_reconnect_interval
+--eval SET @@GLOBAL.group_replication_recovery_retry_count= $saved_gr_recovery_retry_count
+--eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$saved_gr_recovery_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$saved_gr_recovery_ssl_capath"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$saved_gr_recovery_ssl_cert"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cipher= "$saved_gr_recovery_ssl_cipher"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_crl= "$saved_gr_recovery_ssl_crl"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_crlpath= "$saved_gr_recovery_ssl_crlpath"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$saved_gr_recovery_ssl_key"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= $saved_gr_recovery_ssl_verify_server_cert
+--eval SET @@GLOBAL.group_replication_recovery_use_ssl= $saved_gr_recovery_use_ssl
+--eval SET @@GLOBAL.group_replication_ssl_mode= $saved_gr_ssl_mode
+--eval SET @@GLOBAL.group_replication_start_on_boot= $saved_gr_start_on_boot
+--eval SET @@GLOBAL.group_replication_transaction_size_limit= $saved_gr_transaction_size_limit
+--eval SET @@GLOBAL.group_replication_communication_debug_options= "$saved_gr_communication_debug_options"
+--eval SET @@GLOBAL.group_replication_unreachable_majority_timeout= $saved_gr_unreachable_majority_timeout
+--eval SET @@GLOBAL.group_replication_member_weight= $saved_gr_member_weight
+--eval SET @@GLOBAL.group_replication_recovery_public_key_path= "$saved_gr_recovery_public_key_path"
+--eval SET @@GLOBAL.group_replication_recovery_get_public_key= $saved_gr_recovery_get_public_key
+--enable_query_log
+
+--source include/group_replication_end.inc

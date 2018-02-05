@@ -1,0 +1,92 @@
+################################################################################
+# Validate that Group Replication pre-conditions are
+# properly checked, in particular the existence of primary
+# key on tables.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both the members ONLINE. Create a table t1 without primary key on M1.
+#    Sync data in the group.
+# 2. Execute a query on the table on M1 that will fail on pre-conditions check.
+# 3. Check that table t1 is empty on M1.
+# 4. Check that table t1 is empty on M2.
+# 5. Clean up.
+################################################################################
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9420003
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo #  1. Create the test table without primary key on all group
+--echo #     members.
+--connection server1
+
+CREATE TABLE `t1` (
+  `col_bit_64` bit(64),
+  `col_varchar_255_utf8_key` varchar(255) CHARACTER SET utf8,
+  `col_bigint` bigint,
+  `col_varchar_255_binary_key` varchar(255) CHARACTER SET binary,
+  `col_varchar_255_utf8` varchar(255) CHARACTER SET utf8,
+  `col_text_utf8` text CHARACTER SET utf8,
+  `col_set_binary_key` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z')  CHARACTER SET binary,
+  `col_text_binary` text CHARACTER SET binary,
+  `col_varchar_255_binary` varchar(255) CHARACTER SET binary,
+  `col_bigint_key` bigint,
+  `col_set_utf8` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8,
+  `col_text_binary_key` text CHARACTER SET binary,
+  `col_set_binary` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET binary,
+  `col_set_utf8_key` set ('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z') CHARACTER SET utf8,
+  `col_text_utf8_key` text CHARACTER SET utf8,
+  `col_bit_64_key` bit(64),
+  key (`col_varchar_255_utf8_key`),
+  key (`col_varchar_255_binary_key`),
+  key (`col_set_binary_key`),
+  key (`col_bigint_key`),
+  key (`col_text_binary_key`(255)),
+  key (`col_set_utf8_key`),
+  key (`col_text_utf8_key` (255)),
+  key (`col_bit_64_key`)
+) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo #  2. Execute a query on the table without primary key on
+--echo #     server 1 that will fail on pre-conditions check.
+--connection server1
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Table t1 does not have any PRIMARY KEY. This is not compatible with Group Replication.'");
+SET SESSION sql_log_bin= 1;
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT /*! IGNORE */ INTO t1 VALUES (NULL, NULL, -1188668826649100288, 'x', NULL, 'can\'t', 'p', 'didn\'t', 'we', 8, 'what', 'who', NULL, 'can', 'not', 1);
+
+
+--echo
+--echo ############################################################
+--echo #  3. Check that table t1 is empty on server 1.
+--connection server1
+--let $assert_text= 'Table t1 is empty'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  4. Check that table t1 is empty on server 2.
+--connection server2
+--let $assert_text= 'Table t1 is empty'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  5. Clean data.
+--connection server1
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

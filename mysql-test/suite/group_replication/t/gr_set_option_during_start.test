@@ -1,0 +1,108 @@
+################################################################################
+# Test to validate that setting plugin options during Group
+# Replication start do not block the start procedure.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. Restart server1 with --group_replication_bootstrap_group=1,
+#    while setting a debug sync point just before bootstrap the
+#    group. This will mimic a start timeout due to all seeds be
+#    unreachable.
+# 2. While the start procedure is blocked on the sync point,
+#    do set the plugin options that do require exclusive access
+#    to plugin internal state, those set operations will be
+#    disallowed.
+# 3. Unblock the start procedure, the server will change to
+#    ONLINE state.
+# 4. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Restart server1 with --group_replication_bootstrap_group=1,
+--echo #    while setting a debug sync point just before bootstrap the
+--echo #    group. This will mimic a start timeout due to all seeds be
+--echo #    unreachable.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= @debug_save;
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1 --loose-debug="+d,group_replication_before_joining_the_group"
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. While the start procedure is blocked on the sync point,
+--echo #    do set the plugin options that do require exclusive access
+--echo #    to plugin internal state, those set operations will be
+--echo #    disallowed.
+--let $assert_text= The super_read_only mode must be 1
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
+--let $assert_text= The delayed initialization thread is running after boot
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.threads WHERE NAME = \"thread/group_rpl/THD_delayed_initialization\"]" = 1;
+--source include/assert.inc
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_recovery_get_public_key= ON;
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_recovery_use_ssl= ON;
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_recovery_ssl_verify_server_cert= ON;
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_group_name= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab";
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_recovery_retry_count= 1;
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_unreachable_majority_timeout= 1;
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_components_stop_timeout= 2;
+
+--error ER_UNABLE_TO_SET_OPTION
+SET GLOBAL group_replication_member_weight= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Unblock the start procedure, the server will change to
+--echo #    ONLINE state.
+SET DEBUG_SYNC= "now SIGNAL signal.continue_group_join";
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--source include/group_replication_end.inc

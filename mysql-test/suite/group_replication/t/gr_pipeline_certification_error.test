@@ -1,0 +1,118 @@
+################################################################################
+# Check that pipeline errors are properly detected and handled.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Setup a group with two members. Setup DEBUG point and then bootstrap group
+#    with M2. Start GR on M1.
+# 2. Execute some transactions on M1 that will be applied through M2 Group
+#    Replication applier that is forced to fail using DEBUG point.
+#  - Wait until M2 Group Replication applier errors out.
+#  - Reset debug flag on M2.
+# 3. Commit a transaction to validate that everything is OK.
+# 4. Check that GTID_EXECUTED on M1 contains all transactions. Also check that
+#    data is on tables.
+# 5. Check that GTID_EXECUTED on M2 contains all transactions. Also check that
+#    data is on tables.
+# 6. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo ############################################################
+--echo # 1.  Setup a new group with two members.
+--echo #     On member 2 we force a pipeline error on certification
+--echo #     handler.
+--echo #
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed to fetch Transaction_context_log_event containing required transaction info for certification");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Error at event handling! Got error: 1");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certification_handler_force_error_on_pipeline';
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo ############################################################
+--echo # 2.  Execute some transactions on member 1 that will be
+--echo #     applied through member 2 Group Replication applier.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--echo
+--echo # Wait until member 2 Group Replication applier errors out.
+--echo #
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--echo
+--echo # Reset debug flag.
+--echo #
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_saved;
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3.  Commit a transaction to validate that everything is OK
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4.  Check that GTID_EXECUTED on server 1 contains all
+--echo #     transactions.
+--echo #     Also check that data is on tables.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= GTID_EXECUTED must contain all committed GTIDs
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-5"
+--source include/assert.inc
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5.  Check that GTID_EXECUTED on server 2 contains all
+--echo #     transactions.
+--echo #     Also check that data is on tables.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= GTID_EXECUTED must contain all committed GTIDs
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-5"
+--source include/assert.inc
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6.  Test cleanup.
+--echo #
+DROP TABLE t1;
+--source include/group_replication_end.inc

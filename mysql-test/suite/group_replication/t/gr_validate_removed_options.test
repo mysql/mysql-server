@@ -1,0 +1,31 @@
+################################################################################
+# Validate that removed options are not available.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Check group_replication_allow_local_disjoint_gtids_join option.
+# 2. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Check group_replication_allow_local_disjoint_gtids_join
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL group_replication_allow_local_disjoint_gtids_join= ON;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@GLOBAL.group_replication_allow_local_disjoint_gtids_join;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET SESSION group_replication_allow_local_disjoint_gtids_join= ON;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@SESSION.group_replication_allow_local_disjoint_gtids_join;
+
+--echo
+--echo ############################################################
+--echo # 2. Clean up.
+--source include/group_replication_end.inc

@@ -1,0 +1,158 @@
+################################################################################
+# This test verifies that START GROUP_REPLICATION blocked
+# due to disk full can be killed and unblocked.
+#
+# Test:
+# 0. The test requires two servers M1 & M2
+# 1. Setup GR environment and get thread id
+#    of the query which will be killed.
+# 2. Block START GR with no disk space.
+# 3. Verify START GR is blocked.
+# 4. Kill the blocked START GR command.
+# 5. Reap the killed command and reset debug point.
+# 6. Verify member is still OFFLINE
+# 7. Verify no more thread is waiting for disk space
+# 8. Restart group_replication on server1 and server2.
+# 9. Add some data to server1.
+# 10. Verify data is replicated to the group.
+# 11. Clean up
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Setup GR environment and get thread id
+--echo #    of the query which will be killed.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Suppression of error messages
+SET sql_log_bin=0;
+CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");
+CALL mtr.add_suppression("Disk is full writing.*(Errcode: 28 - No space left on device)");
+CALL mtr.add_suppression("Retry in 60 secs. Message reprinted in 600 secs");
+CALL mtr.add_suppression("Unblocking the group replication thread waiting for applier to start, as the start group replication was killed");
+CALL mtr.add_suppression("Unable to initialize the Group Replication applier module.");
+CALL mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
+CALL mtr.add_suppression("Failed in open_log.*called from Relay_log_info::rli_init_info");
+CALL mtr.add_suppression("Failed to setup the group replication applier thread.");
+SET sql_log_bin=1;
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET GLOBAL group_replication_bootstrap_group=ON;
+
+--let $conn_id=`SELECT CONNECTION_ID()`
+
+--echo
+--echo # 2. Block START GR with no disk space.
+--echo
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,simulate_file_write_error';
+
+--send START GROUP_REPLICATION
+
+
+--echo
+--echo # 3. Verify START GR is blocked.
+--echo
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='starting' AND INFO='start group_replication';
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='Waiting for disk space';
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 4. Kill the blocked START GR command.
+--echo
+--replace_result $conn_id CONNECTION_ID
+--eval KILL QUERY $conn_id
+
+
+--echo
+--echo # 5. Reap the killed command and reset debug point.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+--reap
+
+
+SET @@GLOBAL.DEBUG= @debug_save;
+
+
+--echo
+--echo # 6. Verify member is still OFFLINE
+--echo
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo # 7. Verify no more thread is waiting for disk space
+--echo
+--let $wait_condition= SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='Waiting for disk space';
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 8. Restart group_replication on server1 and server2.
+--echo
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo
+--echo # 9. Add some data to server1.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+
+
+--echo
+--echo # 10. Verify data is replicated to the group.
+--echo
+
+# Wait for all servers to be in sync
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= Verify test.t1 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "1"
+--source include/assert.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= Verify test.t1 is synced
+--let $assert_cond= "[SELECT count(*) COUNT FROM test.t1, COUNT, 1]" = "1"
+--source include/assert.inc
+
+
+--echo
+--echo # 11. Clean up
+--echo
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

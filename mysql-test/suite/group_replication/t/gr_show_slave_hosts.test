@@ -1,0 +1,86 @@
+################################################################################
+# This test verifies the output of the show slave hosts.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap start a group on M2. Create table t1.
+# 2. verify that the show slave hosts output is empty.
+# 3. Stop the SQL_THREAD for channel group_replication_applier
+#    so that M1 will be in recovering state when it is joined
+#    to the group.
+# 4. Start GR on M1. Wait until it is in RECOVERING state.
+# 5. verify that show slave hosts on M2 shows M1.
+# 6. start the SQL_THREAD for channel group_replication_applier
+# 7. Wait until show slave hosts doesn't show server M2 in it's output.
+# 8. Clean up.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+
+# Assert that the show slave hosts is empty.
+--let $host_uuid= query_get_value(show slave hosts,Slave_UUID,1)
+--let $assert_text = Assert that show slave hosts is empty..
+--let $assert_cond = "$host_uuid" = "No such row"
+--source include/assert.inc
+
+# This is to ensure that M1 will be in recovering state, so that the
+# output of show slave hosts can be verified.
+STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# save the value of slave_net_timeout
+SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+
+# Set slave_net_timeout to lower value so that the master(M2) detects
+# that the slave host(M1) has gone sooner.
+SET @@global.slave_net_timeout=20;
+--let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+# Wait until M1 is in recovering state
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+# Wait until show slave hosts on M2 shows M1 as it will be
+# connected as slave during recovery
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+let $wait_timeout= 60;
+let $show_statement= SHOW SLAVE HOSTS;
+let $field= Slave_UUID;
+let $condition= = '$server1_uuid';
+--source include/wait_show_condition.inc
+
+START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+
+# Verify that both the servers are in ONLINE state.
+--let $wait_timeout= 60
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group_members WHERE member_state='ONLINE'
+--source include/wait_condition.inc
+
+# Wait until server1 is removed from the show slave hosts output.
+let $wait_timeout= 60;
+let $wait_for_all= 1;
+let $show_statement= SHOW SLAVE HOSTS;
+let $field= Host;
+let $condition= = 'No such row';
+--source include/wait_show_condition.inc
+
+# Clean up
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Restore the value of slave_net_timeout
+SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

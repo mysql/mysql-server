@@ -1,0 +1,243 @@
+################################################################################
+# Base test to verify the basic SSL options functioning and their manipulation
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Set ssl related global variables and do initial setup.
+# 2. Setup the first member (M1) with a recovery user that requires SSL.
+# 3. Add some data and bootstrap start a group on M1.
+# 4. Try to configure SSL variables with invalid and long path (i.e 540 vs 512)
+#    max on M2. Expect errors.
+# 5. When SSL is required, check that recovery cannot advance when it is not
+#    properly configured i.e. set SSL var to bad path and start GR on M2.
+#    Member state should become ERROR.
+# 6. Check that when SSL is properly configured all goes fine i.e. set SSL var
+#    to correct path and start GR on M2.
+# 7. Check the data is there on M2.
+# 8. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--let $group_replication_group_name= ebe0b000-f0e7-11e4-b80c-0800200c9a66
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+##
+## Global variables and initial setup
+##
+
+--let $tmpdir_name=`SELECT UUID()`
+--let $tmpdir=$MYSQLTEST_VARDIR/tmp/$tmpdir_name
+--let $CERTDIR_LOCATION=$tmpdir/certs
+--let $CADIR_LOCATION=$tmpdir/certs/cacerts
+--let $CRLDIR_LOCATION=$tmpdir/certs/crldir
+
+--error 0, 1
+--rmdir $CADIR_LOCATION
+--error 0, 1
+--rmdir $CERTDIR_LOCATION
+--error 0, 1
+--rmdir $CRLDIR_LOCATION
+--error 0, 1
+--rmdir $tmpdir
+
+--mkdir $tmpdir
+--mkdir $CERTDIR_LOCATION
+--mkdir $CADIR_LOCATION
+--mkdir $CRLDIR_LOCATION
+
+--copy_file $MYSQL_TEST_DIR/std_data/cacert.pem $CADIR_LOCATION/cacert.pem
+--copy_file $MYSQL_TEST_DIR/std_data/client-cert.pem $CERTDIR_LOCATION/client-cert.pem
+--copy_file $MYSQL_TEST_DIR/std_data/client-key.pem $CERTDIR_LOCATION/client-key.pem
+--copy_file $MYSQL_TEST_DIR/std_data/crl-client-revoked.crl $CRLDIR_LOCATION/crl-client-revoked.crl
+
+##
+## End of setup
+##
+
+--echo #
+--echo # Setup the first member with a recovery user that requires SSL
+--echo #
+
+--connection server1
+--echo server1
+
+# create a user for replication that requires ssl encryption
+set session sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+set session sql_log_bin=1;
+
+
+--echo #
+--echo # Add some data and start the first member
+--echo #
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo #
+--echo # Verify that we cannot set invalid and really long paths in the SSL options
+--echo #
+
+--connection server2
+--echo server2
+
+--let $conf_rec_retries= `SELECT @@GLOBAL.group_replication_recovery_retry_count;`
+--let $conf_rec_ssl_verify= `SELECT @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;`
+--let $conf_rec_use_ssl= `SELECT @@GLOBAL.group_replication_recovery_use_ssl;`
+
+--let $conf_rec_ssl_ca= `SELECT @@GLOBAL.group_replication_recovery_ssl_ca;`
+--let $conf_rec_ssl_capath= `SELECT @@GLOBAL.group_replication_recovery_ssl_capath;`
+--let $conf_rec_ssl_cert= `SELECT @@GLOBAL.group_replication_recovery_ssl_cert;`
+--let $conf_rec_ssl_cipher= `SELECT @@GLOBAL.group_replication_recovery_ssl_cipher;`
+--let $conf_rec_ssl_key= `SELECT @@GLOBAL.group_replication_recovery_ssl_key;`
+
+# Test that variables doesn't accept invalid inputs.
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_recovery_ssl_verify_server_cert= NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_recovery_ssl_verify_server_cert= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_ssl_verify_server_cert= 1.2;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_recovery_use_ssl= NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_recovery_use_ssl= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_use_ssl= 1.2;
+
+# Create a really long path (540 characters vs 512 maximum)
+--let $long_path= long_path/long_path/long_path/long_path/long_path/long_path/
+--let $long_path= $long_path$long_path$long_path
+--let $recovery_invalid_SSL_PATH= $long_path$long_path$long_path
+
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_recovery_ssl_ca= '$recovery_invalid_SSL_PATH'
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_recovery_ssl_capath= '$recovery_invalid_SSL_PATH'
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_recovery_ssl_cert= '$recovery_invalid_SSL_PATH'
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_recovery_ssl_cipher= '$recovery_invalid_SSL_PATH'
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_recovery_ssl_key= '$recovery_invalid_SSL_PATH'
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_recovery_ssl_crl= '$recovery_invalid_SSL_PATH'
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_recovery_ssl_crlpath= '$recovery_invalid_SSL_PATH'
+
+
+--echo #
+--echo # See when SSL is required that Recovery cannot advance when not properly configured
+--echo #
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+set session sql_log_bin=1;
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER= 'rec_ssl_user', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
+
+--eval SET GLOBAL group_replication_recovery_use_ssl=1
+--eval SET GLOBAL group_replication_recovery_ssl_ca= '/bad_path_parameter/file'
+
+#try once and fail
+--eval SET GLOBAL group_replication_recovery_retry_count= 1
+--eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+#
+# Set this back to the previous value, since it could be that
+# on slow machines we take more than one attempt.
+#
+--replace_result $conf_rec_retries CONF_REC_RETRIES
+--eval SET @@GLOBAL.group_replication_recovery_retry_count= $conf_rec_retries
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # See that when SSL is properly configured all goes fine
+--echo #
+
+SET GLOBAL group_replication_recovery_use_ssl=1;
+SET GLOBAL group_replication_recovery_ssl_verify_server_cert=1;
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_ca= '$CADIR_LOCATION/cacert.pem'
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_capath= ''
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_cert= '$CERTDIR_LOCATION/client-cert.pem'
+
+--replace_result $tmpdir TMPDIR
+--eval SET GLOBAL group_replication_recovery_ssl_key= '$CERTDIR_LOCATION/client-key.pem'
+
+--source include/start_group_replication.inc
+
+# Check also that a valid cipher is accepted (not used due to portability issues)
+--eval SET GLOBAL group_replication_recovery_ssl_cipher= 'AES128-SHA'
+
+--echo #
+--echo # Check the data is there
+--echo #
+
+--source include/rpl_sync.inc
+
+--let $assert_text= On the recovered member, the table should exist and have 1 elements;
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+# No need to print this to the result file
+
+--disable_result_log
+--eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
+--eval SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= $conf_rec_ssl_verify
+--eval SET @@GLOBAL.group_replication_recovery_retry_count= $conf_rec_retries
+
+--eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$conf_rec_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_capath= "$conf_rec_ssl_ca"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$conf_rec_ssl_cert"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_cipher= "$conf_rec_ssl_cipher"
+--eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$conf_rec_ssl_key"
+--enable_result_log
+
+--connection server1
+--echo server1
+
+set session sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+set session sql_log_bin=1;
+
+DROP TABLE t1;
+
+#
+# Finally remove the temporary directory
+#
+--error 0, 1
+--rmdir $tmpdir
+
+--source include/group_replication_end.inc

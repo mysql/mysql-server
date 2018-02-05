@@ -1,0 +1,181 @@
+# ==== Purpose ====
+#
+# This test case will test if a member server will not fail to know that the
+# replication threads of the group replication recovery have stopped.
+#
+# The applier thread test:
+#
+# During the startup of the applier thread of the group replication recovery
+# on server2, debug points will ensure that the hook for getting the stop
+# signal will only be set up after the applier thread has passed the hook
+# notification point. This will ensure that, even missing the stop
+# notification, the group replication recovery will still detect that the
+# applier thread has stopped.
+#
+# The receiver thread test:
+#
+# The test case will turn the only possible donor into an improper
+# one by purging its binary log. In this way, the server trying to recover
+# will not succeed, restating the receiver thread for some time.
+#
+# During the restart of the receiver thread of the group replication recovery
+# on server3, debug points will ensure that the hook for getting the stop
+# signal will only be set up after the receiver thread has passed the hook
+# notification point. This will ensure that, even missing the stop
+# notification, the group replication recovery will still detect that the
+# receiver thread has stopped.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#23502642 TEST GROUP_REPLICATION_RECOVERY_PURGED_DONOR_FAILOVER FAILING
+#
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo #####################################################################
+--echo # 1. Create a table on server1 and generate workload to be recovered
+
+--source include/start_and_bootstrap_group_replication.inc
+
+# Insert some data
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo
+--echo ########################
+--echo # 2. SQL thread testing
+
+--echo
+--echo #######################################################
+--echo # 2.1 Try to make server2 to join the group for 3 times
+--echo #     forcing the SQL thread to stop
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Error while creating the group replication recovery channel with donor");
+CALL mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached");
+CALL mtr.add_suppression("Fatal error during the Recovery process of Group Replication");
+CALL mtr.add_suppression("Already leaving or joining a group");
+CALL mtr.add_suppression("Error leaving the group");
+CALL mtr.add_suppression("Error while starting the group replication recovery");
+CALL mtr.add_suppression("Table 't1' already exists");
+CALL mtr.add_suppression("Error while starting the group replication recovery receiver/applier threads");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+SET @saved_reconnect_interval= @@GLOBAL.group_replication_recovery_reconnect_interval;
+--eval SET GLOBAL group_replication_recovery_reconnect_interval= 1 # second
+SET @saved_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
+--eval SET GLOBAL group_replication_recovery_retry_count= 3
+
+# This is to make the SQL thread to fail
+SET SESSION sql_log_bin= 0;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin= 1;
+--let $debug_point=pause_after_sql_thread_stop_hook
+--source include/add_debug_point.inc
+
+--echo
+--echo #####################################################
+--echo # 2.2 Wait until server2 gave up on joining the group
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--source include/remove_debug_point.inc
+
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @saved_reconnect_interval;
+SET @@GLOBAL.group_replication_recovery_retry_count= @saved_retry_count;
+
+# Wait until server2 has stopped Group Replication
+--source include/stop_group_replication.inc
+
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo #####################################################################
+--echo # 2.3 Wait until server2 had left the group to move to the next phase
+
+--connection server1
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #######################
+--echo # 3. I/O thread testing
+
+--echo
+--echo ############################################################################
+--echo # 3.1 Rotate and purge the binary log on server1 to make recovery unfeasible
+
+FLUSH BINARY LOGS;
+--let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+
+# Need to kill the dump thread explicitly: stop slave does not do
+# that, and if the dump thread is slow, it will still be reading from
+# the old binlog at the time we do PURGE BINARY LOGS below. That would
+# prevent PURGE BINARY LOGS from purging the log.
+--source include/stop_dump_threads.inc
+
+--replace_result $server_binlog_file_cur CURRENT_BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$server_binlog_file_cur'
+
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo #############################################################
+--echo # 3.2 Try to make server3 to join the group for up to 3 times
+
+--connection server3
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Got fatal error 1236*");
+CALL mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached");
+CALL mtr.add_suppression("Fatal error during the Recovery process of Group Replication");
+CALL mtr.add_suppression("Already leaving or joining a group");
+CALL mtr.add_suppression("Error leaving the group");
+CALL mtr.add_suppression("Error while starting the group replication recovery");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+
+SET @saved_reconnect_interval= @@GLOBAL.group_replication_recovery_reconnect_interval;
+--eval SET GLOBAL group_replication_recovery_reconnect_interval= 1 # second
+SET @saved_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
+--eval SET GLOBAL group_replication_recovery_retry_count= 3
+
+--let $debug_point=pause_after_io_thread_stop_hook
+--source include/add_debug_point.inc
+
+--echo
+--echo #####################################################
+--echo # 3.3 Wait until server3 gave up on joining the group
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @saved_reconnect_interval;
+SET @@GLOBAL.group_replication_recovery_retry_count= @saved_retry_count;
+
+--source include/remove_debug_point.inc
+
+--echo
+--echo ################################################################
+--echo # 4. Wait until server1 be alone in the group to do the clean up
+
+--connection server1
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc
