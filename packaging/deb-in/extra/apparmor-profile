@@ -31,9 +31,13 @@
   /var/run/mysqld/mysqld.pid rw,
   /var/run/mysqld/mysqld.sock rw,
   /var/run/mysqld/mysqld.sock.lock rw,
+  /var/run/mysqld/mysqlx.sock rw,
+  /var/run/mysqld/mysqlx.sock.lock rw,
   /run/mysqld/mysqld.pid rw,
   /run/mysqld/mysqld.sock rw,
   /run/mysqld/mysqld.sock.lock rw,
+  /run/mysqld/mysqlx.sock rw,
+  /run/mysqld/mysqlx.sock.lock rw,
 
 # Allow execution of server binary
   /usr/sbin/mysqld mr,
