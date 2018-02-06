@@ -5369,6 +5369,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
       regApiPtr.p->tckeyrec = Ttckeyrec + 2;
     }//if
   }//if
+  bool do_releaseTcCon = false;
+  TcConnectRecordPtr save_tcConnectptr;
   if (TdirtyOp == ZTRUE) 
   {
     UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
@@ -5381,7 +5383,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
     jam();
     unlinkReadyTcCon(signal, apiConnectptr.p);
-    releaseTcCon();
+    do_releaseTcCon = true;
+    save_tcConnectptr = tcConnectptr;
     regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
   }
   else if (Toperation == ZUNLOCK)
@@ -5455,7 +5458,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
     /* Release the unlock operation */
     unlinkReadyTcCon(signal, apiConnectptr.p);
-    releaseTcCon();
+    do_releaseTcCon = true;
+    save_tcConnectptr = tcConnectptr;
 
     /* Remove record of unlock op's LQHKEYREQ */
     ndbrequire( regApiPtr.p->lqhkeyreqrec );
@@ -5556,6 +5560,11 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
                         opPtr.p, 0);
     executeTriggers(signal, &regApiPtr);
+  }
+  if (do_releaseTcCon)
+  {
+    tcConnectptr = save_tcConnectptr;
+    releaseTcCon();
   }
 }//Dbtc::execLQHKEYCONF()
  
@@ -6547,7 +6556,11 @@ void Dbtc::execCOMMITTED(Signal* signal)
 #endif
   localTcConnectptr.i = signal->theData[0];
   jamEntry();
-  tcConnectRecord.getPtr(localTcConnectptr);
+  if (!tcConnectRecord.getValidPtr(localTcConnectptr) || localTcConnectptr.isNull())
+  {
+    warningReport(signal, 4);
+    return;
+  }
   localApiConnectptr.i = localTcConnectptr.p->apiConnect;
   if (localTcConnectptr.p->tcConnectstate != OS_COMMITTING) {
     warningReport(signal, 4);
@@ -19127,7 +19140,6 @@ void Dbtc::executeIndexOperation(Signal* signal,
     indexOp->attrInfoSectionIVal = RNIL;
   }
 
-  releaseIndexOperation(regApiPtr, indexOp);
 
   TcKeyReq::setKeyLength(tcKeyRequestInfo, keyInfoFromTransIdAI.sz);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
@@ -19152,6 +19164,8 @@ void Dbtc::executeIndexOperation(Signal* signal,
    */
   TcConnectRecordPtr tmp;
   tmp.i = indexOp->indexReadTcConnect;
+  releaseIndexOperation(regApiPtr, indexOp);
+
   tcConnectRecord.getPtr(tmp);
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   const Uint32 triggeringOp = tmp.p->triggeringOperation;
