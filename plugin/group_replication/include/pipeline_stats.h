@@ -100,8 +100,11 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
     // Length of the payload item: 1 byte
     PIT_FLOW_CONTROL_MODE = 11,
 
+    // Length of the payload item: 1 byte
+    PIT_TRANSACTION_GTIDS_PRESENT = 12,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 12
+    PIT_MAX = 13
   };
 
   /**
@@ -122,6 +125,9 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
     @param[in] transactions_rows_validating
                Number of transactions with which certification will be done
     against
+    @param[in] transaction_gtids
+               Flag to indicate whether or not the transaction ids have been
+    updated
     @param[in] transactions_committed_all_members
                Set of transactions committed on all members
     @param[in] transactions_last_conflict_free
@@ -136,6 +142,7 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
       int32 transactions_waiting_apply, int64 transactions_certified,
       int64 transactions_applied, int64 transactions_local,
       int64 transactions_negative_certified, int64 transactions_rows_validating,
+      bool transaction_gtids,
       const std::string &transactions_committed_all_members,
       const std::string &transactions_last_conflict_free,
       int64 transactions_local_rollback, Flow_control_mode mode);
@@ -203,6 +210,14 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   int64 get_transactions_rows_validating();
 
   /**
+    Returns a flag indicating whether or not the GTIDs on this stats message
+    are updated/present.
+
+    @return the flag indicating the presence of valid GTIDs on this message.
+   */
+  bool get_transation_gtids_present() const;
+
+  /**
     Get set of stable group transactions.
 
     @return the transaction identifier.
@@ -254,6 +269,7 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   int64 m_transactions_local;
   int64 m_transactions_negative_certified;
   int64 m_transactions_rows_validating;
+  bool m_transaction_gtids_present;
   std::string m_transactions_committed_all_members;
   std::string m_transaction_last_conflict_free;
   int64 m_transactions_local_rollback;
