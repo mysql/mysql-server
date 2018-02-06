@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2328,6 +2328,7 @@ static dberr_t row_ins_index_entry_big_rec_func(
   ut_ad(index->is_clustered());
 
   DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
+  DEBUG_SYNC_C("before_insertion_of_blob");
 
   mtr_start(&mtr);
 
