@@ -71,7 +71,9 @@ class Server : public Server_interface {
          ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
          Server_delegate *delegate, ngs::shared_ptr<Protocol_config> config);
 
-  virtual Ssl_context *ssl_context() const { return m_ssl_context.get(); }
+  virtual Ssl_context *ssl_context() const override {
+    return m_ssl_context.get();
+  }
 
   bool prepare(Ssl_context_unique_ptr ssl_context, const bool skip_networking,
                const bool skip_name_resolve, const bool use_unix_sockets);
@@ -83,27 +85,27 @@ class Server : public Server_interface {
   void close_all_clients();
 
   bool is_terminating();
-  bool is_running();
+  bool is_running() override;
 
-  virtual ngs::shared_ptr<Protocol_config> get_config() const {
+  virtual ngs::shared_ptr<Protocol_config> get_config() const override {
     return m_config;
   }
-  ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const {
+  ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const override {
     return m_worker_scheduler;
   }
   Client_list &get_client_list() { return m_client_list; }
-  Mutex &get_client_exit_mutex() { return m_client_exit_mutex; }
+  Mutex &get_client_exit_mutex() override { return m_client_exit_mutex; }
 
   virtual ngs::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,
-      const int session_id);
+      const int session_id) override;
 
-  void on_client_closed(const Client_interface &client);
+  void on_client_closed(const Client_interface &client) override;
 
-  Authentication_interface_ptr get_auth_handler(const std::string &name,
-                                                Session_interface *session);
+  Authentication_interface_ptr get_auth_handler(
+      const std::string &name, Session_interface *session) override;
   void get_authentication_mechanisms(std::vector<std::string> &auth_mech,
-                                     Client_interface &client);
+                                     Client_interface &client) override;
   void add_authentication_mechanism(
       const std::string &name, Authentication_interface::Create initiator,
       const bool allowed_only_with_secure_connection);
@@ -130,7 +132,7 @@ class Server : public Server_interface {
   void on_accept(Connection_acceptor_interface &acceptor);
   void start_client_supervision_timer(
       const chrono::duration &oldest_object_time_ms);
-  void restart_client_supervision_timer();
+  void restart_client_supervision_timer() override;
 
   bool on_check_terminated_workers();
 
