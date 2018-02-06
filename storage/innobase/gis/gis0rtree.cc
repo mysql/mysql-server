@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file gis/gis0rtree.cc
+/** @file gis/gis0rtree.cc
  InnoDB R-tree interfaces
 
  Created 2013/03/27 Allen Lai and Jimmy Yang
@@ -53,11 +52,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "trx0trx.h"
 
-/*************************************************************/ /**
- Initial split nodes info for R-tree split.
+/** Initial split nodes info for R-tree split.
  @return initialized split nodes array */
 static rtr_split_node_t *rtr_page_split_initialize_nodes(
-    /*============================*/
     mem_heap_t *heap,      /*!< in: pointer to memory heap, or NULL */
     btr_cur_t *cursor,     /*!< in: cursor at which to insert; when the
                            function returns, the cursor is positioned
@@ -128,13 +125,11 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
   return split_node_array;
 }
 
-/**********************************************************************/ /**
- Builds a Rtree node pointer out of a physical record and a page number.
+/** Builds a Rtree node pointer out of a physical record and a page number.
  Note: For Rtree, we just keep the mbr and page no field in non-leaf level
  page. It's different with Btree, Btree still keeps PK fields so far.
  @return	own: node pointer */
 dtuple_t *rtr_index_build_node_ptr(
-    /*=====================*/
     const dict_index_t *index, /*!< in: index */
     const rtr_mbr_t *mbr,      /*!< in: mbr of lower page */
     const rec_t *rec,          /*!< in: record for which to build node
@@ -192,11 +187,9 @@ dtuple_t *rtr_index_build_node_ptr(
   return (tuple);
 }
 
-/**************************************************************/ /**
- In-place update the mbr field of a spatial index row.
+/** In-place update the mbr field of a spatial index row.
  @return true if update is successful */
 static bool rtr_update_mbr_field_in_place(
-    /*==========================*/
     dict_index_t *index, /*!< in: spatial index. */
     rec_t *rec,          /*!< in/out: rec to be modified.*/
     ulint *offsets,      /*!< in/out: offsets on rec. */
@@ -264,11 +257,9 @@ static bool rtr_update_mbr_field_in_place(
   return (true);
 }
 
-/**************************************************************/ /**
- Update the mbr field of a spatial index row.
+/** Update the mbr field of a spatial index row.
  @return true if update is successful */
 bool rtr_update_mbr_field(
-    /*=================*/
     btr_cur_t *cursor,  /*!< in/out: cursor pointed to rec.*/
     ulint *offsets,     /*!< in/out: offsets on rec. */
     btr_cur_t *cursor2, /*!< in/out: cursor pointed to rec
@@ -576,10 +567,8 @@ bool rtr_update_mbr_field(
   return (true);
 }
 
-/**************************************************************/ /**
- Update parent page's MBR and Predicate lock information during a split */
+/** Update parent page's MBR and Predicate lock information during a split */
 static void rtr_adjust_upper_level(
-    /*===================*/
     btr_cur_t *sea_cur,     /*!< in: search cursor */
     ulint flags,            /*!< in: undo logging and
                             locking flags */
@@ -736,8 +725,7 @@ static void rtr_adjust_upper_level(
   btr_page_set_next(new_page, new_page_zip, next_page_no, mtr);
 }
 
-/*************************************************************/ /**
- Moves record list to another page for rtree splitting.
+/** Moves record list to another page for rtree splitting.
 
  IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
  if new_block is a compressed leaf page in a secondary index.
@@ -746,7 +734,6 @@ static void rtr_adjust_upper_level(
 
  @return true on success; false on compression failure */
 static ibool rtr_split_page_move_rec_list(
-    /*=========================*/
     rtr_split_node_t *node_array, /*!< in: split node array. */
     int first_rec_group,          /*!< in: group number of the
                                   first rec. */
@@ -891,8 +878,7 @@ static ibool rtr_split_page_move_rec_list(
   return (true);
 }
 
-/*************************************************************/ /**
- Splits an R-tree index page to halves and inserts the tuple. It is assumed
+/** Splits an R-tree index page to halves and inserts the tuple. It is assumed
  that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
  released within this function! NOTE that the operation of this
  function must always succeed, we cannot reverse it: therefore enough
@@ -900,7 +886,6 @@ static ibool rtr_split_page_move_rec_list(
  this function is called.
  @return inserted record */
 rec_t *rtr_page_split_and_insert(
-    /*======================*/
     ulint flags,           /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,     /*!< in/out: cursor at which to insert; when the
                            function returns, the cursor is positioned
@@ -1218,14 +1203,11 @@ after_insert:
   return (rec);
 }
 
-/****************************************************************/ /**
- Following the right link to find the proper block for insert.
+/** Following the right link to find the proper block for insert.
  @return the proper block.*/
-dberr_t rtr_ins_enlarge_mbr(
-    /*================*/
-    btr_cur_t *btr_cur, /*!< in: btr cursor */
-    que_thr_t *thr,     /*!< in: query thread */
-    mtr_t *mtr)         /*!< in: mtr */
+dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, /*!< in: btr cursor */
+                            que_thr_t *thr,     /*!< in: query thread */
+                            mtr_t *mtr)         /*!< in: mtr */
 {
   dberr_t err = DB_SUCCESS;
   rtr_mbr_t new_mbr;
@@ -1290,8 +1272,7 @@ dberr_t rtr_ins_enlarge_mbr(
   return (err);
 }
 
-/*************************************************************/ /**
- Copy recs from a page to new_block of rtree.
+/** Copy recs from a page to new_block of rtree.
  Differs from page_copy_rec_list_end, because this function does not
  touch the lock table and max trx id on page or compress the page.
 
@@ -1300,7 +1281,6 @@ dberr_t rtr_ins_enlarge_mbr(
  This has to be done either within the same mini-transaction,
  or by invoking ibuf_reset_free_bits() before mtr_commit(). */
 void rtr_page_copy_rec_list_end_no_locks(
-    /*================================*/
     buf_block_t *new_block,   /*!< in: index page to copy to */
     buf_block_t *block,       /*!< in: index page of rec */
     rec_t *rec,               /*!< in: record on page */
@@ -1417,10 +1397,8 @@ void rtr_page_copy_rec_list_end_no_locks(
   *num_moved = moved;
 }
 
-/*************************************************************/ /**
- Copy recs till a specified rec from a page to new_block of rtree. */
+/** Copy recs till a specified rec from a page to new_block of rtree. */
 void rtr_page_copy_rec_list_start_no_locks(
-    /*==================================*/
     buf_block_t *new_block,   /*!< in: index page to copy to */
     buf_block_t *block,       /*!< in: index page of rec */
     rec_t *rec,               /*!< in: record on page */
@@ -1529,18 +1507,15 @@ void rtr_page_copy_rec_list_start_no_locks(
   *num_moved = moved;
 }
 
-/****************************************************************/ /**
- Check two MBRs are identical or need to be merged */
-bool rtr_merge_mbr_changed(
-    /*==================*/
-    btr_cur_t *cursor,        /*!< in/out: cursor */
-    btr_cur_t *cursor2,       /*!< in: the other cursor */
-    ulint *offsets,           /*!< in: rec offsets */
-    ulint *offsets2,          /*!< in: rec offsets */
-    rtr_mbr_t *new_mbr,       /*!< out: MBR to update */
-    buf_block_t *merge_block, /*!< in: page to merge */
-    buf_block_t *block,       /*!< in: page be merged */
-    dict_index_t *index)      /*!< in: index */
+/** Check two MBRs are identical or need to be merged */
+bool rtr_merge_mbr_changed(btr_cur_t *cursor,  /*!< in/out: cursor */
+                           btr_cur_t *cursor2, /*!< in: the other cursor */
+                           ulint *offsets,     /*!< in: rec offsets */
+                           ulint *offsets2,    /*!< in: rec offsets */
+                           rtr_mbr_t *new_mbr, /*!< out: MBR to update */
+                           buf_block_t *merge_block, /*!< in: page to merge */
+                           buf_block_t *block,       /*!< in: page be merged */
+                           dict_index_t *index)      /*!< in: index */
 {
   double *mbr;
   double mbr1[SPDIMS * 2];
@@ -1575,10 +1550,8 @@ bool rtr_merge_mbr_changed(
   return (changed);
 }
 
-/****************************************************************/ /**
- Merge 2 mbrs and update the the mbr that cursor is on. */
+/** Merge 2 mbrs and update the the mbr that cursor is on. */
 dberr_t rtr_merge_and_update_mbr(
-    /*=====================*/
     btr_cur_t *cursor,        /*!< in/out: cursor */
     btr_cur_t *cursor2,       /*!< in: the other cursor */
     ulint *offsets,           /*!< in: rec offsets */
@@ -1612,10 +1585,8 @@ dberr_t rtr_merge_and_update_mbr(
   return (err);
 }
 
-/*************************************************************/ /**
- Deletes on the upper level the node pointer to a page. */
+/** Deletes on the upper level the node pointer to a page. */
 void rtr_node_ptr_delete(
-    /*================*/
     dict_index_t *index, /*!< in: index tree */
     btr_cur_t *cursor,   /*!< in: search cursor, contains information
                          about parent nodes in search */
@@ -1634,11 +1605,9 @@ void rtr_node_ptr_delete(
   }
 }
 
-/**************************************************************/ /**
- Check whether a Rtree page is child of a parent page
+/** Check whether a Rtree page is child of a parent page
  @return true if there is child/parent relationship */
 bool rtr_check_same_block(
-    /*================*/
     dict_index_t *index,  /*!< in: index tree */
     btr_cur_t *cursor,    /*!< in/out: position at the parent entry
                           pointing to the child if successful */
@@ -1666,11 +1635,9 @@ bool rtr_check_same_block(
   return (false);
 }
 
-/****************************************************************/ /**
- Calculate the area increased for a new record
+/** Calculate the area increased for a new record
  @return area increased */
 double rtr_rec_cal_increase(
-    /*=================*/
     const dtuple_t *dtuple, /*!< in: data tuple to insert, which
                             cause area increase */
     const rec_t *rec,       /*!< in: physical record which differs from

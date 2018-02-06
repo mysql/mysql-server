@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0quiesce.cc
+/** @file row/row0quiesce.cc
  Quiesce a tablespace.
 
  Created 2012-02-08 by Sunny Bains.
@@ -44,12 +43,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 #include "trx0purge.h"
 
-/*********************************************************************/ /**
- Write the meta data (index user fields) config file.
+/** Write the meta data (index user fields) config file.
  @return DB_SUCCESS or error code. */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_quiesce_write_index_fields(
-        /*===========================*/
         const dict_index_t *index, /*!< in: write the meta data for
                                    this index */
         FILE *file,                /*!< in: file to write to */
@@ -165,12 +162,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   return (err);
 }
 
-/*********************************************************************/ /**
- Write the meta data config file index information.
+/** Write the meta data config file index information.
  @return DB_SUCCESS or error code. */
 static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     row_quiesce_write_indexes(
-        /*======================*/
         const dict_table_t *table, /*!< in: write the meta data for
                                    this table */
         FILE *file,                /*!< in: file to write to */
@@ -229,13 +224,11 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   return (err);
 }
 
-/*********************************************************************/ /**
- Write the meta data (table columns) config file. Serialise the contents of
+/** Write the meta data (table columns) config file. Serialise the contents of
  dict_col_t structure, along with the column name. All fields are serialized
  as ib_uint32_t.
  @return DB_SUCCESS or error code. */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_table(
-    /*====================*/
     const dict_table_t *table, /*!< in: write the meta data for
                                this table */
     FILE *file,                /*!< in: file to write to */
@@ -305,11 +298,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_table(
   return (DB_SUCCESS);
 }
 
-/*********************************************************************/ /**
- Write the meta data config file header.
+/** Write the meta data config file header.
  @return DB_SUCCESS or error code. */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_header(
-    /*=====================*/
     const dict_table_t *table, /*!< in: write the meta data for
                                this table */
     FILE *file,                /*!< in: file to write to */
@@ -424,14 +415,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_header(
   return (DB_SUCCESS);
 }
 
-/*********************************************************************/ /**
- Write the table meta data after quiesce.
+/** Write the table meta data after quiesce.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_cfg(
-    /*==================*/
-    dict_table_t *table, /*!< in: write the meta data for
-                                 this table */
-    THD *thd)            /*!< in/out: session */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_cfg(dict_table_t *table, /*!< in: write the meta data for
+                                                       this table */
+                          THD *thd)            /*!< in/out: session */
 {
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
@@ -642,11 +631,9 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   return (err);
 }
 
-/*********************************************************************/ /**
- Check whether a table has an FTS index defined on it.
+/** Check whether a table has an FTS index defined on it.
  @return true if an FTS index exists on the table */
 static bool row_quiesce_table_has_fts_index(
-    /*============================*/
     const dict_table_t *table) /*!< in: quiesce this table */
 {
   bool exists = false;
@@ -666,12 +653,9 @@ static bool row_quiesce_table_has_fts_index(
   return (exists);
 }
 
-/*********************************************************************/ /**
- Quiesce the tablespace that the table resides in. */
-void row_quiesce_table_start(
-    /*====================*/
-    dict_table_t *table, /*!< in: quiesce this table */
-    trx_t *trx)          /*!< in/out: transaction/session */
+/** Quiesce the tablespace that the table resides in. */
+void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
+                             trx_t *trx) /*!< in/out: transaction/session */
 {
   ut_a(trx->mysql_thd != 0);
   ut_a(srv_n_purge_threads > 0);
@@ -729,10 +713,8 @@ void row_quiesce_table_start(
   ut_a(err == DB_SUCCESS);
 }
 
-/*********************************************************************/ /**
- Cleanup after table quiesce. */
+/** Cleanup after table quiesce. */
 void row_quiesce_table_complete(
-    /*=======================*/
     dict_table_t *table, /*!< in: quiesce this table */
     trx_t *trx)          /*!< in/out: transaction/session */
 {
@@ -784,11 +766,9 @@ void row_quiesce_table_complete(
   ut_a(err == DB_SUCCESS);
 }
 
-/*********************************************************************/ /**
- Set a table's quiesce state.
+/** Set a table's quiesce state.
  @return DB_SUCCESS or error code. */
 dberr_t row_quiesce_set_state(
-    /*==================*/
     dict_table_t *table, /*!< in: quiesce this table */
     ib_quiesce_t state,  /*!< in: quiesce state to set */
     trx_t *trx)          /*!< in/out: transaction */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************/ /**
- @file ha/ha0ha.cc
+/** @file ha/ha0ha.cc
  The hash table with external chains
 
  Created 8/22/1994 Heikki Tuuri
@@ -48,19 +47,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const ulint MAX_N_POINTERS = UNIV_PAGE_SIZE_MAX / REC_N_NEW_EXTRA_BYTES;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
-/*************************************************************/ /**
- Creates a hash table with at least n array cells.  The actual number
+/** Creates a hash table with at least n array cells.  The actual number
  of cells is chosen to be a prime number slightly bigger than n.
  @return own: created table */
-hash_table_t *ib_create(
-    /*======*/
-    ulint n,       /*!< in: number of array cells */
-    latch_id_t id, /*!< in: latch ID */
-    ulint n_sync_obj,
-    /*!< in: number of mutexes to protect the
-    hash table: must be a power of 2, or 0 */
-    ulint type) /*!< in: type of datastructure for which
-                MEM_HEAP_FOR_PAGE_HASH */
+hash_table_t *ib_create(ulint n,       /*!< in: number of array cells */
+                        latch_id_t id, /*!< in: latch ID */
+                        ulint n_sync_obj,
+                        /*!< in: number of mutexes to protect the
+                        hash table: must be a power of 2, or 0 */
+                        ulint type) /*!< in: type of datastructure for which
+                                    MEM_HEAP_FOR_PAGE_HASH */
 {
   hash_table_t *table;
 
@@ -144,11 +140,8 @@ hash_table_t *ib_recreate(hash_table_t *table, ulint n) {
   return (new_table);
 }
 
-/*************************************************************/ /**
- Empties a hash table and frees the memory heaps. */
-void ha_clear(
-    /*=====*/
-    hash_table_t *table) /*!< in, own: hash table */
+/** Empties a hash table and frees the memory heaps. */
+void ha_clear(hash_table_t *table) /*!< in, own: hash table */
 {
   ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
   ut_ad(!table->adaptive || btr_search_own_all(RW_LOCK_X));
@@ -193,14 +186,12 @@ void ha_clear(
   }
 }
 
-/*************************************************************/ /**
- Inserts an entry into a hash table. If an entry with the same fold number
+/** Inserts an entry into a hash table. If an entry with the same fold number
  is found, its node is updated to point to the new data, and no new node
  is inserted. If btr_search_enabled is set to FALSE, we will only allow
  updating existing nodes, but no new node is allowed to be added.
  @return true if succeed, false if no more memory could be allocated */
 ibool ha_insert_for_fold_func(
-    /*====================*/
     hash_table_t *table, /*!< in: hash table */
     ulint fold,          /*!< in: folded value of data; if a node with
                          the same fold value already exists, it is
@@ -311,12 +302,9 @@ static void ha_btr_search_latch_x_locked(const hash_table_t *table) {
 }
 #endif /* UNIV_DEBUG */
 
-/***********************************************************/ /**
- Deletes a hash node. */
-void ha_delete_hash_node(
-    /*================*/
-    hash_table_t *table, /*!< in: hash table */
-    ha_node_t *del_node) /*!< in: node to be deleted */
+/** Deletes a hash node. */
+void ha_delete_hash_node(hash_table_t *table, /*!< in: hash table */
+                         ha_node_t *del_node) /*!< in: node to be deleted */
 {
   ut_ad(table);
   ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
@@ -333,12 +321,10 @@ void ha_delete_hash_node(
   HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
-/*********************************************************/ /**
- Looks for an element when we know the pointer to the data, and updates
+/** Looks for an element when we know the pointer to the data, and updates
  the pointer to data, if found.
  @return true if found */
 ibool ha_search_and_update_if_found_func(
-    /*===============================*/
     hash_table_t *table, /*!< in/out: hash table */
     ulint fold,          /*!< in: folded value of the searched data */
     const rec_t *data,   /*!< in: pointer to the data */
@@ -383,14 +369,11 @@ ibool ha_search_and_update_if_found_func(
   return (FALSE);
 }
 
-/*****************************************************************/ /**
- Removes from the chain determined by fold all nodes whose data pointer
+/** Removes from the chain determined by fold all nodes whose data pointer
  points to the page given. */
-void ha_remove_all_nodes_to_page(
-    /*========================*/
-    hash_table_t *table, /*!< in: hash table */
-    ulint fold,          /*!< in: fold value */
-    const page_t *page)  /*!< in: buffer page */
+void ha_remove_all_nodes_to_page(hash_table_t *table, /*!< in: hash table */
+                                 ulint fold,          /*!< in: fold value */
+                                 const page_t *page)  /*!< in: buffer page */
 {
   ha_node_t *node;
 
@@ -430,14 +413,11 @@ void ha_remove_all_nodes_to_page(
 }
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-/*************************************************************/ /**
- Validates a given range of the cells in hash table.
+/** Validates a given range of the cells in hash table.
  @return true if ok */
-ibool ha_validate(
-    /*========*/
-    hash_table_t *table, /*!< in: hash table */
-    ulint start_index,   /*!< in: start index */
-    ulint end_index)     /*!< in: end index */
+ibool ha_validate(hash_table_t *table, /*!< in: hash table */
+                  ulint start_index,   /*!< in: start index */
+                  ulint end_index)     /*!< in: end index */
 {
   ibool ok = TRUE;
   ulint i;
@@ -471,12 +451,9 @@ ibool ha_validate(
 }
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
-/*************************************************************/ /**
- Prints info of a hash table. */
-void ha_print_info(
-    /*==========*/
-    FILE *file,          /*!< in: file where to print */
-    hash_table_t *table) /*!< in: hash table */
+/** Prints info of a hash table. */
+void ha_print_info(FILE *file,          /*!< in: file where to print */
+                   hash_table_t *table) /*!< in: hash table */
 {
 #ifdef UNIV_DEBUG
 /* Some of the code here is disabled for performance reasons in production

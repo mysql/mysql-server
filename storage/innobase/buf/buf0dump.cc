@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf0dump.cc
+/** @file buf/buf0dump.cc
  Implements a buffer pool dump/load.
 
  Created April 08, 2011 Vasil Dimov
@@ -77,32 +76,25 @@ typedef ib_uint64_t buf_dump_t;
 #define BUF_DUMP_SPACE(a) static_cast<space_id_t>((a) >> 32)
 #define BUF_DUMP_PAGE(a) static_cast<page_no_t>((a)&0xFFFFFFFFUL)
 
-/*****************************************************************/ /**
- Wakes up the buffer pool dump/load thread and instructs it to start
+/** Wakes up the buffer pool dump/load thread and instructs it to start
  a dump. This function is called by MySQL code via buffer_pool_dump_now()
  and it should return immediately because the whole MySQL is frozen during
  its execution. */
-void buf_dump_start()
-/*============*/
-{
+void buf_dump_start() {
   buf_dump_should_start = TRUE;
   os_event_set(srv_buf_dump_event);
 }
 
-/*****************************************************************/ /**
- Wakes up the buffer pool dump/load thread and instructs it to start
+/** Wakes up the buffer pool dump/load thread and instructs it to start
  a load. This function is called by MySQL code via buffer_pool_load_now()
  and it should return immediately because the whole MySQL is frozen during
  its execution. */
-void buf_load_start()
-/*============*/
-{
+void buf_load_start() {
   buf_load_should_start = TRUE;
   os_event_set(srv_buf_dump_event);
 }
 
-/*****************************************************************/ /**
- Sets the global variable that feeds MySQL's innodb_buffer_pool_dump_status
+/** Sets the global variable that feeds MySQL's innodb_buffer_pool_dump_status
  to the specified string. The format and the following parameters are the
  same as the ones used for printf(3). The value of this variable can be
  retrieved by:
@@ -111,7 +103,6 @@ void buf_load_start()
  or by:
  SHOW STATUS LIKE 'innodb_buffer_pool_dump_status'; */
 static MY_ATTRIBUTE((format(printf, 2, 3))) void buf_dump_status(
-    /*============*/
     enum status_severity severity, /*!< in: status severity */
     const char *fmt,               /*!< in: format */
     ...)                           /*!< in: extra parameters according
@@ -140,8 +131,7 @@ static MY_ATTRIBUTE((format(printf, 2, 3))) void buf_dump_status(
   va_end(ap);
 }
 
-/*****************************************************************/ /**
- Sets the global variable that feeds MySQL's innodb_buffer_pool_load_status
+/** Sets the global variable that feeds MySQL's innodb_buffer_pool_load_status
  to the specified string. The format and the following parameters are the
  same as the ones used for printf(3). The value of this variable can be
  retrieved by:
@@ -150,7 +140,6 @@ static MY_ATTRIBUTE((format(printf, 2, 3))) void buf_dump_status(
  or by:
  SHOW STATUS LIKE 'innodb_buffer_pool_load_status'; */
 static MY_ATTRIBUTE((format(printf, 2, 3))) void buf_load_status(
-    /*============*/
     enum status_severity severity, /*!< in: status severity */
     const char *fmt,               /*!< in: format */
     ...)                           /*!< in: extra parameters according to fmt */
@@ -441,15 +430,12 @@ void buf_load_throttle_if_needed(ulint *last_check_time,
   *last_activity_count = srv_get_activity_count();
 }
 
-/*****************************************************************/ /**
- Perform a buffer pool load from the file specified by
+/** Perform a buffer pool load from the file specified by
  innodb_buffer_pool_filename. If any errors occur then the value of
  innodb_buffer_pool_load_status will be set accordingly, see buf_load_status().
  The dump filename can be specified by (relative to srv_data_home):
  SET GLOBAL innodb_buffer_pool_filename='filename'; */
-static void buf_load()
-/*======*/
-{
+static void buf_load() {
   char full_filename[OS_FILE_MAX_PATH];
   char now[32];
   FILE *f;
@@ -681,15 +667,10 @@ static void buf_load()
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 }
 
-/*****************************************************************/ /**
- Aborts a currently running buffer pool load. This function is called by
+/** Aborts a currently running buffer pool load. This function is called by
  MySQL code via buffer_pool_load_abort() and it should return immediately
  because the whole MySQL is frozen during its execution. */
-void buf_load_abort()
-/*============*/
-{
-  buf_load_abort_flag = TRUE;
-}
+void buf_load_abort() { buf_load_abort_flag = TRUE; }
 
 /** This is the main thread for buffer pool dump/load. It waits for an
 event and when waked up either performs a dump or load and sleeps

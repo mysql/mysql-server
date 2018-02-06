@@ -31,8 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf0buf.cc
+/** @file buf/buf0buf.cc
  The database buffer buf_pool
 
  Created 11/5/1995 Heikki Tuuri
@@ -354,13 +353,10 @@ static void buf_pool_register_chunk(buf_chunk_t *chunk) {
       buf_pool_chunk_map_t::value_type(chunk->blocks->frame, chunk));
 }
 
-/********************************************************************/ /**
- Gets the smallest oldest_modification lsn for any page in the pool. Returns
+/** Gets the smallest oldest_modification lsn for any page in the pool. Returns
  zero if all modified pages have been flushed to disk.
  @return oldest modification in pool, zero if none */
-lsn_t buf_pool_get_oldest_modification(void)
-/*==================================*/
-{
+lsn_t buf_pool_get_oldest_modification(void) {
   lsn_t lsn = 0;
   lsn_t oldest_lsn = 0;
 
@@ -406,10 +402,8 @@ lsn_t buf_pool_get_oldest_modification(void)
   return (oldest_lsn);
 }
 
-/********************************************************************/ /**
- Get total buffer pool statistics. */
+/** Get total buffer pool statistics. */
 void buf_get_total_list_len(
-    /*===================*/
     ulint *LRU_len,        /*!< out: length of all LRU lists */
     ulint *free_len,       /*!< out: length of all free lists */
     ulint *flush_list_len) /*!< out: length of all flush lists */
@@ -431,10 +425,8 @@ void buf_get_total_list_len(
   }
 }
 
-/********************************************************************/ /**
- Get total list size in bytes from all buffer pools. */
+/** Get total list size in bytes from all buffer pools. */
 void buf_get_total_list_size_in_bytes(
-    /*=============================*/
     buf_pools_list_size_t *buf_pools_list_size) /*!< out: list sizes
                                                 in all buffer pools */
 {
@@ -454,10 +446,8 @@ void buf_get_total_list_size_in_bytes(
   }
 }
 
-/********************************************************************/ /**
- Get total buffer pool statistics. */
+/** Get total buffer pool statistics. */
 void buf_get_total_stat(
-    /*===============*/
     buf_pool_stat_t *tot_stat) /*!< out: buffer pool stats */
 {
   ulint i;
@@ -484,11 +474,9 @@ void buf_get_total_stat(
   }
 }
 
-/********************************************************************/ /**
- Allocates a buffer block.
+/** Allocates a buffer block.
  @return own: the allocated block, in state BUF_BLOCK_MEMORY */
 buf_block_t *buf_block_alloc(
-    /*============*/
     buf_pool_t *buf_pool) /*!< in/out: buffer pool instance,
                           or NULL for round-robin selection
                           of the buffer pool */
@@ -657,14 +645,12 @@ void buf_page_print(const byte *read_buf, const page_size_t &page_size,
 extern mysql_pfs_key_t buffer_block_mutex_key;
 #endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
-/********************************************************************/ /**
- This function registers mutexes and rwlocks in buffer blocks with
+/** This function registers mutexes and rwlocks in buffer blocks with
  performance schema. If PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER is
  defined to be a value less than chunk->size, then only mutexes
  and rwlocks in the first PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER
  blocks are registered. */
 static void pfs_register_buffer_block(
-    /*======================*/
     buf_chunk_t *chunk) /*!< in/out: chunk of buffers */
 {
   buf_block_t *block;
@@ -716,10 +702,8 @@ static void pfs_register_buffer_block(
 }
 #endif /* PFS_GROUP_BUFFER_SYNC */
 
-/********************************************************************/ /**
- Initializes a buffer control block when the buf_pool is created. */
+/** Initializes a buffer control block when the buf_pool is created. */
 static void buf_block_init(
-    /*===========*/
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_block_t *block,   /*!< in: pointer to control block */
     byte *frame)          /*!< in: pointer to buffer frame */
@@ -785,12 +769,10 @@ static void buf_block_init(
   ut_ad(rw_lock_validate(&(block->lock)));
 }
 
-/********************************************************************/ /**
- Allocates a chunk of buffer frames. If called for an existing buf_pool, its
+/** Allocates a chunk of buffer frames. If called for an existing buf_pool, its
  free_list_mutex must be locked.
  @return chunk, or NULL on failure */
 static buf_chunk_t *buf_chunk_init(
-    /*===========*/
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_chunk_t *chunk,   /*!< out: chunk of buffers */
     ulint mem_size)       /*!< in: requested size in bytes */
@@ -882,12 +864,10 @@ static buf_chunk_t *buf_chunk_init(
 }
 
 #ifdef UNIV_DEBUG
-/*********************************************************************/ /**
- Finds a block in the given buffer chunk that points to a
+/** Finds a block in the given buffer chunk that points to a
  given compressed page.
  @return buffer block pointing to the compressed page, or NULL */
 static buf_block_t *buf_chunk_contains_zip(
-    /*===================*/
     buf_chunk_t *chunk, /*!< in: chunk being checked */
     const void *data)   /*!< in: pointer to compressed page */
 {
@@ -929,11 +909,9 @@ buf_block_t *buf_pool_contains_zip(buf_pool_t *buf_pool, const void *data) {
 }
 #endif /* UNIV_DEBUG */
 
-/*********************************************************************/ /**
- Checks that all file pages in the buffer chunk are in a replaceable state.
+/** Checks that all file pages in the buffer chunk are in a replaceable state.
  @return address of a non-free block, or NULL if all freed */
 static const buf_block_t *buf_chunk_not_freed(
-    /*================*/
     buf_chunk_t *chunk) /*!< in: chunk being checked */
 {
   buf_block_t *block;
@@ -975,12 +953,9 @@ static const buf_block_t *buf_chunk_not_freed(
   return (NULL);
 }
 
-/********************************************************************/ /**
- Set buffer pool size variables
+/** Set buffer pool size variables
  Note: It's safe without mutex protection because of startup only. */
-static void buf_pool_set_sizes(void)
-/*====================*/
-{
+static void buf_pool_set_sizes(void) {
   ulint i;
   ulint curr_size = 0;
 
@@ -1200,11 +1175,9 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   buf_pool->allocator.~ut_allocator();
 }
 
-/********************************************************************/ /**
- Creates the buffer pool.
+/** Creates the buffer pool.
  @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
 dberr_t buf_pool_init(
-    /*==========*/
     ulint total_size,  /*!< in: size of the total pool in bytes */
     ulint n_instances) /*!< in: number of instances */
 {
@@ -1248,12 +1221,9 @@ dberr_t buf_pool_init(
   return (DB_SUCCESS);
 }
 
-/********************************************************************/ /**
- Frees the buffer pool at shutdown.  This must not be invoked before
+/** Frees the buffer pool at shutdown.  This must not be invoked before
  freeing all mutexes. */
-void buf_pool_free(
-    /*==========*/
-    ulint n_instances) /*!< in: numbere of instances to free */
+void buf_pool_free(ulint n_instances) /*!< in: numbere of instances to free */
 {
   UT_DELETE(buf_stat_per_index);
 
@@ -2216,11 +2186,8 @@ void buf_resize_thread() {
   my_thread_end();
 }
 
-/********************************************************************/ /**
- Clears the adaptive hash index on all pages in the buffer pool. */
-void buf_pool_clear_hash_index(void)
-/*===========================*/
-{
+/** Clears the adaptive hash index on all pages in the buffer pool. */
+void buf_pool_clear_hash_index(void) {
   ulint p;
 
   ut_ad(btr_search_own_all(RW_LOCK_X));
@@ -2886,12 +2853,9 @@ got_block:
   return (bpage);
 }
 
-/********************************************************************/ /**
- Initialize some fields of a control block. */
+/** Initialize some fields of a control block. */
 UNIV_INLINE
-void buf_block_init_low(
-    /*===============*/
-    buf_block_t *block) /*!< in: block to init */
+void buf_block_init_low(buf_block_t *block) /*!< in: block to init */
 {
   /* No adaptive hash index entries may point to a previously
   unused (and now freshly allocated) block. */
@@ -2907,13 +2871,10 @@ void buf_block_init_low(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/********************************************************************/ /**
- Decompress a block.
+/** Decompress a block.
  @return true if successful */
-ibool buf_zip_decompress(
-    /*===============*/
-    buf_block_t *block, /*!< in/out: block */
-    ibool check)        /*!< in: TRUE=verify the page checksum */
+ibool buf_zip_decompress(buf_block_t *block, /*!< in/out: block */
+                         ibool check) /*!< in: TRUE=verify the page checksum */
 {
   const byte *frame = block->page.zip.data;
 
@@ -3017,13 +2978,11 @@ buf_block_t *buf_block_from_ahi(const byte *ptr) {
   return (block);
 }
 
-/********************************************************************/ /**
- Find out if a pointer belongs to a buf_block_t. It can be a pointer to
+/** Find out if a pointer belongs to a buf_block_t. It can be a pointer to
  the buf_block_t itself or a member of it. This functions checks one of
  the buffer pool instances.
  @return true if ptr belongs to a buf_block_t struct */
 static ibool buf_pointer_is_block_field_instance(
-    /*================================*/
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     const void *ptr)      /*!< in: pointer not dereferenced */
 {
@@ -3045,11 +3004,9 @@ static ibool buf_pointer_is_block_field_instance(
   return (FALSE);
 }
 
-/********************************************************************/ /**
- Find out if a buffer block was created by buf_chunk_init().
+/** Find out if a buffer block was created by buf_chunk_init().
  @return true if "block" has been added to buf_pool->free by buf_chunk_init() */
 static ibool buf_block_is_uncompressed(
-    /*======================*/
     buf_pool_t *buf_pool,     /*!< in: buffer pool instance */
     const buf_block_t *block) /*!< in: pointer to block,
                               not dereferenced */
@@ -3063,12 +3020,9 @@ static ibool buf_block_is_uncompressed(
 }
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-/********************************************************************/ /**
- Return true if probe is enabled.
+/** Return true if probe is enabled.
  @return true if probe enabled. */
-static bool buf_debug_execute_is_force_flush()
-/*==============================*/
-{
+static bool buf_debug_execute_is_force_flush() {
   DBUG_EXECUTE_IF("ib_buf_force_flush", return (true););
 
   /* This is used during queisce testing, we want to ensure maximum
@@ -3690,12 +3644,10 @@ got_block:
   return (fix_block);
 }
 
-/********************************************************************/ /**
- This is the general function used to get optimistic access to a database
+/** This is the general function used to get optimistic access to a database
  page.
  @return true if success */
 ibool buf_page_optimistic_get(
-    /*====================*/
     ulint rw_latch,           /*!< in: RW_S_LATCH, RW_X_LATCH */
     buf_block_t *block,       /*!< in: guessed buffer block */
     ib_uint64_t modify_clock, /*!< in: modify clock value */
@@ -3802,13 +3754,11 @@ ibool buf_page_optimistic_get(
   return (TRUE);
 }
 
-/********************************************************************/ /**
- This is used to get access to a known database page, when no waiting can be
+/** This is used to get access to a known database page, when no waiting can be
  done. For example, if a search in an adaptive hash index leads us to this
  frame.
  @return true if success */
 ibool buf_page_get_known_nowait(
-    /*======================*/
     ulint rw_latch,     /*!< in: RW_S_LATCH, RW_X_LATCH */
     buf_block_t *block, /*!< in: the known page */
     ulint mode,         /*!< in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
@@ -3993,12 +3943,9 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
   return (block);
 }
 
-/********************************************************************/ /**
- Initialize some fields of a control block. */
+/** Initialize some fields of a control block. */
 UNIV_INLINE
-void buf_page_init_low(
-    /*==============*/
-    buf_page_t *bpage) /*!< in: block to init */
+void buf_page_init_low(buf_page_t *bpage) /*!< in: block to init */
 {
   bpage->flush_type = BUF_FLUSH_LRU;
   bpage->io_fix = BUF_IO_NONE;
@@ -4437,12 +4384,10 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
   return (block);
 }
 
-/********************************************************************/ /**
- Monitor the buffer page read/write activity, and increment corresponding
+/** Monitor the buffer page read/write activity, and increment corresponding
  counter value if MONITOR_MODULE_BUF_PAGE (module_buf_page) module is
  enabled. */
 static void buf_page_monitor(
-    /*=============*/
     const buf_page_t *bpage, /*!< in: pointer to the block */
     enum buf_io_fix io_type) /*!< in: io_fix types */
 {
@@ -4936,13 +4881,10 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
   buf_refresh_io_stats(buf_pool);
 }
 
-/*********************************************************************/ /**
- Invalidates the file pages in the buffer pool when an archive recovery is
+/** Invalidates the file pages in the buffer pool when an archive recovery is
  completed. All the file pages buffered must be in a replaceable state when
  this function is called: not latched and not modified. */
-void buf_pool_invalidate(void)
-/*=====================*/
-{
+void buf_pool_invalidate(void) {
   ulint i;
 
   for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -5156,12 +5098,9 @@ static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
   return (TRUE);
 }
 
-/*********************************************************************/ /**
- Validates the buffer buf_pool data structure.
+/** Validates the buffer buf_pool data structure.
  @return true */
-ibool buf_validate(void)
-/*==============*/
-{
+ibool buf_validate(void) {
   ulint i;
 
   for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -5260,11 +5199,8 @@ static void buf_print_instance(buf_pool_t *buf_pool) {
   ut_a(buf_pool_validate_instance(buf_pool));
 }
 
-/*********************************************************************/ /**
- Prints info of the buffer buf_pool data structure. */
-void buf_print(void)
-/*===========*/
-{
+/** Prints info of the buffer buf_pool data structure. */
+void buf_print(void) {
   ulint i;
 
   for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -5359,12 +5295,9 @@ static ulint buf_get_latched_pages_number_instance(buf_pool_t *buf_pool) {
   return (fixed_pages_number);
 }
 
-/*********************************************************************/ /**
- Returns the number of latched pages in all the buffer pools.
+/** Returns the number of latched pages in all the buffer pools.
  @return number of latched pages */
-ulint buf_get_latched_pages_number(void)
-/*==============================*/
-{
+ulint buf_get_latched_pages_number(void) {
   ulint i;
   ulint total_latched_pages = 0;
 
@@ -5381,12 +5314,9 @@ ulint buf_get_latched_pages_number(void)
 
 #endif /* UNIV_DEBUG */
 
-/*********************************************************************/ /**
- Returns the number of pending buf pool read ios.
+/** Returns the number of pending buf pool read ios.
  @return number of pending read I/O operations */
-ulint buf_get_n_pending_read_ios(void)
-/*============================*/
-{
+ulint buf_get_n_pending_read_ios(void) {
   ulint pend_ios = 0;
 
   os_rmb;
@@ -5397,13 +5327,10 @@ ulint buf_get_n_pending_read_ios(void)
   return (pend_ios);
 }
 
-/*********************************************************************/ /**
- Returns the ratio in percents of modified pages in the buffer pool /
+/** Returns the ratio in percents of modified pages in the buffer pool /
  database pages in the buffer pool.
  @return modified page percentage ratio */
-double buf_get_modified_ratio_pct(void)
-/*============================*/
-{
+double buf_get_modified_ratio_pct(void) {
   double ratio;
   ulint lru_len = 0;
   ulint free_len = 0;
@@ -5418,10 +5345,8 @@ double buf_get_modified_ratio_pct(void)
   return (ratio);
 }
 
-/*******************************************************************/ /**
- Aggregates a pool stats information with the total buffer pool stats  */
+/** Aggregates a pool stats information with the total buffer pool stats  */
 static void buf_stats_aggregate_pool_info(
-    /*==========================*/
     buf_pool_info_t *total_info,      /*!< in/out: the buffer pool
                                       info to store aggregated
                                       result */
@@ -5471,12 +5396,10 @@ static void buf_stats_aggregate_pool_info(
   total_info->unzip_sum += pool_info->unzip_sum;
   total_info->unzip_cur += pool_info->unzip_cur;
 }
-/*******************************************************************/ /**
- Collect buffer pool stats information for a buffer pool. Also
+/** Collect buffer pool stats information for a buffer pool. Also
  record aggregated stats if there are more than one buffer pool
  in the server */
 void buf_stats_get_pool_info(
-    /*====================*/
     buf_pool_t *buf_pool,           /*!< in: buffer pool */
     ulint pool_id,                  /*!< in: buffer pool ID */
     buf_pool_info_t *all_pool_info) /*!< in/out: buffer pool info
@@ -5596,10 +5519,8 @@ void buf_stats_get_pool_info(
   buf_refresh_io_stats(buf_pool);
 }
 
-/*********************************************************************/ /**
- Prints info of the buffer i/o. */
+/** Prints info of the buffer i/o. */
 static void buf_print_io_instance(
-    /*==================*/
     buf_pool_info_t *pool_info, /*!< in: buffer pool info */
     FILE *file)                 /*!< in/out: buffer where to print */
 {
@@ -5674,11 +5595,8 @@ static void buf_print_io_instance(
           pool_info->io_cur, pool_info->unzip_sum, pool_info->unzip_cur);
 }
 
-/*********************************************************************/ /**
- Prints info of the buffer i/o. */
-void buf_print_io(
-    /*=========*/
-    FILE *file) /*!< in/out: buffer where to print */
+/** Prints info of the buffer i/o. */
+void buf_print_io(FILE *file) /*!< in/out: buffer where to print */
 {
   ulint i;
   buf_pool_info_t *pool_info;
@@ -5738,11 +5656,8 @@ void buf_print_io(
   ut_free(pool_info);
 }
 
-/**********************************************************************/ /**
- Refreshes the statistics used to print per-second averages. */
-void buf_refresh_io_stats_all(void)
-/*==========================*/
-{
+/** Refreshes the statistics used to print per-second averages. */
+void buf_refresh_io_stats_all(void) {
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
 
@@ -5752,12 +5667,9 @@ void buf_refresh_io_stats_all(void)
   }
 }
 
-/**********************************************************************/ /**
- Check if all pages in all buffer pools are in a replacable state.
+/** Check if all pages in all buffer pools are in a replacable state.
  @return false if not */
-ibool buf_all_freed(void)
-/*===============*/
-{
+ibool buf_all_freed(void) {
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
 
@@ -5802,7 +5714,6 @@ Gets the current length of the free list of buffer blocks.
 @return length of the free list */
 ulint
 buf_get_free_list_len(void)
-/*=======================*/
 {
 	ulint	len;
 

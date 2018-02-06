@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/fsp0fsp.h
+/** @file include/fsp0fsp.h
  File space management
 
  Created 12/18/1995 Heikki Tuuri
@@ -329,19 +328,15 @@ const ulint XDES_FRAG_N_USED = 2;
 
 /* @} */
 
-/**********************************************************************/ /**
- Initializes the file space system. */
+/** Initializes the file space system. */
 void fsp_init(void);
-/*==========*/
 
-/**********************************************************************/ /**
- Gets the size of the system tablespace from the tablespace header.  If
+/** Gets the size of the system tablespace from the tablespace header.  If
  we do not have an auto-extending data file, this should be equal to
  the size of the data files.  If there is an auto-extending data file,
  this can be smaller.
  @return size in pages */
 page_no_t fsp_header_get_tablespace_size(void);
-/*================================*/
 
 /** Calculate the number of pages to extend a datafile.
 We extend single-table and general tablespaces first one extent at a time,
@@ -367,11 +362,9 @@ page_no_t fsp_get_extent_size_in_pages(const page_size_t &page_size) {
                                  page_size.physical()));
 }
 
-/**********************************************************************/ /**
- Reads the space id from the first page of a tablespace.
+/** Reads the space id from the first page of a tablespace.
  @return space id, ULINT UNDEFINED if error */
 space_id_t fsp_header_get_space_id(
-    /*====================*/
     const page_t *page); /*!< in: first page of a tablespace */
 
 /** Read a tablespace header field.
@@ -414,12 +407,10 @@ bool fsp_header_check_encryption_key(ulint fsp_flags, page_t *page);
 @return true if valid, false if invalid. */
 bool fsp_check_tablespace_size(space_id_t space_id);
 
-/**********************************************************************/ /**
- Writes the space id and flags to a tablespace header.  The flags contain
+/** Writes the space id and flags to a tablespace header.  The flags contain
  row type, physical/compressed page size, and logical/uncompressed page
  size of the tablespace. */
 void fsp_header_init_fields(
-    /*===================*/
     page_t *page,        /*!< in/out: first page in the space */
     space_id_t space_id, /*!< in: space id */
     ulint flags);        /*!< in: tablespace flags
@@ -460,19 +451,14 @@ insert buffer tree root if space == 0.
 bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
                      bool is_boot);
 
-/**********************************************************************/ /**
- Increases the space size field of a space. */
-void fsp_header_inc_size(
-    /*================*/
-    space_id_t space_id, /*!< in: space id */
-    page_no_t size_inc,  /*!< in: size increment in pages */
-    mtr_t *mtr);         /*!< in/out: mini-transaction */
-/**********************************************************************/ /**
- Creates a new segment.
+/** Increases the space size field of a space. */
+void fsp_header_inc_size(space_id_t space_id, /*!< in: space id */
+                         page_no_t size_inc, /*!< in: size increment in pages */
+                         mtr_t *mtr);        /*!< in/out: mini-transaction */
+/** Creates a new segment.
  @return the block where the segment header is placed, x-latched, NULL
  if could not create segment because of lack of space */
 buf_block_t *fseg_create(
-    /*========*/
     space_id_t space,  /*!< in: space id */
     page_no_t page,    /*!< in: page where the segment header is
                        placed: if this is != 0, the page must belong
@@ -482,12 +468,10 @@ buf_block_t *fseg_create(
     ulint byte_offset, /*!< in: byte offset of the created
                        segment header on the page */
     mtr_t *mtr);       /*!< in/out: mini-transaction */
-/**********************************************************************/ /**
- Creates a new segment.
+/** Creates a new segment.
  @return the block where the segment header is placed, x-latched, NULL
  if could not create segment because of lack of space */
 buf_block_t *fseg_create_general(
-    /*================*/
     space_id_t space_id,        /*!< in: space id */
     page_no_t page,             /*!< in: page where the segment header is
                         placed: if this is != 0, the page must belong to another
@@ -501,17 +485,14 @@ buf_block_t *fseg_create_general(
           the inode and the other for the segment) then there is
           no need to do the check for this individual operation */
     mtr_t *mtr);                /*!< in/out: mini-transaction */
-/**********************************************************************/ /**
- Calculates the number of pages reserved by a segment, and how many pages are
+/** Calculates the number of pages reserved by a segment, and how many pages are
  currently used.
  @return number of reserved pages */
 ulint fseg_n_reserved_pages(
-    /*==================*/
     fseg_header_t *header, /*!< in: segment header */
     ulint *used,           /*!< out: number of pages used (<= reserved) */
     mtr_t *mtr);           /*!< in/out: mini-transaction */
-/**********************************************************************/ /**
- Allocates a single free page from a segment. This function implements
+/** Allocates a single free page from a segment. This function implements
  the intelligent allocation strategy which tries to minimize
  file space fragmentation.
  @param[in,out] seg_header segment header
@@ -525,8 +506,7 @@ ulint fseg_n_reserved_pages(
  @return X-latched block, or NULL if no page could be allocated */
 #define fseg_alloc_free_page(seg_header, hint, direction, mtr) \
   fseg_alloc_free_page_general(seg_header, hint, direction, FALSE, mtr, mtr)
-/**********************************************************************/ /**
- Allocates a single free page from a segment. This function implements
+/** Allocates a single free page from a segment. This function implements
  the intelligent allocation strategy which tries to minimize file space
  fragmentation.
  @retval NULL if no page could be allocated
@@ -534,7 +514,6 @@ ulint fseg_n_reserved_pages(
  (init_mtr == mtr, or the page was not previously freed in mtr)
  @retval block (not allocated or initialized) otherwise */
 buf_block_t *fseg_alloc_free_page_general(
-    /*=========================*/
     fseg_header_t *seg_header,  /*!< in/out: segment header */
     page_no_t hint,             /*!< in: hint of which page would be
                                 desirable */
@@ -611,33 +590,25 @@ been acquired by the caller who holds it for the calculation,
 @return available space in KiB */
 uintmax_t fsp_get_available_space_in_free_extents(const fil_space_t *space);
 
-/**********************************************************************/ /**
- Frees a single page of a segment. */
-void fseg_free_page(
-    /*===========*/
-    fseg_header_t *seg_header, /*!< in: segment header */
-    space_id_t space_id,       /*!< in: space id */
-    page_no_t page,            /*!< in: page offset */
-    bool ahi,                  /*!< in: whether we may need to drop
-                               the adaptive hash index */
-    mtr_t *mtr);               /*!< in/out: mini-transaction */
-/**********************************************************************/ /**
- Checks if a single page of a segment is free.
+/** Frees a single page of a segment. */
+void fseg_free_page(fseg_header_t *seg_header, /*!< in: segment header */
+                    space_id_t space_id,       /*!< in: space id */
+                    page_no_t page,            /*!< in: page offset */
+                    bool ahi,    /*!< in: whether we may need to drop
+                                 the adaptive hash index */
+                    mtr_t *mtr); /*!< in/out: mini-transaction */
+/** Checks if a single page of a segment is free.
  @return true if free */
-bool fseg_page_is_free(
-    /*==============*/
-    fseg_header_t *seg_header, /*!< in: segment header */
-    space_id_t space_id,       /*!< in: space id */
-    page_no_t page)            /*!< in: page offset */
+bool fseg_page_is_free(fseg_header_t *seg_header, /*!< in: segment header */
+                       space_id_t space_id,       /*!< in: space id */
+                       page_no_t page)            /*!< in: page offset */
     MY_ATTRIBUTE((warn_unused_result));
-/**********************************************************************/ /**
- Frees part of a segment. This function can be used to free a segment
+/** Frees part of a segment. This function can be used to free a segment
  by repeatedly calling this function in different mini-transactions.
  Doing the freeing in a single mini-transaction might result in
  too big a mini-transaction.
  @return true if freeing completed */
 ibool fseg_free_step(
-    /*===========*/
     fseg_header_t *header, /*!< in, own: segment header; NOTE: if the header
                            resides on the first page of the frag list
                            of the segment, this pointer becomes obsolete
@@ -646,12 +617,10 @@ ibool fseg_free_step(
                            the adaptive hash index */
     mtr_t *mtr)            /*!< in/out: mini-transaction */
     MY_ATTRIBUTE((warn_unused_result));
-/**********************************************************************/ /**
- Frees part of a segment. Differs from fseg_free_step because this function
+/** Frees part of a segment. Differs from fseg_free_step because this function
  leaves the header page unfreed.
  @return true if freeing completed, except the header page */
 ibool fseg_free_step_not_header(
-    /*======================*/
     fseg_header_t *header, /*!< in: segment header which must reside on
                            the first fragment page of the segment */
     bool ahi,              /*!< in: whether we may need to drop
@@ -666,22 +635,16 @@ ibool fseg_free_step_not_header(
 UNIV_INLINE
 ibool fsp_descr_page(const page_id_t &page_id, const page_size_t &page_size);
 
-/***********************************************************/ /**
- Parses a redo log record of a file page init.
+/** Parses a redo log record of a file page init.
  @return end of log record or NULL */
-byte *fsp_parse_init_file_page(
-    /*=====================*/
-    byte *ptr,           /*!< in: buffer */
-    byte *end_ptr,       /*!< in: buffer end */
-    buf_block_t *block); /*!< in: block or NULL */
+byte *fsp_parse_init_file_page(byte *ptr,           /*!< in: buffer */
+                               byte *end_ptr,       /*!< in: buffer end */
+                               buf_block_t *block); /*!< in: block or NULL */
 #ifdef UNIV_BTR_PRINT
-/*******************************************************************/ /**
- Writes info of a segment. */
-void fseg_print(
-    /*=======*/
-    fseg_header_t *header, /*!< in: segment header */
-    mtr_t *mtr);           /*!< in/out: mini-transaction */
-#endif                     /* UNIV_BTR_PRINT */
+/** Writes info of a segment. */
+void fseg_print(fseg_header_t *header, /*!< in: segment header */
+                mtr_t *mtr);           /*!< in/out: mini-transaction */
+#endif                                 /* UNIV_BTR_PRINT */
 
 /** Check whether a space id is an undo tablespace ID
 @param[in]	space_id	space id to check

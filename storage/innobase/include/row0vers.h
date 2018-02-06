@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0vers.h
+/** @file include/row0vers.h
  Row versions
 
  Created 2/6/1997 Heikki Tuuri
@@ -46,20 +45,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 // Forward declaration
 class ReadView;
 
-/*****************************************************************/ /**
- Finds out if an active transaction has inserted or modified a secondary
+/** Finds out if an active transaction has inserted or modified a secondary
  index record.
  @return 0 if committed, else the active transaction id;
  NOTE that this function can return false positives but never false
  negatives. The caller must confirm all positive results by calling
  trx_is_active() while holding lock_sys->mutex. */
 trx_t *row_vers_impl_x_locked(
-    /*===================*/
     const rec_t *rec,      /*!< in: record in a secondary index */
     dict_index_t *index,   /*!< in: the secondary index */
     const ulint *offsets); /*!< in: rec_get_offsets(rec, index) */
-/*****************************************************************/ /**
- Finds out if we must preserve a delete marked earlier version of a clustered
+/** Finds out if we must preserve a delete marked earlier version of a clustered
  index record, because it is >= the purge view.
  @param[in]	trx_id		transaction id in the version
  @param[in]	name		table name
@@ -67,19 +63,16 @@ trx_t *row_vers_impl_x_locked(
                                  clustered index record; it will also hold
                                   the latch on purge_view
  @return true if earlier version should be preserved */
-ibool row_vers_must_preserve_del_marked(
-    /*==============================*/
-    trx_id_t trx_id, const table_name_t &name, mtr_t *mtr);
+ibool row_vers_must_preserve_del_marked(trx_id_t trx_id,
+                                        const table_name_t &name, mtr_t *mtr);
 
-/*****************************************************************/ /**
- Finds out if a version of the record, where the version >= the current
+/** Finds out if a version of the record, where the version >= the current
  purge view, should have ientry as its secondary index entry. We check
  if there is any not delete marked version of the record where the trx
  id >= purge view, and the secondary index entry == ientry; exactly in
  this case we return TRUE.
  @return true if earlier version should have */
 ibool row_vers_old_has_index_entry(
-    /*=========================*/
     ibool also_curr,        /*!< in: TRUE if also rec is included in the
                           versions to search; otherwise only versions
                           prior to it are searched */
@@ -92,13 +85,11 @@ ibool row_vers_old_has_index_entry(
     roll_ptr_t roll_ptr,    /*!< in: roll_ptr for the purge record */
     trx_id_t trx_id);       /*!< in: transaction ID on the purging record */
 
-/*****************************************************************/ /**
- Constructs the version of a clustered index record which a consistent
+/** Constructs the version of a clustered index record which a consistent
  read should see. We assume that the trx id stored in rec is such that
  the consistent read should not see rec in its present version.
  @return DB_SUCCESS or DB_MISSING_HISTORY */
 dberr_t row_vers_build_for_consistent_read(
-    /*===============================*/
     const rec_t *rec,         /*!< in: record in a clustered index; the
                               caller must have a latch on the page; this
                               latch locks the top of the stack of versions
@@ -121,11 +112,9 @@ dberr_t row_vers_build_for_consistent_read(
                              it was freshly inserted afterwards */
     const dtuple_t **vrow);   /*!< out: reports virtual column info if any */
 
-/*****************************************************************/ /**
- Constructs the last committed version of a clustered index record,
+/** Constructs the last committed version of a clustered index record,
  which should be seen by a semi-consistent read. */
 void row_vers_build_for_semi_consistent_read(
-    /*====================================*/
     const rec_t *rec,         /*!< in: record in a clustered index; the
                               caller must have a latch on the page; this
                               latch locks the top of the stack of versions

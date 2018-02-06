@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -37,8 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/srv0conc.h
+/** @file include/srv0conc.h
 
  InnoDB concurrency manager header file
 
@@ -61,36 +60,27 @@ we could get a deadlock. Value of 0 will disable the concurrency check. */
 extern ulong srv_thread_concurrency;
 
 struct row_prebuilt_t;
-/*********************************************************************/ /**
- Puts an OS thread to wait if there are too many concurrent threads
+/** Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue.
  @param[in,out]	prebuilt	row prebuilt handler */
 void srv_conc_enter_innodb(row_prebuilt_t *prebuilt);
 
-/*********************************************************************/ /**
- This lets a thread enter InnoDB regardless of the number of threads inside
+/** This lets a thread enter InnoDB regardless of the number of threads inside
  InnoDB. This must be called when a thread ends a lock wait. */
 void srv_conc_force_enter_innodb(
-    /*========================*/
     trx_t *trx); /*!< in: transaction object associated with
                  the thread */
 
-/*********************************************************************/ /**
- This must be called when a thread exits InnoDB in a lock wait or at the
+/** This must be called when a thread exits InnoDB in a lock wait or at the
  end of an SQL statement. */
 void srv_conc_force_exit_innodb(
-    /*=======================*/
     trx_t *trx); /*!< in: transaction object associated with
                  the thread */
 
-/*********************************************************************/ /**
- Get the count of threads waiting inside InnoDB. */
+/** Get the count of threads waiting inside InnoDB. */
 ulint srv_conc_get_waiting_threads(void);
-/*==============================*/
 
-/*********************************************************************/ /**
- Get the count of threads active inside InnoDB. */
+/** Get the count of threads active inside InnoDB. */
 ulint srv_conc_get_active_threads(void);
-/*==============================*/
 
 #endif /* srv_conc_h */

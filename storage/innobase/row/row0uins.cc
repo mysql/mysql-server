@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0uins.cc
+/** @file row/row0uins.cc
  Fresh insert undo
 
  Created 2/25/1997 Heikki Tuuri
@@ -65,13 +64,11 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
-/***************************************************************/ /**
- Removes a clustered index record. The pcur in node was positioned on the
+/** Removes a clustered index record. The pcur in node was positioned on the
  record, now it is detached.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_ins_remove_clust_rec(
-    /*==========================*/
-    undo_node_t *node) /*!< in: undo node */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_clust_rec(undo_node_t *node) /*!< in: undo node */
 {
   btr_cur_t *btr_cur;
   ibool success;
@@ -161,11 +158,9 @@ func_exit:
   return (err);
 }
 
-/***************************************************************/ /**
- Removes a secondary index entry if found.
+/** Removes a secondary index entry if found.
  @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_ins_remove_sec_low(
-    /*========================*/
     ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                          depending on whether we wish optimistic or
                          pessimistic descent down the index tree */
@@ -251,15 +246,13 @@ func_exit_no_pcur:
   return (err);
 }
 
-/***************************************************************/ /**
- Removes a secondary index entry from the index if found. Tries first
+/** Removes a secondary index entry from the index if found. Tries first
  optimistic, then pessimistic descent down the tree.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_ins_remove_sec(
-    /*====================*/
-    dict_index_t *index, /*!< in: index */
-    dtuple_t *entry,     /*!< in: index entry to insert */
-    que_thr_t *thr)      /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_sec(dict_index_t *index, /*!< in: index */
+                            dtuple_t *entry, /*!< in: index entry to insert */
+                            que_thr_t *thr)  /*!< in: query thread */
 {
   dberr_t err;
   ulint n_tries = 0;
@@ -347,13 +340,11 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
   }
 }
 
-/***************************************************************/ /**
- Removes secondary index records.
+/** Removes secondary index records.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_ins_remove_sec_rec(
-    /*========================*/
-    undo_node_t *node, /*!< in/out: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_sec_rec(undo_node_t *node, /*!< in/out: row undo node */
+                                que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err = DB_SUCCESS;
   dict_index_t *index = node->index;
@@ -404,17 +395,14 @@ func_exit:
   return (err);
 }
 
-/***********************************************************/ /**
- Undoes a fresh insert of a row to a table. A fresh insert means that
+/** Undoes a fresh insert of a row to a table. A fresh insert means that
  the same clustered index unique key did not have any record, even delete
  marked, at the time of the insert.  InnoDB is eager in a rollback:
  if it figures out that an index record will be removed in the purge
  anyway, it will remove it in the rollback.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t row_undo_ins(
-    /*=========*/
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
+                     que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err;
   MDL_ticket *mdl = nullptr;

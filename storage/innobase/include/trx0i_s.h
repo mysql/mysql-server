@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/trx0i_s.h
+/** @file include/trx0i_s.h
  INFORMATION SCHEMA innodb_trx, innodb_locks and
  innodb_lock_waits tables cache structures and public
  functions.
@@ -167,87 +166,56 @@ INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 extern trx_i_s_cache_t *trx_i_s_cache;
 
-/*******************************************************************/ /**
- Initialize INFORMATION SCHEMA trx related cache. */
-void trx_i_s_cache_init(
-    /*===============*/
-    trx_i_s_cache_t *cache); /*!< out: cache to init */
-/*******************************************************************/ /**
- Free the INFORMATION SCHEMA trx related cache. */
-void trx_i_s_cache_free(
-    /*===============*/
-    trx_i_s_cache_t *cache); /*!< in/out: cache to free */
+/** Initialize INFORMATION SCHEMA trx related cache. */
+void trx_i_s_cache_init(trx_i_s_cache_t *cache); /*!< out: cache to init */
+/** Free the INFORMATION SCHEMA trx related cache. */
+void trx_i_s_cache_free(trx_i_s_cache_t *cache); /*!< in/out: cache to free */
 
-/*******************************************************************/ /**
- Issue a shared/read lock on the tables cache. */
-void trx_i_s_cache_start_read(
-    /*=====================*/
-    trx_i_s_cache_t *cache); /*!< in: cache */
+/** Issue a shared/read lock on the tables cache. */
+void trx_i_s_cache_start_read(trx_i_s_cache_t *cache); /*!< in: cache */
 
-/*******************************************************************/ /**
- Release a shared/read lock on the tables cache. */
-void trx_i_s_cache_end_read(
-    /*===================*/
-    trx_i_s_cache_t *cache); /*!< in: cache */
+/** Release a shared/read lock on the tables cache. */
+void trx_i_s_cache_end_read(trx_i_s_cache_t *cache); /*!< in: cache */
 
-/*******************************************************************/ /**
- Issue an exclusive/write lock on the tables cache. */
-void trx_i_s_cache_start_write(
-    /*======================*/
-    trx_i_s_cache_t *cache); /*!< in: cache */
+/** Issue an exclusive/write lock on the tables cache. */
+void trx_i_s_cache_start_write(trx_i_s_cache_t *cache); /*!< in: cache */
 
-/*******************************************************************/ /**
- Release an exclusive/write lock on the tables cache. */
-void trx_i_s_cache_end_write(
-    /*====================*/
-    trx_i_s_cache_t *cache); /*!< in: cache */
+/** Release an exclusive/write lock on the tables cache. */
+void trx_i_s_cache_end_write(trx_i_s_cache_t *cache); /*!< in: cache */
 
-/*******************************************************************/ /**
- Retrieves the number of used rows in the cache for a given
+/** Retrieves the number of used rows in the cache for a given
  INFORMATION SCHEMA table.
  @return number of rows */
-ulint trx_i_s_cache_get_rows_used(
-    /*========================*/
-    trx_i_s_cache_t *cache, /*!< in: cache */
-    enum i_s_table table);  /*!< in: which table */
+ulint trx_i_s_cache_get_rows_used(trx_i_s_cache_t *cache, /*!< in: cache */
+                                  enum i_s_table table); /*!< in: which table */
 
-/*******************************************************************/ /**
- Retrieves the nth row in the cache for a given INFORMATION SCHEMA
+/** Retrieves the nth row in the cache for a given INFORMATION SCHEMA
  table.
  @return row */
-void *trx_i_s_cache_get_nth_row(
-    /*======================*/
-    trx_i_s_cache_t *cache, /*!< in: cache */
-    enum i_s_table table,   /*!< in: which table */
-    ulint n);               /*!< in: row number */
+void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
+                                enum i_s_table table,   /*!< in: which table */
+                                ulint n);               /*!< in: row number */
 
-/*******************************************************************/ /**
- Update the transactions cache if it has not been read for some time.
+/** Update the transactions cache if it has not been read for some time.
  @return 0 - fetched, 1 - not */
 int trx_i_s_possibly_fetch_data_into_cache(
-    /*===================================*/
     trx_i_s_cache_t *cache); /*!< in/out: cache */
 
-/*******************************************************************/ /**
- Returns TRUE if the data in the cache is truncated due to the memory
+/** Returns TRUE if the data in the cache is truncated due to the memory
  limit posed by TRX_I_S_MEM_LIMIT.
  @return true if truncated */
-ibool trx_i_s_cache_is_truncated(
-    /*=======================*/
-    trx_i_s_cache_t *cache); /*!< in: cache */
+ibool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache); /*!< in: cache */
 /** The maximum length of a resulting lock_id_size in
 trx_i_s_create_lock_id(), not including the terminating NUL.
 ":%lu:%lu:%lu" -> 63 chars */
 #define TRX_I_S_LOCK_ID_MAX_LEN (TRX_ID_MAX_LEN + 63)
 
-/*******************************************************************/ /**
- Crafts a lock id string from a i_s_locks_row_t object. Returns its
+/** Crafts a lock id string from a i_s_locks_row_t object. Returns its
  second argument. This function aborts if there is not enough space in
  lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
  want to be 100% sure that it will not abort.
  @return resulting lock id */
 char *trx_i_s_create_lock_id(
-    /*===================*/
     const i_s_locks_row_t *row, /*!< in: innodb_locks row */
     char *lock_id,              /*!< out: resulting lock_id */
     ulint lock_id_size);        /*!< in: size of the lock id

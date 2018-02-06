@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf0flu.cc
+/** @file buf/buf0flu.cc
  The database buffer buf_pool flush algorithm
 
  Created 11/11/1995 Heikki Tuuri
@@ -224,10 +223,8 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners);
 /** Worker thread of page_cleaner. */
 static void buf_flush_page_cleaner_thread();
 
-/******************************************************************/ /**
- Increases flush_list size in bytes with the page size in inline function */
+/** Increases flush_list size in bytes with the page size in inline function */
 static inline void incr_flush_list_size_in_bytes(
-    /*==========================*/
     buf_block_t *block,   /*!< in: control block */
     buf_pool_t *buf_pool) /*!< in: buffer pool instance */
 {
@@ -239,18 +236,14 @@ static inline void incr_flush_list_size_in_bytes(
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/******************************************************************/ /**
- Validates the flush list.
+/** Validates the flush list.
  @return true if ok */
 static ibool buf_flush_validate_low(
-    /*===================*/
     buf_pool_t *buf_pool); /*!< in: Buffer pool instance */
 
-/******************************************************************/ /**
- Validates the flush list some of the time.
+/** Validates the flush list some of the time.
  @return true if ok or the check was skipped */
 static ibool buf_flush_validate_skip(
-    /*====================*/
     buf_pool_t *buf_pool) /*!< in: Buffer pool instance */
 {
 /** Try buf_flush_validate_low() every this many times */
@@ -273,13 +266,11 @@ static ibool buf_flush_validate_skip(
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/******************************************************************/ /**
- Insert a block in the flush_rbt and returns a pointer to its
+/** Insert a block in the flush_rbt and returns a pointer to its
  predecessor or NULL if no predecessor. The ordering is maintained
  on the basis of the <oldest_modification, space, offset> key.
  @return pointer to the predecessor or NULL if no predecessor. */
 static buf_page_t *buf_flush_insert_in_flush_rbt(
-    /*==========================*/
     buf_page_t *bpage) /*!< in: bpage to be inserted. */
 {
   const ib_rbt_node_t *c_node;
@@ -306,10 +297,8 @@ static buf_page_t *buf_flush_insert_in_flush_rbt(
   return (prev);
 }
 
-/*********************************************************/ /**
- Delete a bpage from the flush_rbt. */
+/** Delete a bpage from the flush_rbt. */
 static void buf_flush_delete_from_flush_rbt(
-    /*============================*/
     buf_page_t *bpage) /*!< in: bpage to be removed. */
 {
 #ifdef UNIV_DEBUG
@@ -327,8 +316,7 @@ static void buf_flush_delete_from_flush_rbt(
   ut_ad(ret);
 }
 
-/*****************************************************************/ /**
- Compare two modified blocks in the buffer pool. The key for comparison
+/** Compare two modified blocks in the buffer pool. The key for comparison
  is:
  key = <oldest_modification, space, offset>
  This comparison is used to maintian ordering of blocks in the
@@ -337,10 +325,8 @@ static void buf_flush_delete_from_flush_rbt(
  on the oldest_modification. The other two fields are used to uniquely
  identify the blocks.
  @return < 0 if b2 < b1, 0 if b2 == b1, > 0 if b2 > b1 */
-static int buf_flush_block_cmp(
-    /*================*/
-    const void *p1, /*!< in: block1 */
-    const void *p2) /*!< in: block2 */
+static int buf_flush_block_cmp(const void *p1, /*!< in: block1 */
+                               const void *p2) /*!< in: block2 */
 {
   int ret;
   const buf_page_t *b1 = *(const buf_page_t **)p1;
@@ -371,13 +357,10 @@ static int buf_flush_block_cmp(
   return (ret ? ret : (int)(b2->id.page_no() - b1->id.page_no()));
 }
 
-/********************************************************************/ /**
- Initialize the red-black tree to speed up insertions into the flush_list
+/** Initialize the red-black tree to speed up insertions into the flush_list
  during recovery process. Should be called at the start of recovery
  process before any page has been read/written. */
-void buf_flush_init_flush_rbt(void)
-/*==========================*/
-{
+void buf_flush_init_flush_rbt(void) {
   ulint i;
 
   for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -396,11 +379,8 @@ void buf_flush_init_flush_rbt(void)
   }
 }
 
-/********************************************************************/ /**
- Frees up the red-black tree. */
-void buf_flush_free_flush_rbt(void)
-/*==========================*/
-{
+/** Frees up the red-black tree. */
+void buf_flush_free_flush_rbt(void) {
   ulint i;
 
   for (i = 0; i < srv_buf_pool_instances; i++) {
@@ -421,10 +401,8 @@ void buf_flush_free_flush_rbt(void)
   }
 }
 
-/********************************************************************/ /**
- Inserts a modified block into the flush list. */
+/** Inserts a modified block into the flush list. */
 void buf_flush_insert_into_flush_list(
-    /*=============================*/
     buf_pool_t *buf_pool, /*!< buffer pool instance */
     buf_block_t *block,   /*!< in/out: block which is modified */
     lsn_t lsn)            /*!< in: oldest modification */
@@ -474,12 +452,10 @@ void buf_flush_insert_into_flush_list(
   buf_flush_list_mutex_exit(buf_pool);
 }
 
-/********************************************************************/ /**
- Inserts a modified block into the flush list in the right sorted position.
+/** Inserts a modified block into the flush list in the right sorted position.
  This function is used by recovery, because there the modifications do not
  necessarily come in the order of lsn's. */
 void buf_flush_insert_sorted_into_flush_list(
-    /*====================================*/
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_block_t *block,   /*!< in/out: block which is modified */
     lsn_t lsn)            /*!< in: oldest modification */
@@ -696,8 +672,7 @@ void buf_flush_remove(buf_page_t *bpage) {
   buf_flush_list_mutex_exit(buf_pool);
 }
 
-/*******************************************************************/ /**
- Relocates a buffer control block on the flush_list.
+/** Relocates a buffer control block on the flush_list.
  Note that it is assumed that the contents of bpage have already been
  copied to dpage.
  IMPORTANT: When this function is called bpage and dpage are not
@@ -708,7 +683,6 @@ void buf_flush_remove(buf_page_t *bpage) {
  the contents of bpage to the dpage and the flush list manipulation
  below. */
 void buf_flush_relocate_on_flush_list(
-    /*=============================*/
     buf_page_t *bpage, /*!< in/out: control block being moved */
     buf_page_t *dpage) /*!< in/out: destination block */
 {
@@ -1812,15 +1786,12 @@ static ulint buf_flush_batch(buf_pool_t *buf_pool, buf_flush_t flush_type,
   return (count);
 }
 
-/******************************************************************/ /**
- Gather the aggregated stats for both flush list and LRU list flushing.
+/** Gather the aggregated stats for both flush list and LRU list flushing.
  @param page_count_flush	number of pages flushed from the end of the
  flush_list
  @param page_count_LRU	number of pages flushed from the end of the LRU list
  */
-static void buf_flush_stats(
-    /*============*/
-    ulint page_count_flush, ulint page_count_LRU) {
+static void buf_flush_stats(ulint page_count_flush, ulint page_count_LRU) {
   DBUG_PRINT("ib_buf", ("flush completed, from flush_list %u pages, "
                         "from LRU_list %u pages",
                         unsigned(page_count_flush), unsigned(page_count_LRU)));
@@ -1879,13 +1850,10 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
   }
 }
 
-/******************************************************************/ /**
- Waits until a flush batch of the given type ends */
-void buf_flush_wait_batch_end(
-    /*=====================*/
-    buf_pool_t *buf_pool, /*!< buffer pool instance */
-    buf_flush_t type)     /*!< in: BUF_FLUSH_LRU
-                          or BUF_FLUSH_LIST */
+/** Waits until a flush batch of the given type ends */
+void buf_flush_wait_batch_end(buf_pool_t *buf_pool, /*!< buffer pool instance */
+                              buf_flush_t type)     /*!< in: BUF_FLUSH_LRU
+                                                    or BUF_FLUSH_LIST */
 {
   ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
@@ -2196,13 +2164,10 @@ void buf_flush_wait_LRU_batch_end(void) {
   }
 }
 
-/*********************************************************************/ /**
- Calculates if flushing is required based on number of dirty pages in
+/** Calculates if flushing is required based on number of dirty pages in
  the buffer pool.
  @return percent of io_capacity to flush to manage dirty page ratio */
-static ulint af_get_pct_for_dirty()
-/*==================*/
-{
+static ulint af_get_pct_for_dirty() {
   double dirty_pct = buf_get_modified_ratio_pct();
 
   if (dirty_pct == 0.0) {
@@ -2230,12 +2195,9 @@ static ulint af_get_pct_for_dirty()
   return (0);
 }
 
-/*********************************************************************/ /**
- Calculates if flushing is required based on redo generation rate.
+/** Calculates if flushing is required based on redo generation rate.
  @return percent of io_capacity to flush to manage redo space */
-static ulint af_get_pct_for_lsn(
-    /*===============*/
-    lsn_t age) /*!< in: current age of LSN. */
+static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 {
   lsn_t max_async_age;
   lsn_t lsn_age_factor;
@@ -2266,17 +2228,15 @@ static ulint af_get_pct_for_lsn(
                              7.5));
 }
 
-/*********************************************************************/ /**
- This function is called approximately once every second by the
+/** This function is called approximately once every second by the
  page_cleaner thread. Based on various factors it decides if there is a
  need to do flushing.
  @return number of pages recommended to be flushed
  @param lsn_limit	pointer to return LSN up to which flushing must happen
  @param last_pages_in	the number of pages flushed by the last flush_list
                          flushing. */
-static ulint page_cleaner_flush_pages_recommendation(
-    /*====================================*/
-    lsn_t *lsn_limit, ulint last_pages_in) {
+static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
+                                                     ulint last_pages_in) {
   static lsn_t prev_lsn = 0;
   static ulint sum_pages = 0;
   static ulint avg_page_rate = 0;
@@ -2491,17 +2451,14 @@ static ulint page_cleaner_flush_pages_recommendation(
   return (n_pages);
 }
 
-/*********************************************************************/ /**
- Puts the page_cleaner thread to sleep if it has finished work in less
+/** Puts the page_cleaner thread to sleep if it has finished work in less
  than a second
  @retval 0 wake up by event set,
  @retval OS_SYNC_TIME_EXCEEDED if timeout was exceeded
  @param next_loop_time	time when next loop iteration should start
  @param sig_count	zero or the value returned by previous call of
                          os_event_reset() */
-static ulint pc_sleep_if_needed(
-    /*===============*/
-    ulint next_loop_time, int64_t sig_count) {
+static ulint pc_sleep_if_needed(ulint next_loop_time, int64_t sig_count) {
   ulint cur_time = ut_time_ms();
 
   if (next_loop_time > cur_time) {
@@ -3257,13 +3214,10 @@ static void buf_flush_page_cleaner_thread() {
   my_thread_end();
 }
 
-/*******************************************************************/ /**
- Synchronously flush dirty blocks from the end of the flush list of all buffer
- pool instances.
- NOTE: The calling thread is not allowed to own any latches on pages! */
-void buf_flush_sync_all_buf_pools(void)
-/*==============================*/
-{
+/** Synchronously flush dirty blocks from the end of the flush list of all
+ buffer pool instances. NOTE: The calling thread is not allowed to own any
+ latches on pages! */
+void buf_flush_sync_all_buf_pools(void) {
   bool success;
   do {
     success = buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
@@ -3294,11 +3248,9 @@ struct Check {
   void operator()(const buf_page_t *elem) { ut_a(elem->in_flush_list); }
 };
 
-/******************************************************************/ /**
- Validates the flush list.
+/** Validates the flush list.
  @return true if ok */
 static ibool buf_flush_validate_low(
-    /*===================*/
     buf_pool_t *buf_pool) /*!< in: Buffer pool instance */
 {
   buf_page_t *bpage;
@@ -3358,12 +3310,9 @@ static ibool buf_flush_validate_low(
   return (TRUE);
 }
 
-/******************************************************************/ /**
- Validates the flush list.
+/** Validates the flush list.
  @return true if ok */
-ibool buf_flush_validate(
-    /*===============*/
-    buf_pool_t *buf_pool) /*!< buffer pool instance */
+ibool buf_flush_validate(buf_pool_t *buf_pool) /*!< buffer pool instance */
 {
   ibool ret;
 
@@ -3377,12 +3326,10 @@ ibool buf_flush_validate(
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/******************************************************************/ /**
- Check if there are any dirty pages that belong to a space id in the flush
+/** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
 ulint buf_pool_get_dirty_pages_count(
-    /*===========================*/
     buf_pool_t *buf_pool,    /*!< in: buffer pool */
     space_id_t id,           /*!< in: space id to check */
     FlushObserver *observer) /*!< in: flush observer to check */
@@ -3412,11 +3359,10 @@ ulint buf_pool_get_dirty_pages_count(
   return (count);
 }
 
-/******************************************************************/ /**
- Check if there are any dirty pages that belong to a space id in the flush list.
+/** Check if there are any dirty pages that belong to a space id in the flush
+ list.
  @return number of dirty pages present in all the buffer pools */
 static ulint buf_flush_get_dirty_pages_count(
-    /*============================*/
     space_id_t id,           /*!< in: space id to check */
     FlushObserver *observer) /*!< in: flush observer to check */
 {

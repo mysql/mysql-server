@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file dict/dict0boot.cc
+/** @file dict/dict0boot.cc
  Data dictionary creation and booting
 
  Created 4/18/1996 Heikki Tuuri
@@ -45,12 +44,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "trx0trx.h"
 
-/**********************************************************************/ /**
- Gets a pointer to the dictionary header and x-latches its page.
+/** Gets a pointer to the dictionary header and x-latches its page.
  @return pointer to the dictionary header, page x-latched */
-dict_hdr_t *dict_hdr_get(
-    /*=========*/
-    mtr_t *mtr) /*!< in: mtr */
+dict_hdr_t *dict_hdr_get(mtr_t *mtr) /*!< in: mtr */
 {
   buf_block_t *block;
   dict_hdr_t *header;
@@ -64,20 +60,17 @@ dict_hdr_t *dict_hdr_get(
   return (header);
 }
 
-/**********************************************************************/ /**
- Returns a new table, index, or space id. */
-void dict_hdr_get_new_id(
-    /*================*/
-    table_id_t *table_id,      /*!< out: table id
-                               (not assigned if NULL) */
-    space_index_t *index_id,   /*!< out: index id
-                               (not assigned if NULL) */
-    space_id_t *space_id,      /*!< out: space id
-                               (not assigned if NULL) */
-    const dict_table_t *table, /*!< in: table */
-    bool disable_redo)         /*!< in: if true and table
-                               object is NULL
-                               then disable-redo */
+/** Returns a new table, index, or space id. */
+void dict_hdr_get_new_id(table_id_t *table_id,      /*!< out: table id
+                                                    (not assigned if NULL) */
+                         space_index_t *index_id,   /*!< out: index id
+                                                    (not assigned if NULL) */
+                         space_id_t *space_id,      /*!< out: space id
+                                                    (not assigned if NULL) */
+                         const dict_table_t *table, /*!< in: table */
+                         bool disable_redo)         /*!< in: if true and table
+                                                    object is NULL
+                                                    then disable-redo */
 {
   dict_hdr_t *dict_hdr;
   ib_id_t id;
@@ -154,12 +147,9 @@ void dict_hdr_get_new_id(
   mtr_commit(&mtr);
 }
 
-/**********************************************************************/ /**
- Writes the current value of the row id counter to the dictionary header file
+/** Writes the current value of the row id counter to the dictionary header file
  page. */
-void dict_hdr_flush_row_id(void)
-/*=======================*/
-{
+void dict_hdr_flush_row_id(void) {
   dict_hdr_t *dict_hdr;
   row_id_t id;
   mtr_t mtr;
@@ -177,13 +167,10 @@ void dict_hdr_flush_row_id(void)
   mtr_commit(&mtr);
 }
 
-/*****************************************************************/ /**
- Creates the file page for the dictionary header. This function is
+/** Creates the file page for the dictionary header. This function is
  called only at the database creation.
  @return true if succeed */
-static ibool dict_hdr_create(
-    /*============*/
-    mtr_t *mtr) /*!< in: mtr */
+static ibool dict_hdr_create(mtr_t *mtr) /*!< in: mtr */
 {
   buf_block_t *block;
   dict_hdr_t *dict_header;
@@ -213,13 +200,10 @@ static ibool dict_hdr_create(
   return (TRUE);
 }
 
-/*****************************************************************/ /**
- Initializes the data dictionary memory structures when the database is
+/** Initializes the data dictionary memory structures when the database is
  started. This function is also called when the data dictionary is created.
  @return DB_SUCCESS or error code. */
-dberr_t dict_boot(void)
-/*===========*/
-{
+dberr_t dict_boot(void) {
   dict_hdr_t *dict_hdr;
   mtr_t mtr;
   dberr_t err = DB_SUCCESS;
@@ -451,12 +435,9 @@ dberr_t dict_boot(void)
   return (err);
 }
 
-/*****************************************************************/ /**
- Creates and initializes the data dictionary at the server bootstrap.
+/** Creates and initializes the data dictionary at the server bootstrap.
  @return DB_SUCCESS or error code. */
-dberr_t dict_create(void)
-/*=============*/
-{
+dberr_t dict_create(void) {
   mtr_t mtr;
 
   mtr_start(&mtr);

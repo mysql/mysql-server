@@ -30,8 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file sync/sync0debug.cc
+/** @file sync/sync0debug.cc
  Debug checks for latches.
 
  Created 2012-08-21 Sunny Bains

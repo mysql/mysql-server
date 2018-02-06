@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*******************************************************************/ /**
- @file ut/ut0list.cc
+/** @file ut/ut0list.cc
  A double-linked list
 
  Created 4/26/2006 Osku Salerma
@@ -35,20 +34,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stddef.h>
 
-/****************************************************************/ /**
- Create a new list.
+/** Create a new list.
  @return list */
-ib_list_t *ib_list_create(void)
-/*=================*/
-{
+ib_list_t *ib_list_create(void) {
   return (static_cast<ib_list_t *>(ut_zalloc_nokey(sizeof(ib_list_t))));
 }
 
-/****************************************************************/ /**
- Free a list. */
-void ib_list_free(
-    /*=========*/
-    ib_list_t *list) /*!< in: list */
+/** Free a list. */
+void ib_list_free(ib_list_t *list) /*!< in: list */
 {
   /* We don't check that the list is empty because it's entirely valid
   to e.g. have all the nodes allocated from a single heap that is then
@@ -57,11 +50,9 @@ void ib_list_free(
   ut_free(list);
 }
 
-/****************************************************************/ /**
- Add the data after the indicated node.
+/** Add the data after the indicated node.
  @return new list node */
 static ib_list_node_t *ib_list_add_after(
-    /*==============*/
     ib_list_t *list,           /*!< in: list */
     ib_list_node_t *prev_node, /*!< in: node preceding new node (can
                                be NULL) */
@@ -111,11 +102,9 @@ static ib_list_node_t *ib_list_add_after(
   return (node);
 }
 
-/****************************************************************/ /**
- Add the data to the end of the list.
+/** Add the data to the end of the list.
  @return new list node */
 ib_list_node_t *ib_list_add_last(
-    /*=============*/
     ib_list_t *list,  /*!< in: list */
     void *data,       /*!< in: data */
     mem_heap_t *heap) /*!< in: memory heap to use */
@@ -123,12 +112,9 @@ ib_list_node_t *ib_list_add_last(
   return (ib_list_add_after(list, ib_list_get_last(list), data, heap));
 }
 
-/****************************************************************/ /**
- Remove the node from the list. */
-void ib_list_remove(
-    /*===========*/
-    ib_list_t *list,      /*!< in: list */
-    ib_list_node_t *node) /*!< in: node to remove */
+/** Remove the node from the list. */
+void ib_list_remove(ib_list_t *list,      /*!< in: list */
+                    ib_list_node_t *node) /*!< in: node to remove */
 {
   if (node->prev) {
     node->prev->next = node->next;

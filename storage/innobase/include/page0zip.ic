@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/page0zip.ic
+/** @file include/page0zip.ic
  Compressed page interface
 
  Created June 2005 by Marko Makela
@@ -109,13 +108,10 @@ In summary, the compressed page looks like this:
   - deleted records (free list) in link order
 */
 
-/**********************************************************************/ /**
- Set the size of a compressed page in bytes. */
+/** Set the size of a compressed page in bytes. */
 UNIV_INLINE
-void page_zip_set_size(
-    /*==============*/
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    ulint size)               /*!< in: size in bytes */
+void page_zip_set_size(page_zip_des_t *page_zip, /*!< in/out: compressed page */
+                       ulint size)               /*!< in: size in bytes */
 {
   if (size) {
     int ssize;
@@ -168,13 +164,11 @@ ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp, ulint n_fields,
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**********************************************************************/ /**
- Determine if the length of the page trailer.
+/** Determine if the length of the page trailer.
  @return length of the page trailer, in bytes, not including the
  terminating zero byte of the modification log */
 UNIV_INLINE
 ibool page_zip_get_trailer_len(
-    /*=====================*/
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     bool is_clust)                  /*!< in: TRUE if clustered index */
 {
@@ -198,13 +192,11 @@ ibool page_zip_get_trailer_len(
           page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
 
-/**********************************************************************/ /**
- Determine how big record can be inserted without recompressing the page.
+/** Determine how big record can be inserted without recompressing the page.
  @return a positive number indicating the maximum size of a record
  whose insertion is guaranteed to succeed, or zero or negative */
 UNIV_INLINE
 lint page_zip_max_ins_size(
-    /*==================*/
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     ibool is_clust)                 /*!< in: TRUE if clustered index */
 {
@@ -225,12 +217,10 @@ lint page_zip_max_ins_size(
           (REC_N_NEW_EXTRA_BYTES - 2));
 }
 
-/**********************************************************************/ /**
- Determine if enough space is available in the modification log.
+/** Determine if enough space is available in the modification log.
  @return true if enough space is available */
 UNIV_INLINE
 ibool page_zip_available(
-    /*===============*/
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     bool is_clust,                  /*!< in: TRUE if clustered index */
     ulint length,                   /*!< in: combined size of the record */
@@ -261,21 +251,17 @@ ibool page_zip_available(
   return (length + trailer_len + page_zip->m_end < page_zip_get_size(page_zip));
 }
 
-/**********************************************************************/ /**
- Initialize a compressed page descriptor. */
+/** Initialize a compressed page descriptor. */
 UNIV_INLINE
-void page_zip_des_init(
-    /*==============*/
-    page_zip_des_t *page_zip) /*!< in/out: compressed page
-                              descriptor */
+void page_zip_des_init(page_zip_des_t *page_zip) /*!< in/out: compressed page
+                                                 descriptor */
 {
   memset(page_zip, 0, sizeof *page_zip);
 }
 
-/**********************************************************************/ /**
- Write a log record of writing to the uncompressed header portion of a page. */
+/** Write a log record of writing to the uncompressed header portion of a page.
+ */
 void page_zip_write_header_log(
-    /*======================*/
     const byte *data, /*!< in: data on the uncompressed page */
     ulint length,     /*!< in: length of the data */
     mtr_t *mtr);      /*!< in: mini-transaction */
@@ -310,12 +296,11 @@ void page_zip_write_header(page_zip_des_t *page_zip, const byte *str,
   }
 }
 
-/**********************************************************************/ /**
- Write a log record of compressing an index page without the data on the page.
+/** Write a log record of compressing an index page without the data on the
+ * page.
  */
 UNIV_INLINE
 void page_zip_compress_write_log_no_data(
-    /*================================*/
     ulint level,         /*!< in: compression level */
     const page_t *page,  /*!< in: page that is compressed */
     dict_index_t *index, /*!< in: index */
@@ -332,12 +317,10 @@ void page_zip_compress_write_log_no_data(
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/**********************************************************************/ /**
- Parses a log record of compressing an index page without the data.
+/** Parses a log record of compressing an index page without the data.
  @return end of log record or NULL */
 UNIV_INLINE
 byte *page_zip_parse_compress_no_data(
-    /*============================*/
     byte *ptr,                /*!< in: buffer */
     byte *end_ptr,            /*!< in: buffer end */
     page_t *page,             /*!< in: uncompressed page */
@@ -363,13 +346,10 @@ byte *page_zip_parse_compress_no_data(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************/ /**
- Reset the counters used for filling
+/** Reset the counters used for filling
  INFORMATION_SCHEMA.innodb_cmp_per_index. */
 UNIV_INLINE
-void page_zip_reset_stat_per_index()
-/*===========================*/
-{
+void page_zip_reset_stat_per_index() {
   mutex_enter(&page_zip_stat_per_index_mutex);
 
   page_zip_stat_per_index.erase(page_zip_stat_per_index.begin(),
@@ -379,15 +359,12 @@ void page_zip_reset_stat_per_index()
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*************************************************************/ /**
- Find the slot of the given record in the dense page directory.
+/** Find the slot of the given record in the dense page directory.
  @return dense directory slot, or NULL if record not found */
 UNIV_INLINE
-byte *page_zip_dir_find_low(
-    /*==================*/
-    byte *slot,   /*!< in: start of records */
-    byte *end,    /*!< in: end of records */
-    ulint offset) /*!< in: offset of user record */
+byte *page_zip_dir_find_low(byte *slot,   /*!< in: start of records */
+                            byte *end,    /*!< in: end of records */
+                            ulint offset) /*!< in: offset of user record */
 {
   ut_ad(slot <= end);
 
@@ -400,13 +377,11 @@ byte *page_zip_dir_find_low(
   return (NULL);
 }
 
-/*************************************************************/ /**
- Gets the size of the compressed page trailer (the dense page directory),
+/** Gets the size of the compressed page trailer (the dense page directory),
  only including user records (excluding the free list).
  @return length of dense page directory comprising existing records, in bytes */
 UNIV_INLINE
 ulint page_zip_dir_user_size(
-    /*===================*/
     const page_zip_des_t *page_zip) /*!< in: compressed page */
 {
   ulint size = PAGE_ZIP_DIR_SLOT_SIZE * page_get_n_recs(page_zip->data);
@@ -414,12 +389,10 @@ ulint page_zip_dir_user_size(
   return (size);
 }
 
-/*************************************************************/ /**
- Find the slot of the given free record in the dense page directory.
+/** Find the slot of the given free record in the dense page directory.
  @return dense directory slot, or NULL if record not found */
 UNIV_INLINE
 byte *page_zip_dir_find_free(
-    /*===================*/
     page_zip_des_t *page_zip, /*!< in: compressed page */
     ulint offset)             /*!< in: offset of user record */
 {
@@ -432,13 +405,11 @@ byte *page_zip_dir_find_free(
                                 offset));
 }
 
-/*************************************************************/ /**
- Gets an offset to the compressed page trailer (the dense page directory),
+/** Gets an offset to the compressed page trailer (the dense page directory),
  including deleted records (the free list).
  @return offset of the dense page directory */
 UNIV_INLINE
 ulint page_zip_dir_start_offs(
-    /*====================*/
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     ulint n_dense)                  /*!< in: directory size */
 {

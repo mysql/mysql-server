@@ -31,8 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file log/log0log.cc
+/** @file log/log0log.cc
  Database log
 
  Created 12/9/1995 Heikki Tuuri
@@ -137,18 +136,13 @@ should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
 the previous */
 #define LOG_POOL_PREFLUSH_RATIO_ASYNC 8
 
-/******************************************************/ /**
- Completes a checkpoint write i/o to a log file. */
+/** Completes a checkpoint write i/o to a log file. */
 static void log_io_complete_checkpoint(void);
-/*============================*/
 
-/****************************************************************/ /**
- Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
+/** Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
  exists.
  @return LSN of oldest modification */
-static lsn_t log_buf_pool_get_oldest_modification(void)
-/*======================================*/
-{
+static lsn_t log_buf_pool_get_oldest_modification(void) {
   lsn_t lsn;
 
   ut_ad(log_mutex_own());
@@ -414,13 +408,10 @@ loop:
   return (log_sys->lsn);
 }
 
-/************************************************************/ /**
- Writes to the log the string given. It is assumed that the caller holds the
+/** Writes to the log the string given. It is assumed that the caller holds the
  log mutex. */
-void log_write_low(
-    /*==========*/
-    const byte *str, /*!< in: string */
-    ulint str_len)   /*!< in: string length */
+void log_write_low(const byte *str, /*!< in: string */
+                   ulint str_len)   /*!< in: string length */
 {
   log_t *log = log_sys;
   ulint len;
@@ -479,12 +470,9 @@ part_loop:
   srv_stats.log_write_requests.inc();
 }
 
-/************************************************************/ /**
- Closes the log.
+/** Closes the log.
  @return lsn */
-lsn_t log_close(void)
-/*===========*/
-{
+lsn_t log_close(void) {
   byte *log_block;
   ulint first_rec_group;
   lsn_t oldest_lsn;
@@ -546,12 +534,10 @@ function_exit:
   return (lsn);
 }
 
-/******************************************************/ /**
- Calculates the data capacity of a log group, when the log file headers are not
- included.
+/** Calculates the data capacity of a log group, when the log file headers are
+ not included.
  @return capacity in bytes */
 static lsn_t log_group_get_capacity(
-    /*===================*/
     const log_group_t *group) /*!< in: log group */
 {
   /* The lsn parameters are updated while holding both the mutexes
@@ -561,16 +547,13 @@ static lsn_t log_group_get_capacity(
   return ((group->file_size - LOG_FILE_HDR_SIZE) * group->n_files);
 }
 
-/******************************************************/ /**
- Calculates the offset within a log group, when the log file headers are not
+/** Calculates the offset within a log group, when the log file headers are not
  included.
  @return size offset (<= offset) */
 UNIV_INLINE
-lsn_t log_group_calc_size_offset(
-    /*=======================*/
-    lsn_t offset,             /*!< in: real offset within the
-                              log group */
-    const log_group_t *group) /*!< in: log group */
+lsn_t log_group_calc_size_offset(lsn_t offset, /*!< in: real offset within the
+                                               log group */
+                                 const log_group_t *group) /*!< in: log group */
 {
   /* The lsn parameters are updated while holding both the mutexes
   and it is ok to have either of them while reading */
@@ -579,16 +562,13 @@ lsn_t log_group_calc_size_offset(
   return (offset - LOG_FILE_HDR_SIZE * (1 + offset / group->file_size));
 }
 
-/******************************************************/ /**
- Calculates the offset within a log group, when the log file headers are
+/** Calculates the offset within a log group, when the log file headers are
  included.
  @return real offset (>= offset) */
 UNIV_INLINE
-lsn_t log_group_calc_real_offset(
-    /*=======================*/
-    lsn_t offset,             /*!< in: size offset within the
-                              log group */
-    const log_group_t *group) /*!< in: log group */
+lsn_t log_group_calc_real_offset(lsn_t offset, /*!< in: size offset within the
+                                               log group */
+                                 const log_group_t *group) /*!< in: log group */
 {
   /* The lsn parameters are updated while holding both the mutexes
   and it is ok to have either of them while reading */
@@ -640,29 +620,23 @@ lsn_t log_group_calc_lsn_offset(lsn_t lsn, const log_group_t *group) {
   return (log_group_calc_real_offset(offset, group));
 }
 
-/********************************************************/ /**
- Sets the field values in group to correspond to a given lsn. For this function
- to work, the values must already be correctly initialized to correspond to
- some lsn, for instance, a checkpoint lsn. */
-void log_group_set_fields(
-    /*=================*/
-    log_group_t *group, /*!< in/out: group */
-    lsn_t lsn)          /*!< in: lsn for which the values should be
-                        set */
+/** Sets the field values in group to correspond to a given lsn. For this
+ function to work, the values must already be correctly initialized to
+ correspond to some lsn, for instance, a checkpoint lsn. */
+void log_group_set_fields(log_group_t *group, /*!< in/out: group */
+                          lsn_t lsn) /*!< in: lsn for which the values should be
+                                     set */
 {
   group->lsn_offset = log_group_calc_lsn_offset(lsn, group);
   group->lsn = lsn;
 }
 
-/*****************************************************************/ /**
- Calculates the recommended highest values for lsn - last_checkpoint_lsn
+/** Calculates the recommended highest values for lsn - last_checkpoint_lsn
  and lsn - buf_get_oldest_modification().
  @retval true on success
  @retval false if the smallest log group is too small to
  accommodate the number of OS threads in the database server */
-static MY_ATTRIBUTE((warn_unused_result)) bool log_calc_max_ages(void)
-/*===================*/
-{
+static MY_ATTRIBUTE((warn_unused_result)) bool log_calc_max_ages(void) {
   log_group_t *group;
   lsn_t margin;
   ulint free;
@@ -736,11 +710,8 @@ failure:
   return (success);
 }
 
-/******************************************************/ /**
- Initializes the log. */
-void log_init(void)
-/*==========*/
-{
+/** Initializes the log. */
+void log_init(void) {
   ut_ad(static_cast<int>(MTR_MEMO_PAGE_S_FIX) == static_cast<int>(RW_S_LATCH));
   ut_ad(static_cast<int>(MTR_MEMO_PAGE_X_FIX) == static_cast<int>(RW_X_LATCH));
   ut_ad(static_cast<int>(MTR_MEMO_PAGE_SX_FIX) ==
@@ -810,18 +781,15 @@ void log_init(void)
               log_sys->lsn - log_sys->last_checkpoint_lsn);
 }
 
-/******************************************************************/ /**
- Inits a log group to the log system.
+/** Inits a log group to the log system.
  @return true if success, false if not */
 MY_ATTRIBUTE((warn_unused_result))
-bool log_group_init(
-    /*===========*/
-    ulint id,            /*!< in: group id */
-    ulint n_files,       /*!< in: number of log files */
-    lsn_t file_size,     /*!< in: log file size in bytes */
-    space_id_t space_id) /*!< in: space id of the file space
-                         which contains the log files of this
-                         group */
+bool log_group_init(ulint id,            /*!< in: group id */
+                    ulint n_files,       /*!< in: number of log files */
+                    lsn_t file_size,     /*!< in: log file size in bytes */
+                    space_id_t space_id) /*!< in: space id of the file space
+                                         which contains the log files of this
+                                         group */
 {
   ulint i;
   log_group_t *group;
@@ -1170,21 +1138,17 @@ void log_enable_encryption_if_set() {
   }
 }
 
-/******************************************************/ /**
- Stores a 4-byte checksum to the trailer checksum field of a log block
+/** Stores a 4-byte checksum to the trailer checksum field of a log block
  before writing it to a log file. This checksum is used in recovery to
  check the consistency of a log block. */
 static void log_block_store_checksum(
-    /*=====================*/
     byte *block) /*!< in/out: pointer to a log block */
 {
   log_block_set_checksum(block, log_block_calc_checksum(block));
 }
 
-/******************************************************/ /**
- Writes a buffer to a log file group. */
+/** Writes a buffer to a log file group. */
 static void log_group_write_buf(
-    /*================*/
     log_group_t *group, /*!< in: log group */
     byte *buf,          /*!< in: buffer */
     ulint len,          /*!< in: buffer len; must be divisible
@@ -1578,13 +1542,11 @@ void log_buffer_flush_to_disk(bool sync) {
   log_write_up_to(log_get_lsn(), sync);
 }
 
-/****************************************************************/ /**
- This functions writes the log buffer to the log file and if 'flush'
+/** This functions writes the log buffer to the log file and if 'flush'
  is set it forces a flush of the log file as well. This is meant to be
  called from background master thread only as it does not wait for
  the write (+ possible flush) to finish. */
 void log_buffer_sync_in_background(
-    /*==========================*/
     bool flush) /*!< in: flush the logs to disk */
 {
   lsn_t lsn;
@@ -1609,9 +1571,7 @@ void log_buffer_sync_in_background(
 
 Tries to establish a big enough margin of free space in the log buffer, such
 that a new log entry can be catenated without an immediate need for a flush. */
-static void log_flush_margin(void)
-/*==================*/
-{
+static void log_flush_margin(void) {
   log_t *log = log_sys;
   lsn_t lsn = 0;
 
@@ -1720,11 +1680,8 @@ static void log_io_complete_checkpoint() {
   log_mutex_exit();
 }
 
-/******************************************************/ /**
- Writes the checkpoint info to a log group header. */
-static void log_group_checkpoint(
-    /*=================*/
-    log_group_t *group) /*!< in: log group */
+/** Writes the checkpoint info to a log group header. */
+static void log_group_checkpoint(log_group_t *group) /*!< in: log group */
 {
   lsn_t lsn_offset;
   byte *buf;
@@ -1965,14 +1922,11 @@ void log_make_checkpoint_at(lsn_t lsn, bool write_always) {
   }
 }
 
-/****************************************************************/ /**
- Tries to establish a big enough margin of free space in the log groups, such
+/** Tries to establish a big enough margin of free space in the log groups, such
  that a new log entry can be catenated without an immediate need for a
  checkpoint. NOTE: this function may only be called if the calling thread
  owns no synchronization objects! */
-static void log_checkpoint_margin(void)
-/*=======================*/
-{
+static void log_checkpoint_margin(void) {
   log_t *log = log_sys;
   lsn_t age;
   lsn_t checkpoint_age;
@@ -2070,14 +2024,11 @@ void log_check_margins(void) {
   } while (check);
 }
 
-/****************************************************************/ /**
- Makes a checkpoint at the latest lsn and writes it to first page of each
+/** Makes a checkpoint at the latest lsn and writes it to first page of each
  data file in the database, so that we know that the file spaces contain
  all modifications up to that lsn. This can only be called at database
  shutdown. This function also writes all log in log files to the log archive. */
-void logs_empty_and_mark_files_at_shutdown(void)
-/*=======================================*/
-{
+void logs_empty_and_mark_files_at_shutdown(void) {
   lsn_t lsn;
   ulint count = 0;
   ulint total_trx;
@@ -2354,12 +2305,9 @@ loop:
   ut_a(lsn == log_sys->lsn);
 }
 
-/******************************************************/ /**
- Peeks the current lsn.
+/** Peeks the current lsn.
  @return true if success, false if could not get the log system mutex */
-ibool log_peek_lsn(
-    /*=========*/
-    lsn_t *lsn) /*!< out: if returns TRUE, current lsn is here */
+ibool log_peek_lsn(lsn_t *lsn) /*!< out: if returns TRUE, current lsn is here */
 {
   if (0 == mutex_enter_nowait(&(log_sys->mutex))) {
     *lsn = log_sys->lsn;
@@ -2372,18 +2320,14 @@ ibool log_peek_lsn(
   return (FALSE);
 }
 
-/******************************************************/ /**
- Lock log. */
+/** Lock log. */
 void log_lock(void) { log_mutex_enter(); }
 
-/******************************************************/ /**
- Unlock log. */
+/** Unlock log. */
 void log_unlock(void) { log_mutex_exit(); }
 
-/******************************************************/ /**
- Collect log info. */
+/** Collect log info. */
 void log_collect_lsn_info(
-    /*=========*/
     lsn_t *lsn,            /*!< out: current lsn */
     lsn_t *lsn_checkpoint) /*!< out: current last_checkpoint_lsn */
 {
@@ -2391,11 +2335,8 @@ void log_collect_lsn_info(
   *lsn_checkpoint = log_sys->last_checkpoint_lsn;
 }
 
-/******************************************************/ /**
- Prints info of the log. */
-void log_print(
-    /*======*/
-    FILE *file) /*!< in: file where to print */
+/** Prints info of the log. */
+void log_print(FILE *file) /*!< in: file where to print */
 {
   double time_elapsed;
   time_t current_time;
@@ -2436,20 +2377,14 @@ void log_print(
   log_mutex_exit();
 }
 
-/**********************************************************************/ /**
- Refreshes the statistics used to print per-second averages. */
-void log_refresh_stats(void)
-/*===================*/
-{
+/** Refreshes the statistics used to print per-second averages. */
+void log_refresh_stats(void) {
   log_sys->n_log_ios_old = log_sys->n_log_ios;
   log_sys->last_printout_time = time(NULL);
 }
 
-/********************************************************/ /**
- Closes a log group. */
-static void log_group_close(
-    /*===========*/
-    log_group_t *group) /* in,own: log group to close */
+/** Closes a log group. */
+static void log_group_close(log_group_t *group) /* in,own: log group to close */
 {
   ulint i;
 
@@ -2463,11 +2398,8 @@ static void log_group_close(
   ut_free(group);
 }
 
-/********************************************************/ /**
- Closes all log groups. */
-void log_group_close_all(void)
-/*=====================*/
-{
+/** Closes all log groups. */
+void log_group_close_all(void) {
   log_group_t *group;
 
   group = UT_LIST_GET_FIRST(log_sys->log_groups);

@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file ut/ut0new.cc
+/** @file ut/ut0new.cc
  Instrumented memory allocator.
 
  Created May 26, 2014 Vasil Dimov

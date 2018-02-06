@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*******************************************************************/ /**
- @file rem/rem0cmp.cc
+/** @file rem/rem0cmp.cc
  Comparison services for records
 
  Created 7/1/1994 Heikki Tuuri
@@ -117,14 +116,11 @@ int innobase_mysql_cmp(ulint prtype, const byte *a, size_t a_length,
   return (0);
 }
 
-/*************************************************************/ /**
- Returns TRUE if two columns are equal for comparison purposes.
+/** Returns TRUE if two columns are equal for comparison purposes.
  @return true if the columns are considered equal in comparisons */
-ibool cmp_cols_are_equal(
-    /*===============*/
-    const dict_col_t *col1, /*!< in: column 1 */
-    const dict_col_t *col2, /*!< in: column 2 */
-    ibool check_charsets)
+ibool cmp_cols_are_equal(const dict_col_t *col1, /*!< in: column 1 */
+                         const dict_col_t *col2, /*!< in: column 2 */
+                         ibool check_charsets)
 /*!< in: whether to check charsets */
 {
   if (dtype_is_non_binary_string_type(col1->mtype, col1->prtype) &&
@@ -235,19 +231,16 @@ static UNIV_COLD int cmp_decimal(const byte *a, unsigned int a_length,
   return (swap_flag);
 }
 
-/*************************************************************/ /**
- Innobase uses this function to compare two geometry data fields
+/** Innobase uses this function to compare two geometry data fields
  @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-static int cmp_geometry_field(
-    /*===============*/
-    ulint mtype,           /*!< in: main type */
-    ulint prtype,          /*!< in: precise type */
-    const byte *a,         /*!< in: data field */
-    unsigned int a_length, /*!< in: data field length,
-                           not UNIV_SQL_NULL */
-    const byte *b,         /*!< in: data field */
-    unsigned int b_length) /*!< in: data field length,
-                           not UNIV_SQL_NULL */
+static int cmp_geometry_field(ulint mtype,           /*!< in: main type */
+                              ulint prtype,          /*!< in: precise type */
+                              const byte *a,         /*!< in: data field */
+                              unsigned int a_length, /*!< in: data field length,
+                                                     not UNIV_SQL_NULL */
+                              const byte *b,         /*!< in: data field */
+                              unsigned int b_length) /*!< in: data field length,
+                                                     not UNIV_SQL_NULL */
 {
   double x1, x2;
   double y1, y2;
@@ -296,13 +289,11 @@ static int cmp_geometry_field(
 
   return (0);
 }
-/*************************************************************/ /**
- Innobase uses this function to compare two gis data fields
+/** Innobase uses this function to compare two gis data fields
  @return	1, 0, -1, if mode == PAGE_CUR_MBR_EQUAL. And return
  1, 0 for rest compare modes, depends on a and b qualifies the
  relationship (CONTAINT, WITHIN etc.) */
 static int cmp_gis_field(
-    /*============*/
     page_cur_mode_t mode,                    /*!< in: compare mode */
     const byte *a,                           /*!< in: data field */
     unsigned int a_length,                   /*!< in: data field length,
@@ -554,7 +545,6 @@ func_exit:
 @param[in] srs Spatial reference system of R-tree
 @retval negative if dtuple is less than rec */
 int cmp_dtuple_rec_with_gis(
-    /*====================*/
     const dtuple_t *dtuple, /*!< in: data tuple */
     const rec_t *rec,       /*!< in: physical record which differs from
                             dtuple in some of the common fields, or which
@@ -959,13 +949,11 @@ ibool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
       !cmp_dtuple_rec_with_match(dtuple, rec, index, offsets, &matched_fields));
 }
 
-/*************************************************************/ /**
- Compare two physical record fields.
+/** Compare two physical record fields.
  @retval positive if rec1 field is greater than rec2
  @retval negative if rec1 field is less than rec2
  @retval 0 if rec1 field equals to rec2 */
 static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
-    /*=====================*/
     const rec_t *rec1,         /*!< in: physical record */
     const rec_t *rec2,         /*!< in: physical record */
     const ulint *offsets1,     /*!< in: rec_get_offsets(rec1, ...) */
@@ -996,7 +984,6 @@ none of which are stored externally.
 @retval negative if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
 int cmp_rec_rec_simple(
-    /*===============*/
     const rec_t *rec1,         /*!< in: physical record */
     const rec_t *rec2,         /*!< in: physical record */
     const ulint *offsets1,     /*!< in: rec_get_offsets(rec1, ...) */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*****************************************************************/ /**
- @file ut/ut0dbg.cc
+/** @file ut/ut0dbg.cc
  Debug utilities for Innobase.
 
  Created 1/30/1994 Heikki Tuuri
@@ -37,10 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/log.h"
 #include "ut0dbg.h"
 
-/*************************************************************/ /**
- Report a failed assertion. */
+/** Report a failed assertion. */
 void ut_dbg_assertion_failed(
-    /*====================*/
     const char *expr, /*!< in: the failed assertion (optional) */
     const char *file, /*!< in: source file containing the assertion */
     ulint line)       /*!< in: line number of the assertion */

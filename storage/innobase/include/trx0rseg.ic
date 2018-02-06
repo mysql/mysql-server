@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/trx0rseg.ic
+/** @file include/trx0rseg.ic
  Rollback segment
 
  Created 3/26/1996 Heikki Tuuri
@@ -78,12 +77,10 @@ trx_rsegf_t *trx_rsegf_get_new(space_id_t space, page_no_t page_no,
   return (header);
 }
 
-/***************************************************************/ /**
- Gets the file page number of the nth undo log slot.
+/** Gets the file page number of the nth undo log slot.
  @return page number of the undo log segment */
 UNIV_INLINE
 page_no_t trx_rsegf_get_nth_undo(
-    /*===================*/
     trx_rsegf_t *rsegf, /*!< in: rollback segment header */
     ulint n,            /*!< in: index of slot */
     mtr_t *mtr)         /*!< in: mtr */
@@ -94,11 +91,9 @@ page_no_t trx_rsegf_get_nth_undo(
                          MLOG_4BYTES, mtr));
 }
 
-/***************************************************************/ /**
- Sets the file page number of the nth undo log slot. */
+/** Sets the file page number of the nth undo log slot. */
 UNIV_INLINE
 void trx_rsegf_set_nth_undo(
-    /*===================*/
     trx_rsegf_t *rsegf, /*!< in: rollback segment header */
     ulint n,            /*!< in: index of slot */
     page_no_t page_no,  /*!< in: page number of the undo log segment */
@@ -110,12 +105,10 @@ void trx_rsegf_set_nth_undo(
                    page_no, MLOG_4BYTES, mtr);
 }
 
-/****************************************************************/ /**
- Looks for a free slot for an undo log segment.
+/** Looks for a free slot for an undo log segment.
  @return slot index or ULINT_UNDEFINED if not found */
 UNIV_INLINE
 ulint trx_rsegf_undo_find_free(
-    /*=====================*/
     trx_rsegf_t *rsegf, /*!< in: rollback segment header */
     mtr_t *mtr)         /*!< in: mtr */
 {

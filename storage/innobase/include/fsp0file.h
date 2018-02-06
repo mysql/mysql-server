@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/fsp0file.h
+/** @file include/fsp0file.h
  Tablespace data file implementation.
 
  Created 2013-7-26 by Kevin Lewis

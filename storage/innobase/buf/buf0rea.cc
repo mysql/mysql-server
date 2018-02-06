@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf0rea.cc
+/** @file buf/buf0rea.cc
  The database buffer read
 
  Created 11/5/1995 Heikki Tuuri
@@ -645,12 +644,10 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   return (count);
 }
 
-/********************************************************************/ /**
- Issues read requests for pages which the ibuf module wants to read in, in
+/** Issues read requests for pages which the ibuf module wants to read in, in
  order to contract the insert buffer tree. Technically, this function is like
  a read-ahead function. */
 void buf_read_ibuf_merge_pages(
-    /*======================*/
     bool sync,                   /*!< in: true if the caller
                                  wants this function to wait
                                  for the highest address page

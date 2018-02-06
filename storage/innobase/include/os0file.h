@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -32,8 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ***********************************************************************/
 
-/**************************************************/ /**
- @file include/os0file.h
+/** @file include/os0file.h
  The interface to the operating system file io
 
  Created 10/21/1995 Heikki Tuuri

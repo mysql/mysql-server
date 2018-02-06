@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/ut0ut.h
+/** @file include/ut0ut.h
  Various utilities
 
  Created 1/20/1994 Heikki Tuuri
@@ -92,8 +91,7 @@ independent way by using YieldProcessor. */
 #define UT_RESUME_PRIORITY_CPU() ((void)0)
 #endif
 
-/*********************************************************************/ /**
- Delays execution for at most max_wait_us microseconds or returns earlier
+/** Delays execution for at most max_wait_us microseconds or returns earlier
  if cond becomes true.
  @param cond in: condition to wait for; evaluated every 2 ms
  @param max_wait_us in: maximum delay to wait, in microseconds */
@@ -141,14 +139,12 @@ UNIV_INLINE
 int ut_pair_cmp(ulint a_h, ulint a_l, ulint b_h, ulint b_l)
     MY_ATTRIBUTE((warn_unused_result));
 
-/*************************************************************/ /**
- Calculates fast the remainder of n/m when m is a power of two.
+/** Calculates fast the remainder of n/m when m is a power of two.
  @param n in: numerator
  @param m in: denominator, must be a power of two
  @return the remainder of n/m */
 #define ut_2pow_remainder(n, m) ((n) & ((m)-1))
-/*************************************************************/ /**
- Calculates the biggest multiple of m that is not bigger than n
+/** Calculates the biggest multiple of m that is not bigger than n
  when m is a power of two.  In other words, rounds n down to m * k.
  @param n in: number to round down
  @param m in: alignment, must be a power of two
@@ -159,21 +155,17 @@ int ut_pair_cmp(ulint a_h, ulint a_l, ulint b_h, ulint b_l)
 @param m in: alignment, must be a power of two
 @return n rounded down to the biggest possible integer multiple of m */
 #define ut_calc_align_down(n, m) ut_2pow_round(n, m)
-/********************************************************/ /**
- Calculates the smallest multiple of m that is not smaller than n
+/** Calculates the smallest multiple of m that is not smaller than n
  when m is a power of two.  In other words, rounds n up to m * k.
  @param n in: number to round up
  @param m in: alignment, must be a power of two
  @return n rounded up to the smallest possible integer multiple of m */
 #define ut_calc_align(n, m) (((n) + ((m)-1)) & ~((m)-1))
-/*************************************************************/ /**
- Calculates fast the 2-logarithm of a number, rounded upward to an
+/** Calculates fast the 2-logarithm of a number, rounded upward to an
  integer.
  @return logarithm in the base 2, rounded upward */
 UNIV_INLINE
-ulint ut_2_log(
-    /*=====*/
-    ulint n); /*!< in: number */
+ulint ut_2_log(ulint n); /*!< in: number */
 
 /** Calculates 2 to power n.
 @param[in]	n	power of 2
@@ -181,12 +173,9 @@ ulint ut_2_log(
 UNIV_INLINE
 uint32_t ut_2_exp(uint32_t n);
 
-/*************************************************************/ /**
- Calculates fast the number rounded up to the nearest power of 2.
+/** Calculates fast the number rounded up to the nearest power of 2.
  @return first power of 2 which is >= n */
-ulint ut_2_power_up(
-    /*==========*/
-    ulint n) /*!< in: number != 0 */
+ulint ut_2_power_up(ulint n) /*!< in: number != 0 */
     MY_ATTRIBUTE((const));
 
 /** Determine how many bytes (groups of 8 bits) are needed to
@@ -195,62 +184,46 @@ store the given number of bits.
 @return number of bytes (octets) needed to represent b */
 #define UT_BITS_IN_BYTES(b) (((b) + 7) / 8)
 
-/**********************************************************/ /**
- Returns system time. We do not specify the format of the time returned:
+/** Returns system time. We do not specify the format of the time returned:
  the only way to manipulate it is to use the function ut_difftime.
  @return system time */
 ib_time_t ut_time(void);
-/*=========*/
-/**********************************************************/ /**
- Returns system time.
+/** Returns system time.
  Upon successful completion, the value 0 is returned; otherwise the
  value -1 is returned and the global variable errno is set to indicate the
  error.
  @return 0 on success, -1 otherwise */
-int ut_usectime(
-    /*========*/
-    ulint *sec, /*!< out: seconds since the Epoch */
-    ulint *ms); /*!< out: microseconds since the Epoch+*sec */
+int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
+                ulint *ms); /*!< out: microseconds since the Epoch+*sec */
 
-/**********************************************************/ /**
- Returns the number of microseconds since epoch. Similar to
+/** Returns the number of microseconds since epoch. Similar to
  time(3), the return value is also stored in *tloc, provided
  that tloc is non-NULL.
  @return us since epoch */
-uintmax_t ut_time_us(
-    /*=======*/
-    uintmax_t *tloc); /*!< out: us since epoch, if non-NULL */
-/**********************************************************/ /**
- Returns the number of milliseconds since some epoch.  The
+uintmax_t ut_time_us(uintmax_t *tloc); /*!< out: us since epoch, if non-NULL */
+/** Returns the number of milliseconds since some epoch.  The
  value may wrap around.  It should only be used for heuristic
  purposes.
  @return ms since epoch */
 ulint ut_time_ms(void);
-/*============*/
 
 #ifdef _WIN32
-/**********************************************************/ /**
- Initialise highest available time resolution API on Windows
+/** Initialise highest available time resolution API on Windows
  @return false if all OK else true */
 bool ut_win_init_time();
 
 #endif /* _WIN32 */
 
-/**********************************************************/ /**
- Returns the number of milliseconds since some epoch.  The
+/** Returns the number of milliseconds since some epoch.  The
  value may wrap around.  It should only be used for heuristic
  purposes.
  @return ms since epoch */
 ulint ut_time_ms(void);
-/*============*/
 
-/**********************************************************/ /**
- Returns the difference of two times in seconds.
+/** Returns the difference of two times in seconds.
  @return time2 - time1 expressed in seconds */
-double ut_difftime(
-    /*========*/
-    ib_time_t time2,  /*!< in: time */
-    ib_time_t time1); /*!< in: time */
+double ut_difftime(ib_time_t time2,  /*!< in: time */
+                   ib_time_t time1); /*!< in: time */
 
 /** Determines if a number is zero or a power of two.
 @param[in]	n	number
@@ -265,12 +238,10 @@ struct ut_strcmp_functor {
   }
 };
 
-/*************************************************************/ /**
- Runs an idle loop on CPU. The argument gives the desired delay
+/** Runs an idle loop on CPU. The argument gives the desired delay
  in microseconds on 100 MHz Pentium + Visual C++.
  @return dummy value */
 ulint ut_delay(
-    /*=====*/
     ulint delay); /*!< in: delay in microseconds on 100 MHz Pentium */
 
 /* Forward declaration of transaction handle */
@@ -286,16 +257,13 @@ as in SQL database_name.identifier.
 */
 std::string ut_get_name(const trx_t *trx, const char *name);
 
-/**********************************************************************/ /**
- Outputs a fixed-length string, quoted as an SQL identifier.
+/** Outputs a fixed-length string, quoted as an SQL identifier.
  If the string contains a slash '/', the string will be
  output as two identifiers separated by a period (.),
  as in SQL database_name.identifier. */
-void ut_print_name(
-    /*==========*/
-    FILE *f,           /*!< in: output stream */
-    const trx_t *trx,  /*!< in: transaction */
-    const char *name); /*!< in: table name to print */
+void ut_print_name(FILE *f,           /*!< in: output stream */
+                   const trx_t *trx,  /*!< in: transaction */
+                   const char *name); /*!< in: table name to print */
 
 /** Format a table name, quoted as an SQL identifier.
 If the name contains a slash '/', the result will contain two
@@ -308,30 +276,23 @@ database_name.table_name.
 @return pointer to 'formatted' */
 char *ut_format_name(const char *name, char *formatted, ulint formatted_size);
 
-/**********************************************************************/ /**
- Catenate files. */
-void ut_copy_file(
-    /*=========*/
-    FILE *dest, /*!< in: output file */
-    FILE *src); /*!< in: input file to be appended to output */
+/** Catenate files. */
+void ut_copy_file(FILE *dest, /*!< in: output file */
+                  FILE *src); /*!< in: input file to be appended to output */
 
 #ifdef _WIN32
-/**********************************************************************/ /**
- A substitute for vsnprintf(3), formatted output conversion into
+/** A substitute for vsnprintf(3), formatted output conversion into
  a limited buffer. Note: this function DOES NOT return the number of
  characters that would have been printed if the buffer was unlimited because
  VC's _vsnprintf() returns -1 in this case and we would need to call
  _vscprintf() in addition to estimate that but we would need another copy
  of "ap" for that and VC does not provide va_copy(). */
-void ut_vsnprintf(
-    /*=========*/
-    char *str,       /*!< out: string */
-    size_t size,     /*!< in: str size */
-    const char *fmt, /*!< in: format */
-    va_list ap);     /*!< in: format values */
+void ut_vsnprintf(char *str,       /*!< out: string */
+                  size_t size,     /*!< in: str size */
+                  const char *fmt, /*!< in: format */
+                  va_list ap);     /*!< in: format values */
 #else
-/**********************************************************************/ /**
- A wrapper for vsnprintf(3), formatted output conversion into
+/** A wrapper for vsnprintf(3), formatted output conversion into
  a limited buffer. Note: this function DOES NOT return the number of
  characters that would have been printed if the buffer was unlimited because
  VC's _vsnprintf() returns -1 in this case and we would need to call
@@ -340,13 +301,10 @@ void ut_vsnprintf(
 #define ut_vsnprintf(buf, size, fmt, ap) ((void)vsnprintf(buf, size, fmt, ap))
 #endif /* _WIN32 */
 
-/*************************************************************/ /**
- Convert an error number to a human readable text message. The
+/** Convert an error number to a human readable text message. The
  returned string is static and should not be freed or modified.
  @return string, describing the error */
-const char *ut_strerr(
-    /*======*/
-    dberr_t num); /*!< in: error number */
+const char *ut_strerr(dberr_t num); /*!< in: error number */
 
 #ifdef UNIV_PFS_MEMORY
 

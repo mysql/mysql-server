@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/sync0types.h
+/** @file include/sync0types.h
  Global types for sync
 
  Created 9/5/1995 Heikki Tuuri

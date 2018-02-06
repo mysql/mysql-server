@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file os/os0event.cc
+/** @file os/os0event.cc
  The interface to the operating system condition variables.
 
  Created 2012-09-23 Sunny Bains
@@ -428,11 +427,9 @@ Creates an event semaphore, i.e., a semaphore which may just have two
 states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
-os_event_t os_event_create(
-    /*============*/
-    const char *name) /*!< in: the name of the
-                      event, if NULL the event
-                      is created without a name */
+os_event_t os_event_create(const char *name) /*!< in: the name of the
+                                             event, if NULL the event
+                                             is created without a name */
 {
   return (UT_NEW_NOKEY(os_event(name)));
 }
@@ -440,9 +437,7 @@ os_event_t os_event_create(
 /**
 Check if the event is set.
 @return true if set */
-bool os_event_is_set(
-    /*============*/
-    const os_event_t event) /*!< in: event to test */
+bool os_event_is_set(const os_event_t event) /*!< in: event to test */
 {
   return (event->is_set());
 }
@@ -450,9 +445,7 @@ bool os_event_is_set(
 /**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-void os_event_set(
-    /*=========*/
-    os_event_t event) /*!< in/out: event to set */
+void os_event_set(os_event_t event) /*!< in/out: event to set */
 {
   event->set();
 }
@@ -465,9 +458,7 @@ that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low().
 @return	current signal_count. */
-int64_t os_event_reset(
-    /*===========*/
-    os_event_t event) /*!< in/out: event to reset */
+int64_t os_event_reset(os_event_t event) /*!< in/out: event to reset */
 {
   return (event->reset());
 }
@@ -477,7 +468,6 @@ Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 ulint os_event_wait_time_low(
-    /*===================*/
     os_event_t event,        /*!< in/out: event to wait */
     ulint time_in_usec,      /*!< in: timeout in
                              microseconds, or
@@ -495,21 +485,17 @@ Waits for an event object until it is in the signaled state.
 Where such a scenario is possible, to avoid infinite wait, the
 value returned by os_event_reset() should be passed in as
 reset_sig_count. */
-void os_event_wait_low(
-    /*==============*/
-    os_event_t event,        /*!< in: event to wait */
-    int64_t reset_sig_count) /*!< in: zero or the value
-                             returned by previous call of
-                             os_event_reset(). */
+void os_event_wait_low(os_event_t event,        /*!< in: event to wait */
+                       int64_t reset_sig_count) /*!< in: zero or the value
+                                                returned by previous call of
+                                                os_event_reset(). */
 {
   event->wait_low(reset_sig_count);
 }
 
 /**
 Frees an event object. */
-void os_event_destroy(
-    /*=============*/
-    os_event_t &event) /*!< in/own: event to free */
+void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 
 {
   if (event != NULL) {

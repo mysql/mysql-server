@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -39,8 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file srv/srv0srv.cc
+/** @file srv/srv0srv.cc
  The database server main program
 
  Created 10/8/1995 Heikki Tuuri
@@ -687,11 +686,8 @@ PSI_stage_info srv_stage_clone_page_copy = {
     0, "clone (page copy)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
-/*********************************************************************/ /**
- Prints counters for work done by srv_master_thread. */
-static void srv_print_master_thread_info(
-    /*=========================*/
-    FILE *file) /* in: output stream */
+/** Prints counters for work done by srv_master_thread. */
+static void srv_print_master_thread_info(FILE *file) /* in: output stream */
 {
   fprintf(file,
           "srv_master_thread loops: " ULINTPF " srv_active, " ULINTPF
@@ -702,10 +698,8 @@ static void srv_print_master_thread_info(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************/ /**
- Sets the info describing an i/o thread current state. */
+/** Sets the info describing an i/o thread current state. */
 void srv_set_io_thread_op_info(
-    /*======================*/
     ulint i,         /*!< in: the 'segment' of the i/o thread */
     const char *str) /*!< in: constant char string describing the
                      state */
@@ -715,11 +709,8 @@ void srv_set_io_thread_op_info(
   srv_io_thread_op_info[i] = str;
 }
 
-/*********************************************************************/ /**
- Resets the info describing an i/o thread current state. */
-void srv_reset_io_thread_op_info()
-/*=========================*/
-{
+/** Resets the info describing an i/o thread current state. */
+void srv_reset_io_thread_op_info() {
   for (ulint i = 0; i < UT_ARR_SIZE(srv_io_thread_op_info); ++i) {
     srv_io_thread_op_info[i] = "not started yet";
   }
@@ -727,11 +718,9 @@ void srv_reset_io_thread_op_info()
 
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
-/*********************************************************************/ /**
- Validates the type of a thread table slot.
+/** Validates the type of a thread table slot.
  @return true if ok */
 static ibool srv_thread_type_validate(
-    /*=====================*/
     srv_thread_type type) /*!< in: thread type */
 {
   switch (type) {
@@ -747,11 +736,9 @@ static ibool srv_thread_type_validate(
 }
 #endif /* UNIV_DEBUG */
 
-/*********************************************************************/ /**
- Gets the type of a thread table slot.
+/** Gets the type of a thread table slot.
  @return thread type */
 static srv_thread_type srv_slot_get_type(
-    /*==============*/
     const srv_slot_t *slot) /*!< in: thread slot */
 {
   srv_thread_type type = slot->type;
@@ -759,11 +746,9 @@ static srv_thread_type srv_slot_get_type(
   return (type);
 }
 
-/*********************************************************************/ /**
- Reserves a slot in the thread table for the current thread.
+/** Reserves a slot in the thread table for the current thread.
  @return reserved slot */
 static srv_slot_t *srv_reserve_slot(
-    /*=============*/
     srv_thread_type type) /*!< in: type of the thread */
 {
   srv_slot_t *slot = 0;
@@ -807,11 +792,9 @@ static srv_slot_t *srv_reserve_slot(
   return (slot);
 }
 
-/*********************************************************************/ /**
- Suspends the calling thread to wait for the event in its thread slot.
+/** Suspends the calling thread to wait for the event in its thread slot.
  @return the current signal count of the event. */
 static int64_t srv_suspend_thread_low(
-    /*===================*/
     srv_slot_t *slot) /*!< in/out: thread slot */
 {
   ut_ad(!srv_read_only_mode);
@@ -853,12 +836,9 @@ static int64_t srv_suspend_thread_low(
   return (os_event_reset(slot->event));
 }
 
-/*********************************************************************/ /**
- Suspends the calling thread to wait for the event in its thread slot.
+/** Suspends the calling thread to wait for the event in its thread slot.
  @return the current signal count of the event. */
-static int64_t srv_suspend_thread(
-    /*===============*/
-    srv_slot_t *slot) /*!< in/out: thread slot */
+static int64_t srv_suspend_thread(srv_slot_t *slot) /*!< in/out: thread slot */
 {
   srv_sys_mutex_enter();
 
@@ -869,15 +849,12 @@ static int64_t srv_suspend_thread(
   return (sig_count);
 }
 
-/*********************************************************************/ /**
- Releases threads of the type given from suspension in the thread table.
+/** Releases threads of the type given from suspension in the thread table.
  NOTE! The server mutex has to be reserved by the caller!
  @return number of threads released: this may be less than n if not
          enough threads were suspended at the moment. */
-ulint srv_release_threads(
-    /*================*/
-    srv_thread_type type, /*!< in: thread type */
-    ulint n)              /*!< in: number of threads to release */
+ulint srv_release_threads(srv_thread_type type, /*!< in: thread type */
+                          ulint n) /*!< in: number of threads to release */
 {
   ulint i;
   ulint count = 0;
@@ -937,11 +914,8 @@ ulint srv_release_threads(
   return (count);
 }
 
-/*********************************************************************/ /**
- Release a thread's slot. */
-static void srv_free_slot(
-    /*==========*/
-    srv_slot_t *slot) /*!< in/out: thread slot */
+/** Release a thread's slot. */
+static void srv_free_slot(srv_slot_t *slot) /*!< in/out: thread slot */
 {
   srv_sys_mutex_enter();
 
@@ -957,11 +931,8 @@ static void srv_free_slot(
   srv_sys_mutex_exit();
 }
 
-/*********************************************************************/ /**
- Initializes the server. */
-static void srv_init(void)
-/*==========*/
-{
+/** Initializes the server. */
+static void srv_init(void) {
   ulint n_sys_threads = 0;
   ulint srv_sys_sz = sizeof(*srv_sys);
 
@@ -1034,11 +1005,8 @@ static void srv_init(void)
   dict_mem_init();
 }
 
-/*********************************************************************/ /**
- Frees the data structures created in srv_init(). */
-void srv_free(void)
-/*==========*/
-{
+/** Frees the data structures created in srv_init(). */
+void srv_free(void) {
   mutex_free(&srv_innodb_monitor_mutex);
   mutex_free(&page_zip_stat_per_index_mutex);
 
@@ -1072,12 +1040,9 @@ void srv_free(void)
   srv_sys = 0;
 }
 
-/*********************************************************************/ /**
- Initializes the synchronization primitives, memory system, and the thread
+/** Initializes the synchronization primitives, memory system, and the thread
  local storage. */
-static void srv_general_init(void)
-/*==================*/
-{
+static void srv_general_init(void) {
   sync_check_init();
   /* Reset the system variables in the recovery module. */
   recv_sys_var_init();
@@ -1087,11 +1052,8 @@ static void srv_general_init(void)
   row_mysql_init();
 }
 
-/*********************************************************************/ /**
- Boots the InnoDB server. */
-void srv_boot(void)
-/*==========*/
-{
+/** Boots the InnoDB server. */
+void srv_boot(void) {
   /* Initialize synchronization primitives, memory management, and thread
   local storage */
 
@@ -1102,11 +1064,8 @@ void srv_boot(void)
   srv_init();
 }
 
-/******************************************************************/ /**
- Refreshes the values used to calculate per-second averages. */
-static void srv_refresh_innodb_monitor_stats(void)
-/*==================================*/
-{
+/** Refreshes the values used to calculate per-second averages. */
+static void srv_refresh_innodb_monitor_stats(void) {
   mutex_enter(&srv_innodb_monitor_mutex);
 
   srv_last_monitor_time = time(NULL);
@@ -1128,12 +1087,10 @@ static void srv_refresh_innodb_monitor_stats(void)
   mutex_exit(&srv_innodb_monitor_mutex);
 }
 
-/******************************************************************/ /**
- Outputs to a file the output of the InnoDB Monitor.
+/** Outputs to a file the output of the InnoDB Monitor.
  @return false if not all information printed
  due to failure to obtain necessary mutex */
 ibool srv_printf_innodb_monitor(
-    /*======================*/
     FILE *file,           /*!< in: output stream */
     ibool nowait,         /*!< in: whether to wait for the
                           lock_sys_t:: mutex */
@@ -1340,11 +1297,8 @@ ibool srv_printf_innodb_monitor(
   return (ret);
 }
 
-/******************************************************************/ /**
- Function to pass InnoDB status variables to MySQL */
-void srv_export_innodb_status(void)
-/*==========================*/
-{
+/** Function to pass InnoDB status variables to MySQL */
+void srv_export_innodb_status(void) {
   buf_pool_stat_t stat;
   buf_pools_list_size_t buf_pools_list_size;
   ulint LRU_len;
@@ -1666,13 +1620,8 @@ loop:
   srv_error_monitor_active = FALSE;
 }
 
-/******************************************************************/ /**
- Increment the server activity count. */
-void srv_inc_activity_count(void)
-/*========================*/
-{
-  srv_sys->activity_count.inc();
-}
+/** Increment the server activity count. */
+void srv_inc_activity_count(void) { srv_sys->activity_count.inc(); }
 
 /** Check whether any background thread (except the master thread) is active.
 Send the threads wakeup signal.
@@ -1738,15 +1687,12 @@ bool srv_master_thread_active() {
   return (active);
 }
 
-/*******************************************************************/ /**
- Tells the InnoDB server that there has been activity in the database
+/** Tells the InnoDB server that there has been activity in the database
  and wakes up the master thread if it is suspended (not sleeping). Used
  in the MySQL interface. Note that there is a small chance that the master
  thread stays suspended (we do not protect our operation with the
  srv_sys_t->mutex, for performance reasons). */
-void srv_active_wake_master_thread_low()
-/*===============================*/
-{
+void srv_active_wake_master_thread_low() {
   ut_ad(!srv_read_only_mode);
   ut_ad(!srv_sys_mutex_own());
 
@@ -1777,15 +1723,12 @@ void srv_active_wake_master_thread_low()
   }
 }
 
-/*******************************************************************/ /**
- Tells the purge thread that there has been activity in the database
+/** Tells the purge thread that there has been activity in the database
  and wakes up the purge thread if it is suspended (not sleeping).  Note
  that there is a small chance that the purge thread stays suspended
  (we do not protect our check with the srv_sys_t:mutex and the
  purge_sys->latch, for performance reasons). */
-void srv_wake_purge_thread_if_not_active(void)
-/*=====================================*/
-{
+void srv_wake_purge_thread_if_not_active(void) {
   ut_ad(!srv_sys_mutex_own());
 
   if (purge_sys->state == PURGE_STATE_RUN &&
@@ -1794,11 +1737,8 @@ void srv_wake_purge_thread_if_not_active(void)
   }
 }
 
-/*******************************************************************/ /**
- Wakes up the master thread if it is suspended or being suspended. */
-void srv_wake_master_thread(void)
-/*========================*/
-{
+/** Wakes up the master thread if it is suspended or being suspended. */
+void srv_wake_master_thread(void) {
   ut_ad(!srv_sys_mutex_own());
 
   srv_inc_activity_count();
@@ -1806,34 +1746,24 @@ void srv_wake_master_thread(void)
   srv_release_threads(SRV_MASTER, 1);
 }
 
-/*******************************************************************/ /**
- Get current server activity count. We don't hold srv_sys::mutex while
+/** Get current server activity count. We don't hold srv_sys::mutex while
  reading this value as it is only used in heuristics.
  @return activity count. */
-ulint srv_get_activity_count(void)
-/*========================*/
-{
-  return (srv_sys->activity_count);
-}
+ulint srv_get_activity_count(void) { return (srv_sys->activity_count); }
 
-/*******************************************************************/ /**
- Check if there has been any activity.
+/** Check if there has been any activity.
  @return false if no change in activity counter. */
 ibool srv_check_activity(
-    /*===============*/
     ulint old_activity_count) /*!< in: old activity count */
 {
   return (srv_sys->activity_count != old_activity_count);
 }
 
-/********************************************************************/ /**
- The master thread is tasked to ensure that flush of log file happens
+/** The master thread is tasked to ensure that flush of log file happens
  once every second in the background. This is to ensure that not more
  than one second of trxs are lost in case of crash when
  innodb_flush_logs_at_trx_commit != 1 */
-static void srv_sync_log_buffer_in_background(void)
-/*===================================*/
-{
+static void srv_sync_log_buffer_in_background(void) {
   time_t current_time = time(NULL);
 
   srv_main_thread_op_info = "flushing log";
@@ -1845,11 +1775,9 @@ static void srv_sync_log_buffer_in_background(void)
   }
 }
 
-/********************************************************************/ /**
- Make room in the table cache by evicting an unused table.
+/** Make room in the table cache by evicting an unused table.
  @return number of tables evicted. */
 static ulint srv_master_evict_from_table_cache(
-    /*==============================*/
     ulint pct_check) /*!< in: max percent to check */
 {
   ulint n_tables_evicted = 0;
@@ -1868,11 +1796,9 @@ static ulint srv_master_evict_from_table_cache(
   return (n_tables_evicted);
 }
 
-/*********************************************************************/ /**
- This function prints progress message every 60 seconds during server
+/** This function prints progress message every 60 seconds during server
  shutdown, for any activities that master thread is pending on. */
 static void srv_shutdown_print_master_pending(
-    /*==============================*/
     ib_time_t *last_print_time, /*!< last time the function
                                 print the message */
     ulint n_tables_to_drop,     /*!< number of tables to
@@ -1949,16 +1875,13 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 }
 #endif /* UNIV_DEBUG */
 
-/*********************************************************************/ /**
- Perform the tasks that the master thread is supposed to do when the
+/** Perform the tasks that the master thread is supposed to do when the
  server is active. There are two types of tasks. The first category is
  of such tasks which are performed at each inovcation of this function.
  We assume that this function is called roughly every second when the
  server is active. The second category is of such tasks which are
  performed at some interval e.g.: purge, dict_LRU cleanup etc. */
-static void srv_master_do_active_tasks(void)
-/*============================*/
-{
+static void srv_master_do_active_tasks(void) {
   ib_time_t cur_time = ut_time();
   uintmax_t counter_time = ut_time_us(NULL);
 
@@ -2035,17 +1958,14 @@ static void srv_master_do_active_tasks(void)
   }
 }
 
-/*********************************************************************/ /**
- Perform the tasks that the master thread is supposed to do whenever the
+/** Perform the tasks that the master thread is supposed to do whenever the
  server is idle. We do check for the server state during this function
  and if the server has entered the shutdown phase we may return from
  the function without completing the required tasks.
  Note that the server can move to active state when we are executing this
  function but we don't check for that as we are suppose to perform more
  or less same tasks when server is active. */
-static void srv_master_do_idle_tasks(void)
-/*==========================*/
-{
+static void srv_master_do_idle_tasks(void) {
   uintmax_t counter_time;
 
   ++srv_main_idle_loops;
@@ -2107,8 +2027,7 @@ static void srv_master_do_idle_tasks(void)
                                  counter_time);
 }
 
-/*********************************************************************/ /**
- Perform the tasks during shutdown. The tasks that we do at shutdown
+/** Perform the tasks during shutdown. The tasks that we do at shutdown
  depend on srv_fast_shutdown:
  2 => very fast shutdown => do no book keeping
  1 => normal shutdown => clear drop table queue and make checkpoint
@@ -2116,7 +2035,6 @@ static void srv_master_do_idle_tasks(void)
  merge
  @return true if some work was done. false otherwise */
 static ibool srv_master_do_shutdown_tasks(
-    /*=========================*/
     ib_time_t *last_print_time) /*!< last time the function
                                 print the message */
 {
@@ -2326,13 +2244,10 @@ static void srv_enable_undo_encryption_if_set() {
   undo::spaces->s_unlock();
 }
 
-/*********************************************************************/ /**
- Puts master thread to sleep. At this point we are using polling to
+/** Puts master thread to sleep. At this point we are using polling to
  service various activities. Master thread sleeps for one second before
  checking the state of the server again */
-static void srv_master_sleep(void)
-/*==================*/
-{
+static void srv_master_sleep(void) {
   srv_main_thread_op_info = "sleeping";
   os_thread_sleep(1000000);
   srv_main_thread_op_info = "";
@@ -2434,12 +2349,9 @@ static bool srv_purge_should_exit(
   return (false);
 }
 
-/*********************************************************************/ /**
- Fetch and execute a task from the work queue.
+/** Fetch and execute a task from the work queue.
  @return true if a task was executed */
-static bool srv_task_execute(void)
-/*==================*/
-{
+static bool srv_task_execute(void) {
   que_thr_t *thr = NULL;
 
   ut_ad(!srv_read_only_mode);
@@ -2525,11 +2437,9 @@ void srv_worker_thread() {
   my_thread_end();
 }
 
-/*********************************************************************/ /**
- Do the actual purge operation.
+/** Do the actual purge operation.
  @return length of history list before the last purge batch. */
 static ulint srv_do_purge(
-    /*=========*/
     ulint n_threads,       /*!< in: number of threads to use */
     ulint *n_total_purged) /*!< in/out: total pages purged */
 {
@@ -2599,10 +2509,8 @@ static ulint srv_do_purge(
   return (rseg_history_len);
 }
 
-/*********************************************************************/ /**
- Suspend the purge coordinator thread. */
+/** Suspend the purge coordinator thread. */
 static void srv_purge_coordinator_suspend(
-    /*==========================*/
     srv_slot_t *slot,       /*!< in/out: Purge coordinator
                             thread slot */
     ulint rseg_history_len) /*!< in: history list length
@@ -2823,12 +2731,9 @@ void srv_purge_coordinator_thread() {
   my_thread_end();
 }
 
-/**********************************************************************/ /**
- Enqueues a task to server task queue and releases a worker thread, if there
+/** Enqueues a task to server task queue and releases a worker thread, if there
  is a suspended one. */
-void srv_que_task_enqueue_low(
-    /*=====================*/
-    que_thr_t *thr) /*!< in: query thread */
+void srv_que_task_enqueue_low(que_thr_t *thr) /*!< in: query thread */
 {
   ut_ad(!srv_read_only_mode);
   mutex_enter(&srv_sys->tasks_mutex);
@@ -2840,12 +2745,9 @@ void srv_que_task_enqueue_low(
   srv_release_threads(SRV_WORKER, 1);
 }
 
-/**********************************************************************/ /**
- Get count of tasks in the queue.
+/** Get count of tasks in the queue.
  @return number of tasks in queue */
-ulint srv_get_task_queue_length(void)
-/*===========================*/
-{
+ulint srv_get_task_queue_length(void) {
   ulint n_tasks;
 
   ut_ad(!srv_read_only_mode);
@@ -2859,11 +2761,8 @@ ulint srv_get_task_queue_length(void)
   return (n_tasks);
 }
 
-/**********************************************************************/ /**
- Wakeup the purge threads. */
-void srv_purge_wakeup(void)
-/*==================*/
-{
+/** Wakeup the purge threads. */
+void srv_purge_wakeup(void) {
   ut_ad(!srv_read_only_mode);
 
   if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {

@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file arch/arch0log.cc
+/** @file arch/arch0log.cc
  Innodb implementation for log archive
 
  *******************************************************/

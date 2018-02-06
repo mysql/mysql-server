@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************/ /**
- @file include/rem0types.h
+/** @file include/rem0types.h
  Record manager global types
 
  Created 5/30/1994 Heikki Tuuri

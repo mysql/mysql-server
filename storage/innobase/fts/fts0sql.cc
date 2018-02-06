@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file fts/fts0sql.cc
+/** @file fts/fts0sql.cc
  Full Text Search functionality.
 
  Created 2007-03-27 Sunny Bains
@@ -55,11 +54,9 @@ static const char *fts_sql_end =
     "\n"
     "END;\n";
 
-/******************************************************************/ /**
- Get the table id.
+/** Get the table id.
  @return number of bytes written */
 int fts_get_table_id(
-    /*=============*/
     const fts_table_t *fts_table, /*!< in: FTS Auxiliary table */
     char *table_id)               /*!< out: table id, must be at least
                                   FTS_AUX_MIN_TABLE_ID_LENGTH bytes
@@ -131,11 +128,9 @@ static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
   return (prefix_name);
 }
 
-/******************************************************************/ /**
- Construct the prefix name of an FTS table.
+/** Construct the prefix name of an FTS table.
  @return own: table name, must be freed with ut_free() */
 char *fts_get_table_name_prefix(
-    /*======================*/
     const fts_table_t *fts_table) /*!< in: Auxiliary table type */
 {
   return (fts_get_table_name_prefix_low(fts_table, false));
@@ -171,15 +166,12 @@ static void fts_get_table_name_low(const fts_table_t *fts_table,
   ut_free(prefix_name);
 }
 
-/******************************************************************/ /**
- Construct the name of an ancillary FTS table for the given table.
+/** Construct the name of an ancillary FTS table for the given table.
  Caller must allocate enough memory(usually size of MAX_FULL_NAME_LEN)
  for param 'table_name'. */
-void fts_get_table_name(
-    /*===============*/
-    const fts_table_t *fts_table,
-    /*!< in: Auxiliary table type */
-    char *table_name)
+void fts_get_table_name(const fts_table_t *fts_table,
+                        /*!< in: Auxiliary table type */
+                        char *table_name)
 /*!< in/out: aux table name */
 {
   fts_get_table_name_low(fts_table, table_name, false);
@@ -194,11 +186,9 @@ void fts_get_table_name_5_7(const fts_table_t *fts_table, char *table_name) {
   fts_get_table_name_low(fts_table, table_name, true);
 }
 
-/******************************************************************/ /**
- Parse an SQL string.
+/** Parse an SQL string.
  @return query graph */
 que_t *fts_parse_sql(
-    /*==========*/
     fts_table_t *fts_table, /*!< in: FTS auxiliarry table info */
     pars_info_t *info,      /*!< in: info struct, or NULL */
     const char *sql)        /*!< in: SQL string to evaluate */
@@ -244,13 +234,10 @@ que_t *fts_parse_sql(
   return (graph);
 }
 
-/******************************************************************/ /**
- Evaluate an SQL query graph.
+/** Evaluate an SQL query graph.
  @return DB_SUCCESS or error code */
-dberr_t fts_eval_sql(
-    /*=========*/
-    trx_t *trx,   /*!< in: transaction */
-    que_t *graph) /*!< in: Query graph to evaluate */
+dberr_t fts_eval_sql(trx_t *trx,   /*!< in: transaction */
+                     que_t *graph) /*!< in: Query graph to evaluate */
 {
   que_thr_t *thr;
 
@@ -264,8 +251,7 @@ dberr_t fts_eval_sql(
   return (trx->error_state);
 }
 
-/******************************************************************/ /**
- Construct the column specification part of the SQL string for selecting the
+/** Construct the column specification part of the SQL string for selecting the
  indexed FTS columns for the given table. Adds the necessary bound
  ids to the given 'info' and returns the SQL string. Examples:
 
@@ -280,7 +266,6 @@ dberr_t fts_eval_sql(
   info/ids: sel0 -> "subject", sel1 -> "content",
  @return heap-allocated WHERE string */
 const char *fts_get_select_columns_str(
-    /*=======================*/
     dict_index_t *index, /*!< in: index */
     pars_info_t *info,   /*!< in/out: parser info */
     mem_heap_t *heap)    /*!< in: memory heap */
@@ -304,12 +289,9 @@ const char *fts_get_select_columns_str(
   return (str);
 }
 
-/******************************************************************/ /**
- Commit a transaction.
+/** Commit a transaction.
  @return DB_SUCCESS or error code */
-dberr_t fts_sql_commit(
-    /*===========*/
-    trx_t *trx) /*!< in: transaction */
+dberr_t fts_sql_commit(trx_t *trx) /*!< in: transaction */
 {
   dberr_t error;
 
@@ -321,12 +303,9 @@ dberr_t fts_sql_commit(
   return (DB_SUCCESS);
 }
 
-/******************************************************************/ /**
- Rollback a transaction.
+/** Rollback a transaction.
  @return DB_SUCCESS or error code */
-dberr_t fts_sql_rollback(
-    /*=============*/
-    trx_t *trx) /*!< in: transaction */
+dberr_t fts_sql_rollback(trx_t *trx) /*!< in: transaction */
 {
   return (trx_rollback_to_savepoint(trx, NULL));
 }

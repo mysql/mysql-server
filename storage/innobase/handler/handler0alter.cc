@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file handler/handler0alter.cc
+/** @file handler/handler0alter.cc
  Smart ALTER TABLE
  *******************************************************/
 
@@ -317,7 +316,6 @@ struct alter_table_old_info_t {
 
 /* Report an InnoDB error to the client by invoking my_error(). */
 static UNIV_COLD void my_error_innodb(
-    /*============*/
     dberr_t error,     /*!< in: InnoDB error code */
     const char *table, /*!< in: table name */
     ulint flags)       /*!< in: table flags */
@@ -400,9 +398,7 @@ static UNIV_COLD void my_error_innodb(
 /** Determine if fulltext indexes exist in a given table.
 @param table MySQL table
 @return whether fulltext indexes exist on the table */
-static bool innobase_fulltext_exist(
-    /*====================*/
-    const TABLE *table) {
+static bool innobase_fulltext_exist(const TABLE *table) {
   for (uint i = 0; i < table->s->keys; i++) {
     if (table->key_info[i].flags & HA_FULLTEXT) {
       return (true);
@@ -415,9 +411,7 @@ static bool innobase_fulltext_exist(
 /** Determine if spatial indexes exist in a given table.
 @param table MySQL table
 @return whether spatial indexes exist on the table */
-static bool innobase_spatial_exist(
-    /*===================*/
-    const TABLE *table) {
+static bool innobase_spatial_exist(const TABLE *table) {
   for (uint i = 0; i < table->s->keys; i++) {
     if (table->key_info[i].flags & HA_SPATIAL) {
       return (true);
@@ -427,12 +421,10 @@ static bool innobase_spatial_exist(
   return (false);
 }
 
-/*******************************************************************/ /**
- Determine if ALTER TABLE needs to rebuild the table.
+/** Determine if ALTER TABLE needs to rebuild the table.
  @param ha_alter_info the DDL operation
  @return whether it is necessary to rebuild the table */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_need_rebuild(
-    /*==================*/
     const Alter_inplace_info *ha_alter_info) {
   Alter_inplace_info::HA_ALTER_FLAGS alter_inplace_flags =
       ha_alter_info->handler_flags & ~(INNOBASE_INPLACE_IGNORE);
@@ -573,7 +565,6 @@ while prepare_inplace_alter_table() is executing)
 */
 
 enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
-    /*==========================================*/
     TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
   DBUG_ENTER("check_if_supported_inplace_alter");
 
@@ -1069,11 +1060,9 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   DBUG_RETURN(res);
 }
 
-/*************************************************************/ /**
- Initialize the dict_foreign_t structure with supplied info
+/** Initialize the dict_foreign_t structure with supplied info
  @return true if added, false if duplicate foreign->id */
 static bool innobase_init_foreign(
-    /*==================*/
     dict_foreign_t *foreign,              /*!< in/out: structure to
                                           initialize */
     const char *constraint_name,          /*!< in/out: constraint name if
@@ -1153,11 +1142,9 @@ static bool innobase_init_foreign(
   return (true);
 }
 
-/*************************************************************/ /**
- Check whether the foreign key options is legit
+/** Check whether the foreign key options is legit
  @return true if it is */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_fk_option(
-    /*=====================*/
     const dict_foreign_t *foreign) /*!< in: foreign key */
 {
   if (!foreign->foreign_index) {
@@ -1179,11 +1166,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_fk_option(
   return (true);
 }
 
-/*************************************************************/ /**
- Set foreign key options
+/** Set foreign key options
  @return true if successfully set */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_set_foreign_key_option(
-    /*============================*/
     dict_foreign_t *foreign,        /*!< in:InnoDB Foreign key */
     const Foreign_key_spec *fk_key) /*!< in: Foreign key info from
                                     MySQL */
@@ -1225,12 +1210,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_set_foreign_key_option(
   return (innobase_check_fk_option(foreign));
 }
 
-/*******************************************************************/ /**
- Check if a foreign key constraint can make use of an index
+/** Check if a foreign key constraint can make use of an index
  that is being created.
  @return useable index, or NULL if none found */
 static MY_ATTRIBUTE((warn_unused_result)) const KEY *innobase_find_equiv_index(
-    /*======================*/
     const char *const *col_names,
     /*!< in: column names */
     uint n_cols,     /*!< in: number of columns */
@@ -1282,12 +1265,10 @@ static MY_ATTRIBUTE((warn_unused_result)) const KEY *innobase_find_equiv_index(
   return (NULL);
 }
 
-/*************************************************************/ /**
- Find an index whose first fields are the columns in the array
+/** Find an index whose first fields are the columns in the array
  in the same order and is not marked for deletion
  @return matching index, NULL if not found */
 static MY_ATTRIBUTE((warn_unused_result)) dict_index_t *innobase_find_fk_index(
-    /*===================*/
     Alter_inplace_info *ha_alter_info,
     /*!< in: alter table info */
     dict_table_t *table, /*!< in: table */
@@ -1603,11 +1584,9 @@ err_exit:
   DBUG_RETURN(false);
 }
 
-/*************************************************************/ /**
- Copies an InnoDB column to a MySQL field.  This function is
+/** Copies an InnoDB column to a MySQL field.  This function is
  adapted from row_sel_field_store_in_mysql_format(). */
 static void innobase_col_to_mysql(
-    /*==================*/
     const dict_col_t *col, /*!< in: InnoDB column */
     const uchar *data,     /*!< in: InnoDB column data */
     ulint len,             /*!< in: length of data, in bytes */
@@ -1692,15 +1671,12 @@ static void innobase_col_to_mysql(
   }
 }
 
-/*************************************************************/ /**
- Copies an InnoDB record to table->record[0]. */
-void innobase_rec_to_mysql(
-    /*==================*/
-    struct TABLE *table,       /*!< in/out: MySQL table */
-    const rec_t *rec,          /*!< in: record */
-    const dict_index_t *index, /*!< in: index */
-    const ulint *offsets)      /*!< in: rec_get_offsets(
-                               rec, index, ...) */
+/** Copies an InnoDB record to table->record[0]. */
+void innobase_rec_to_mysql(struct TABLE *table, /*!< in/out: MySQL table */
+                           const rec_t *rec,    /*!< in: record */
+                           const dict_index_t *index, /*!< in: index */
+                           const ulint *offsets)      /*!< in: rec_get_offsets(
+                                                      rec, index, ...) */
 {
   uint n_fields = table->s->fields;
 
@@ -1738,10 +1714,8 @@ void innobase_rec_to_mysql(
   }
 }
 
-/*************************************************************/ /**
- Copies an InnoDB index entry to table->record[0]. */
+/** Copies an InnoDB index entry to table->record[0]. */
 void innobase_fields_to_mysql(
-    /*=====================*/
     struct TABLE *table,       /*!< in/out: MySQL table */
     const dict_index_t *index, /*!< in: InnoDB index */
     const dfield_t *fields)    /*!< in: InnoDB index fields */
@@ -1785,13 +1759,10 @@ void innobase_fields_to_mysql(
   }
 }
 
-/*************************************************************/ /**
- Copies an InnoDB row to table->record[0]. */
-void innobase_row_to_mysql(
-    /*==================*/
-    struct TABLE *table,      /*!< in/out: MySQL table */
-    const dict_table_t *itab, /*!< in: InnoDB table */
-    const dtuple_t *row)      /*!< in: InnoDB row */
+/** Copies an InnoDB row to table->record[0]. */
+void innobase_row_to_mysql(struct TABLE *table,      /*!< in/out: MySQL table */
+                           const dict_table_t *itab, /*!< in: InnoDB table */
+                           const dtuple_t *row)      /*!< in: InnoDB row */
 {
   uint n_fields = table->s->fields;
   ulint num_v = 0;
@@ -1828,11 +1799,8 @@ void innobase_row_to_mysql(
   }
 }
 
-/*************************************************************/ /**
- Resets table->record[0]. */
-void innobase_rec_reset(
-    /*===============*/
-    TABLE *table) /*!< in/out: MySQL table */
+/** Resets table->record[0]. */
+void innobase_rec_reset(TABLE *table) /*!< in/out: MySQL table */
 {
   uint n_fields = table->s->fields;
   uint i;
@@ -1842,11 +1810,9 @@ void innobase_rec_reset(
   }
 }
 
-/*******************************************************************/ /**
- This function checks that index keys are sensible.
+/** This function checks that index keys are sensible.
  @return 0 or error number */
 static MY_ATTRIBUTE((warn_unused_result)) int innobase_check_index_keys(
-    /*======================*/
     const Alter_inplace_info *info,
     /*!< in: indexes to be created or dropped */
     const dict_table_t *innodb_table)
@@ -2187,11 +2153,9 @@ static void innobase_create_index_def(const TABLE *altered_table,
   DBUG_VOID_RETURN;
 }
 
-/*******************************************************************/ /**
- Check whether the table has the FTS_DOC_ID column
+/** Check whether the table has the FTS_DOC_ID column
  @return whether there exists an FTS_DOC_ID column */
 bool innobase_fts_check_doc_id_col(
-    /*==========================*/
     const dict_table_t *table, /*!< in: InnoDB table with
                                fulltext index */
     const TABLE *altered_table,
@@ -2267,12 +2231,10 @@ bool innobase_fts_check_doc_id_col(
   return (false);
 }
 
-/*******************************************************************/ /**
- Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+/** Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
  on the Doc ID column.
  @return the status of the FTS_DOC_ID index */
 enum fts_doc_id_index_enum innobase_fts_check_doc_id_index(
-    /*============================*/
     const dict_table_t *table,  /*!< in: table definition */
     const TABLE *altered_table, /*!< in: MySQL table
                                 that is being altered */
@@ -2354,13 +2316,11 @@ enum fts_doc_id_index_enum innobase_fts_check_doc_id_index(
   /* Not found */
   return (FTS_NOT_EXIST_DOC_ID_INDEX);
 }
-/*******************************************************************/ /**
- Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
+/** Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
  on the Doc ID column in MySQL create index definition.
  @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
  FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
 enum fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
-    /*===================================*/
     ulint n_key,         /*!< in: Number of keys */
     const KEY *key_info) /*!< in: Key definition */
 {
@@ -2392,8 +2352,7 @@ enum fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
   return (FTS_NOT_EXIST_DOC_ID_INDEX);
 }
 
-/*******************************************************************/ /**
- Create an index table where indexes are ordered as follows:
+/** Create an index table where indexes are ordered as follows:
 
  IF a new primary key is defined for the table THEN
 
@@ -2408,30 +2367,28 @@ enum fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
 
  @return key definitions */
 template <typename Table>
-static MY_ATTRIBUTE((warn_unused_result, malloc))
-    index_def_t *innobase_create_key_defs(
-        /*=====================*/
-        mem_heap_t *heap,
-        /*!< in/out: memory heap where space for key
-        definitions are allocated */
-        const Alter_inplace_info *ha_alter_info,
-        /*!< in: alter operation */
-        const TABLE *altered_table,
-        /*!< in: MySQL table that is being altered */
-        const Table *new_dd_table,
-        /*!< in: new dd table */
-        ulint &n_add,
-        /*!< in/out: number of indexes to be created */
-        ulint &n_fts_add,
-        /*!< out: number of FTS indexes to be created */
-        bool got_default_clust,
-        /*!< in: whether the table lacks a primary key */
-        ulint &fts_doc_id_col,
-        /*!< in: The column number for Doc ID */
-        bool &add_fts_doc_id,
-        /*!< in: whether we need to add new DOC ID
-        column for FTS index */
-        bool &add_fts_doc_idx)
+static MY_ATTRIBUTE((warn_unused_result, malloc)) index_def_t
+    *innobase_create_key_defs(mem_heap_t *heap,
+                              /*!< in/out: memory heap where space for key
+                              definitions are allocated */
+                              const Alter_inplace_info *ha_alter_info,
+                              /*!< in: alter operation */
+                              const TABLE *altered_table,
+                              /*!< in: MySQL table that is being altered */
+                              const Table *new_dd_table,
+                              /*!< in: new dd table */
+                              ulint &n_add,
+                              /*!< in/out: number of indexes to be created */
+                              ulint &n_fts_add,
+                              /*!< out: number of FTS indexes to be created */
+                              bool got_default_clust,
+                              /*!< in: whether the table lacks a primary key */
+                              ulint &fts_doc_id_col,
+                              /*!< in: The column number for Doc ID */
+                              bool &add_fts_doc_id,
+                              /*!< in: whether we need to add new DOC ID
+                              column for FTS index */
+                              bool &add_fts_doc_idx)
 /*!< in: whether we need to add new DOC ID
 index for FTS index */
 {
@@ -2598,11 +2555,9 @@ index for FTS index */
   DBUG_RETURN(indexdefs);
 }
 
-/*******************************************************************/ /**
- Check each index column size, make sure they do not exceed the max limit
+/** Check each index column size, make sure they do not exceed the max limit
  @return true if index column size exceeds limit */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_column_length(
-    /*=========================*/
     ulint max_col_len,   /*!< in: maximum column length */
     const KEY *key_info) /*!< in: Indexes to be created */
 {
@@ -2647,7 +2602,6 @@ static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
 @param n_drop_fk number of constraints that are being dropped
 @return whether the constraint is being dropped */
 inline MY_ATTRIBUTE((warn_unused_result)) bool innobase_dropping_foreign(
-    /*======================*/
     const dict_foreign_t *foreign, dict_foreign_t **drop_fk, ulint n_drop_fk) {
   while (n_drop_fk--) {
     if (*drop_fk++ == foreign) {
@@ -2669,7 +2623,6 @@ column that is being dropped or modified to NOT NULL.
 @retval false Allowed
 */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreigns_low(
-    /*========================*/
     const dict_table_t *user_table, dict_foreign_t **drop_fk, ulint n_drop_fk,
     const char *col_name, bool drop) {
   dict_foreign_t *foreign;
@@ -2750,7 +2703,6 @@ column that is being dropped or modified to NOT NULL.
 @retval false Allowed
 */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreigns(
-    /*====================*/
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *old_table, const dict_table_t *user_table,
     dict_foreign_t **drop_fk, ulint n_drop_fk) {
@@ -2786,9 +2738,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreigns(
 @param dfield InnoDB data field to copy to
 @param field MySQL value for the column
 @param comp nonzero if in compact format */
-static void innobase_build_col_map_add(
-    /*=======================*/
-    mem_heap_t *heap, dfield_t *dfield, const Field *field, ulint comp) {
+static void innobase_build_col_map_add(mem_heap_t *heap, dfield_t *dfield,
+                                       const Field *field, ulint comp) {
   if (field->is_real_null()) {
     dfield_set_null(dfield);
     return;
@@ -2817,7 +2768,6 @@ adding columns.
 @return array of integers, mapping column numbers in the table
 to column numbers in altered_table */
 static MY_ATTRIBUTE((warn_unused_result)) const ulint *innobase_build_col_map(
-    /*===================*/
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *new_table,
     const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
@@ -2929,9 +2879,7 @@ FIC create index process, before fts_add_index is called
 @param trx transaction
 @return DB_SUCCESS if successful, otherwise last error code
 */
-static dberr_t innobase_drop_fts_index_table(
-    /*==========================*/
-    dict_table_t *table, trx_t *trx) {
+static dberr_t innobase_drop_fts_index_table(dict_table_t *table, trx_t *trx) {
   dberr_t ret_err = DB_SUCCESS;
 
   for (dict_index_t *index = table->first_index(); index != NULL;
@@ -4548,7 +4496,6 @@ err_exit:
 If so, if it is dropped, is there an equivalent index can play its role.
 @return true if the index is needed and can't be dropped */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreign_key_index(
-    /*=============================*/
     Alter_inplace_info *ha_alter_info, /*!< in: Structure describing
                                        changes to be done by ALTER
                                        TABLE */
@@ -4665,10 +4612,8 @@ specified in ha_alter_info.
 @param ctx alter context, used to fetch the list of indexes to rename
 @param ha_alter_info fetch the new names from here
 */
-static void rename_indexes_in_cache(
-    /*====================*/
-    const ha_innobase_inplace_ctx *ctx,
-    const Alter_inplace_info *ha_alter_info) {
+static void rename_indexes_in_cache(const ha_innobase_inplace_ctx *ctx,
+                                    const Alter_inplace_info *ha_alter_info) {
   DBUG_ENTER("rename_indexes_in_cache");
 
   ut_ad(ctx->num_to_rename == ha_alter_info->index_rename_count);
@@ -5651,9 +5596,7 @@ oom:
 
 /** Free the modification log for online table rebuild.
 @param table table that was being rebuilt online */
-static void innobase_online_rebuild_log_free(
-    /*=============================*/
-    dict_table_t *table) {
+static void innobase_online_rebuild_log_free(dict_table_t *table) {
   dict_index_t *clust_index = table->first_index();
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -5723,9 +5666,9 @@ temparary index prefix
 @param locked TRUE=table locked, FALSE=may need to do a lazy drop
 @param trx the transaction
 */
-static void innobase_rollback_sec_index(
-    /*========================*/
-    dict_table_t *user_table, const TABLE *table, ibool locked, trx_t *trx) {
+static void innobase_rollback_sec_index(dict_table_t *user_table,
+                                        const TABLE *table, ibool locked,
+                                        trx_t *trx) {
   row_merge_drop_indexes(trx, user_table, locked);
 
   /* Free the table->fts only if there is no FTS_DOC_ID
@@ -5860,7 +5803,6 @@ as part of commit_cache_norebuild().
 @param table the TABLE
 @param user_table InnoDB table that was being altered */
 static void innobase_rename_or_enlarge_columns_cache(
-    /*=====================================*/
     Alter_inplace_info *ha_alter_info, const TABLE *table,
     dict_table_t *user_table) {
   if (!(ha_alter_info->handler_flags &
@@ -5915,7 +5857,6 @@ static void innobase_rename_or_enlarge_columns_cache(
 @retval true Failure
 @retval false Success*/
 static MY_ATTRIBUTE((warn_unused_result)) bool commit_get_autoinc(
-    /*===============*/
     Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx,
     const TABLE *altered_table, const TABLE *old_table) {
   DBUG_ENTER("commit_get_autoinc");
@@ -6008,7 +5949,6 @@ but do not touch the data dictionary cache.
 @retval false Success
 */
 static MY_ATTRIBUTE((warn_unused_result)) bool innobase_update_foreign_try(
-    /*========================*/
     ha_innobase_inplace_ctx *ctx, trx_t *trx, const char *table_name) {
   ulint foreign_id;
   ulint i;
@@ -6166,7 +6106,6 @@ when rebuilding the table.
 @retval false Success
 */
 inline MY_ATTRIBUTE((warn_unused_result)) bool commit_try_rebuild(
-    /*===============*/
     Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx,
     TABLE *altered_table, const TABLE *old_table, trx_t *trx,
     const char *table_name) {
@@ -6318,9 +6257,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_try_rebuild(
 /** Apply the changes made during commit_try_rebuild(),
 to the data dictionary cache and the file system.
 @param ctx In-place ALTER TABLE context */
-inline void commit_cache_rebuild(
-    /*=================*/
-    ha_innobase_inplace_ctx *ctx) {
+inline void commit_cache_rebuild(ha_innobase_inplace_ctx *ctx) {
   dberr_t error;
 
   DBUG_ENTER("commit_cache_rebuild");
@@ -6452,7 +6389,6 @@ after a successful commit_try_norebuild() call.
 (will be started and committed)
 @return whether all replacements were found for dropped indexes */
 inline MY_ATTRIBUTE((warn_unused_result)) bool commit_cache_norebuild(
-    /*===================*/
     ha_innobase_inplace_ctx *ctx, const TABLE *table, trx_t *trx) {
   DBUG_ENTER("commit_cache_norebuild");
 
@@ -6548,10 +6484,10 @@ and rename statistics for renamed indexes.
 @param table_name Table name in MySQL
 @param thd MySQL connection
 */
-static void alter_stats_norebuild(
-    /*==================*/
-    Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx,
-    TABLE *altered_table, const char *table_name, THD *thd) {
+static void alter_stats_norebuild(Alter_inplace_info *ha_alter_info,
+                                  ha_innobase_inplace_ctx *ctx,
+                                  TABLE *altered_table, const char *table_name,
+                                  THD *thd) {
   ulint i;
 
   DBUG_ENTER("alter_stats_norebuild");
@@ -6631,9 +6567,8 @@ and rename statistics for renamed indexes.
 @param table_name Table name in MySQL
 @param thd MySQL connection
 */
-static void alter_stats_rebuild(
-    /*================*/
-    dict_table_t *table, const char *table_name, THD *thd) {
+static void alter_stats_rebuild(dict_table_t *table, const char *table_name,
+                                THD *thd) {
   DBUG_ENTER("alter_stats_rebuild");
   DBUG_EXECUTE_IF("ib_ddl_crash_before_rename", DBUG_SUICIDE(););
 

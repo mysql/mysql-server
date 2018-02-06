@@ -30,8 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file log/log0ddl.cc
+/** @file log/log0ddl.cc
  DDL log
 
  Created 12/1/2016 Shaohua Wang

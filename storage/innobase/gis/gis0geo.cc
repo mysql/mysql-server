@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file gis/gis0geo.cc
+/** @file gis/gis0geo.cc
  InnoDB R-tree related functions.
 
  Created 2013/03/27 Allen Lai and Jimmy Yang
@@ -38,21 +37,16 @@ namespace dd {
 class Spatial_reference_system;
 }
 
-/*************************************************************/ /**
- Copy mbr of dimension n_dim from src to dst. */
-inline static void copy_coords(
-    /*========*/
-    double *dst,       /*!< in/out: destination. */
-    const double *src, /*!< in: source. */
-    int n_dim)         /*!< in: dimensions. */
+/** Copy mbr of dimension n_dim from src to dst. */
+inline static void copy_coords(double *dst,       /*!< in/out: destination. */
+                               const double *src, /*!< in: source. */
+                               int n_dim)         /*!< in: dimensions. */
 {
   memcpy(dst, src, DATA_MBR_LEN);
 }
 
-/*************************************************************/ /**
- Select two nodes to collect group upon */
+/** Select two nodes to collect group upon */
 static void pick_seeds(
-    /*=======*/
     rtr_split_node_t *node,                  /*!< in: split nodes. */
     int n_entries,                           /*!< in: entries number. */
     rtr_split_node_t **seed_a,               /*!< out: seed 1. */
@@ -84,12 +78,9 @@ static void pick_seeds(
   }
 }
 
-/*********************************************************/ /**
- Generates a random iboolean value.
+/** Generates a random iboolean value.
  @return the random value */
-static ibool ut_rnd_gen_ibool(void)
-/*=================*/
-{
+static ibool ut_rnd_gen_ibool(void) {
   ulint x;
 
   x = ut_rnd_gen_ulint();
@@ -101,10 +92,8 @@ static ibool ut_rnd_gen_ibool(void)
   return (FALSE);
 }
 
-/*************************************************************/ /**
- Select next node and group where to add. */
+/** Select next node and group where to add. */
 static void pick_next(
-    /*======*/
     rtr_split_node_t *node,                  /*!< in: split nodes. */
     int n_entries,                           /*!< in: entries number. */
     double *g1,                              /*!< in: mbr of group 1. */
@@ -145,10 +134,8 @@ static void pick_next(
   }
 }
 
-/*************************************************************/ /**
- Mark not-in-group entries as n_group. */
+/** Mark not-in-group entries as n_group. */
 static void mark_all_entries(
-    /*=============*/
     rtr_split_node_t *node, /*!< in/out: split nodes. */
     int n_entries,          /*!< in: entries number. */
     int n_group)            /*!< in: group number. */
@@ -163,11 +150,9 @@ static void mark_all_entries(
   }
 }
 
-/*************************************************************/ /**
- Split rtree node.
+/** Split rtree node.
  Return which group the first rec is in. */
 int split_rtree_node(
-    /*=============*/
     rtr_split_node_t *node,                  /*!< in: split nodes. */
     int n_entries,                           /*!< in: entries number. */
     int all_size,                            /*!< in: total key's size. */

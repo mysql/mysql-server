@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file dict/dict0stats_bg.cc
+/** @file dict/dict0stats_bg.cc
  Code used for background table and index stats gathering.
 
  Created Apr 25, 2012 Vasil Dimov
@@ -92,11 +91,8 @@ static bool dict_stats_start_shutdown;
 /** Event to wait for shutdown of the dict stats thread */
 static os_event_t dict_stats_shutdown_event;
 
-/*****************************************************************/ /**
- Initialize the recalc pool, called once during thread initialization. */
-static void dict_stats_recalc_pool_init()
-/*=========================*/
-{
+/** Initialize the recalc pool, called once during thread initialization. */
+static void dict_stats_recalc_pool_init() {
   ut_ad(!srv_read_only_mode);
 
   const PSI_memory_key key = mem_key_dict_stats_bg_recalc_pool_t;
@@ -106,12 +102,9 @@ static void dict_stats_recalc_pool_init()
   recalc_pool->reserve(RECALC_POOL_INITIAL_SLOTS);
 }
 
-/*****************************************************************/ /**
- Free the resources occupied by the recalc pool, called once during
+/** Free the resources occupied by the recalc pool, called once during
  thread de-initialization. */
-static void dict_stats_recalc_pool_deinit()
-/*===========================*/
-{
+static void dict_stats_recalc_pool_deinit() {
   ut_ad(!srv_read_only_mode);
 
   recalc_pool->clear();
@@ -120,14 +113,12 @@ static void dict_stats_recalc_pool_deinit()
   recalc_pool = NULL;
 }
 
-/*****************************************************************/ /**
- Add a table to the recalc pool, which is processed by the
+/** Add a table to the recalc pool, which is processed by the
  background stats gathering thread. Only the table id is added to the
  list, so the table can be closed after being enqueued and it will be
  opened when needed. If the table does not exist later (has been DROPped),
  then it will be removed from the pool and skipped. */
 void dict_stats_recalc_pool_add(
-    /*=======================*/
     const dict_table_t *table) /*!< in: table to add */
 {
   ut_ad(!srv_read_only_mode);
@@ -150,12 +141,10 @@ void dict_stats_recalc_pool_add(
   os_event_set(dict_stats_event);
 }
 
-/*****************************************************************/ /**
- Get a table from the auto recalc pool. The returned table id is removed
+/** Get a table from the auto recalc pool. The returned table id is removed
  from the pool.
  @return true if the pool was non-empty and "id" was set, false otherwise */
 static bool dict_stats_recalc_pool_get(
-    /*=======================*/
     table_id_t *id) /*!< out: table id, or unmodified if list is
                     empty */
 {
@@ -177,11 +166,9 @@ static bool dict_stats_recalc_pool_get(
   return (true);
 }
 
-/*****************************************************************/ /**
- Delete a given table from the auto recalc pool.
+/** Delete a given table from the auto recalc pool.
  dict_stats_recalc_pool_del() */
 void dict_stats_recalc_pool_del(
-    /*=======================*/
     const dict_table_t *table) /*!< in: table to remove */
 {
   ut_ad(!srv_read_only_mode);
@@ -203,8 +190,7 @@ void dict_stats_recalc_pool_del(
   mutex_exit(&recalc_pool_mutex);
 }
 
-/*****************************************************************/ /**
- Wait until background stats thread has stopped using the specified table.
+/** Wait until background stats thread has stopped using the specified table.
  The caller must have locked the data dictionary using
  row_mysql_lock_data_dictionary() and this function may unlock it temporarily
  and restore the lock before it exits.
@@ -213,7 +199,6 @@ void dict_stats_recalc_pool_del(
  dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
  under dict_sys->mutex. */
 void dict_stats_wait_bg_to_stop_using_table(
-    /*===================================*/
     dict_table_t *table, /*!< in/out: table */
     trx_t *trx)          /*!< in/out: transaction to use for
                          unlocking/locking the data dict */
@@ -223,12 +208,9 @@ void dict_stats_wait_bg_to_stop_using_table(
   }
 }
 
-/*****************************************************************/ /**
- Initialize global variables needed for the operation of dict_stats_thread()
+/** Initialize global variables needed for the operation of dict_stats_thread()
  Must be called before dict_stats_thread() is started. */
-void dict_stats_thread_init()
-/*====================*/
-{
+void dict_stats_thread_init() {
   ut_a(!srv_read_only_mode);
 
   dict_stats_event = os_event_create(0);
@@ -255,12 +237,9 @@ void dict_stats_thread_init()
   dict_stats_recalc_pool_init();
 }
 
-/*****************************************************************/ /**
- Free resources allocated by dict_stats_thread_init(), must be called
+/** Free resources allocated by dict_stats_thread_init(), must be called
  after dict_stats_thread() has exited. */
-void dict_stats_thread_deinit()
-/*======================*/
-{
+void dict_stats_thread_deinit() {
   ut_a(!srv_read_only_mode);
   ut_ad(!srv_dict_stats_thread_active);
 

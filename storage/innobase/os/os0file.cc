@@ -32,8 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ***********************************************************************/
 
-/**************************************************/ /**
- @file os/os0file.cc
+/** @file os/os0file.cc
  The interface to the operating system file i/o primitives
 
  Created 10/21/1995 Heikki Tuuri

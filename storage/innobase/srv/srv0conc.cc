@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -37,8 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file srv/srv0conc.cc
+/** @file srv/srv0conc.cc
 
  InnoDB concurrency manager
 
@@ -90,10 +89,8 @@ struct srv_conc_t {
 /* Control variables for tracking concurrency. */
 static srv_conc_t srv_conc;
 
-/*********************************************************************/ /**
- Note that a user thread is entering InnoDB. */
+/** Note that a user thread is entering InnoDB. */
 static void srv_enter_innodb_with_tickets(
-    /*==========================*/
     trx_t *trx) /*!< in/out: transaction that wants
                 to enter InnoDB */
 {
@@ -101,8 +98,7 @@ static void srv_enter_innodb_with_tickets(
   trx->n_tickets_to_enter_innodb = srv_n_free_tickets_to_enter;
 }
 
-/*********************************************************************/ /**
- Handle the scheduling of a user thread that wants to enter InnoDB.  Setting
+/** Handle the scheduling of a user thread that wants to enter InnoDB.  Setting
  srv_adaptive_max_sleep_delay > 0 switches the adaptive sleep calibration to
  ON. When set, we want to wait in the queue for as little time as possible.
  However, very short waits will result in a lot of context switches and that
@@ -114,7 +110,6 @@ static void srv_enter_innodb_with_tickets(
  decrement it by one. This is to try and keep the sleep time stable around the
  "optimum" sleep time. */
 static void srv_conc_enter_innodb_with_atomics(
-    /*===============================*/
     trx_t *trx) /*!< in/out: transaction that wants
                 to enter InnoDB */
 {
@@ -203,10 +198,8 @@ static void srv_conc_enter_innodb_with_atomics(
   }
 }
 
-/*********************************************************************/ /**
- Note that a user thread is leaving InnoDB code. */
+/** Note that a user thread is leaving InnoDB code. */
 static void srv_conc_exit_innodb_with_atomics(
-    /*==============================*/
     trx_t *trx) /*!< in/out: transaction */
 {
   trx->n_tickets_to_enter_innodb = 0;
@@ -215,8 +208,7 @@ static void srv_conc_exit_innodb_with_atomics(
   (void)os_atomic_decrement_lint(&srv_conc.n_active, 1);
 }
 
-/*********************************************************************/ /**
- Puts an OS thread to wait if there are too many concurrent threads
+/** Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue.
  @param[in,out]	prebuilt	row prebuilt handler */
 void srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
@@ -233,11 +225,9 @@ void srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
   srv_conc_enter_innodb_with_atomics(trx);
 }
 
-/*********************************************************************/ /**
- This lets a thread enter InnoDB regardless of the number of threads inside
+/** This lets a thread enter InnoDB regardless of the number of threads inside
  InnoDB. This must be called when a thread ends a lock wait. */
 void srv_conc_force_enter_innodb(
-    /*========================*/
     trx_t *trx) /*!< in: transaction object associated with the
                 thread */
 {
@@ -261,11 +251,9 @@ void srv_conc_force_enter_innodb(
   trx->declared_to_be_inside_innodb = TRUE;
 }
 
-/*********************************************************************/ /**
- This must be called when a thread exits InnoDB in a lock wait or at the
+/** This must be called when a thread exits InnoDB in a lock wait or at the
  end of an SQL statement. */
 void srv_conc_force_exit_innodb(
-    /*=======================*/
     trx_t *trx) /*!< in: transaction object associated with the
                 thread */
 {
@@ -286,18 +274,8 @@ void srv_conc_force_exit_innodb(
 #endif /* UNIV_DEBUG */
 }
 
-/*********************************************************************/ /**
- Get the count of threads waiting inside InnoDB. */
-ulint srv_conc_get_waiting_threads(void)
-/*==============================*/
-{
-  return (srv_conc.n_waiting);
-}
+/** Get the count of threads waiting inside InnoDB. */
+ulint srv_conc_get_waiting_threads(void) { return (srv_conc.n_waiting); }
 
-/*********************************************************************/ /**
- Get the count of threads active inside InnoDB. */
-ulint srv_conc_get_active_threads(void)
-/*==============================*/
-{
-  return (srv_conc.n_active);
-}
+/** Get the count of threads active inside InnoDB. */
+ulint srv_conc_get_active_threads(void) { return (srv_conc.n_active); }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,8 +26,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 
-/**************************************************/ /**
- @file include/row0sel.h
+/** @file include/row0sel.h
  Select
 
  Created 12/19/1997 Heikki Tuuri
@@ -48,23 +47,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
-/*********************************************************************/ /**
- Creates a select node struct.
+/** Creates a select node struct.
  @return own: select node struct */
 sel_node_t *sel_node_create(
-    /*============*/
     mem_heap_t *heap); /*!< in: memory heap where created */
-/*********************************************************************/ /**
- Frees the memory private to a select node when a query graph is freed,
+/** Frees the memory private to a select node when a query graph is freed,
  does not free the heap where the node was originally created. */
-void sel_node_free_private(
-    /*==================*/
-    sel_node_t *node); /*!< in: select node struct */
-/*********************************************************************/ /**
- Frees a prefetch buffer for a column, including the dynamically allocated
+void sel_node_free_private(sel_node_t *node); /*!< in: select node struct */
+/** Frees a prefetch buffer for a column, including the dynamically allocated
  memory for data stored there. */
 void sel_col_prefetch_buf_free(
-    /*======================*/
     sel_buf_t *prefetch_buf); /*!< in, own: prefetch buffer */
 
 /** Gets the plan node for the nth table in a join.
@@ -74,26 +66,17 @@ void sel_col_prefetch_buf_free(
 UNIV_INLINE
 plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 
-/**********************************************************************/ /**
- Performs a select step. This is a high-level function used in SQL execution
+/** Performs a select step. This is a high-level function used in SQL execution
  graphs.
  @return query thread to run next or NULL */
-que_thr_t *row_sel_step(
-    /*=========*/
-    que_thr_t *thr); /*!< in: query thread */
-/**********************************************************************/ /**
- Performs an execution step of an open or close cursor statement node.
+que_thr_t *row_sel_step(que_thr_t *thr); /*!< in: query thread */
+/** Performs an execution step of an open or close cursor statement node.
  @return query thread to run next or NULL */
 UNIV_INLINE
-que_thr_t *open_step(
-    /*======*/
-    que_thr_t *thr); /*!< in: query thread */
-/**********************************************************************/ /**
- Performs a fetch for a cursor.
+que_thr_t *open_step(que_thr_t *thr); /*!< in: query thread */
+/** Performs a fetch for a cursor.
  @return query thread to run next or NULL */
-que_thr_t *fetch_step(
-    /*=======*/
-    que_thr_t *thr); /*!< in: query thread */
+que_thr_t *fetch_step(que_thr_t *thr); /*!< in: query thread */
 
 /** Copy used fields from cached row.
 Copy cache record field by field, don't touch fields that
@@ -104,14 +87,12 @@ are not covered by current key.
 void row_sel_copy_cached_fields_for_mysql(byte *buf, const byte *cached_rec,
                                           row_prebuilt_t *prebuilt);
 
-/****************************************************************/ /**
- Converts a key value stored in MySQL format to an Innobase dtuple. The last
+/** Converts a key value stored in MySQL format to an Innobase dtuple. The last
  field of the key value may be just a prefix of a fixed length field: hence
  the parameter key_len. But currently we do not allow search keys where the
  last field is only a prefix of the full key field len and print a warning if
  such appears. */
 void row_sel_convert_mysql_key_to_innobase(
-    /*==================================*/
     dtuple_t *tuple,     /*!< in/out: tuple where to build;
                          NOTE: we assume that the type info
                          in the tuple is already according
@@ -200,11 +181,9 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
                         row_prebuilt_t *prebuilt, ulint match_mode,
                         ulint direction) MY_ATTRIBUTE((warn_unused_result));
 
-/********************************************************************/ /**
- Count rows in a R-Tree leaf level.
+/** Count rows in a R-Tree leaf level.
  @return DB_SUCCESS if successful */
 dberr_t row_count_rtree_recs(
-    /*=================*/
     row_prebuilt_t *prebuilt, /*!< in: prebuilt struct for the
                               table handle; this contains the info
                               of search_tuple, index; if search
@@ -215,11 +194,9 @@ dberr_t row_count_rtree_recs(
     ulint *n_rows);           /*!< out: number of entries
                               seen in the consistent read */
 
-/*******************************************************************/ /**
- Read the max AUTOINC value from an index.
+/** Read the max AUTOINC value from an index.
  @return DB_SUCCESS if all OK else error code */
 dberr_t row_search_max_autoinc(
-    /*===================*/
     dict_index_t *index,  /*!< in: index to search */
     const char *col_name, /*!< in: autoinc column name */
     ib_uint64_t *value)   /*!< out: AUTOINC value read */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/lock0priv.ic
+/** @file include/lock0priv.ic
  Lock module internal inline methods.
 
  Created July 16, 2007 Vasil Dimov
@@ -40,26 +39,21 @@ methods but they are used only in that file. */
 #error Do not include lock0priv.ic outside of the lock/ module
 #endif
 
-/*********************************************************************/ /**
- Gets the type of a lock.
+/** Gets the type of a lock.
  @return LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
-uint32_t lock_get_type_low(
-    /*==============*/
-    const lock_t *lock) /*!< in: lock */
+uint32_t lock_get_type_low(const lock_t *lock) /*!< in: lock */
 {
   ut_ad(lock);
 
   return (lock->type_mode & LOCK_TYPE_MASK);
 }
 
-/*********************************************************************/ /**
- Checks if some transaction has an implicit x-lock on a record in a clustered
+/** Checks if some transaction has an implicit x-lock on a record in a clustered
  index.
  @return transaction id of the transaction which has the x-lock, or 0 */
 UNIV_INLINE
 trx_id_t lock_clust_rec_some_has_impl(
-    /*=========================*/
     const rec_t *rec,          /*!< in: user record */
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
@@ -70,24 +64,18 @@ trx_id_t lock_clust_rec_some_has_impl(
   return (row_get_rec_trx_id(rec, index, offsets));
 }
 
-/*********************************************************************/ /**
- Gets the number of bits in a record lock bitmap.
+/** Gets the number of bits in a record lock bitmap.
  @return	number of bits */
 UNIV_INLINE
-ulint lock_rec_get_n_bits(
-    /*================*/
-    const lock_t *lock) /*!< in: record lock */
+ulint lock_rec_get_n_bits(const lock_t *lock) /*!< in: record lock */
 {
   return (lock->rec_lock.n_bits);
 }
 
-/**********************************************************************/ /**
- Sets the nth bit of a record lock to TRUE. */
+/** Sets the nth bit of a record lock to TRUE. */
 UNIV_INLINE
-void lock_rec_set_nth_bit(
-    /*=================*/
-    lock_t *lock, /*!< in: record lock */
-    ulint i)      /*!< in: index of the bit */
+void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
+                          ulint i)      /*!< in: index of the bit */
 {
   ulint byte_index;
   ulint bit_index;
@@ -104,24 +92,19 @@ void lock_rec_set_nth_bit(
   ++lock->trx->lock.n_rec_locks;
 }
 
-/*********************************************************************/ /**
- Gets the first or next record lock on a page.
+/** Gets the first or next record lock on a page.
  @return	next lock, NULL if none exists */
 UNIV_INLINE
-lock_t *lock_rec_get_next_on_page(
-    /*======================*/
-    lock_t *lock) /*!< in: a record lock */
+lock_t *lock_rec_get_next_on_page(lock_t *lock) /*!< in: a record lock */
 {
   return ((lock_t *)lock_rec_get_next_on_page_const(lock));
 }
 
-/*********************************************************************/ /**
- Gets the first record lock on a page, where the page is identified by its
+/** Gets the first record lock on a page, where the page is identified by its
  file address.
  @return	first lock, NULL if none exists */
 UNIV_INLINE
 lock_t *lock_rec_get_first_on_page_addr(
-    /*============================*/
     hash_table_t *lock_hash, /*!< in: Lock hash table */
     space_id_t space,        /*!< in: space */
     page_no_t page_no)       /*!< in: page number */
@@ -139,13 +122,11 @@ lock_t *lock_rec_get_first_on_page_addr(
   return (NULL);
 }
 
-/*********************************************************************/ /**
- Gets the first record lock on a page, where the page is identified by a
+/** Gets the first record lock on a page, where the page is identified by a
  pointer to it.
  @return	first lock, NULL if none exists */
 UNIV_INLINE
 lock_t *lock_rec_get_first_on_page(
-    /*=======================*/
     hash_table_t *lock_hash,  /*!< in: lock hash table */
     const buf_block_t *block) /*!< in: buffer block */
 {
@@ -165,15 +146,12 @@ lock_t *lock_rec_get_first_on_page(
   return (NULL);
 }
 
-/*********************************************************************/ /**
- Gets the next explicit lock request on a record.
+/** Gets the next explicit lock request on a record.
  @return	next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
  */
 UNIV_INLINE
-lock_t *lock_rec_get_next(
-    /*==============*/
-    ulint heap_no, /*!< in: heap number of the record */
-    lock_t *lock)  /*!< in: lock */
+lock_t *lock_rec_get_next(ulint heap_no, /*!< in: heap number of the record */
+                          lock_t *lock)  /*!< in: lock */
 {
   ut_ad(lock_mutex_own());
 
@@ -185,13 +163,11 @@ lock_t *lock_rec_get_next(
   return (lock);
 }
 
-/*********************************************************************/ /**
- Gets the next explicit lock request on a record.
+/** Gets the next explicit lock request on a record.
  @return	next lock, NULL if none exists or if heap_no == ULINT_UNDEFINED
  */
 UNIV_INLINE
 const lock_t *lock_rec_get_next_const(
-    /*====================*/
     ulint heap_no,      /*!< in: heap number of the record */
     const lock_t *lock) /*!< in: lock */
 {
@@ -216,12 +192,10 @@ lock_t *lock_rec_get_first(hash_table_t *hash, const RecID &rec_id) {
   return (lock);
 }
 
-/*********************************************************************/ /**
- Gets the first explicit lock request on a record.
+/** Gets the first explicit lock request on a record.
  @return	first lock, NULL if none exists */
 UNIV_INLINE
 lock_t *lock_rec_get_first(
-    /*===============*/
     hash_table_t *hash,       /*!< in: hash chain the lock on */
     const buf_block_t *block, /*!< in: block containing the record */
     ulint heap_no)            /*!< in: heap number of the record */
@@ -258,12 +232,10 @@ bool lock_rec_get_nth_bit(const lock_t *lock, ulint i) {
   return (true & *b >> (i % 8));
 }
 
-/*********************************************************************/ /**
- Gets the first or next record lock on a page.
+/** Gets the first or next record lock on a page.
  @return next lock, NULL if none exists */
 UNIV_INLINE
 const lock_t *lock_rec_get_next_on_page_const(
-    /*============================*/
     const lock_t *lock) /*!< in: a record lock */
 {
   ut_ad(lock_mutex_own());
@@ -282,27 +254,21 @@ const lock_t *lock_rec_get_next_on_page_const(
   return (NULL);
 }
 
-/*********************************************************************/ /**
- Gets the mode of a lock.
+/** Gets the mode of a lock.
  @return mode */
 UNIV_INLINE
-enum lock_mode lock_get_mode(
-    /*==========*/
-    const lock_t *lock) /*!< in: lock */
+enum lock_mode lock_get_mode(const lock_t *lock) /*!< in: lock */
 {
   ut_ad(lock);
 
   return (static_cast<enum lock_mode>(lock->type_mode & LOCK_MODE_MASK));
 }
 
-/*********************************************************************/ /**
- Calculates if lock mode 1 is compatible with lock mode 2.
+/** Calculates if lock mode 1 is compatible with lock mode 2.
  @return nonzero if mode1 compatible with mode2 */
 UNIV_INLINE
-ulint lock_mode_compatible(
-    /*=================*/
-    enum lock_mode mode1, /*!< in: lock mode */
-    enum lock_mode mode2) /*!< in: lock mode */
+ulint lock_mode_compatible(enum lock_mode mode1, /*!< in: lock mode */
+                           enum lock_mode mode2) /*!< in: lock mode */
 {
   ut_ad((ulint)mode1 < lock_types);
   ut_ad((ulint)mode2 < lock_types);
@@ -310,14 +276,11 @@ ulint lock_mode_compatible(
   return (lock_compatibility_matrix[mode1][mode2]);
 }
 
-/*********************************************************************/ /**
- Calculates if lock mode 1 is stronger or equal to lock mode 2.
+/** Calculates if lock mode 1 is stronger or equal to lock mode 2.
  @return nonzero if mode1 stronger or equal to mode2 */
 UNIV_INLINE
-ulint lock_mode_stronger_or_eq(
-    /*=====================*/
-    enum lock_mode mode1, /*!< in: lock mode */
-    enum lock_mode mode2) /*!< in: lock mode */
+ulint lock_mode_stronger_or_eq(enum lock_mode mode1, /*!< in: lock mode */
+                               enum lock_mode mode2) /*!< in: lock mode */
 {
   ut_ad((ulint)mode1 < lock_types);
   ut_ad((ulint)mode2 < lock_types);
@@ -325,27 +288,22 @@ ulint lock_mode_stronger_or_eq(
   return (lock_strength_matrix[mode1][mode2]);
 }
 
-/*********************************************************************/ /**
- Gets the wait flag of a lock.
+/** Gets the wait flag of a lock.
  @return LOCK_WAIT if waiting, 0 if not */
 UNIV_INLINE
-ulint lock_get_wait(
-    /*==========*/
-    const lock_t *lock) /*!< in: lock */
+ulint lock_get_wait(const lock_t *lock) /*!< in: lock */
 {
   ut_ad(lock);
 
   return (lock->type_mode & LOCK_WAIT);
 }
 
-/*********************************************************************/ /**
- Looks for a suitable type record lock struct by the same trx on the same page.
- This can be used to save space when a new record lock should be set on a page:
- no new struct is needed, if a suitable old is found.
+/** Looks for a suitable type record lock struct by the same trx on the same
+ page. This can be used to save space when a new record lock should be set on a
+ page: no new struct is needed, if a suitable old is found.
  @return lock or NULL */
 UNIV_INLINE
 lock_t *lock_rec_find_similar_on_page(
-    /*==========================*/
     ulint type_mode,  /*!< in: lock type_mode field */
     ulint heap_no,    /*!< in: heap number of the record */
     lock_t *lock,     /*!< in: lock_rec_get_first_on_page() */
@@ -363,16 +321,13 @@ lock_t *lock_rec_find_similar_on_page(
   return (NULL);
 }
 
-/*********************************************************************/ /**
- Checks if a transaction has the specified table lock, or stronger. This
+/** Checks if a transaction has the specified table lock, or stronger. This
  function should only be called by the thread that owns the transaction.
  @return lock or NULL */
 UNIV_INLINE
-const lock_t *lock_table_has(
-    /*===========*/
-    const trx_t *trx,          /*!< in: transaction */
-    const dict_table_t *table, /*!< in: table */
-    lock_mode in_mode)         /*!< in: lock mode */
+const lock_t *lock_table_has(const trx_t *trx,          /*!< in: transaction */
+                             const dict_table_t *table, /*!< in: table */
+                             lock_mode in_mode)         /*!< in: lock mode */
 {
   if (trx->lock.table_locks.empty()) {
     return (NULL);

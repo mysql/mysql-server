@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file handler/i_s.cc
+/** @file handler/i_s.cc
  InnoDB INFORMATION SCHEMA tables interface to MySQL.
 
  Created July 18, 2007 Vasil Dimov
@@ -228,28 +227,21 @@ time_t			MYSQL_TYPE_DATETIME
 ---------------------------------
 */
 
-/*******************************************************************/ /**
- Common function to fill any of the dynamic tables:
+/** Common function to fill any of the dynamic tables:
  INFORMATION_SCHEMA.innodb_trx
  @return 0 on success */
 static int trx_i_s_common_fill_table(
-    /*======================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *);            /*!< in: condition (not used) */
 
-/*******************************************************************/ /**
- Unbind a dynamic INFORMATION_SCHEMA table.
+/** Unbind a dynamic INFORMATION_SCHEMA table.
  @return 0 on success */
-static int i_s_common_deinit(
-    /*==============*/
-    void *p); /*!< in/out: table schema object */
-/*******************************************************************/ /**
- Auxiliary function to store time_t value in MYSQL_TYPE_DATETIME
+static int i_s_common_deinit(void *p); /*!< in/out: table schema object */
+/** Auxiliary function to store time_t value in MYSQL_TYPE_DATETIME
  field.
  @return 0 on success */
 static int field_store_time_t(
-    /*===============*/
     Field *field, /*!< in/out: target field for storage */
     time_t time)  /*!< in: value to store */
 {
@@ -274,11 +266,9 @@ static int field_store_time_t(
   return (field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME));
 }
 
-/*******************************************************************/ /**
- Auxiliary function to store char* value in MYSQL_TYPE_STRING field.
+/** Auxiliary function to store char* value in MYSQL_TYPE_STRING field.
  @return 0 on success */
 static int field_store_string(
-    /*===============*/
     Field *field,    /*!< in/out: target field for storage */
     const char *str) /*!< in: NUL-terminated utf-8 string,
                      or NULL */
@@ -297,12 +287,10 @@ static int field_store_string(
   return (ret);
 }
 
-/*******************************************************************/ /**
- Store the name of an index in a MYSQL_TYPE_VARCHAR field.
+/** Store the name of an index in a MYSQL_TYPE_VARCHAR field.
  Handles the names of incomplete secondary indexes.
  @return 0 on success */
 static int field_store_index_name(
-    /*===================*/
     Field *field,           /*!< in/out: target field for
                             storage */
     const char *index_name) /*!< in: NUL-terminated utf-8
@@ -497,12 +485,10 @@ static ST_FIELD_INFO innodb_trx_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_trx
+/** Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_trx
  table with it.
  @return 0 on success */
 static int fill_innodb_trx_from_cache(
-    /*=======================*/
     trx_i_s_cache_t *cache, /*!< in: cache to read from */
     THD *thd,               /*!< in: used to call
                             schema_table_store_record() */
@@ -628,12 +614,9 @@ static int fill_innodb_trx_from_cache(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.innodb_trx
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_trx
  @return 0 on success */
-static int innodb_trx_init(
-    /*============*/
-    void *p) /*!< in/out: table schema object */
+static int innodb_trx_init(void *p) /*!< in/out: table schema object */
 {
   ST_SCHEMA_TABLE *schema;
 
@@ -706,12 +689,10 @@ struct st_mysql_plugin i_s_innodb_trx = {
     STRUCT_FLD(flags, 0UL),
 };
 
-/*******************************************************************/ /**
- Common function to fill any of the dynamic tables:
+/** Common function to fill any of the dynamic tables:
  INFORMATION_SCHEMA.innodb_trx
  @return 0 on success */
 static int trx_i_s_common_fill_table(
-    /*======================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (not used) */
@@ -832,16 +813,13 @@ static ST_FIELD_INFO i_s_cmp_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_cmp or
+/** Fill the dynamic table information_schema.innodb_cmp or
  innodb_cmp_reset.
  @return 0 on success, 1 on failure */
-static int i_s_cmp_fill_low(
-    /*=============*/
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *,             /*!< in: condition (ignored) */
-    ibool reset)        /*!< in: TRUE=reset cumulated counts */
+static int i_s_cmp_fill_low(THD *thd,           /*!< in: thread */
+                            TABLE_LIST *tables, /*!< in/out: tables to fill */
+                            Item *,             /*!< in: condition (ignored) */
+                            ibool reset) /*!< in: TRUE=reset cumulated counts */
 {
   TABLE *table = (TABLE *)tables->table;
   int status = 0;
@@ -883,36 +861,27 @@ static int i_s_cmp_fill_low(
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_cmp.
+/** Fill the dynamic table information_schema.innodb_cmp.
  @return 0 on success, 1 on failure */
-static int i_s_cmp_fill(
-    /*=========*/
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *cond)         /*!< in: condition (ignored) */
+static int i_s_cmp_fill(THD *thd,           /*!< in: thread */
+                        TABLE_LIST *tables, /*!< in/out: tables to fill */
+                        Item *cond)         /*!< in: condition (ignored) */
 {
   return (i_s_cmp_fill_low(thd, tables, cond, FALSE));
 }
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_cmp_reset.
+/** Fill the dynamic table information_schema.innodb_cmp_reset.
  @return 0 on success, 1 on failure */
-static int i_s_cmp_reset_fill(
-    /*===============*/
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *cond)         /*!< in: condition (ignored) */
+static int i_s_cmp_reset_fill(THD *thd,           /*!< in: thread */
+                              TABLE_LIST *tables, /*!< in/out: tables to fill */
+                              Item *cond) /*!< in: condition (ignored) */
 {
   return (i_s_cmp_fill_low(thd, tables, cond, TRUE));
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table information_schema.innodb_cmp.
+/** Bind the dynamic table information_schema.innodb_cmp.
  @return 0 on success */
-static int i_s_cmp_init(
-    /*=========*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_cmp_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_cmp_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -923,12 +892,9 @@ static int i_s_cmp_init(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table information_schema.innodb_cmp_reset.
+/** Bind the dynamic table information_schema.innodb_cmp_reset.
  @return 0 on success */
-static int i_s_cmp_reset_init(
-    /*===============*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_cmp_reset_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_cmp_reset_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -1112,13 +1078,11 @@ static ST_FIELD_INFO i_s_cmp_per_index_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Fill the dynamic table
+/** Fill the dynamic table
  information_schema.innodb_cmp_per_index or
  information_schema.innodb_cmp_per_index_reset.
  @return 0 on success, 1 on failure */
 static int i_s_cmp_per_index_fill_low(
-    /*=======================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *,             /*!< in: condition (ignored) */
@@ -1214,11 +1178,9 @@ err:
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_cmp_per_index.
+/** Fill the dynamic table information_schema.innodb_cmp_per_index.
  @return 0 on success, 1 on failure */
 static int i_s_cmp_per_index_fill(
-    /*===================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *cond)         /*!< in: condition (ignored) */
@@ -1226,11 +1188,9 @@ static int i_s_cmp_per_index_fill(
   return (i_s_cmp_per_index_fill_low(thd, tables, cond, FALSE));
 }
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_cmp_per_index_reset.
+/** Fill the dynamic table information_schema.innodb_cmp_per_index_reset.
  @return 0 on success, 1 on failure */
 static int i_s_cmp_per_index_reset_fill(
-    /*=========================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *cond)         /*!< in: condition (ignored) */
@@ -1238,12 +1198,9 @@ static int i_s_cmp_per_index_reset_fill(
   return (i_s_cmp_per_index_fill_low(thd, tables, cond, TRUE));
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table information_schema.innodb_cmp_per_index.
+/** Bind the dynamic table information_schema.innodb_cmp_per_index.
  @return 0 on success */
-static int i_s_cmp_per_index_init(
-    /*===================*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_cmp_per_index_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_cmp_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -1254,11 +1211,9 @@ static int i_s_cmp_per_index_init(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table information_schema.innodb_cmp_per_index_reset.
+/** Bind the dynamic table information_schema.innodb_cmp_per_index_reset.
  @return 0 on success */
 static int i_s_cmp_per_index_reset_init(
-    /*=========================*/
     void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_cmp_reset_init");
@@ -1500,23 +1455,18 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_cmpmem.
+/** Fill the dynamic table information_schema.innodb_cmpmem.
  @return 0 on success, 1 on failure */
-static int i_s_cmpmem_fill(
-    /*============*/
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *cond)         /*!< in: condition (ignored) */
+static int i_s_cmpmem_fill(THD *thd,           /*!< in: thread */
+                           TABLE_LIST *tables, /*!< in/out: tables to fill */
+                           Item *cond)         /*!< in: condition (ignored) */
 {
   return (i_s_cmpmem_fill_low(thd, tables, cond, FALSE));
 }
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_cmpmem_reset.
+/** Fill the dynamic table information_schema.innodb_cmpmem_reset.
  @return 0 on success, 1 on failure */
 static int i_s_cmpmem_reset_fill(
-    /*==================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *cond)         /*!< in: condition (ignored) */
@@ -1524,12 +1474,9 @@ static int i_s_cmpmem_reset_fill(
   return (i_s_cmpmem_fill_low(thd, tables, cond, TRUE));
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table information_schema.innodb_cmpmem.
+/** Bind the dynamic table information_schema.innodb_cmpmem.
  @return 0 on success */
-static int i_s_cmpmem_init(
-    /*============*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_cmpmem_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_cmpmem_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -1540,12 +1487,9 @@ static int i_s_cmpmem_init(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table information_schema.innodb_cmpmem_reset.
+/** Bind the dynamic table information_schema.innodb_cmpmem_reset.
  @return 0 on success */
-static int i_s_cmpmem_reset_init(
-    /*==================*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_cmpmem_reset_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_cmpmem_reset_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -1786,11 +1730,9 @@ static ST_FIELD_INFO innodb_metrics_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/**********************************************************************/ /**
- Fill the information schema metrics table.
+/** Fill the information schema metrics table.
  @return 0 on success */
 static int i_s_metrics_fill(
-    /*=============*/
     THD *thd,             /*!< in: thread */
     TABLE *table_to_fill) /*!< in/out: fill this table */
 {
@@ -2026,11 +1968,9 @@ static int i_s_metrics_fill(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Function to fill information schema metrics tables.
+/** Function to fill information schema metrics tables.
  @return 0 on success */
 static int i_s_metrics_fill_table(
-    /*===================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (not used) */
@@ -2046,12 +1986,9 @@ static int i_s_metrics_fill_table(
 
   DBUG_RETURN(0);
 }
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.innodb_metrics
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_metrics
  @return 0 on success */
-static int innodb_metrics_init(
-    /*================*/
-    void *p) /*!< in/out: table schema object */
+static int innodb_metrics_init(void *p) /*!< in/out: table schema object */
 {
   ST_SCHEMA_TABLE *schema;
 
@@ -2131,14 +2068,11 @@ static ST_FIELD_INFO i_s_stopword_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Fill the dynamic table information_schema.innodb_ft_default_stopword.
+/** Fill the dynamic table information_schema.innodb_ft_default_stopword.
  @return 0 on success, 1 on failure */
-static int i_s_stopword_fill(
-    /*==============*/
-    THD *thd,           /*!< in: thread */
-    TABLE_LIST *tables, /*!< in/out: tables to fill */
-    Item *)             /*!< in: condition (not used) */
+static int i_s_stopword_fill(THD *thd,           /*!< in: thread */
+                             TABLE_LIST *tables, /*!< in/out: tables to fill */
+                             Item *) /*!< in: condition (not used) */
 {
   Field **fields;
   ulint i = 0;
@@ -2160,12 +2094,9 @@ static int i_s_stopword_fill(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table information_schema.innodb_ft_default_stopword.
+/** Bind the dynamic table information_schema.innodb_ft_default_stopword.
  @return 0 on success */
-static int i_s_stopword_init(
-    /*==============*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_stopword_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_stopword_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -2244,12 +2175,10 @@ static ST_FIELD_INFO i_s_fts_doc_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED or
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED or
  INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
  @return 0 on success, 1 on failure */
 static int i_s_fts_deleted_generic_fill(
-    /*=========================*/
     THD *thd,            /*!< in: thread */
     TABLE_LIST *tables,  /*!< in/out: tables to fill */
     ibool being_deleted) /*!< in: BEING_DELTED table */
@@ -2330,11 +2259,9 @@ static int i_s_fts_deleted_generic_fill(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
  @return 0 on success, 1 on failure */
 static int i_s_fts_deleted_fill(
-    /*=================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -2344,12 +2271,9 @@ static int i_s_fts_deleted_fill(
   DBUG_RETURN(i_s_fts_deleted_generic_fill(thd, tables, FALSE));
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
  @return 0 on success */
-static int i_s_fts_deleted_init(
-    /*=================*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_fts_deleted_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_fts_deleted_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -2416,11 +2340,9 @@ struct st_mysql_plugin i_s_innodb_ft_deleted = {
     STRUCT_FLD(flags, 0UL),
 };
 
-/*******************************************************************/ /**
- Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
  @return 0 on success, 1 on failure */
 static int i_s_fts_being_deleted_fill(
-    /*=======================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -2430,11 +2352,9 @@ static int i_s_fts_being_deleted_fill(
   DBUG_RETURN(i_s_fts_deleted_generic_fill(thd, tables, TRUE));
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
  @return 0 on success */
 static int i_s_fts_being_deleted_init(
-    /*=======================*/
     void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_fts_deleted_init");
@@ -2549,12 +2469,10 @@ static ST_FIELD_INFO i_s_fts_index_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Go through the Doc Node and its ilist, fill the dynamic table
+/** Go through the Doc Node and its ilist, fill the dynamic table
  INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED for one FTS index on the table.
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_cache_fill_one_index(
-    /*===============================*/
     fts_index_cache_t *index_cache, /*!< in: FTS index cache */
     THD *thd,                       /*!< in: thread */
     TABLE_LIST *tables)             /*!< in/out: tables to fill */
@@ -2643,11 +2561,9 @@ static int i_s_fts_index_cache_fill_one_index(
 
   DBUG_RETURN(0);
 }
-/*******************************************************************/ /**
- Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_cache_fill(
-    /*=====================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -2701,12 +2617,9 @@ static int i_s_fts_index_cache_fill(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
  @return 0 on success */
-static int i_s_fts_index_cache_init(
-    /*=====================*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_fts_index_cache_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_fts_index_cache_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -2773,12 +2686,10 @@ struct st_mysql_plugin i_s_innodb_ft_index_cache = {
     STRUCT_FLD(flags, 0UL),
 };
 
-/*******************************************************************/ /**
- Go through a FTS index auxiliary table, fetch its rows and fill
+/** Go through a FTS index auxiliary table, fetch its rows and fill
  FTS word cache structure.
  @return DB_SUCCESS on success, otherwise error code */
 static dberr_t i_s_fts_index_table_fill_selected(
-    /*==============================*/
     dict_index_t *index, /*!< in: FTS index */
     ib_vector_t *words,  /*!< in/out: vector to hold
                          fetched words */
@@ -2866,10 +2777,8 @@ static dberr_t i_s_fts_index_table_fill_selected(
   return (error);
 }
 
-/*******************************************************************/ /**
- Free words. */
+/** Free words. */
 static void i_s_fts_index_table_free_one_fetch(
-    /*===============================*/
     ib_vector_t *words) /*!< in: words fetched */
 {
   for (ulint i = 0; i < ib_vector_size(words); i++) {
@@ -2890,11 +2799,9 @@ static void i_s_fts_index_table_free_one_fetch(
   ib_vector_reset(words);
 }
 
-/*******************************************************************/ /**
- Go through words, fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
+/** Go through words, fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
  @return	0 on success, 1 on failure */
 static int i_s_fts_index_table_fill_one_fetch(
-    /*===============================*/
     CHARSET_INFO *index_charset, /*!< in: FTS index charset */
     THD *thd,                    /*!< in: thread */
     TABLE_LIST *tables,          /*!< in/out: tables to fill */
@@ -2989,12 +2896,10 @@ static int i_s_fts_index_table_fill_one_fetch(
   DBUG_RETURN(ret);
 }
 
-/*******************************************************************/ /**
- Go through a FTS index and its auxiliary tables, fetch rows in each table
+/** Go through a FTS index and its auxiliary tables, fetch rows in each table
  and fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_table_fill_one_index(
-    /*===============================*/
     dict_index_t *index, /*!< in: FTS index */
     THD *thd,            /*!< in: thread */
     TABLE_LIST *tables)  /*!< in/out: tables to fill */
@@ -3069,11 +2974,9 @@ func_exit:
 
   DBUG_RETURN(ret);
 }
-/*******************************************************************/ /**
- Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
  @return 0 on success, 1 on failure */
 static int i_s_fts_index_table_fill(
-    /*=====================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -3122,12 +3025,9 @@ static int i_s_fts_index_table_fill(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE
  @return 0 on success */
-static int i_s_fts_index_table_init(
-    /*=====================*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_fts_index_table_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_fts_index_table_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -3214,11 +3114,9 @@ static const char *fts_config_key[] = {
     FTS_OPTIMIZE_LIMIT_IN_SECS, FTS_SYNCED_DOC_ID, FTS_STOPWORD_TABLE_NAME,
     FTS_USE_STOPWORD, NULL};
 
-/*******************************************************************/ /**
- Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
+/** Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
  @return 0 on success, 1 on failure */
 static int i_s_fts_config_fill(
-    /*================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -3326,12 +3224,9 @@ static int i_s_fts_config_fill(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_CONFIG
  @return 0 on success */
-static int i_s_fts_config_init(
-    /*=================*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_fts_config_init(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_fts_config_init");
   ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *)p;
@@ -3438,12 +3333,10 @@ struct temp_table_info_t {
 typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t>>
     temp_table_info_cache_t;
 
-/*******************************************************************/ /**
- Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
+/** Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
  temp-table
  @return 0 on success, 1 on failure */
 static int i_s_innodb_temp_table_info_fill(
-    /*=============================*/
     THD *thd,                      /*!< in: thread */
     TABLE_LIST *tables,            /*!< in/out: tables
                                    to fill */
@@ -3489,12 +3382,10 @@ static void innodb_temp_table_populate_cache(const dict_table_t *table,
   cache->m_space_id = table->space;
 }
 
-/*******************************************************************/ /**
- This function will iterate over all available table and will fill
+/** This function will iterate over all available table and will fill
  stats for temp-tables to INNODB_TEMP_TABLE_INFO.
  @return 0 on success, 1 on failure */
 static int i_s_innodb_temp_table_info_fill_table(
-    /*===================================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -3545,11 +3436,9 @@ static int i_s_innodb_temp_table_info_fill_table(
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO.
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO.
  @return 0 on success, 1 on failure */
 static int i_s_innodb_temp_table_info_init(
-    /*=============================*/
     void *p) /*!< in/out: table schema object */
 {
   ST_SCHEMA_TABLE *schema;
@@ -3848,12 +3737,10 @@ static ST_FIELD_INFO i_s_innodb_buffer_stats_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Fill Information Schema table INNODB_BUFFER_POOL_STATS for a particular
+/** Fill Information Schema table INNODB_BUFFER_POOL_STATS for a particular
  buffer pool
  @return 0 on success, 1 on failure */
 static int i_s_innodb_stats_fill(
-    /*==================*/
     THD *thd,                    /*!< in: thread */
     TABLE_LIST *tables,          /*!< in/out: tables to fill */
     const buf_pool_info_t *info) /*!< in: buffer pool
@@ -3948,12 +3835,10 @@ static int i_s_innodb_stats_fill(
   DBUG_RETURN(schema_table_store_record(thd, table));
 }
 
-/*******************************************************************/ /**
- This is the function that loops through each buffer pool and fetch buffer
+/** This is the function that loops through each buffer pool and fetch buffer
  pool stats to information schema  table: I_S_INNODB_BUFFER_POOL_STATS
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_stats_fill_table(
-    /*===============================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -3993,11 +3878,9 @@ static int i_s_innodb_buffer_stats_fill_table(
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS.
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS.
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_pool_stats_init(
-    /*==============================*/
     void *p) /*!< in/out: table schema object */
 {
   ST_SCHEMA_TABLE *schema;
@@ -4205,12 +4088,10 @@ static ST_FIELD_INFO i_s_innodb_buffer_page_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Fill Information Schema table INNODB_BUFFER_PAGE with information
+/** Fill Information Schema table INNODB_BUFFER_PAGE with information
  cached in the buf_page_info_t array
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_page_fill(
-    /*========================*/
     THD *thd,                          /*!< in: thread */
     TABLE_LIST *tables,                /*!< in/out: tables to fill */
     const buf_page_info_t *info_array, /*!< in: array cached page
@@ -4373,10 +4254,8 @@ static int i_s_innodb_buffer_page_fill(
   DBUG_RETURN(0);
 }
 
-/*******************************************************************/ /**
- Set appropriate page type to a buf_page_info_t structure */
+/** Set appropriate page type to a buf_page_info_t structure */
 static void i_s_innodb_set_page_type(
-    /*=====================*/
     buf_page_info_t *page_info, /*!< in/out: structure to fill with
                                 scanned info */
     ulint page_type,            /*!< in: page type */
@@ -4438,12 +4317,10 @@ static void i_s_innodb_set_page_type(
           mach_read_from_4(frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
   }
 }
-/*******************************************************************/ /**
- Scans pages in the buffer cache, and collect their general information
+/** Scans pages in the buffer cache, and collect their general information
  into the buf_page_info_t array which is zero-filled. So any fields
  that are not initialized in the function will default to 0 */
 static void i_s_innodb_buffer_page_get_info(
-    /*============================*/
     const buf_page_t *bpage,    /*!< in: buffer pool page to scan */
     ulint pool_id,              /*!< in: buffer pool id */
     ulint pos,                  /*!< in: buffer block position in
@@ -4529,12 +4406,10 @@ static void i_s_innodb_buffer_page_get_info(
   mutex_exit(mutex);
 }
 
-/*******************************************************************/ /**
- This is the function that goes through each block of the buffer pool
+/** This is the function that goes through each block of the buffer pool
  and fetch information to information schema tables: INNODB_BUFFER_PAGE.
  @return 0 on success, 1 on failure */
 static int i_s_innodb_fill_buffer_pool(
-    /*========================*/
     THD *thd,             /*!< in: thread */
     TABLE_LIST *tables,   /*!< in/out: tables to fill */
     buf_pool_t *buf_pool, /*!< in: buffer pool to scan */
@@ -4604,12 +4479,10 @@ static int i_s_innodb_fill_buffer_pool(
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Fill page information for pages in InnoDB buffer pool to the
+/** Fill page information for pages in InnoDB buffer pool to the
  dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_page_fill_table(
-    /*==============================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -4642,11 +4515,9 @@ static int i_s_innodb_buffer_page_fill_table(
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE.
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE.
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_page_init(
-    /*========================*/
     void *p) /*!< in/out: table schema object */
 {
   ST_SCHEMA_TABLE *schema;
@@ -4853,12 +4724,10 @@ static ST_FIELD_INFO i_s_innodb_buf_page_lru_fields_info[] = {
 
     END_OF_ST_FIELD_INFO};
 
-/*******************************************************************/ /**
- Fill Information Schema table INNODB_BUFFER_PAGE_LRU with information
+/** Fill Information Schema table INNODB_BUFFER_PAGE_LRU with information
  cached in the buf_page_info_t array
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buf_page_lru_fill(
-    /*=========================*/
     THD *thd,                          /*!< in: thread */
     TABLE_LIST *tables,                /*!< in/out: tables to fill */
     const buf_page_info_t *info_array, /*!< in: array cached page
@@ -5075,12 +4944,10 @@ exit:
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Fill page information for pages in InnoDB buffer pool to the
+/** Fill page information for pages in InnoDB buffer pool to the
  dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buf_page_lru_fill_table(
-    /*===============================*/
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *)             /*!< in: condition (ignored) */
@@ -5113,11 +4980,9 @@ static int i_s_innodb_buf_page_lru_fill_table(
   DBUG_RETURN(status);
 }
 
-/*******************************************************************/ /**
- Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU.
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE_LRU.
  @return 0 on success, 1 on failure */
 static int i_s_innodb_buffer_page_lru_init(
-    /*============================*/
     void *p) /*!< in/out: table schema object */
 {
   ST_SCHEMA_TABLE *schema;
@@ -5188,12 +5053,9 @@ struct st_mysql_plugin i_s_innodb_buffer_page_lru = {
     STRUCT_FLD(flags, 0UL),
 };
 
-/*******************************************************************/ /**
- Unbind a dynamic INFORMATION_SCHEMA table.
+/** Unbind a dynamic INFORMATION_SCHEMA table.
  @return 0 on success */
-static int i_s_common_deinit(
-    /*==============*/
-    void *p) /*!< in/out: table schema object */
+static int i_s_common_deinit(void *p) /*!< in/out: table schema object */
 {
   DBUG_ENTER("i_s_common_deinit");
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file trx/trx0purge.cc
+/** @file trx/trx0purge.cc
  Purge old versions
 
  Created 3/26/1996 Heikki Tuuri
@@ -174,12 +173,10 @@ const page_size_t TrxUndoRsegsIterator::set_next() {
   return (page_size);
 }
 
-/****************************************************************/ /**
- Builds a purge 'query' graph. The actual purge is performed by executing
+/** Builds a purge 'query' graph. The actual purge is performed by executing
  this query graph.
  @return own: the query graph */
 static que_t *trx_purge_graph_build(
-    /*==================*/
     trx_t *trx,            /*!< in: transaction */
     ulint n_purge_threads) /*!< in: number of purge
                            threads */
@@ -203,15 +200,12 @@ static que_t *trx_purge_graph_build(
   return (fork);
 }
 
-/********************************************************************/ /**
- Creates the global purge system control structure and inits the history
+/** Creates the global purge system control structure and inits the history
  mutex. */
-void trx_purge_sys_create(
-    /*=================*/
-    ulint n_purge_threads,   /*!< in: number of purge
-                             threads */
-    purge_pq_t *purge_queue) /*!< in, own: UNDO log min
-                             binary heap */
+void trx_purge_sys_create(ulint n_purge_threads,   /*!< in: number of purge
+                                                   threads */
+                          purge_pq_t *purge_queue) /*!< in, own: UNDO log min
+                                                   binary heap */
 {
   purge_sys = static_cast<trx_purge_t *>(ut_zalloc_nokey(sizeof(*purge_sys)));
 
@@ -264,9 +258,7 @@ void trx_purge_sys_create(
 
 /************************************************************************
 Frees the global purge system control structure. */
-void trx_purge_sys_close(void)
-/*======================*/
-{
+void trx_purge_sys_close(void) {
   que_graph_free(purge_sys->query);
 
   ut_a(purge_sys->trx->id == 0);
@@ -306,11 +298,9 @@ void trx_purge_sys_close(void)
 
 /*================ UNDO LOG HISTORY LIST =============================*/
 
-/********************************************************************/ /**
- Adds the update undo log as the first log in the history list. Removes the
+/** Adds the update undo log as the first log in the history list. Removes the
  update undo log segment from the rseg slot if it is too big for reuse. */
 void trx_purge_add_update_undo_to_history(
-    /*=================================*/
     trx_t *trx,               /*!< in: transaction */
     trx_undo_ptr_t *undo_ptr, /*!< in/out: update undo log. */
     page_t *undo_page,        /*!< in: update undo log header page,
@@ -492,10 +482,8 @@ static void trx_purge_free_segment(trx_rseg_t *rseg, fil_addr_t hdr_addr,
   mtr_commit(&mtr);
 }
 
-/********************************************************************/ /**
- Removes unnecessary history data from a rollback segment. */
+/** Removes unnecessary history data from a rollback segment. */
 static void trx_purge_truncate_rseg_history(
-    /*============================*/
     trx_rseg_t *rseg,          /*!< in: rollback segment */
     const purge_iter_t *limit) /*!< in: truncate offset */
 {
@@ -1164,11 +1152,9 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
                   DBUG_SUICIDE(););
 }
 
-/********************************************************************/ /**
- Removes unnecessary history data from rollback segments. NOTE that when this
+/** Removes unnecessary history data from rollback segments. NOTE that when this
  function is called, the caller must not have any latches on undo log pages! */
 static void trx_purge_truncate_history(
-    /*========================*/
     purge_iter_t *limit,  /*!< in: truncate limit */
     const ReadView *view) /*!< in: purge view */
 {
@@ -1256,11 +1242,9 @@ static void trx_purge_truncate_history(
   }
 }
 
-/***********************************************************************/ /**
- Updates the last not yet purged history log info in rseg when we have purged
+/** Updates the last not yet purged history log info in rseg when we have purged
  a whole undo log. Advances also purge_sys->purge_trx_no past the purged log. */
 static void trx_purge_rseg_get_next_history_log(
-    /*================================*/
     trx_rseg_t *rseg,       /*!< in: rollback segment */
     ulint *n_pages_handled) /*!< in/out: number of UNDO pages
                             handled */
@@ -1428,14 +1412,11 @@ static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
   purge_sys->next_stored = TRUE;
 }
 
-/***********************************************************************/ /**
- Chooses the next undo log to purge and updates the info in purge_sys. This
+/** Chooses the next undo log to purge and updates the info in purge_sys. This
  function is used to initialize purge_sys when the next record to purge is
  not known, and also to update the purge system info on the next record when
  purge has handled the whole undo log for a transaction. */
-static void trx_purge_choose_next_log(void)
-/*===========================*/
-{
+static void trx_purge_choose_next_log(void) {
   ut_ad(purge_sys->next_stored == FALSE);
 
   const page_size_t &page_size = purge_sys->rseg_iter->set_next();
@@ -1448,11 +1429,9 @@ static void trx_purge_choose_next_log(void)
   }
 }
 
-/***********************************************************************/ /**
- Gets the next record to purge and updates the info in the purge system.
+/** Gets the next record to purge and updates the info in the purge system.
  @return copy of an undo log record or pointer to the dummy undo log record */
 static trx_undo_rec_t *trx_purge_get_next_rec(
-    /*===================*/
     ulint *n_pages_handled, /*!< in/out: number of UNDO pages
                             handled */
     mem_heap_t *heap)       /*!< in: memory heap where copied */
@@ -1571,14 +1550,12 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
   return (rec_copy);
 }
 
-/********************************************************************/ /**
- Fetches the next undo log record from the history list to purge. It must be
+/** Fetches the next undo log record from the history list to purge. It must be
  released with the corresponding release function.
  @return copy of an undo log record or pointer to trx_purge_ignore_rec,
  if the whole undo log can skipped in purge; NULL if none left */
 static MY_ATTRIBUTE((warn_unused_result))
     trx_undo_rec_t *trx_purge_fetch_next_rec(
-        /*=====================*/
         trx_id_t *modifier_trx_id,
         /*!< out: modifier trx id. this is the
         trx that created the undo record. */
@@ -1748,12 +1725,9 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
   return (n_pages_handled);
 }
 
-/*******************************************************************/ /**
- Calculate the DML delay required.
+/** Calculate the DML delay required.
  @return delay in microseconds or ULINT_MAX */
-static ulint trx_purge_dml_delay(void)
-/*=====================*/
-{
+static ulint trx_purge_dml_delay(void) {
   /* Determine how much data manipulation language (DML) statements
   need to be delayed in order to reduce the lagging of the purge
   thread. */
@@ -1786,10 +1760,8 @@ static ulint trx_purge_dml_delay(void)
   return (delay);
 }
 
-/*******************************************************************/ /**
- Wait for pending purge jobs to complete. */
+/** Wait for pending purge jobs to complete. */
 static void trx_purge_wait_for_workers_to_complete(
-    /*===================================*/
     trx_purge_t *purge_sys) /*!< in: purge instance */
 {
   ulint i = 0;
@@ -1818,11 +1790,8 @@ static void trx_purge_wait_for_workers_to_complete(
   ut_a(srv_get_task_queue_length() == 0);
 }
 
-/******************************************************************/ /**
- Remove old historical changes from the rollback segments. */
-static void trx_purge_truncate(void)
-/*====================*/
-{
+/** Remove old historical changes from the rollback segments. */
+static void trx_purge_truncate(void) {
   ut_ad(trx_purge_check_limit());
 
   if (purge_sys->limit.trx_no == 0) {
@@ -1832,16 +1801,13 @@ static void trx_purge_truncate(void)
   }
 }
 
-/*******************************************************************/ /**
- This function runs a purge batch.
+/** This function runs a purge batch.
  @return number of undo log pages handled in the batch */
-ulint trx_purge(
-    /*======*/
-    ulint n_purge_threads, /*!< in: number of purge tasks
-                           to submit to the work queue */
-    ulint batch_size,      /*!< in: the maximum number of records
-                           to purge in one batch */
-    bool truncate)         /*!< in: truncate history if true */
+ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
+                                       to submit to the work queue */
+                ulint batch_size,      /*!< in: the maximum number of records
+                                       to purge in one batch */
+                bool truncate)         /*!< in: truncate history if true */
 {
   que_thr_t *thr = NULL;
   ulint n_pages_handled;
@@ -1934,12 +1900,9 @@ ulint trx_purge(
   return (n_pages_handled);
 }
 
-/*******************************************************************/ /**
- Get the purge state.
+/** Get the purge state.
  @return purge state. */
-purge_state_t trx_purge_state(void)
-/*=================*/
-{
+purge_state_t trx_purge_state(void) {
   purge_state_t state;
 
   rw_lock_x_lock(&purge_sys->latch);
@@ -1951,11 +1914,8 @@ purge_state_t trx_purge_state(void)
   return (state);
 }
 
-/*******************************************************************/ /**
- Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
-void trx_purge_stop(void)
-/*================*/
-{
+/** Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
+void trx_purge_stop(void) {
   purge_state_t state;
   int64_t sig_count = os_event_reset(purge_sys->event);
 
@@ -2013,11 +1973,8 @@ void trx_purge_stop(void)
   MONITOR_INC_VALUE(MONITOR_PURGE_STOP_COUNT, 1);
 }
 
-/*******************************************************************/ /**
- Resume purge, move to PURGE_STATE_RUN. */
-void trx_purge_run(void)
-/*===============*/
-{
+/** Resume purge, move to PURGE_STATE_RUN. */
+void trx_purge_run(void) {
   rw_lock_x_lock(&purge_sys->latch);
 
   switch (purge_sys->state) {

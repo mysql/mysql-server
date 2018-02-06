@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dict0load.h
+/** @file include/dict0load.h
  Loads to the memory cache database object definitions
  from dictionary tables
 
@@ -76,12 +75,10 @@ enum dict_table_info_t {
 
 extern const char *SYSTEM_TABLE_NAME[];
 
-/********************************************************************/ /**
- Finds the first table name in the given database.
+/** Finds the first table name in the given database.
  @return own: table name, NULL if does not exist; the caller must free
  the memory in the string! */
 char *dict_get_first_table_name_in_db(
-    /*============================*/
     const char *name); /*!< in: database name which ends to '/' */
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
@@ -116,23 +113,17 @@ flag in the table object we return. */
 dict_table_t *dict_load_table(const char *name, bool cached,
                               dict_err_ignore_t ignore_err);
 
-/***********************************************************************/ /**
- Loads a table object based on the table id.
+/** Loads a table object based on the table id.
  @return table; NULL if table does not exist */
 dict_table_t *dict_load_table_on_id(
-    /*==================*/
     table_id_t table_id,           /*!< in: table id */
     dict_err_ignore_t ignore_err); /*!< in: errors to ignore
                                    when loading the table */
-/********************************************************************/ /**
- This function is called when the database is booted.
+/** This function is called when the database is booted.
  Loads system table index definitions except for the clustered index which
  is added to the dictionary cache at booting before calling this function. */
-void dict_load_sys_table(
-    /*================*/
-    dict_table_t *table); /*!< in: system table */
-/***********************************************************************/ /**
- Loads foreign key constraints where the table is either the foreign key
+void dict_load_sys_table(dict_table_t *table); /*!< in: system table */
+/** Loads foreign key constraints where the table is either the foreign key
  holder or where the table is referenced by a foreign key. Adds these
  constraints to the data dictionary.
 
@@ -142,7 +133,6 @@ void dict_load_sys_table(
 
  @return DB_SUCCESS or error code */
 dberr_t dict_load_foreigns(
-    /*===============*/
     const char *table_name,       /*!< in: table name */
     const char **col_names,       /*!< in: column names, or NULL
                                   to use table->col_names */
@@ -158,30 +148,24 @@ dberr_t dict_load_foreigns(
                                   foreign key constraints. */
     MY_ATTRIBUTE((warn_unused_result));
 
-/********************************************************************/ /**
- This function opens a system table, and return the first record.
+/** This function opens a system table, and return the first record.
  @return first record of the system table */
 const rec_t *dict_startscan_system(
-    /*==================*/
     btr_pcur_t *pcur,            /*!< out: persistent cursor to
                                  the record */
     mtr_t *mtr,                  /*!< in: the mini-transaction */
     dict_system_id_t system_id); /*!< in: which system table to open */
-/********************************************************************/ /**
- This function get the next system table record as we scan the table.
+/** This function get the next system table record as we scan the table.
  @return the record if found, NULL if end of scan. */
 const rec_t *dict_getnext_system(
-    /*================*/
     btr_pcur_t *pcur, /*!< in/out: persistent cursor
                       to the record */
     mtr_t *mtr);      /*!< in: the mini-transaction */
 
-/********************************************************************/ /**
- This function parses a SYS_TABLESPACES record, extracts necessary
+/** This function parses a SYS_TABLESPACES record, extracts necessary
  information from the record and returns to caller.
  @return error message, or NULL on success */
 const char *dict_process_sys_tablespaces(
-    /*=========================*/
     mem_heap_t *heap,  /*!< in/out: heap memory */
     const rec_t *rec,  /*!< in: current SYS_TABLESPACES rec */
     space_id_t *space, /*!< out: space id */

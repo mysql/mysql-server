@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************/ /**
- @file rem/rec.cc
+/** @file rem/rec.cc
  Record manager
 
  Created 5/30/1994 Heikki Tuuri
@@ -41,8 +40,7 @@ external tools. */
 #include "mem0mem.h"
 #include "rem/rec.h"
 
-/******************************************************/ /**
- The following function determines the offsets to each field in the
+/** The following function determines the offsets to each field in the
  record.	 The offsets are written to a previously allocated array of
  ulint, where rec_offs_n_fields(offsets) has been initialized to the
  number of fields in the record.	 The rest of the array will be
@@ -55,12 +53,10 @@ external tools. */
  is set (REC_OFFS_SQL_NULL), the field i is NULL.  When the second
  high-order bit of the offset at [i+1] is set (REC_OFFS_EXTERNAL), the
  field i is being stored externally. */
-void rec_init_offsets(
-    /*=============*/
-    const rec_t *rec,          /*!< in: physical record */
-    const dict_index_t *index, /*!< in: record descriptor */
-    ulint *offsets)            /*!< in/out: array of offsets;
-                               in: n=rec_offs_n_fields(offsets) */
+void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
+                      const dict_index_t *index, /*!< in: record descriptor */
+                      ulint *offsets)            /*!< in/out: array of offsets;
+                                                 in: n=rec_offs_n_fields(offsets) */
 {
   ulint i = 0;
   ulint offs;
@@ -204,12 +200,10 @@ void rec_init_offsets(
   }
 }
 
-/******************************************************/ /**
- The following function determines the offsets to each field
+/** The following function determines the offsets to each field
  in the record.	It can reuse a previously returned array.
  @return the new offsets */
 ulint *rec_get_offsets_func(
-    /*=================*/
     const rec_t *rec,          /*!< in: physical record */
     const dict_index_t *index, /*!< in: record descriptor */
     ulint *offsets,            /*!< in/out: array consisting of
@@ -279,11 +273,9 @@ ulint *rec_get_offsets_func(
   return (offsets);
 }
 
-/******************************************************/ /**
- The following function determines the offsets to each field
+/** The following function determines the offsets to each field
  in the record.  It can reuse a previously allocated array. */
 void rec_get_offsets_reverse(
-    /*====================*/
     const byte *extra,         /*!< in: the extra bytes of a
                                compact record in reverse order,
                                excluding the fixed-size

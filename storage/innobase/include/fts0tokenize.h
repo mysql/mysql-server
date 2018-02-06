@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/fts0tokenize.h
+/** @file include/fts0tokenize.h
  Full Text Search plugin tokenizer refer to MyISAM
 
  Created 2014/11/17 Shaohua Wang

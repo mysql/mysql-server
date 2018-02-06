@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2009, 2010 Facebook, Inc. All Rights Reserved.
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,7 @@ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 *****************************************************************************/
 
-/***************************************************************/ /**
- @file ut/crc32.cc
+/** @file ut/crc32.cc
  CRC32 implementation from Facebook, based on the zlib implementation.
 
  Created Aug 8, 2011, Vasil Dimov, based on mysys/my_crc32.c and
@@ -442,12 +441,9 @@ have support for it */
 static uint32_t ut_crc32_slice8_table[8][256];
 static bool ut_crc32_slice8_table_initialized = false;
 
-/********************************************************************/ /**
- Initializes the table that is used to generate the CRC32 if the CPU does
+/** Initializes the table that is used to generate the CRC32 if the CPU does
  not have support for it. */
-static void ut_crc32_slice8_table_init()
-/*========================*/
-{
+static void ut_crc32_slice8_table_init() {
   /* bit-reversed poly 0x1EDC6F41 (from SSE42 crc32 instruction) */
   static const uint32_t poly = 0x82f63b78;
   uint32_t n;
@@ -657,12 +653,9 @@ static uint32_t ut_crc32_byte_by_byte_sw(const byte *buf, ulint len) {
   return (~crc);
 }
 
-/********************************************************************/ /**
- Initializes the data structures used by ut_crc32*(). Does not do any
+/** Initializes the data structures used by ut_crc32*(). Does not do any
  allocations, would not hurt if called twice, but would be pointless. */
-void ut_crc32_init()
-/*===========*/
-{
+void ut_crc32_init() {
 #if defined(gnuc64) || defined(_WIN32)
   ut_crc32_cpu_enabled = ut_crc32_check_cpu();
 

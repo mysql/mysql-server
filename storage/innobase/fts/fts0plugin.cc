@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file fts/fts0plugin.cc
+/** @file fts/fts0plugin.cc
  Full Text Search plugin support.
 
  Created 2013/06/04 Shaohua Wang
@@ -37,31 +36,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0tokenize.h"
 #include "my_inttypes.h"
 
-/******************************************************************/ /**
- FTS default parser init
+/** FTS default parser init
  @return 0 */
 static int fts_default_parser_init(
-    /*====================*/
     MYSQL_FTPARSER_PARAM *param) /*!< in: plugin parser param */
 {
   return (0);
 }
 
-/******************************************************************/ /**
- FTS default parser deinit
+/** FTS default parser deinit
  @return 0 */
 static int fts_default_parser_deinit(
-    /*======================*/
     MYSQL_FTPARSER_PARAM *param) /*!< in: plugin parser param */
 {
   return (0);
 }
 
-/******************************************************************/ /**
- FTS default parser parse from ft_static.c in MYISAM.
+/** FTS default parser parse from ft_static.c in MYISAM.
  @return 0 if parse successfully, or return non-zero */
 static int fts_default_parser_parse(
-    /*=====================*/
     MYSQL_FTPARSER_PARAM *param) /*!< in: plugin parser param */
 {
   return (param->mysql_parse(param, param->doc, param->length));
@@ -72,11 +65,9 @@ struct st_mysql_ftparser fts_default_parser = {
     MYSQL_FTPARSER_INTERFACE_VERSION, fts_default_parser_parse,
     fts_default_parser_init, fts_default_parser_deinit};
 
-/******************************************************************/ /**
- Get a operator node from token boolean info
+/** Get a operator node from token boolean info
  @return node */
 static fts_ast_node_t *fts_query_get_oper_node(
-    /*====================*/
     MYSQL_FTPARSER_BOOLEAN_INFO *info, /*!< in: token info */
     fts_ast_state_t *state)            /*!< in/out: query parse state*/
 {
@@ -97,15 +88,13 @@ static fts_ast_node_t *fts_query_get_oper_node(
   return (oper_node);
 }
 
-/******************************************************************/ /**
- FTS plugin parser 'myql_add_word' callback function for query parse.
+/** FTS plugin parser 'myql_add_word' callback function for query parse.
  Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
  Note:
  a. Parse logic refers to 'ftb_query_add_word' from ft_boolean_search.c in
  MYISAM; b. Parse node or tree refers to fts0pars.y.
  @return 0 if add successfully, or return non-zero. */
 static int fts_query_add_word_for_parser(
-    /*==========================*/
     MYSQL_FTPARSER_PARAM *param,       /*!< in: parser param */
     char *word,                        /*!< in: token */
     int word_len,                      /*!< in: token length */
@@ -215,12 +204,10 @@ static int fts_query_add_word_for_parser(
   return (0);
 }
 
-/******************************************************************/ /**
- FTS plugin parser 'myql_parser' callback function for query parse.
+/** FTS plugin parser 'myql_parser' callback function for query parse.
  Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
  @return 0 if parse successfully */
 static int fts_parse_query_internal(
-    /*=====================*/
     MYSQL_FTPARSER_PARAM *param, /*!< in: parser param */
     char *query,                 /*!< in: query string */
     int len)                     /*!< in: query length */
@@ -247,16 +234,13 @@ static int fts_parse_query_internal(
   return (0);
 }
 
-/******************************************************************/ /**
- fts parse query by plugin parser.
+/** fts parse query by plugin parser.
  @return 0 if parse successfully, or return non-zero. */
-int fts_parse_by_parser(
-    /*================*/
-    ibool mode,                /*!< in: parse boolean mode */
-    uchar *query_str,          /*!< in: query string */
-    ulint query_len,           /*!< in: query string length */
-    st_mysql_ftparser *parser, /*!< in: fts plugin parser */
-    fts_ast_state_t *state)    /*!< in/out: parser state */
+int fts_parse_by_parser(ibool mode,       /*!< in: parse boolean mode */
+                        uchar *query_str, /*!< in: query string */
+                        ulint query_len,  /*!< in: query string length */
+                        st_mysql_ftparser *parser, /*!< in: fts plugin parser */
+                        fts_ast_state_t *state)    /*!< in/out: parser state */
 {
   MYSQL_FTPARSER_PARAM param;
   int ret;

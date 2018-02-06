@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file dict/mem.cc
+/** @file dict/mem.cc
  Data dictionary memory object creation
 
  Created 1/8/1996 Heikki Tuuri
@@ -44,11 +43,9 @@ external tools. */
 #endif /* !UNIV_HOTBACKUP */
 #include "my_inttypes.h"
 
-/****************************************************************/ /**
- Append 'name' to 'col_names'.  @see dict_table_t::col_names
+/** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */
 const char *dict_add_col_name(
-    /*==============*/
     const char *col_names, /*!< in: existing column names, or
                            NULL */
     ulint cols,            /*!< in: number of existing columns */
@@ -90,11 +87,8 @@ const char *dict_add_col_name(
   return (res);
 }
 
-/****************************************************************/ /**
- Free a table memory object. */
-void dict_mem_table_free(
-    /*================*/
-    dict_table_t *table) /*!< in: table */
+/** Free a table memory object. */
+void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 {
   ut_ad(table);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -152,11 +146,9 @@ void dict_mem_table_free(
   mem_heap_free(table->heap);
 }
 
-/**********************************************************************/ /**
- Creates a table memory object.
+/** Creates a table memory object.
  @return own: table object */
 dict_table_t *dict_mem_table_create(
-    /*==================*/
     const char *name, /*!< in: table name */
     space_id_t space, /*!< in: space where the clustered index of
                       the table is placed */
@@ -256,11 +248,9 @@ dict_table_t *dict_mem_table_create(
   return (table);
 }
 
-/**********************************************************************/ /**
- Creates an index memory object.
+/** Creates an index memory object.
  @return own: index object */
 dict_index_t *dict_mem_index_create(
-    /*==================*/
     const char *table_name, /*!< in: table name */
     const char *index_name, /*!< in: index name */
     ulint space,            /*!< in: space where the index tree is
@@ -300,10 +290,8 @@ dict_index_t *dict_mem_index_create(
   return (index);
 }
 
-/**********************************************************************/ /**
- Adds a column definition to a table. */
+/** Adds a column definition to a table. */
 void dict_mem_table_add_col(
-    /*===================*/
     dict_table_t *table, /*!< in: table */
     mem_heap_t *heap,    /*!< in: temporary memory heap, or NULL */
     const char *name,    /*!< in: column name, or NULL */
@@ -343,11 +331,9 @@ void dict_mem_table_add_col(
   dict_mem_fill_column_struct(col, i, mtype, prtype, len);
 }
 
-/**********************************************************************/ /**
- This function populates a dict_col_t memory structure with
+/** This function populates a dict_col_t memory structure with
  supplied information. */
 void dict_mem_fill_column_struct(
-    /*========================*/
     dict_col_t *column, /*!< out: column struct to be
                         filled */
     ulint col_pos,      /*!< in: column position */

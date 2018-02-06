@@ -31,8 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file sync/sync0sync.cc
+/** @file sync/sync0sync.cc
  Mutex, the basic synchronization primitive
 
  Created 9/5/1995 Heikki Tuuri

@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf0buddy.cc
+/** @file buf/buf0buddy.cc
  Binary buddy allocator for compressed pages
 
  Created December 2006 by Marko Makela
@@ -91,13 +90,10 @@ enum buf_buddy_state_t {
 };
 
 #ifdef UNIV_DEBUG_VALGRIND
-/**********************************************************************/ /**
- Invalidate memory area that we won't access while page is free */
+/** Invalidate memory area that we won't access while page is free */
 UNIV_INLINE
-void buf_buddy_mem_invalid(
-    /*==================*/
-    buf_buddy_free_t *buf, /*!< in: block to check */
-    ulint i)               /*!< in: index of zip_free[] */
+void buf_buddy_mem_invalid(buf_buddy_free_t *buf, /*!< in: block to check */
+                           ulint i) /*!< in: index of zip_free[] */
 {
   const size_t size = BUF_BUDDY_LOW << i;
   ut_ad(i <= BUF_BUDDY_SIZES);
@@ -109,24 +105,19 @@ void buf_buddy_mem_invalid(
 #define buf_buddy_mem_invalid(buf, i) ut_ad((i) <= BUF_BUDDY_SIZES)
 #endif /* UNIV_DEBUG_VALGRIND */
 
-/**********************************************************************/ /**
- Check if a buddy is stamped free.
+/** Check if a buddy is stamped free.
  @return whether the buddy is free */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool buf_buddy_stamp_is_free(
-    /*====================*/
     const buf_buddy_free_t *buf) /*!< in: block to check */
 {
   return (mach_read_from_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET) ==
           BUF_BUDDY_STAMP_FREE);
 }
 
-/**********************************************************************/ /**
- Stamps a buddy free. */
+/** Stamps a buddy free. */
 UNIV_INLINE
-void buf_buddy_stamp_free(
-    /*=================*/
-    buf_buddy_free_t *buf, /*!< in/out: block to stamp */
-    ulint i)               /*!< in: block size */
+void buf_buddy_stamp_free(buf_buddy_free_t *buf, /*!< in/out: block to stamp */
+                          ulint i)               /*!< in: block size */
 {
   ut_d(memset(&buf->stamp, static_cast<int>(i), BUF_BUDDY_LOW << i));
   buf_buddy_mem_invalid(buf, i);
@@ -135,8 +126,7 @@ void buf_buddy_stamp_free(
   buf->stamp.size = i;
 }
 
-/**********************************************************************/ /**
- Stamps a buddy nonfree.
+/** Stamps a buddy nonfree.
  @param[in,out]	buf	block to stamp
  @param[in]	i	block size */
 #define buf_buddy_stamp_nonfree(buf, i)                         \
@@ -148,14 +138,11 @@ void buf_buddy_stamp_free(
 #error "BUF_BUDDY_STAMP_NONFREE != 0xffffffff"
 #endif
 
-/**********************************************************************/ /**
- Get the offset of the buddy of a compressed page frame.
+/** Get the offset of the buddy of a compressed page frame.
  @return the buddy relative of page */
 UNIV_INLINE
-void *buf_buddy_get(
-    /*==========*/
-    byte *page, /*!< in: compressed page */
-    ulint size) /*!< in: page size in bytes */
+void *buf_buddy_get(byte *page, /*!< in: compressed page */
+                    ulint size) /*!< in: page size in bytes */
 {
   ut_ad(ut_is_2pow(size));
   ut_ad(size >= BUF_BUDDY_LOW);
@@ -218,16 +205,14 @@ bool buf_buddy_check_free(buf_pool_t *buf_pool, const buf_buddy_free_t *buf,
 }
 #endif /* UNIV_DEBUG */
 
-/**********************************************************************/ /**
- Checks if a buf is free i.e.: in the zip_free[].
+/** Checks if a buf is free i.e.: in the zip_free[].
  @retval BUF_BUDDY_STATE_FREE if fully free
  @retval BUF_BUDDY_STATE_USED if currently in use
  @retval BUF_BUDDY_STATE_PARTIALLY_USED if partially in use. */
-static MY_ATTRIBUTE((warn_unused_result)) buf_buddy_state_t buf_buddy_is_free(
-    /*==============*/
-    buf_buddy_free_t *buf, /*!< in: block to check */
-    ulint i)               /*!< in: index of
-                           buf_pool->zip_free[] */
+static MY_ATTRIBUTE((warn_unused_result)) buf_buddy_state_t
+    buf_buddy_is_free(buf_buddy_free_t *buf, /*!< in: block to check */
+                      ulint i)               /*!< in: index of
+                                             buf_pool->zip_free[] */
 {
 #ifdef UNIV_DEBUG
   const ulint size = BUF_BUDDY_LOW << i;

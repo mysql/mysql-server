@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file api/api0api.cc
+/** @file api/api0api.cc
  InnoDB Native API
 
  2008-08-01 Created Sunny Bains
@@ -218,23 +217,19 @@ operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 #define INNOBASE_WAKE_INTERVAL 32
 
-/*****************************************************************/ /**
- Check whether the InnoDB persistent cursor is positioned.
+/** Check whether the InnoDB persistent cursor is positioned.
  @return IB_true if positioned */
 UNIV_INLINE
 ib_bool_t ib_btr_cursor_is_positioned(
-    /*========================*/
     btr_pcur_t *pcur) /*!< in: InnoDB persistent cursor */
 {
   return (pcur->old_stored && (pcur->pos_state == BTR_PCUR_IS_POSITIONED ||
                                pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
 }
 
-/********************************************************************/ /**
- Find table using table name.
+/** Find table using table name.
  @return table instance if found */
 static dict_table_t *ib_lookup_table_by_name(
-    /*====================*/
     const char *name) /*!< in: table name to lookup */
 {
   dict_table_t *table;
@@ -248,15 +243,12 @@ static dict_table_t *ib_lookup_table_by_name(
   return (table);
 }
 
-/********************************************************************/ /**
- Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
+/** Increments innobase_active_counter and every INNOBASE_WAKE_INTERVALth
  time calls srv_active_wake_master_thread. This function should be used
  when a single database operation may introduce a small need for
  server utility activity, like checkpointing. */
 UNIV_INLINE
-void ib_wake_master_thread(void)
-/*=======================*/
-{
+void ib_wake_master_thread(void) {
   static ulint ib_signal_counter = 0;
 
   ++ib_signal_counter;
@@ -266,10 +258,8 @@ void ib_wake_master_thread(void)
   }
 }
 
-/*****************************************************************/ /**
- Read the columns from a rec into a tuple. */
+/** Read the columns from a rec into a tuple. */
 static ib_err_t ib_read_tuple(
-    /*==========*/
     const rec_t *rec,      /*!< in: Record to read */
     ib_bool_t page_format, /*!< in: IB_TRUE if compressed format */
     ib_tuple_t *tuple,     /*!< in: tuple to read into */
@@ -395,11 +385,9 @@ static ib_err_t ib_read_tuple(
   return (DB_SUCCESS);
 }
 
-/*****************************************************************/ /**
- Create an InnoDB key tuple.
+/** Create an InnoDB key tuple.
  @return tuple instance created, or NULL */
 static ib_tpl_t ib_key_tuple_new_low(
-    /*=================*/
     const dict_index_t *index, /*!< in: index for which tuple
                                required */
     ulint n_cols,              /*!< in: no. of user defined cols */
@@ -444,11 +432,9 @@ static ib_tpl_t ib_key_tuple_new_low(
   return ((ib_tpl_t)tuple);
 }
 
-/*****************************************************************/ /**
- Create an InnoDB key tuple.
+/** Create an InnoDB key tuple.
  @return tuple instance created, or NULL */
 static ib_tpl_t ib_key_tuple_new(
-    /*=============*/
     const dict_index_t *index, /*!< in: index of tuple */
     ulint n_cols)              /*!< in: no. of user defined cols */
 {
@@ -463,11 +449,9 @@ static ib_tpl_t ib_key_tuple_new(
   return (ib_key_tuple_new_low(index, n_cols, heap));
 }
 
-/*****************************************************************/ /**
- Create an InnoDB row tuple.
+/** Create an InnoDB row tuple.
  @return tuple instance, or NULL */
 static ib_tpl_t ib_row_tuple_new_low(
-    /*=================*/
     const dict_index_t *index, /*!< in: index of tuple */
     ulint n_cols,              /*!< in: no. of cols in tuple */
     mem_heap_t *heap)          /*!< in: memory heap */
@@ -493,11 +477,9 @@ static ib_tpl_t ib_row_tuple_new_low(
   return ((ib_tpl_t)tuple);
 }
 
-/*****************************************************************/ /**
- Create an InnoDB row tuple.
+/** Create an InnoDB row tuple.
  @return tuple instance, or NULL */
 static ib_tpl_t ib_row_tuple_new(
-    /*=============*/
     const dict_index_t *index, /*!< in: index of tuple */
     ulint n_cols)              /*!< in: no. of cols in tuple */
 {
@@ -512,11 +494,9 @@ static ib_tpl_t ib_row_tuple_new(
   return (ib_row_tuple_new_low(index, n_cols, heap));
 }
 
-/*****************************************************************/ /**
- Begin a transaction.
+/** Begin a transaction.
  @return innobase txn handle */
 ib_err_t ib_trx_start(
-    /*=========*/
     ib_trx_t ib_trx,             /*!< in: transaction to restart */
     ib_trx_level_t ib_trx_level, /*!< in: trx isolation level */
     ib_bool_t read_write,        /*!< in: true if read write
@@ -545,12 +525,10 @@ ib_err_t ib_trx_start(
   return (err);
 }
 
-/*****************************************************************/ /**
- Begin a transaction. This will allocate a new transaction handle.
+/** Begin a transaction. This will allocate a new transaction handle.
  put the transaction in the active state.
  @return innobase txn handle */
 ib_trx_t ib_trx_begin(
-    /*=========*/
     ib_trx_level_t ib_trx_level, /*!< in: trx isolation level */
     ib_bool_t read_write,        /*!< in: true if read write
                                  transaction */
@@ -570,33 +548,24 @@ ib_trx_t ib_trx_begin(
   return (static_cast<ib_trx_t>(trx));
 }
 
-/*****************************************************************/ /**
- Check if transaction is read_only
+/** Check if transaction is read_only
  @return transaction read_only status */
-ib_u32_t ib_trx_read_only(
-    /*=============*/
-    ib_trx_t ib_trx) /*!< in: trx handle */
+ib_u32_t ib_trx_read_only(ib_trx_t ib_trx) /*!< in: trx handle */
 {
   trx_t *trx = (trx_t *)ib_trx;
 
   return (trx->read_only);
 }
-/*****************************************************************/ /**
- Get a trx start time.
+/** Get a trx start time.
  @return trx start_time */
-ib_u64_t ib_trx_get_start_time(
-    /*==================*/
-    ib_trx_t ib_trx) /*!< in: transaction */
+ib_u64_t ib_trx_get_start_time(ib_trx_t ib_trx) /*!< in: transaction */
 {
   trx_t *trx = (trx_t *)ib_trx;
   return (static_cast<ib_u64_t>(trx->start_time));
 }
-/*****************************************************************/ /**
- Release the resources of the transaction.
+/** Release the resources of the transaction.
  @return DB_SUCCESS or err code */
-ib_err_t ib_trx_release(
-    /*===========*/
-    ib_trx_t ib_trx) /*!< in: trx handle */
+ib_err_t ib_trx_release(ib_trx_t ib_trx) /*!< in: trx handle */
 {
   trx_t *trx = (trx_t *)ib_trx;
 
@@ -606,13 +575,10 @@ ib_err_t ib_trx_release(
   return (DB_SUCCESS);
 }
 
-/*****************************************************************/ /**
- Commit a transaction. This function will also release the schema
+/** Commit a transaction. This function will also release the schema
  latches too.
  @return DB_SUCCESS or err code */
-ib_err_t ib_trx_commit(
-    /*==========*/
-    ib_trx_t ib_trx) /*!< in: trx handle */
+ib_err_t ib_trx_commit(ib_trx_t ib_trx) /*!< in: trx handle */
 {
   ib_err_t err = DB_SUCCESS;
   trx_t *trx = reinterpret_cast<trx_t *>(ib_trx);
@@ -626,13 +592,10 @@ ib_err_t ib_trx_commit(
   return (DB_SUCCESS);
 }
 
-/*****************************************************************/ /**
- Rollback a transaction. This function will also release the schema
+/** Rollback a transaction. This function will also release the schema
  latches too.
  @return DB_SUCCESS or err code */
-ib_err_t ib_trx_rollback(
-    /*============*/
-    ib_trx_t ib_trx) /*!< in: trx handle */
+ib_err_t ib_trx_rollback(ib_trx_t ib_trx) /*!< in: trx handle */
 {
   ib_err_t err;
   trx_t *trx = (trx_t *)ib_trx;
@@ -646,11 +609,8 @@ ib_err_t ib_trx_rollback(
 }
 
 #ifdef _WIN32
-/*****************************************************************/ /**
- Convert a string to lower case. */
-static void ib_to_lower_case(
-    /*=============*/
-    char *ptr) /*!< string to convert to lower case */
+/** Convert a string to lower case. */
+static void ib_to_lower_case(char *ptr) /*!< string to convert to lower case */
 {
   while (*ptr) {
     *ptr = tolower(*ptr);
@@ -659,8 +619,7 @@ static void ib_to_lower_case(
 }
 #endif /* _WIN32 */
 
-/*****************************************************************/ /**
- Normalizes a table name string. A normalized name consists of the
+/** Normalizes a table name string. A normalized name consists of the
  database name catenated to '/' and table name. An example:
  test/mytable. On Windows normalization puts both the database name and the
  table name always to lower case. This function can be called for system
@@ -669,7 +628,6 @@ static void ib_to_lower_case(
  The assumption is that they are system tables that reside in the system
  table space. */
 static void ib_normalize_table_name(
-    /*====================*/
     char *norm_name,  /*!< out: normalized name as a
                       null-terminated string */
     const char *name) /*!< in: table name string */
@@ -713,11 +671,9 @@ static void ib_normalize_table_name(
   }
 }
 
-/*****************************************************************/ /**
- Get a table id. The caller must have acquired the dictionary mutex.
+/** Get a table id. The caller must have acquired the dictionary mutex.
  @return DB_SUCCESS if found */
 static ib_err_t ib_table_get_id_low(
-    /*================*/
     const char *table_name, /*!< in: table to find */
     ib_id_u64_t *table_id)  /*!< out: table id if found */
 {
@@ -737,15 +693,12 @@ static ib_err_t ib_table_get_id_low(
   return (err);
 }
 
-/*****************************************************************/ /**
- Create an internal cursor instance.
+/** Create an internal cursor instance.
  @return DB_SUCCESS or err code */
-static ib_err_t ib_create_cursor(
-    /*=============*/
-    ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
-    dict_table_t *table, /*!< in: table instance */
-    dict_index_t *index, /*!< in: index to use */
-    trx_t *trx)          /*!< in: transaction */
+static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
+                                 dict_table_t *table, /*!< in: table instance */
+                                 dict_index_t *index, /*!< in: index to use */
+                                 trx_t *trx)          /*!< in: transaction */
 {
   mem_heap_t *heap;
   ib_cursor_t *cursor;
@@ -816,11 +769,9 @@ static ib_err_t ib_create_cursor_with_clust_index(ib_crsr_t *ib_crsr,
   return (ib_create_cursor(ib_crsr, table, index, trx));
 }
 
-/*****************************************************************/ /**
- Open an InnoDB secondary index cursor and return a cursor handle to it.
+/** Open an InnoDB secondary index cursor and return a cursor handle to it.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_open_index_using_name(
-    /*============================*/
     ib_crsr_t ib_open_crsr, /*!< in: open/active cursor */
     const char *index_name, /*!< in: secondary index name */
     ib_crsr_t *ib_crsr,     /*!< out,own: InnoDB index cursor */
@@ -883,11 +834,9 @@ ib_err_t ib_cursor_open_index_using_name(
   return (err);
 }
 
-/*****************************************************************/ /**
- Open an InnoDB table and return a cursor handle to it.
+/** Open an InnoDB table and return a cursor handle to it.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_open_table(
-    /*=================*/
     const char *name,   /*!< in: table name */
     ib_trx_t ib_trx,    /*!< in: Current transaction handle
                         can be NULL */
@@ -941,10 +890,8 @@ ib_bool_t ib_is_virtual_table(ib_crsr_t crsr) {
   return (crsr->prebuilt->table->n_v_cols > 0);
 }
 
-/********************************************************************/ /**
- Free a context struct for a table handle. */
+/** Free a context struct for a table handle. */
 static void ib_qry_proc_free(
-    /*=============*/
     ib_qry_proc_t *q_proc) /*!< in, own: qproc struct */
 {
   que_graph_free_recursive(q_proc->grph.ins);
@@ -954,12 +901,9 @@ static void ib_qry_proc_free(
   memset(q_proc, 0x0, sizeof(*q_proc));
 }
 
-/*****************************************************************/ /**
- Reset the cursor.
+/** Reset the cursor.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_reset(
-    /*============*/
-    ib_crsr_t ib_crsr) /*!< in/out: InnoDB cursor */
+ib_err_t ib_cursor_reset(ib_crsr_t ib_crsr) /*!< in/out: InnoDB cursor */
 {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   row_prebuilt_t *prebuilt = cursor->prebuilt;
@@ -978,13 +922,10 @@ ib_err_t ib_cursor_reset(
   return (DB_SUCCESS);
 }
 
-/*****************************************************************/ /**
- update the cursor with new transactions and also reset the cursor
+/** update the cursor with new transactions and also reset the cursor
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_new_trx(
-    /*==============*/
-    ib_crsr_t ib_crsr, /*!< in/out: InnoDB cursor */
-    ib_trx_t ib_trx)   /*!< in: transaction */
+ib_err_t ib_cursor_new_trx(ib_crsr_t ib_crsr, /*!< in/out: InnoDB cursor */
+                           ib_trx_t ib_trx)   /*!< in: transaction */
 {
   ib_err_t err = DB_SUCCESS;
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
@@ -1005,13 +946,10 @@ ib_err_t ib_cursor_new_trx(
   return (err);
 }
 
-/*****************************************************************/ /**
- Commit the transaction in a cursor
+/** Commit the transaction in a cursor
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_commit_trx(
-    /*=================*/
-    ib_crsr_t ib_crsr, /*!< in/out: InnoDB cursor */
-    ib_trx_t ib_trx)   /*!< in: transaction */
+ib_err_t ib_cursor_commit_trx(ib_crsr_t ib_crsr, /*!< in/out: InnoDB cursor */
+                              ib_trx_t ib_trx)   /*!< in: transaction */
 {
   ib_err_t err = DB_SUCCESS;
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
@@ -1025,12 +963,9 @@ ib_err_t ib_cursor_commit_trx(
   return (err);
 }
 
-/*****************************************************************/ /**
- Close an InnoDB table and free the cursor.
+/** Close an InnoDB table and free the cursor.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_close(
-    /*============*/
-    ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
+ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
 {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   row_prebuilt_t *prebuilt;
@@ -1063,12 +998,10 @@ ib_err_t ib_cursor_close(
   return (DB_SUCCESS);
 }
 
-/**********************************************************************/ /**
- Run the insert query and do error handling.
+/** Run the insert query and do error handling.
  @return DB_SUCCESS or error code */
 UNIV_INLINE
 ib_err_t ib_insert_row_with_lock_retry(
-    /*==========================*/
     que_thr_t *thr,       /*!< in: insert query graph */
     ins_node_t *node,     /*!< in: insert node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1105,11 +1038,9 @@ ib_err_t ib_insert_row_with_lock_retry(
   return (err);
 }
 
-/*****************************************************************/ /**
- Write a row.
+/** Write a row.
  @return DB_SUCCESS or err code */
 static ib_err_t ib_execute_insert_query_graph(
-    /*==========================*/
     dict_table_t *table,   /*!< in: table where to insert */
     que_fork_t *ins_graph, /*!< in: query graph */
     ins_node_t *node)      /*!< in: insert node */
@@ -1142,10 +1073,8 @@ static ib_err_t ib_execute_insert_query_graph(
   return (err);
 }
 
-/*****************************************************************/ /**
- Create an insert query graph node. */
+/** Create an insert query graph node. */
 static void ib_insert_query_graph_create(
-    /*==========================*/
     ib_cursor_t *cursor) /*!< in: Cursor instance */
 {
   ib_qry_proc_t *q_proc = &cursor->q_proc;
@@ -1179,11 +1108,9 @@ static void ib_insert_query_graph_create(
   }
 }
 
-/*****************************************************************/ /**
- Insert a row to a table.
+/** Insert a row to a table.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_insert_row(
-    /*=================*/
     ib_crsr_t ib_crsr,     /*!< in/out: InnoDB cursor instance */
     const ib_tpl_t ib_tpl) /*!< in: tuple to insert */
 {
@@ -1253,13 +1180,10 @@ ib_err_t ib_cursor_insert_row(
   return (err);
 }
 
-/*********************************************************************/ /**
- Gets pointer to a prebuilt update vector used in updates.
+/** Gets pointer to a prebuilt update vector used in updates.
  @return update vector */
 UNIV_INLINE
-upd_t *ib_update_vector_create(
-    /*====================*/
-    ib_cursor_t *cursor) /*!< in: current cursor */
+upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
 {
   trx_t *trx = cursor->prebuilt->trx;
   mem_heap_t *heap = cursor->query_heap;
@@ -1285,10 +1209,8 @@ upd_t *ib_update_vector_create(
   return (node->upd->update);
 }
 
-/**********************************************************************/ /**
- Note that a column has changed. */
+/** Note that a column has changed. */
 static void ib_update_col(
-    /*==========*/
 
     ib_cursor_t *cursor,    /*!< in: current cursor */
     upd_field_t *upd_field, /*!< in/out: update field */
@@ -1314,12 +1236,10 @@ static void ib_update_col(
   upd_field->field_no = dict_col_get_clust_pos(&table->cols[col_no], index);
 }
 
-/**********************************************************************/ /**
- Checks which fields have changed in a row and stores the new data
+/** Checks which fields have changed in a row and stores the new data
  to an update vector.
  @return DB_SUCCESS or err code */
 static ib_err_t ib_calc_diff(
-    /*=========*/
     ib_cursor_t *cursor,         /*!< in: current cursor */
     upd_t *upd,                  /*!< in/out: update vector */
     const ib_tuple_t *old_tuple, /*!< in: Old tuple in table */
@@ -1376,12 +1296,10 @@ static ib_err_t ib_calc_diff(
   return (err);
 }
 
-/**********************************************************************/ /**
- Run the update query and do error handling.
+/** Run the update query and do error handling.
  @return DB_SUCCESS or error code */
 UNIV_INLINE
 ib_err_t ib_update_row_with_lock_retry(
-    /*==========================*/
     que_thr_t *thr,       /*!< in: Update query graph */
     upd_node_t *node,     /*!< in: Update node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1425,12 +1343,10 @@ ib_err_t ib_update_row_with_lock_retry(
   return (err);
 }
 
-/*********************************************************************/ /**
- Does an update or delete of a row.
+/** Does an update or delete of a row.
  @return DB_SUCCESS or err code */
 UNIV_INLINE
 ib_err_t ib_execute_update_query_graph(
-    /*==========================*/
     ib_cursor_t *cursor, /*!< in: Cursor instance */
     btr_pcur_t *pcur)    /*!< in: Btree persistent cursor */
 {
@@ -1482,11 +1398,9 @@ ib_err_t ib_execute_update_query_graph(
   return (err);
 }
 
-/*****************************************************************/ /**
- Update a row in a table.
+/** Update a row in a table.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_update_row(
-    /*=================*/
     ib_crsr_t ib_crsr,         /*!< in: InnoDB cursor instance */
     const ib_tpl_t ib_old_tpl, /*!< in: Old tuple in table */
     const ib_tpl_t ib_new_tpl) /*!< in: New tuple to update */
@@ -1526,11 +1440,9 @@ ib_err_t ib_cursor_update_row(
   return (err);
 }
 
-/**********************************************************************/ /**
- Build the update query graph to delete a row from an index.
+/** Build the update query graph to delete a row from an index.
  @return DB_SUCCESS or err code */
 static ib_err_t ib_delete_row(
-    /*==========*/
     ib_cursor_t *cursor, /*!< in: current cursor */
     btr_pcur_t *pcur,    /*!< in: Btree persistent cursor */
     const rec_t *rec)    /*!< in: record to delete */
@@ -1590,11 +1502,9 @@ static ib_err_t ib_delete_row(
   return (err);
 }
 
-/*****************************************************************/ /**
- Delete a row in a table.
+/** Delete a row in a table.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_delete_row(
-    /*=================*/
     ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
 {
   ib_err_t err;
@@ -1660,11 +1570,9 @@ ib_err_t ib_cursor_delete_row(
   return (err);
 }
 
-/*****************************************************************/ /**
- Read current row.
+/** Read current row.
  @return DB_SUCCESS or err code */
 ib_err_t ib_cursor_read_row(
-    /*===============*/
     ib_crsr_t ib_crsr,    /*!< in: InnoDB cursor instance */
     ib_tpl_t ib_tpl,      /*!< out: read cols into this tuple */
     ib_tpl_t cmp_tpl,     /*!< in: tuple to compare and stop
@@ -1735,12 +1643,10 @@ ib_err_t ib_cursor_read_row(
   return (err);
 }
 
-/*****************************************************************/ /**
- Move cursor to the first record in the table.
+/** Move cursor to the first record in the table.
  @return DB_SUCCESS or err code */
 UNIV_INLINE
 ib_err_t ib_cursor_position(
-    /*===============*/
     ib_cursor_t *cursor, /*!< in: InnoDB cursor instance */
     ib_srch_mode_t mode) /*!< in: Search mode */
 {
@@ -1765,24 +1671,18 @@ ib_err_t ib_cursor_position(
   return (err);
 }
 
-/*****************************************************************/ /**
- Move cursor to the first record in the table.
+/** Move cursor to the first record in the table.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_first(
-    /*============*/
-    ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
+ib_err_t ib_cursor_first(ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
 {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
 
   return (ib_cursor_position(cursor, IB_CUR_G));
 }
 
-/*****************************************************************/ /**
- Move cursor to the next user record in the table.
+/** Move cursor to the next user record in the table.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_next(
-    /*===========*/
-    ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
+ib_err_t ib_cursor_next(ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
 {
   ib_err_t err;
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
@@ -1801,15 +1701,12 @@ ib_err_t ib_cursor_next(
   return (err);
 }
 
-/*****************************************************************/ /**
- Search for key.
+/** Search for key.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_moveto(
-    /*=============*/
-    ib_crsr_t ib_crsr,           /*!< in: InnoDB cursor instance */
-    ib_tpl_t ib_tpl,             /*!< in: Key to search for */
-    ib_srch_mode_t ib_srch_mode, /*!< in: search mode */
-    ib_ulint_t direction)        /*!< in: search direction */
+ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
+                          ib_tpl_t ib_tpl,   /*!< in: Key to search for */
+                          ib_srch_mode_t ib_srch_mode, /*!< in: search mode */
+                          ib_ulint_t direction) /*!< in: search direction */
 {
   ulint i;
   ulint n_fields;
@@ -1855,10 +1752,8 @@ ib_err_t ib_cursor_moveto(
   return (err);
 }
 
-/*****************************************************************/ /**
- Set the cursor search mode. */
+/** Set the cursor search mode. */
 void ib_cursor_set_match_mode(
-    /*=====================*/
     ib_crsr_t ib_crsr,          /*!< in: Cursor instance */
     ib_match_mode_t match_mode) /*!< in: ib_cursor_moveto match mode */
 {
@@ -1867,14 +1762,11 @@ void ib_cursor_set_match_mode(
   cursor->match_mode = match_mode;
 }
 
-/*****************************************************************/ /**
- Get the dfield instance for the column in the tuple.
+/** Get the dfield instance for the column in the tuple.
  @return dfield instance in tuple */
 UNIV_INLINE
-dfield_t *ib_col_get_dfield(
-    /*==============*/
-    ib_tuple_t *tuple, /*!< in: tuple instance */
-    ulint col_no)      /*!< in: col no. in tuple */
+dfield_t *ib_col_get_dfield(ib_tuple_t *tuple, /*!< in: tuple instance */
+                            ulint col_no)      /*!< in: col no. in tuple */
 {
   dfield_t *dfield;
 
@@ -1883,13 +1775,10 @@ dfield_t *ib_col_get_dfield(
   return (dfield);
 }
 
-/*****************************************************************/ /**
- Predicate to check whether a column type contains variable length data.
+/** Predicate to check whether a column type contains variable length data.
  @return DB_SUCCESS or error code */
 UNIV_INLINE
-ib_err_t ib_col_is_capped(
-    /*==============*/
-    const dtype_t *dtype) /*!< in: column type */
+ib_err_t ib_col_is_capped(const dtype_t *dtype) /*!< in: column type */
 {
   return (static_cast<ib_err_t>((dtype_get_mtype(dtype) == DATA_VARCHAR ||
                                  dtype_get_mtype(dtype) == DATA_CHAR ||
@@ -1901,16 +1790,13 @@ ib_err_t ib_col_is_capped(
                                 dtype_get_len(dtype) > 0));
 }
 
-/*****************************************************************/ /**
- Set a column of the tuple. Make a copy using the tuple's heap.
+/** Set a column of the tuple. Make a copy using the tuple's heap.
  @return DB_SUCCESS or error code */
-ib_err_t ib_col_set_value(
-    /*=============*/
-    ib_tpl_t ib_tpl,    /*!< in: tuple instance */
-    ib_ulint_t col_no,  /*!< in: column index in tuple */
-    const void *src,    /*!< in: data value */
-    ib_ulint_t len,     /*!< in: data value len */
-    ib_bool_t need_cpy) /*!< in: if need memcpy */
+ib_err_t ib_col_set_value(ib_tpl_t ib_tpl,    /*!< in: tuple instance */
+                          ib_ulint_t col_no,  /*!< in: column index in tuple */
+                          const void *src,    /*!< in: data value */
+                          ib_ulint_t len,     /*!< in: data value len */
+                          ib_bool_t need_cpy) /*!< in: if need memcpy */
 {
   const dtype_t *dtype;
   dfield_t *dfield;
@@ -2087,13 +1973,10 @@ ib_err_t ib_col_set_value(
   return (DB_SUCCESS);
 }
 
-/*****************************************************************/ /**
- Get the size of the data available in a column of the tuple.
+/** Get the size of the data available in a column of the tuple.
  @return bytes avail or IB_SQL_NULL */
-ib_ulint_t ib_col_get_len(
-    /*===========*/
-    ib_tpl_t ib_tpl, /*!< in: tuple instance */
-    ib_ulint_t i)    /*!< in: column index in tuple */
+ib_ulint_t ib_col_get_len(ib_tpl_t ib_tpl, /*!< in: tuple instance */
+                          ib_ulint_t i)    /*!< in: column index in tuple */
 {
   const dfield_t *dfield;
   ulint data_len;
@@ -2107,12 +1990,10 @@ ib_ulint_t ib_col_get_len(
                                                             : data_len));
 }
 
-/*****************************************************************/ /**
- Copy a column value from the tuple.
+/** Copy a column value from the tuple.
  @return bytes copied or IB_SQL_NULL */
 UNIV_INLINE
 ib_ulint_t ib_col_copy_value_low(
-    /*==================*/
     ib_tpl_t ib_tpl, /*!< in: tuple instance */
     ib_ulint_t i,    /*!< in: column index in tuple */
     void *dst,       /*!< out: copied data value */
@@ -2199,11 +2080,9 @@ ib_ulint_t ib_col_copy_value_low(
   return (static_cast<ib_ulint_t>(data_len));
 }
 
-/*****************************************************************/ /**
- Copy a column value from the tuple.
+/** Copy a column value from the tuple.
  @return bytes copied or IB_SQL_NULL */
 ib_ulint_t ib_col_copy_value(
-    /*==============*/
     ib_tpl_t ib_tpl, /*!< in: tuple instance */
     ib_ulint_t i,    /*!< in: column index in tuple */
     void *dst,       /*!< out: copied data value */
@@ -2212,13 +2091,10 @@ ib_ulint_t ib_col_copy_value(
   return (ib_col_copy_value_low(ib_tpl, i, dst, len));
 }
 
-/*****************************************************************/ /**
- Get the InnoDB column attribute from the internal column precise type.
+/** Get the InnoDB column attribute from the internal column precise type.
  @return precise type in api format */
 UNIV_INLINE
-ib_col_attr_t ib_col_get_attr(
-    /*============*/
-    ulint prtype) /*!< in: column definition */
+ib_col_attr_t ib_col_get_attr(ulint prtype) /*!< in: column definition */
 {
   ib_col_attr_t attr = IB_COL_NONE;
 
@@ -2233,11 +2109,9 @@ ib_col_attr_t ib_col_get_attr(
   return (attr);
 }
 
-/*****************************************************************/ /**
- Get a column name from the tuple.
+/** Get a column name from the tuple.
  @return name of the column */
 const char *ib_col_get_name(
-    /*============*/
     ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
     ib_ulint_t i)      /*!< in: column index in tuple */
 {
@@ -2252,11 +2126,9 @@ const char *ib_col_get_name(
   return (name);
 }
 
-/*****************************************************************/ /**
- Get an index field name from the cursor.
+/** Get an index field name from the cursor.
  @return name of the field */
 const char *ib_get_idx_field_name(
-    /*==================*/
     ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
     ib_ulint_t i)      /*!< in: column index in tuple */
 {
@@ -2275,12 +2147,10 @@ const char *ib_get_idx_field_name(
   return (NULL);
 }
 
-/*****************************************************************/ /**
- Get a column type, length and attributes from the tuple.
+/** Get a column type, length and attributes from the tuple.
  @return len of column data */
 UNIV_INLINE
 ib_ulint_t ib_col_get_meta_low(
-    /*================*/
     ib_tpl_t ib_tpl,            /*!< in: tuple instance */
     ib_ulint_t i,               /*!< in: column index in tuple */
     ib_col_meta_t *ib_col_meta) /*!< out: column meta data */
@@ -2309,15 +2179,12 @@ ib_ulint_t ib_col_get_meta_low(
   return (static_cast<ib_ulint_t>(data_len));
 }
 
-/*************************************************************/ /**
- Read a signed int 8 bit column from an InnoDB tuple. */
+/** Read a signed int 8 bit column from an InnoDB tuple. */
 UNIV_INLINE
-ib_err_t ib_tuple_check_int(
-    /*===============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_bool_t usign, /*!< in: true if unsigned */
-    ulint size)      /*!< in: size of integer */
+ib_err_t ib_tuple_check_int(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                            ib_ulint_t i,    /*!< in: column number */
+                            ib_bool_t usign, /*!< in: true if unsigned */
+                            ulint size)      /*!< in: size of integer */
 {
   ib_col_meta_t ib_col_meta;
 
@@ -2336,14 +2203,11 @@ ib_err_t ib_tuple_check_int(
   return (DB_SUCCESS);
 }
 
-/*************************************************************/ /**
- Read a signed int 8 bit column from an InnoDB tuple.
+/** Read a signed int 8 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i8(
-    /*=============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_i8_t *ival)   /*!< out: integer value */
+ib_err_t ib_tuple_read_i8(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                          ib_ulint_t i,    /*!< in: column number */
+                          ib_i8_t *ival)   /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2356,14 +2220,11 @@ ib_err_t ib_tuple_read_i8(
   return (err);
 }
 
-/*************************************************************/ /**
- Read an unsigned int 8 bit column from an InnoDB tuple.
+/** Read an unsigned int 8 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u8(
-    /*=============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_u8_t *ival)   /*!< out: integer value */
+ib_err_t ib_tuple_read_u8(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                          ib_ulint_t i,    /*!< in: column number */
+                          ib_u8_t *ival)   /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2376,14 +2237,11 @@ ib_err_t ib_tuple_read_u8(
   return (err);
 }
 
-/*************************************************************/ /**
- Read a signed int 16 bit column from an InnoDB tuple.
+/** Read a signed int 16 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i16(
-    /*==============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_i16_t *ival)  /*!< out: integer value */
+ib_err_t ib_tuple_read_i16(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                           ib_ulint_t i,    /*!< in: column number */
+                           ib_i16_t *ival)  /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2396,14 +2254,11 @@ ib_err_t ib_tuple_read_i16(
   return (err);
 }
 
-/*************************************************************/ /**
- Read an unsigned int 16 bit column from an InnoDB tuple.
+/** Read an unsigned int 16 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u16(
-    /*==============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_u16_t *ival)  /*!< out: integer value */
+ib_err_t ib_tuple_read_u16(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                           ib_ulint_t i,    /*!< in: column number */
+                           ib_u16_t *ival)  /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2416,14 +2271,11 @@ ib_err_t ib_tuple_read_u16(
   return (err);
 }
 
-/*************************************************************/ /**
- Read a signed int 32 bit column from an InnoDB tuple.
+/** Read a signed int 32 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i32(
-    /*==============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_i32_t *ival)  /*!< out: integer value */
+ib_err_t ib_tuple_read_i32(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                           ib_ulint_t i,    /*!< in: column number */
+                           ib_i32_t *ival)  /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2436,14 +2288,11 @@ ib_err_t ib_tuple_read_i32(
   return (err);
 }
 
-/*************************************************************/ /**
- Read an unsigned int 32 bit column from an InnoDB tuple.
+/** Read an unsigned int 32 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u32(
-    /*==============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_u32_t *ival)  /*!< out: integer value */
+ib_err_t ib_tuple_read_u32(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                           ib_ulint_t i,    /*!< in: column number */
+                           ib_u32_t *ival)  /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2456,14 +2305,11 @@ ib_err_t ib_tuple_read_u32(
   return (err);
 }
 
-/*************************************************************/ /**
- Read a signed int 64 bit column from an InnoDB tuple.
+/** Read a signed int 64 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_i64(
-    /*==============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_i64_t *ival)  /*!< out: integer value */
+ib_err_t ib_tuple_read_i64(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                           ib_ulint_t i,    /*!< in: column number */
+                           ib_i64_t *ival)  /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2476,14 +2322,11 @@ ib_err_t ib_tuple_read_i64(
   return (err);
 }
 
-/*************************************************************/ /**
- Read an unsigned int 64 bit column from an InnoDB tuple.
+/** Read an unsigned int 64 bit column from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_u64(
-    /*==============*/
-    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-    ib_ulint_t i,    /*!< in: column number */
-    ib_u64_t *ival)  /*!< out: integer value */
+ib_err_t ib_tuple_read_u64(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+                           ib_ulint_t i,    /*!< in: column number */
+                           ib_u64_t *ival)  /*!< out: integer value */
 {
   ib_err_t err;
 
@@ -2496,13 +2339,10 @@ ib_err_t ib_tuple_read_u64(
   return (err);
 }
 
-/*****************************************************************/ /**
- Get a column value pointer from the tuple.
+/** Get a column value pointer from the tuple.
  @return NULL or pointer to buffer */
-const void *ib_col_get_value(
-    /*=============*/
-    ib_tpl_t ib_tpl, /*!< in: tuple instance */
-    ib_ulint_t i)    /*!< in: column index in tuple */
+const void *ib_col_get_value(ib_tpl_t ib_tpl, /*!< in: tuple instance */
+                             ib_ulint_t i)    /*!< in: column index in tuple */
 {
   const void *data;
   const dfield_t *dfield;
@@ -2517,11 +2357,9 @@ const void *ib_col_get_value(
   return (data_len != UNIV_SQL_NULL ? data : NULL);
 }
 
-/*****************************************************************/ /**
- Get a column type, length and attributes from the tuple.
+/** Get a column type, length and attributes from the tuple.
  @return len of column data */
 ib_ulint_t ib_col_get_meta(
-    /*============*/
     ib_tpl_t ib_tpl,            /*!< in: tuple instance */
     ib_ulint_t i,               /*!< in: column index in tuple */
     ib_col_meta_t *ib_col_meta) /*!< out: column meta data */
@@ -2529,12 +2367,9 @@ ib_ulint_t ib_col_get_meta(
   return (ib_col_get_meta_low(ib_tpl, i, ib_col_meta));
 }
 
-/*****************************************************************/ /**
- "Clear" or reset an InnoDB tuple. We free the heap and recreate the tuple.
+/** "Clear" or reset an InnoDB tuple. We free the heap and recreate the tuple.
  @return new tuple, or NULL */
-ib_tpl_t ib_tuple_clear(
-    /*============*/
-    ib_tpl_t ib_tpl) /*!< in,own: tuple (will be freed) */
+ib_tpl_t ib_tuple_clear(ib_tpl_t ib_tpl) /*!< in,own: tuple (will be freed) */
 {
   const dict_index_t *index;
   ulint n_cols;
@@ -2554,13 +2389,11 @@ ib_tpl_t ib_tuple_clear(
   }
 }
 
-/*****************************************************************/ /**
- Create a new cluster key search tuple and copy the contents of  the
+/** Create a new cluster key search tuple and copy the contents of  the
  secondary index key tuple columns that refer to the cluster index record
  to the cluster key. It does a deep copy of the column data.
  @return DB_SUCCESS or error code */
 ib_err_t ib_tuple_get_cluster_key(
-    /*=====================*/
     ib_crsr_t ib_crsr,         /*!< in: secondary index cursor */
     ib_tpl_t *ib_dst_tpl,      /*!< out,own: destination tuple */
     const ib_tpl_t ib_src_tpl) /*!< in: source tuple */
@@ -2625,11 +2458,9 @@ ib_err_t ib_tuple_get_cluster_key(
   return (err);
 }
 
-/*****************************************************************/ /**
- Create an InnoDB tuple used for index/table search.
+/** Create an InnoDB tuple used for index/table search.
  @return own: Tuple for current index */
 ib_tpl_t ib_sec_search_tuple_create(
-    /*=======================*/
     ib_crsr_t ib_crsr) /*!< in: Cursor instance */
 {
   ulint n_cols;
@@ -2640,12 +2471,9 @@ ib_tpl_t ib_sec_search_tuple_create(
   return (ib_key_tuple_new(index, n_cols));
 }
 
-/*****************************************************************/ /**
- Create an InnoDB tuple used for index/table search.
+/** Create an InnoDB tuple used for index/table search.
  @return own: Tuple for current index */
-ib_tpl_t ib_sec_read_tuple_create(
-    /*=====================*/
-    ib_crsr_t ib_crsr) /*!< in: Cursor instance */
+ib_tpl_t ib_sec_read_tuple_create(ib_crsr_t ib_crsr) /*!< in: Cursor instance */
 {
   ulint n_cols;
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
@@ -2655,11 +2483,9 @@ ib_tpl_t ib_sec_read_tuple_create(
   return (ib_row_tuple_new(index, n_cols));
 }
 
-/*****************************************************************/ /**
- Create an InnoDB tuple used for table key operations.
+/** Create an InnoDB tuple used for table key operations.
  @return own: Tuple for current table */
 ib_tpl_t ib_clust_search_tuple_create(
-    /*=========================*/
     ib_crsr_t ib_crsr) /*!< in: Cursor instance */
 {
   ulint n_cols;
@@ -2672,11 +2498,9 @@ ib_tpl_t ib_clust_search_tuple_create(
   return (ib_key_tuple_new(index, n_cols));
 }
 
-/*****************************************************************/ /**
- Create an InnoDB tuple for table row operations.
+/** Create an InnoDB tuple for table row operations.
  @return own: Tuple for current table */
 ib_tpl_t ib_clust_read_tuple_create(
-    /*=======================*/
     ib_crsr_t ib_crsr) /*!< in: Cursor instance */
 {
   ulint n_cols;
@@ -2689,11 +2513,9 @@ ib_tpl_t ib_clust_read_tuple_create(
   return (ib_row_tuple_new(index, n_cols));
 }
 
-/*****************************************************************/ /**
- Return the number of user columns in the tuple definition.
+/** Return the number of user columns in the tuple definition.
  @return number of user columns */
 ib_ulint_t ib_tuple_get_n_user_cols(
-    /*=====================*/
     const ib_tpl_t ib_tpl) /*!< in: Tuple for current table */
 {
   const ib_tuple_t *tuple = (const ib_tuple_t *)ib_tpl;
@@ -2706,11 +2528,9 @@ ib_ulint_t ib_tuple_get_n_user_cols(
       dict_index_get_n_ordering_defined_by_user(tuple->index)));
 }
 
-/*****************************************************************/ /**
- Return the number of columns in the tuple definition.
+/** Return the number of columns in the tuple definition.
  @return number of columns */
 ib_ulint_t ib_tuple_get_n_cols(
-    /*================*/
     const ib_tpl_t ib_tpl) /*!< in: Tuple for table/index */
 {
   const ib_tuple_t *tuple = (const ib_tuple_t *)ib_tpl;
@@ -2718,11 +2538,8 @@ ib_ulint_t ib_tuple_get_n_cols(
   return (static_cast<ib_ulint_t>(dtuple_get_n_fields(tuple->ptr)));
 }
 
-/*****************************************************************/ /**
- Destroy an InnoDB tuple. */
-void ib_tuple_delete(
-    /*============*/
-    ib_tpl_t ib_tpl) /*!< in,own: Tuple instance to delete */
+/** Destroy an InnoDB tuple. */
+void ib_tuple_delete(ib_tpl_t ib_tpl) /*!< in,own: Tuple instance to delete */
 {
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
 
@@ -2733,13 +2550,10 @@ void ib_tuple_delete(
   mem_heap_free(tuple->heap);
 }
 
-/*****************************************************************/ /**
- Get a table id. This function will acquire the dictionary mutex.
+/** Get a table id. This function will acquire the dictionary mutex.
  @return DB_SUCCESS if found */
-ib_err_t ib_table_get_id(
-    /*============*/
-    const char *table_name, /*!< in: table to find */
-    ib_id_u64_t *table_id)  /*!< out: table id if found */
+ib_err_t ib_table_get_id(const char *table_name, /*!< in: table to find */
+                         ib_id_u64_t *table_id)  /*!< out: table id if found */
 {
   ib_err_t err;
 
@@ -2752,11 +2566,9 @@ ib_err_t ib_table_get_id(
   return (err);
 }
 
-/*****************************************************************/ /**
- Check if cursor is positioned.
+/** Check if cursor is positioned.
  @return IB_true if positioned */
 ib_bool_t ib_cursor_is_positioned(
-    /*====================*/
     const ib_crsr_t ib_crsr) /*!< in: InnoDB cursor instance */
 {
   const ib_cursor_t *cursor = (const ib_cursor_t *)ib_crsr;
@@ -2765,11 +2577,9 @@ ib_bool_t ib_cursor_is_positioned(
   return (ib_btr_cursor_is_positioned(prebuilt->pcur));
 }
 
-/*****************************************************************/ /**
- Checks if the data dictionary is latched in exclusive mode.
+/** Checks if the data dictionary is latched in exclusive mode.
  @return true if exclusive latch */
 ib_bool_t ib_schema_lock_is_exclusive(
-    /*========================*/
     const ib_trx_t ib_trx) /*!< in: transaction */
 {
   const trx_t *trx = (const trx_t *)ib_trx;
@@ -2777,13 +2587,10 @@ ib_bool_t ib_schema_lock_is_exclusive(
   return (trx->dict_operation_lock_mode == RW_X_LATCH);
 }
 
-/*****************************************************************/ /**
- Set the Lock an InnoDB cursor/table.
+/** Set the Lock an InnoDB cursor/table.
  @return DB_SUCCESS or error code */
-ib_err_t ib_cursor_lock(
-    /*===========*/
-    ib_crsr_t ib_crsr,         /*!< in/out: InnoDB cursor */
-    ib_lck_mode_t ib_lck_mode) /*!< in: InnoDB lock mode */
+ib_err_t ib_cursor_lock(ib_crsr_t ib_crsr,         /*!< in/out: InnoDB cursor */
+                        ib_lck_mode_t ib_lck_mode) /*!< in: InnoDB lock mode */
 {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
   row_prebuilt_t *prebuilt = cursor->prebuilt;
@@ -2794,11 +2601,9 @@ ib_err_t ib_cursor_lock(
       ib_trx_lock_table_with_retry(trx, table, (enum lock_mode)ib_lck_mode));
 }
 
-/*****************************************************************/ /**
- Set the Lock mode of the cursor.
+/** Set the Lock mode of the cursor.
  @return DB_SUCCESS or error code */
 ib_err_t ib_cursor_set_lock_mode(
-    /*====================*/
     ib_crsr_t ib_crsr,         /*!< in/out: InnoDB cursor */
     ib_lck_mode_t ib_lck_mode) /*!< in: InnoDB lock mode */
 {
@@ -2822,10 +2627,8 @@ ib_err_t ib_cursor_set_lock_mode(
   return (err);
 }
 
-/*****************************************************************/ /**
- Set need to access clustered index record. */
+/** Set need to access clustered index record. */
 void ib_cursor_set_cluster_access(
-    /*=========================*/
     ib_crsr_t ib_crsr) /*!< in/out: InnoDB cursor */
 {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
@@ -2834,22 +2637,17 @@ void ib_cursor_set_cluster_access(
   prebuilt->need_to_access_clustered = TRUE;
 }
 
-/*****************************************************************/ /**
- Inform the cursor that it's the start of an SQL statement. */
-void ib_cursor_stmt_begin(
-    /*=================*/
-    ib_crsr_t ib_crsr) /*!< in: cursor */
+/** Inform the cursor that it's the start of an SQL statement. */
+void ib_cursor_stmt_begin(ib_crsr_t ib_crsr) /*!< in: cursor */
 {
   ib_cursor_t *cursor = (ib_cursor_t *)ib_crsr;
 
   cursor->prebuilt->sql_stat_start = TRUE;
 }
 
-/*****************************************************************/ /**
- Write a double value to a column.
+/** Write a double value to a column.
  @return DB_SUCCESS or error */
 ib_err_t ib_tuple_write_double(
-    /*==================*/
     ib_tpl_t ib_tpl, /*!< in/out: tuple to write to */
     int col_no,      /*!< in: column number */
     double val)      /*!< in: value to write */
@@ -2866,14 +2664,11 @@ ib_err_t ib_tuple_write_double(
   }
 }
 
-/*************************************************************/ /**
- Read a double column value from an InnoDB tuple.
+/** Read a double column value from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_double(
-    /*=================*/
-    ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
-    ib_ulint_t col_no, /*!< in: column number */
-    double *dval)      /*!< out: double value */
+ib_err_t ib_tuple_read_double(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
+                              ib_ulint_t col_no, /*!< in: column number */
+                              double *dval)      /*!< out: double value */
 {
   ib_err_t err;
   const dfield_t *dfield;
@@ -2891,14 +2686,11 @@ ib_err_t ib_tuple_read_double(
   return (err);
 }
 
-/*****************************************************************/ /**
- Write a float value to a column.
+/** Write a float value to a column.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_write_float(
-    /*=================*/
-    ib_tpl_t ib_tpl, /*!< in/out: tuple to write to */
-    int col_no,      /*!< in: column number */
-    float val)       /*!< in: value to write */
+ib_err_t ib_tuple_write_float(ib_tpl_t ib_tpl, /*!< in/out: tuple to write to */
+                              int col_no,      /*!< in: column number */
+                              float val)       /*!< in: value to write */
 {
   const dfield_t *dfield;
   ib_tuple_t *tuple = (ib_tuple_t *)ib_tpl;
@@ -2912,14 +2704,11 @@ ib_err_t ib_tuple_write_float(
   }
 }
 
-/*************************************************************/ /**
- Read a float value from an InnoDB tuple.
+/** Read a float value from an InnoDB tuple.
  @return DB_SUCCESS or error */
-ib_err_t ib_tuple_read_float(
-    /*================*/
-    ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
-    ib_ulint_t col_no, /*!< in: column number */
-    float *fval)       /*!< out: float value */
+ib_err_t ib_tuple_read_float(ib_tpl_t ib_tpl,   /*!< in: InnoDB tuple */
+                             ib_ulint_t col_no, /*!< in: column number */
+                             float *fval)       /*!< out: float value */
 {
   ib_err_t err;
   const dfield_t *dfield;
@@ -2937,30 +2726,21 @@ ib_err_t ib_tuple_read_float(
   return (err);
 }
 
-/*****************************************************************/ /**
- Return isolation configuration set by "innodb_api_trx_level"
+/** Return isolation configuration set by "innodb_api_trx_level"
  @return trx isolation level*/
-ib_trx_level_t ib_cfg_trx_level()
-/*==============*/
-{
+ib_trx_level_t ib_cfg_trx_level() {
   return (static_cast<ib_trx_level_t>(ib_trx_level_setting));
 }
 
-/*****************************************************************/ /**
- Return configure value for background commit interval (in seconds)
+/** Return configure value for background commit interval (in seconds)
  @return background commit interval (in seconds) */
-ib_ulint_t ib_cfg_bk_commit_interval()
-/*=======================*/
-{
+ib_ulint_t ib_cfg_bk_commit_interval() {
   return (static_cast<ib_ulint_t>(ib_bk_commit_interval));
 }
 
-/*****************************************************************/ /**
- Get generic configure status
+/** Get generic configure status
  @return configure status*/
-int ib_cfg_get_cfg()
-/*============*/
-{
+int ib_cfg_get_cfg() {
   int cfg_status;
 
   cfg_status = (ib_binlog_enabled) ? IB_CFG_BINLOG_ENABLED : 0;
@@ -2976,22 +2756,17 @@ int ib_cfg_get_cfg()
   return (cfg_status);
 }
 
-/*****************************************************************/ /**
- Wrapper of ut_strerr() which converts an InnoDB error number to a
+/** Wrapper of ut_strerr() which converts an InnoDB error number to a
  human readable text message.
  @return string, describing the error */
-const char *ib_ut_strerr(
-    /*=========*/
-    ib_err_t num) /*!< in: error number */
+const char *ib_ut_strerr(ib_err_t num) /*!< in: error number */
 {
   return (ut_strerr(num));
 }
 
-/*****************************************************************/ /**
- Open an InnoDB table and return a cursor handle to it.
+/** Open an InnoDB table and return a cursor handle to it.
  @return DB_SUCCESS or err code */
 static ib_err_t ib_cursor_open_table_using_id(
-    /*==========================*/
     ib_id_u64_t table_id, /*!< in: table id of table to open */
     ib_trx_t ib_trx,      /*!< in: Current transaction handle
                           can be NULL */

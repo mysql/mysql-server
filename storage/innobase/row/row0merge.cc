@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0merge.cc
+/** @file row/row0merge.cc
  New index creation routines using a merge sort
 
  Created 12/4/2005 Jan Lindstrom
@@ -267,10 +266,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_merge_insert_index_tuples(
     row_merge_block_t *block, const row_merge_buf_t *row_buf, BtrBulk *btr_bulk,
     ut_stage_alter_t *stage = NULL);
 
-/******************************************************/ /**
- Encode an index record. */
+/** Encode an index record. */
 static void row_merge_buf_encode(
-    /*=================*/
     byte **b,                  /*!< in/out: pointer to
                                current end of output buffer */
     const dict_index_t *index, /*!< in: index */
@@ -301,11 +298,9 @@ static void row_merge_buf_encode(
   *b += size;
 }
 
-/******************************************************/ /**
- Allocate a sort buffer.
+/** Allocate a sort buffer.
  @return own: sort buffer */
 static MY_ATTRIBUTE((malloc)) row_merge_buf_t *row_merge_buf_create_low(
-    /*=====================*/
     mem_heap_t *heap,    /*!< in: heap where allocated */
     dict_index_t *index, /*!< in: secondary index */
     ulint max_tuples,    /*!< in: maximum number of
@@ -330,11 +325,9 @@ static MY_ATTRIBUTE((malloc)) row_merge_buf_t *row_merge_buf_create_low(
   return (buf);
 }
 
-/******************************************************/ /**
- Allocate a sort buffer.
+/** Allocate a sort buffer.
  @return own: sort buffer */
 row_merge_buf_t *row_merge_buf_create(
-    /*=================*/
     dict_index_t *index) /*!< in: secondary index */
 {
   row_merge_buf_t *buf;
@@ -354,11 +347,9 @@ row_merge_buf_t *row_merge_buf_create(
   return (buf);
 }
 
-/******************************************************/ /**
- Empty a sort buffer.
+/** Empty a sort buffer.
  @return sort buffer */
 row_merge_buf_t *row_merge_buf_empty(
-    /*================*/
     row_merge_buf_t *buf) /*!< in,own: sort buffer */
 {
   ulint buf_size = sizeof *buf;
@@ -379,10 +370,8 @@ row_merge_buf_t *row_merge_buf_empty(
   return (buf);
 }
 
-/******************************************************/ /**
- Deallocate a sort buffer. */
+/** Deallocate a sort buffer. */
 void row_merge_buf_free(
-    /*===============*/
     row_merge_buf_t *buf) /*!< in,own: sort buffer to be freed */
 {
   ut_free(buf->tuples);
@@ -789,10 +778,8 @@ static ulint row_merge_buf_add(row_merge_buf_t *buf, dict_index_t *fts_index,
   DBUG_RETURN(n_row_added);
 }
 
-/*************************************************************/ /**
- Report a duplicate key. */
+/** Report a duplicate key. */
 void row_merge_dup_report(
-    /*=================*/
     row_merge_dup_t *dup,  /*!< in/out: for reporting duplicates */
     const dfield_t *entry) /*!< in: duplicate index entry */
 {
@@ -803,8 +790,7 @@ void row_merge_dup_report(
   }
 }
 
-/*************************************************************/ /**
- Compare two tuples.
+/** Compare two tuples.
  @param[in]	index	index tree
  @param[in]	n_uniq	number of unique fields
  @param[in]	n_field	number of fields
@@ -814,7 +800,6 @@ void row_merge_dup_report(
  @return positive, 0, negative if a is greater, equal, less, than b,
  respectively */
 static MY_ATTRIBUTE((warn_unused_result)) int row_merge_tuple_cmp(
-    /*================*/
     const dict_index_t *index, ulint n_uniq, ulint n_field, const mtuple_t &a,
     const mtuple_t &b, row_merge_dup_t *dup) {
   int cmp;
@@ -884,10 +869,8 @@ respectively */
 #define row_merge_tuple_cmp_ctx(a, b) \
   row_merge_tuple_cmp(index, n_uniq, n_field, a, b, dup)
 
-/**********************************************************************/ /**
- Merge sort the tuple buffer in main memory. */
+/** Merge sort the tuple buffer in main memory. */
 static void row_merge_tuple_sort(
-    /*=================*/
     const dict_index_t *index, /*!< in: index tree */
     ulint n_uniq,              /*!< in: number of unique fields */
     ulint n_field,             /*!< in: number of fields */
@@ -907,10 +890,8 @@ static void row_merge_tuple_sort(
                         row_merge_tuple_cmp_ctx);
 }
 
-/******************************************************/ /**
- Sort a buffer. */
+/** Sort a buffer. */
 void row_merge_buf_sort(
-    /*===============*/
     row_merge_buf_t *buf, /*!< in/out: sort buffer */
     row_merge_dup_t *dup) /*!< in/out: reporter of duplicates
                           (NULL if non-unique index) */
@@ -922,10 +903,8 @@ void row_merge_buf_sort(
                        buf->tmp_tuples, 0, buf->n_tuples);
 }
 
-/******************************************************/ /**
- Write a buffer to a block. */
+/** Write a buffer to a block. */
 void row_merge_buf_write(
-    /*================*/
     const row_merge_buf_t *buf, /*!< in: sorted buffer */
     const merge_file_t *of UNIV_UNUSED,
     /*!< in: output file */
@@ -964,12 +943,10 @@ void row_merge_buf_write(
   DBUG_VOID_RETURN;
 }
 
-/******************************************************/ /**
- Create a memory heap and allocate space for row_merge_rec_offsets()
+/** Create a memory heap and allocate space for row_merge_rec_offsets()
  and mrec_buf_t[3].
  @return memory heap */
 static mem_heap_t *row_merge_heap_create(
-    /*==================*/
     const dict_index_t *index, /*!< in: record descriptor */
     mrec_buf_t **buf,          /*!< out: 3 buffers */
     ulint **offsets1,          /*!< out: offsets */
@@ -989,16 +966,13 @@ static mem_heap_t *row_merge_heap_create(
   return (heap);
 }
 
-/********************************************************************/ /**
- Read a merge block from the file system.
+/** Read a merge block from the file system.
  @return true if request was successful, false if fail */
-ibool row_merge_read(
-    /*===========*/
-    int fd,                 /*!< in: file descriptor */
-    ulint offset,           /*!< in: offset where to read
-                            in number of row_merge_block_t
-                            elements */
-    row_merge_block_t *buf) /*!< out: data */
+ibool row_merge_read(int fd,                 /*!< in: file descriptor */
+                     ulint offset,           /*!< in: offset where to read
+                                             in number of row_merge_block_t
+                                             elements */
+                     row_merge_block_t *buf) /*!< out: data */
 {
   os_offset_t ofs = ((os_offset_t)offset) * srv_sort_buf_size;
   dberr_t err;
@@ -1027,15 +1001,12 @@ ibool row_merge_read(
   DBUG_RETURN(err == DB_SUCCESS);
 }
 
-/********************************************************************/ /**
- Write a merge block to the file system.
+/** Write a merge block to the file system.
  @return true if request was successful, false if fail */
-ibool row_merge_write(
-    /*============*/
-    int fd,          /*!< in: file descriptor */
-    ulint offset,    /*!< in: offset where to write,
-                     in number of row_merge_block_t elements */
-    const void *buf) /*!< in: data */
+ibool row_merge_write(int fd,          /*!< in: file descriptor */
+                      ulint offset,    /*!< in: offset where to write,
+                                       in number of row_merge_block_t elements */
+                      const void *buf) /*!< in: data */
 {
   size_t buf_len = srv_sort_buf_size;
   os_offset_t ofs = buf_len * (os_offset_t)offset;
@@ -1060,11 +1031,9 @@ ibool row_merge_write(
   DBUG_RETURN(err == DB_SUCCESS);
 }
 
-/********************************************************************/ /**
- Read a merge record.
+/** Read a merge record.
  @return pointer to next record, or NULL on I/O error or end of list */
 const byte *row_merge_read_rec(
-    /*===============*/
     row_merge_block_t *block,  /*!< in/out: file buffer */
     mrec_buf_t *buf,           /*!< in/out: secondary buffer */
     const byte *b,             /*!< in: pointer to record */
@@ -1215,10 +1184,8 @@ func_exit:
   DBUG_RETURN(b);
 }
 
-/********************************************************************/ /**
- Write a merge record. */
+/** Write a merge record. */
 static void row_merge_write_rec_low(
-    /*====================*/
     byte *b, /*!< out: buffer */
     ulint e, /*!< in: encoded extra_size */
 #ifdef UNIV_DEBUG
@@ -1255,11 +1222,9 @@ static void row_merge_write_rec_low(
   DBUG_VOID_RETURN;
 }
 
-/********************************************************************/ /**
- Write a merge record.
+/** Write a merge record.
  @return pointer to end of block, or NULL on error */
 static byte *row_merge_write_rec(
-    /*================*/
     row_merge_block_t *block, /*!< in/out: file buffer */
     mrec_buf_t *buf,          /*!< in/out: secondary buffer */
     byte *b,                  /*!< in: pointer to end of block */
@@ -1317,11 +1282,9 @@ static byte *row_merge_write_rec(
   return (b);
 }
 
-/********************************************************************/ /**
- Write an end-of-list marker.
+/** Write an end-of-list marker.
  @return pointer to end of block, or NULL on error */
 static byte *row_merge_write_eof(
-    /*================*/
     row_merge_block_t *block, /*!< in/out: file buffer */
     byte *b,                  /*!< in: pointer to end of block */
     int fd,                   /*!< in: file descriptor */
@@ -3040,14 +3003,11 @@ err_exit:
   DBUG_RETURN(error);
 }
 
-/*********************************************************************/ /**
- Sets an exclusive lock on a table, for the duration of creating indexes.
+/** Sets an exclusive lock on a table, for the duration of creating indexes.
  @return error code or DB_SUCCESS */
-dberr_t row_merge_lock_table(
-    /*=================*/
-    trx_t *trx,          /*!< in/out: transaction */
-    dict_table_t *table, /*!< in: table to lock */
-    enum lock_mode mode) /*!< in: LOCK_X or LOCK_S */
+dberr_t row_merge_lock_table(trx_t *trx,          /*!< in/out: transaction */
+                             dict_table_t *table, /*!< in: table to lock */
+                             enum lock_mode mode) /*!< in: LOCK_X or LOCK_S */
 {
   ut_ad(!srv_read_only_mode);
   ut_ad(mode == LOCK_X || mode == LOCK_S);
@@ -3061,12 +3021,10 @@ dberr_t row_merge_lock_table(
   return (err);
 }
 
-/*********************************************************************/ /**
- Drop indexes that were created before an error occurred.
+/** Drop indexes that were created before an error occurred.
  The data dictionary must have been locked exclusively by the caller,
  because the transaction will not be committed. */
 void row_merge_drop_indexes(
-    /*===================*/
     trx_t *trx,          /*!< in/out: dictionary transaction */
     dict_table_t *table, /*!< in/out: table containing the indexes */
     ibool locked)        /*!< in: TRUE=table locked,
@@ -3281,12 +3239,9 @@ int row_merge_file_create(merge_file_t *merge_file, const char *path) {
   return (merge_file->fd);
 }
 
-/*********************************************************************/ /**
- Destroy a merge file. And de-register the file from Performance Schema
+/** Destroy a merge file. And de-register the file from Performance Schema
  if UNIV_PFS_IO is defined. */
-void row_merge_file_destroy_low(
-    /*=======================*/
-    int fd) /*!< in: merge file descriptor */
+void row_merge_file_destroy_low(int fd) /*!< in: merge file descriptor */
 {
 #ifdef UNIV_PFS_IO
   struct PSI_file_locker *locker = NULL;
@@ -3306,10 +3261,8 @@ void row_merge_file_destroy_low(
   }
 #endif
 }
-/*********************************************************************/ /**
- Destroy a merge file. */
+/** Destroy a merge file. */
 void row_merge_file_destroy(
-    /*===================*/
     merge_file_t *merge_file) /*!< in/out: merge file structure */
 {
   ut_ad(!srv_read_only_mode);
@@ -3320,15 +3273,12 @@ void row_merge_file_destroy(
   }
 }
 
-/*********************************************************************/ /**
- Provide a new pathname for a table that is being renamed if it belongs to
+/** Provide a new pathname for a table that is being renamed if it belongs to
  a file-per-table tablespace.  The caller is responsible for freeing the
  memory allocated for the return value.
  @return new pathname of tablespace file, or NULL if space = 0 */
-char *row_make_new_pathname(
-    /*==================*/
-    dict_table_t *table,  /*!< in: table to be renamed */
-    const char *new_name) /*!< in: new name */
+char *row_make_new_pathname(dict_table_t *table, /*!< in: table to be renamed */
+                            const char *new_name) /*!< in: new name */
 {
   ut_ad(dict_table_is_file_per_table(table));
 
@@ -3456,16 +3406,13 @@ dict_index_t *row_merge_create_index(trx_t *trx, dict_table_t *table,
   DBUG_RETURN(index);
 }
 
-/*********************************************************************/ /**
- Drop a table. The caller must have ensured that the background stats
+/** Drop a table. The caller must have ensured that the background stats
  thread is not processing the table. This can be done by calling
  dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
  before calling this function.
  @return DB_SUCCESS or error code */
-dberr_t row_merge_drop_table(
-    /*=================*/
-    trx_t *trx,          /*!< in: transaction */
-    dict_table_t *table) /*!< in: table to drop */
+dberr_t row_merge_drop_table(trx_t *trx,          /*!< in: transaction */
+                             dict_table_t *table) /*!< in: table to drop */
 {
   ut_ad(!srv_read_only_mode);
 

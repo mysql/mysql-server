@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/pars0types.h
+/** @file include/pars0types.h
  SQL parser global types
 
  Created 1/11/1998 Heikki Tuuri

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/mtr0log.ic
+/** @file include/mtr0log.ic
  Mini-transaction logging routines
 
  Created 12/7/1995 Heikki Tuuri
@@ -64,13 +63,10 @@ byte *mlog_open_metadata(mtr_t *mtr, ulint size) {
   return (mtr->get_log()->open(size));
 }
 
-/********************************************************/ /**
- Closes a buffer opened to mlog. */
+/** Closes a buffer opened to mlog. */
 UNIV_INLINE
-void mlog_close(
-    /*=======*/
-    mtr_t *mtr, /*!< in: mtr */
-    byte *ptr)  /*!< in: buffer space from ptr up was not used */
+void mlog_close(mtr_t *mtr, /*!< in: mtr */
+                byte *ptr)  /*!< in: buffer space from ptr up was not used */
 {
   ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE);
   ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NO_REDO);
@@ -78,14 +74,11 @@ void mlog_close(
   mtr->get_log()->close(ptr);
 }
 
-/********************************************************/ /**
- Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+/** Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
-void mlog_catenate_ulint(
-    /*================*/
-    mtr_buf_t *mtr_buf, /*!< in/out: buffer to write */
-    ulint val,          /*!< in: value to write */
-    mlog_id_t type)     /*!< in: type of value to write */
+void mlog_catenate_ulint(mtr_buf_t *mtr_buf, /*!< in/out: buffer to write */
+                         ulint val,          /*!< in: value to write */
+                         mlog_id_t type)     /*!< in: type of value to write */
 {
   ut_ad(MLOG_1BYTE == 1);
   ut_ad(MLOG_2BYTES == 2);
@@ -109,11 +102,9 @@ void mlog_catenate_ulint(
   }
 }
 
-/********************************************************/ /**
- Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
+/** Catenates 1 - 4 bytes to the mtr log. The value is not compressed. */
 UNIV_INLINE
 void mlog_catenate_ulint(
-    /*================*/
     mtr_t *mtr,     /*!< in/out: mtr */
     ulint val,      /*!< in: value to write */
     mlog_id_t type) /*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
@@ -126,13 +117,10 @@ void mlog_catenate_ulint(
   mlog_catenate_ulint(mtr->get_log(), val, type);
 }
 
-/********************************************************/ /**
- Catenates a compressed ulint to mlog. */
+/** Catenates a compressed ulint to mlog. */
 UNIV_INLINE
-void mlog_catenate_ulint_compressed(
-    /*===========================*/
-    mtr_t *mtr, /*!< in: mtr */
-    ulint val)  /*!< in: value to write */
+void mlog_catenate_ulint_compressed(mtr_t *mtr, /*!< in: mtr */
+                                    ulint val)  /*!< in: value to write */
 {
   byte *log_ptr;
 
@@ -148,13 +136,10 @@ void mlog_catenate_ulint_compressed(
   mlog_close(mtr, log_ptr);
 }
 
-/********************************************************/ /**
- Catenates a compressed 64-bit integer to mlog. */
+/** Catenates a compressed 64-bit integer to mlog. */
 UNIV_INLINE
-void mlog_catenate_ull_compressed(
-    /*=========================*/
-    mtr_t *mtr,      /*!< in: mtr */
-    ib_uint64_t val) /*!< in: value to write */
+void mlog_catenate_ull_compressed(mtr_t *mtr,      /*!< in: mtr */
+                                  ib_uint64_t val) /*!< in: value to write */
 {
   byte *log_ptr;
 
@@ -218,14 +203,12 @@ byte *mlog_write_initial_log_record_low(mlog_id_t type, space_id_t space_id,
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************/ /**
- Writes the initial part of a log record (3..11 bytes).
+/** Writes the initial part of a log record (3..11 bytes).
  If the implementation of this function is changed, all
  size parameters to mlog_open() should be adjusted accordingly!
  @return new value of log_ptr */
 UNIV_INLINE
 byte *mlog_write_initial_log_record_fast(
-    /*===============================*/
     const byte *ptr, /*!< in: pointer to (inside) a buffer
                      frame holding the file page where
                      modification is made */

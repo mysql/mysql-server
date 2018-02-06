@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0undo.h
+/** @file include/row0undo.h
  Row undo
 
  Created 1/8/1997 Heikki Tuuri
@@ -44,32 +43,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
-/********************************************************************/ /**
- Creates a row undo node to a query graph.
+/** Creates a row undo node to a query graph.
  @return own: undo node */
 undo_node_t *row_undo_node_create(
-    /*=================*/
     trx_t *trx,        /*!< in: transaction */
     que_thr_t *parent, /*!< in: parent node, i.e., a thr node */
     mem_heap_t *heap); /*!< in: memory heap where created */
-/***********************************************************/ /**
- Looks for the clustered index record when node has the row reference.
+/** Looks for the clustered index record when node has the row reference.
  The pcur in node is used in the search. If found, stores the row to node,
  and stores the position of pcur, and detaches it. The pcur must be closed
  by the caller in any case.
  @return true if found; NOTE the node->pcur must be closed by the
  caller, regardless of the return value */
 bool row_undo_search_clust_to_pcur(
-    /*==========================*/
     undo_node_t *node) /*!< in/out: row undo node */
     MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************/ /**
- Undoes a row operation in a table. This is a high-level function used
+/** Undoes a row operation in a table. This is a high-level function used
  in SQL execution graphs.
  @return query thread to run next or NULL */
-que_thr_t *row_undo_step(
-    /*==========*/
-    que_thr_t *thr); /*!< in: query thread */
+que_thr_t *row_undo_step(que_thr_t *thr); /*!< in: query thread */
 
 /* A single query thread will try to perform the undo for all successive
 versions of a clustered index record, if the transaction has modified it

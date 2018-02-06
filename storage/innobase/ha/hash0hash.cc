@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file ha/hash0hash.cc
+/** @file ha/hash0hash.cc
  The simple hash table utility
 
  Created 5/20/1997 Heikki Tuuri
@@ -39,11 +38,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_HOTBACKUP
 
-/************************************************************/ /**
- Reserves all the locks of a hash table, in an ascending order. */
-void hash_lock_x_all(
-    /*============*/
-    hash_table_t *table) /*!< in: hash table */
+/** Reserves all the locks of a hash table, in an ascending order. */
+void hash_lock_x_all(hash_table_t *table) /*!< in: hash table */
 {
   ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 
@@ -57,11 +53,8 @@ void hash_lock_x_all(
   }
 }
 
-/************************************************************/ /**
- Releases all the locks of a hash table, in an ascending order. */
-void hash_unlock_x_all(
-    /*==============*/
-    hash_table_t *table) /*!< in: hash table */
+/** Releases all the locks of a hash table, in an ascending order. */
+void hash_unlock_x_all(hash_table_t *table) /*!< in: hash table */
 {
   ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 
@@ -74,12 +67,9 @@ void hash_unlock_x_all(
   }
 }
 
-/************************************************************/ /**
- Releases all but passed in lock of a hash table, */
-void hash_unlock_x_all_but(
-    /*==================*/
-    hash_table_t *table,  /*!< in: hash table */
-    rw_lock_t *keep_lock) /*!< in: lock to keep */
+/** Releases all but passed in lock of a hash table, */
+void hash_unlock_x_all_but(hash_table_t *table,  /*!< in: hash table */
+                           rw_lock_t *keep_lock) /*!< in: lock to keep */
 {
   ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 
@@ -96,13 +86,10 @@ void hash_unlock_x_all_but(
 
 #endif /* !UNIV_HOTBACKUP */
 
-/*************************************************************/ /**
- Creates a hash table with >= n array cells. The actual number of cells is
+/** Creates a hash table with >= n array cells. The actual number of cells is
  chosen to be a prime number slightly bigger than n.
  @return own: created table */
-hash_table_t *hash_create(
-    /*========*/
-    ulint n) /*!< in: number of array cells */
+hash_table_t *hash_create(ulint n) /*!< in: number of array cells */
 {
   hash_cell_t *array;
   ulint prime;
@@ -137,11 +124,8 @@ hash_table_t *hash_create(
   return (table);
 }
 
-/*************************************************************/ /**
- Frees a hash table. */
-void hash_table_free(
-    /*============*/
-    hash_table_t *table) /*!< in, own: hash table */
+/** Frees a hash table. */
+void hash_table_free(hash_table_t *table) /*!< in, own: hash table */
 {
   ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 

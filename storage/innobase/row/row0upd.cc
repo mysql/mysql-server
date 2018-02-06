@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0upd.cc
+/** @file row/row0upd.cc
  Update of a row
 
  Created 12/27/1996 Heikki Tuuri
@@ -131,20 +130,17 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
-/***********************************************************/ /**
- Checks if an update vector changes some of the first ordering fields of an
+/** Checks if an update vector changes some of the first ordering fields of an
  index record. This is only used in foreign key checks and we can assume
  that index does not contain column prefixes.
  @return true if changes */
 static ibool row_upd_changes_first_fields_binary(
-    /*================================*/
     dtuple_t *entry,     /*!< in: old value of index entry */
     dict_index_t *index, /*!< in: index of entry */
     const upd_t *update, /*!< in: update vector for the row */
     ulint n);            /*!< in: how many first fields to check */
 
-/*********************************************************************/ /**
- Checks if index currently is mentioned as a referenced index in a foreign
+/** Checks if index currently is mentioned as a referenced index in a foreign
  key constraint.
 
  NOTE that since we do not hold dict_operation_lock when leaving the
@@ -152,10 +148,8 @@ static ibool row_upd_changes_first_fields_binary(
  we leave this function: this function is only for heuristic use!
 
  @return true if referenced */
-static ibool row_upd_index_is_referenced(
-    /*========================*/
-    dict_index_t *index, /*!< in: index */
-    trx_t *trx)          /*!< in: transaction */
+static ibool row_upd_index_is_referenced(dict_index_t *index, /*!< in: index */
+                                         trx_t *trx) /*!< in: transaction */
 {
   dict_table_t *table = index->table;
   ibool is_referenced = FALSE;
@@ -173,8 +167,7 @@ static ibool row_upd_index_is_referenced(
   return (is_referenced);
 }
 
-/*********************************************************************/ /**
- Checks if possible foreign key constraints hold after a delete of the record
+/** Checks if possible foreign key constraints hold after a delete of the record
  under pcur.
 
  NOTE that this function will temporarily commit mtr and lose the
@@ -183,7 +176,6 @@ static ibool row_upd_index_is_referenced(
  @return DB_SUCCESS or an error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_upd_check_references_constraints(
-        /*=================================*/
         upd_node_t *node,    /*!< in: row update node */
         btr_pcur_t *pcur,    /*!< in: cursor positioned on a record; NOTE: the
                              cursor position is lost in this function! */
@@ -287,12 +279,9 @@ func_exit:
   DBUG_RETURN(err);
 }
 
-/*********************************************************************/ /**
- Creates an update node for a query graph.
+/** Creates an update node for a query graph.
  @return own: update node */
-upd_node_t *upd_node_create(
-    /*============*/
-    mem_heap_t *heap) /*!< in: mem heap where created */
+upd_node_t *upd_node_create(mem_heap_t *heap) /*!< in: mem heap where created */
 {
   upd_node_t *node;
 
@@ -307,11 +296,9 @@ upd_node_t *upd_node_create(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************/ /**
- Updates the trx id and roll ptr field in a clustered index record in database
- recovery. */
+/** Updates the trx id and roll ptr field in a clustered index record in
+ database recovery. */
 void row_upd_rec_sys_fields_in_recovery(
-    /*===============================*/
     rec_t *rec,               /*!< in/out: record */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
     const ulint *offsets,     /*!< in: array returned by rec_get_offsets() */
@@ -339,10 +326,8 @@ void row_upd_rec_sys_fields_in_recovery(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************/ /**
- Sets the trx id or roll ptr field of a clustered index entry. */
+/** Sets the trx id or roll ptr field of a clustered index entry. */
 void row_upd_index_entry_sys_field(
-    /*==========================*/
     dtuple_t *entry,     /*!< in/out: index entry, where the memory
                          buffers for sys fields are already allocated:
                          the function just copies the new values to
@@ -371,13 +356,11 @@ void row_upd_index_entry_sys_field(
   }
 }
 
-/***********************************************************/ /**
- Returns TRUE if row update changes size of some field in index or if some
+/** Returns TRUE if row update changes size of some field in index or if some
  field to be updated is stored externally in rec or update.
  @return true if the update changes the size of some field in index or
  the field is external in rec or update */
 ibool row_upd_changes_field_size_or_external(
-    /*===================================*/
     dict_index_t *index,  /*!< in: index */
     const ulint *offsets, /*!< in: rec_get_offsets(rec, index) */
     const upd_t *update)  /*!< in: update vector */
@@ -439,11 +422,9 @@ ibool row_upd_changes_field_size_or_external(
   return (FALSE);
 }
 
-/***********************************************************/ /**
- Returns true if row update contains disowned external fields.
+/** Returns true if row update contains disowned external fields.
  @return true if the update contains disowned external fields. */
 bool row_upd_changes_disowned_external(
-    /*==============================*/
     const upd_t *update) /*!< in: update vector */
 {
   const upd_field_t *upd_field;
@@ -474,14 +455,12 @@ bool row_upd_changes_disowned_external(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************/ /**
- Replaces the new column values stored in the update vector to the
+/** Replaces the new column values stored in the update vector to the
  record given. No field size changes are allowed. This function is
  usually invoked on a clustered index. The only use case for a
  secondary index is row_ins_sec_index_entry_by_modify() or its
  counterpart in ibuf_insert_to_index_page(). */
 void row_upd_rec_in_place(
-    /*=================*/
     rec_t *rec,               /*!< in/out: record where replaced */
     dict_index_t *index,      /*!< in: the index the record belongs to */
     const ulint *offsets,     /*!< in: array returned by rec_get_offsets() */
@@ -527,12 +506,10 @@ void row_upd_rec_in_place(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************/ /**
- Writes into the redo log the values of trx id and roll ptr and enough info
+/** Writes into the redo log the values of trx id and roll ptr and enough info
  to determine their positions within a clustered index record.
  @return new pointer to mlog */
 byte *row_upd_write_sys_vals_to_log(
-    /*==========================*/
     dict_index_t *index, /*!< in: clustered index */
     trx_id_t trx_id,     /*!< in: transaction id */
     roll_ptr_t roll_ptr, /*!< in: roll ptr of the undo log record */
@@ -555,16 +532,13 @@ byte *row_upd_write_sys_vals_to_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************/ /**
- Parses the log data of system field values.
+/** Parses the log data of system field values.
  @return log data end or NULL */
-byte *row_upd_parse_sys_vals(
-    /*===================*/
-    const byte *ptr,      /*!< in: buffer */
-    const byte *end_ptr,  /*!< in: buffer end */
-    ulint *pos,           /*!< out: TRX_ID position in record */
-    trx_id_t *trx_id,     /*!< out: trx id */
-    roll_ptr_t *roll_ptr) /*!< out: roll ptr */
+byte *row_upd_parse_sys_vals(const byte *ptr,     /*!< in: buffer */
+                             const byte *end_ptr, /*!< in: buffer end */
+                             ulint *pos, /*!< out: TRX_ID position in record */
+                             trx_id_t *trx_id,     /*!< out: trx id */
+                             roll_ptr_t *roll_ptr) /*!< out: roll ptr */
 {
   *pos = mach_parse_compressed(&ptr, end_ptr);
 
@@ -585,10 +559,9 @@ byte *row_upd_parse_sys_vals(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************/ /**
- Writes to the redo log the new values of the fields occurring in the index. */
+/** Writes to the redo log the new values of the fields occurring in the index.
+ */
 void row_upd_index_write_log(
-    /*====================*/
     const upd_t *update, /*!< in: update vector */
     byte *log_ptr,       /*!< in: pointer to mlog buffer: must
                          contain at least MLOG_BUF_MARGIN bytes
@@ -659,11 +632,9 @@ void row_upd_index_write_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************/ /**
- Parses the log data written by row_upd_index_write_log.
+/** Parses the log data written by row_upd_index_write_log.
  @return log data end or NULL */
 byte *row_upd_index_parse(
-    /*================*/
     const byte *ptr,     /*!< in: buffer */
     const byte *end_ptr, /*!< in: buffer end */
     mem_heap_t *heap,    /*!< in: memory heap where update vector is
@@ -753,13 +724,11 @@ upd_field_t *upd_t::get_upd_field(ulint field_no) const {
 }
 
 #ifndef UNIV_HOTBACKUP
-/***************************************************************/ /**
- Builds an update vector from those fields which in a secondary index entry
+/** Builds an update vector from those fields which in a secondary index entry
  differ from a record that has the equal ordering fields. NOTE: we compare
  the fields as binary strings!
  @return own: update vector of differing fields */
 upd_t *row_upd_build_sec_rec_difference_binary(
-    /*====================================*/
     const rec_t *rec,      /*!< in: secondary index record */
     dict_index_t *index,   /*!< in: index */
     const ulint *offsets,  /*!< in: rec_get_offsets(rec, index) */
@@ -1112,11 +1081,9 @@ static void row_upd_index_replace_new_col_val_func(
   DBUG_VOID_RETURN;
 }
 
-/***********************************************************/ /**
- Replaces the new column values stored in the update vector to the index entry
- given. */
+/** Replaces the new column values stored in the update vector to the index
+ entry given. */
 void row_upd_index_replace_new_col_vals_index_pos(
-    /*=========================================*/
     dtuple_t *entry,     /*!< in/out: index entry where replaced;
                          the clustered index record must be
                          covered by a lock or a page latch to
@@ -1186,11 +1153,9 @@ void row_upd_index_replace_new_col_vals_index_pos(
   DBUG_VOID_RETURN;
 }
 
-/***********************************************************/ /**
- Replaces the new column values stored in the update vector to the index entry
- given. */
+/** Replaces the new column values stored in the update vector to the index
+ entry given. */
 void row_upd_index_replace_new_col_vals(
-    /*===============================*/
     dtuple_t *entry,     /*!< in/out: index entry where replaced;
                          the clustered index record must be
                          covered by a lock or a page latch to
@@ -1359,10 +1324,8 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
   }
 }
 
-/***********************************************************/ /**
- Replaces the new column values stored in the update vector. */
+/** Replaces the new column values stored in the update vector. */
 void row_upd_replace(
-    /*============*/
     trx_t *trx,                /*!< in: transaction object. */
     dtuple_t *row,             /*!< in/out: row where replaced,
                                indexed by col_no;
@@ -1441,15 +1404,13 @@ void row_upd_replace(
   row_upd_replace_vcol(row, table, update, true, NULL, NULL);
 }
 
-/***********************************************************/ /**
- Checks if an update vector changes an ordering field of an index record.
+/** Checks if an update vector changes an ordering field of an index record.
 
  This function is fast if the update vector is short or the number of ordering
  fields in the index is small. Otherwise, this can be quadratic.
  NOTE: we compare the fields as binary strings!
  @return true if update vector changes an ordering field in the index record */
 ibool row_upd_changes_ord_field_binary_func(
-    /*==================================*/
     dict_index_t *index, /*!< in: index of the record */
     const upd_t *update, /*!< in: update vector for the row; NOTE: the
                          field numbers in this MUST be clustered index
@@ -1666,13 +1627,11 @@ ibool row_upd_changes_ord_field_binary_func(
   return (FALSE);
 }
 
-/***********************************************************/ /**
- Checks if an update vector changes an ordering field of an index record.
+/** Checks if an update vector changes an ordering field of an index record.
  NOTE: we compare the fields as binary strings!
  @return true if update vector may change an ordering field in an index
  record */
 ibool row_upd_changes_some_index_ord_field_binary(
-    /*========================================*/
     const dict_table_t *table, /*!< in: table */
     const upd_t *update)       /*!< in: update vector for the row */
 {
@@ -1700,13 +1659,10 @@ ibool row_upd_changes_some_index_ord_field_binary(
   return (FALSE);
 }
 
-/***********************************************************/ /**
- Checks if an FTS Doc ID column is affected by an UPDATE.
+/** Checks if an FTS Doc ID column is affected by an UPDATE.
  @return whether the Doc ID column is changed */
-bool row_upd_changes_doc_id(
-    /*===================*/
-    dict_table_t *table,    /*!< in: table */
-    upd_field_t *upd_field) /*!< in: field to check */
+bool row_upd_changes_doc_id(dict_table_t *table,    /*!< in: table */
+                            upd_field_t *upd_field) /*!< in: field to check */
 {
   ulint col_no;
   dict_index_t *clust_index;
@@ -1722,12 +1678,10 @@ bool row_upd_changes_doc_id(
 
   return (col_no == fts->doc_col);
 }
-/***********************************************************/ /**
- Checks if an FTS indexed column is affected by an UPDATE.
+/** Checks if an FTS indexed column is affected by an UPDATE.
  @return offset within fts_t::indexes if FTS indexed column updated else
  ULINT_UNDEFINED */
 ulint row_upd_changes_fts_column(
-    /*=======================*/
     dict_table_t *table,    /*!< in: table */
     upd_field_t *upd_field) /*!< in: field to check */
 {
@@ -1750,13 +1704,11 @@ ulint row_upd_changes_fts_column(
   }
 }
 
-/***********************************************************/ /**
- Checks if an update vector changes some of the first ordering fields of an
+/** Checks if an update vector changes some of the first ordering fields of an
  index record. This is only used in foreign key checks and we can assume
  that index does not contain column prefixes.
  @return true if changes */
 static ibool row_upd_changes_first_fields_binary(
-    /*================================*/
     dtuple_t *entry,     /*!< in: index entry */
     dict_index_t *index, /*!< in: index of entry */
     const upd_t *update, /*!< in: update vector for the row */
@@ -1797,11 +1749,9 @@ static ibool row_upd_changes_first_fields_binary(
   return (FALSE);
 }
 
-/*********************************************************************/ /**
- Copies the column values from a record. */
+/** Copies the column values from a record. */
 UNIV_INLINE
 void row_upd_copy_columns(
-    /*=================*/
     rec_t *rec,           /*!< in: record in a clustered index */
     const ulint *offsets, /*!< in: array returned by rec_get_offsets() */
     sym_node_t *column)   /*!< in: first column in a column list, or
@@ -1819,13 +1769,10 @@ void row_upd_copy_columns(
   }
 }
 
-/*********************************************************************/ /**
- Calculates the new values for fields to update. Note that row_upd_copy_columns
- must have been called first. */
+/** Calculates the new values for fields to update. Note that
+ row_upd_copy_columns must have been called first. */
 UNIV_INLINE
-void row_upd_eval_new_vals(
-    /*==================*/
-    upd_t *update) /*!< in/out: update vector */
+void row_upd_eval_new_vals(upd_t *update) /*!< in/out: update vector */
 {
   que_node_t *exp;
   upd_field_t *upd_field;
@@ -1969,8 +1916,7 @@ void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
   }
 }
 
-/***********************************************************/ /**
- Print a MBR data from disk */
+/** Print a MBR data from disk */
 static void srv_mbr_print(const byte *data) {
   double a, b, c, d;
   a = mach_double_read(data);
@@ -1985,14 +1931,12 @@ static void srv_mbr_print(const byte *data) {
              << "\n";
 }
 
-/***********************************************************/ /**
- Updates a secondary index entry of a row.
+/** Updates a secondary index entry of a row.
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_sec_index_entry(
-    /*====================*/
-    upd_node_t *node, /*!< in: row update node */
-    que_thr_t *thr)   /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_upd_sec_index_entry(upd_node_t *node, /*!< in: row update node */
+                            que_thr_t *thr)   /*!< in: query thread */
 {
   mtr_t mtr;
   const rec_t *rec;
@@ -2211,15 +2155,13 @@ func_exit:
   return (err);
 }
 
-/***********************************************************/ /**
- Updates the secondary index record if it is changed in the row update or
+/** Updates the secondary index record if it is changed in the row update or
  deletes it if this is a delete.
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_sec_step(
-    /*=============*/
-    upd_node_t *node, /*!< in: row update node */
-    que_thr_t *thr)   /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_upd_sec_step(upd_node_t *node, /*!< in: row update node */
+                     que_thr_t *thr)   /*!< in: query thread */
 {
   ut_ad((node->state == UPD_NODE_UPDATE_ALL_SEC) ||
         (node->state == UPD_NODE_UPDATE_SOME_SEC));
@@ -2241,14 +2183,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_sec_step(
 #define row_upd_clust_rec_by_insert_inherit(rec, offsets, entry, update) \
   row_upd_clust_rec_by_insert_inherit_func(rec, entry, update)
 #endif /* UNIV_DEBUG */
-/*******************************************************************/ /**
- Mark non-updated off-page columns inherited when the primary key is
+/** Mark non-updated off-page columns inherited when the primary key is
  updated. We must mark them as inherited in entry, so that they are not
  freed in a rollback. A limited version of this function used to be
  called btr_cur_mark_dtuple_inherited_extern().
  @return whether any columns were inherited */
 static bool row_upd_clust_rec_by_insert_inherit_func(
-    /*=====================================*/
     const rec_t *rec, /*!< in: old record, or NULL */
 #ifdef UNIV_DEBUG
     const ulint *offsets, /*!< in: rec_get_offsets(rec), or NULL */
@@ -2318,15 +2258,13 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
   return (inherit);
 }
 
-/***********************************************************/ /**
- Marks the clustered index record deleted and inserts the updated version
+/** Marks the clustered index record deleted and inserts the updated version
  of the record to the index. This function should be used when the ordering
  fields of the clustered index record change. This should be quite rare in
  database applications.
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec_by_insert(
-    /*========================*/
     ulint flags,         /*!< in: undo logging and locking flags */
     upd_node_t *node,    /*!< in/out: row update node */
     dict_index_t *index, /*!< in: clustered index of the record */
@@ -2521,13 +2459,11 @@ static void row_upd_check_autoinc_counter(const upd_node_t *node,
   }
 }
 
-/***********************************************************/ /**
- Updates a clustered index record of a row when the ordering fields do
+/** Updates a clustered index record of a row when the ordering fields do
  not change.
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
-    /*==============*/
     ulint flags,         /*!< in: undo logging and locking flags */
     upd_node_t *node,    /*!< in: row update node */
     dict_index_t *index, /*!< in: clustered index */
@@ -2670,11 +2606,9 @@ func_exit:
   return (err);
 }
 
-/***********************************************************/ /**
- Delete marks a clustered index record.
+/** Delete marks a clustered index record.
  @return DB_SUCCESS if operation successfully completed, else error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_del_mark_clust_rec(
-    /*=======================*/
     ulint flags,         /*!< in: undo logging and locking flags */
     upd_node_t *node,    /*!< in: row update node */
     dict_index_t *index, /*!< in: clustered index */
@@ -2722,14 +2656,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_del_mark_clust_rec(
   return (err);
 }
 
-/***********************************************************/ /**
- Updates the clustered index record.
+/** Updates the clustered index record.
  @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
  in case of a lock wait, else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_step(
-    /*===============*/
-    upd_node_t *node, /*!< in: row update node */
-    que_thr_t *thr)   /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_upd_clust_step(upd_node_t *node, /*!< in: row update node */
+                       que_thr_t *thr)   /*!< in: query thread */
 {
   dict_index_t *index;
   btr_pcur_t *pcur;
@@ -2889,16 +2821,13 @@ exit_func:
   return (err);
 }
 
-/***********************************************************/ /**
- Updates the affected index records of a row. When the control is transferred
+/** Updates the affected index records of a row. When the control is transferred
  to this node, we assume that we have a persistent cursor which was on a
  record, and the position of the cursor is stored in the cursor.
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
-static dberr_t row_upd(
-    /*====*/
-    upd_node_t *node, /*!< in: row update node */
-    que_thr_t *thr)   /*!< in: query thread */
+static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
+                       que_thr_t *thr)   /*!< in: query thread */
 {
   dberr_t err = DB_SUCCESS;
   DBUG_ENTER("row_upd");
@@ -2984,13 +2913,10 @@ static dberr_t row_upd(
   DBUG_RETURN(err);
 }
 
-/***********************************************************/ /**
- Updates a row in a table. This is a high-level function used in SQL execution
- graphs.
+/** Updates a row in a table. This is a high-level function used in SQL
+ execution graphs.
  @return query thread to run next or NULL */
-que_thr_t *row_upd_step(
-    /*=========*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
 {
   upd_node_t *node;
   sel_node_t *sel_node;

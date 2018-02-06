@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/***************************************************************/ /**
- @file ut/ut0ut.cc
+/** @file ut/ut0ut.cc
  Various utilities for Innobase.
 
  Created 5/11/1994 Heikki Tuuri
@@ -60,8 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
 static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;
 
-/*****************************************************************/ /**
- NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
+/** NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
  epoch starts from 1970/1/1. For selection of constant see:
  http://support.microsoft.com/kb/167296/ */
 #define WIN_TO_UNIX_DELTA_USEC 11644473600000000LL
@@ -91,11 +89,9 @@ bool ut_win_init_time() {
   return (true);
 }
 
-/*****************************************************************/ /**
- This is the Windows version of gettimeofday(2).
+/** This is the Windows version of gettimeofday(2).
  @return 0 if all OK else -1 */
 static int ut_gettimeofday(
-    /*============*/
     struct timeval *tv, /*!< out: Values are relative to Unix epoch */
     void *tz)           /*!< in: not used */
 {
@@ -132,26 +128,18 @@ reimplement this function. */
 #define ut_gettimeofday gettimeofday
 #endif
 
-/**********************************************************/ /**
- Returns system time. We do not specify the format of the time returned:
+/** Returns system time. We do not specify the format of the time returned:
  the only way to manipulate it is to use the function ut_difftime.
  @return system time */
-ib_time_t ut_time(void)
-/*=========*/
-{
-  return (time(NULL));
-}
+ib_time_t ut_time(void) { return (time(NULL)); }
 
-/**********************************************************/ /**
- Returns system time.
+/** Returns system time.
  Upon successful completion, the value 0 is returned; otherwise the
  value -1 is returned and the global variable errno is set to indicate the
  error.
  @return 0 on success, -1 otherwise */
-int ut_usectime(
-    /*========*/
-    ulint *sec, /*!< out: seconds since the Epoch */
-    ulint *ms)  /*!< out: microseconds since the Epoch+*sec */
+int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
+                ulint *ms)  /*!< out: microseconds since the Epoch+*sec */
 {
   struct timeval tv;
   int ret = 0;
@@ -179,14 +167,11 @@ int ut_usectime(
   return (ret);
 }
 
-/**********************************************************/ /**
- Returns the number of microseconds since epoch. Similar to
+/** Returns the number of microseconds since epoch. Similar to
  time(3), the return value is also stored in *tloc, provided
  that tloc is non-NULL.
  @return us since epoch */
-uintmax_t ut_time_us(
-    /*=======*/
-    uintmax_t *tloc) /*!< out: us since epoch, if non-NULL */
+uintmax_t ut_time_us(uintmax_t *tloc) /*!< out: us since epoch, if non-NULL */
 {
   struct timeval tv;
   uintmax_t us;
@@ -202,14 +187,11 @@ uintmax_t ut_time_us(
   return (us);
 }
 
-/**********************************************************/ /**
- Returns the number of milliseconds since some epoch.  The
+/** Returns the number of milliseconds since some epoch.  The
  value may wrap around.  It should only be used for heuristic
  purposes.
  @return ms since epoch */
-ulint ut_time_ms(void)
-/*============*/
-{
+ulint ut_time_ms(void) {
   struct timeval tv;
 
   ut_gettimeofday(&tv, NULL);
@@ -217,13 +199,10 @@ ulint ut_time_ms(void)
   return ((ulint)tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 
-/**********************************************************/ /**
- Returns the difference of two times in seconds.
+/** Returns the difference of two times in seconds.
  @return time2 - time1 expressed in seconds */
-double ut_difftime(
-    /*========*/
-    ib_time_t time2, /*!< in: time */
-    ib_time_t time1) /*!< in: time */
+double ut_difftime(ib_time_t time2, /*!< in: time */
+                   ib_time_t time1) /*!< in: time */
 {
   return (difftime(time2, time1));
 }
@@ -259,13 +238,10 @@ void meb_sprintf_timestamp_without_extra_chars(
 
 #else  /* UNIV_HOTBACKUP */
 
-/*************************************************************/ /**
- Runs an idle loop on CPU. The argument gives the desired delay
+/** Runs an idle loop on CPU. The argument gives the desired delay
  in microseconds on 100 MHz Pentium + Visual C++.
  @return dummy value */
-ulint ut_delay(
-    /*=====*/
-    ulint delay) /*!< in: delay in microseconds on 100 MHz Pentium */
+ulint ut_delay(ulint delay) /*!< in: delay in microseconds on 100 MHz Pentium */
 {
   ulint i, j;
 
@@ -284,12 +260,9 @@ ulint ut_delay(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/*************************************************************/ /**
- Calculates fast the number rounded up to the nearest power of 2.
+/** Calculates fast the number rounded up to the nearest power of 2.
  @return first power of 2 which is >= n */
-ulint ut_2_power_up(
-    /*==========*/
-    ulint n) /*!< in: number != 0 */
+ulint ut_2_power_up(ulint n) /*!< in: number != 0 */
 {
   ulint res;
 
@@ -325,16 +298,13 @@ std::string ut_get_name(const trx_t *trx, const char *name) {
   return (std::string(buf, 0, bufend - buf));
 }
 
-/**********************************************************************/ /**
- Outputs a fixed-length string, quoted as an SQL identifier.
+/** Outputs a fixed-length string, quoted as an SQL identifier.
  If the string contains a slash '/', the string will be
  output as two identifiers separated by a period (.),
  as in SQL database_name.identifier. */
-void ut_print_name(
-    /*==========*/
-    FILE *f,          /*!< in: output stream */
-    const trx_t *trx, /*!< in: transaction */
-    const char *name) /*!< in: name to print */
+void ut_print_name(FILE *f,          /*!< in: output stream */
+                   const trx_t *trx, /*!< in: transaction */
+                   const char *name) /*!< in: name to print */
 {
   /* 2 * NAME_LEN for database and table name,
   and some slack for the #mysql50# prefix and quotes */
@@ -385,12 +355,9 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   return (formatted);
 }
 
-/**********************************************************************/ /**
- Catenate files. */
-void ut_copy_file(
-    /*=========*/
-    FILE *dest, /*!< in: output file */
-    FILE *src)  /*!< in: input file to be appended to output */
+/** Catenate files. */
+void ut_copy_file(FILE *dest, /*!< in: output file */
+                  FILE *src)  /*!< in: input file to be appended to output */
 {
   long len = ftell(src);
   char buf[4096];
@@ -413,19 +380,16 @@ void ut_copy_file(
 #ifdef _WIN32
 #include <stdarg.h>
 
-/**********************************************************************/ /**
- A substitute for vsnprintf(3), formatted output conversion into
+/** A substitute for vsnprintf(3), formatted output conversion into
  a limited buffer. Note: this function DOES NOT return the number of
  characters that would have been printed if the buffer was unlimited because
  VC's _vsnprintf() returns -1 in this case and we would need to call
  _vscprintf() in addition to estimate that but we would need another copy
  of "ap" for that and VC does not provide va_copy(). */
-void ut_vsnprintf(
-    /*=========*/
-    char *str,       /*!< out: string */
-    size_t size,     /*!< in: str size */
-    const char *fmt, /*!< in: format */
-    va_list ap)      /*!< in: format values */
+void ut_vsnprintf(char *str,       /*!< out: string */
+                  size_t size,     /*!< in: str size */
+                  const char *fmt, /*!< in: format */
+                  va_list ap)      /*!< in: format values */
 {
   _vsnprintf(str, size, fmt, ap);
   str[size - 1] = '\0';

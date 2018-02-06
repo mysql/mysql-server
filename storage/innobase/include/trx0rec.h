@@ -26,8 +26,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 
-/**************************************************/ /**
- @file include/trx0rec.h
+/** @file include/trx0rec.h
  Transaction undo log record
 
  Created 3/26/1996 Heikki Tuuri
@@ -57,45 +56,34 @@ UNIV_INLINE
 trx_undo_rec_t *trx_undo_rec_copy(const trx_undo_rec_t *undo_rec,
                                   mem_heap_t *heap);
 
-/**********************************************************************/ /**
- Reads the undo log record type.
+/** Reads the undo log record type.
  @return record type */
 UNIV_INLINE
 ulint trx_undo_rec_get_type(
-    /*==================*/
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
-/**********************************************************************/ /**
- Reads from an undo log record the record compiler info.
+/** Reads from an undo log record the record compiler info.
  @return compiler info */
 UNIV_INLINE
 ulint trx_undo_rec_get_cmpl_info(
-    /*=======================*/
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
-/**********************************************************************/ /**
- Returns TRUE if an undo log record contains an extern storage field.
+/** Returns TRUE if an undo log record contains an extern storage field.
  @return true if extern */
 UNIV_INLINE
 ibool trx_undo_rec_get_extern_storage(
-    /*============================*/
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
-/**********************************************************************/ /**
- Reads the undo log record number.
+/** Reads the undo log record number.
  @return undo no */
 UNIV_INLINE
 undo_no_t trx_undo_rec_get_undo_no(
-    /*=====================*/
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 
-/**********************************************************************/ /**
- Returns the start of the undo record data area. */
+/** Returns the start of the undo record data area. */
 #define trx_undo_rec_get_ptr(undo_rec, undo_no) \
   ((undo_rec) + trx_undo_rec_get_offset(undo_no))
 
-/**********************************************************************/ /**
- Reads from an undo log record the general parameters.
+/** Reads from an undo log record the general parameters.
  @return remaining part of undo log record after reading these values */
 byte *trx_undo_rec_get_pars(
-    /*==================*/
     trx_undo_rec_t *undo_rec, /*!< in: undo log record */
     ulint *type,              /*!< out: undo record type:
                               TRX_UNDO_INSERT_REC, ... */
@@ -112,11 +100,9 @@ byte *trx_undo_rec_get_pars(
 table_id_t trx_undo_rec_get_table_id(const trx_undo_rec_t *undo_rec)
     MY_ATTRIBUTE((warn_unused_result));
 
-/*******************************************************************/ /**
- Builds a row reference from an undo log record.
+/** Builds a row reference from an undo log record.
  @return pointer to remaining part of undo record */
 byte *trx_undo_rec_get_row_ref(
-    /*=====================*/
     byte *ptr,           /*!< in: remaining part of a copy of an undo log
                          record, at the start of the row reference;
                          NOTE that this copy of the undo log record must
@@ -127,24 +113,20 @@ byte *trx_undo_rec_get_row_ref(
     dtuple_t **ref,      /*!< out, own: row reference */
     mem_heap_t *heap);   /*!< in: memory heap from which the memory
                          needed is allocated */
-/**********************************************************************/ /**
- Reads from an undo log update record the system field values of the old
+/** Reads from an undo log update record the system field values of the old
  version.
  @return remaining part of undo log record after reading these values */
 byte *trx_undo_update_rec_get_sys_cols(
-    /*=============================*/
     const byte *ptr,      /*!< in: remaining part of undo
                           log record after reading
                           general parameters */
     trx_id_t *trx_id,     /*!< out: trx id */
     roll_ptr_t *roll_ptr, /*!< out: roll ptr */
     ulint *info_bits);    /*!< out: info bits state */
-/*******************************************************************/ /**
- Builds an update vector based on a remaining part of an undo log record.
+/** Builds an update vector based on a remaining part of an undo log record.
  @return remaining part of the record, NULL if an error detected, which
  means that the record is corrupted */
 byte *trx_undo_update_rec_get_update(
-    /*===========================*/
     const byte *ptr,     /*!< in: remaining part in update undo log
                          record, after reading the row reference
                          NOTE that this copy of the undo log record must
@@ -164,13 +146,11 @@ byte *trx_undo_update_rec_get_update(
     mem_heap_t *heap,    /*!< in: memory heap from which the memory
                          needed is allocated */
     upd_t **upd);        /*!< out, own: update vector */
-/*******************************************************************/ /**
- Builds a partial row from an update undo log record, for purge.
+/** Builds a partial row from an update undo log record, for purge.
  It contains the columns which occur as ordering in any index of the table.
  Any missing columns are indicated by col->mtype == DATA_MISSING.
  @return pointer to remaining part of undo record */
 byte *trx_undo_rec_get_partial_row(
-    /*=========================*/
     const byte *ptr,     /*!< in: remaining part in update undo log
                          record of a suitable type, at the start of
                          the stored index columns;
@@ -186,14 +166,12 @@ byte *trx_undo_rec_get_partial_row(
     mem_heap_t *heap)    /*!< in: memory heap from which the memory
                          needed is allocated */
     MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************************/ /**
- Writes information to an undo log about an insert, update, or a delete marking
- of a clustered index record. This information is used in a rollback of the
- transaction and in consistent reads that must look to the history of this
+/** Writes information to an undo log about an insert, update, or a delete
+ marking of a clustered index record. This information is used in a rollback of
+ the transaction and in consistent reads that must look to the history of this
  transaction.
  @return DB_SUCCESS or error code */
 dberr_t trx_undo_report_row_operation(
-    /*==========================*/
     ulint flags,                 /*!< in: if BTR_NO_UNDO_LOG_FLAG bit is
                                  set, does nothing */
     ulint op_type,               /*!< in: TRX_UNDO_INSERT_OP or
@@ -259,23 +237,17 @@ bool trx_undo_prev_version_build(const rec_t *index_rec, mtr_t *index_mtr,
                                  const dtuple_t **vrow, ulint v_status);
 
 #endif /* !UNIV_HOTBACKUP */
-/***********************************************************/ /**
- Parses a redo log record of adding an undo log record.
+/** Parses a redo log record of adding an undo log record.
  @return end of log record or NULL */
-byte *trx_undo_parse_add_undo_rec(
-    /*========================*/
-    byte *ptr,     /*!< in: buffer */
-    byte *end_ptr, /*!< in: buffer end */
-    page_t *page); /*!< in: page or NULL */
-/***********************************************************/ /**
- Parses a redo log record of erasing of an undo page end.
+byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
+                                  byte *end_ptr, /*!< in: buffer end */
+                                  page_t *page); /*!< in: page or NULL */
+/** Parses a redo log record of erasing of an undo page end.
  @return end of log record or NULL */
-byte *trx_undo_parse_erase_page_end(
-    /*==========================*/
-    byte *ptr,     /*!< in: buffer */
-    byte *end_ptr, /*!< in: buffer end */
-    page_t *page,  /*!< in: page or NULL */
-    mtr_t *mtr);   /*!< in: mtr or NULL */
+byte *trx_undo_parse_erase_page_end(byte *ptr,     /*!< in: buffer */
+                                    byte *end_ptr, /*!< in: buffer end */
+                                    page_t *page,  /*!< in: page or NULL */
+                                    mtr_t *mtr);   /*!< in: mtr or NULL */
 
 /** Read from an undo log record a non-virtual column value.
 @param[in,out]	ptr		pointer to remaining part of the undo record

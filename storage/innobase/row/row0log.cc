@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0log.cc
+/** @file row/row0log.cc
  Modification log for online index creation and online table rebuild
 
  Created 2011-05-26 Marko Makela
@@ -260,10 +259,8 @@ static void row_log_block_free(row_log_buf_t &log_buf) {
   DBUG_VOID_RETURN;
 }
 
-/******************************************************/ /**
- Logs an operation to a secondary index that is (or was) being created. */
+/** Logs an operation to a secondary index that is (or was) being created. */
 void row_log_online_op(
-    /*==============*/
     dict_index_t *index,   /*!< in/out: index, S or X latched */
     const dtuple_t *tuple, /*!< in: index tuple */
     trx_id_t trx_id)       /*!< in: transaction ID for insert,
@@ -390,11 +387,9 @@ err_exit:
   mutex_exit(&log->mutex);
 }
 
-/******************************************************/ /**
- Gets the error status of the online index rebuild log.
+/** Gets the error status of the online index rebuild log.
  @return DB_SUCCESS or error code */
 dberr_t row_log_table_get_error(
-    /*====================*/
     const dict_index_t *index) /*!< in: clustered index of a table
                                that is being rebuilt online */
 {
@@ -403,11 +398,9 @@ dberr_t row_log_table_get_error(
   return (index->online_log->error);
 }
 
-/******************************************************/ /**
- Starts logging an operation to a table that is being rebuilt.
+/** Starts logging an operation to a table that is being rebuilt.
  @return pointer to log, or NULL if no logging is necessary */
 static MY_ATTRIBUTE((warn_unused_result)) byte *row_log_table_open(
-    /*===============*/
     row_log_t *log, /*!< in/out: online rebuild log */
     ulint size,     /*!< in: size of log record */
     ulint *avail)   /*!< out: available size for log record */
@@ -439,10 +432,8 @@ static MY_ATTRIBUTE((warn_unused_result)) byte *row_log_table_open(
   }
 }
 
-/******************************************************/ /**
- Stops logging an operation to a table that is being rebuilt. */
+/** Stops logging an operation to a table that is being rebuilt. */
 static void row_log_table_close_func(
-    /*=====================*/
     row_log_t *log, /*!< in/out: online rebuild log */
 #ifdef UNIV_DEBUG
     const byte *b, /*!< in: end of log record */
@@ -516,11 +507,9 @@ bool row_log_col_is_indexed(const dict_index_t *index, ulint v_no) {
       dict_table_get_nth_v_col(index->online_log->table, v_no)->m_col.ord_part);
 }
 
-/******************************************************/ /**
- Logs a delete operation to a table that is being rebuilt.
+/** Logs a delete operation to a table that is being rebuilt.
  This will be merged in row_log_table_apply_delete(). */
 void row_log_table_delete(
-    /*=================*/
     trx_t *trx,             /*!< in: current transaction */
     const rec_t *rec,       /*!< in: clustered index leaf page record,
                             page X-latched */
@@ -640,10 +629,8 @@ func_exit:
   mem_heap_free(heap);
 }
 
-/******************************************************/ /**
- Logs an insert or update to a table that is being rebuilt. */
+/** Logs an insert or update to a table that is being rebuilt. */
 static void row_log_table_low_redundant(
-    /*========================*/
     const rec_t *rec,         /*!< in: clustered index leaf
                               page record in ROW_FORMAT=REDUNDANT,
                               page X-latched */
@@ -791,10 +778,8 @@ new table, not latched */
   mem_heap_free(heap);
 }
 
-/******************************************************/ /**
- Logs an insert or update to a table that is being rebuilt. */
+/** Logs an insert or update to a table that is being rebuilt. */
 static void row_log_table_low(
-    /*==============*/
     const rec_t *rec,         /*!< in: clustered index leaf page record,
                               page X-latched */
     const dtuple_t *ventry,   /*!< in: dtuple holding virtual column info */
@@ -934,11 +919,9 @@ static void row_log_table_low(
   }
 }
 
-/******************************************************/ /**
- Logs an update to a table that is being rebuilt.
+/** Logs an update to a table that is being rebuilt.
  This will be merged in row_log_table_apply_update(). */
 void row_log_table_update(
-    /*=================*/
     const rec_t *rec,          /*!< in: clustered index leaf page record,
                                page X-latched */
     dict_index_t *index,       /*!< in/out: clustered index, S-latched
@@ -959,9 +942,9 @@ void row_log_table_update(
 @param col_map mapping of old column numbers to new ones
 @param col_no column position in the new table
 @return old table column, or NULL if this is an added column */
-static const dict_col_t *row_log_table_get_pk_old_col(
-    /*=========================*/
-    const dict_table_t *table, const ulint *col_map, ulint col_no) {
+static const dict_col_t *row_log_table_get_pk_old_col(const dict_table_t *table,
+                                                      const ulint *col_map,
+                                                      ulint col_no) {
   for (ulint i = 0; i < table->n_cols; i++) {
     if (col_no == col_map[i]) {
       return (table->get_col(i));
@@ -1031,13 +1014,11 @@ static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
   return (DB_SUCCESS);
 }
 
-/******************************************************/ /**
- Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
+/** Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
  of a table that is being rebuilt.
  @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
  or NULL if the PRIMARY KEY definition does not change */
 const dtuple_t *row_log_table_get_pk(
-    /*=================*/
     trx_t *trx,           /*!< in: current transaction */
     const rec_t *rec,     /*!< in: clustered index leaf page record,
                           page X-latched */
@@ -1201,11 +1182,9 @@ func_exit:
   return (tuple);
 }
 
-/******************************************************/ /**
- Logs an insert to a table that is being rebuilt.
+/** Logs an insert to a table that is being rebuilt.
  This will be merged in row_log_table_apply_insert(). */
 void row_log_table_insert(
-    /*=================*/
     const rec_t *rec,       /*!< in: clustered index leaf page record,
                             page X-latched */
     const dtuple_t *ventry, /*!< in: dtuple holding virtual column info */
@@ -1216,10 +1195,8 @@ void row_log_table_insert(
   row_log_table_low(rec, ventry, NULL, index, offsets, true, NULL);
 }
 
-/******************************************************/ /**
- Notes that a BLOB is being freed during online ALTER TABLE. */
+/** Notes that a BLOB is being freed during online ALTER TABLE. */
 void row_log_table_blob_free(
-    /*====================*/
     dict_index_t *index, /*!< in/out: clustered index, X-latched */
     page_no_t page_no)   /*!< in: starting page number of the BLOB */
 {
@@ -1260,10 +1237,8 @@ void row_log_table_blob_free(
   DBUG_VOID_RETURN;
 }
 
-/******************************************************/ /**
- Notes that a BLOB is being allocated during online ALTER TABLE. */
+/** Notes that a BLOB is being allocated during online ALTER TABLE. */
 void row_log_table_blob_alloc(
-    /*=====================*/
     dict_index_t *index, /*!< in/out: clustered index, X-latched */
     page_no_t page_no)   /*!< in: starting page number of the BLOB */
 {
@@ -1294,12 +1269,10 @@ void row_log_table_blob_alloc(
   DBUG_VOID_RETURN;
 }
 
-/******************************************************/ /**
- Converts a log record to a table row.
+/** Converts a log record to a table row.
  @return converted row, or NULL if the conversion fails */
 static MY_ATTRIBUTE((warn_unused_result))
     const dtuple_t *row_log_table_apply_convert_mrec(
-        /*=============================*/
         trx_t *trx,           /*!< in: current transaction */
         const mrec_t *mrec,   /*!< in: merge record */
         dict_index_t *index,  /*!< in: index of mrec */
@@ -1447,12 +1420,10 @@ static MY_ATTRIBUTE((warn_unused_result))
   return (row);
 }
 
-/******************************************************/ /**
- Replays an insert operation on a table that was rebuilt.
+/** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_log_table_apply_insert_low(
-        /*===========================*/
         que_thr_t *thr,           /*!< in: query graph */
         const dtuple_t *row,      /*!< in: table row
                                   in the old table definition */
@@ -1518,11 +1489,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   return (error);
 }
 
-/******************************************************/ /**
- Replays an insert operation on a table that was rebuilt.
+/** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
-    /*=======================*/
     que_thr_t *thr,           /*!< in: query graph */
     const mrec_t *mrec,       /*!< in: record to insert */
     const ulint *offsets,     /*!< in: offsets of mrec */
@@ -1569,12 +1538,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
   return (error);
 }
 
-/******************************************************/ /**
- Deletes a record from a table that is being rebuilt.
+/** Deletes a record from a table that is being rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_log_table_apply_delete_low(
-        /*===========================*/
         trx_t *trx,             /*!< in: current transaction*/
         btr_pcur_t *pcur,       /*!< in/out: B-tree cursor,
                                 will be trashed */
@@ -1663,11 +1630,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   return (error);
 }
 
-/******************************************************/ /**
- Replays a delete operation on a table that was rebuilt.
+/** Replays a delete operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_delete(
-    /*=======================*/
     que_thr_t *thr,           /*!< in: query graph */
     ulint trx_id_col,         /*!< in: position of
                               DB_TRX_ID in the new
@@ -1790,11 +1755,9 @@ flag_ok:
       row_log_table_apply_delete_low(trx, &pcur, old_pk, offsets, heap, &mtr));
 }
 
-/******************************************************/ /**
- Replays an update operation on a table that was rebuilt.
+/** Replays an update operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
-    /*=======================*/
     que_thr_t *thr,           /*!< in: query graph */
     ulint new_trx_id_col,     /*!< in: position of
                               DB_TRX_ID in the new
@@ -2137,12 +2100,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   goto func_exit;
 }
 
-/******************************************************/ /**
- Applies an operation to a table that was rebuilt.
+/** Applies an operation to a table that was rebuilt.
  @return NULL on failure (mrec corruption) or when out of data;
  pointer to next record on success */
 static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_table_apply_op(
-    /*===================*/
     que_thr_t *thr,           /*!< in: query graph */
     ulint trx_id_col,         /*!< in: position of
                               DB_TRX_ID in old index */
@@ -2855,12 +2816,10 @@ dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
   return (error);
 }
 
-/******************************************************/ /**
- Allocate the row log for an index and flag the index
+/** Allocate the row log for an index and flag the index
  for online creation.
  @retval true if success, false if not */
 bool row_log_allocate(
-    /*=============*/
     dict_index_t *index, /*!< in/out: index */
     dict_table_t *table, /*!< in/out: new table being rebuilt,
                          or NULL when creating a secondary index */
@@ -2920,11 +2879,8 @@ bool row_log_allocate(
   DBUG_RETURN(true);
 }
 
-/******************************************************/ /**
- Free the row log for an index that was being created online. */
-void row_log_free(
-    /*=========*/
-    row_log_t *&log) /*!< in,own: row log */
+/** Free the row log for an index that was being created online. */
+void row_log_free(row_log_t *&log) /*!< in,own: row log */
 {
   MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
@@ -2937,12 +2893,10 @@ void row_log_free(
   log = NULL;
 }
 
-/******************************************************/ /**
- Get the latest transaction ID that has invoked row_log_online_op()
+/** Get the latest transaction ID that has invoked row_log_online_op()
  during online creation.
  @return latest transaction ID, or 0 if nothing was logged */
 trx_id_t row_log_get_max_trx(
-    /*================*/
     dict_index_t *index) /*!< in: index, must be locked */
 {
   ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
@@ -2954,10 +2908,8 @@ trx_id_t row_log_get_max_trx(
   return (index->online_log->max_trx);
 }
 
-/******************************************************/ /**
- Applies an operation to a secondary index that was being created. */
+/** Applies an operation to a secondary index that was being created. */
 static void row_log_apply_op_low(
-    /*=================*/
     dict_index_t *index,      /*!< in/out: index */
     row_merge_dup_t *dup,     /*!< in/out: for reporting
                               duplicate key errors */
@@ -3166,12 +3118,10 @@ func_exit:
   mtr_commit(&mtr);
 }
 
-/******************************************************/ /**
- Applies an operation to a secondary index that was being created.
+/** Applies an operation to a secondary index that was being created.
  @return NULL on failure (mrec corruption) or when out of data;
  pointer to next record on success */
 static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
-    /*=============*/
     dict_index_t *index,      /*!< in/out: index */
     row_merge_dup_t *dup,     /*!< in/out: for reporting
                               duplicate key errors */

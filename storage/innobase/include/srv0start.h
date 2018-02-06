@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/srv0start.h
+/** @file include/srv0start.h
  Starts the Innobase database server
 
  Created 10/10/1995 Heikki Tuuri
@@ -62,24 +61,18 @@ struct dict_table_t;
 only one buffer pool instance is used. */
 #define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
 
-/*********************************************************************/ /**
- Parse temporary tablespace configuration.
+/** Parse temporary tablespace configuration.
  @return true if ok, false on parse error */
 bool srv_parse_temp_data_file_paths_and_sizes(
-    /*=====================================*/
     char *str); /*!< in/out: the data file path string */
-/*********************************************************************/ /**
- Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
+/** Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
  and srv_parse_log_group_home_dirs(). */
 void srv_free_paths_and_sizes(void);
-/*==========================*/
 
-/*********************************************************************/ /**
- Adds a slash or a backslash to the end of a string if it is missing
+/** Adds a slash or a backslash to the end of a string if it is missing
  and the string is not empty.
  @return string which has the separator if the string is not empty */
 char *srv_add_path_separator_if_needed(
-    /*=============================*/
     char *str); /*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
 
@@ -119,17 +112,14 @@ void srv_shutdown();
 purge threads early to apply purge. */
 void srv_start_purge_threads();
 
-/*************************************************************/ /**
- Copy the file path component of the physical file to parameter. It will
+/** Copy the file path component of the physical file to parameter. It will
  copy up to and including the terminating path separator.
  @return number of bytes copied or ULINT_UNDEFINED if destination buffer
          is smaller than the path to be copied. */
-ulint srv_path_copy(
-    /*==========*/
-    char *dest,             /*!< out: destination buffer */
-    ulint dest_len,         /*!< in: max bytes to copy */
-    const char *basedir,    /*!< in: base directory */
-    const char *table_name) /*!< in: source table name */
+ulint srv_path_copy(char *dest,             /*!< out: destination buffer */
+                    ulint dest_len,         /*!< in: max bytes to copy */
+                    const char *basedir,    /*!< in: base directory */
+                    const char *table_name) /*!< in: source table name */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the encryption-data filename from the table name for a

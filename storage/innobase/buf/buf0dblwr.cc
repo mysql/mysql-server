@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf0dblwr.cc
+/** @file buf/buf0dblwr.cc
  Doublwrite buffer module
 
  Created 2011/12/19
@@ -50,13 +49,10 @@ buf_dblwr_t *buf_dblwr = NULL;
 /** Set to TRUE when the doublewrite buffer is being created */
 ibool buf_dblwr_being_created = FALSE;
 
-/****************************************************************/ /**
- Determines if a page number is located inside the doublewrite buffer.
+/** Determines if a page number is located inside the doublewrite buffer.
  @return true if the location is inside the two blocks of the
  doublewrite buffer */
-ibool buf_dblwr_page_inside(
-    /*==================*/
-    page_no_t page_no) /*!< in: page number */
+ibool buf_dblwr_page_inside(page_no_t page_no) /*!< in: page number */
 {
   if (buf_dblwr == NULL) {
     return (FALSE);
@@ -75,15 +71,12 @@ ibool buf_dblwr_page_inside(
   return (FALSE);
 }
 
-/****************************************************************/ /**
- Calls buf_page_get() on the TRX_SYS_PAGE and returns a pointer to the
+/** Calls buf_page_get() on the TRX_SYS_PAGE and returns a pointer to the
  doublewrite buffer within it.
  @return pointer to the doublewrite buffer within the filespace header
  page. */
 UNIV_INLINE
-byte *buf_dblwr_get(
-    /*==========*/
-    mtr_t *mtr) /*!< in/out: MTR to hold the page latch */
+byte *buf_dblwr_get(mtr_t *mtr) /*!< in/out: MTR to hold the page latch */
 {
   buf_block_t *block;
 
@@ -95,12 +88,9 @@ byte *buf_dblwr_get(
   return (buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE);
 }
 
-/********************************************************************/ /**
- Flush a batch of writes to the datafiles that have already been
+/** Flush a batch of writes to the datafiles that have already been
  written to the dblwr buffer on disk. */
-void buf_dblwr_sync_datafiles()
-/*======================*/
-{
+void buf_dblwr_sync_datafiles() {
   /* Wake possible simulated aio thread to actually post the
   writes to the operating system */
   os_aio_simulated_wake_handler_threads();
@@ -113,10 +103,8 @@ void buf_dblwr_sync_datafiles()
   fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
 }
 
-/****************************************************************/ /**
- Creates or initialializes the doublewrite buffer at a database start. */
+/** Creates or initialializes the doublewrite buffer at a database start. */
 static void buf_dblwr_init(
-    /*===========*/
     byte *doublewrite) /*!< in: pointer to the doublewrite buf
                        header on trx sys page */
 {
@@ -158,14 +146,11 @@ static void buf_dblwr_init(
       static_cast<buf_page_t **>(ut_zalloc_nokey(buf_size * sizeof(void *)));
 }
 
-/****************************************************************/ /**
- Creates the doublewrite buffer to a new InnoDB installation. The header of the
- doublewrite buffer is placed on the trx system header page.
+/** Creates the doublewrite buffer to a new InnoDB installation. The header of
+ the doublewrite buffer is placed on the trx system header page.
  @return true if successful, false if not. */
 MY_ATTRIBUTE((warn_unused_result))
-bool buf_dblwr_create(void)
-/*==================*/
-{
+bool buf_dblwr_create(void) {
   buf_block_t *block2;
   buf_block_t *new_block;
   byte *doublewrite;
@@ -662,11 +647,8 @@ void buf_dblwr_recover_pages(fil_space_t *space) {
   fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
 }
 
-/****************************************************************/ /**
- Frees doublewrite buffer. */
-void buf_dblwr_free(void)
-/*================*/
-{
+/** Frees doublewrite buffer. */
+void buf_dblwr_free(void) {
   /* Free the double write data structures. */
   ut_ad(buf_dblwr->s_reserved == 0);
   ut_ad(buf_dblwr->b_reserved == 0);
@@ -687,10 +669,8 @@ void buf_dblwr_free(void)
   buf_dblwr = NULL;
 }
 
-/********************************************************************/ /**
- Updates the doublewrite buffer when an IO request is completed. */
+/** Updates the doublewrite buffer when an IO request is completed. */
 void buf_dblwr_update(
-    /*=============*/
     const buf_page_t *bpage, /*!< in: buffer block descriptor */
     buf_flush_t flush_type)  /*!< in: flush type */
 {
@@ -752,10 +732,8 @@ void buf_dblwr_update(
   }
 }
 
-/********************************************************************/ /**
- Check the LSN values on the page. */
+/** Check the LSN values on the page. */
 static void buf_dblwr_check_page_lsn(
-    /*=====================*/
     const page_t *page) /*!< in: page to check */
 {
   if (memcmp(page + (FIL_PAGE_LSN + 4),
@@ -773,11 +751,9 @@ static void buf_dblwr_check_page_lsn(
   }
 }
 
-/********************************************************************/ /**
- Asserts when a corrupt block is find during writing out data to the
+/** Asserts when a corrupt block is find during writing out data to the
  disk. */
 static void buf_dblwr_assert_on_corrupt_block(
-    /*==============================*/
     const buf_block_t *block) /*!< in: block to check */
 {
   buf_page_print(block->frame, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
@@ -788,11 +764,9 @@ static void buf_dblwr_assert_on_corrupt_block(
                  " data files.";
 }
 
-/********************************************************************/ /**
- Check the LSN values on the page with which this block is associated.
+/** Check the LSN values on the page with which this block is associated.
  Also validate the page if the option is set. */
 static void buf_dblwr_check_block(
-    /*==================*/
     const buf_block_t *block) /*!< in: block to check */
 {
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
@@ -852,11 +826,9 @@ static void buf_dblwr_check_block(
   buf_dblwr_assert_on_corrupt_block(block);
 }
 
-/********************************************************************/ /**
- Writes a page that has already been written to the doublewrite buffer
+/** Writes a page that has already been written to the doublewrite buffer
  to the datafile. It is the job of the caller to sync the datafile. */
 static void buf_dblwr_write_block_to_datafile(
-    /*==============================*/
     const buf_page_t *bpage, /*!< in: page to write */
     bool sync)               /*!< in: true if sync IO
                              is requested */
@@ -900,15 +872,12 @@ static void buf_dblwr_write_block_to_datafile(
   }
 }
 
-/********************************************************************/ /**
- Flushes possible buffered writes from the doublewrite memory buffer to disk,
+/** Flushes possible buffered writes from the doublewrite memory buffer to disk,
  and also wakes up the aio thread if simulated aio is used. It is very
  important to call this function after a batch of writes has been posted,
  and also when we may have to wait for a page latch! Otherwise a deadlock
  of threads can occur. */
-void buf_dblwr_flush_buffered_writes(void)
-/*=================================*/
-{
+void buf_dblwr_flush_buffered_writes(void) {
   ulint len;
   dberr_t err;
   byte *write_buf;
@@ -1126,8 +1095,7 @@ try_again:
   mutex_exit(&(buf_dblwr->mutex));
 }
 
-/********************************************************************/ /**
- Writes a page to the doublewrite buffer on disk, sync it, then write
+/** Writes a page to the doublewrite buffer on disk, sync it, then write
  the page to the datafile and sync the datafile. This function is used
  for single page flushes. If all the buffers allocated for single page
  flushes in the doublewrite buffer are in use we wait here for one to
@@ -1135,7 +1103,6 @@ try_again:
  thread that is using a slot must also release the slot before leaving
  this function. */
 void buf_dblwr_write_single_page(
-    /*========================*/
     buf_page_t *bpage, /*!< in: buffer block to write */
     bool sync)         /*!< in: true if sync IO requested */
 {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0umod.h
+/** @file include/row0umod.h
  Undo modify of a row
 
  Created 2/27/1997 Heikki Tuuri
@@ -42,13 +41,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
-/***********************************************************/ /**
- Undoes a modify operation on a row of a table.
+/** Undoes a modify operation on a row of a table.
  @return DB_SUCCESS or error code */
-dberr_t row_undo_mod(
-    /*=========*/
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
+                     que_thr_t *thr)    /*!< in: query thread */
     MY_ATTRIBUTE((warn_unused_result));
 
 #include "row0umod.ic"

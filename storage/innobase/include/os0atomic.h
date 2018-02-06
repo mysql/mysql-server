@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -30,8 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/os0atomic.h
+/** @file include/os0atomic.h
  Macros for using atomics
 
  Created 2012-09-23 Sunny Bains (Split from os0sync.h)
@@ -64,8 +63,7 @@ typedef ulint lock_word_t;
 
 #endif /* __i386__ || __x86_64__ || _M_IX86 || _M_X64 || __WIN__ */
 
-/**********************************************************/ /**
- Atomic compare-and-swap and increment for InnoDB. */
+/** Atomic compare-and-swap and increment for InnoDB. */
 
 /** Do an atomic test and set.
 @param[in,out]	ptr	Memory location to set
@@ -87,51 +85,40 @@ lock_word_t os_atomic_val_compare_and_swap(volatile lock_word_t *ptr,
 
 #ifdef _WIN32
 
-/**********************************************************/ /**
- Atomic compare and exchange of signed integers (both 32 and 64 bit).
+/** Atomic compare and exchange of signed integers (both 32 and 64 bit).
  @return value found before the exchange.
  If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
 lint win_cmp_and_xchg_lint(
-    /*==================*/
     volatile lint *ptr, /*!< in/out: source/destination */
     lint new_val,       /*!< in: exchange value */
     lint old_val);      /*!< in: value to compare to */
 
-/**********************************************************/ /**
- Atomic addition of signed integers.
+/** Atomic addition of signed integers.
  @return Initial value of the variable pointed to by ptr */
 UNIV_INLINE
-lint win_xchg_and_add(
-    /*=============*/
-    volatile lint *ptr, /*!< in/out: address of destination */
-    lint val);          /*!< in: number to be added */
+lint win_xchg_and_add(volatile lint *ptr, /*!< in/out: address of destination */
+                      lint val);          /*!< in: number to be added */
 
-/**********************************************************/ /**
- Atomic compare and exchange of unsigned integers.
+/** Atomic compare and exchange of unsigned integers.
  @return value found before the exchange.
  If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
 ulint win_cmp_and_xchg_ulint(
-    /*===================*/
     volatile ulint *ptr, /*!< in/out: source/destination */
     ulint new_val,       /*!< in: exchange value */
     ulint old_val);      /*!< in: value to compare to */
 
-/**********************************************************/ /**
- Atomic compare and exchange of 32 bit unsigned integers.
+/** Atomic compare and exchange of 32 bit unsigned integers.
  @return value found before the exchange.
  If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
 DWORD
-win_cmp_and_xchg_dword(
-    /*===================*/
-    volatile DWORD *ptr, /*!< in/out: source/destination */
-    DWORD new_val,       /*!< in: exchange value */
-    DWORD old_val);      /*!< in: value to compare to */
+win_cmp_and_xchg_dword(volatile DWORD *ptr, /*!< in/out: source/destination */
+                       DWORD new_val,       /*!< in: exchange value */
+                       DWORD old_val);      /*!< in: value to compare to */
 
-/**********************************************************/ /**
- Returns true if swapped, ptr is pointer to target, old_val is value to
+/** Returns true if swapped, ptr is pointer to target, old_val is value to
  compare to, new_val is the value to swap in. */
 
 #define os_compare_and_swap_lint(ptr, old_val, new_val) \
@@ -159,8 +146,7 @@ win_cmp_and_xchg_dword(
 #define IB_ATOMICS_STARTUP_MSG \
   "Mutexes and rw_locks use Windows interlocked functions"
 
-/**********************************************************/ /**
- Returns the resulting value, ptr is pointer to target, amount is the
+/** Returns the resulting value, ptr is pointer to target, amount is the
  amount of increment. */
 
 #define os_atomic_increment_lint(ptr, amount) \
@@ -181,8 +167,7 @@ win_cmp_and_xchg_dword(
        reinterpret_cast<LONGLONG *>(ptr), static_cast<LONGLONG>(amount))) + \
    static_cast<ib_uint64_t>(amount))
 
-/**********************************************************/ /**
- Returns the resulting value, ptr is pointer to target, amount is the
+/** Returns the resulting value, ptr is pointer to target, amount is the
  amount to decrement. There is no atomic substract function on Windows */
 
 #define os_atomic_decrement_lint(ptr, amount) \
@@ -206,8 +191,7 @@ win_cmp_and_xchg_dword(
 #else
 /* Fall back to GCC-style atomic builtins. */
 
-/**********************************************************/ /**
- Returns true if swapped, ptr is pointer to target, old_val is value to
+/** Returns true if swapped, ptr is pointer to target, old_val is value to
  compare to, new_val is the value to swap in. */
 
 #if defined(HAVE_GCC_SYNC_BUILTINS)
@@ -278,8 +262,7 @@ bool os_compare_and_swap_thread_id(volatile os_thread_id_t *ptr,
   "Mutexes use GCC atomic builtins, rw_locks do not"
 #endif /* HAVE_IB_ATOMIC_PTHREAD_T_GCC */
 
-/**********************************************************/ /**
- Returns the resulting value, ptr is pointer to target, amount is the
+/** Returns the resulting value, ptr is pointer to target, amount is the
  amount of increment. */
 
 #if defined(HAVE_GCC_SYNC_BUILTINS)

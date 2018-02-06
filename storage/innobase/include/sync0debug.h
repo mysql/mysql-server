@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -30,8 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/sync0debug.h
+/** @file include/sync0debug.h
  Debug checks for latches, header file
 
  Created 2012-08-21 Sunny Bains

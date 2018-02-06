@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0row.cc
+/** @file row/row0row.cc
  General row routines
 
  Created 4/20/1996 Heikki Tuuri
@@ -57,14 +56,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0mem.h"
 
-/*****************************************************************/ /**
- When an insert or purge to a table is performed, this function builds
+/** When an insert or purge to a table is performed, this function builds
  the entry to be inserted into or purged from an index on the table.
  @return index entry which should be inserted or purged
  @retval NULL if the externally stored columns in the clustered index record
  are unavailable and ext != NULL, or row is missing some needed columns. */
 dtuple_t *row_build_index_entry_low(
-    /*======================*/
     const dtuple_t *row,  /*!< in: row which should be
                           inserted or purged */
     const row_ext_t *ext, /*!< in: externally stored column
@@ -516,49 +513,46 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   return (row);
 }
 
-/*******************************************************************/ /**
- An inverse function to row_build_index_entry. Builds a row from a
+/** An inverse function to row_build_index_entry. Builds a row from a
  record in a clustered index.
  @return own: row built; see the NOTE below! */
-dtuple_t *row_build(
-    /*======*/
-    ulint type,                /*!< in: ROW_COPY_POINTERS or
-                               ROW_COPY_DATA; the latter
-                               copies also the data fields to
-                               heap while the first only
-                               places pointers to data fields
-                               on the index page, and thus is
-                               more efficient */
-    const dict_index_t *index, /*!< in: clustered index */
-    const rec_t *rec,          /*!< in: record in the clustered
-                               index; NOTE: in the case
-                               ROW_COPY_POINTERS the data
-                               fields in the row will point
-                               directly into this record,
-                               therefore, the buffer page of
-                               this record must be at least
-                               s-latched and the latch held
-                               as long as the row dtuple is used! */
-    const ulint *offsets,      /*!< in: rec_get_offsets(rec,index)
-                               or NULL, in which case this function
-                               will invoke rec_get_offsets() */
-    const dict_table_t *col_table,
-    /*!< in: table, to check which
-    externally stored columns
-    occur in the ordering columns
-    of an index, or NULL if
-    index->table should be
-    consulted instead */
-    const dtuple_t *add_cols,
-    /*!< in: default values of
-    added columns, or NULL */
-    const ulint *col_map, /*!< in: mapping of old column
-                          numbers to new ones, or NULL */
-    row_ext_t **ext,      /*!< out, own: cache of
-                          externally stored column
-                          prefixes, or NULL */
-    mem_heap_t *heap)     /*!< in: memory heap from which
-                           the memory needed is allocated */
+dtuple_t *row_build(ulint type,                /*!< in: ROW_COPY_POINTERS or
+                                               ROW_COPY_DATA; the latter
+                                               copies also the data fields to
+                                               heap while the first only
+                                               places pointers to data fields
+                                               on the index page, and thus is
+                                               more efficient */
+                    const dict_index_t *index, /*!< in: clustered index */
+                    const rec_t *rec,          /*!< in: record in the clustered
+                                               index; NOTE: in the case
+                                               ROW_COPY_POINTERS the data
+                                               fields in the row will point
+                                               directly into this record,
+                                               therefore, the buffer page of
+                                               this record must be at least
+                                               s-latched and the latch held
+                                               as long as the row dtuple is used! */
+                    const ulint *offsets, /*!< in: rec_get_offsets(rec,index)
+                                          or NULL, in which case this function
+                                          will invoke rec_get_offsets() */
+                    const dict_table_t *col_table,
+                    /*!< in: table, to check which
+                    externally stored columns
+                    occur in the ordering columns
+                    of an index, or NULL if
+                    index->table should be
+                    consulted instead */
+                    const dtuple_t *add_cols,
+                    /*!< in: default values of
+                    added columns, or NULL */
+                    const ulint *col_map, /*!< in: mapping of old column
+                                          numbers to new ones, or NULL */
+                    row_ext_t **ext,      /*!< out, own: cache of
+                                          externally stored column
+                                          prefixes, or NULL */
+                    mem_heap_t *heap)     /*!< in: memory heap from which
+                                           the memory needed is allocated */
 {
   return (row_build_low(type, index, rec, offsets, col_table, add_cols, NULL,
                         col_map, ext, heap));
@@ -598,12 +592,10 @@ dtuple_t *row_build_w_add_vcol(ulint type, const dict_index_t *index,
                         col_map, ext, heap));
 }
 
-/*******************************************************************/ /**
- Converts an index record to a typed data tuple.
+/** Converts an index record to a typed data tuple.
  @return index entry built; does not set info_bits, and the data fields
  in the entry will point directly to rec */
 dtuple_t *row_rec_to_index_entry_low(
-    /*=======================*/
     const rec_t *rec,          /*!< in: record in the index */
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
@@ -659,12 +651,10 @@ dtuple_t *row_rec_to_index_entry_low(
   return (entry);
 }
 
-/*******************************************************************/ /**
- Converts an index record to a typed data tuple. NOTE that externally
+/** Converts an index record to a typed data tuple. NOTE that externally
  stored (often big) fields are NOT copied to heap.
  @return own: index entry built */
 dtuple_t *row_rec_to_index_entry(
-    /*===================*/
     const rec_t *rec,          /*!< in: record in the index */
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in: rec_get_offsets(rec) */
@@ -697,12 +687,10 @@ dtuple_t *row_rec_to_index_entry(
   DBUG_RETURN(entry);
 }
 
-/*******************************************************************/ /**
- Builds from a secondary index record a row reference with which we can
+/** Builds from a secondary index record a row reference with which we can
  search the clustered index record.
  @return own: row reference built; see the NOTE below! */
 dtuple_t *row_build_row_ref(
-    /*==============*/
     ulint type,          /*!< in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
                          the former copies also the data fields to
                          heap, whereas the latter only places pointers
@@ -800,11 +788,9 @@ dtuple_t *row_build_row_ref(
   return (ref);
 }
 
-/*******************************************************************/ /**
- Builds from a secondary index record a row reference with which we can
+/** Builds from a secondary index record a row reference with which we can
  search the clustered index record. */
 void row_build_row_ref_in_tuple(
-    /*=======================*/
     dtuple_t *ref,             /*!< in/out: row reference built;
                                see the NOTE below! */
     const rec_t *rec,          /*!< in: record in the index;
@@ -890,11 +876,9 @@ void row_build_row_ref_in_tuple(
   }
 }
 
-/***************************************************************/ /**
- Searches the clustered index record for a row, if we have the row reference.
+/** Searches the clustered index record for a row, if we have the row reference.
  @return true if found */
 ibool row_search_on_row_ref(
-    /*==================*/
     btr_pcur_t *pcur,    /*!< out: persistent cursor, which must
                          be closed by the caller */
     ulint mode,          /*!< in: BTR_MODIFY_LEAF, ... */
@@ -929,12 +913,10 @@ ibool row_search_on_row_ref(
   return (TRUE);
 }
 
-/*********************************************************************/ /**
- Fetches the clustered index record for a secondary index record. The latches
+/** Fetches the clustered index record for a secondary index record. The latches
  on the secondary index record are preserved.
  @return record or NULL, if no record found */
 rec_t *row_get_clust_rec(
-    /*==============*/
     ulint mode,                 /*!< in: BTR_MODIFY_LEAF, ... */
     const rec_t *rec,           /*!< in: record in a secondary index */
     dict_index_t *index,        /*!< in: secondary index */
@@ -1000,11 +982,9 @@ ib_uint64_t row_get_autoinc_counter(const dtuple_t *row, ulint n) {
   return (row_parse_int_from_field(field));
 }
 
-/***************************************************************/ /**
- Searches an index record.
+/** Searches an index record.
  @return whether the record was found or buffered */
 enum row_search_result row_search_index_entry(
-    /*===================*/
     dict_index_t *index,   /*!< in: index */
     const dtuple_t *entry, /*!< in: index entry */
     ulint mode,            /*!< in: BTR_MODIFY_LEAF, ... */
@@ -1060,8 +1040,7 @@ enum row_search_result row_search_index_entry(
   return (ROW_FOUND);
 }
 
-/*******************************************************************/ /**
- Formats the raw data in "data" (in InnoDB on-disk format) that is of
+/** Formats the raw data in "data" (in InnoDB on-disk format) that is of
  type DATA_INT using "prtype" and writes the result to "buf".
  If the data is in unknown format, then nothing is written to "buf",
  0 is returned and "format_in_hex" is set to TRUE, otherwise
@@ -1072,7 +1051,6 @@ enum row_search_result row_search_index_entry(
  terminating '\0').
  @return number of bytes that were written */
 static ulint row_raw_format_int(
-    /*===============*/
     const char *data,     /*!< in: raw data */
     ulint data_len,       /*!< in: raw data length
                           in bytes */
@@ -1102,8 +1080,7 @@ static ulint row_raw_format_int(
   return (ut_min(ret, buf_size));
 }
 
-/*******************************************************************/ /**
- Formats the raw data in "data" (in InnoDB on-disk format) that is of
+/** Formats the raw data in "data" (in InnoDB on-disk format) that is of
  type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "prtype" and writes the
  result to "buf".
  If the data is in binary format, then nothing is written to "buf",
@@ -1115,7 +1092,6 @@ static ulint row_raw_format_int(
  terminating '\0').
  @return number of bytes that were written */
 static ulint row_raw_format_str(
-    /*===============*/
     const char *data,     /*!< in: raw data */
     ulint data_len,       /*!< in: raw data length
                           in bytes */
@@ -1150,23 +1126,20 @@ static ulint row_raw_format_str(
   return (innobase_raw_format(data, data_len, charset_coll, buf, buf_size));
 }
 
-/*******************************************************************/ /**
- Formats the raw data in "data" (in InnoDB on-disk format) using
+/** Formats the raw data in "data" (in InnoDB on-disk format) using
  "dict_field" and writes the result to "buf".
  Not more than "buf_size" bytes are written to "buf".
  The result is always NUL-terminated (provided buf_size is positive) and the
  number of bytes that were written to "buf" is returned (including the
  terminating NUL).
  @return number of bytes that were written */
-ulint row_raw_format(
-    /*===========*/
-    const char *data,               /*!< in: raw data */
-    ulint data_len,                 /*!< in: raw data length
-                                    in bytes */
-    const dict_field_t *dict_field, /*!< in: index field */
-    char *buf,                      /*!< out: output buffer */
-    ulint buf_size)                 /*!< in: output buffer size
-                                    in bytes */
+ulint row_raw_format(const char *data,               /*!< in: raw data */
+                     ulint data_len,                 /*!< in: raw data length
+                                                     in bytes */
+                     const dict_field_t *dict_field, /*!< in: index field */
+                     char *buf,                      /*!< out: output buffer */
+                     ulint buf_size)                 /*!< in: output buffer size
+                                                     in bytes */
 {
   ulint mtype;
   ulint prtype;

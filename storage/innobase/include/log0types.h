@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -30,8 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/log0types.h
+/** @file include/log0types.h
  Log types
 
  Created 2013-03-15 Sunny Bains

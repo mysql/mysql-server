@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*******************************************************************/ /**
- @file ut/ut0vec.cc
+/** @file ut/ut0vec.cc
  A vector of pointers to data items
 
  Created 4/6/2006 Osku Salerma
@@ -37,7 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /********************************************************************
 Create a new vector with the given initial size. */
 ib_vector_t *ib_vector_create(
-    /*=============*/
     /* out: vector */
     ib_alloc_t *allocator, /* in: vector allocator */
     ulint sizeof_value,    /* in: size of data item */
@@ -64,9 +62,7 @@ ib_vector_t *ib_vector_create(
 /********************************************************************
 Resize the vector, currently the vector can only grow and we
 expand the number of elements it can hold by 2 times. */
-void ib_vector_resize(
-    /*=============*/
-    ib_vector_t *vec) /* in: vector */
+void ib_vector_resize(ib_vector_t *vec) /* in: vector */
 {
   ulint new_total = vec->total * 2;
   ulint old_size = vec->used * vec->sizeof_value;

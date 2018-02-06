@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/usr0sess.h
+/** @file include/usr0sess.h
  Sessions
 
  Created 6/25/1996 Heikki Tuuri
@@ -43,16 +42,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0types.h"
 #include "ut0byte.h"
 
-/*********************************************************************/ /**
- Opens a session.
+/** Opens a session.
  @return own: session object */
 sess_t *sess_open(void);
-/*============*/
-/*********************************************************************/ /**
- Closes a session, freeing the memory occupied by it. */
-void sess_close(
-    /*=======*/
-    sess_t *sess); /* in, own: session object */
+/** Closes a session, freeing the memory occupied by it. */
+void sess_close(sess_t *sess); /* in, own: session object */
 
 /* The session handle. This data structure is only used by purge and is
 not really necessary. We should get rid of it. */

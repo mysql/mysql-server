@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file dict/dict0mem.cc
+/** @file dict/dict0mem.cc
  Data dictionary memory object creation
 
  Created 1/8/1996 Heikki Tuuri
@@ -183,10 +182,8 @@ void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
   table->s_cols->push_back(s_col);
 }
 
-/**********************************************************************/ /**
- Renames a column of a table in the data dictionary cache. */
+/** Renames a column of a table in the data dictionary cache. */
 static void dict_mem_table_col_rename_low(
-    /*==========================*/
     dict_table_t *table, /*!< in/out: table */
     unsigned i,          /*!< in: column offset corresponding to s */
     const char *to,      /*!< in: new column name */
@@ -322,15 +319,12 @@ static void dict_mem_table_col_rename_low(
   }
 }
 
-/**********************************************************************/ /**
- Renames a column of a table in the data dictionary cache. */
-void dict_mem_table_col_rename(
-    /*======================*/
-    dict_table_t *table, /*!< in/out: table */
-    ulint nth_col,       /*!< in: column index */
-    const char *from,    /*!< in: old column name */
-    const char *to,      /*!< in: new column name */
-    bool is_virtual)
+/** Renames a column of a table in the data dictionary cache. */
+void dict_mem_table_col_rename(dict_table_t *table, /*!< in/out: table */
+                               ulint nth_col,       /*!< in: column index */
+                               const char *from,    /*!< in: old column name */
+                               const char *to,      /*!< in: new column name */
+                               bool is_virtual)
 /*!< in: if this is a virtual column */
 {
   const char *s = is_virtual ? table->v_col_names : table->col_names;
@@ -352,12 +346,9 @@ void dict_mem_table_col_rename(
                                 is_virtual);
 }
 
-/**********************************************************************/ /**
- Creates and initializes a foreign constraint memory object.
+/** Creates and initializes a foreign constraint memory object.
  @return own: foreign constraint struct */
-dict_foreign_t *dict_mem_foreign_create(void)
-/*=========================*/
-{
+dict_foreign_t *dict_mem_foreign_create(void) {
   dict_foreign_t *foreign;
   mem_heap_t *heap;
   DBUG_ENTER("dict_mem_foreign_create");
@@ -376,13 +367,11 @@ dict_foreign_t *dict_mem_foreign_create(void)
   DBUG_RETURN(foreign);
 }
 
-/**********************************************************************/ /**
- Sets the foreign_table_name_lookup pointer based on the value of
+/** Sets the foreign_table_name_lookup pointer based on the value of
  lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
  will point to foreign_table_name.  If 2, then another string is
  allocated from foreign->heap and set to lower case. */
 void dict_mem_foreign_table_name_lookup_set(
-    /*===================================*/
     dict_foreign_t *foreign, /*!< in/out: foreign struct */
     ibool do_alloc)          /*!< in: is an alloc needed */
 {
@@ -402,13 +391,11 @@ void dict_mem_foreign_table_name_lookup_set(
   }
 }
 
-/**********************************************************************/ /**
- Sets the referenced_table_name_lookup pointer based on the value of
+/** Sets the referenced_table_name_lookup pointer based on the value of
  lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
  will point to referenced_table_name.  If 2, then another string is
  allocated from foreign->heap and set to lower case. */
 void dict_mem_referenced_table_name_lookup_set(
-    /*======================================*/
     dict_foreign_t *foreign, /*!< in/out: foreign struct */
     ibool do_alloc)          /*!< in: is an alloc needed */
 {
@@ -652,11 +639,8 @@ ulint dict_index_t::get_col_pos(ulint n, bool inc_prefix,
 
   return (ULINT_UNDEFINED);
 }
-/**********************************************************************/ /**
- Frees an index memory object. */
-void dict_mem_index_free(
-    /*================*/
-    dict_index_t *index) /*!< in: index */
+/** Frees an index memory object. */
+void dict_mem_index_free(dict_index_t *index) /*!< in: index */
 {
   ut_ad(index);
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);

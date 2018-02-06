@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file page/page.ic
+/** @file page/page.ic
  Index page routines
 
  Created 2/2/1994 Heikki Tuuri
@@ -39,26 +38,20 @@ external tools. */
 #define page_page_h
 
 #include "mach0data.h"
-/*************************************************************/ /**
- Reads the given header field. */
+/** Reads the given header field. */
 UNIV_INLINE
-ulint page_header_get_field(
-    /*==================*/
-    const page_t *page, /*!< in: page */
-    ulint field)        /*!< in: PAGE_LEVEL, ... */
+ulint page_header_get_field(const page_t *page, /*!< in: page */
+                            ulint field)        /*!< in: PAGE_LEVEL, ... */
 {
   ut_ad(page);
   ut_ad(field <= PAGE_INDEX_ID);
 
   return (mach_read_from_2(page + PAGE_HEADER + field));
 }
-/*************************************************************/ /**
- Gets the number of records in the heap.
+/** Gets the number of records in the heap.
  @return number of user records */
 UNIV_INLINE
-ulint page_dir_get_n_heap(
-    /*================*/
-    const page_t *page) /*!< in: index page */
+ulint page_dir_get_n_heap(const page_t *page) /*!< in: index page */
 {
   return (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
 }

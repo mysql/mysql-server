@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/buf0dblwr.h
+/** @file include/buf0dblwr.h
  Doublewrite buffer module
 
  Created 2011/12/19 Inaam Rana
@@ -45,16 +44,13 @@ extern buf_dblwr_t *buf_dblwr;
 /** Set to TRUE when the doublewrite buffer is being created */
 extern ibool buf_dblwr_being_created;
 
-/****************************************************************/ /**
- Creates the doublewrite buffer to a new InnoDB installation. The header of the
- doublewrite buffer is placed on the trx system header page.
+/** Creates the doublewrite buffer to a new InnoDB installation. The header of
+ the doublewrite buffer is placed on the trx system header page.
  @return true if successful, false if not. */
 MY_ATTRIBUTE((warn_unused_result))
 bool buf_dblwr_create(void);
-/*==================*/
 
-/****************************************************************/ /**
- At a database startup initializes the doublewrite buffer memory structure if
+/** At a database startup initializes the doublewrite buffer memory structure if
  we already have a doublewrite buffer created in the data files. If we are
  upgrading to an InnoDB version which supports multiple tablespaces, then this
  function performs the necessary update operations. If we are in a crash
@@ -65,23 +61,16 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path);
 /** Process and remove the double write buffer pages for all tablespaces. */
 void buf_dblwr_process(void);
 
-/****************************************************************/ /**
- frees doublewrite buffer. */
+/** frees doublewrite buffer. */
 void buf_dblwr_free(void);
-/*================*/
-/********************************************************************/ /**
- Updates the doublewrite buffer when an IO request is completed. */
+/** Updates the doublewrite buffer when an IO request is completed. */
 void buf_dblwr_update(
-    /*=============*/
     const buf_page_t *bpage, /*!< in: buffer block descriptor */
     buf_flush_t flush_type); /*!< in: flush type */
-/****************************************************************/ /**
- Determines if a page number is located inside the doublewrite buffer.
+/** Determines if a page number is located inside the doublewrite buffer.
  @return true if the location is inside the two blocks of the
  doublewrite buffer */
-ibool buf_dblwr_page_inside(
-    /*==================*/
-    page_no_t page_no); /*!< in: page number */
+ibool buf_dblwr_page_inside(page_no_t page_no); /*!< in: page number */
 
 /** Posts a buffer page for writing. If the doublewrite memory buffer
 is full, calls buf_dblwr_flush_buffered_writes and waits for for free
@@ -89,21 +78,17 @@ space to appear.
 @param[in]	bpage	buffer block to write */
 void buf_dblwr_add_to_batch(buf_page_t *bpage);
 
-/********************************************************************/ /**
- Flush a batch of writes to the datafiles that have already been
+/** Flush a batch of writes to the datafiles that have already been
  written to the dblwr buffer on disk. */
 void buf_dblwr_sync_datafiles();
 
-/********************************************************************/ /**
- Flushes possible buffered writes from the doublewrite memory buffer to disk,
+/** Flushes possible buffered writes from the doublewrite memory buffer to disk,
  and also wakes up the aio thread if simulated aio is used. It is very
  important to call this function after a batch of writes has been posted,
  and also when we may have to wait for a page latch! Otherwise a deadlock
  of threads can occur. */
 void buf_dblwr_flush_buffered_writes(void);
-/*=================================*/
-/********************************************************************/ /**
- Writes a page to the doublewrite buffer on disk, sync it, then write
+/** Writes a page to the doublewrite buffer on disk, sync it, then write
  the page to the datafile and sync the datafile. This function is used
  for single page flushes. If all the buffers allocated for single page
  flushes in the doublewrite buffer are in use we wait here for one to
@@ -111,7 +96,6 @@ void buf_dblwr_flush_buffered_writes(void);
  thread that is using a slot must also release the slot before leaving
  this function. */
 void buf_dblwr_write_single_page(
-    /*========================*/
     buf_page_t *bpage, /*!< in: buffer block to write */
     bool sync);        /*!< in: true if sync IO requested */
 

@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dict0crea.ic
+/** @file include/dict0crea.ic
  Database object creation
 
  Created 1/8/1996 Heikki Tuuri
@@ -35,24 +34,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "mem0mem.h"
 
-/*********************************************************************/ /**
- Checks if a table name contains the string "/#sql" which denotes temporary
+/** Checks if a table name contains the string "/#sql" which denotes temporary
  tables in MySQL.
  @return true if temporary table */
-bool row_is_mysql_tmp_table_name(
-    /*========================*/
-    const char *name) MY_ATTRIBUTE((warn_unused_result));
+bool row_is_mysql_tmp_table_name(const char *name)
+    MY_ATTRIBUTE((warn_unused_result));
 /*!< in: table name in the form
 'database/tablename' */
 
-/********************************************************************/ /**
- Generate a foreign key constraint name when it was not named by the user.
+/** Generate a foreign key constraint name when it was not named by the user.
  A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
  where the numbers start from 1, and are given locally for this table, that is,
  the number is not global, as it used to be before MySQL 4.0.18.  */
 UNIV_INLINE
 dberr_t dict_create_add_foreign_id(
-    /*=======================*/
     ulint *id_nr,            /*!< in/out: number to use in id generation;
                              incremented if used */
     const char *name,        /*!< in: table name */

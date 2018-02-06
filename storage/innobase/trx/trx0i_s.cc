@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file trx/trx0i_s.cc
+/** @file trx/trx0i_s.cc
  INFORMATION SCHEMA innodb_trx, innodb_locks and
  innodb_lock_waits tables fetch code.
 
@@ -196,13 +195,10 @@ INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 trx_i_s_cache_t *trx_i_s_cache = &trx_i_s_cache_static;
 
-/*******************************************************************/ /**
- For a record lock that is in waiting state retrieves the only bit that
+/** For a record lock that is in waiting state retrieves the only bit that
  is set, for a table lock returns ULINT_UNDEFINED.
  @return record number within the heap */
-static ulint wait_lock_get_heap_no(
-    /*==================*/
-    const lock_t *lock) /*!< in: lock */
+static ulint wait_lock_get_heap_no(const lock_t *lock) /*!< in: lock */
 {
   ulint ret;
 
@@ -221,10 +217,8 @@ static ulint wait_lock_get_heap_no(
   return (ret);
 }
 
-/*******************************************************************/ /**
- Initializes the members of a table cache. */
+/** Initializes the members of a table cache. */
 static void table_cache_init(
-    /*=============*/
     i_s_table_cache_t *table_cache, /*!< out: table cache */
     size_t row_size)                /*!< in: the size of a
                                     row */
@@ -242,10 +236,8 @@ static void table_cache_init(
   }
 }
 
-/*******************************************************************/ /**
- Frees a table cache. */
+/** Frees a table cache. */
 static void table_cache_free(
-    /*=============*/
     i_s_table_cache_t *table_cache) /*!< in/out: table cache */
 {
   ulint i;
@@ -260,14 +252,12 @@ static void table_cache_free(
   }
 }
 
-/*******************************************************************/ /**
- Returns an empty row from a table cache. The row is allocated if no more
+/** Returns an empty row from a table cache. The row is allocated if no more
  empty rows are available. The number of used rows is incremented.
  If the memory limit is hit then NULL is returned and nothing is
  allocated.
  @return empty row, or NULL if out of memory */
 static void *table_cache_create_empty_row(
-    /*=========================*/
     i_s_table_cache_t *table_cache, /*!< in/out: table cache */
     trx_i_s_cache_t *cache)         /*!< in/out: cache to record
                                     how many bytes are
@@ -390,11 +380,9 @@ static void *table_cache_create_empty_row(
 }
 
 #ifdef UNIV_DEBUG
-/*******************************************************************/ /**
- Validates a row in the locks cache.
+/** Validates a row in the locks cache.
  @return true if valid */
 static ibool i_s_locks_row_validate(
-    /*===================*/
     const i_s_locks_row_t *row) /*!< in: row to validate */
 {
   ut_ad(row->lock_table_id != 0);
@@ -411,12 +399,10 @@ static ibool i_s_locks_row_validate(
 }
 #endif /* UNIV_DEBUG */
 
-/*******************************************************************/ /**
- Fills i_s_trx_row_t object.
+/** Fills i_s_trx_row_t object.
  If memory can not be allocated then FALSE is returned.
  @return false if allocation fails */
 static ibool fill_trx_row(
-    /*=========*/
     i_s_trx_row_t *row,                        /*!< out: result object
                                                that's filled */
     const trx_t *trx,                          /*!< in: transaction to
@@ -555,13 +541,11 @@ thd_done:
   return (TRUE);
 }
 
-/*******************************************************************/ /**
- Format the nth field of "rec" and put it in "buf". The result is always
+/** Format the nth field of "rec" and put it in "buf". The result is always
  NUL-terminated. Returns the number of bytes that were written to "buf"
  (including the terminating NUL).
  @return end of the result */
 static ulint put_nth_field(
-    /*==========*/
     char *buf,                 /*!< out: buffer */
     ulint buf_size,            /*!< in: buffer size in bytes */
     ulint n,                   /*!< in: number of field */
@@ -697,12 +681,10 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   mtr_commit(&mtr);
 }
 
-/*******************************************************************/ /**
- Fills i_s_locks_row_t object. Returns its first argument.
+/** Fills i_s_locks_row_t object. Returns its first argument.
  If memory can not be allocated then FALSE is returned.
  @return false if allocation fails */
 static ibool fill_locks_row(
-    /*===========*/
     i_s_locks_row_t *row,   /*!< out: result object that's filled */
     const lock_t *lock,     /*!< in: lock to get data from */
     ulint heap_no,          /*!< in: lock's record number
@@ -739,14 +721,12 @@ static ibool fill_locks_row(
   return (TRUE);
 }
 
-/*******************************************************************/ /**
- Adds new element to the locks cache, enlarging it if necessary.
+/** Adds new element to the locks cache, enlarging it if necessary.
  Returns a pointer to the added row. If the row is already present then
  no row is added and a pointer to the existing row is returned.
  If row can not be allocated then NULL is returned.
  @return row */
 static i_s_locks_row_t *add_lock_to_cache(
-    /*==============*/
     trx_i_s_cache_t *cache, /*!< in/out: cache */
     const lock_t *lock,     /*!< in: the element to add */
     ulint heap_no)          /*!< in: lock's record number
@@ -773,8 +753,7 @@ static i_s_locks_row_t *add_lock_to_cache(
   return (dst_row);
 }
 
-/*******************************************************************/ /**
- Adds transaction's relevant (important) locks to cache.
+/** Adds transaction's relevant (important) locks to cache.
  If the transaction is waiting, then the wait lock is added to
  innodb_locks and a pointer to the added row is returned in
  requested_lock_row, otherwise requested_lock_row is set to NULL.
@@ -782,7 +761,6 @@ static i_s_locks_row_t *add_lock_to_cache(
  requested_lock_row is undefined.
  @return false if allocation fails */
 static ibool add_trx_relevant_locks_to_cache(
-    /*============================*/
     trx_i_s_cache_t *cache,               /*!< in/out: cache */
     const trx_t *trx,                     /*!< in: transaction */
     i_s_locks_row_t **requested_lock_row) /*!< out: pointer to the
@@ -847,12 +825,9 @@ to ensure that SELECTs which join several INFORMATION SCHEMA tables read
 the same version of the cache. */
 #define CACHE_MIN_IDLE_TIME_US 100000 /* 0.1 sec */
 
-/*******************************************************************/ /**
- Checks if the cache can safely be updated.
+/** Checks if the cache can safely be updated.
  @return true if can be updated */
-static ibool can_cache_be_updated(
-    /*=================*/
-    trx_i_s_cache_t *cache) /*!< in: cache */
+static ibool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
 {
   uintmax_t now;
 
@@ -873,11 +848,9 @@ static ibool can_cache_be_updated(
   return (FALSE);
 }
 
-/*******************************************************************/ /**
- Declare a cache empty, preparing it to be filled up. Not all resources
+/** Declare a cache empty, preparing it to be filled up. Not all resources
  are freed because they can be reused. */
 static void trx_i_s_cache_clear(
-    /*================*/
     trx_i_s_cache_t *cache) /*!< out: cache to clear */
 {
   cache->innodb_trx.rows_used = 0;
@@ -888,11 +861,9 @@ static void trx_i_s_cache_clear(
   ha_storage_empty(&cache->storage);
 }
 
-/*******************************************************************/ /**
- Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
+/** Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
  table cache buffer. Cache must be locked for write. */
 static void fetch_data_into_cache_low(
-    /*======================*/
     trx_i_s_cache_t *cache,  /*!< in/out: cache */
     bool read_write,         /*!< in: only read-write
                              transactions */
@@ -956,12 +927,9 @@ static void fetch_data_into_cache_low(
   }
 }
 
-/*******************************************************************/ /**
- Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
+/** Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
  table cache buffer. Cache must be locked for write. */
-static void fetch_data_into_cache(
-    /*==================*/
-    trx_i_s_cache_t *cache) /*!< in/out: cache */
+static void fetch_data_into_cache(trx_i_s_cache_t *cache) /*!< in/out: cache */
 {
   ut_ad(lock_mutex_own());
   ut_ad(trx_sys_mutex_own());
@@ -978,12 +946,10 @@ static void fetch_data_into_cache(
   cache->is_truncated = FALSE;
 }
 
-/*******************************************************************/ /**
- Update the transactions cache if it has not been read for some time.
+/** Update the transactions cache if it has not been read for some time.
  Called from handler/i_s.cc.
  @return 0 - fetched, 1 - not */
 int trx_i_s_possibly_fetch_data_into_cache(
-    /*===================================*/
     trx_i_s_cache_t *cache) /*!< in/out: cache */
 {
   if (!can_cache_be_updated(cache)) {
@@ -1005,22 +971,16 @@ int trx_i_s_possibly_fetch_data_into_cache(
   return (0);
 }
 
-/*******************************************************************/ /**
- Returns TRUE if the data in the cache is truncated due to the memory
+/** Returns TRUE if the data in the cache is truncated due to the memory
  limit posed by TRX_I_S_MEM_LIMIT.
  @return true if truncated */
-ibool trx_i_s_cache_is_truncated(
-    /*=======================*/
-    trx_i_s_cache_t *cache) /*!< in: cache */
+ibool trx_i_s_cache_is_truncated(trx_i_s_cache_t *cache) /*!< in: cache */
 {
   return (cache->is_truncated);
 }
 
-/*******************************************************************/ /**
- Initialize INFORMATION SCHEMA trx related cache. */
-void trx_i_s_cache_init(
-    /*===============*/
-    trx_i_s_cache_t *cache) /*!< out: cache to init */
+/** Initialize INFORMATION SCHEMA trx related cache. */
+void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
 {
   /* The latching is done in the following order:
   acquire trx_i_s_cache_t::rw_lock, X
@@ -1054,11 +1014,8 @@ void trx_i_s_cache_init(
   cache->is_truncated = FALSE;
 }
 
-/*******************************************************************/ /**
- Free the INFORMATION SCHEMA trx related cache. */
-void trx_i_s_cache_free(
-    /*===============*/
-    trx_i_s_cache_t *cache) /*!< in, own: cache to free */
+/** Free the INFORMATION SCHEMA trx related cache. */
+void trx_i_s_cache_free(trx_i_s_cache_t *cache) /*!< in, own: cache to free */
 {
   rw_lock_free(cache->rw_lock);
   ut_free(cache->rw_lock);
@@ -1072,20 +1029,14 @@ void trx_i_s_cache_free(
   table_cache_free(&cache->innodb_locks);
 }
 
-/*******************************************************************/ /**
- Issue a shared/read lock on the tables cache. */
-void trx_i_s_cache_start_read(
-    /*=====================*/
-    trx_i_s_cache_t *cache) /*!< in: cache */
+/** Issue a shared/read lock on the tables cache. */
+void trx_i_s_cache_start_read(trx_i_s_cache_t *cache) /*!< in: cache */
 {
   rw_lock_s_lock(cache->rw_lock);
 }
 
-/*******************************************************************/ /**
- Release a shared/read lock on the tables cache. */
-void trx_i_s_cache_end_read(
-    /*===================*/
-    trx_i_s_cache_t *cache) /*!< in: cache */
+/** Release a shared/read lock on the tables cache. */
+void trx_i_s_cache_end_read(trx_i_s_cache_t *cache) /*!< in: cache */
 {
   uintmax_t now;
 
@@ -1100,31 +1051,23 @@ void trx_i_s_cache_end_read(
   rw_lock_s_unlock(cache->rw_lock);
 }
 
-/*******************************************************************/ /**
- Issue an exclusive/write lock on the tables cache. */
-void trx_i_s_cache_start_write(
-    /*======================*/
-    trx_i_s_cache_t *cache) /*!< in: cache */
+/** Issue an exclusive/write lock on the tables cache. */
+void trx_i_s_cache_start_write(trx_i_s_cache_t *cache) /*!< in: cache */
 {
   rw_lock_x_lock(cache->rw_lock);
 }
 
-/*******************************************************************/ /**
- Release an exclusive/write lock on the tables cache. */
-void trx_i_s_cache_end_write(
-    /*====================*/
-    trx_i_s_cache_t *cache) /*!< in: cache */
+/** Release an exclusive/write lock on the tables cache. */
+void trx_i_s_cache_end_write(trx_i_s_cache_t *cache) /*!< in: cache */
 {
   ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
   rw_lock_x_unlock(cache->rw_lock);
 }
 
-/*******************************************************************/ /**
- Selects a INFORMATION SCHEMA table cache from the whole cache.
+/** Selects a INFORMATION SCHEMA table cache from the whole cache.
  @return table cache */
 static i_s_table_cache_t *cache_select_table(
-    /*===============*/
     trx_i_s_cache_t *cache, /*!< in: whole cache */
     enum i_s_table table)   /*!< in: which table */
 {
@@ -1144,14 +1087,11 @@ static i_s_table_cache_t *cache_select_table(
   return (table_cache);
 }
 
-/*******************************************************************/ /**
- Retrieves the number of used rows in the cache for a given
+/** Retrieves the number of used rows in the cache for a given
  INFORMATION SCHEMA table.
  @return number of rows */
-ulint trx_i_s_cache_get_rows_used(
-    /*========================*/
-    trx_i_s_cache_t *cache, /*!< in: cache */
-    enum i_s_table table)   /*!< in: which table */
+ulint trx_i_s_cache_get_rows_used(trx_i_s_cache_t *cache, /*!< in: cache */
+                                  enum i_s_table table) /*!< in: which table */
 {
   i_s_table_cache_t *table_cache;
 
@@ -1160,15 +1100,12 @@ ulint trx_i_s_cache_get_rows_used(
   return (table_cache->rows_used);
 }
 
-/*******************************************************************/ /**
- Retrieves the nth row (zero-based) in the cache for a given
+/** Retrieves the nth row (zero-based) in the cache for a given
  INFORMATION SCHEMA table.
  @return row */
-void *trx_i_s_cache_get_nth_row(
-    /*======================*/
-    trx_i_s_cache_t *cache, /*!< in: cache */
-    enum i_s_table table,   /*!< in: which table */
-    ulint n)                /*!< in: row number */
+void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
+                                enum i_s_table table,   /*!< in: which table */
+                                ulint n)                /*!< in: row number */
 {
   i_s_table_cache_t *table_cache;
   ulint i;
@@ -1194,14 +1131,12 @@ void *trx_i_s_cache_get_nth_row(
   return (row);
 }
 
-/*******************************************************************/ /**
- Crafts a lock id string from a i_s_locks_row_t object. Returns its
+/** Crafts a lock id string from a i_s_locks_row_t object. Returns its
  second argument. This function aborts if there is not enough space in
  lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
  want to be 100% sure that it will not abort.
  @return resulting lock id */
 char *trx_i_s_create_lock_id(
-    /*===================*/
     const i_s_locks_row_t *row, /*!< in: innodb_locks row */
     char *lock_id,              /*!< out: resulting lock_id */
     ulint lock_id_size)         /*!< in: size of the lock id

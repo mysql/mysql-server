@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/ibuf0ibuf.h
+/** @file include/ibuf0ibuf.h
  Insert buffer
 
  Created 7/19/1997 Heikki Tuuri
@@ -95,41 +94,24 @@ affects the free space.  It is unsafe to increment the bits in a
 separately committed mini-transaction, because in crash recovery, the
 free bits could momentarily be set too high. */
 
-/******************************************************************/ /**
- Creates the insert buffer data structure at a database startup. */
+/** Creates the insert buffer data structure at a database startup. */
 void ibuf_init_at_db_start(void);
-/*=======================*/
-/*********************************************************************/ /**
- Updates the max_size value for ibuf. */
-void ibuf_max_size_update(
-    /*=================*/
-    ulint new_val); /*!< in: new value in terms of
-                    percentage of the buffer pool size */
-/*********************************************************************/ /**
- Reads the biggest tablespace id from the high end of the insert buffer
+/** Updates the max_size value for ibuf. */
+void ibuf_max_size_update(ulint new_val); /*!< in: new value in terms of
+                                          percentage of the buffer pool size */
+/** Reads the biggest tablespace id from the high end of the insert buffer
  tree and updates the counter in fil_system. */
 void ibuf_update_max_tablespace_id(void);
-/*===============================*/
-/***************************************************************/ /**
- Starts an insert buffer mini-transaction. */
+/** Starts an insert buffer mini-transaction. */
 UNIV_INLINE
-void ibuf_mtr_start(
-    /*===========*/
-    mtr_t *mtr); /*!< out: mini-transaction */
-/***************************************************************/ /**
- Commits an insert buffer mini-transaction. */
+void ibuf_mtr_start(mtr_t *mtr); /*!< out: mini-transaction */
+/** Commits an insert buffer mini-transaction. */
 UNIV_INLINE
-void ibuf_mtr_commit(
-    /*============*/
-    mtr_t *mtr); /*!< in/out: mini-transaction */
-/*********************************************************************/ /**
- Initializes an ibuf bitmap page. */
-void ibuf_bitmap_page_init(
-    /*==================*/
-    buf_block_t *block, /*!< in: bitmap page */
-    mtr_t *mtr);        /*!< in: mtr */
-/************************************************************************/ /**
- Resets the free bits of the page in the ibuf bitmap. This is done in a
+void ibuf_mtr_commit(mtr_t *mtr); /*!< in/out: mini-transaction */
+/** Initializes an ibuf bitmap page. */
+void ibuf_bitmap_page_init(buf_block_t *block, /*!< in: bitmap page */
+                           mtr_t *mtr);        /*!< in: mtr */
+/** Resets the free bits of the page in the ibuf bitmap. This is done in a
  separate mini-transaction, hence this operation does not restrict
  further work to only ibuf bitmap operations, which would result if the
  latch to the bitmap page were kept.  NOTE: The free bits in the insert
@@ -138,7 +120,6 @@ void ibuf_bitmap_page_init(
  that is committed before the mini-transaction that affects the free
  space. */
 void ibuf_reset_free_bits(
-    /*=================*/
     buf_block_t *block); /*!< in: index page; free bits are set to 0
                          if the index is a non-clustered
                          non-unique, and page level is 0 */
@@ -167,44 +148,36 @@ UNIV_INLINE
 void ibuf_update_free_bits_if_full(buf_block_t *block, ulint max_ins_size,
                                    ulint increase);
 
-/**********************************************************************/ /**
- Updates the free bits for an uncompressed page to reflect the present
+/** Updates the free bits for an uncompressed page to reflect the present
  state.  Does this in the mtr given, which means that the latching
  order rules virtually prevent any further operations for this OS
  thread until mtr is committed.  NOTE: The free bits in the insert
  buffer bitmap must never exceed the free space on a page.  It is safe
  to set the free bits in the same mini-transaction that updated the
  page. */
-void ibuf_update_free_bits_low(
-    /*======================*/
-    const buf_block_t *block, /*!< in: index page */
-    ulint max_ins_size,       /*!< in: value of
-                              maximum insert size
-                              with reorganize before
-                              the latest operation
-                              performed to the page */
-    mtr_t *mtr);              /*!< in/out: mtr */
-/**********************************************************************/ /**
- Updates the free bits for a compressed page to reflect the present
+void ibuf_update_free_bits_low(const buf_block_t *block, /*!< in: index page */
+                               ulint max_ins_size,       /*!< in: value of
+                                                         maximum insert size
+                                                         with reorganize before
+                                                         the latest operation
+                                                         performed to the page */
+                               mtr_t *mtr);              /*!< in/out: mtr */
+/** Updates the free bits for a compressed page to reflect the present
  state.  Does this in the mtr given, which means that the latching
  order rules virtually prevent any further operations for this OS
  thread until mtr is committed.  NOTE: The free bits in the insert
  buffer bitmap must never exceed the free space on a page.  It is safe
  to set the free bits in the same mini-transaction that updated the
  page. */
-void ibuf_update_free_bits_zip(
-    /*======================*/
-    buf_block_t *block, /*!< in/out: index page */
-    mtr_t *mtr);        /*!< in/out: mtr */
-/**********************************************************************/ /**
- Updates the free bits for the two pages to reflect the present state.
+void ibuf_update_free_bits_zip(buf_block_t *block, /*!< in/out: index page */
+                               mtr_t *mtr);        /*!< in/out: mtr */
+/** Updates the free bits for the two pages to reflect the present state.
  Does this in the mtr given, which means that the latching order rules
  virtually prevent any further operations until mtr is committed.
  NOTE: The free bits in the insert buffer bitmap must never exceed the
  free space on a page.  It is safe to set the free bits in the same
  mini-transaction that updated the pages. */
 void ibuf_update_free_bits_for_two_pages_low(
-    /*====================================*/
     buf_block_t *block1, /*!< in: index page */
     buf_block_t *block2, /*!< in: index page */
     mtr_t *mtr);         /*!< in: mtr */
@@ -218,17 +191,14 @@ and recommended.
 UNIV_INLINE
 ibool ibuf_should_try(dict_index_t *index, ulint ignore_sec_unique);
 
-/******************************************************************/ /**
- Returns TRUE if the current OS thread is performing an insert buffer
+/** Returns TRUE if the current OS thread is performing an insert buffer
  routine.
 
  For instance, a read-ahead of non-ibuf pages is forbidden by threads
  that are executing an insert buffer routine.
  @return true if inside an insert buffer routine */
 UNIV_INLINE
-ibool ibuf_inside(
-    /*========*/
-    const mtr_t *mtr) /*!< in: mini-transaction */
+ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
@@ -280,12 +250,10 @@ Must not be called when recv_no_ibuf_operations==true.
   ibuf_page_low(page_id, page_size, __FILE__, __LINE__, mtr)
 
 #endif /* UVIV_DEBUG */
-/***********************************************************************/ /**
- Frees excess pages from the ibuf free list. This function is called when an OS
- thread calls fsp services to allocate a new file segment, or a new page to a
+/** Frees excess pages from the ibuf free list. This function is called when an
+ OS thread calls fsp services to allocate a new file segment, or a new page to a
  file segment, and the thread did not own the fsp latch before this call. */
 void ibuf_free_excess_pages(void);
-/*========================*/
 
 /** Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible. Does not do it if the index
@@ -317,14 +285,11 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
                                    const page_size_t *page_size,
                                    ibool update_ibuf_bitmap);
 
-/*********************************************************************/ /**
- Deletes all entries in the insert buffer for a given space id. This is used
+/** Deletes all entries in the insert buffer for a given space id. This is used
  in DISCARD TABLESPACE and IMPORT TABLESPACE.
  NOTE: this does not update the page free bitmaps in the space. The space will
  become CORRUPT when you call this function! */
-void ibuf_delete_for_discarded_space(
-    /*============================*/
-    space_id_t space); /*!< in: space id */
+void ibuf_delete_for_discarded_space(space_id_t space); /*!< in: space id */
 /** Contract the change buffer by reading pages to the buffer pool.
 @param[in]	full		If true, do a full contraction based
 on PCT_IO(100). If false, the size of contract batch is determined
@@ -337,20 +302,15 @@ ulint ibuf_merge_in_background(bool full);
 /** Contracts insert buffer trees by reading pages referring to space_id
 to the buffer pool.
 @returns number of pages merged.*/
-ulint ibuf_merge_space(
-    /*=============*/
-    space_id_t space); /*!< in: space id */
+ulint ibuf_merge_space(space_id_t space); /*!< in: space id */
 
 #endif /* !UNIV_HOTBACKUP */
-/*********************************************************************/ /**
- Parses a redo log record of an ibuf bitmap page init.
+/** Parses a redo log record of an ibuf bitmap page init.
  @return end of log record or NULL */
-byte *ibuf_parse_bitmap_init(
-    /*===================*/
-    byte *ptr,          /*!< in: buffer */
-    byte *end_ptr,      /*!< in: buffer end */
-    buf_block_t *block, /*!< in: block or NULL */
-    mtr_t *mtr);        /*!< in: mtr or NULL */
+byte *ibuf_parse_bitmap_init(byte *ptr,          /*!< in: buffer */
+                             byte *end_ptr,      /*!< in: buffer end */
+                             buf_block_t *block, /*!< in: block or NULL */
+                             mtr_t *mtr);        /*!< in: mtr or NULL */
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_IBUF_COUNT_DEBUG
 
@@ -361,34 +321,23 @@ this page */
 ulint ibuf_count_get(const page_id_t &page_id);
 
 #endif
-/******************************************************************/ /**
- Looks if the insert buffer is empty.
+/** Looks if the insert buffer is empty.
  @return true if empty */
 bool ibuf_is_empty(void);
-/*===============*/
-/******************************************************************/ /**
- Prints info of ibuf. */
-void ibuf_print(
-    /*=======*/
-    FILE *file); /*!< in: file where to print */
+/** Prints info of ibuf. */
+void ibuf_print(FILE *file); /*!< in: file where to print */
 /********************************************************************
 Read the first two bytes from a record's fourth field (counter field in new
 records; something else in older records).
 @return "counter" field, or ULINT_UNDEFINED if for some reason it can't be read
 */
-ulint ibuf_rec_get_counter(
-    /*=================*/
-    const rec_t *rec); /*!< in: ibuf record */
-/******************************************************************/ /**
- Closes insert buffer and frees the data structures. */
+ulint ibuf_rec_get_counter(const rec_t *rec); /*!< in: ibuf record */
+/** Closes insert buffer and frees the data structures. */
 void ibuf_close(void);
-/*============*/
 
-/******************************************************************/ /**
- Checks the insert buffer bitmaps on IMPORT TABLESPACE.
+/** Checks the insert buffer bitmaps on IMPORT TABLESPACE.
  @return DB_SUCCESS or error code */
 dberr_t ibuf_check_bitmap_on_import(
-    /*========================*/
     const trx_t *trx,    /*!< in: transaction */
     space_id_t space_id) /*!< in: tablespace identifier */
     MY_ATTRIBUTE((warn_unused_result));

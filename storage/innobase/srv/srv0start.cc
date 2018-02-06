@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -39,8 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************/ /**
- @file srv/srv0start.cc
+/** @file srv/srv0start.cc
  Starts the InnoDB database server
 
  Created 2/16/1996 Heikki Tuuri
@@ -222,12 +221,9 @@ static PSI_stage_info *srv_stages[] = {
 };
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
-/*********************************************************************/ /**
- Check if a file can be opened in read-write mode.
+/** Check if a file can be opened in read-write mode.
  @return true if it doesn't exist or can be opened in rw mode. */
-static bool srv_file_check_mode(
-    /*================*/
-    const char *name) /*!< in: filename to check */
+static bool srv_file_check_mode(const char *name) /*!< in: filename to check */
 {
   os_file_stat_t stat;
 
@@ -276,13 +272,11 @@ static void io_handler_thread(ulint segment) {
   }
 }
 
-/*********************************************************************/ /**
- Creates a log file.
+/** Creates a log file.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t create_log_file(
-    /*============*/
-    pfs_os_file_t *file, /*!< out: file handle */
-    const char *name)    /*!< in: log file name */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    create_log_file(pfs_os_file_t *file, /*!< out: file handle */
+                    const char *name)    /*!< in: log file name */
 {
   bool ret;
 
@@ -323,11 +317,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t create_log_file(
 /** Initial number of the first redo log file */
 #define INIT_LOG_FILE0 (SRV_N_LOG_FILES_MAX + 1)
 
-/*********************************************************************/ /**
- Creates all log files.
+/** Creates all log files.
  @return DB_SUCCESS or error code */
 static dberr_t create_log_files(
-    /*=============*/
     char *logfilename, /*!< in/out: buffer for log file name */
     size_t dirnamelen, /*!< in: length of the directory path */
     lsn_t lsn,         /*!< in: FIL_PAGE_FILE_FLUSH_LSN value */
@@ -445,10 +437,8 @@ static dberr_t create_log_files(
   return (DB_SUCCESS);
 }
 
-/*********************************************************************/ /**
- Renames the first log file. */
+/** Renames the first log file. */
 static void create_log_files_rename(
-    /*====================*/
     char *logfilename, /*!< in/out: buffer for log file name */
     size_t dirnamelen, /*!< in: length of the directory path */
     lsn_t lsn,         /*!< in: FIL_PAGE_FILE_FLUSH_LSN value */
@@ -486,14 +476,12 @@ static void create_log_files_rename(
   ib::info() << "New log files created, LSN=" << lsn;
 }
 
-/*********************************************************************/ /**
- Opens a log file.
+/** Opens a log file.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t open_log_file(
-    /*==========*/
-    pfs_os_file_t *file, /*!< out: file handle */
-    const char *name,    /*!< in: log file name */
-    os_offset_t *size)   /*!< out: file size */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    open_log_file(pfs_os_file_t *file, /*!< out: file handle */
+                  const char *name,    /*!< in: log file name */
+                  os_offset_t *size)   /*!< out: file size */
 {
   bool ret;
 
@@ -1291,9 +1279,7 @@ static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
 
 /********************************************************************
 Wait for the purge thread(s) to start up. */
-static void srv_start_wait_for_purge_to_start()
-/*===============================*/
-{
+static void srv_start_wait_for_purge_to_start() {
   /* Wait for the purge coordinator and master thread to startup. */
 
   purge_state_t state = trx_purge_state();
@@ -1392,23 +1378,19 @@ static void srv_create_sdi_indexes() {
   btr_sdi_create_index(SYSTEM_TABLE_SPACE, false);
 }
 
-/****************************************************************/ /**
- Set state to indicate start of particular group of threads in InnoDB. */
+/** Set state to indicate start of particular group of threads in InnoDB. */
 UNIV_INLINE
 void srv_start_state_set(
-    /*================*/
     srv_start_state_t state) /*!< in: indicate current state of
                              thread startup */
 {
   srv_start_state |= state;
 }
 
-/****************************************************************/ /**
- Check if following group of threads is started.
+/** Check if following group of threads is started.
  @return true if started */
 UNIV_INLINE
 bool srv_start_state_is_set(
-    /*===================*/
     srv_start_state_t state) /*!< in: state to check for */
 {
   return (srv_start_state & state);
@@ -2682,7 +2664,6 @@ Sync all FTS cache before shutdown */
 static
 void
 srv_fts_close(void)
-/*===============*/
 {
 	dict_table_t*	table;
 
@@ -2894,7 +2875,6 @@ so. */
 static
 void
 srv_shutdown_table_bg_threads(void)
-/*===============================*/
 {
 	dict_table_t*	table;
 	dict_table_t*	first;

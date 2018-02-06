@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,8 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mem0mem.h"
 #include "ut0list.h"
 
-/*******************************************************************/ /**
- @file ut/ut0wqueue.cc
+/** @file ut/ut0wqueue.cc
  A work queue
 
  Created 4/26/2006 Osku Salerma
@@ -46,12 +45,9 @@ struct ib_wqueue_t {
   os_event_t event; /*!< event we use to signal additions to list */
 };
 
-/****************************************************************/ /**
- Create a new work queue.
+/** Create a new work queue.
  @return work queue */
-ib_wqueue_t *ib_wqueue_create(void)
-/*===================*/
-{
+ib_wqueue_t *ib_wqueue_create(void) {
   ib_wqueue_t *wq = static_cast<ib_wqueue_t *>(ut_malloc_nokey(sizeof(*wq)));
 
   /* Function ib_wqueue_create() has not been used anywhere,
@@ -65,11 +61,8 @@ ib_wqueue_t *ib_wqueue_create(void)
   return (wq);
 }
 
-/****************************************************************/ /**
- Free a work queue. */
-void ib_wqueue_free(
-    /*===========*/
-    ib_wqueue_t *wq) /*!< in: work queue */
+/** Free a work queue. */
+void ib_wqueue_free(ib_wqueue_t *wq) /*!< in: work queue */
 {
   mutex_free(&wq->mutex);
   ib_list_free(wq->items);
@@ -78,10 +71,8 @@ void ib_wqueue_free(
   ut_free(wq);
 }
 
-/****************************************************************/ /**
- Add a work item to the queue. */
+/** Add a work item to the queue. */
 void ib_wqueue_add(
-    /*==========*/
     ib_wqueue_t *wq,  /*!< in: work queue */
     void *item,       /*!< in: work item */
     mem_heap_t *heap) /*!< in: memory heap to use for allocating the
@@ -98,7 +89,6 @@ void ib_wqueue_add(
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
 void *ib_wqueue_timedwait(
-    /*================*/
     /* out: work item or NULL on timeout*/
     ib_wqueue_t *wq,         /* in: work queue */
     ib_time_t wait_in_usecs) /* in: wait time in micro seconds */
@@ -137,7 +127,6 @@ void *ib_wqueue_timedwait(
 /********************************************************************
 Check if queue is empty. */
 ibool ib_wqueue_is_empty(
-    /*===============*/
     /* out: TRUE if queue empty
     else FALSE */
     const ib_wqueue_t *wq) /* in: work queue */

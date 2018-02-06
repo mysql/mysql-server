@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file trx/trx0roll.cc
+/** @file trx/trx0roll.cc
  Transaction rollback
 
  Created 3/26/1996 Heikki Tuuri
@@ -75,16 +74,11 @@ static undo_no_t trx_roll_max_undo_no;
 /** Auxiliary variable which tells the previous progress % we printed */
 static ulint trx_roll_progress_printed_pct;
 
-/****************************************************************/ /**
- Finishes a transaction rollback. */
-static void trx_rollback_finish(
-    /*================*/
-    trx_t *trx); /*!< in: transaction */
+/** Finishes a transaction rollback. */
+static void trx_rollback_finish(trx_t *trx); /*!< in: transaction */
 
-/*******************************************************************/ /**
- Rollback a transaction used in MySQL. */
+/** Rollback a transaction used in MySQL. */
 static void trx_rollback_to_savepoint_low(
-    /*==========================*/
     trx_t *trx,           /*!< in: transaction handle */
     trx_savept_t *savept) /*!< in: pointer to savepoint undo number, if
                           partial rollback requested, or NULL for
@@ -144,11 +138,9 @@ static void trx_rollback_to_savepoint_low(
   MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
-/*******************************************************************/ /**
- Rollback a transaction to a given savepoint or do a complete rollback.
+/** Rollback a transaction to a given savepoint or do a complete rollback.
  @return error code or DB_SUCCESS */
 dberr_t trx_rollback_to_savepoint(
-    /*======================*/
     trx_t *trx,           /*!< in: transaction handle */
     trx_savept_t *savept) /*!< in: pointer to savepoint undo number, if
                           partial rollback requested, or NULL for
@@ -163,11 +155,9 @@ dberr_t trx_rollback_to_savepoint(
   return (trx->error_state);
 }
 
-/*******************************************************************/ /**
- Rollback a transaction used in MySQL.
+/** Rollback a transaction used in MySQL.
  @return error code or DB_SUCCESS */
 static dberr_t trx_rollback_for_mysql_low(
-    /*=======================*/
     trx_t *trx) /*!< in/out: transaction */
 {
   trx->op_info = "rollback";
@@ -263,12 +253,9 @@ static dberr_t trx_rollback_low(trx_t *trx) {
   return (DB_CORRUPTION);
 }
 
-/*******************************************************************/ /**
- Rollback a transaction used in MySQL.
+/** Rollback a transaction used in MySQL.
  @return error code or DB_SUCCESS */
-dberr_t trx_rollback_for_mysql(
-    /*===================*/
-    trx_t *trx) /*!< in/out: transaction */
+dberr_t trx_rollback_for_mysql(trx_t *trx) /*!< in/out: transaction */
 {
   /* Avoid the tracking of async rollback killer
   thread to enter into InnoDB. */
@@ -282,11 +269,9 @@ dberr_t trx_rollback_for_mysql(
   }
 }
 
-/*******************************************************************/ /**
- Rollback the latest SQL statement for MySQL.
+/** Rollback the latest SQL statement for MySQL.
  @return error code or DB_SUCCESS */
 dberr_t trx_rollback_last_sql_stat_for_mysql(
-    /*=================================*/
     trx_t *trx) /*!< in/out: transaction */
 {
   dberr_t err;
@@ -332,11 +317,9 @@ dberr_t trx_rollback_last_sql_stat_for_mysql(
   return (DB_CORRUPTION);
 }
 
-/*******************************************************************/ /**
- Search for a savepoint using name.
+/** Search for a savepoint using name.
  @return savepoint if found else NULL */
 static trx_named_savept_t *trx_savepoint_find(
-    /*===============*/
     trx_t *trx,       /*!< in: transaction */
     const char *name) /*!< in: savepoint name */
 {
@@ -352,10 +335,8 @@ static trx_named_savept_t *trx_savepoint_find(
   return (NULL);
 }
 
-/*******************************************************************/ /**
- Frees a single savepoint struct. */
+/** Frees a single savepoint struct. */
 static void trx_roll_savepoint_free(
-    /*=====================*/
     trx_t *trx,                /*!< in: transaction handle */
     trx_named_savept_t *savep) /*!< in: savepoint to free */
 {
@@ -365,10 +346,8 @@ static void trx_roll_savepoint_free(
   ut_free(savep);
 }
 
-/*******************************************************************/ /**
- Frees savepoint structs starting from savep. */
+/** Frees savepoint structs starting from savep. */
 void trx_roll_savepoints_free(
-    /*=====================*/
     trx_t *trx,                /*!< in: transaction handle */
     trx_named_savept_t *savep) /*!< in: free all savepoints starting
                                with this savepoint i*/
@@ -384,8 +363,7 @@ void trx_roll_savepoints_free(
   }
 }
 
-/*******************************************************************/ /**
- Rolls back a transaction back to a named savepoint. Modifications after the
+/** Rolls back a transaction back to a named savepoint. Modifications after the
  savepoint are undone but InnoDB does NOT release the corresponding locks
  which are stored in memory. If a lock is 'implicit', that is, a new inserted
  row holds a lock where the lock information is carried by the trx id stored in
@@ -395,7 +373,6 @@ void trx_roll_savepoints_free(
  otherwise DB_SUCCESS */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     trx_rollback_to_savepoint_for_mysql_low(
-        /*====================================*/
         trx_t *trx,                /*!< in/out: transaction */
         trx_named_savept_t *savep, /*!< in/out: savepoint */
         int64_t *mysql_binlog_cache_pos)
@@ -432,8 +409,7 @@ executed after the savepoint */
   return (err);
 }
 
-/*******************************************************************/ /**
- Rolls back a transaction back to a named savepoint. Modifications after the
+/** Rolls back a transaction back to a named savepoint. Modifications after the
  savepoint are undone but InnoDB does NOT release the corresponding locks
  which are stored in memory. If a lock is 'implicit', that is, a new inserted
  row holds a lock where the lock information is carried by the trx id stored in
@@ -442,7 +418,6 @@ executed after the savepoint */
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
 dberr_t trx_rollback_to_savepoint_for_mysql(
-    /*================================*/
     trx_t *trx,                      /*!< in: transaction handle */
     const char *savepoint_name,      /*!< in: savepoint name */
     int64_t *mysql_binlog_cache_pos) /*!< out: the MySQL binlog cache
@@ -491,14 +466,12 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
   return (DB_CORRUPTION);
 }
 
-/*******************************************************************/ /**
- Creates a named savepoint. If the transaction is not yet started, starts it.
+/** Creates a named savepoint. If the transaction is not yet started, starts it.
  If there is already a savepoint of the same name, this call erases that old
  savepoint and replaces it with a new. Savepoints are deleted in a transaction
  commit or rollback.
  @return always DB_SUCCESS */
 dberr_t trx_savepoint_for_mysql(
-    /*====================*/
     trx_t *trx,                 /*!< in: transaction handle */
     const char *savepoint_name, /*!< in: savepoint name */
     int64_t binlog_cache_pos)   /*!< in: MySQL binlog cache
@@ -536,13 +509,11 @@ dberr_t trx_savepoint_for_mysql(
   return (DB_SUCCESS);
 }
 
-/*******************************************************************/ /**
- Releases only the named savepoint. Savepoints which were set after this
+/** Releases only the named savepoint. Savepoints which were set after this
  savepoint are left as is.
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
 dberr_t trx_release_savepoint_for_mysql(
-    /*============================*/
     trx_t *trx,                 /*!< in: transaction handle */
     const char *savepoint_name) /*!< in: savepoint name */
 {
@@ -560,24 +531,18 @@ dberr_t trx_release_savepoint_for_mysql(
   return (savep != NULL ? DB_SUCCESS : DB_NO_SAVEPOINT);
 }
 
-/*******************************************************************/ /**
- Determines if this transaction is rolling back an incomplete transaction
+/** Determines if this transaction is rolling back an incomplete transaction
  in crash recovery.
  @return true if trx is an incomplete transaction that is being rolled
  back in crash recovery */
-ibool trx_is_recv(
-    /*========*/
-    const trx_t *trx) /*!< in: transaction */
+ibool trx_is_recv(const trx_t *trx) /*!< in: transaction */
 {
   return (trx == trx_roll_crash_recv_trx);
 }
 
-/*******************************************************************/ /**
- Returns a transaction savepoint taken at this point in time.
+/** Returns a transaction savepoint taken at this point in time.
  @return savepoint */
-trx_savept_t trx_savept_take(
-    /*============*/
-    trx_t *trx) /*!< in: transaction */
+trx_savept_t trx_savept_take(trx_t *trx) /*!< in: transaction */
 {
   trx_savept_t savept;
 
@@ -586,11 +551,8 @@ trx_savept_t trx_savept_take(
   return (savept);
 }
 
-/*******************************************************************/ /**
- Roll back an active transaction. */
-static void trx_rollback_active(
-    /*================*/
-    trx_t *trx) /*!< in/out: transaction */
+/** Roll back an active transaction. */
+static void trx_rollback_active(trx_t *trx) /*!< in/out: transaction */
 {
   mem_heap_t *heap;
   que_fork_t *fork;
@@ -656,14 +618,12 @@ static void trx_rollback_active(
   trx_roll_crash_recv_trx = NULL;
 }
 
-/*******************************************************************/ /**
- Rollback or clean up any resurrected incomplete transactions. It assumes
+/** Rollback or clean up any resurrected incomplete transactions. It assumes
  that the caller holds the trx_sys_t::mutex and it will release the
  lock if it does a clean up or rollback.
  @return true if the transaction was cleaned up or rolled back
  and trx_sys->mutex was released. */
 static ibool trx_rollback_resurrected(
-    /*=====================*/
     trx_t *trx, /*!< in: transaction to rollback or clean */
     ibool all)  /*!< in: FALSE=roll back dictionary transactions;
                 TRUE=roll back all non-PREPARED transactions */
@@ -711,13 +671,11 @@ static ibool trx_rollback_resurrected(
   return (FALSE);
 }
 
-/*******************************************************************/ /**
- Rollback or clean up any incomplete transactions which were
+/** Rollback or clean up any incomplete transactions which were
  encountered in crash recovery.  If the transaction already was
  committed, then we clean up a possible insert undo log. If the
  transaction was not yet committed, then we roll it back. */
 void trx_rollback_or_clean_recovered(
-    /*============================*/
     ibool all) /*!< in: FALSE=roll back dictionary transactions;
                TRUE=roll back all non-PREPARED transactions */
 {
@@ -793,10 +751,8 @@ void trx_recovery_rollback_thread() {
   my_thread_end();
 }
 
-/***********************************************************************/ /**
- Tries truncate the undo logs. */
+/** Tries truncate the undo logs. */
 static void trx_roll_try_truncate(
-    /*==================*/
     trx_t *trx,               /*!< in/out: transaction */
     trx_undo_ptr_t *undo_ptr) /*!< in: rollback segment to look
                               for next undo log record. */
@@ -815,12 +771,10 @@ static void trx_roll_try_truncate(
   }
 }
 
-/***********************************************************************/ /**
- Pops the topmost undo log record in a single undo log and updates the info
+/** Pops the topmost undo log record in a single undo log and updates the info
  about the topmost record in the undo log memory struct.
  @return undo log record, the page s-latched */
 static trx_undo_rec_t *trx_roll_pop_top_rec(
-    /*=================*/
     trx_t *trx,       /*!< in: transaction */
     trx_undo_t *undo, /*!< in: undo log */
     mtr_t *mtr)       /*!< in: mtr */
@@ -852,13 +806,11 @@ static trx_undo_rec_t *trx_roll_pop_top_rec(
   return (undo_page + offset);
 }
 
-/********************************************************************/ /**
- Pops the topmost record when the two undo logs of a transaction are seen
+/** Pops the topmost record when the two undo logs of a transaction are seen
  as a single stack of records ordered by their undo numbers.
  @return undo log record copied to heap, NULL if none left, or if the
  undo number of the top record would be less than the limit */
 static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
-    /*============================*/
     trx_t *trx,               /*!< in/out: transaction */
     trx_undo_ptr_t *undo_ptr, /*!< in: rollback segment to look
                               for next undo log record. */
@@ -953,12 +905,10 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   return (undo_rec_copy);
 }
 
-/********************************************************************/ /**
- Get next undo log record from redo and noredo rollback segments.
+/** Get next undo log record from redo and noredo rollback segments.
  @return undo log record copied to heap, NULL if none left, or if the
  undo number of the top record would be less than the limit */
 trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
-    /*========================*/
     trx_t *trx,           /*!< in: transaction */
     undo_no_t limit,      /*!< in: least undo number we need */
     roll_ptr_t *roll_ptr, /*!< out: roll pointer to undo record */
@@ -979,15 +929,12 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
   return (undo_rec);
 }
 
-/****************************************************************/ /**
- Builds an undo 'query' graph for a transaction. The actual rollback is
+/** Builds an undo 'query' graph for a transaction. The actual rollback is
  performed by executing this query graph like a query subprocedure call.
  The reply about the completion of the rollback will be sent by this
  graph.
  @return own: the query graph */
-static que_t *trx_roll_graph_build(
-    /*=================*/
-    trx_t *trx) /*!< in/out: transaction */
+static que_t *trx_roll_graph_build(trx_t *trx) /*!< in/out: transaction */
 {
   mem_heap_t *heap;
   que_fork_t *fork;
@@ -1006,12 +953,10 @@ static que_t *trx_roll_graph_build(
   return (fork);
 }
 
-/*********************************************************************/ /**
- Starts a rollback operation, creates the UNDO graph that will do the
+/** Starts a rollback operation, creates the UNDO graph that will do the
  actual undo operation.
  @return query graph thread that will perform the UNDO operations. */
 static que_thr_t *trx_rollback_start(
-    /*===============*/
     trx_t *trx,         /*!< in: transaction */
     ib_id_t roll_limit) /*!< in: rollback to undo no (for
                         partial undo), 0 if we are rolling back
@@ -1042,11 +987,8 @@ static que_thr_t *trx_rollback_start(
   return (que_fork_start_command(roll_graph));
 }
 
-/****************************************************************/ /**
- Finishes a transaction rollback. */
-static void trx_rollback_finish(
-    /*================*/
-    trx_t *trx) /*!< in: transaction */
+/** Finishes a transaction rollback. */
+static void trx_rollback_finish(trx_t *trx) /*!< in: transaction */
 {
   trx_commit(trx);
 
@@ -1055,11 +997,9 @@ static void trx_rollback_finish(
   trx->lock.que_state = TRX_QUE_RUNNING;
 }
 
-/*********************************************************************/ /**
- Creates a rollback command node struct.
+/** Creates a rollback command node struct.
  @return own: rollback node struct */
 roll_node_t *roll_node_create(
-    /*=============*/
     mem_heap_t *heap) /*!< in: mem heap where created */
 {
   roll_node_t *node;
@@ -1073,12 +1013,9 @@ roll_node_t *roll_node_create(
   return (node);
 }
 
-/***********************************************************/ /**
- Performs an execution step for a rollback command node in a query graph.
+/** Performs an execution step for a rollback command node in a query graph.
  @return query thread to run next, or NULL */
-que_thr_t *trx_rollback_step(
-    /*==============*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *trx_rollback_step(que_thr_t *thr) /*!< in: query thread */
 {
   roll_node_t *node;
 
