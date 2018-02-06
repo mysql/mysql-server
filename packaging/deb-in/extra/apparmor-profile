@@ -39,6 +39,9 @@
   /run/mysqld/mysqlx.sock rw,
   /run/mysqld/mysqlx.sock.lock rw,
 
+# Allow systemd notify messages
+  /{,var/}run/systemd/notify w,
+
 # Allow execution of server binary
   /usr/sbin/mysqld mr,
   /usr/sbin/mysqld-debug mr,
