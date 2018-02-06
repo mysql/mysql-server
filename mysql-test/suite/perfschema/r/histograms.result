@@ -208,8 +208,8 @@ select DIGEST_TEXT,
 (QUANTILE_99 <= QUANTILE_999) as check_3
 from performance_schema.events_statements_summary_by_digest;
 DIGEST_TEXT	check_title	check_1	check_2	check_3
-SELECT ? AS `marker_one` 	Check quantile relative values	1	1	1
-SELECT ? AS `marker_two` 	Check quantile relative values	1	1	1
+SELECT ? AS `marker_one`	Check quantile relative values	1	1	1
+SELECT ? AS `marker_two`	Check quantile relative values	1	1	1
 select
 DIGEST_TEXT,
 "Check quantile values within bounds" as check_title,
@@ -219,7 +219,7 @@ DIGEST_TEXT,
 from performance_schema.events_statements_summary_by_digest
 where DIGEST = @digest_one;
 DIGEST_TEXT	check_title	check_1	check_2	check_3
-SELECT ? AS `marker_one` 	Check quantile values within bounds	1	1	1
+SELECT ? AS `marker_one`	Check quantile values within bounds	1	1	1
 truncate table performance_schema.events_statements_histogram_by_digest;
 select count(*)
 from performance_schema.events_statements_histogram_by_digest
@@ -248,8 +248,8 @@ sum(COUNT_BUCKET)
 select DIGEST_TEXT, COUNT_STAR
 from performance_schema.events_statements_summary_by_digest;
 DIGEST_TEXT	COUNT_STAR
-SELECT ? AS `marker_one` 	3
-SELECT ? AS `marker_two` 	2
+SELECT ? AS `marker_one`	3
+SELECT ? AS `marker_two`	2
 select "A 2nd statement, again" as marker_two;
 marker_two
 A 2nd statement, again
@@ -285,8 +285,8 @@ sum(COUNT_BUCKET)
 select DIGEST_TEXT, COUNT_STAR
 from performance_schema.events_statements_summary_by_digest;
 DIGEST_TEXT	COUNT_STAR
-SELECT ? AS `marker_one` 	3
-SELECT ? AS `marker_two` 	3
+SELECT ? AS `marker_one`	3
+SELECT ? AS `marker_two`	3
 select "A 1st statement, again" as marker_one;
 marker_one
 A 1st statement, again
