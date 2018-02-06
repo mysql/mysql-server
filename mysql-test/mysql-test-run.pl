@@ -70,6 +70,7 @@ use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
 use My::Options;
+use My::File::Path qw / get_bld_path /;
 use My::Find;
 use My::SysInfo;
 use My::CoreDump;
@@ -4073,8 +4074,16 @@ sub mysql_install_db {
   }
 
   # Arguments to bootstrap process.
+  my $init_file;
   foreach my $extra_opt ( @opt_extra_bootstrap_opt ) {
-      mtr_add_arg($args, $extra_opt);
+    # If init-file is passed, get the file path to merge
+    # the contents of the file with bootstrap.sql
+    if ($extra_opt =~ /--init[-_]file=(.*)/)
+    {
+      $init_file = $1;
+    }
+    $init_file = get_bld_path($init_file);
+    mtr_add_arg($args, $extra_opt);
   }
 
   # Add bootstrap arguments from the opt file, if any
@@ -4194,6 +4203,14 @@ sub mysql_install_db {
   # Add procedures for checking server is restored after testcase
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
+
+  if (defined $init_file)
+  {
+    # Append the contents of the init-file to the end
+    # of bootstrap.sql
+    mtr_tofile($bootstrap_sql_file, "use test;\n");
+    mtr_appendfile_to_file($init_file, $bootstrap_sql_file);
+  }
 
   # Set blacklist option early so it works during bootstrap
   $ENV{'TSAN_OPTIONS'}= "suppressions=$basedir/mysql-test/tsan.supp" if $opt_sanitize;
@@ -6087,7 +6104,14 @@ sub mysqld_arguments ($$$) {
     # Skip option file options because they are handled above
     next if ( grep { $arg =~ $_ } @options);
 
-    if ($arg =~ /--log[-_]error=/ or $arg =~ /--log[-_]error$/)
+    if ($arg =~/--init[-_]file=(.*)/)
+    {
+      # If the path given to the init file is relative
+      # to an out of source build, the file should
+      # be looked for in the MTR_BINDIR.
+      $arg = "--init-file=" . get_bld_path($1);
+    }
+    elsif ($arg =~ /--log[-_]error=/ or $arg =~ /--log[-_]error$/)
     {
       $found_log_error= 1;
     }
