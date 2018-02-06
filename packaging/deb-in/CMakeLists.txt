@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -115,7 +115,6 @@ usr/lib/mysql/plugin/debug/keyring_aws.so
     SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_CURL=${WITH_CURL}")
   ENDIF()
   SET (DEB_REMOVEPATTERN "gpl.in")
-  SET (DEB_CONTROL_BDEPS_EXTRA ",libldap2-dev, libsasl2-dev")
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -126,7 +125,6 @@ ELSE()
   SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
-  SET (DEB_CONTROL_BDEPS_EXTRA "")
 ENDIF()
 
 # Platform specifics. The differences are generally only distro version
