@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/ut0counter.h
+/** @file include/ut0counter.h
 
  Counter utility class
 

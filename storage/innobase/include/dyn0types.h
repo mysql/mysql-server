@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dyn0types.h
+/** @file include/dyn0types.h
  The dynamically allocated buffer types and constants
 
  Created 2013-03-16 Sunny Bains

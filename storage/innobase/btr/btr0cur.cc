@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -32,8 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file btr/btr0cur.cc
+/** @file btr/btr0cur.cc
  The index tree cursor
 
  All changes that row operations make to a B-tree or the records
@@ -153,11 +152,9 @@ can be released by page reorganize, then it is reorganized */
    ((sample) + (ext_size)))
 
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************/ /**
- Adds path information to the cursor for the current page, for which
+/** Adds path information to the cursor for the current page, for which
  the binary search has been performed. */
 static void btr_cur_add_path_info(
-    /*==================*/
     btr_cur_t *cursor,  /*!< in: cursor positioned on a page */
     ulint height,       /*!< in: height of the page in tree;
                         0 means leaf node */
@@ -590,8 +587,7 @@ static bool btr_cur_need_opposite_intention(const page_t *page,
   return (false);
 }
 
-/********************************************************************/ /**
- Searches an index tree and positions a tree cursor on a given level.
+/** Searches an index tree and positions a tree cursor on a given level.
  NOTE: n_fields_cmp in tuple must be set so that it cannot be compared
  to node pointer page number fields on the upper levels of the tree!
  Note that if mode is PAGE_CUR_LE, which is used in inserts, then
@@ -603,7 +599,6 @@ static bool btr_cur_need_opposite_intention(const page_t *page,
  immediately after the cursor. Thus, the cursor may end up on a user record,
  or on a page infimum record. */
 void btr_cur_search_to_nth_level(
-    /*========================*/
     dict_index_t *index,   /*!< in: index */
     ulint level,           /*!< in: the tree level of search */
     const dtuple_t *tuple, /*!< in: data tuple; NOTE: n_fields_cmp in
@@ -1851,10 +1846,8 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   DBUG_VOID_RETURN;
 }
 
-/*****************************************************************/ /**
- Opens a cursor at either end of an index. */
+/** Opens a cursor at either end of an index. */
 void btr_cur_open_at_index_side_func(
-    /*============================*/
     bool from_left,      /*!< in: true if open to the low end,
                          false if to the high end */
     dict_index_t *index, /*!< in: index */
@@ -2262,12 +2255,10 @@ void btr_cur_open_at_index_side_with_no_latch_func(
   }
 }
 
-/**********************************************************************/ /**
- Positions a cursor at a randomly chosen position within a B-tree.
+/** Positions a cursor at a randomly chosen position within a B-tree.
  @return true if the index is available and we have put the cursor, false
  if the index is unavailable */
 bool btr_cur_open_at_rnd_pos_func(
-    /*=========================*/
     dict_index_t *index, /*!< in: index */
     ulint latch_mode,    /*!< in: BTR_SEARCH_LEAF, ... */
     btr_cur_t *cursor,   /*!< in/out: B-tree cursor */
@@ -2519,8 +2510,7 @@ bool btr_cur_open_at_rnd_pos_func(
 
 /*==================== B-TREE INSERT =========================*/
 
-/*************************************************************/ /**
- Inserts a record if there is enough space, or if enough space can
+/** Inserts a record if there is enough space, or if enough space can
  be freed by reorganizing. Differs from btr_cur_optimistic_insert because
  no heuristics is applied to whether it pays to use CPU time for
  reorganizing the page or not.
@@ -2532,7 +2522,6 @@ bool btr_cur_open_at_rnd_pos_func(
 
  @return pointer to inserted record if succeed, else NULL */
 static MY_ATTRIBUTE((warn_unused_result)) rec_t *btr_cur_insert_if_possible(
-    /*=======================*/
     btr_cur_t *cursor,     /*!< in: cursor on page after which to insert;
                            cursor stays valid */
     const dtuple_t *tuple, /*!< in: tuple to insert; the size info need not
@@ -2568,12 +2557,10 @@ static MY_ATTRIBUTE((warn_unused_result)) rec_t *btr_cur_insert_if_possible(
   return (rec);
 }
 
-/*************************************************************/ /**
- For an insert, checks the locks and does the undo logging if desired.
+/** For an insert, checks the locks and does the undo logging if desired.
  @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
     btr_cur_ins_lock_and_undo(
-        /*======================*/
         ulint flags,       /*!< in: undo logging and locking flags: if
                            not zero, the parameters index and thr
                            should be specified */
@@ -2674,15 +2661,13 @@ static void btr_cur_prefetch_siblings(buf_block_t *block) {
   }
 }
 
-/*************************************************************/ /**
- Tries to perform an insert to a page in an index tree, next to cursor.
+/** Tries to perform an insert to a page in an index tree, next to cursor.
  It is assumed that mtr holds an x-latch on the page. The operation does
  not succeed if there is too little space on the page. If there is just
  one record on the page, the insert will always succeed; this is to
  prevent trying to split a page with just one record.
  @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 dberr_t btr_cur_optimistic_insert(
-    /*======================*/
     ulint flags,         /*!< in: undo logging and locking flags: if not
                          zero, the parameters index and thr should be
                          specified */
@@ -2936,14 +2921,12 @@ dberr_t btr_cur_optimistic_insert(
   return (DB_SUCCESS);
 }
 
-/*************************************************************/ /**
- Performs an insert on a page of an index tree. It is assumed that mtr
+/** Performs an insert on a page of an index tree. It is assumed that mtr
  holds an x-latch on the tree and on the cursor page. If the insert is
  made on the leaf level, to avoid deadlocks, mtr must also own x-latches
  to brothers of page, if those brothers exist.
  @return DB_SUCCESS or error number */
 dberr_t btr_cur_pessimistic_insert(
-    /*=======================*/
     ulint flags,         /*!< in: undo logging and locking flags: if not
                          zero, the parameter thr should be
                          specified; if no undo logging is specified,
@@ -3089,12 +3072,10 @@ dberr_t btr_cur_pessimistic_insert(
 
 /*==================== B-TREE UPDATE =========================*/
 
-/*************************************************************/ /**
- For an update, checks the locks and does the undo logging.
+/** For an update, checks the locks and does the undo logging.
  @return DB_SUCCESS, DB_WAIT_LOCK, or error number */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
     btr_cur_upd_lock_and_undo(
-        /*======================*/
         ulint flags,          /*!< in: undo logging and locking flags */
         btr_cur_t *cursor,    /*!< in: cursor on record to update */
         const ulint *offsets, /*!< in: rec_get_offsets() on cursor */
@@ -3144,10 +3125,8 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
                                         roll_ptr));
 }
 
-/***********************************************************/ /**
- Writes a redo log record of updating a record in-place. */
+/** Writes a redo log record of updating a record in-place. */
 void btr_cur_update_in_place_log(
-    /*========================*/
     ulint flags,         /*!< in: flags */
     const rec_t *rec,    /*!< in: record */
     dict_index_t *index, /*!< in: index of the record */
@@ -3202,11 +3181,9 @@ void btr_cur_update_in_place_log(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/***********************************************************/ /**
- Parses a redo log record of updating a record in-place.
+/** Parses a redo log record of updating a record in-place.
  @return end of log record or NULL */
 byte *btr_cur_parse_update_in_place(
-    /*==========================*/
     byte *ptr,                /*!< in: buffer */
     byte *end_ptr,            /*!< in: buffer end */
     page_t *page,             /*!< in/out: page or NULL */
@@ -3275,8 +3252,7 @@ func_exit:
 }
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************/ /**
- See if there is enough place in the page modification log to log
+/** See if there is enough place in the page modification log to log
  an update-in-place.
 
  @retval false if out of space; IBUF_BITMAP_FREE will be reset
@@ -3288,7 +3264,6 @@ func_exit:
  same mini-transaction, or by invoking ibuf_reset_free_bits() before
  mtr_commit(mtr). */
 bool btr_cur_update_alloc_zip_func(
-    /*==========================*/
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     page_cur_t *cursor,       /*!< in/out: B-tree page cursor */
     dict_index_t *index,      /*!< in: the index corresponding to cursor */
@@ -3355,15 +3330,13 @@ out_of_space:
   return (false);
 }
 
-/*************************************************************/ /**
- Updates a record when the update causes no size changes in its fields.
+/** Updates a record when the update causes no size changes in its fields.
  We assume here that the ordering fields of the record do not change.
  @return locking or undo log related error code, or
  @retval DB_SUCCESS on success
  @retval DB_ZIP_OVERFLOW if there is not enough space left
  on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
 dberr_t btr_cur_update_in_place(
-    /*====================*/
     ulint flags,         /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,   /*!< in: cursor on the record to update;
                          cursor stays valid and positioned on the
@@ -3498,8 +3471,7 @@ func_exit:
   return (err);
 }
 
-/*************************************************************/ /**
- Tries to update a record on a page in an index tree. It is assumed that mtr
+/** Tries to update a record on a page in an index tree. It is assumed that mtr
  holds an x-latch on the page. The operation does not succeed if there is too
  little space on the page or if the update would result in too empty a page,
  so that tree compression is recommended. We assume here that the ordering
@@ -3511,7 +3483,6 @@ func_exit:
  @retval DB_ZIP_OVERFLOW if there is not enough space left
  on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
 dberr_t btr_cur_optimistic_update(
-    /*======================*/
     ulint flags,         /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,   /*!< in: cursor on the record to update;
                          cursor stays valid and positioned on the
@@ -3759,14 +3730,12 @@ func_exit:
   return (err);
 }
 
-/*************************************************************/ /**
- If, in a split, a new supremum record was created as the predecessor of the
+/** If, in a split, a new supremum record was created as the predecessor of the
  updated record, the supremum record must inherit exactly the locks on the
  updated record. In the split it may have inherited locks from the successor
  of the updated record, which is not correct. This function restores the
  right locks for the new supremum. */
 static void btr_cur_pess_upd_restore_supremum(
-    /*==============================*/
     buf_block_t *block, /*!< in: buffer block of rec */
     const rec_t *rec,   /*!< in: updated record */
     mtr_t *mtr)         /*!< in: mtr */
@@ -3798,15 +3767,13 @@ static void btr_cur_pess_upd_restore_supremum(
   lock_rec_reset_and_inherit_gap_locks(prev_block, block, PAGE_HEAP_NO_SUPREMUM,
                                        page_rec_get_heap_no(rec));
 }
-/*************************************************************/ /**
- Performs an update of a record on a page of a tree. It is assumed
+/** Performs an update of a record on a page of a tree. It is assumed
  that mtr holds an x-latch on the tree and on the cursor page. If the
  update is made on the leaf level, to avoid deadlocks, mtr must also
  own x-latches to brothers of page, if those brothers exist. We assume
  here that the ordering fields of the record do not change.
  @return DB_SUCCESS or error code */
 dberr_t btr_cur_pessimistic_update(
-    /*=======================*/
     ulint flags,       /*!< in: undo logging, locking, and rollback
                        flags */
     btr_cur_t *cursor, /*!< in/out: cursor on the record to update;
@@ -4198,12 +4165,10 @@ return_after_reservations:
 
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
 
-/****************************************************************/ /**
- Writes the redo log record for delete marking or unmarking of an index
+/** Writes the redo log record for delete marking or unmarking of an index
  record. */
 UNIV_INLINE
 void btr_cur_del_mark_set_clust_rec_log(
-    /*===============================*/
     rec_t *rec,          /*!< in: record */
     dict_index_t *index, /*!< in: index of the record */
     trx_id_t trx_id,     /*!< in: transaction id */
@@ -4237,12 +4202,10 @@ void btr_cur_del_mark_set_clust_rec_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/****************************************************************/ /**
- Parses the redo log record for delete marking or unmarking of a clustered
+/** Parses the redo log record for delete marking or unmarking of a clustered
  index record.
  @return end of log record or NULL */
 byte *btr_cur_parse_del_mark_set_clust_rec(
-    /*=================================*/
     byte *ptr,                /*!< in: buffer */
     byte *end_ptr,            /*!< in: buffer end */
     page_t *page,             /*!< in/out: page or NULL */
@@ -4312,14 +4275,12 @@ byte *btr_cur_parse_del_mark_set_clust_rec(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************/ /**
- Marks a clustered index record deleted. Writes an undo log record to
+/** Marks a clustered index record deleted. Writes an undo log record to
  undo log on this delete marking. Writes in the trx id field the id
  of the deleting transaction, and in the roll ptr field pointer to the
  undo log record created.
  @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
 dberr_t btr_cur_del_mark_set_clust_rec(
-    /*===========================*/
     ulint flags,           /*!< in: undo logging and locking flags */
     buf_block_t *block,    /*!< in/out: buffer block of the record */
     rec_t *rec,            /*!< in/out: record */
@@ -4396,15 +4357,12 @@ dberr_t btr_cur_del_mark_set_clust_rec(
   return (err);
 }
 
-/****************************************************************/ /**
- Writes the redo log record for a delete mark setting of a secondary
+/** Writes the redo log record for a delete mark setting of a secondary
  index record. */
 UNIV_INLINE
-void btr_cur_del_mark_set_sec_rec_log(
-    /*=============================*/
-    rec_t *rec, /*!< in: record */
-    ibool val,  /*!< in: value to set */
-    mtr_t *mtr) /*!< in: mtr */
+void btr_cur_del_mark_set_sec_rec_log(rec_t *rec, /*!< in: record */
+                                      ibool val,  /*!< in: value to set */
+                                      mtr_t *mtr) /*!< in: mtr */
 {
   byte *log_ptr;
   ut_ad(val <= 1);
@@ -4429,12 +4387,10 @@ void btr_cur_del_mark_set_sec_rec_log(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/****************************************************************/ /**
- Parses the redo log record for delete marking or unmarking of a secondary
+/** Parses the redo log record for delete marking or unmarking of a secondary
  index record.
  @return end of log record or NULL */
 byte *btr_cur_parse_del_mark_set_sec_rec(
-    /*===============================*/
     byte *ptr,                /*!< in: buffer */
     byte *end_ptr,            /*!< in: buffer end */
     page_t *page,             /*!< in/out: page or NULL */
@@ -4471,11 +4427,9 @@ byte *btr_cur_parse_del_mark_set_sec_rec(
 }
 
 #ifndef UNIV_HOTBACKUP
-/***********************************************************/ /**
- Sets a secondary index record delete mark to TRUE or FALSE.
+/** Sets a secondary index record delete mark to TRUE or FALSE.
  @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
 dberr_t btr_cur_del_mark_set_sec_rec(
-    /*=========================*/
     ulint flags,       /*!< in: locking flag */
     btr_cur_t *cursor, /*!< in: cursor */
     ibool val,         /*!< in: value to set */
@@ -4513,11 +4467,9 @@ dberr_t btr_cur_del_mark_set_sec_rec(
   return (DB_SUCCESS);
 }
 
-/***********************************************************/ /**
- Sets a secondary index record's delete mark to the given value. This
+/** Sets a secondary index record's delete mark to the given value. This
  function is only used by the insert buffer merge mechanism. */
 void btr_cur_set_deleted_flag_for_ibuf(
-    /*==============================*/
     rec_t *rec,               /*!< in/out: record */
     page_zip_des_t *page_zip, /*!< in/out: compressed page
                               corresponding to rec, or NULL
@@ -4539,15 +4491,13 @@ void btr_cur_set_deleted_flag_for_ibuf(
 
 /*==================== B-TREE RECORD REMOVE =========================*/
 
-/*************************************************************/ /**
- Tries to compress a page of the tree if it seems useful. It is assumed
+/** Tries to compress a page of the tree if it seems useful. It is assumed
  that mtr holds an x-latch on the tree and on the cursor page. To avoid
  deadlocks, mtr must also own x-latches to brothers of page, if those
  brothers exist. NOTE: it is assumed that the caller has reserved enough
  free extents so that the compression will always succeed if done!
  @return true if compression occurred */
 ibool btr_cur_compress_if_useful(
-    /*=======================*/
     btr_cur_t *cursor, /*!< in/out: cursor on the page to compress;
                        cursor does not stay valid if !adjust and
                        compression occurs */
@@ -4587,13 +4537,11 @@ ibool btr_cur_compress_if_useful(
           btr_compress(cursor, adjust, mtr));
 }
 
-/*******************************************************/ /**
- Removes the record on which the tree cursor is positioned on a leaf page.
+/** Removes the record on which the tree cursor is positioned on a leaf page.
  It is assumed that the mtr has an x-latch on the page where the cursor is
  positioned, but no latch on the whole tree.
  @return true if success, i.e., the page did not become too empty */
 ibool btr_cur_optimistic_delete_func(
-    /*===========================*/
     btr_cur_t *cursor, /*!< in: cursor on leaf page, on the record to
                        delete; cursor stays valid: if deletion
                        succeeds, on function exit it points to the
@@ -4686,8 +4634,7 @@ ibool btr_cur_optimistic_delete_func(
   return (no_compress_needed);
 }
 
-/*************************************************************/ /**
- Removes the record on which the tree cursor is positioned. Tries
+/** Removes the record on which the tree cursor is positioned. Tries
  to compress the page if its fillfactor drops below a threshold
  or if it is the only page on the level. It is assumed that mtr holds
  an x-latch on the tree and on the cursor page. To avoid deadlocks,
@@ -4696,7 +4643,6 @@ ibool btr_cur_optimistic_delete_func(
  @return true if compression occurred and false if not or something
  wrong. */
 ibool btr_cur_pessimistic_delete(
-    /*=======================*/
     dberr_t *err,               /*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
                                 the latter may occur because we may have
                                 to update node pointers on upper levels,
@@ -4900,11 +4846,9 @@ return_after_reservations:
   DBUG_RETURN(ret);
 }
 
-/*******************************************************************/ /**
- Adds path information to the cursor for the current page, for which
+/** Adds path information to the cursor for the current page, for which
  the binary search has been performed. */
 static void btr_cur_add_path_info(
-    /*==================*/
     btr_cur_t *cursor, /*!< in: cursor positioned on a page */
     ulint height,      /*!< in: height of the page in tree;
                        0 means leaf node */
@@ -4943,8 +4887,7 @@ static void btr_cur_add_path_info(
   slot->page_level = btr_page_get_level_low(page);
 }
 
-/*******************************************************************/ /**
- Estimate the number of rows between slot1 and slot2 for any level on a
+/** Estimate the number of rows between slot1 and slot2 for any level on a
  B-tree. This function starts from slot1->page and reads a few pages to
  the right, counting their records. If we reach slot2->page quickly then
  we know exactly how many records there are between slot1 and slot2 and
@@ -4956,7 +4899,6 @@ static void btr_cur_add_path_info(
  n_rows_on_prev_level). In this case we set is_n_rows_exact to FALSE.
  @return number of rows, not including the borders (exact or estimated) */
 static int64_t btr_estimate_n_rows_in_range_on_level(
-    /*==================================*/
     dict_index_t *index,          /*!< in: index */
     btr_path_t *slot1,            /*!< in: left border */
     btr_path_t *slot2,            /*!< in: right border */
@@ -5437,13 +5379,11 @@ int64_t btr_estimate_n_rows_in_range(dict_index_t *index,
   return (ret);
 }
 
-/*******************************************************************/ /**
- Record the number of non_null key values in a given index for
+/** Record the number of non_null key values in a given index for
  each n-column prefix of the index where 1 <= n <=
  dict_index_get_n_unique(index). The estimates are eventually stored in the
  array: index->stat_n_non_null_key_vals[], which is indexed from 0 to n-1. */
 static void btr_record_not_null_field_in_rec(
-    /*=============================*/
     ulint n_unique,          /*!< in: dict_index_get_n_unique(index),
                              number of columns uniquely determine
                              an index entry */
@@ -5470,8 +5410,7 @@ static void btr_record_not_null_field_in_rec(
   }
 }
 
-/*******************************************************************/ /**
- Estimates the number of different key values in a given index, for
+/** Estimates the number of different key values in a given index, for
  each n-column prefix of the index where 1 <= n <=
  dict_index_get_n_unique(index). The estimates are stored in the array
  index->stat_n_diff_key_vals[] (indexed 0..n_uniq-1) and the number of pages
@@ -5482,7 +5421,6 @@ static void btr_record_not_null_field_in_rec(
  @return true if the index is available and we get the estimated numbers,
  false if the index is unavailable. */
 bool btr_estimate_number_of_different_key_vals(
-    /*======================================*/
     dict_index_t *index) /*!< in: index */
 {
   btr_cur_t cursor;

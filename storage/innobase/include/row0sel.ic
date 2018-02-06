@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0sel.ic
+/** @file include/row0sel.ic
  Select
 
  Created 12/19/1997 Heikki Tuuri
@@ -33,39 +32,31 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "que0que.h"
 
-/*********************************************************************/ /**
- Gets the plan node for the nth table in a join.
+/** Gets the plan node for the nth table in a join.
  @return plan node */
 UNIV_INLINE
-plan_t *sel_node_get_nth_plan(
-    /*==================*/
-    sel_node_t *node, /*!< in: select node */
-    ulint i)          /*!< in: get ith plan node */
+plan_t *sel_node_get_nth_plan(sel_node_t *node, /*!< in: select node */
+                              ulint i)          /*!< in: get ith plan node */
 {
   ut_ad(i < node->n_tables);
 
   return (node->plans + i);
 }
 
-/*********************************************************************/ /**
- Resets the cursor defined by sel_node to the SEL_NODE_OPEN state, which means
- that it will start fetching from the start of the result set again, regardless
- of where it was before, and it will set intention locks on the tables. */
+/** Resets the cursor defined by sel_node to the SEL_NODE_OPEN state, which
+ means that it will start fetching from the start of the result set again,
+ regardless of where it was before, and it will set intention locks on the
+ tables. */
 UNIV_INLINE
-void sel_node_reset_cursor(
-    /*==================*/
-    sel_node_t *node) /*!< in: select node */
+void sel_node_reset_cursor(sel_node_t *node) /*!< in: select node */
 {
   node->state = SEL_NODE_OPEN;
 }
 
-/**********************************************************************/ /**
- Performs an execution step of an open or close cursor statement node.
+/** Performs an execution step of an open or close cursor statement node.
  @return query thread to run next or NULL */
 UNIV_INLINE
-que_thr_t *open_step(
-    /*======*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *open_step(que_thr_t *thr) /*!< in: query thread */
 {
   sel_node_t *sel_node;
   open_node_t *node;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************/ /**
- @file include/btr0sea.h
+/** @file include/btr0sea.h
  The index tree adaptive search
 
  Created 2/17/1996 Heikki Tuuri
@@ -59,13 +58,10 @@ void btr_search_disable(bool need_mutex);
 /** Enable the adaptive hash search system. */
 void btr_search_enable();
 
-/********************************************************************/ /**
- Returns search info for an index.
+/** Returns search info for an index.
  @return search info; search mutex reserved */
 UNIV_INLINE
-btr_search_t *btr_search_get_info(
-    /*================*/
-    dict_index_t *index); /*!< in: index */
+btr_search_t *btr_search_get_info(dict_index_t *index); /*!< in: index */
 
 /** Creates and initializes a search info struct.
 @param[in]	heap		heap where created.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/buf0flu.h
+/** @file include/buf0flu.h
  The database buffer pool flush algorithm
 
  Created 11/5/1995 Heikki Tuuri
@@ -59,12 +58,10 @@ class ut_stage_alter_t;
 @param[in]	bpage	pointer to the block in question */
 void buf_flush_remove(buf_page_t *bpage);
 
-/*******************************************************************/ /**
- Relocates a buffer control block on the flush_list.
+/** Relocates a buffer control block on the flush_list.
  Note that it is assumed that the contents of bpage has already been
  copied to dpage. */
 void buf_flush_relocate_on_flush_list(
-    /*=============================*/
     buf_page_t *bpage,  /*!< in/out: control block being moved */
     buf_page_t *dpage); /*!< in/out: destination block */
 
@@ -136,10 +133,8 @@ is not fast enough to keep pace with the workload.
 @return true if success. */
 bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool);
 
-/******************************************************************/ /**
- Waits until a flush batch of the given type ends */
+/** Waits until a flush batch of the given type ends */
 void buf_flush_wait_batch_end(
-    /*=====================*/
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_flush_t type);    /*!< in: BUF_FLUSH_LRU
                           or BUF_FLUSH_LIST */
@@ -205,25 +200,18 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners);
 void buf_flush_wait_LRU_batch_end();
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/******************************************************************/ /**
- Validates the flush list.
+/** Validates the flush list.
  @return true if ok */
-ibool buf_flush_validate(
-    /*===============*/
-    buf_pool_t *buf_pool);
+ibool buf_flush_validate(buf_pool_t *buf_pool);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-/********************************************************************/ /**
- Initialize the red-black tree to speed up insertions into the flush_list
+/** Initialize the red-black tree to speed up insertions into the flush_list
  during recovery process. Should be called at the start of recovery
  process before any page has been read/written. */
 void buf_flush_init_flush_rbt(void);
-/*==========================*/
 
-/********************************************************************/ /**
- Frees up the red-black tree. */
+/** Frees up the red-black tree. */
 void buf_flush_free_flush_rbt(void);
-/*==========================*/
 
 /** Writes a flushable page asynchronously from the buffer pool to a file.
 NOTE: 1. in simulated aio we must call os_aio_simulated_wake_handler_threads
@@ -246,22 +234,18 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
 bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type)
     MY_ATTRIBUTE((warn_unused_result));
 
-/******************************************************************/ /**
- Check if there are any dirty pages that belong to a space id in the flush
+/** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
 ulint buf_pool_get_dirty_pages_count(
-    /*===========================*/
     buf_pool_t *buf_pool,     /*!< in: buffer pool */
     space_id_t id,            /*!< in: space id to check */
     FlushObserver *observer); /*!< in: flush observer to check */
 
-/*******************************************************************/ /**
- Synchronously flush dirty blocks from the end of the flush list of all buffer
- pool instances.
- NOTE: The calling thread is not allowed to own any latches on pages! */
+/** Synchronously flush dirty blocks from the end of the flush list of all
+ buffer pool instances. NOTE: The calling thread is not allowed to own any
+ latches on pages! */
 void buf_flush_sync_all_buf_pools(void);
-/*==============================*/
 
 /** Request IO burst and wake page_cleaner up.
 @param[in]	lsn_limit	upper limit of LSN to be flushed */

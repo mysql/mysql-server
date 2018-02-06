@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0log.ic
+/** @file include/row0log.ic
  Modification log for online index creation and online table rebuild
 
  Created 2012-10-18 Marko Makela
@@ -34,12 +33,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 
 #ifndef UNIV_HOTBACKUP
-/******************************************************/ /**
- Free the row log for an index on which online creation was aborted. */
+/** Free the row log for an index on which online creation was aborted. */
 UNIV_INLINE
-void row_log_abort_sec(
-    /*===============*/
-    dict_index_t *index) /*!< in/out: index (x-latched) */
+void row_log_abort_sec(dict_index_t *index) /*!< in/out: index (x-latched) */
 {
   ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
@@ -48,14 +44,12 @@ void row_log_abort_sec(
   row_log_free(index->online_log);
 }
 
-/******************************************************/ /**
- Try to log an operation to a secondary index that is
+/** Try to log an operation to a secondary index that is
  (or was) being created.
  @retval true if the operation was logged or can be ignored
  @retval false if online index creation is not taking place */
 UNIV_INLINE
 bool row_log_online_op_try(
-    /*==================*/
     dict_index_t *index,   /*!< in/out: index, S or X latched */
     const dtuple_t *tuple, /*!< in: index tuple */
     trx_id_t trx_id)       /*!< in: transaction ID for insert,

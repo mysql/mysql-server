@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file btr/btr0pcur.cc
+/** @file btr/btr0pcur.cc
  The index tree persistent cursor
 
  Created 2/23/1996 Heikki Tuuri
@@ -41,12 +40,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "ut0byte.h"
 
-/**************************************************************/ /**
- Allocates memory for a persistent cursor object and initializes the cursor.
+/** Allocates memory for a persistent cursor object and initializes the cursor.
  @return own: persistent cursor */
-btr_pcur_t *btr_pcur_create_for_mysql(void)
-/*============================*/
-{
+btr_pcur_t *btr_pcur_create_for_mysql(void) {
   btr_pcur_t *pcur;
   DBUG_ENTER("btr_pcur_create_for_mysql");
 
@@ -59,12 +55,9 @@ btr_pcur_t *btr_pcur_create_for_mysql(void)
   DBUG_RETURN(pcur);
 }
 
-/**************************************************************/ /**
- Resets a persistent cursor object, freeing "::old_rec_buf" if it is
+/** Resets a persistent cursor object, freeing "::old_rec_buf" if it is
  allocated and resetting the other members to their initial values. */
-void btr_pcur_reset(
-    /*===========*/
-    btr_pcur_t *cursor) /*!< in, out: persistent cursor */
+void btr_pcur_reset(btr_pcur_t *cursor) /*!< in, out: persistent cursor */
 {
   btr_pcur_free(cursor);
   cursor->old_rec_buf = NULL;
@@ -78,10 +71,8 @@ void btr_pcur_reset(
   cursor->pos_state = BTR_PCUR_NOT_POSITIONED;
 }
 
-/**************************************************************/ /**
- Frees the memory for a persistent cursor object. */
+/** Frees the memory for a persistent cursor object. */
 void btr_pcur_free_for_mysql(
-    /*====================*/
     btr_pcur_t *cursor) /*!< in, own: persistent cursor */
 {
   DBUG_ENTER("btr_pcur_free_for_mysql");
@@ -92,17 +83,14 @@ void btr_pcur_free_for_mysql(
   DBUG_VOID_RETURN;
 }
 
-/**************************************************************/ /**
- The position of the cursor is stored by taking an initial segment of the
+/** The position of the cursor is stored by taking an initial segment of the
  record the cursor is positioned on, before, or after, and copying it to the
  cursor data structure, or just setting a flag if the cursor id before the
  first in an EMPTY tree, or after the last in an EMPTY tree. NOTE that the
  page where the cursor is positioned must not be empty if the index tree is
  not totally empty! */
-void btr_pcur_store_position(
-    /*====================*/
-    btr_pcur_t *cursor, /*!< in: persistent cursor */
-    mtr_t *mtr)         /*!< in: mtr */
+void btr_pcur_store_position(btr_pcur_t *cursor, /*!< in: persistent cursor */
+                             mtr_t *mtr)         /*!< in: mtr */
 {
   page_cur_t *page_cursor;
   buf_block_t *block;
@@ -186,10 +174,8 @@ void btr_pcur_store_position(
   cursor->withdraw_clock = buf_withdraw_clock;
 }
 
-/**************************************************************/ /**
- Copies the stored position of a pcur to another pcur. */
+/** Copies the stored position of a pcur to another pcur. */
 void btr_pcur_copy_stored_position(
-    /*==========================*/
     btr_pcur_t *pcur_receive, /*!< in: pcur which will receive the
                               position info */
     btr_pcur_t *pcur_donate)  /*!< in: pcur from which the info is
@@ -210,9 +196,8 @@ void btr_pcur_copy_stored_position(
   pcur_receive->old_n_fields = pcur_donate->old_n_fields;
 }
 
-/**************************************************************/ /**
- Restores the stored position of a persistent cursor bufferfixing the page and
- obtaining the specified latches. If the cursor position was saved when the
+/** Restores the stored position of a persistent cursor bufferfixing the page
+ and obtaining the specified latches. If the cursor position was saved when the
  (1) cursor was positioned on a user record: this function restores the position
  to the last record LESS OR EQUAL to the stored record;
  (2) cursor was positioned on a page infimum record: restores the position to
@@ -226,7 +211,6 @@ void btr_pcur_copy_stored_position(
  record and it can be restored on a user record whose ordering fields
  are identical to the ones of the original user record */
 ibool btr_pcur_restore_position_func(
-    /*===========================*/
     ulint latch_mode,   /*!< in: BTR_SEARCH_LEAF, ... */
     btr_pcur_t *cursor, /*!< in: detached persistent cursor */
     const char *file,   /*!< in: file name */
@@ -374,13 +358,11 @@ ibool btr_pcur_restore_position_func(
   return (FALSE);
 }
 
-/*********************************************************/ /**
- Moves the persistent cursor to the first record on the next page. Releases the
- latch on the current page, and bufferunfixes it. Note that there must not be
- modifications on the current page, as then the x-latch can be released only in
- mtr_commit. */
+/** Moves the persistent cursor to the first record on the next page. Releases
+ the latch on the current page, and bufferunfixes it. Note that there must not
+ be modifications on the current page, as then the x-latch can be released only
+ in mtr_commit. */
 void btr_pcur_move_to_next_page(
-    /*=======================*/
     btr_pcur_t *cursor, /*!< in: persistent cursor; must be on the
                         last record of the current page */
     mtr_t *mtr)         /*!< in: mtr */
@@ -438,9 +420,8 @@ void btr_pcur_move_to_next_page(
   ut_d(page_check_dir(next_page));
 }
 
-/*********************************************************/ /**
- Moves the persistent cursor backward if it is on the first record of the page.
- Commits mtr. Note that to prevent a possible deadlock, the operation
+/** Moves the persistent cursor backward if it is on the first record of the
+ page. Commits mtr. Note that to prevent a possible deadlock, the operation
  first stores the position of the cursor, commits mtr, acquires the necessary
  latches and restores the cursor position again before returning. The
  alphabetical position of the cursor is guaranteed to be sensible on
@@ -448,7 +429,6 @@ void btr_pcur_move_to_next_page(
  record of any page, because the structure of the tree may have changed
  during the time when the cursor had no latches. */
 static void btr_pcur_move_backward_from_page(
-    /*=============================*/
     btr_pcur_t *cursor, /*!< in: persistent cursor, must be on the first
                         record of the current page */
     mtr_t *mtr)         /*!< in: mtr */
@@ -513,12 +493,10 @@ static void btr_pcur_move_backward_from_page(
   cursor->old_stored = false;
 }
 
-/*********************************************************/ /**
- Moves the persistent cursor to the previous record in the tree. If no records
- are left, the cursor stays 'before first in tree'.
+/** Moves the persistent cursor to the previous record in the tree. If no
+ records are left, the cursor stays 'before first in tree'.
  @return true if the cursor was not before first in tree */
 ibool btr_pcur_move_to_prev(
-    /*==================*/
     btr_pcur_t *cursor, /*!< in: persistent cursor; NOTE that the
                         function may release the page latch */
     mtr_t *mtr)         /*!< in: mtr */
@@ -543,15 +521,13 @@ ibool btr_pcur_move_to_prev(
   return (TRUE);
 }
 
-/**************************************************************/ /**
- If mode is PAGE_CUR_G or PAGE_CUR_GE, opens a persistent cursor on the first
+/** If mode is PAGE_CUR_G or PAGE_CUR_GE, opens a persistent cursor on the first
  user record satisfying the search condition, in the case PAGE_CUR_L or
  PAGE_CUR_LE, on the last user record. If no such user record exists, then
  in the first case sets the cursor after last in tree, and in the latter case
  before first in tree. The latching mode must be BTR_SEARCH_LEAF or
  BTR_MODIFY_LEAF. */
 void btr_pcur_open_on_user_rec_func(
-    /*===========================*/
     dict_index_t *index,   /*!< in: index */
     const dtuple_t *tuple, /*!< in: tuple on which search done */
     page_cur_mode_t mode,  /*!< in: PAGE_CUR_L, ... */

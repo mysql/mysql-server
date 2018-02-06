@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/trx0rseg.h
+/** @file include/trx0rseg.h
  Rollback segment
 
  Created 3/26/1996 Heikki Tuuri

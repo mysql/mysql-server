@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,23 +24,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include gis0rtree.h
+/** @file include gis0rtree.h
  R-tree Inline code
 
  Created 2013/03/27 Jimmy Yang and Allen Lai
  ***********************************************************************/
 
-/**************************************************************/ /**
- Sets the child node mbr in a node pointer. */
+/** Sets the child node mbr in a node pointer. */
 UNIV_INLINE
-void rtr_page_cal_mbr(
-    /*=============*/
-    const dict_index_t *index, /*!< in: index */
-    const buf_block_t *block,  /*!< in: buffer block */
-    rtr_mbr_t *rtr_mbr,        /*!< out: MBR encapsulates the page */
-    mem_heap_t *heap)          /*!< in: heap for the memory
-                               allocation */
+void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
+                      const buf_block_t *block,  /*!< in: buffer block */
+                      rtr_mbr_t *rtr_mbr, /*!< out: MBR encapsulates the page */
+                      mem_heap_t *heap)   /*!< in: heap for the memory
+                                          allocation */
 {
   page_t *page;
   rec_t *rec;
@@ -92,19 +88,16 @@ void rtr_page_cal_mbr(
   } while (!page_rec_is_supremum(rec));
 }
 
-/**************************************************************/ /**
- push a nonleaf index node to the search path */
+/** push a nonleaf index node to the search path */
 UNIV_INLINE
-void rtr_non_leaf_stack_push(
-    /*====================*/
-    rtr_node_path_t *path, /*!< in/out: search path */
-    page_no_t pageno,      /*!< in: pageno to insert */
-    node_seq_t seq_no,     /*!< in: Node sequence num */
-    ulint level,           /*!< in: index page level */
-    page_no_t child_no,    /*!< in: child page no */
-    btr_pcur_t *cursor,    /*!< in: position cursor */
-    double mbr_inc)        /*!< in: MBR needs to be
-                           enlarged */
+void rtr_non_leaf_stack_push(rtr_node_path_t *path, /*!< in/out: search path */
+                             page_no_t pageno,      /*!< in: pageno to insert */
+                             node_seq_t seq_no,  /*!< in: Node sequence num */
+                             ulint level,        /*!< in: index page level */
+                             page_no_t child_no, /*!< in: child page no */
+                             btr_pcur_t *cursor, /*!< in: position cursor */
+                             double mbr_inc)     /*!< in: MBR needs to be
+                                                 enlarged */
 {
   node_visit_t insert_val;
 
@@ -126,12 +119,10 @@ void rtr_non_leaf_stack_push(
 #endif /* RTR_SEARCH_DIAGNOSTIC */
 }
 
-/*****************************************************************/ /**
- Allocates a new Split Sequence Number.
+/** Allocates a new Split Sequence Number.
  @return new SSN id */
 UNIV_INLINE
 node_seq_t rtr_get_new_ssn_id(
-    /*===============*/
     dict_index_t *index) /*!< in/out: the index struct */
 {
   node_seq_t ssn;
@@ -142,13 +133,10 @@ node_seq_t rtr_get_new_ssn_id(
 
   return (ssn);
 }
-/*****************************************************************/ /**
- Get the current Split Sequence Number.
+/** Get the current Split Sequence Number.
  @return current SSN id */
 UNIV_INLINE
-node_seq_t rtr_get_current_ssn_id(
-    /*===================*/
-    dict_index_t *index) /*!< in: index struct */
+node_seq_t rtr_get_current_ssn_id(dict_index_t *index) /*!< in: index struct */
 {
   node_seq_t ssn;
 
@@ -159,13 +147,10 @@ node_seq_t rtr_get_current_ssn_id(
   return (ssn);
 }
 
-/*********************************************************************/ /**
- Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field. */
 UNIV_INLINE
-void rtr_write_mbr(
-    /*==========*/
-    byte *data,           /*!< out: data */
-    const rtr_mbr_t *mbr) /*!< in: data */
+void rtr_write_mbr(byte *data,           /*!< out: data */
+                   const rtr_mbr_t *mbr) /*!< in: data */
 {
   const double *my_mbr = reinterpret_cast<const double *>(mbr);
 
@@ -174,13 +159,10 @@ void rtr_write_mbr(
   }
 }
 
-/*********************************************************************/ /**
- Sets pointer to the data and length in a field. */
+/** Sets pointer to the data and length in a field. */
 UNIV_INLINE
-void rtr_read_mbr(
-    /*==========*/
-    const byte *data, /*!< in: data */
-    rtr_mbr_t *mbr)   /*!< out: MBR */
+void rtr_read_mbr(const byte *data, /*!< in: data */
+                  rtr_mbr_t *mbr)   /*!< out: MBR */
 {
   for (int i = 0; i < SPDIMS * 2; i++) {
     (reinterpret_cast<double *>(mbr))[i] =
@@ -188,13 +170,11 @@ void rtr_read_mbr(
   }
 }
 
-/*********************************************************/ /**
- Returns the R-Tree node stored in the parent search path
+/** Returns the R-Tree node stored in the parent search path
  @return pointer to R-Tree cursor component in the parent path,
  NULL if parent path is empty or index is larger than num of items contained */
 UNIV_INLINE
 node_visit_t *rtr_get_parent_node(
-    /*================*/
     btr_cur_t *btr_cur, /*!< in: persistent cursor */
     ulint level,        /*!< in: index level of buffer page */
     ulint is_insert)    /*!< in: whether it is insert */
@@ -240,12 +220,10 @@ node_visit_t *rtr_get_parent_node(
   return (found_node);
 }
 
-/*********************************************************/ /**
- Returns the R-Tree cursor stored in the parent search path
+/** Returns the R-Tree cursor stored in the parent search path
  @return pointer to R-Tree cursor component */
 UNIV_INLINE
 btr_pcur_t *rtr_get_parent_cursor(
-    /*==================*/
     btr_cur_t *btr_cur, /*!< in: persistent cursor */
     ulint level,        /*!< in: index level of buffer page */
     ulint is_insert)    /*!< in: whether insert operation */
@@ -255,8 +233,7 @@ btr_pcur_t *rtr_get_parent_cursor(
   return ((found_node) ? found_node->cursor : NULL);
 }
 
-/********************************************************************/ /**
- Reinitialize a R-Tree search info in btr_cur_t */
+/** Reinitialize a R-Tree search info in btr_cur_t */
 UNIV_INLINE
 void rtr_info_reinit_in_cursor(
     /************************/

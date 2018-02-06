@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/fsp0fsp.ic
+/** @file include/fsp0fsp.ic
  File space management
 
  Created 12/18/1995 Heikki Tuuri
@@ -216,16 +215,13 @@ ulint xdes_calc_descriptor_index(const page_size_t &page_size, ulint offset) {
   return (ut_2pow_remainder(offset, page_size.physical()) / FSP_EXTENT_SIZE);
 }
 
-/**********************************************************************/ /**
- Gets a descriptor bit of a page.
+/** Gets a descriptor bit of a page.
  @return true if free */
 UNIV_INLINE
-ibool xdes_get_bit(
-    /*=========*/
-    const xdes_t *descr, /*!< in: descriptor */
-    ulint bit,           /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-    page_no_t offset)    /*!< in: page offset within extent:
-                         0 ... FSP_EXTENT_SIZE - 1 */
+ibool xdes_get_bit(const xdes_t *descr, /*!< in: descriptor */
+                   ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+                   page_no_t offset) /*!< in: page offset within extent:
+                                     0 ... FSP_EXTENT_SIZE - 1 */
 {
   ut_ad(offset < FSP_EXTENT_SIZE);
   ut_ad(bit == XDES_FREE_BIT || bit == XDES_CLEAN_BIT);

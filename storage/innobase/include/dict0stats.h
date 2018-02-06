@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dict0stats.h
+/** @file include/dict0stats.h
  Code used for calculating and manipulating table statistics.
 
  Created Jan 06, 2010 Vasil Dimov
@@ -71,12 +70,10 @@ the in-memory table object and is not saved on disk. It will be read from the
 UNIV_INLINE
 void dict_stats_set_persistent(dict_table_t *table, ibool ps_on, ibool ps_off);
 
-/*********************************************************************/ /**
- Check whether persistent statistics is enabled for a given table.
+/** Check whether persistent statistics is enabled for a given table.
  @return true if enabled, false otherwise */
 UNIV_INLINE
 ibool dict_stats_is_persistent_enabled(
-    /*=============================*/
     const dict_table_t *table) /*!< in: table */
     MY_ATTRIBUTE((warn_unused_result));
 
@@ -91,91 +88,69 @@ UNIV_INLINE
 void dict_stats_auto_recalc_set(dict_table_t *table, ibool auto_recalc_on,
                                 ibool auto_recalc_off);
 
-/*********************************************************************/ /**
- Check whether auto recalc is enabled for a given table.
+/** Check whether auto recalc is enabled for a given table.
  @return true if enabled, false otherwise */
 UNIV_INLINE
 ibool dict_stats_auto_recalc_is_enabled(
-    /*==============================*/
     const dict_table_t *table); /*!< in: table */
 
-/*********************************************************************/ /**
- Initialize table's stats for the first time when opening a table. */
+/** Initialize table's stats for the first time when opening a table. */
 UNIV_INLINE
-void dict_stats_init(
-    /*============*/
-    dict_table_t *table); /*!< in/out: table */
+void dict_stats_init(dict_table_t *table); /*!< in/out: table */
 
-/*********************************************************************/ /**
- Deinitialize table's stats after the last close of the table. This is
+/** Deinitialize table's stats after the last close of the table. This is
  used to detect "FLUSH TABLE" and refresh the stats upon next open. */
 UNIV_INLINE
-void dict_stats_deinit(
-    /*==============*/
-    dict_table_t *table); /*!< in/out: table */
+void dict_stats_deinit(dict_table_t *table); /*!< in/out: table */
 
-/*********************************************************************/ /**
- Calculates new estimates for table and index statistics. The statistics
+/** Calculates new estimates for table and index statistics. The statistics
  are used in query optimization.
  @return DB_* error code or DB_SUCCESS */
-dberr_t dict_stats_update(
-    /*==============*/
-    dict_table_t *table, /*!< in/out: table */
-    dict_stats_upd_option_t stats_upd_option);
+dberr_t dict_stats_update(dict_table_t *table, /*!< in/out: table */
+                          dict_stats_upd_option_t stats_upd_option);
 /*!< in: whether to (re) calc
 the stats or to fetch them from
 the persistent storage */
 
-/*********************************************************************/ /**
- Removes the information for a particular index's stats from the persistent
+/** Removes the information for a particular index's stats from the persistent
  storage if it exists and if there is data stored for this index.
  This function creates its own trx and commits it.
  @return DB_SUCCESS or error code */
 dberr_t dict_stats_drop_index(
-    /*==================*/
     const char *tname, /*!< in: table name */
     const char *iname, /*!< in: index name */
     char *errstr,      /*!< out: error message if != DB_SUCCESS
                        is returned */
     ulint errstr_sz);  /*!< in: size of the errstr buffer */
 
-/*********************************************************************/ /**
- Removes the statistics for a table and all of its indexes from the
+/** Removes the statistics for a table and all of its indexes from the
  persistent storage if it exists and if there is data stored for the table.
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
 dberr_t dict_stats_drop_table(
-    /*==================*/
     const char *table_name, /*!< in: table name */
     char *errstr,           /*!< out: error message
                             if != DB_SUCCESS is returned */
     ulint errstr_sz);       /*!< in: size of errstr buffer */
 
-/*********************************************************************/ /**
- Fetches or calculates new estimates for index statistics. */
-void dict_stats_update_for_index(
-    /*========================*/
-    dict_index_t *index); /*!< in/out: index */
+/** Fetches or calculates new estimates for index statistics. */
+void dict_stats_update_for_index(dict_index_t *index); /*!< in/out: index */
 
-/*********************************************************************/ /**
- Renames a table in InnoDB persistent stats storage.
+/** Renames a table in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
 dberr_t dict_stats_rename_table(
-    /*====================*/
     const char *old_name, /*!< in: old table name */
     const char *new_name, /*!< in: new table name */
     char *errstr,         /*!< out: error string if != DB_SUCCESS
                           is returned */
     size_t errstr_sz);    /*!< in: errstr size */
 
-/*********************************************************************/ /**
- Renames an index in InnoDB persistent stats storage.
+/** Renames an index in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
  if the persistent stats do not exist. */
 dberr_t dict_stats_rename_index(
-    /*====================*/
     const dict_table_t *table,  /*!< in: table whose index
                                 is renamed */
     const char *old_index_name, /*!< in: old index name */

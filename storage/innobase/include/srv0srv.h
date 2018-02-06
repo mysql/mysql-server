@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -39,8 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/srv0srv.h
+/** @file include/srv0srv.h
  The server main program
 
  Created 10/10/1995 Heikki Tuuri
@@ -646,58 +645,42 @@ enum srv_thread_type {
               number must be biggest) */
 };
 
-/*********************************************************************/ /**
- Boots Innobase server. */
+/** Boots Innobase server. */
 void srv_boot(void);
-/*==========*/
-/*********************************************************************/ /**
- Frees the data structures created in srv_init(). */
+/** Frees the data structures created in srv_init(). */
 void srv_free(void);
-/*==========*/
-/*********************************************************************/ /**
- Sets the info describing an i/o thread current state. */
+/** Sets the info describing an i/o thread current state. */
 void srv_set_io_thread_op_info(
-    /*======================*/
     ulint i,          /*!< in: the 'segment' of the i/o thread */
     const char *str); /*!< in: constant char string describing the
                       state */
-/*********************************************************************/ /**
- Resets the info describing an i/o thread current state. */
+/** Resets the info describing an i/o thread current state. */
 void srv_reset_io_thread_op_info();
-/*=========================*/
-/*******************************************************************/ /**
- Tells the purge thread that there has been activity in the database
+/** Tells the purge thread that there has been activity in the database
  and wakes up the purge thread if it is suspended (not sleeping).  Note
  that there is a small chance that the purge thread stays suspended
  (we do not protect our operation with the srv_sys_t:mutex, for
  performance reasons). */
 void srv_wake_purge_thread_if_not_active(void);
-/*=====================================*/
-/*******************************************************************/ /**
- Tells the Innobase server that there has been activity in the database
+/** Tells the Innobase server that there has been activity in the database
  and wakes up the master thread if it is suspended (not sleeping). Used
  in the MySQL interface. Note that there is a small chance that the master
  thread stays suspended (we do not protect our operation with the kernel
  mutex, for performace reasons). */
 void srv_active_wake_master_thread_low(void);
-/*===================================*/
 #define srv_active_wake_master_thread()    \
   do {                                     \
     if (!srv_read_only_mode) {             \
       srv_active_wake_master_thread_low(); \
     }                                      \
   } while (0)
-/*******************************************************************/ /**
- Wakes up the master thread if it is suspended or being suspended. */
+/** Wakes up the master thread if it is suspended or being suspended. */
 void srv_wake_master_thread(void);
 #ifndef UNIV_HOTBACKUP
-/*========================*/
-/******************************************************************/ /**
- Outputs to a file the output of the InnoDB Monitor.
+/** Outputs to a file the output of the InnoDB Monitor.
  @return false if not all information printed
  due to failure to obtain necessary mutex */
 ibool srv_printf_innodb_monitor(
-    /*======================*/
     FILE *file,       /*!< in: output stream */
     ibool nowait,     /*!< in: whether to wait for the
                       lock_sys_t::mutex */
@@ -706,33 +689,21 @@ ibool srv_printf_innodb_monitor(
     ulint *trx_end);  /*!< out: file position of the end of
                       the list of active transactions */
 
-/******************************************************************/ /**
- Function to pass InnoDB status variables to MySQL */
+/** Function to pass InnoDB status variables to MySQL */
 void srv_export_innodb_status(void);
-/*==========================*/
-/*******************************************************************/ /**
- Get current server activity count. We don't hold srv_sys::mutex while
+/** Get current server activity count. We don't hold srv_sys::mutex while
  reading this value as it is only used in heuristics.
  @return activity count. */
 ulint srv_get_activity_count(void);
-/*========================*/
-/*******************************************************************/ /**
- Check if there has been any activity.
+/** Check if there has been any activity.
  @return false if no change in activity counter. */
-ibool srv_check_activity(
-    /*===============*/
-    ulint old_activity_count); /*!< old activity count */
-/******************************************************************/ /**
- Increment the server activity counter. */
+ibool srv_check_activity(ulint old_activity_count); /*!< old activity count */
+/** Increment the server activity counter. */
 void srv_inc_activity_count(void);
-/*=========================*/
 
-/**********************************************************************/ /**
- Enqueues a task to server task queue and releases a worker thread, if there
+/** Enqueues a task to server task queue and releases a worker thread, if there
  is a suspended one. */
-void srv_que_task_enqueue_low(
-    /*=====================*/
-    que_thr_t *thr); /*!< in: query thread */
+void srv_que_task_enqueue_low(que_thr_t *thr); /*!< in: query thread */
 
 /** A thread which prints the info output by various InnoDB monitors. */
 void srv_monitor_thread();
@@ -750,21 +721,16 @@ void srv_purge_coordinator_thread();
 /** Worker thread that reads tasks from the work queue and executes them. */
 void srv_worker_thread();
 
-/**********************************************************************/ /**
- Get count of tasks in the queue.
+/** Get count of tasks in the queue.
  @return number of tasks in queue */
 ulint srv_get_task_queue_length(void);
-/*===========================*/
 
-/*********************************************************************/ /**
- Releases threads of the type given from suspension in the thread table.
+/** Releases threads of the type given from suspension in the thread table.
  NOTE! The server mutex has to be reserved by the caller!
  @return number of threads released: this may be less than n if not
  enough threads were suspended at the moment */
-ulint srv_release_threads(
-    /*================*/
-    enum srv_thread_type type, /*!< in: thread type */
-    ulint n);                  /*!< in: number of threads to release */
+ulint srv_release_threads(enum srv_thread_type type, /*!< in: thread type */
+                          ulint n); /*!< in: number of threads to release */
 
 /** Check whether any background thread (except the master thread) is active.
 Send the threads wakeup signal.
@@ -787,10 +753,8 @@ The first phase of server shutdown must have already been executed
 @retval false	if no thread is active */
 bool srv_master_thread_active();
 
-/**********************************************************************/ /**
- Wakeup the purge threads. */
+/** Wakeup the purge threads. */
 void srv_purge_wakeup(void);
-/*==================*/
 
 /** Check if the purge threads are active, both coordinator and worker threads
 @return true if any thread is active, false if no thread is active */

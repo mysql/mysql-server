@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file log/log0recv.cc
+/** @file log/log0recv.cc
  Recovery
 
  Created 9/20/1997 Heikki Tuuri

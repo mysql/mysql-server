@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/***************************************************************/ /**
- @file ut/ut.cc
+/** @file ut/ut.cc
  Various utilities for Innobase.
 
  Created 5/11/1994 Heikki Tuuri
@@ -42,13 +41,10 @@ external tools. */
 #include "univ.i"
 #include "ut/ut.h"
 
-/*************************************************************/ /**
- Prints the contents of a memory buffer in hex and ascii. */
-void ut_print_buf(
-    /*=========*/
-    FILE *file,      /*!< in: file where to print */
-    const void *buf, /*!< in: memory buffer */
-    ulint len)       /*!< in: length of the buffer */
+/** Prints the contents of a memory buffer in hex and ascii. */
+void ut_print_buf(FILE *file,      /*!< in: file where to print */
+                  const void *buf, /*!< in: memory buffer */
+                  ulint len)       /*!< in: length of the buffer */
 {
   const byte *data;
   ulint i;
@@ -73,13 +69,10 @@ void ut_print_buf(
   putc(';', file);
 }
 
-/*************************************************************/ /**
- Prints the contents of a memory buffer in hex. */
-void ut_print_buf_hex(
-    /*=============*/
-    std::ostream &o, /*!< in/out: output stream */
-    const void *buf, /*!< in: memory buffer */
-    ulint len)       /*!< in: length of the buffer */
+/** Prints the contents of a memory buffer in hex. */
+void ut_print_buf_hex(std::ostream &o, /*!< in/out: output stream */
+                      const void *buf, /*!< in: memory buffer */
+                      ulint len)       /*!< in: length of the buffer */
 {
   const byte *data;
   ulint i;
@@ -99,13 +92,10 @@ void ut_print_buf_hex(
   o << ")";
 }
 
-/*************************************************************/ /**
- Prints the contents of a memory buffer in hex and ascii. */
-void ut_print_buf(
-    /*=========*/
-    std::ostream &o, /*!< in/out: output stream */
-    const void *buf, /*!< in: memory buffer */
-    ulint len)       /*!< in: length of the buffer */
+/** Prints the contents of a memory buffer in hex and ascii. */
+void ut_print_buf(std::ostream &o, /*!< in/out: output stream */
+                  const void *buf, /*!< in: memory buffer */
+                  ulint len)       /*!< in: length of the buffer */
 {
   const byte *data;
   ulint i;
@@ -120,11 +110,8 @@ void ut_print_buf(
   ut_print_buf_hex(o, buf, len);
 }
 
-/**********************************************************/ /**
- Prints a timestamp to a file. */
-void ut_print_timestamp(
-    /*===============*/
-    FILE *file) /*!< in: file where to print */
+/** Prints a timestamp to a file. */
+void ut_print_timestamp(FILE *file) /*!< in: file where to print */
 {
   auto thread_id = os_thread_handle();
 
@@ -150,11 +137,8 @@ void ut_print_timestamp(
 #endif /* _WIN32 */
 }
 
-/**********************************************************/ /**
- Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-void ut_sprintf_timestamp(
-    /*=================*/
-    char *buf) /*!< in: buffer where to sprintf */
+/** Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
+void ut_sprintf_timestamp(char *buf) /*!< in: buffer where to sprintf */
 {
 #ifdef _WIN32
   SYSTEMTIME cal_tm;
@@ -178,15 +162,12 @@ void ut_sprintf_timestamp(
 #endif
 }
 
-/**********************************************************************/ /**
- Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
+/** Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
  (size - 1) bytes of src, not the first.
  @return strlen(src) */
-ulint ut_strlcpy_rev(
-    /*===========*/
-    char *dst,       /*!< in: destination buffer */
-    const char *src, /*!< in: source buffer */
-    ulint size)      /*!< in: size of destination buffer */
+ulint ut_strlcpy_rev(char *dst,       /*!< in: destination buffer */
+                     const char *src, /*!< in: source buffer */
+                     ulint size)      /*!< in: size of destination buffer */
 {
   ulint src_size = strlen(src);
 

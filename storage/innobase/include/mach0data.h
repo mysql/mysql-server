@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -27,8 +27,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_compiler.h"
 #include "my_inttypes.h"
 
-/******************************************************************/ /**
- @file include/mach0data.h
+/** @file include/mach0data.h
  Utilities for converting data from the database file
  to the machine format.
 
@@ -76,25 +75,19 @@ bytes. The most significant byte is at the lowest address.
 UNIV_INLINE
 uint16_t mach_read_from_2(const byte *b) MY_ATTRIBUTE((warn_unused_result));
 
-/********************************************************/ /**
- The following function is used to convert a 16-bit data item
+/** The following function is used to convert a 16-bit data item
  to the canonical format, for fast bytewise equality test
  against memory.
  @return 16-bit integer in canonical format */
 UNIV_INLINE
-uint16_t mach_encode_2(
-    /*==========*/
-    ulint n) /*!< in: integer in machine-dependent format */
+uint16_t mach_encode_2(ulint n) /*!< in: integer in machine-dependent format */
     MY_ATTRIBUTE((const));
-/********************************************************/ /**
- The following function is used to convert a 16-bit data item
+/** The following function is used to convert a 16-bit data item
  from the canonical format, for fast bytewise equality test
  against memory.
  @return integer in machine-dependent format */
 UNIV_INLINE
-ulint mach_decode_2(
-    /*==========*/
-    uint16 n) /*!< in: 16-bit integer in canonical format */
+ulint mach_decode_2(uint16 n) /*!< in: 16-bit integer in canonical format */
     MY_ATTRIBUTE((const));
 
 /** The following function is used to store data in 3 consecutive
@@ -237,12 +230,10 @@ advanced by the number of bytes consumed, or set NULL if out of space
 UNIV_INLINE
 ib_uint64_t mach_u64_parse_compressed(const byte **ptr, const byte *end_ptr);
 
-/*********************************************************/ /**
- Reads a double. It is stored in a little-endian format.
+/** Reads a double. It is stored in a little-endian format.
  @return double read */
 UNIV_INLINE
 double mach_double_read(
-    /*=============*/
     const byte *b) /*!< in: pointer to memory from where to read */
     MY_ATTRIBUTE((warn_unused_result));
 
@@ -252,12 +243,10 @@ double mach_double_read(
 UNIV_INLINE
 void mach_double_write(byte *b, double d);
 
-/*********************************************************/ /**
- Reads a float. It is stored in a little-endian format.
+/** Reads a float. It is stored in a little-endian format.
  @return float read */
 UNIV_INLINE
 float mach_float_read(
-    /*============*/
     const byte *b) /*!< in: pointer to memory from where to read */
     MY_ATTRIBUTE((warn_unused_result));
 
@@ -267,12 +256,10 @@ float mach_float_read(
 UNIV_INLINE
 void mach_float_write(byte *b, float d);
 
-/*********************************************************/ /**
- Reads a ulint stored in the little-endian format.
+/** Reads a ulint stored in the little-endian format.
  @return unsigned long int */
 UNIV_INLINE
 ulint mach_read_from_n_little_endian(
-    /*===========================*/
     const byte *buf, /*!< in: from where to read */
     ulint buf_size)  /*!< in: from how many bytes to read */
     MY_ATTRIBUTE((warn_unused_result));
@@ -284,12 +271,10 @@ ulint mach_read_from_n_little_endian(
 UNIV_INLINE
 void mach_write_to_n_little_endian(byte *dest, ulint dest_size, ulint n);
 
-/*********************************************************/ /**
- Reads a ulint stored in the little-endian format.
+/** Reads a ulint stored in the little-endian format.
  @return unsigned long int */
 UNIV_INLINE
 ulint mach_read_from_2_little_endian(
-    /*===========================*/
     const byte *buf) /*!< in: from where to read */
     MY_ATTRIBUTE((warn_unused_result));
 

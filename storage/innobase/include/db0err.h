@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/db0err.h
+/** @file include/db0err.h
  Global error codes for the database
 
  Created 5/24/1996 Heikki Tuuri

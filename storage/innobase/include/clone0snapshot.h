@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/clone0snapshot.h
+/** @file include/clone0snapshot.h
  Database Physical Snapshot
 
  *******************************************************/

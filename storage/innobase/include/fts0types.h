@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/fts0types.h
+/** @file include/fts0types.h
  Full text search types file
 
  Created 2007-03-27 Sunny Bains
@@ -323,11 +322,9 @@ int fts_ranking_doc_id_cmp(const void *p1, const void *p2);
 UNIV_INLINE
 int fts_update_doc_id_cmp(const void *p1, const void *p2);
 
-/******************************************************************/ /**
- Decode and return the integer that was encoded using our VLC scheme.*/
+/** Decode and return the integer that was encoded using our VLC scheme.*/
 UNIV_INLINE
 ulint fts_decode_vlc(
-    /*===========*/
     /*!< out: value decoded */
     byte **ptr); /*!< in: ptr to decode from, this ptr is
                  incremented by the number of bytes decoded */
@@ -341,11 +338,9 @@ UNIV_INLINE
 void fts_string_dup(fts_string_t *dst, const fts_string_t *src,
                     mem_heap_t *heap);
 
-/******************************************************************/ /**
- Return length of val if it were encoded using our VLC scheme. */
+/** Return length of val if it were encoded using our VLC scheme. */
 UNIV_INLINE
 ulint fts_get_encoded_len(
-    /*================*/
     /*!< out: length of value
      encoded, in bytes */
     ulint val); /*!< in: value to encode */
@@ -357,12 +352,9 @@ ulint fts_get_encoded_len(
 UNIV_INLINE
 ulint fts_encode_int(ulint val, byte *buf);
 
-/******************************************************************/ /**
- Get the selected FTS aux INDEX suffix. */
+/** Get the selected FTS aux INDEX suffix. */
 UNIV_INLINE
-const char *fts_get_suffix(
-    /*===========*/
-    ulint selected); /*!< in: selected index */
+const char *fts_get_suffix(ulint selected); /*!< in: selected index */
 
 /** Return the selected FTS aux index suffix in 5.7 compatible format
 @param[in]	selected	selected index

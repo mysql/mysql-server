@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0ins.h
+/** @file include/row0ins.h
  Insert into a table
 
  Created 4/20/1996 Heikki Tuuri
@@ -41,14 +40,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
-/***************************************************************/ /**
- Checks if foreign key constraint fails for an index entry. Sets shared locks
+/** Checks if foreign key constraint fails for an index entry. Sets shared locks
  which lock either the success or the failure of the constraint. NOTE that
  the caller must have a shared latch on dict_foreign_key_check_lock.
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
  DB_ROW_IS_REFERENCED */
 dberr_t row_ins_check_foreign_constraint(
-    /*=============================*/
     ibool check_ref,         /*!< in: TRUE If we want to check that
                            the referenced table is ok, FALSE if we
                            want to check the foreign key table */
@@ -60,24 +57,19 @@ dberr_t row_ins_check_foreign_constraint(
     dtuple_t *entry,         /*!< in: index entry for index */
     que_thr_t *thr)          /*!< in: query thread */
     MY_ATTRIBUTE((warn_unused_result));
-/*********************************************************************/ /**
- Creates an insert node struct.
+/** Creates an insert node struct.
  @return own: insert node struct */
 ins_node_t *ins_node_create(
-    /*============*/
     ulint ins_type,      /*!< in: INS_VALUES, ... */
     dict_table_t *table, /*!< in: table where to insert */
     mem_heap_t *heap);   /*!< in: mem heap where created */
-/*********************************************************************/ /**
- Sets a new row to insert for an INS_DIRECT node. This function is only used
+/** Sets a new row to insert for an INS_DIRECT node. This function is only used
  if we have constructed the row separately, which is a rare case; this
  function is quite slow. */
 void ins_node_set_new_row(
-    /*=================*/
     ins_node_t *node, /*!< in: insert node */
     dtuple_t *row);   /*!< in: new row (or first row) for the node */
-/***************************************************************/ /**
- Tries to insert an entry into a clustered index, ignoring foreign key
+/** Tries to insert an entry into a clustered index, ignoring foreign key
  constraints. If a record with the same unique key is found, the other
  record is necessarily marked deleted by a committed transaction, or a
  unique key violation error occurs. The delete marked record is then
@@ -88,7 +80,6 @@ void ins_node_set_new_row(
  @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
  @return error code */
 dberr_t row_ins_clust_index_entry_low(
-    /*==========================*/
     ulint flags,         /*!< in: undo logging and locking flags */
     ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                          depending on whether we wish optimistic or
@@ -142,14 +133,12 @@ columns in row.
 dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
                                      const dtuple_t *row);
 
-/***************************************************************/ /**
- Inserts an entry into a clustered index. Tries first optimistic,
+/** Inserts an entry into a clustered index. Tries first optimistic,
  then pessimistic descent down the tree. If the entry matches enough
  to a delete marked record, performs the insert by updating or delete
  unmarking the delete marked record.
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 dberr_t row_ins_clust_index_entry(
-    /*======================*/
     dict_index_t *index, /*!< in: clustered index */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
     que_thr_t *thr,      /*!< in: query thread */
@@ -158,14 +147,12 @@ dberr_t row_ins_clust_index_entry(
     /*!< in: if true, just do duplicate check
     and return. don't execute actual insert. */
     MY_ATTRIBUTE((warn_unused_result));
-/***************************************************************/ /**
- Inserts an entry into a secondary index. Tries first optimistic,
+/** Inserts an entry into a secondary index. Tries first optimistic,
  then pessimistic descent down the tree. If the entry matches enough
  to a delete marked record, performs the insert by updating or delete
  unmarking the delete marked record.
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 dberr_t row_ins_sec_index_entry(
-    /*====================*/
     dict_index_t *index, /*!< in: secondary index */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
     que_thr_t *thr,      /*!< in: query thread */
@@ -173,13 +160,10 @@ dberr_t row_ins_sec_index_entry(
     /*!< in: if true, just do duplicate check
     and return. don't execute actual insert. */
     MY_ATTRIBUTE((warn_unused_result));
-/***********************************************************/ /**
- Inserts a row to a table. This is a high-level function used in
+/** Inserts a row to a table. This is a high-level function used in
  SQL execution graphs.
  @return query thread to run next or NULL */
-que_thr_t *row_ins_step(
-    /*=========*/
-    que_thr_t *thr); /*!< in: query thread */
+que_thr_t *row_ins_step(que_thr_t *thr); /*!< in: query thread */
 
 /* Insert node structure */
 

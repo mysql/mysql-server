@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file dict/dict0load.cc
+/** @file dict/dict0load.cc
  Loads to the memory cache database object definitions
  from dictionary tables
 
@@ -128,15 +127,12 @@ metadata even if it is marked as "corrupted". */
 bool srv_load_corrupted = FALSE;
 
 #ifdef UNIV_DEBUG
-/****************************************************************/ /**
- Compare the name of an index column.
+/** Compare the name of an index column.
  @return true if the i'th column of index is 'name'. */
-static ibool name_of_col_is(
-    /*===========*/
-    const dict_table_t *table, /*!< in: table */
-    const dict_index_t *index, /*!< in: index */
-    ulint i,                   /*!< in: index field offset */
-    const char *name)          /*!< in: name to compare to */
+static ibool name_of_col_is(const dict_table_t *table, /*!< in: table */
+                            const dict_index_t *index, /*!< in: index */
+                            ulint i,          /*!< in: index field offset */
+                            const char *name) /*!< in: name to compare to */
 {
   ulint tmp = dict_col_get_no(index->get_field(i)->col);
 
@@ -144,12 +140,10 @@ static ibool name_of_col_is(
 }
 #endif /* UNIV_DEBUG */
 
-/********************************************************************/ /**
- Finds the first table name in the given database.
+/** Finds the first table name in the given database.
  @return own: table name, NULL if does not exist; the caller must free
  the memory in the string! */
 char *dict_get_first_table_name_in_db(
-    /*============================*/
     const char *name) /*!< in: database name which ends in '/' */
 {
   dict_table_t *sys_tables;
@@ -223,11 +217,9 @@ loop:
   goto loop;
 }
 
-/********************************************************************/ /**
- This function gets the next system table record as it scans the table.
+/** This function gets the next system table record as it scans the table.
  @return the next record if found, NULL if end of scan */
 static const rec_t *dict_getnext_system_low(
-    /*====================*/
     btr_pcur_t *pcur, /*!< in/out: persistent cursor to the
                       record*/
     mtr_t *mtr)       /*!< in: the mini-transaction */
@@ -253,11 +245,9 @@ static const rec_t *dict_getnext_system_low(
   return (rec);
 }
 
-/********************************************************************/ /**
- This function opens a system table, and returns the first record.
+/** This function opens a system table, and returns the first record.
  @return first record of the system table */
 const rec_t *dict_startscan_system(
-    /*==================*/
     btr_pcur_t *pcur,           /*!< out: persistent cursor to
                                 the record */
     mtr_t *mtr,                 /*!< in: the mini-transaction */
@@ -281,11 +271,9 @@ const rec_t *dict_startscan_system(
   return (rec);
 }
 
-/********************************************************************/ /**
- This function gets the next system table record as it scans the table.
+/** This function gets the next system table record as it scans the table.
  @return the next record if found, NULL if end of scan */
 const rec_t *dict_getnext_system(
-    /*================*/
     btr_pcur_t *pcur, /*!< in/out: persistent cursor
                       to the record */
     mtr_t *mtr)       /*!< in: the mini-transaction */
@@ -921,12 +909,10 @@ static const char *dict_load_field_low(
   return (NULL);
 }
 
-/********************************************************************/ /**
- This function parses a SYS_TABLESPACES record, extracts necessary
+/** This function parses a SYS_TABLESPACES record, extracts necessary
  information from the record and returns to caller.
  @return error message, or NULL on success */
 const char *dict_process_sys_tablespaces(
-    /*=========================*/
     mem_heap_t *heap,  /*!< in/out: heap memory */
     const rec_t *rec,  /*!< in: current SYS_TABLESPACES rec */
     space_id_t *space, /*!< out: space id */
@@ -1553,13 +1539,10 @@ space_id_t dict_check_sys_tables(bool validate) {
   DBUG_RETURN(max_space_id);
 }
 
-/********************************************************************/ /**
- Loads definitions for table columns. */
-static void dict_load_columns(
-    /*==============*/
-    dict_table_t *table, /*!< in/out: table */
-    mem_heap_t *heap)    /*!< in/out: memory heap
-                         for temporary storage */
+/** Loads definitions for table columns. */
+static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
+                              mem_heap_t *heap)    /*!< in/out: memory heap
+                                                   for temporary storage */
 {
   dict_table_t *sys_columns;
   dict_index_t *sys_index;
@@ -1664,11 +1647,9 @@ static void dict_load_columns(
   mtr_commit(&mtr);
 }
 
-/********************************************************************/ /**
- Loads definitions for index fields.
+/** Loads definitions for index fields.
  @return DB_SUCCESS if ok, DB_CORRUPTION if corruption */
 static ulint dict_load_fields(
-    /*=============*/
     dict_index_t *index, /*!< in/out: index whose fields to load */
     mem_heap_t *heap)    /*!< in: memory heap for temporary storage */
 {
@@ -1735,13 +1716,11 @@ func_exit:
   return (error);
 }
 
-/********************************************************************/ /**
- Loads definitions for table indexes. Adds them to the data dictionary
+/** Loads definitions for table indexes. Adds them to the data dictionary
  cache.
  @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
  table or DB_UNSUPPORTED if table has unknown index type */
 static dberr_t dict_load_indexes(
-    /*==============*/
     dict_table_t *table, /*!< in/out: table */
     mem_heap_t *heap,    /*!< in: memory heap for temporary storage */
     dict_err_ignore_t ignore_err)
@@ -2539,11 +2518,9 @@ func_exit:
   DBUG_RETURN(table);
 }
 
-/***********************************************************************/ /**
- Loads a table object based on the table id.
+/** Loads a table object based on the table id.
  @return table; NULL if table does not exist */
 dict_table_t *dict_load_table_on_id(
-    /*==================*/
     table_id_t table_id,          /*!< in: table id */
     dict_err_ignore_t ignore_err) /*!< in: errors to ignore
                                   when loading the table */
@@ -2632,13 +2609,10 @@ dict_table_t *dict_load_table_on_id(
   return (table);
 }
 
-/********************************************************************/ /**
- This function is called when the database is booted. Loads system table
+/** This function is called when the database is booted. Loads system table
  index definitions except for the clustered index which is added to the
  dictionary cache at booting before calling this function. */
-void dict_load_sys_table(
-    /*================*/
-    dict_table_t *table) /*!< in: system table */
+void dict_load_sys_table(dict_table_t *table) /*!< in: system table */
 {
   mem_heap_t *heap;
 
@@ -2651,8 +2625,7 @@ void dict_load_sys_table(
   mem_heap_free(heap);
 }
 
-/********************************************************************/ /**
- Loads foreign key constraint col names (also for the referenced table).
+/** Loads foreign key constraint col names (also for the referenced table).
  Members that must be set (and valid) in foreign:
  foreign->heap
  foreign->n_fields
@@ -2662,7 +2635,6 @@ void dict_load_sys_table(
  foreign->referenced_col_names[i]
  (for i=0..foreign->n_fields-1) */
 static void dict_load_foreign_cols(
-    /*===================*/
     dict_foreign_t *foreign) /*!< in/out: foreign constraint object */
 {
   dict_table_t *sys_foreign_cols;
@@ -2765,28 +2737,26 @@ static void dict_load_foreign_cols(
   mtr_commit(&mtr);
 }
 
-/***********************************************************************/ /**
- Loads a foreign key constraint to the dictionary cache. If the referenced
+/** Loads a foreign key constraint to the dictionary cache. If the referenced
  table is not yet loaded, it is added in the output parameter (fk_tables).
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t dict_load_foreign(
-    /*==============*/
-    const char *id,
-    /*!< in: foreign constraint id, must be
-    '\0'-terminated */
-    const char **col_names,
-    /*!< in: column names, or NULL
-    to use foreign->foreign_table->col_names */
-    bool check_recursive,
-    /*!< in: whether to record the foreign table
-    parent count to avoid unlimited recursive
-    load of chained foreign tables */
-    bool check_charsets,
-    /*!< in: whether to check charset
-    compatibility */
-    dict_err_ignore_t ignore_err,
-    /*!< in: error to be ignored */
-    dict_names_t &fk_tables)
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    dict_load_foreign(const char *id,
+                      /*!< in: foreign constraint id, must be
+                      '\0'-terminated */
+                      const char **col_names,
+                      /*!< in: column names, or NULL
+                      to use foreign->foreign_table->col_names */
+                      bool check_recursive,
+                      /*!< in: whether to record the foreign table
+                      parent count to avoid unlimited recursive
+                      load of chained foreign tables */
+                      bool check_charsets,
+                      /*!< in: whether to check charset
+                      compatibility */
+                      dict_err_ignore_t ignore_err,
+                      /*!< in: error to be ignored */
+                      dict_names_t &fk_tables)
 /*!< out: the foreign key constraint is added
 to the dictionary cache only if the referenced
 table is already in cache.  Otherwise, the
@@ -2945,8 +2915,7 @@ stack. */
                                         true, ignore_err));
 }
 
-/***********************************************************************/ /**
- Loads foreign key constraints where the table is either the foreign key
+/** Loads foreign key constraints where the table is either the foreign key
  holder or where the table is referenced by a foreign key. Adds these
  constraints to the data dictionary.
 
@@ -2956,7 +2925,6 @@ stack. */
 
  @return DB_SUCCESS or error code */
 dberr_t dict_load_foreigns(
-    /*===============*/
     const char *table_name,       /*!< in: table name */
     const char **col_names,       /*!< in: column names, or NULL
                                   to use table->col_names */

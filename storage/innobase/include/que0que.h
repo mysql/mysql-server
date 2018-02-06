@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/que0que.h
+/** @file include/que0que.h
  Query graph
 
  Created 5/27/1996 Heikki Tuuri
@@ -48,29 +47,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Mutex protecting the query threads. */
 extern ib_mutex_t que_thr_mutex;
 
-/***********************************************************************/ /**
- Creates a query graph fork node.
+/** Creates a query graph fork node.
  @return own: fork node */
 que_fork_t *que_fork_create(
-    /*============*/
     que_t *graph,       /*!< in: graph, if NULL then this
                         fork node is assumed to be the
                         graph root */
     que_node_t *parent, /*!< in: parent node */
     ulint fork_type,    /*!< in: fork type */
     mem_heap_t *heap);  /*!< in: memory heap where created */
-/***********************************************************************/ /**
- Gets the first thr in a fork. */
+/** Gets the first thr in a fork. */
 UNIV_INLINE
-que_thr_t *que_fork_get_first_thr(
-    /*===================*/
-    que_fork_t *fork); /*!< in: query fork */
-/***********************************************************************/ /**
- Gets the child node of the first thr in a fork. */
+que_thr_t *que_fork_get_first_thr(que_fork_t *fork); /*!< in: query fork */
+/** Gets the child node of the first thr in a fork. */
 UNIV_INLINE
-que_node_t *que_fork_get_child(
-    /*===============*/
-    que_fork_t *fork); /*!< in: query fork */
+que_node_t *que_fork_get_child(que_fork_t *fork); /*!< in: query fork */
 
 /** Sets the parent of a graph node.
 @param[in]	node	graph node
@@ -85,117 +76,74 @@ void que_node_set_parent(que_node_t *node, que_node_t *parent);
 @return own: query thread node */
 que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
                           row_prebuilt_t *prebuilt);
-/**********************************************************************/ /**
- Frees a query graph, but not the heap where it was created. Does not free
+/** Frees a query graph, but not the heap where it was created. Does not free
  explicit cursor declarations, they are freed in que_graph_free. */
-void que_graph_free_recursive(
-    /*=====================*/
-    que_node_t *node); /*!< in: query graph node */
-/**********************************************************************/ /**
- Frees a query graph. */
+void que_graph_free_recursive(que_node_t *node); /*!< in: query graph node */
+/** Frees a query graph. */
 void que_graph_free(
-    /*===========*/
     que_t *graph); /*!< in: query graph; we assume that the memory
                    heap where this graph was created is private
                    to this graph: if not, then use
                    que_graph_free_recursive and free the heap
                    afterwards! */
-/**********************************************************************/ /**
- Stops a query thread if graph or trx is in a state requiring it. The
+/** Stops a query thread if graph or trx is in a state requiring it. The
  conditions are tested in the order (1) graph, (2) trx. The lock_sys_t::mutex
  has to be reserved.
  @return true if stopped */
-ibool que_thr_stop(
-    /*=========*/
-    que_thr_t *thr); /*!< in: query thread */
-/**********************************************************************/ /**
- Moves a thread from another state to the QUE_THR_RUNNING state. Increments
+ibool que_thr_stop(que_thr_t *thr); /*!< in: query thread */
+/** Moves a thread from another state to the QUE_THR_RUNNING state. Increments
  the n_active_thrs counters of the query graph and transaction. */
 void que_thr_move_to_run_state_for_mysql(
-    /*================================*/
     que_thr_t *thr, /*!< in: an query thread */
     trx_t *trx);    /*!< in: transaction */
-/**********************************************************************/ /**
- A patch for MySQL used to 'stop' a dummy query thread used in MySQL
+/** A patch for MySQL used to 'stop' a dummy query thread used in MySQL
  select, when there is no error or lock wait. */
-void que_thr_stop_for_mysql_no_error(
-    /*============================*/
-    que_thr_t *thr, /*!< in: query thread */
-    trx_t *trx);    /*!< in: transaction */
-/**********************************************************************/ /**
- A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
+void que_thr_stop_for_mysql_no_error(que_thr_t *thr, /*!< in: query thread */
+                                     trx_t *trx);    /*!< in: transaction */
+/** A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
  query thread is stopped and made inactive, except in the case where
  it was put to the lock wait state in lock0lock.cc, but the lock has already
  been granted or the transaction chosen as a victim in deadlock resolution. */
-void que_thr_stop_for_mysql(
-    /*===================*/
-    que_thr_t *thr); /*!< in: query thread */
-/**********************************************************************/ /**
- Run a query thread. Handles lock waits. */
-void que_run_threads(
-    /*============*/
-    que_thr_t *thr); /*!< in: query thread */
-/**********************************************************************/ /**
- Moves a suspended query thread to the QUE_THR_RUNNING state and release
+void que_thr_stop_for_mysql(que_thr_t *thr); /*!< in: query thread */
+/** Run a query thread. Handles lock waits. */
+void que_run_threads(que_thr_t *thr); /*!< in: query thread */
+/** Moves a suspended query thread to the QUE_THR_RUNNING state and release
  a worker thread to execute it. This function should be used to end
  the wait state of a query thread waiting for a lock or a stored procedure
  completion.
  @return query thread instance of thread to wakeup or NULL */
-que_thr_t *que_thr_end_lock_wait(
-    /*==================*/
-    trx_t *trx); /*!< in: transaction in the
-                 QUE_THR_LOCK_WAIT state */
-/**********************************************************************/ /**
- Starts execution of a command in a query fork. Picks a query thread which
+que_thr_t *que_thr_end_lock_wait(trx_t *trx); /*!< in: transaction in the
+                                              QUE_THR_LOCK_WAIT state */
+/** Starts execution of a command in a query fork. Picks a query thread which
  is not in the QUE_THR_RUNNING state and moves it to that state. If none
  can be chosen, a situation which may arise in parallelized fetches, NULL
  is returned.
  @return a query thread of the graph moved to QUE_THR_RUNNING state, or
  NULL; the query thread should be executed by que_run_threads by the
  caller */
-que_thr_t *que_fork_start_command(
-    /*===================*/
-    que_fork_t *fork); /*!< in: a query fork */
-/***********************************************************************/ /**
- Gets the trx of a query thread. */
+que_thr_t *que_fork_start_command(que_fork_t *fork); /*!< in: a query fork */
+/** Gets the trx of a query thread. */
 UNIV_INLINE
-trx_t *thr_get_trx(
-    /*========*/
-    que_thr_t *thr); /*!< in: query thread */
-/*******************************************************************/ /**
- Determines if this thread is rolling back an incomplete transaction
+trx_t *thr_get_trx(que_thr_t *thr); /*!< in: query thread */
+/** Determines if this thread is rolling back an incomplete transaction
  in crash recovery.
  @return true if thr is rolling back an incomplete transaction in crash
  recovery */
 UNIV_INLINE
-ibool thr_is_recv(
-    /*========*/
-    const que_thr_t *thr); /*!< in: query thread */
-/***********************************************************************/ /**
- Gets the type of a graph node. */
+ibool thr_is_recv(const que_thr_t *thr); /*!< in: query thread */
+/** Gets the type of a graph node. */
 UNIV_INLINE
-ulint que_node_get_type(
-    /*==============*/
-    const que_node_t *node); /*!< in: graph node */
-/***********************************************************************/ /**
- Gets pointer to the value data type field of a graph node. */
+ulint que_node_get_type(const que_node_t *node); /*!< in: graph node */
+/** Gets pointer to the value data type field of a graph node. */
 UNIV_INLINE
-dtype_t *que_node_get_data_type(
-    /*===================*/
-    que_node_t *node); /*!< in: graph node */
-/***********************************************************************/ /**
- Gets pointer to the value dfield of a graph node. */
+dtype_t *que_node_get_data_type(que_node_t *node); /*!< in: graph node */
+/** Gets pointer to the value dfield of a graph node. */
 UNIV_INLINE
-dfield_t *que_node_get_val(
-    /*=============*/
-    que_node_t *node); /*!< in: graph node */
-/***********************************************************************/ /**
- Gets the value buffer size of a graph node.
+dfield_t *que_node_get_val(que_node_t *node); /*!< in: graph node */
+/** Gets the value buffer size of a graph node.
  @return val buffer size, not defined if val.data == NULL in node */
 UNIV_INLINE
-ulint que_node_get_val_buf_size(
-    /*======================*/
-    que_node_t *node); /*!< in: graph node */
+ulint que_node_get_val_buf_size(que_node_t *node); /*!< in: graph node */
 
 /** Sets the value buffer size of a graph node.
 @param[in]	node	graph node
@@ -203,25 +151,17 @@ ulint que_node_get_val_buf_size(
 UNIV_INLINE
 void que_node_set_val_buf_size(que_node_t *node, ulint size);
 
-/*********************************************************************/ /**
- Gets the next list node in a list of query graph nodes. */
+/** Gets the next list node in a list of query graph nodes. */
 UNIV_INLINE
-que_node_t *que_node_get_next(
-    /*==============*/
-    que_node_t *node); /*!< in: node in a list */
-/*********************************************************************/ /**
- Gets the parent node of a query graph node.
+que_node_t *que_node_get_next(que_node_t *node); /*!< in: node in a list */
+/** Gets the parent node of a query graph node.
  @return parent node or NULL */
 UNIV_INLINE
-que_node_t *que_node_get_parent(
-    /*================*/
-    que_node_t *node); /*!< in: node */
-/****************************************************************/ /**
- Get the first containing loop node (e.g. while_node_t or for_node_t) for the
+que_node_t *que_node_get_parent(que_node_t *node); /*!< in: node */
+/** Get the first containing loop node (e.g. while_node_t or for_node_t) for the
  given node, or NULL if the node is not within a loop.
  @return containing loop node, or NULL. */
 que_node_t *que_node_get_containing_loop_node(
-    /*==============================*/
     que_node_t *node); /*!< in: node */
 
 /** Catenates a query graph node to a list of them, possible empty list.
@@ -235,69 +175,48 @@ que_node_t *que_node_list_add_last(que_node_t *node_list, que_node_t *node);
 Get the last node from the list.*/
 UNIV_INLINE
 que_node_t *que_node_list_get_last(
-    /*===================*/
     /* out: node last node from list.*/
     que_node_t *node_list); /* in: node list, or NULL */
-/*********************************************************************/ /**
- Gets a query graph node list length.
+/** Gets a query graph node list length.
  @return length, for NULL list 0 */
 UNIV_INLINE
 ulint que_node_list_get_len(
-    /*==================*/
     que_node_t *node_list); /*!< in: node list, or NULL */
-/**********************************************************************/ /**
- Checks if graph, trx, or session is in a state where the query thread should
+/** Checks if graph, trx, or session is in a state where the query thread should
  be stopped.
  @return true if should be stopped; NOTE that if the peek is made
  without reserving the trx_t::mutex, then another peek with the mutex
  reserved is necessary before deciding the actual stopping */
 UNIV_INLINE
-ibool que_thr_peek_stop(
-    /*==============*/
-    que_thr_t *thr); /*!< in: query thread */
-/***********************************************************************/ /**
- Returns TRUE if the query graph is for a SELECT statement.
+ibool que_thr_peek_stop(que_thr_t *thr); /*!< in: query thread */
+/** Returns TRUE if the query graph is for a SELECT statement.
  @return true if a select */
 UNIV_INLINE
-ibool que_graph_is_select(
-    /*================*/
-    que_t *graph); /*!< in: graph */
-/**********************************************************************/ /**
- Prints info of an SQL query graph node. */
-void que_node_print_info(
-    /*================*/
-    que_node_t *node); /*!< in: query graph node */
-/*********************************************************************/ /**
- Evaluate the given SQL
+ibool que_graph_is_select(que_t *graph); /*!< in: graph */
+/** Prints info of an SQL query graph node. */
+void que_node_print_info(que_node_t *node); /*!< in: query graph node */
+/** Evaluate the given SQL
  @return error code or DB_SUCCESS */
-dberr_t que_eval_sql(
-    /*=========*/
-    pars_info_t *info, /*!< in: info struct, or NULL */
-    const char *sql,   /*!< in: SQL string */
-    ibool reserve_dict_mutex,
-    /*!< in: if TRUE, acquire/release
-    dict_sys->mutex around call to pars_sql. */
-    trx_t *trx); /*!< in: trx */
+dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
+                     const char *sql,   /*!< in: SQL string */
+                     ibool reserve_dict_mutex,
+                     /*!< in: if TRUE, acquire/release
+                     dict_sys->mutex around call to pars_sql. */
+                     trx_t *trx); /*!< in: trx */
 
-/**********************************************************************/ /**
- Round robin scheduler.
+/** Round robin scheduler.
  @return a query thread of the graph moved to QUE_THR_RUNNING state, or
  NULL; the query thread should be executed by que_run_threads by the
  caller */
 que_thr_t *que_fork_scheduler_round_robin(
-    /*===========================*/
     que_fork_t *fork, /*!< in: a query fork */
     que_thr_t *thr);  /*!< in: current pos */
 
-/*********************************************************************/ /**
- Initialise the query sub-system. */
+/** Initialise the query sub-system. */
 void que_init(void);
-/*==========*/
 
-/*********************************************************************/ /**
- Close the query sub-system. */
+/** Close the query sub-system. */
 void que_close(void);
-/*===========*/
 
 /** Query thread states */
 enum que_thr_state_t {

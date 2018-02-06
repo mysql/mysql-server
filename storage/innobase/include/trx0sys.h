@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/trx0sys.h
+/** @file include/trx0sys.h
  Transaction system
 
  Created 3/26/1996 Heikki Tuuri
@@ -66,20 +65,14 @@ extern trx_sys_t *trx_sys;
 UNIV_INLINE
 bool trx_sys_hdr_page(const page_id_t &page_id);
 
-/*****************************************************************/ /**
- Creates and initializes the central memory structures for the transaction
+/** Creates and initializes the central memory structures for the transaction
  system. This is called when the database is started.
  @return min binary heap of rsegs to purge */
 purge_pq_t *trx_sys_init_at_db_start(void);
-/*==========================*/
-/*****************************************************************/ /**
- Creates the trx_sys instance and initializes purge_queue and mutex. */
+/** Creates the trx_sys instance and initializes purge_queue and mutex. */
 void trx_sys_create(void);
-/*================*/
-/*****************************************************************/ /**
- Creates and initializes the transaction system at the database creation. */
+/** Creates and initializes the transaction system at the database creation. */
 void trx_sys_create_sys_pages(void);
-/*==========================*/
 
 /** Find the page number in the TRX_SYS page for a given slot/rseg_id
 @param[in]	rseg_id		slot number in the TRX_SYS page rseg array
@@ -91,13 +84,10 @@ page_no_t trx_sysf_rseg_find_page_no(ulint rseg_id);
 @return slot index or ULINT_UNDEFINED if not found */
 ulint trx_sysf_rseg_find_free(mtr_t *mtr);
 
-/**********************************************************************/ /**
- Gets a pointer to the transaction system file copy and x-locks its page.
+/** Gets a pointer to the transaction system file copy and x-locks its page.
  @return pointer to system file copy, page x-locked */
 UNIV_INLINE
-trx_sysf_t *trx_sysf_get(
-    /*=========*/
-    mtr_t *mtr); /*!< in: mtr */
+trx_sysf_t *trx_sysf_get(mtr_t *mtr); /*!< in: mtr */
 
 /** Gets the space of the nth rollback segment slot in the trx system
 file copy.
@@ -139,19 +129,15 @@ UNIV_INLINE
 void trx_sysf_rseg_set_page_no(trx_sysf_t *sys_header, ulint i,
                                page_no_t page_no, mtr_t *mtr);
 
-/*****************************************************************/ /**
- Allocates a new transaction id.
+/** Allocates a new transaction id.
  @return new, allocated trx id */
 UNIV_INLINE
 trx_id_t trx_sys_get_new_trx_id();
-/*===================*/
-/*****************************************************************/ /**
- Determines the maximum transaction id.
+/** Determines the maximum transaction id.
  @return maximum currently allocated trx id; will be stale after the
  next call to trx_sys_get_new_trx_id() */
 UNIV_INLINE
 trx_id_t trx_sys_get_max_trx_id(void);
-/*========================*/
 
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
@@ -167,32 +153,25 @@ UNIV_INLINE
 void trx_write_trx_id(byte *ptr, trx_id_t id);
 
 #ifndef UNIV_HOTBACKUP
-/*****************************************************************/ /**
- Reads a trx id from an index page. In case that the id size changes in
+/** Reads a trx id from an index page. In case that the id size changes in
  some future version, this function should be used instead of
  mach_read_...
  @return id */
 UNIV_INLINE
 trx_id_t trx_read_trx_id(
-    /*============*/
     const byte *ptr); /*!< in: pointer to memory from where to read */
 
-/****************************************************************/ /**
- Looks for the trx instance with the given id in the rw trx_list.
+/** Looks for the trx instance with the given id in the rw trx_list.
  @return	the trx handle or NULL if not found */
 UNIV_INLINE
-trx_t *trx_get_rw_trx_by_id(
-    /*=================*/
-    trx_id_t trx_id); /*!< in: trx id to search for */
-/****************************************************************/ /**
- Returns the minimum trx id in rw trx list. This is the smallest id for which
+trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id); /*!< in: trx id to search for */
+/** Returns the minimum trx id in rw trx list. This is the smallest id for which
  the trx can possibly be active. (But, you must look at the trx->state to
  find out if the minimum trx id transaction itself is active, or already
  committed.)
  @return the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
 UNIV_INLINE
 trx_id_t trx_rw_min_trx_id(void);
-/*===================*/
 
 /** Checks if a rw transaction with the given id is active.
 @param[in]	trx_id		trx id of the transaction
@@ -213,36 +192,27 @@ UNIV_INLINE
 trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt, bool do_ref_count);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-/***********************************************************/ /**
- Assert that a transaction has been recovered.
+/** Assert that a transaction has been recovered.
  @return true */
 UNIV_INLINE
-ibool trx_assert_recovered(
-    /*=================*/
-    trx_id_t trx_id) /*!< in: transaction identifier */
+ibool trx_assert_recovered(trx_id_t trx_id) /*!< in: transaction identifier */
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-/*****************************************************************/ /**
- Updates the offset information about the end of the MySQL binlog entry
+/** Updates the offset information about the end of the MySQL binlog entry
  which corresponds to the transaction just being committed. In a MySQL
  replication slave updates the latest master binlog position up to which
  replication has proceeded. */
 void trx_sys_update_mysql_binlog_offset(
-    /*===============================*/
     const char *file_name, /*!< in: MySQL log file name */
     int64_t offset,        /*!< in: position in that log file */
     ulint field,           /*!< in: offset of the MySQL log info field in
                            the trx sys header */
     mtr_t *mtr);           /*!< in: mtr */
-/*****************************************************************/ /**
- Prints to stderr the MySQL binlog offset info in the trx system header if
+/** Prints to stderr the MySQL binlog offset info in the trx system header if
  the magic number shows it valid. */
 void trx_sys_print_mysql_binlog_offset(void);
-/*===================================*/
-/*****************************************************************/ /**
- Shutdown/Close the transaction system. */
+/** Shutdown/Close the transaction system. */
 void trx_sys_close(void);
-/*===============*/
 
 /** Determine if there are incomplete transactions in the system.
 @return whether incomplete transactions need rollback */
@@ -253,13 +223,10 @@ bool trx_sys_need_rollback();
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
 ulint trx_sys_any_active_transactions(void);
-/*=================================*/
 #else  /* !UNIV_HOTBACKUP */
-/*****************************************************************/ /**
- Prints to stderr the MySQL binlog info in the system header if the
+/** Prints to stderr the MySQL binlog info in the system header if the
  magic number shows it valid. */
 void trx_sys_print_mysql_binlog_offset_from_page(
-    /*========================================*/
     const byte *page); /*!< in: buffer containing the trx
                        system header page, i.e., page number
                        TRX_SYS_PAGE_NO in the tablespace */
@@ -271,11 +238,9 @@ UNIV_INLINE
 void trx_sys_rw_trx_add(trx_t *trx);
 
 #ifdef UNIV_DEBUG
-/*************************************************************/ /**
- Validate the trx_sys_t::rw_trx_list.
+/** Validate the trx_sys_t::rw_trx_list.
  @return true if the list is valid */
 bool trx_sys_validate_trx_list();
-/*========================*/
 #endif /* UNIV_DEBUG */
 
 /** Initialize trx_sys_undo_spaces, called once during srv_start(). */

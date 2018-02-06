@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/trx0undo.ic
+/** @file include/trx0undo.ic
  Transaction undo log
 
  Created 3/26/1996 Heikki Tuuri
@@ -61,10 +60,8 @@ inline roll_ptr_t trx_undo_build_roll_ptr(ibool is_insert, space_id_t space_id,
   return (roll_ptr);
 }
 
-/***********************************************************************/ /**
- Decodes a roll pointer. */
+/** Decodes a roll pointer. */
 inline void trx_undo_decode_roll_ptr(
-    /*=====================*/
     roll_ptr_t roll_ptr, /*!< in: roll pointer */
     ibool *is_insert,    /*!< out: TRUE if insert undo log */
     ulint *rseg_id,      /*!< out: rollback segment id */
@@ -88,13 +85,10 @@ inline void trx_undo_decode_roll_ptr(
   *is_insert = (ibool)roll_ptr; /* TRUE==1 */
 }
 
-/***********************************************************************/ /**
- Returns TRUE if the roll pointer is of the insert type.
+/** Returns TRUE if the roll pointer is of the insert type.
  @return true if insert undo log */
 UNIV_INLINE
-ibool trx_undo_roll_ptr_is_insert(
-    /*========================*/
-    roll_ptr_t roll_ptr) /*!< in: roll pointer */
+ibool trx_undo_roll_ptr_is_insert(roll_ptr_t roll_ptr) /*!< in: roll pointer */
 {
 #if DATA_ROLL_PTR_LEN != 7
 #error "DATA_ROLL_PTR_LEN != 7"
@@ -106,12 +100,10 @@ ibool trx_undo_roll_ptr_is_insert(
   return ((ibool)(roll_ptr >> 55));
 }
 
-/***********************************************************************/ /**
- Returns true if the record is of the insert type.
+/** Returns true if the record is of the insert type.
  @return true if the record was freshly inserted (not updated). */
 UNIV_INLINE
 bool trx_undo_trx_id_is_insert(
-    /*======================*/
     const byte *trx_id) /*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
 {
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR
@@ -121,16 +113,13 @@ bool trx_undo_trx_id_is_insert(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/*****************************************************************/ /**
- Writes a roll ptr to an index page. In case that the size changes in
+/** Writes a roll ptr to an index page. In case that the size changes in
  some future version, this function should be used instead of
  mach_write_... */
 UNIV_INLINE
-void trx_write_roll_ptr(
-    /*===============*/
-    byte *ptr,           /*!< in: pointer to memory where
-                         written */
-    roll_ptr_t roll_ptr) /*!< in: roll ptr */
+void trx_write_roll_ptr(byte *ptr,           /*!< in: pointer to memory where
+                                             written */
+                        roll_ptr_t roll_ptr) /*!< in: roll ptr */
 {
 #if DATA_ROLL_PTR_LEN != 7
 #error "DATA_ROLL_PTR_LEN != 7"
@@ -138,14 +127,12 @@ void trx_write_roll_ptr(
   mach_write_to_7(ptr, roll_ptr);
 }
 
-/*****************************************************************/ /**
- Reads a roll ptr from an index page. In case that the roll ptr size
+/** Reads a roll ptr from an index page. In case that the roll ptr size
  changes in some future version, this function should be used instead of
  mach_read_...
  @return roll ptr */
 UNIV_INLINE
 roll_ptr_t trx_read_roll_ptr(
-    /*==============*/
     const byte *ptr) /*!< in: pointer to memory from where to read */
 {
 #if DATA_ROLL_PTR_LEN != 7
@@ -184,13 +171,11 @@ page_t *trx_undo_page_get_s_latched(const page_id_t &page_id,
   return (buf_block_get_frame(block));
 }
 
-/******************************************************************/ /**
- Returns the start offset of the undo log records of the specified undo
+/** Returns the start offset of the undo log records of the specified undo
  log on the page.
  @return start offset */
 UNIV_INLINE
 ulint trx_undo_page_get_start(
-    /*====================*/
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */
@@ -206,13 +191,11 @@ ulint trx_undo_page_get_start(
   return (start);
 }
 
-/******************************************************************/ /**
- Returns the end offset of the undo log records of the specified undo
+/** Returns the end offset of the undo log records of the specified undo
  log on the page.
  @return end offset */
 UNIV_INLINE
 ulint trx_undo_page_get_end(
-    /*==================*/
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */
@@ -236,13 +219,11 @@ ulint trx_undo_page_get_end(
   return (end);
 }
 
-/******************************************************************/ /**
- Returns the previous undo record on the page in the specified log, or
+/** Returns the previous undo record on the page in the specified log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
 UNIV_INLINE
 trx_undo_rec_t *trx_undo_page_get_prev_rec(
-    /*=======================*/
     trx_undo_rec_t *rec, /*!< in: undo log record */
     page_no_t page_no,   /*!< in: undo log header page number */
     ulint offset)        /*!< in: undo log header offset on page */
@@ -261,13 +242,11 @@ trx_undo_rec_t *trx_undo_page_get_prev_rec(
   return (undo_page + mach_read_from_2(rec - 2));
 }
 
-/******************************************************************/ /**
- Returns the next undo log record on the page in the specified log, or
+/** Returns the next undo log record on the page in the specified log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
 UNIV_INLINE
 trx_undo_rec_t *trx_undo_page_get_next_rec(
-    /*=======================*/
     trx_undo_rec_t *rec, /*!< in: undo log record */
     page_no_t page_no,   /*!< in: undo log header page number */
     ulint offset)        /*!< in: undo log header offset on page */
@@ -289,13 +268,11 @@ trx_undo_rec_t *trx_undo_page_get_next_rec(
   return (undo_page + next);
 }
 
-/******************************************************************/ /**
- Returns the last undo record on the page in the specified undo log, or
+/** Returns the last undo record on the page in the specified undo log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
 UNIV_INLINE
 trx_undo_rec_t *trx_undo_page_get_last_rec(
-    /*=======================*/
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */
@@ -313,13 +290,11 @@ trx_undo_rec_t *trx_undo_page_get_last_rec(
   return (undo_page + mach_read_from_2(undo_page + end - 2));
 }
 
-/******************************************************************/ /**
- Returns the first undo record on the page in the specified undo log, or
+/** Returns the first undo record on the page in the specified undo log, or
  NULL if none exists.
  @return pointer to record, NULL if none */
 UNIV_INLINE
 trx_undo_rec_t *trx_undo_page_get_first_rec(
-    /*========================*/
     page_t *undo_page, /*!< in: undo log page */
     page_no_t page_no, /*!< in: undo log header page number */
     ulint offset)      /*!< in: undo log header offset on page */

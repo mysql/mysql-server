@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file srv/srv0mon.cc
+/** @file srv/srv0mon.cc
  Database monitor counter interfaces
 
  Created 12/9/2009 Jimmy Yang
@@ -1160,13 +1159,11 @@ monitor_value_t innodb_counter_value[NUM_MONITOR];
 has been turned on/off. */
 ulint monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT - 1) / NUM_BITS_ULINT];
 
-/****************************************************************/ /**
- Get a monitor's "monitor_info" by its monitor id (index into the
+/** Get a monitor's "monitor_info" by its monitor id (index into the
  innodb_counter_info array.
  @return Point to corresponding monitor_info_t, or NULL if no such
  monitor */
 monitor_info_t *srv_mon_get_info(
-    /*=============*/
     monitor_id_t monitor_id) /*!< id indexing into the
                              innodb_counter_info array */
 {
@@ -1175,13 +1172,11 @@ monitor_info_t *srv_mon_get_info(
   return ((monitor_id < NUM_MONITOR) ? &innodb_counter_info[monitor_id] : NULL);
 }
 
-/****************************************************************/ /**
- Get monitor's name by its monitor id (indexing into the
+/** Get monitor's name by its monitor id (indexing into the
  innodb_counter_info array.
  @return corresponding monitor name, or NULL if no such
  monitor */
 const char *srv_mon_get_name(
-    /*=============*/
     monitor_id_t monitor_id) /*!< id index into the
                              innodb_counter_info array */
 {
@@ -1192,12 +1187,10 @@ const char *srv_mon_get_name(
               : NULL);
 }
 
-/****************************************************************/ /**
- Turn on/off, reset monitor counters in a module. If module_id
+/** Turn on/off, reset monitor counters in a module. If module_id
  is MONITOR_ALL_COUNTER then turn on all monitor counters.
  turned on because it has already been turned on. */
 void srv_mon_set_module_control(
-    /*=======================*/
     monitor_id_t module_id,  /*!< in: Module ID as in
                              monitor_counter_id. If it is
                              set to MONITOR_ALL_COUNTER, this means
@@ -1330,8 +1323,7 @@ static ulint srv_mon_get_rseg_size(void) {
   return (value);
 }
 
-/****************************************************************/ /**
- This function consolidates some existing server counters used
+/** This function consolidates some existing server counters used
  by "system status variables". These existing system variables do not have
  mechanism to start/stop and reset the counters, so we simulate these
  controls by remembering the corresponding counter values when the
@@ -1340,7 +1332,6 @@ static ulint srv_mon_get_rseg_size(void) {
  srv_export_innodb_status() for related global counters used by
  the existing status variables.*/
 void srv_mon_process_existing_counter(
-    /*=============================*/
     monitor_id_t monitor_id, /*!< in: the monitor's ID as in
                              monitor_counter_id */
     mon_option_t set_option) /*!< in: Turn on/off reset the
@@ -1769,12 +1760,9 @@ void srv_mon_process_existing_counter(
   }
 }
 
-/*************************************************************/ /**
- Reset a monitor, create a new base line with the current monitor
+/** Reset a monitor, create a new base line with the current monitor
  value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
-void srv_mon_reset(
-    /*==========*/
-    monitor_id_t monitor) /*!< in: monitor id */
+void srv_mon_reset(monitor_id_t monitor) /*!< in: monitor id */
 {
   ibool monitor_was_on;
 
@@ -1815,11 +1803,8 @@ void srv_mon_reset(
   }
 }
 
-/*************************************************************/ /**
- Turn on monitor counters that are marked as default ON. */
-void srv_mon_default_on(void)
-/*====================*/
-{
+/** Turn on monitor counters that are marked as default ON. */
+void srv_mon_default_on(void) {
   ulint ix;
 
   for (ix = 0; ix < NUM_MONITOR; ix++) {

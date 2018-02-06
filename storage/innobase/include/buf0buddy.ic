@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/buf0buddy.ic
+/** @file include/buf0buddy.ic
  Binary buddy allocator for compressed pages
 
  Created December 2006 by Marko Makela
@@ -56,13 +55,10 @@ void *buf_buddy_alloc_low(buf_pool_t *buf_pool, ulint i) MY_ATTRIBUTE((malloc));
 void buf_buddy_free_low(buf_pool_t *buf_pool, void *buf, ulint i,
                         bool has_zip_free);
 
-/**********************************************************************/ /**
- Get the index of buf_pool->zip_free[] for a given block size.
+/** Get the index of buf_pool->zip_free[] for a given block size.
  @return index of buf_pool->zip_free[], or BUF_BUDDY_SIZES */
 UNIV_INLINE
-ulint buf_buddy_get_slot(
-    /*===============*/
-    ulint size) /*!< in: block size */
+ulint buf_buddy_get_slot(ulint size) /*!< in: block size */
 {
   ulint i;
   ulint s;

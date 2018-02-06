@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/os0atomics.ic
+/** @file include/os0atomics.ic
  The interface to the operating system synchronization primitives.
 
  Created 2012-09-23 Sunny Bains (Split from include/os0sync.ic)
@@ -40,13 +39,11 @@ functions so that typecasts are evaluated at compile time. Take advantage
 that lint is either __int64 or long int and windows atomic functions work
 on __int64 and LONG */
 
-/**********************************************************/ /**
- Atomic compare and exchange of unsigned integers.
+/** Atomic compare and exchange of unsigned integers.
  @return value found before the exchange.
  If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
 lint win_cmp_and_xchg_lint(
-    /*==================*/
     volatile lint *ptr, /*!< in/out: source/destination */
     lint new_val,       /*!< in: exchange value */
     lint old_val)       /*!< in: value to compare to */
@@ -58,14 +55,11 @@ lint win_cmp_and_xchg_lint(
 #endif /* _WIN64 */
 }
 
-/**********************************************************/ /**
- Atomic addition of signed integers.
+/** Atomic addition of signed integers.
  @return Initial value of the variable pointed to by ptr */
 UNIV_INLINE
-lint win_xchg_and_add(
-    /*=============*/
-    volatile lint *ptr, /*!< in/out: address of destination */
-    lint val)           /*!< in: number to be added */
+lint win_xchg_and_add(volatile lint *ptr, /*!< in/out: address of destination */
+                      lint val)           /*!< in: number to be added */
 {
 #ifdef _WIN64
   return (InterlockedExchangeAdd64(ptr, val));
@@ -74,13 +68,11 @@ lint win_xchg_and_add(
 #endif /* _WIN64 */
 }
 
-/**********************************************************/ /**
- Atomic compare and exchange of unsigned integers.
+/** Atomic compare and exchange of unsigned integers.
  @return value found before the exchange.
  If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
 ulint win_cmp_and_xchg_ulint(
-    /*===================*/
     volatile ulint *ptr, /*!< in/out: source/destination */
     ulint new_val,       /*!< in: exchange value */
     ulint old_val)       /*!< in: value to compare to */
@@ -89,17 +81,14 @@ ulint win_cmp_and_xchg_ulint(
                                        (lint)old_val));
 }
 
-/**********************************************************/ /**
- Atomic compare and exchange of 32-bit unsigned integers.
+/** Atomic compare and exchange of 32-bit unsigned integers.
  @return value found before the exchange.
  If it is not equal to old_value the exchange did not happen. */
 UNIV_INLINE
 DWORD
-win_cmp_and_xchg_dword(
-    /*===================*/
-    volatile DWORD *ptr, /*!< in/out: source/destination */
-    DWORD new_val,       /*!< in: exchange value */
-    DWORD old_val)       /*!< in: value to compare to */
+win_cmp_and_xchg_dword(volatile DWORD *ptr, /*!< in/out: source/destination */
+                       DWORD new_val,       /*!< in: exchange value */
+                       DWORD old_val)       /*!< in: value to compare to */
 {
   ut_ad(sizeof(DWORD) == sizeof(LONG)); /* We assume this. */
   return (InterlockedCompareExchange((volatile LONG *)ptr, (LONG)new_val,

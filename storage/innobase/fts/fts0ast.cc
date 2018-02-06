@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file fts/fts0ast.cc
+/** @file fts/fts0ast.cc
  Full Text Search parser helper file.
 
  Created 2007/3/16 Sunny Bains.
@@ -50,12 +49,9 @@ enum fts_ast_visit_pass_t {
                   process operator FTS_IGNORE */
 };
 
-/******************************************************************/ /**
- Create an empty fts_ast_node_t.
+/** Create an empty fts_ast_node_t.
  @return Create a new node */
-static fts_ast_node_t *fts_ast_node_create(void)
-/*=====================*/
-{
+static fts_ast_node_t *fts_ast_node_create(void) {
   fts_ast_node_t *node;
 
   node = (fts_ast_node_t *)ut_zalloc_nokey(sizeof(*node));
@@ -78,11 +74,9 @@ static void fts_ast_state_add_node(
   }
 }
 
-/******************************************************************/ /**
- Create a operator fts_ast_node_t.
+/** Create a operator fts_ast_node_t.
  @return new node */
 fts_ast_node_t *fts_ast_create_node_oper(
-    /*=====================*/
     void *arg,           /*!< in: ast state instance */
     fts_ast_oper_t oper) /*!< in: ast operator */
 {
@@ -96,12 +90,10 @@ fts_ast_node_t *fts_ast_create_node_oper(
   return (node);
 }
 
-/******************************************************************/ /**
- This function takes ownership of the ptr and is responsible
+/** This function takes ownership of the ptr and is responsible
  for free'ing it
  @return new node or a node list with tokenized words */
 fts_ast_node_t *fts_ast_create_node_term(
-    /*=====================*/
     void *arg,                   /*!< in: ast state instance */
     const fts_ast_string_t *ptr) /*!< in: ast term string */
 {
@@ -163,11 +155,9 @@ fts_ast_node_t *fts_ast_create_node_term(
   return ((node_list != NULL) ? node_list : first_node);
 }
 
-/******************************************************************/ /**
- Create an AST term node, makes a copy of ptr for plugin parser
+/** Create an AST term node, makes a copy of ptr for plugin parser
  @return node */
 fts_ast_node_t *fts_ast_create_node_term_for_parser(
-    /*================================*/
     void *arg,       /*!< in: ast state */
     const char *ptr, /*!< in: term string */
     const ulint len) /*!< in: term string length */
@@ -193,12 +183,10 @@ fts_ast_node_t *fts_ast_create_node_term_for_parser(
   return (node);
 }
 
-/******************************************************************/ /**
- This function takes ownership of the ptr and is responsible
+/** This function takes ownership of the ptr and is responsible
  for free'ing it.
  @return new node */
 fts_ast_node_t *fts_ast_create_node_text(
-    /*=====================*/
     void *arg,                   /*!< in: ast state instance */
     const fts_ast_string_t *ptr) /*!< in: ast text string */
 {
@@ -233,12 +221,9 @@ fts_ast_node_t *fts_ast_create_node_text(
   return (node);
 }
 
-/******************************************************************/ /**
- Create an AST phrase list node for plugin parser
+/** Create an AST phrase list node for plugin parser
  @return node */
-fts_ast_node_t *fts_ast_create_node_phrase_list(
-    /*============================*/
-    void *arg) /*!< in: ast state */
+fts_ast_node_t *fts_ast_create_node_phrase_list(void *arg) /*!< in: ast state */
 {
   fts_ast_node_t *node = fts_ast_node_create();
 
@@ -252,12 +237,10 @@ fts_ast_node_t *fts_ast_create_node_phrase_list(
   return (node);
 }
 
-/******************************************************************/ /**
- This function takes ownership of the expr and is responsible
+/** This function takes ownership of the expr and is responsible
  for free'ing it.
  @return new node */
 fts_ast_node_t *fts_ast_create_node_list(
-    /*=====================*/
     void *arg,            /*!< in: ast state instance */
     fts_ast_node_t *expr) /*!< in: ast expr instance */
 {
@@ -271,12 +254,10 @@ fts_ast_node_t *fts_ast_create_node_list(
   return (node);
 }
 
-/******************************************************************/ /**
- Create a sub-expression list node. This function takes ownership of
+/** Create a sub-expression list node. This function takes ownership of
  expr and is responsible for deleting it.
  @return new node */
 fts_ast_node_t *fts_ast_create_node_subexp_list(
-    /*============================*/
     void *arg,            /*!< in: ast state instance */
     fts_ast_node_t *expr) /*!< in: ast expr instance */
 {
@@ -290,11 +271,8 @@ fts_ast_node_t *fts_ast_create_node_subexp_list(
   return (node);
 }
 
-/******************************************************************/ /**
- Free an expr list node elements. */
-static void fts_ast_free_list(
-    /*==============*/
-    fts_ast_node_t *node) /*!< in: ast node to free */
+/** Free an expr list node elements. */
+static void fts_ast_free_list(fts_ast_node_t *node) /*!< in: ast node to free */
 {
   ut_a(node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST ||
        node->type == FTS_AST_PARSER_PHRASE_LIST);
@@ -304,11 +282,9 @@ static void fts_ast_free_list(
   }
 }
 
-/********************************************************************/ /**
- Free a fts_ast_node_t instance.
+/** Free a fts_ast_node_t instance.
  @return next node to free */
 fts_ast_node_t *fts_ast_free_node(
-    /*==============*/
     fts_ast_node_t *node) /*!< in: the node to free */
 {
   fts_ast_node_t *next_node;
@@ -350,12 +326,10 @@ fts_ast_node_t *fts_ast_free_node(
   return (next_node);
 }
 
-/******************************************************************/ /**
- This AST takes ownership of the expr and is responsible
+/** This AST takes ownership of the expr and is responsible
  for free'ing it.
  @return in param "list" */
 fts_ast_node_t *fts_ast_add_node(
-    /*=============*/
     fts_ast_node_t *node, /*!< in: list instance */
     fts_ast_node_t *elem) /*!< in: node to add to list */
 {
@@ -381,10 +355,8 @@ fts_ast_node_t *fts_ast_add_node(
   return (node);
 }
 
-/******************************************************************/ /**
- Set the wildcard attribute of a term. */
+/** Set the wildcard attribute of a term. */
 void fts_ast_term_set_wildcard(
-    /*======================*/
     fts_ast_node_t *node) /*!< in/out: set attribute of
                           a term node */
 {
@@ -404,13 +376,10 @@ void fts_ast_term_set_wildcard(
   node->term.wildcard = TRUE;
 }
 
-/******************************************************************/ /**
- Set the proximity attribute of a text node. */
-void fts_ast_text_set_distance(
-    /*======================*/
-    fts_ast_node_t *node, /*!< in/out: text node */
-    ulint distance)       /*!< in: the text proximity
-                          distance */
+/** Set the proximity attribute of a text node. */
+void fts_ast_text_set_distance(fts_ast_node_t *node, /*!< in/out: text node */
+                               ulint distance)       /*!< in: the text proximity
+                                                     distance */
 {
   if (node == NULL) {
     return;
@@ -422,11 +391,8 @@ void fts_ast_text_set_distance(
   node->text.distance = distance;
 }
 
-/******************************************************************/ /**
- Free node and expr allocations. */
-void fts_ast_state_free(
-    /*===============*/
-    fts_ast_state_t *state) /*!< in: ast state to free */
+/** Free node and expr allocations. */
+void fts_ast_state_free(fts_ast_state_t *state) /*!< in: ast state to free */
 {
   fts_ast_node_t *node = state->list.head;
 
@@ -459,10 +425,8 @@ static void fts_ast_string_print(const fts_ast_string_t *ast_str) {
   printf("\n");
 }
 
-/******************************************************************/ /**
- Print an ast node recursively. */
+/** Print an ast node recursively. */
 static void fts_ast_node_print_recursive(
-    /*=========================*/
     fts_ast_node_t *node, /*!< in: ast node to print */
     ulint level)          /*!< in: recursive level */
 {
@@ -515,11 +479,8 @@ static void fts_ast_node_print_recursive(
   }
 }
 
-/******************************************************************/ /**
- Print an ast node */
-void fts_ast_node_print(
-    /*===============*/
-    fts_ast_node_t *node) /*!< in: ast node to print */
+/** Print an ast node */
+void fts_ast_node_print(fts_ast_node_t *node) /*!< in: ast node to print */
 {
   fts_ast_node_print_recursive(node, 0);
 }
@@ -547,21 +508,19 @@ bool fts_ast_node_check_union(fts_ast_node_t *node) {
   return (true);
 }
 
-/******************************************************************/ /**
- Traverse the AST - in-order traversal, except for the FTX_EXIST and FTS_IGNORE
- nodes, which will be ignored in the first pass of each level, and visited in a
- second and third pass after all other nodes in the same level are visited.
+/** Traverse the AST - in-order traversal, except for the FTX_EXIST and
+ FTS_IGNORE nodes, which will be ignored in the first pass of each level, and
+ visited in a second and third pass after all other nodes in the same level are
+ visited.
  @return DB_SUCCESS if all went well */
-dberr_t fts_ast_visit(
-    /*==========*/
-    fts_ast_oper_t oper,      /*!< in: current operator */
-    fts_ast_node_t *node,     /*!< in: current root node */
-    fts_ast_callback visitor, /*!< in: callback function */
-    void *arg,                /*!< in: arg for callback */
-    bool *has_ignore)         /*!< out: true, if the operator
-                              was ignored during processing,
-                              currently we ignore FTS_EXIST
-                              and FTS_IGNORE operators */
+dberr_t fts_ast_visit(fts_ast_oper_t oper,      /*!< in: current operator */
+                      fts_ast_node_t *node,     /*!< in: current root node */
+                      fts_ast_callback visitor, /*!< in: callback function */
+                      void *arg,                /*!< in: arg for callback */
+                      bool *has_ignore)         /*!< out: true, if the operator
+                                                was ignored during processing,
+                                                currently we ignore FTS_EXIST
+                                                and FTS_IGNORE operators */
 {
   dberr_t error = DB_SUCCESS;
   fts_ast_node_t *oper_node = NULL;

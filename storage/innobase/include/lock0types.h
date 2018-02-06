@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/lock0types.h
+/** @file include/lock0types.h
  The transaction lock system global types
 
  Created 5/7/1996 Heikki Tuuri

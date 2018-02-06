@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0ftsort.cc
+/** @file row/row0ftsort.cc
  Create Full Text Index with (parallel) merge sort
 
  Created 10/13/2010 Jimmy Yang
@@ -64,8 +63,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Parallel sort degree */
 ulong fts_sort_pll_degree = 2;
 
-/*********************************************************************/ /**
- Create a temporary "fts sort index" used to merge sort the
+/** Create a temporary "fts sort index" used to merge sort the
  tokenized doc string. The index has three "fields":
 
  1) Tokenized word,
@@ -75,7 +73,6 @@ ulong fts_sort_pll_degree = 2;
 
  @return dict_index_t structure for the fts sort index */
 dict_index_t *row_merge_create_fts_sort_index(
-    /*============================*/
     dict_index_t *index,       /*!< in: Original FTS index
                                based on which this sort index
                                is created */
@@ -178,11 +175,9 @@ store Doc ID during sort */
 
   return (new_index);
 }
-/*********************************************************************/ /**
- Initialize FTS parallel sort structures.
+/** Initialize FTS parallel sort structures.
  @return true if all successful */
 ibool row_fts_psort_info_init(
-    /*====================*/
     trx_t *trx,           /*!< in: transaction */
     row_merge_dup_t *dup, /*!< in,own: descriptor of
                           FTS index being created */
@@ -297,11 +292,9 @@ func_exit:
 
   return (ret);
 }
-/*********************************************************************/ /**
- Clean up and deallocate FTS parallel sort structures, and close the
+/** Clean up and deallocate FTS parallel sort structures, and close the
  merge sort files  */
 void row_fts_psort_info_destroy(
-    /*=======================*/
     fts_psort_t *psort_info, /*!< parallel sort info */
     fts_psort_t *merge_info) /*!< parallel merge info */
 {
@@ -331,10 +324,8 @@ void row_fts_psort_info_destroy(
 
   ut_free(merge_info);
 }
-/*********************************************************************/ /**
- Free up merge buffers when merge sort is done */
+/** Free up merge buffers when merge sort is done */
 void row_fts_free_pll_merge_buf(
-    /*=======================*/
     fts_psort_t *psort_info) /*!< in: parallel sort info */
 {
   ulint j;
@@ -353,12 +344,10 @@ void row_fts_free_pll_merge_buf(
   return;
 }
 
-/*********************************************************************/ /**
- FTS plugin parser 'myql_add_word' callback function for row merge.
+/** FTS plugin parser 'myql_add_word' callback function for row merge.
  Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
  @return always returns 0 */
 static int row_merge_fts_doc_add_word_for_parser(
-    /*==================================*/
     MYSQL_FTPARSER_PARAM *param,               /* in: parser paramter */
     char *word,                                /* in: token word */
     int word_len,                              /* in: word len */
@@ -402,10 +391,8 @@ static int row_merge_fts_doc_add_word_for_parser(
   return (0);
 }
 
-/*********************************************************************/ /**
- Tokenize by fts plugin parser */
+/** Tokenize by fts plugin parser */
 static void row_merge_fts_doc_tokenize_by_parser(
-    /*=================================*/
     fts_doc_t *doc,            /* in: doc to tokenize */
     st_mysql_ftparser *parser, /* in: plugin parser instance */
     fts_tokenize_ctx_t *t_ctx) /* in/out: tokenize ctx instance */
@@ -429,11 +416,9 @@ static void row_merge_fts_doc_tokenize_by_parser(
   PARSER_DEINIT(parser, &param);
 }
 
-/*********************************************************************/ /**
- Tokenize incoming text data and add to the sort buffer.
+/** Tokenize incoming text data and add to the sort buffer.
  @return true if the record passed, false if out of space */
 static ibool row_merge_fts_doc_tokenize(
-    /*=======================*/
     row_merge_buf_t **sort_buf, /*!< in/out: sort buffer */
     doc_id_t doc_id,            /*!< in: Doc ID */
     fts_doc_t *doc,             /*!< in: Doc to be tokenized */
@@ -671,11 +656,9 @@ static ibool row_merge_fts_doc_tokenize(
   return (!buf_full);
 }
 
-/*********************************************************************/ /**
- Get next doc item from fts_doc_list */
+/** Get next doc item from fts_doc_list */
 UNIV_INLINE
 void row_merge_fts_get_next_doc_item(
-    /*============================*/
     fts_psort_t *psort_info,   /*!< in: psort_info */
     fts_doc_item_t **doc_item) /*!< in/out: doc item */
 {
@@ -1074,11 +1057,9 @@ static dberr_t row_merge_write_fts_node(const fts_psort_insert_t *ins_ctx,
   return (ret);
 }
 
-/********************************************************************/ /**
- Insert processed FTS data to auxillary index tables.
+/** Insert processed FTS data to auxillary index tables.
  @return DB_SUCCESS if insertion runs fine */
 static dberr_t row_merge_write_fts_word(
-    /*=====================*/
     fts_psort_insert_t *ins_ctx, /*!< in: insert context */
     fts_tokenizer_word_t *word)  /*!< in: sorted and tokenized
                                  word */
@@ -1114,11 +1095,9 @@ static dberr_t row_merge_write_fts_word(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Read sorted FTS data files and insert data tuples to auxillary tables.
+/** Read sorted FTS data files and insert data tuples to auxillary tables.
  */
 static void row_fts_insert_tuple(
-    /*=================*/
     fts_psort_insert_t *ins_ctx, /*!< in: insert context */
     fts_tokenizer_word_t *word,  /*!< in: last processed
                                  tokenized word */
@@ -1230,11 +1209,9 @@ static void row_fts_insert_tuple(
   *in_doc_id = doc_id;
 }
 
-/*********************************************************************/ /**
- Propagate a newly added record up one level in the selection tree
+/** Propagate a newly added record up one level in the selection tree
  @return parent where this value propagated to */
 static int row_fts_sel_tree_propagate(
-    /*=======================*/
     int propogated,      /*!< in: tree node propagated */
     int *sel_tree,       /*!< in: selection tree */
     const mrec_t **mrec, /*!< in: sort record */
@@ -1274,11 +1251,9 @@ static int row_fts_sel_tree_propagate(
   return (static_cast<int>(parent));
 }
 
-/*********************************************************************/ /**
- Readjust selection tree after popping the root and read a new value
+/** Readjust selection tree after popping the root and read a new value
  @return the new root */
 static int row_fts_sel_tree_update(
-    /*====================*/
     int *sel_tree,       /*!< in/out: selection tree */
     ulint propagated,    /*!< in: node to propagate up */
     ulint height,        /*!< in: tree height */
@@ -1296,10 +1271,8 @@ static int row_fts_sel_tree_update(
   return (sel_tree[0]);
 }
 
-/*********************************************************************/ /**
- Build selection tree at a specified level */
+/** Build selection tree at a specified level */
 static void row_fts_build_sel_tree_level(
-    /*=========================*/
     int *sel_tree,       /*!< in/out: selection tree */
     ulint level,         /*!< in: selection tree level */
     const mrec_t **mrec, /*!< in: sort record */
@@ -1353,12 +1326,10 @@ static void row_fts_build_sel_tree_level(
   }
 }
 
-/*********************************************************************/ /**
- Build a selection tree for merge. The selection tree is a binary tree
+/** Build a selection tree for merge. The selection tree is a binary tree
  and should have fts_sort_pll_degree / 2 levels. With root as level 0
  @return number of tree levels */
 static ulint row_fts_build_sel_tree(
-    /*===================*/
     int *sel_tree,       /*!< in/out: selection tree */
     const mrec_t **mrec, /*!< in: sort record */
     ulint **offsets,     /*!< in: record offsets */

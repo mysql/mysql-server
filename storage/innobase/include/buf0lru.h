@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -28,8 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 
-/**************************************************/ /**
- @file include/buf0lru.h
+/** @file include/buf0lru.h
  The database buffer pool LRU replacement algorithm
 
  Created 11/5/1995 Heikki Tuuri
@@ -46,13 +45,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 // Forward declaration
 struct trx_t;
 
-/******************************************************************/ /**
- Returns TRUE if less than 25 % of the buffer pool is available. This can be
+/** Returns TRUE if less than 25 % of the buffer pool is available. This can be
  used in heuristics to prevent huge transactions eating up the whole buffer
  pool for their locks.
  @return true if less than 25 % of buffer pool left */
 ibool buf_LRU_buf_pool_running_out(void);
-/*==============================*/
 
 /*#######################################################################
 These are low-level functions
@@ -62,13 +59,11 @@ These are low-level functions
 #define BUF_LRU_OLD_MIN_LEN 512 /* 8 megabytes of 16k pages */
 #endif                          /* !UNIV_HOTBACKUP */
 
-/******************************************************************/ /**
- Flushes all dirty pages or removes all pages belonging
+/** Flushes all dirty pages or removes all pages belonging
  to a given tablespace. A PROBLEM: if readahead is being started, what
  guarantees that it will not try to read in pages after this operation
  has completed? */
 void buf_LRU_flush_or_remove_pages(
-    /*==========================*/
     space_id_t id,           /*!< in: space id */
     buf_remove_t buf_remove, /*!< in: remove or flush strategy */
     const trx_t *trx);       /*!< to check if the operation must
@@ -146,12 +141,10 @@ ibool buf_LRU_evict_from_unzip_LRU(buf_pool_t *buf_pool);
 @param[in]	block	block must not contain a file page */
 void buf_LRU_block_free_non_file_page(buf_block_t *block);
 
-/******************************************************************/ /**
- Adds a block to the LRU list. Please make sure that the page_size is
+/** Adds a block to the LRU list. Please make sure that the page_size is
  already set when invoking the function, so that we can get correct
  page_size from the buffer page when adding a block into LRU */
 void buf_LRU_add_block(
-    /*==============*/
     buf_page_t *bpage, /*!< in: control block */
     ibool old);        /*!< in: TRUE if should be put to the old
                        blocks in the LRU list, else put to the
@@ -168,21 +161,17 @@ void buf_unzip_LRU_add_block(buf_block_t *block, ibool old);
 @param[in]	bpage	control block */
 void buf_LRU_make_block_young(buf_page_t *bpage);
 
-/**********************************************************************/ /**
- Updates buf_pool->LRU_old_ratio.
+/** Updates buf_pool->LRU_old_ratio.
  @return updated old_pct */
 uint buf_LRU_old_ratio_update(
-    /*=====================*/
     uint old_pct,  /*!< in: Reserve this percentage of
                    the buffer pool for "old" blocks. */
     ibool adjust); /*!< in: TRUE=adjust the LRU list;
                    FALSE=just assign buf_pool->LRU_old_ratio
                    during the initialization of InnoDB */
-/********************************************************************/ /**
- Update the historical stats that we are collecting for LRU eviction
+/** Update the historical stats that we are collecting for LRU eviction
  policy at the end of each interval. */
 void buf_LRU_stat_update(void);
-/*=====================*/
 
 /** Remove one page from LRU list and put it to free list. The caller must hold
 the LRU list and block mutexes and have page hash latched in X. The latch and
@@ -196,25 +185,18 @@ the block mutexes will be released.
                                 could be not initialized */
 void buf_LRU_free_one_page(buf_page_t *bpage, bool zip, bool ignore_content);
 
-/******************************************************************/ /**
- Adjust LRU hazard pointers if needed. */
-void buf_LRU_adjust_hp(
-    /*==============*/
-    buf_pool_t *buf_pool,     /*!< in: buffer pool instance */
-    const buf_page_t *bpage); /*!< in: control block */
+/** Adjust LRU hazard pointers if needed. */
+void buf_LRU_adjust_hp(buf_pool_t *buf_pool, /*!< in: buffer pool instance */
+                       const buf_page_t *bpage); /*!< in: control block */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************/ /**
- Validates the LRU list.
+/** Validates the LRU list.
  @return true */
 ibool buf_LRU_validate(void);
-/*==================*/
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************/ /**
- Prints the LRU list. */
+/** Prints the LRU list. */
 void buf_LRU_print(void);
-/*===============*/
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /** @name Heuristics for detecting index scan @{ */
@@ -261,11 +243,9 @@ extern buf_LRU_stat_t buf_LRU_stat_cur;
 Updated by buf_LRU_stat_update(). Accesses protected by memory barriers. */
 extern buf_LRU_stat_t buf_LRU_stat_sum;
 
-/********************************************************************/ /**
- Increments the I/O counter in buf_LRU_stat_cur. */
+/** Increments the I/O counter in buf_LRU_stat_cur. */
 #define buf_LRU_stat_inc_io() buf_LRU_stat_cur.io++
-/********************************************************************/ /**
- Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
+/** Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
 #define buf_LRU_stat_inc_unzip() buf_LRU_stat_cur.unzip++
 
 #include "buf0lru.ic"

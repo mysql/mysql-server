@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file page/zipdecompress.h
+/** @file page/zipdecompress.h
  Compressed page interface
 
  Created June 2005 by Marko Makela
@@ -45,13 +44,11 @@ external tools. */
 
 #include "page/page.ic"
 #include "page/zipdecompress.ic"
-/**********************************************************************/ /**
- Decompress a page.  This function should tolerate errors on the compressed
+/** Decompress a page.  This function should tolerate errors on the compressed
  page.  Instead of letting assertions fail, it will return FALSE if an
  inconsistency is detected.
  @return true on success, false on failure */
 ibool page_zip_decompress_low(
-    /*====================*/
     page_zip_des_t *page_zip, /*!< in: data, ssize;
                              out: m_start, m_end, m_nonempty, n_blobs */
     page_t *page,             /*!< out: uncompressed page, may be trashed */

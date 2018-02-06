@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/ut0new.h
+/** @file include/ut0new.h
  Instrumented memory allocator.
 
  Created May 26, 2014 Vasil Dimov

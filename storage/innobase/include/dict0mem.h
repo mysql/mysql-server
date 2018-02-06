@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dict0mem.h
+/** @file include/dict0mem.h
  Data dictionary memory object creation
 
  Created 1/8/1996 Heikki Tuuri
@@ -329,15 +328,12 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
 @param[in]	num_base	number of base columns. */
 void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base);
 
-/**********************************************************************/ /**
- Renames a column of a table in the data dictionary cache. */
-void dict_mem_table_col_rename(
-    /*======================*/
-    dict_table_t *table, /*!< in/out: table */
-    ulint nth_col,       /*!< in: column index */
-    const char *from,    /*!< in: old column name */
-    const char *to,      /*!< in: new column name */
-    bool is_virtual);
+/** Renames a column of a table in the data dictionary cache. */
+void dict_mem_table_col_rename(dict_table_t *table, /*!< in/out: table */
+                               ulint nth_col,       /*!< in: column index */
+                               const char *from,    /*!< in: old column name */
+                               const char *to,      /*!< in: new column name */
+                               bool is_virtual);
 /*!< in: if this is a virtual column */
 
 /** This function poplulates a dict_index_t index memory structure with
@@ -356,34 +352,25 @@ void dict_mem_fill_index_struct(dict_index_t *index, mem_heap_t *heap,
                                 const char *table_name, const char *index_name,
                                 ulint space, ulint type, ulint n_fields);
 
-/**********************************************************************/ /**
- Frees an index memory object. */
-void dict_mem_index_free(
-    /*================*/
-    dict_index_t *index); /*!< in: index */
-/**********************************************************************/ /**
- Creates and initializes a foreign constraint memory object.
+/** Frees an index memory object. */
+void dict_mem_index_free(dict_index_t *index); /*!< in: index */
+/** Creates and initializes a foreign constraint memory object.
  @return own: foreign constraint struct */
 dict_foreign_t *dict_mem_foreign_create(void);
-/*=========================*/
 
-/**********************************************************************/ /**
- Sets the foreign_table_name_lookup pointer based on the value of
+/** Sets the foreign_table_name_lookup pointer based on the value of
  lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
  will point to foreign_table_name.  If 2, then another string is
  allocated from the heap and set to lower case. */
 void dict_mem_foreign_table_name_lookup_set(
-    /*===================================*/
     dict_foreign_t *foreign, /*!< in/out: foreign struct */
     ibool do_alloc);         /*!< in: is an alloc needed */
 
-/**********************************************************************/ /**
- Sets the referenced_table_name_lookup pointer based on the value of
+/** Sets the referenced_table_name_lookup pointer based on the value of
  lower_case_table_names.  If that is 0 or 1, referenced_table_name_lookup
  will point to referenced_table_name.  If 2, then another string is
  allocated from the heap and set to lower case. */
 void dict_mem_referenced_table_name_lookup_set(
-    /*======================================*/
     dict_foreign_t *foreign, /*!< in/out: foreign struct */
     ibool do_alloc);         /*!< in: is an alloc needed */
 
@@ -709,8 +696,7 @@ struct dict_field_t {
   unsigned is_ascending : 1; /*!< 0=DESC, 1=ASC */
 };
 
-/**********************************************************************/ /**
- PADDING HEURISTIC BASED ON LINEAR INCREASE OF PADDING TO AVOID
+/** PADDING HEURISTIC BASED ON LINEAR INCREASE OF PADDING TO AVOID
  COMPRESSION FAILURES
  (Note: this is relevant only for compressed indexes)
  GOAL: Avoid compression failures by maintaining information about the
@@ -1297,10 +1283,8 @@ bool dict_foreign_set_validate(const dict_foreign_set &fk_set);
 @return true if foreign key sets are fine, false otherwise. */
 bool dict_foreign_set_validate(const dict_table_t &table);
 
-/*********************************************************************/ /**
- Frees a foreign key struct. */
+/** Frees a foreign key struct. */
 inline void dict_foreign_free(
-    /*==============*/
     dict_foreign_t *foreign) /*!< in, own: foreign key struct */
 {
   if (foreign->v_cols != NULL) {
@@ -2352,10 +2336,8 @@ class Persisters {
 };
 
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************/ /**
- Initialise the table lock list. */
+/** Initialise the table lock list. */
 void lock_table_lock_list_init(
-    /*======================*/
     table_lock_list_t *locks); /*!< List to initialise */
 
 /** A function object to add the foreign key constraint to the referenced set

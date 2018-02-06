@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/ib0mutex.h
+/** @file include/ib0mutex.h
  Policy based mutexes.
 
  Created 2013-03-26 Sunny Bains.

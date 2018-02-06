@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file os/os0proc.cc
+/** @file os/os0proc.cc
  The interface to the operating system
  process control primitives
 
@@ -65,9 +64,7 @@ uint os_large_page_size;
 
 /** Converts the current process id to a number.
 @return process id as a number */
-ulint os_proc_get_number(void)
-/*====================*/
-{
+ulint os_proc_get_number(void) {
 #ifdef _WIN32
   return (static_cast<ulint>(GetCurrentProcessId()));
 #else

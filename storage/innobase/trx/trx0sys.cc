@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file trx/trx0sys.cc
+/** @file trx/trx0sys.cc
  Transaction system
 
  Created 3/26/1996 Heikki Tuuri
@@ -94,11 +93,8 @@ void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
 uint trx_rseg_n_slots_debug = 0;
 #endif /* UNIV_DEBUG */
 
-/*****************************************************************/ /**
- Writes the value of max_trx_id to the file based trx system header. */
-void trx_sys_flush_max_trx_id(void)
-/*==========================*/
-{
+/** Writes the value of max_trx_id to the file based trx system header. */
+void trx_sys_flush_max_trx_id(void) {
   mtr_t mtr;
   trx_sysf_t *sys_header;
 
@@ -116,13 +112,11 @@ void trx_sys_flush_max_trx_id(void)
   }
 }
 
-/*****************************************************************/ /**
- Updates the offset information about the end of the MySQL binlog entry
+/** Updates the offset information about the end of the MySQL binlog entry
  which corresponds to the transaction just being committed. In a MySQL
  replication slave updates the latest master binlog position up to which
  replication has proceeded. */
 void trx_sys_update_mysql_binlog_offset(
-    /*===============================*/
     const char *file_name, /*!< in: MySQL log file name */
     int64_t offset,        /*!< in: position in that log file */
     ulint field,           /*!< in: offset of the MySQL log info field in
@@ -162,12 +156,9 @@ void trx_sys_update_mysql_binlog_offset(
                    (ulint)(offset & 0xFFFFFFFFUL), MLOG_4BYTES, mtr);
 }
 
-/*****************************************************************/ /**
- Stores the MySQL binlog offset info in the trx system header if
+/** Stores the MySQL binlog offset info in the trx system header if
  the magic number shows it valid, and print the info to stderr */
-void trx_sys_print_mysql_binlog_offset(void)
-/*===================================*/
-{
+void trx_sys_print_mysql_binlog_offset(void) {
   trx_sysf_t *sys_header;
   mtr_t mtr;
   ulint trx_sys_mysql_bin_log_pos_high;
@@ -232,12 +223,9 @@ ulint trx_sysf_rseg_find_free(mtr_t *mtr) {
   return (ULINT_UNDEFINED);
 }
 
-/*****************************************************************/ /**
- Creates the file page for the transaction system. This function is called only
- at the database creation, before trx_sys_init. */
-static void trx_sysf_create(
-    /*============*/
-    mtr_t *mtr) /*!< in: mtr */
+/** Creates the file page for the transaction system. This function is called
+ only at the database creation, before trx_sys_init. */
+static void trx_sysf_create(mtr_t *mtr) /*!< in: mtr */
 {
   trx_sysf_t *sys_header;
   ulint slot_no;
@@ -302,13 +290,10 @@ static void trx_sysf_create(
   ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
 }
 
-/*****************************************************************/ /**
- Creates and initializes the central memory structures for the transaction
+/** Creates and initializes the central memory structures for the transaction
  system. This is called when the database is started.
  @return min binary heap of rsegs to purge */
-purge_pq_t *trx_sys_init_at_db_start(void)
-/*==========================*/
-{
+purge_pq_t *trx_sys_init_at_db_start(void) {
   purge_pq_t *purge_queue;
   trx_sysf_t *sys_header;
   ib_uint64_t rows_to_undo = 0;
@@ -390,11 +375,8 @@ purge_pq_t *trx_sys_init_at_db_start(void)
   return (purge_queue);
 }
 
-/*****************************************************************/ /**
- Creates the trx_sys instance and initializes purge_queue and mutex. */
-void trx_sys_create(void)
-/*================*/
-{
+/** Creates the trx_sys instance and initializes purge_queue and mutex. */
+void trx_sys_create(void) {
   ut_ad(trx_sys == NULL);
 
   trx_sys = static_cast<trx_sys_t *>(ut_zalloc_nokey(sizeof(*trx_sys)));
@@ -419,11 +401,8 @@ void trx_sys_create(void)
   new (&trx_sys->tmp_rsegs) Rsegs();
 }
 
-/*****************************************************************/ /**
- Creates and initializes the transaction system at the database creation. */
-void trx_sys_create_sys_pages(void)
-/*==========================*/
-{
+/** Creates and initializes the transaction system at the database creation. */
+void trx_sys_create_sys_pages(void) {
   mtr_t mtr;
 
   mtr_start(&mtr);
@@ -434,11 +413,9 @@ void trx_sys_create_sys_pages(void)
 }
 
 #else  /* !UNIV_HOTBACKUP */
-/*****************************************************************/ /**
- Prints to stderr the MySQL binlog info in the system header if the
+/** Prints to stderr the MySQL binlog info in the system header if the
  magic number shows it valid. */
 void trx_sys_print_mysql_binlog_offset_from_page(
-    /*========================================*/
     const byte *page) /*!< in: buffer containing the trx
                       system header page, i.e., page number
                       TRX_SYS_PAGE_NO in the tablespace */
@@ -465,9 +442,7 @@ void trx_sys_print_mysql_binlog_offset_from_page(
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Shutdown/Close the transaction system. */
-void trx_sys_close(void)
-/*===============*/
-{
+void trx_sys_close(void) {
   ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
   if (trx_sys == NULL) {
@@ -548,9 +523,7 @@ static void trx_undo_fake_prepared(const trx_t *trx, trx_undo_t *undo) {
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
-ulint trx_sys_any_active_transactions(void)
-/*=================================*/
-{
+ulint trx_sys_any_active_transactions(void) {
   trx_sys_mutex_enter();
 
   ulint total_trx = UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
@@ -590,11 +563,9 @@ ulint trx_sys_any_active_transactions(void)
 }
 
 #ifdef UNIV_DEBUG
-/*************************************************************/ /**
- Validate the trx_ut_list_t.
+/** Validate the trx_ut_list_t.
  @return true if valid. */
 static bool trx_sys_validate_trx_list_low(
-    /*===========================*/
     trx_ut_list_t *trx_list) /*!< in: &trx_sys->rw_trx_list */
 {
   const trx_t *trx;
@@ -613,12 +584,9 @@ static bool trx_sys_validate_trx_list_low(
   return (true);
 }
 
-/*************************************************************/ /**
- Validate the trx_sys_t::rw_trx_list.
+/** Validate the trx_sys_t::rw_trx_list.
  @return true if the list is valid. */
-bool trx_sys_validate_trx_list()
-/*=======================*/
-{
+bool trx_sys_validate_trx_list() {
   ut_ad(trx_sys_mutex_own());
 
   ut_a(trx_sys_validate_trx_list_low(&trx_sys->rw_trx_list));

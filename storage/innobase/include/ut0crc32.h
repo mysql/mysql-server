@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/ut0crc32.h
+/** @file include/ut0crc32.h
  CRC32 implementation
 
  Created Aug 10, 2011 Vasil Dimov
@@ -36,14 +35,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
-/********************************************************************/ /**
- Initializes the data structures used by ut_crc32*(). Does not do any
+/** Initializes the data structures used by ut_crc32*(). Does not do any
  allocations, would not hurt if called twice, but would be pointless. */
 void ut_crc32_init();
-/*===========*/
 
-/********************************************************************/ /**
- Calculates CRC32.
+/** Calculates CRC32.
  @param ptr - data over which to calculate CRC32.
  @param len - data length in bytes.
  @return CRC32 (CRC-32C, using the GF(2) primitive polynomial 0x11EDC6F41,

@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file dict/dict0crea.cc
+/** @file dict/dict0crea.cc
  Database object creation
 
  Created 1/8/1996 Heikki Tuuri
@@ -301,14 +300,11 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
   return (DB_SUCCESS);
 }
 
-/***************************************************************/ /**
- Builds an index definition
+/** Builds an index definition
  @return DB_SUCCESS or error code */
-void dict_build_index_def(
-    /*=================*/
-    const dict_table_t *table, /*!< in: table */
-    dict_index_t *index,       /*!< in/out: index */
-    trx_t *trx)                /*!< in/out: InnoDB transaction handle */
+void dict_build_index_def(const dict_table_t *table, /*!< in: table */
+                          dict_index_t *index,       /*!< in/out: index */
+                          trx_t *trx) /*!< in/out: InnoDB transaction handle */
 {
   ut_ad(!mutex_own(&dict_sys->mutex));
   ut_ad((UT_LIST_GET_LEN(table->indexes) > 0) || index->is_clustered());

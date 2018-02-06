@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dict0stats_bg.h
+/** @file include/dict0stats_bg.h
  Code used for background table and index stats gathering.
 
  Created Apr 26, 2012 Vasil Dimov
@@ -52,21 +51,17 @@ extern mysql_pfs_key_t dict_stats_recalc_pool_mutex_key;
 extern bool innodb_dict_stats_disabled_debug;
 #endif /* UNIV_DEBUG */
 
-/*****************************************************************/ /**
- Add a table to the recalc pool, which is processed by the
+/** Add a table to the recalc pool, which is processed by the
  background stats gathering thread. Only the table id is added to the
  list, so the table can be closed after being enqueued and it will be
  opened when needed. If the table does not exist later (has been DROPped),
  then it will be removed from the pool and skipped. */
 void dict_stats_recalc_pool_add(
-    /*=======================*/
     const dict_table_t *table); /*!< in: table to add */
 
-/*****************************************************************/ /**
- Delete a given table from the auto recalc pool.
+/** Delete a given table from the auto recalc pool.
  dict_stats_recalc_pool_del() */
 void dict_stats_recalc_pool_del(
-    /*=======================*/
     const dict_table_t *table); /*!< in: table to remove */
 
 /** Yield the data dictionary latch when waiting
@@ -79,18 +74,14 @@ for the background thread to stop accessing a table.
     row_mysql_lock_data_dictionary(trx);   \
   } while (0)
 
-/*****************************************************************/ /**
- Request the background collection of statistics to stop for a table.
+/** Request the background collection of statistics to stop for a table.
  @retval true when no background process is active
  @retval false when it is not safe to modify the table definition */
 UNIV_INLINE
-bool dict_stats_stop_bg(
-    /*===============*/
-    dict_table_t *table) /*!< in/out: table */
+bool dict_stats_stop_bg(dict_table_t *table) /*!< in/out: table */
     MY_ATTRIBUTE((warn_unused_result));
 
-/*****************************************************************/ /**
- Wait until background stats thread has stopped using the specified table.
+/** Wait until background stats thread has stopped using the specified table.
  The caller must have locked the data dictionary using
  row_mysql_lock_data_dictionary() and this function may unlock it temporarily
  and restore the lock before it exits.
@@ -99,21 +90,16 @@ bool dict_stats_stop_bg(
  dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
  under dict_sys->mutex. */
 void dict_stats_wait_bg_to_stop_using_table(
-    /*===================================*/
     dict_table_t *table, /*!< in/out: table */
     trx_t *trx);         /*!< in/out: transaction to use for
                          unlocking/locking the data dict */
-/*****************************************************************/ /**
- Initialize global variables needed for the operation of dict_stats_thread().
+/** Initialize global variables needed for the operation of dict_stats_thread().
  Must be called before dict_stats_thread() is started. */
 void dict_stats_thread_init();
-/*====================*/
 
-/*****************************************************************/ /**
- Free resources allocated by dict_stats_thread_init(), must be called
+/** Free resources allocated by dict_stats_thread_init(), must be called
  after dict_stats_thread() has exited. */
 void dict_stats_thread_deinit();
-/*======================*/
 
 #ifdef UNIV_DEBUG
 /** Disables dict stats thread. It's used by:

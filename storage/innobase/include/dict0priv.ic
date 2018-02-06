@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/dict0priv.ic
+/** @file include/dict0priv.ic
  Data dictionary system private include file
 
  Created  Wed 13 Oct 2010 16:10:14 EST Sunny Bains
@@ -35,14 +34,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0load.h"
 #include "dict0priv.h"
 
-/**********************************************************************/ /**
- Gets a table; loads it to the dictionary cache if necessary. A low-level
+/** Gets a table; loads it to the dictionary cache if necessary. A low-level
  function.
  @return table, NULL if not found */
 UNIV_INLINE
-dict_table_t *dict_table_get_low(
-    /*===============*/
-    const char *table_name) /*!< in: table name */
+dict_table_t *dict_table_get_low(const char *table_name) /*!< in: table name */
 {
   dict_table_t *table;
 
@@ -70,12 +66,10 @@ dict_table_t *dict_table_get_low(
   return (table);
 }
 
-/**********************************************************************/ /**
- Checks if a table is in the dictionary cache.
+/** Checks if a table is in the dictionary cache.
  @return table, NULL if not found */
 UNIV_INLINE
 dict_table_t *dict_table_check_if_in_cache_low(
-    /*=============================*/
     const char *table_name) /*!< in: table name */
 {
   dict_table_t *table;

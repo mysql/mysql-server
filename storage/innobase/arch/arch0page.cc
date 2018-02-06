@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file arch/arch0page.cc
+/** @file arch/arch0page.cc
  Innodb implementation for page archive
 
  *******************************************************/

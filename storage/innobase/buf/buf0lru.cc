@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf0lru.cc
+/** @file buf/buf0lru.cc
  The database buffer replacement algorithm
 
  Created 11/5/1995 Heikki Tuuri
@@ -92,8 +91,7 @@ static const ulint BUF_LRU_SEARCH_SCAN_THRESHOLD = 100;
 frames in the buffer pool, we set this to TRUE */
 static bool buf_lru_switched_on_innodb_mon = false;
 
-/******************************************************************/ /**
- These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
+/** These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
  and page_zip_decompress() operations.  Based on the statistics,
  buf_LRU_evict_from_unzip_LRU() decides if we want to evict from
  unzip_LRU or the regular LRU.  From unzip_LRU, we will only evict the
@@ -159,10 +157,8 @@ this case the block is already returned to the buddy allocator. */
 static MY_ATTRIBUTE((warn_unused_result)) bool buf_LRU_block_remove_hashed(
     buf_page_t *bpage, bool zip, bool ignore_content);
 
-/******************************************************************/ /**
- Puts a file page whose has no hash index to the free list. */
+/** Puts a file page whose has no hash index to the free list. */
 static void buf_LRU_block_free_hashed_page(
-    /*===========================*/
     buf_block_t *block); /*!< in: block, must contain a file page and
                          be in a state where it can be freed */
 
@@ -392,13 +388,11 @@ static void buf_flush_yield(buf_pool_t *buf_pool, buf_page_t *bpage) {
   mutex_exit(block_mutex);
 }
 
-/******************************************************************/ /**
- If we have hogged the resources for too long then release the LRU list and
+/** If we have hogged the resources for too long then release the LRU list and
  flush list mutexes and do a thread yield. Set the current page
  to "sticky" so that it is not relocated during the yield.
  @return true if yielded */
 static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_try_yield(
-    /*================*/
     buf_pool_t *buf_pool, /*!< in/out: buffer pool instance */
     buf_page_t *bpage,    /*!< in/out: bpage to remove */
     ulint processed,      /*!< in: number of pages processed */
@@ -835,14 +829,12 @@ scan_again:
   }
 }
 
-/******************************************************************/ /**
- Remove pages belonging to a given tablespace inside a specific
+/** Remove pages belonging to a given tablespace inside a specific
  buffer pool instance when we are deleting the data file(s) of that
  tablespace. The pages still remain a part of LRU and are evicted from
  the list as they age towards the tail of the LRU only if buf_remove
  is BUF_REMOVE_FLUSH_NO_WRITE. */
 static void buf_LRU_remove_pages(
-    /*=================*/
     buf_pool_t *buf_pool,    /*!< buffer pool instance */
     space_id_t id,           /*!< in: space id */
     buf_remove_t buf_remove, /*!< in: remove or flush strategy */
@@ -874,13 +866,11 @@ static void buf_LRU_remove_pages(
   }
 }
 
-/******************************************************************/ /**
- Flushes all dirty pages or removes all pages belonging
+/** Flushes all dirty pages or removes all pages belonging
  to a given tablespace. A PROBLEM: if readahead is being started, what
  guarantees that it will not try to read in pages after this operation
  has completed? */
 void buf_LRU_flush_or_remove_pages(
-    /*==========================*/
     space_id_t id,           /*!< in: space id */
     buf_remove_t buf_remove, /*!< in: remove or flush strategy */
     const trx_t *trx)        /*!< to check if the operation must
@@ -1078,14 +1068,11 @@ bool buf_LRU_scan_and_free_block(buf_pool_t *buf_pool, bool scan_all) {
   return (freed);
 }
 
-/******************************************************************/ /**
- Returns TRUE if less than 25 % of the buffer pool in any instance is
+/** Returns TRUE if less than 25 % of the buffer pool in any instance is
  available. This can be used in heuristics to prevent huge transactions
  eating up the whole buffer pool for their locks.
  @return true if less than 25 % of buffer pool left */
-ibool buf_LRU_buf_pool_running_out(void)
-/*==============================*/
-{
+ibool buf_LRU_buf_pool_running_out(void) {
   ibool ret = FALSE;
 
   for (ulint i = 0; i < srv_buf_pool_instances && !ret; i++) {
@@ -1152,13 +1139,11 @@ buf_block_t *buf_LRU_get_free_only(buf_pool_t *buf_pool) {
   return (block);
 }
 
-/******************************************************************/ /**
- Checks how much of buf_pool is occupied by non-data objects like
+/** Checks how much of buf_pool is occupied by non-data objects like
  AHI, lock heaps etc. Depending on the size of non-data objects this
  function will either assert or issue a warning and switch on the
  status monitor. */
 static void buf_LRU_check_size_of_non_data_objects(
-    /*===================================*/
     const buf_pool_t *buf_pool) /*!< in: buffer pool instance */
 {
   if (!recv_recovery_is_on() && buf_pool->curr_size == buf_pool->old_size &&
@@ -1458,12 +1443,9 @@ static void buf_unzip_LRU_remove_block_if_needed(buf_page_t *bpage) {
   }
 }
 
-/******************************************************************/ /**
- Adjust LRU hazard pointers if needed. */
-void buf_LRU_adjust_hp(
-    /*==============*/
-    buf_pool_t *buf_pool,    /*!< in: buffer pool instance */
-    const buf_page_t *bpage) /*!< in: control block */
+/** Adjust LRU hazard pointers if needed. */
+void buf_LRU_adjust_hp(buf_pool_t *buf_pool,    /*!< in: buffer pool instance */
+                       const buf_page_t *bpage) /*!< in: control block */
 {
   buf_pool->lru_hp.adjust(bpage);
   buf_pool->lru_scan_itr.adjust(bpage);
@@ -1627,18 +1609,15 @@ void buf_LRU_add_block_low(buf_page_t *bpage, ibool old) {
   }
 }
 
-/******************************************************************/ /**
- Adds a block to the LRU list. Please make sure that the page_size is
+/** Adds a block to the LRU list. Please make sure that the page_size is
  already set when invoking the function, so that we can get correct
  page_size from the buffer page when adding a block into LRU */
-void buf_LRU_add_block(
-    /*==============*/
-    buf_page_t *bpage, /*!< in: control block */
-    ibool old)         /*!< in: TRUE if should be put to the old
-                       blocks in the LRU list, else put to the start;
-                       if the LRU list is very short, the block is
-                       added to the start, regardless of this
-                       parameter */
+void buf_LRU_add_block(buf_page_t *bpage, /*!< in: control block */
+                       ibool old) /*!< in: TRUE if should be put to the old
+                                  blocks in the LRU list, else put to the start;
+                                  if the LRU list is very short, the block is
+                                  added to the start, regardless of this
+                                  parameter */
 {
   buf_LRU_add_block_low(bpage, old);
 }
@@ -2221,10 +2200,8 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
   return (false);
 }
 
-/******************************************************************/ /**
- Puts a file page whose has no hash index to the free list. */
+/** Puts a file page whose has no hash index to the free list. */
 static void buf_LRU_block_free_hashed_page(
-    /*===========================*/
     buf_block_t *block) /*!< in: block, must contain a file page and
                         be in a state where it can be freed */
 {
@@ -2310,11 +2287,9 @@ static uint buf_LRU_old_ratio_update_instance(buf_pool_t *buf_pool,
   return ((uint)(ratio * 100 / (double)BUF_LRU_OLD_RATIO_DIV + 0.5));
 }
 
-/**********************************************************************/ /**
- Updates buf_pool->LRU_old_ratio.
+/** Updates buf_pool->LRU_old_ratio.
  @return updated old_pct */
 uint buf_LRU_old_ratio_update(
-    /*=====================*/
     uint old_pct, /*!< in: Reserve this percentage of
                   the buffer pool for "old" blocks. */
     ibool adjust) /*!< in: TRUE=adjust the LRU list;
@@ -2334,12 +2309,9 @@ uint buf_LRU_old_ratio_update(
   return (new_ratio);
 }
 
-/********************************************************************/ /**
- Update the historical stats that we are collecting for LRU eviction
+/** Update the historical stats that we are collecting for LRU eviction
  policy at the end of each interval. */
-void buf_LRU_stat_update(void)
-/*=====================*/
-{
+void buf_LRU_stat_update(void) {
   buf_LRU_stat_t *item;
   buf_pool_t *buf_pool;
   bool evict_started = FALSE;
@@ -2472,12 +2444,9 @@ static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
   mutex_exit(&buf_pool->LRU_list_mutex);
 }
 
-/**********************************************************************/ /**
- Validates the LRU list.
+/** Validates the LRU list.
  @return true */
-ibool buf_LRU_validate(void)
-/*==================*/
-{
+ibool buf_LRU_validate(void) {
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
 
@@ -2547,11 +2516,8 @@ static void buf_LRU_print_instance(buf_pool_t *buf_pool) {
   mutex_exit(&buf_pool->LRU_list_mutex);
 }
 
-/**********************************************************************/ /**
- Prints the LRU list. */
-void buf_LRU_print(void)
-/*===============*/
-{
+/** Prints the LRU list. */
+void buf_LRU_print(void) {
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
 

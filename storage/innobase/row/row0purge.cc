@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0purge.cc
+/** @file row/row0purge.cc
  Purge obsolete records
 
  Created 3/14/1997 Heikki Tuuri
@@ -96,12 +95,10 @@ purge_node_t *row_purge_node_create(que_thr_t *parent, mem_heap_t *heap) {
   return (node);
 }
 
-/***********************************************************/ /**
- Repositions the pcur in the purge node on the clustered index record,
+/** Repositions the pcur in the purge node on the clustered index record,
  if found. If the record is not found, close pcur.
  @return true if the record was found */
 static ibool row_purge_reposition_pcur(
-    /*======================*/
     ulint mode,         /*!< in: latching mode */
     purge_node_t *node, /*!< in: row purge node */
     mtr_t *mtr)         /*!< in: mtr */
@@ -128,12 +125,10 @@ static ibool row_purge_reposition_pcur(
   return (node->found_clust);
 }
 
-/***********************************************************/ /**
- Removes a delete marked clustered index record if possible.
+/** Removes a delete marked clustered index record if possible.
  @retval true if the row was not found, or it was successfully removed
  @retval false if the row was modified after the delete marking */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_low(
-    /*===============================*/
     purge_node_t *node, /*!< in/out: row purge node */
     ulint mode)         /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
@@ -213,14 +208,12 @@ func_exit:
   return (success);
 }
 
-/***********************************************************/ /**
- Removes a clustered index record if it has not been modified after the delete
- marking.
+/** Removes a clustered index record if it has not been modified after the
+ delete marking.
  @retval true if the row was not found, or it was successfully removed
  @retval false the purge needs to be suspended because of running out
  of file space. */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss(
-    /*===========================*/
     purge_node_t *node) /*!< in/out: row purge node */
 {
   if (row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF)) {
@@ -239,8 +232,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss(
   return (false);
 }
 
-/***********************************************************/ /**
- Determines if it is possible to remove a secondary index entry.
+/** Determines if it is possible to remove a secondary index entry.
  Removal is possible if the secondary index entry does not refer to any
  not delete marked version of a clustered index record where DB_TRX_ID
  is newer than the purge view.
@@ -254,11 +246,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss(
  secondary index entry after purge has removed it and released the leaf
  page latch.
  @return true if the secondary index record can be purged */
-bool row_purge_poss_sec(
-    /*===============*/
-    purge_node_t *node,    /*!< in/out: row purge node */
-    dict_index_t *index,   /*!< in: secondary index */
-    const dtuple_t *entry) /*!< in: secondary index entry */
+bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
+                        dict_index_t *index,   /*!< in: secondary index */
+                        const dtuple_t *entry) /*!< in: secondary index entry */
 {
   bool can_delete;
   mtr_t mtr;
@@ -287,7 +277,6 @@ index tree.  Does not try to buffer the delete.
 @return true if success or if not found */
 static MY_ATTRIBUTE((warn_unused_result)) ibool
     row_purge_remove_sec_if_poss_tree(
-        /*==============================*/
         purge_node_t *node,    /*!< in: row purge node */
         dict_index_t *index,   /*!< in: index */
         const dtuple_t *entry) /*!< in: index entry */
@@ -400,7 +389,6 @@ if possible.
 @retval true if success or if not found
 @retval false if row_purge_remove_sec_if_poss_tree() should be invoked */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf(
-    /*==============================*/
     purge_node_t *node,    /*!< in: row purge node */
     dict_index_t *index,   /*!< in: index */
     const dtuple_t *entry) /*!< in: index entry */
@@ -545,14 +533,11 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
   return (false);
 }
 
-/***********************************************************/ /**
- Removes a secondary index entry if possible. */
+/** Removes a secondary index entry if possible. */
 UNIV_INLINE
-void row_purge_remove_sec_if_poss(
-    /*=========================*/
-    purge_node_t *node,    /*!< in: row purge node */
-    dict_index_t *index,   /*!< in: index */
-    const dtuple_t *entry) /*!< in: index entry */
+void row_purge_remove_sec_if_poss(purge_node_t *node, /*!< in: row purge node */
+                                  dict_index_t *index,   /*!< in: index */
+                                  const dtuple_t *entry) /*!< in: index entry */
 {
   ibool success;
   ulint n_tries = 0;
@@ -601,13 +586,11 @@ static inline void row_purge_skip_uncommitted_virtual_index(
   }
 }
 
-/***********************************************************/ /**
- Purges a delete marking of a record.
+/** Purges a delete marking of a record.
  @retval true if the row was not found, or it was successfully removed
  @retval false the purge needs to be suspended because of
  running out of file space */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_del_mark(
-    /*===============*/
     purge_node_t *node) /*!< in/out: row purge node */
 {
   mem_heap_t *heap;
@@ -639,11 +622,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_del_mark(
   return (row_purge_remove_clust_if_poss(node));
 }
 
-/***********************************************************/ /**
- Purges an update of an existing record. Also purges an update of a delete
+/** Purges an update of an existing record. Also purges an update of a delete
  marked record if that record contained an externally stored field. */
 static void row_purge_upd_exist_or_extern_func(
-/*===============================*/
 #ifdef UNIV_DEBUG
     const que_thr_t *thr,     /*!< in: query thread */
 #endif                        /* UNIV_DEBUG */
@@ -776,8 +757,7 @@ skip_secondaries:
   row_purge_upd_exist_or_extern_func(node, undo_rec)
 #endif /* UNIV_DEBUG */
 
-/***********************************************************/ /**
- Parses the row reference and other info in a modify undo log record.
+/** Parses the row reference and other info in a modify undo log record.
  @param[in,out]	node			row undo node
  @param[in]	undo_rec		undo record to purge
  @param[out]	updated_extern		whether an externally stored
@@ -1091,15 +1071,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_record_func(
   row_purge_record_func(node, undo_rec, updated_extern, thd)
 #endif /* UNIV_DEBUG */
 
-/***********************************************************/ /**
- Fetches an undo log record and does the purge for the recorded operation.
+/** Fetches an undo log record and does the purge for the recorded operation.
  If none left, or the current purge completed, returns the control to the
  parent node, which is always a query thread node. */
-static void row_purge(
-    /*======*/
-    purge_node_t *node,       /*!< in: row purge node */
-    trx_undo_rec_t *undo_rec, /*!< in: record to purge */
-    que_thr_t *thr)           /*!< in: query thread */
+static void row_purge(purge_node_t *node,       /*!< in: row purge node */
+                      trx_undo_rec_t *undo_rec, /*!< in: record to purge */
+                      que_thr_t *thr)           /*!< in: query thread */
 {
   bool updated_extern;
   THD *thd = current_thd;
@@ -1200,8 +1177,7 @@ que_thr_t *row_purge_step(que_thr_t *thr) {
 }
 
 #ifdef UNIV_DEBUG
-/***********************************************************/ /**
- Validate the persisent cursor. The purge node has two references
+/** Validate the persisent cursor. The purge node has two references
  to the clustered index record - one via the ref member, and the
  other via the persistent cursor.  These two references must match
  each other if the found_clust flag is set.

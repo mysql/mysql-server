@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file lock/lock0prdt.cc
+/** @file lock/lock0prdt.cc
  The transaction lock system
 
  Created 9/7/2013 Jimmy Yang
@@ -49,12 +48,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0vec.h"
 
-/*********************************************************************/ /**
- Get a minimum bounding box from a Predicate
+/** Get a minimum bounding box from a Predicate
  @return	the minimum bounding box */
 UNIV_INLINE
 rtr_mbr_t *prdt_get_mbr_from_prdt(
-    /*===================*/
     const lock_prdt_t *prdt) /*!< in: the lock predicate */
 {
   rtr_mbr_t *mbr_loc = reinterpret_cast<rtr_mbr_t *>(prdt->data);
@@ -62,12 +59,9 @@ rtr_mbr_t *prdt_get_mbr_from_prdt(
   return (mbr_loc);
 }
 
-/*********************************************************************/ /**
- Get a predicate from a lock
+/** Get a predicate from a lock
  @return	the predicate */
-lock_prdt_t *lock_get_prdt_from_lock(
-    /*====================*/
-    const lock_t *lock) /*!< in: the lock */
+lock_prdt_t *lock_get_prdt_from_lock(const lock_t *lock) /*!< in: the lock */
 {
   lock_prdt_t *prdt =
       reinterpret_cast<lock_prdt_t *>(&((reinterpret_cast<byte *>(
@@ -76,13 +70,10 @@ lock_prdt_t *lock_get_prdt_from_lock(
   return (prdt);
 }
 
-/*********************************************************************/ /**
- Get a minimum bounding box directly from a lock
+/** Get a minimum bounding box directly from a lock
  @return	the minimum bounding box*/
 UNIV_INLINE
-rtr_mbr_t *lock_prdt_get_mbr_from_lock(
-    /*========================*/
-    const lock_t *lock) /*!< in: the lock */
+rtr_mbr_t *lock_prdt_get_mbr_from_lock(const lock_t *lock) /*!< in: the lock */
 {
   ut_ad(lock->type_mode & LOCK_PREDICATE);
 
@@ -93,12 +84,9 @@ rtr_mbr_t *lock_prdt_get_mbr_from_lock(
   return (mbr_loc);
 }
 
-/*********************************************************************/ /**
- Append a predicate to the lock */
-void lock_prdt_set_prdt(
-    /*===============*/
-    lock_t *lock,            /*!< in: lock */
-    const lock_prdt_t *prdt) /*!< in: Predicate */
+/** Append a predicate to the lock */
+void lock_prdt_set_prdt(lock_t *lock,            /*!< in: lock */
+                        const lock_prdt_t *prdt) /*!< in: Predicate */
 {
   ut_ad(lock->type_mode & LOCK_PREDICATE);
 
@@ -153,12 +141,10 @@ static bool lock_prdt_consistent(lock_prdt_t *prdt1, lock_prdt_t *prdt2,
   return (ret);
 }
 
-/*********************************************************************/ /**
- Checks if a predicate lock request for a new lock has to wait for
+/** Checks if a predicate lock request for a new lock has to wait for
  another lock.
  @return	true if new lock has to wait for lock2 to be released */
 bool lock_prdt_has_to_wait(
-    /*==================*/
     const trx_t *trx,    /*!< in: trx of new lock */
     ulint type_mode,     /*!< in: precise mode of the new lock
                        to set: LOCK_S or LOCK_X, possibly
@@ -222,20 +208,17 @@ bool lock_prdt_has_to_wait(
   return (FALSE);
 }
 
-/*********************************************************************/ /**
- Checks if a transaction has a GRANTED stronger or equal predicate lock
+/** Checks if a transaction has a GRANTED stronger or equal predicate lock
  on the page
  @return	lock or NULL */
 UNIV_INLINE
-lock_t *lock_prdt_has_lock(
-    /*===============*/
-    ulint precise_mode,       /*!< in: LOCK_S or LOCK_X */
-    ulint type_mode,          /*!< in: LOCK_PREDICATE etc. */
-    const buf_block_t *block, /*!< in: buffer block
-                              containing the record */
-    lock_prdt_t *prdt,        /*!< in: The predicate to be
-                              attached to the new lock */
-    const trx_t *trx)         /*!< in: transaction */
+lock_t *lock_prdt_has_lock(ulint precise_mode, /*!< in: LOCK_S or LOCK_X */
+                           ulint type_mode,    /*!< in: LOCK_PREDICATE etc. */
+                           const buf_block_t *block, /*!< in: buffer block
+                                                     containing the record */
+                           lock_prdt_t *prdt, /*!< in: The predicate to be
+                                              attached to the new lock */
+                           const trx_t *trx)  /*!< in: transaction */
 {
   lock_t *lock;
 
@@ -273,12 +256,10 @@ lock_t *lock_prdt_has_lock(
   return (NULL);
 }
 
-/*********************************************************************/ /**
- Checks if some other transaction has a conflicting predicate
+/** Checks if some other transaction has a conflicting predicate
  lock request in the queue, so that we have to wait.
  @return	lock or NULL */
 static const lock_t *lock_prdt_other_has_conflicting(
-    /*============================*/
     ulint mode,               /*!< in: LOCK_S or LOCK_X,
                               possibly ORed to LOCK_PREDICATE or
                               LOCK_PRDT_PAGE, LOCK_INSERT_INTENTION */
@@ -306,10 +287,8 @@ static const lock_t *lock_prdt_other_has_conflicting(
   return (NULL);
 }
 
-/*********************************************************************/ /**
- Reset the Minimum Bounding Rectangle (to a large area) */
+/** Reset the Minimum Bounding Rectangle (to a large area) */
 static void lock_prdt_enlarge_mbr(
-    /*==================*/
     const lock_t *lock, /*!< in/out: lock to modify */
     rtr_mbr_t *mbr)     /*!< in: Minimum Bounding Rectangle */
 {
@@ -332,23 +311,18 @@ static void lock_prdt_enlarge_mbr(
   }
 }
 
-/*********************************************************************/ /**
- Reset the predicates to a "covering" (larger) predicates */
-static void lock_prdt_enlarge_prdt(
-    /*===================*/
-    lock_t *lock,      /*!< in/out: lock to modify */
-    lock_prdt_t *prdt) /*!< in: predicate */
+/** Reset the predicates to a "covering" (larger) predicates */
+static void lock_prdt_enlarge_prdt(lock_t *lock, /*!< in/out: lock to modify */
+                                   lock_prdt_t *prdt) /*!< in: predicate */
 {
   rtr_mbr_t *mbr = prdt_get_mbr_from_prdt(prdt);
 
   lock_prdt_enlarge_mbr(lock, mbr);
 }
 
-/*********************************************************************/ /**
- Check two predicates' MBRs are the same
+/** Check two predicates' MBRs are the same
  @return	true if they are the same */
 static bool lock_prdt_is_same(
-    /*==============*/
     lock_prdt_t *prdt1,                      /*!< in: MBR with the lock */
     lock_prdt_t *prdt2,                      /*!< in: MBR with the lock */
     const dd::Spatial_reference_system *srs) /*!< in: SRS of R-tree */
@@ -363,13 +337,11 @@ static bool lock_prdt_is_same(
   return (false);
 }
 
-/*********************************************************************/ /**
- Looks for a similar predicate lock struct by the same trx on the same page.
+/** Looks for a similar predicate lock struct by the same trx on the same page.
  This can be used to save space when a new record lock should be set on a page:
  no new struct is needed, if a suitable old one is found.
  @return	lock or NULL */
 static lock_t *lock_prdt_find_on_page(
-    /*===================*/
     ulint type_mode,          /*!< in: lock type_mode field */
     const buf_block_t *block, /*!< in: buffer block */
     lock_prdt_t *prdt,        /*!< in: MBR with the lock */
@@ -398,11 +370,9 @@ static lock_t *lock_prdt_find_on_page(
   return (NULL);
 }
 
-/*********************************************************************/ /**
- Adds a predicate lock request in the predicate lock queue.
+/** Adds a predicate lock request in the predicate lock queue.
  @return	lock where the bit was set */
 static lock_t *lock_prdt_add_to_queue(
-    /*===================*/
     ulint type_mode,          /*!< in: lock mode, wait, predicate
                             etc. flags; type is ignored
                             and replaced by LOCK_REC */
@@ -463,13 +433,11 @@ static lock_t *lock_prdt_add_to_queue(
   return (rec_lock.create(trx, true, prdt));
 }
 
-/*********************************************************************/ /**
- Checks if locks of other transactions prevent an immediate insert of
+/** Checks if locks of other transactions prevent an immediate insert of
  a predicate record.
  @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED
  */
 dberr_t lock_prdt_insert_check_and_lock(
-    /*============================*/
     ulint flags,         /*!< in: if BTR_NO_LOCKING_FLAG bit is
                          set, does nothing */
     const rec_t *rec,    /*!< in: record after which to insert */
@@ -571,11 +539,9 @@ dberr_t lock_prdt_insert_check_and_lock(
   return (err);
 }
 
-/**************************************************************/ /**
- Check whether any predicate lock in parent needs to propagate to
+/** Check whether any predicate lock in parent needs to propagate to
  child page after split. */
 void lock_prdt_update_parent(
-    /*====================*/
     buf_block_t *left_block,  /*!< in/out: page to be split */
     buf_block_t *right_block, /*!< in/out: the new half page */
     lock_prdt_t *left_prdt,   /*!< in: MBR on the old page */
@@ -626,10 +592,8 @@ void lock_prdt_update_parent(
   lock_mutex_exit();
 }
 
-/**************************************************************/ /**
- Update predicate lock when page splits */
+/** Update predicate lock when page splits */
 static void lock_prdt_update_split_low(
-    /*=======================*/
     buf_block_t *block,     /*!< in/out: page to be split */
     buf_block_t *new_block, /*!< in/out: the new half page */
     lock_prdt_t *prdt,      /*!< in: MBR on the old page */
@@ -712,10 +676,8 @@ static void lock_prdt_update_split_low(
   lock_mutex_exit();
 }
 
-/**************************************************************/ /**
- Update predicate lock when page splits */
+/** Update predicate lock when page splits */
 void lock_prdt_update_split(
-    /*===================*/
     buf_block_t *block,     /*!< in/out: page to be split */
     buf_block_t *new_block, /*!< in/out: the new half page */
     lock_prdt_t *prdt,      /*!< in: MBR on the old page */
@@ -730,10 +692,8 @@ void lock_prdt_update_split(
                              LOCK_PRDT_PAGE);
 }
 
-/*********************************************************************/ /**
- Initiate a Predicate Lock from a MBR */
+/** Initiate a Predicate Lock from a MBR */
 void lock_init_prdt_from_mbr(
-    /*====================*/
     lock_prdt_t *prdt, /*!< in/out: predicate to initialized */
     rtr_mbr_t *mbr,    /*!< in: Minimum Bounding Rectangle */
     ulint mode,        /*!< in: Search mode */
@@ -751,25 +711,22 @@ void lock_init_prdt_from_mbr(
   prdt->op = static_cast<uint16>(mode);
 }
 
-/*********************************************************************/ /**
- Acquire a predicate lock on a block
+/** Acquire a predicate lock on a block
  @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED
  */
-dberr_t lock_prdt_lock(
-    /*===========*/
-    buf_block_t *block,  /*!< in/out: buffer block of rec */
-    lock_prdt_t *prdt,   /*!< in: Predicate for the lock */
-    dict_index_t *index, /*!< in: secondary index */
-    lock_mode mode,      /*!< in: mode of the lock which
-                         the read cursor should set on
-                         records: LOCK_S or LOCK_X; the
-                         latter is possible in
-                         SELECT FOR UPDATE */
-    ulint type_mode,
-    /*!< in: LOCK_PREDICATE or LOCK_PRDT_PAGE */
-    que_thr_t *thr, /*!< in: query thread
-                    (can be NULL if BTR_NO_LOCKING_FLAG) */
-    mtr_t *mtr)     /*!< in/out: mini-transaction */
+dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
+                       lock_prdt_t *prdt,   /*!< in: Predicate for the lock */
+                       dict_index_t *index, /*!< in: secondary index */
+                       lock_mode mode,      /*!< in: mode of the lock which
+                                            the read cursor should set on
+                                            records: LOCK_S or LOCK_X; the
+                                            latter is possible in
+                                            SELECT FOR UPDATE */
+                       ulint type_mode,
+                       /*!< in: LOCK_PREDICATE or LOCK_PRDT_PAGE */
+                       que_thr_t *thr, /*!< in: query thread
+                                       (can be NULL if BTR_NO_LOCKING_FLAG) */
+                       mtr_t *mtr)     /*!< in/out: mini-transaction */
 {
   trx_t *trx = thr_get_trx(thr);
   dberr_t err = DB_SUCCESS;
@@ -859,12 +816,10 @@ dberr_t lock_prdt_lock(
   return (err);
 }
 
-/*********************************************************************/ /**
- Acquire a "Page" lock on a block
+/** Acquire a "Page" lock on a block
  @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED
  */
 dberr_t lock_place_prdt_page_lock(
-    /*======================*/
     space_id_t space,    /*!< in: space for the page to lock */
     page_no_t page_no,   /*!< in: page number */
     dict_index_t *index, /*!< in: secondary index */
@@ -940,11 +895,9 @@ bool lock_test_prdt_page_lock(const trx_t *trx, space_id_t space,
   return (lock == NULL || trx == lock->trx);
 }
 
-/*************************************************************/ /**
- Moves the locks of a page to another page and resets the lock bits of
+/** Moves the locks of a page to another page and resets the lock bits of
  the donating records. */
 void lock_prdt_rec_move(
-    /*===============*/
     const buf_block_t *receiver, /*!< in: buffer block containing
                                  the receiving record */
     const buf_block_t *donator)  /*!< in: buffer block containing

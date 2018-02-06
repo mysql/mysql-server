@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0ftsort.h
+/** @file include/row0ftsort.h
  Create Full Text Index with (parallel) merge sort
 
  Created 10/13/2010 Jimmy Yang
@@ -166,8 +165,7 @@ typedef struct fts_psort_insert fts_psort_insert_t;
 #define DEBUG_FTS_SORT_PRINT(str)
 #endif /* FTSORT_PRINT */
 
-/*************************************************************/ /**
- Create a temporary "fts sort index" used to merge sort the
+/** Create a temporary "fts sort index" used to merge sort the
  tokenized doc string. The index has three "fields":
 
  1) Tokenized word,
@@ -176,7 +174,6 @@ typedef struct fts_psort_insert fts_psort_insert_t;
 
  @return dict_index_t structure for the fts sort index */
 dict_index_t *row_merge_create_fts_sort_index(
-    /*============================*/
     dict_index_t *index,       /*!< in: Original FTS index
                                based on which this sort index
                                is created */
@@ -187,11 +184,9 @@ dict_index_t *row_merge_create_fts_sort_index(
 instead of 8 bytes integer to
 store Doc ID during sort */
 
-/********************************************************************/ /**
- Initialize FTS parallel sort structures.
+/** Initialize FTS parallel sort structures.
  @return true if all successful */
 ibool row_fts_psort_info_init(
-    /*====================*/
     trx_t *trx,           /*!< in: transaction */
     row_merge_dup_t *dup, /*!< in,own: descriptor of
                           FTS index being created */
@@ -208,40 +203,29 @@ ibool row_fts_psort_info_init(
                           instantiated */
     fts_psort_t **merge); /*!< out: parallel merge info
                           to be instantiated */
-/********************************************************************/ /**
- Clean up and deallocate FTS parallel sort structures, and close
+/** Clean up and deallocate FTS parallel sort structures, and close
  temparary merge sort files */
 void row_fts_psort_info_destroy(
-    /*=======================*/
     fts_psort_t *psort_info,  /*!< parallel sort info */
     fts_psort_t *merge_info); /*!< parallel merge info */
-/********************************************************************/ /**
- Free up merge buffers when merge sort is done */
+/** Free up merge buffers when merge sort is done */
 void row_fts_free_pll_merge_buf(
-    /*=======================*/
     fts_psort_t *psort_info); /*!< in: parallel sort info */
 
-/*********************************************************************/ /**
- Start the parallel tokenization and parallel merge sort */
+/** Start the parallel tokenization and parallel merge sort */
 void row_fts_start_psort(
-    /*================*/
     fts_psort_t *psort_info); /*!< in: parallel sort info */
-/*********************************************************************/ /**
- Kick off the parallel merge and insert thread */
+/** Kick off the parallel merge and insert thread */
 void row_fts_start_parallel_merge(
-    /*=========================*/
     fts_psort_t *merge_info); /*!< in: parallel sort info */
-/********************************************************************/ /**
- Propagate a newly added record up one level in the selection tree
+/** Propagate a newly added record up one level in the selection tree
  @return parent where this value propagated to */
-int row_merge_fts_sel_propagate(
-    /*========================*/
-    int propogated,       /*<! in: tree node propagated */
-    int *sel_tree,        /*<! in: selection tree */
-    ulint level,          /*<! in: selection tree level */
-    const mrec_t **mrec,  /*<! in: sort record */
-    ulint **offsets,      /*<! in: record offsets */
-    dict_index_t *index); /*<! in: FTS index */
+int row_merge_fts_sel_propagate(int propogated, /*<! in: tree node propagated */
+                                int *sel_tree,  /*<! in: selection tree */
+                                ulint level,    /*<! in: selection tree level */
+                                const mrec_t **mrec,  /*<! in: sort record */
+                                ulint **offsets,      /*<! in: record offsets */
+                                dict_index_t *index); /*<! in: FTS index */
 
 /** Read sorted file containing index data tuples and insert these data
 tuples to the index

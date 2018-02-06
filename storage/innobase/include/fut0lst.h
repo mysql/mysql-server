@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/fut0lst.h
+/** @file include/fut0lst.h
  File-based list utilities
 
  Created 11/28/1995 Heikki Tuuri
@@ -58,24 +57,18 @@ constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;
 UNIV_INLINE
 void flst_init(flst_base_node_t *base, mtr_t *mtr);
 
-/********************************************************************/ /**
- Adds a node as the last node in a list. */
+/** Adds a node as the last node in a list. */
 void flst_add_last(
-    /*==========*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node,      /*!< in: node to add */
     mtr_t *mtr);            /*!< in: mini-transaction handle */
-/********************************************************************/ /**
- Adds a node as the first node in a list. */
+/** Adds a node as the first node in a list. */
 void flst_add_first(
-    /*===========*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node,      /*!< in: node to add */
     mtr_t *mtr);            /*!< in: mini-transaction handle */
-/********************************************************************/ /**
- Removes a node. */
+/** Removes a node. */
 void flst_remove(
-    /*========*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node2,     /*!< in: node to remove */
     mtr_t *mtr);            /*!< in: mini-transaction handle */
@@ -127,11 +120,9 @@ void flst_write_addr(fil_faddr_t *faddr, fil_addr_t addr, mtr_t *mtr);
 UNIV_INLINE
 fil_addr_t flst_read_addr(const fil_faddr_t *faddr, mtr_t *mtr);
 
-/********************************************************************/ /**
- Validates a file-based list.
+/** Validates a file-based list.
  @return true if ok */
 ibool flst_validate(
-    /*==========*/
     const flst_base_node_t *base, /*!< in: pointer to base node of list */
     mtr_t *mtr1);                 /*!< in: mtr */
 

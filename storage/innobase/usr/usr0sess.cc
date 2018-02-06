@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file usr/usr0sess.cc
+/** @file usr/usr0sess.cc
  Sessions
 
  Created 6/25/1996 Heikki Tuuri
@@ -34,12 +33,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "trx0trx.h"
 
-/*********************************************************************/ /**
- Opens a session.
+/** Opens a session.
  @return own: session object */
-sess_t *sess_open(void)
-/*===========*/
-{
+sess_t *sess_open(void) {
   sess_t *sess;
 
   sess = static_cast<sess_t *>(ut_zalloc_nokey(sizeof(*sess)));
@@ -52,11 +48,8 @@ sess_t *sess_open(void)
   return (sess);
 }
 
-/*********************************************************************/ /**
- Closes a session, freeing the memory occupied by it. */
-void sess_close(
-    /*=======*/
-    sess_t *sess) /*!< in, own: session object */
+/** Closes a session, freeing the memory occupied by it. */
+void sess_close(sess_t *sess) /*!< in, own: session object */
 {
   trx_free_for_background(sess->trx);
   ut_free(sess);

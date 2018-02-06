@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dict0crea.h
+/** @file include/dict0crea.h
  Database object creation
 
  Created 1/8/1996 Heikki Tuuri
@@ -65,16 +64,12 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx);
 @param[in,out]	trx	Transaction */
 void dict_table_assign_new_id(dict_table_t *table, trx_t *trx);
 
-/***************************************************************/ /**
- Builds an index definition but doesn't update sys_table. */
-void dict_build_index_def(
-    /*=================*/
-    const dict_table_t *table, /*!< in: table */
-    dict_index_t *index,       /*!< in/out: index */
-    trx_t *trx);               /*!< in/out: InnoDB transaction
-                               handle */
-/***************************************************************/ /**
- Creates an index tree for the index if it is not a member of a cluster.
+/** Builds an index definition but doesn't update sys_table. */
+void dict_build_index_def(const dict_table_t *table, /*!< in: table */
+                          dict_index_t *index,       /*!< in/out: index */
+                          trx_t *trx); /*!< in/out: InnoDB transaction
+                                       handle */
+/** Creates an index tree for the index if it is not a member of a cluster.
  @param[in,out]	index	InnoDB index object
  @param[in,out]	trx	transaction
  @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file fsp/fsp0fsp.cc
+/** @file fsp/fsp0fsp.cc
  File space management
 
  Created 11/29/1995 Heikki Tuuri
@@ -77,11 +76,9 @@ static void fsp_free_extent(const page_id_t &page_id,
 @return	true if extent is part of the segment, false otherwise */
 static bool xdes_in_segment(const xdes_t *descr, ib_id_t seg_id, mtr_t *mtr);
 
-/********************************************************************/ /**
- Marks a page used. The page must reside within the extents of the given
+/** Marks a page used. The page must reside within the extents of the given
  segment. */
 static void fseg_mark_page_used(
-    /*================*/
     fseg_inode_t *seg_inode, /*!< in: segment inode */
     page_no_t page,          /*!< in: page offset */
     xdes_t *descr,           /*!< in: extent descriptor */
@@ -270,17 +267,14 @@ bool fsp_skip_sanity_check(space_id_t space_id) {
 
 #endif /* UNIV_DEBUG */
 
-/**********************************************************************/ /**
- Gets a descriptor bit of a page.
+/** Gets a descriptor bit of a page.
  @return true if free */
 UNIV_INLINE
-ibool xdes_mtr_get_bit(
-    /*=============*/
-    const xdes_t *descr, /*!< in: descriptor */
-    ulint bit,           /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-    page_no_t offset,    /*!< in: page offset within extent:
-                         0 ... FSP_EXTENT_SIZE - 1 */
-    mtr_t *mtr)          /*!< in: mini-transaction */
+ibool xdes_mtr_get_bit(const xdes_t *descr, /*!< in: descriptor */
+                       ulint bit, /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+                       page_no_t offset, /*!< in: page offset within extent:
+                                         0 ... FSP_EXTENT_SIZE - 1 */
+                       mtr_t *mtr)       /*!< in: mini-transaction */
 {
   ut_ad(mtr->is_active());
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
@@ -288,17 +282,14 @@ ibool xdes_mtr_get_bit(
   return (xdes_get_bit(descr, bit, offset));
 }
 
-/**********************************************************************/ /**
- Sets a descriptor bit of a page. */
+/** Sets a descriptor bit of a page. */
 UNIV_INLINE
-void xdes_set_bit(
-    /*=========*/
-    xdes_t *descr,    /*!< in: descriptor */
-    ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-    page_no_t offset, /*!< in: page offset within extent:
-                      0 ... FSP_EXTENT_SIZE - 1 */
-    ibool val,        /*!< in: bit value */
-    mtr_t *mtr)       /*!< in/out: mini-transaction */
+void xdes_set_bit(xdes_t *descr,    /*!< in: descriptor */
+                  ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+                  page_no_t offset, /*!< in: page offset within extent:
+                                    0 ... FSP_EXTENT_SIZE - 1 */
+                  ibool val,        /*!< in: bit value */
+                  mtr_t *mtr)       /*!< in/out: mini-transaction */
 {
   ulint index;
   ulint byte_index;
@@ -321,14 +312,12 @@ void xdes_set_bit(
                    mtr);
 }
 
-/**********************************************************************/ /**
- Looks for a descriptor bit having the desired value. Starts from hint
+/** Looks for a descriptor bit having the desired value. Starts from hint
  and scans upward; at the end of the extent the search is wrapped to
  the start of the extent.
  @return bit index of the bit, ULINT_UNDEFINED if not found */
 UNIV_INLINE
 page_no_t xdes_find_bit(
-    /*==========*/
     xdes_t *descr,  /*!< in: descriptor */
     ulint bit,      /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
     ibool val,      /*!< in: desired bit value */
@@ -357,14 +346,11 @@ page_no_t xdes_find_bit(
   return (FIL_NULL);
 }
 
-/**********************************************************************/ /**
- Returns the number of used pages in a descriptor.
+/** Returns the number of used pages in a descriptor.
  @return number of pages used */
 UNIV_INLINE
-page_no_t xdes_get_n_used(
-    /*============*/
-    const xdes_t *descr, /*!< in: descriptor */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
+page_no_t xdes_get_n_used(const xdes_t *descr, /*!< in: descriptor */
+                          mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   page_no_t count = 0;
 
@@ -397,14 +383,11 @@ bool xdes_state_is_valid(ulint state) {
 }
 #endif /* UNIV_DEBUG */
 
-/**********************************************************************/ /**
- Returns true if extent contains no used pages.
+/** Returns true if extent contains no used pages.
  @return true if totally free */
 UNIV_INLINE
-ibool xdes_is_free(
-    /*=========*/
-    const xdes_t *descr, /*!< in: descriptor */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
+ibool xdes_is_free(const xdes_t *descr, /*!< in: descriptor */
+                   mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   if (0 == xdes_get_n_used(descr, mtr)) {
     ut_ad(xdes_get_state(descr, mtr) != XDES_FSEG_FRAG);
@@ -415,14 +398,11 @@ ibool xdes_is_free(
   return (FALSE);
 }
 
-/**********************************************************************/ /**
- Returns true if extent contains no free pages.
+/** Returns true if extent contains no free pages.
  @return true if full */
 UNIV_INLINE
-ibool xdes_is_full(
-    /*=========*/
-    const xdes_t *descr, /*!< in: descriptor */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
+ibool xdes_is_full(const xdes_t *descr, /*!< in: descriptor */
+                   mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   if (FSP_EXTENT_SIZE == xdes_get_n_used(descr, mtr)) {
     return (TRUE);
@@ -431,14 +411,11 @@ ibool xdes_is_full(
   return (FALSE);
 }
 
-/**********************************************************************/ /**
- Sets the state of an xdes. */
+/** Sets the state of an xdes. */
 UNIV_INLINE
-void xdes_set_state(
-    /*===========*/
-    xdes_t *descr,      /*!< in/out: descriptor */
-    xdes_state_t state, /*!< in: state to set */
-    mtr_t *mtr)         /*!< in/out: mini-transaction */
+void xdes_set_state(xdes_t *descr,      /*!< in/out: descriptor */
+                    xdes_state_t state, /*!< in: state to set */
+                    mtr_t *mtr)         /*!< in/out: mini-transaction */
 {
   ut_ad(descr && mtr);
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
@@ -484,13 +461,10 @@ inline void xdes_set_segment_id(xdes_t *descr, const ib_id_t seg_id,
   xdes_set_state(descr, state, mtr);
 }
 
-/**********************************************************************/ /**
- Inits an extent descriptor to the free and clean state. */
+/** Inits an extent descriptor to the free and clean state. */
 UNIV_INLINE
-void xdes_init(
-    /*======*/
-    xdes_t *descr, /*!< in: descriptor */
-    mtr_t *mtr)    /*!< in/out: mini-transaction */
+void xdes_init(xdes_t *descr, /*!< in: descriptor */
+               mtr_t *mtr)    /*!< in/out: mini-transaction */
 {
   ulint i;
 
@@ -628,13 +602,10 @@ xdes_t *xdes_lst_get_descriptor(space_id_t space, const page_size_t &page_size,
   return (descr);
 }
 
-/********************************************************************/ /**
- Returns page offset of the first page in extent described by a descriptor.
+/** Returns page offset of the first page in extent described by a descriptor.
  @return offset of the first page in extent */
 UNIV_INLINE
-page_no_t xdes_get_offset(
-    /*============*/
-    const xdes_t *descr) /*!< in: extent descriptor */
+page_no_t xdes_get_offset(const xdes_t *descr) /*!< in: extent descriptor */
 {
   ut_ad(descr);
 
@@ -645,10 +616,8 @@ page_no_t xdes_get_offset(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************/ /**
- Inits a file page whose prior contents should be ignored. */
+/** Inits a file page whose prior contents should be ignored. */
 static void fsp_init_file_page_low(
-    /*===================*/
     buf_block_t *block) /*!< in: pointer to a page */
 {
   page_t *page = buf_block_get_frame(block);
@@ -725,11 +694,9 @@ static void fsp_init_file_page(buf_block_t *block, mtr_t *mtr) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************/ /**
- Parses a redo log record of a file page init.
+/** Parses a redo log record of a file page init.
  @return end of log record or NULL */
 byte *fsp_parse_init_file_page(
-    /*=====================*/
     byte *ptr,                            /*!< in: buffer */
     byte *end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
     buf_block_t *block)                   /*!< in: block or NULL */
@@ -759,12 +726,10 @@ void fsp_init() {
   /* Does nothing at the moment */
 }
 
-/**********************************************************************/ /**
- Writes the space id and flags to a tablespace header.  The flags contain
+/** Writes the space id and flags to a tablespace header.  The flags contain
  row type, physical/compressed page size, and logical/uncompressed page
  size of the tablespace. */
 void fsp_header_init_fields(
-    /*===================*/
     page_t *page,        /*!< in/out: first page in the space */
     space_id_t space_id, /*!< in: space id */
     ulint flags)         /*!< in: tablespace flags
@@ -968,11 +933,9 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/**********************************************************************/ /**
- Reads the space id from the first page of a tablespace.
+/** Reads the space id from the first page of a tablespace.
  @return space id, ULINT UNDEFINED if error */
 space_id_t fsp_header_get_space_id(
-    /*====================*/
     const page_t *page) /*!< in: first page of a tablespace */
 {
   space_id_t fsp_id;
@@ -1020,13 +983,10 @@ bool fsp_header_get_encryption_key(ulint fsp_flags, byte *key, byte *iv,
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************/ /**
- Increases the space size field of a space. */
-void fsp_header_inc_size(
-    /*================*/
-    space_id_t space_id, /*!< in: space id */
-    page_no_t size_inc,  /*!< in: size increment in pages */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
+/** Increases the space size field of a space. */
+void fsp_header_inc_size(space_id_t space_id, /*!< in: space id */
+                         page_no_t size_inc, /*!< in: size increment in pages */
+                         mtr_t *mtr)         /*!< in/out: mini-transaction */
 {
   fil_space_t *space = fil_space_get(space_id);
 
@@ -1049,15 +1009,12 @@ void fsp_header_inc_size(
   space->size_in_header = size;
 }
 
-/**********************************************************************/ /**
- Gets the size of the system tablespace from the tablespace header.  If
+/** Gets the size of the system tablespace from the tablespace header.  If
  we do not have an auto-extending data file, this should be equal to
  the size of the data files.  If there is an auto-extending data file,
  this can be smaller.
  @return size in pages */
-page_no_t fsp_header_get_tablespace_size(void)
-/*================================*/
-{
+page_no_t fsp_header_get_tablespace_size(void) {
   fil_space_t *space = fil_space_get_sys_space();
 
   mtr_t mtr;
@@ -1437,10 +1394,8 @@ static xdes_t *fsp_alloc_free_extent(space_id_t space_id,
   return (descr);
 }
 
-/**********************************************************************/ /**
- Allocates a single free page from a space. */
+/** Allocates a single free page from a space. */
 static void fsp_alloc_from_free_frag(
-    /*=====================*/
     fsp_header_t *header, /*!< in/out: tablespace header */
     xdes_t *descr,        /*!< in/out: extent descriptor */
     page_no_t bit,        /*!< in: slot to allocate in the extent */
@@ -1828,11 +1783,9 @@ static page_no_t fsp_seg_inode_page_find_free(page_t *page, page_no_t i,
   return (FIL_NULL);
 }
 
-/**********************************************************************/ /**
- Allocates a new file segment inode page.
+/** Allocates a new file segment inode page.
  @return true if could be allocated */
 static ibool fsp_alloc_seg_inode_page(
-    /*=====================*/
     fsp_header_t *space_header, /*!< in: space header */
     mtr_t *mtr)                 /*!< in/out: mini-transaction */
 {
@@ -1872,11 +1825,9 @@ static ibool fsp_alloc_seg_inode_page(
   return (TRUE);
 }
 
-/**********************************************************************/ /**
- Allocates a new file segment inode.
+/** Allocates a new file segment inode.
  @return segment inode, or NULL if not enough space */
 static fseg_inode_t *fsp_alloc_seg_inode(
-    /*================*/
     fsp_header_t *space_header, /*!< in: space header */
     mtr_t *mtr)                 /*!< in/out: mini-transaction */
 {
@@ -2012,12 +1963,10 @@ static fseg_inode_t *fseg_inode_get(fseg_header_t *header, space_id_t space,
   return (inode);
 }
 
-/**********************************************************************/ /**
- Gets the page number from the nth fragment page slot.
+/** Gets the page number from the nth fragment page slot.
  @return page number, FIL_NULL if not in use */
 UNIV_INLINE
 page_no_t fseg_get_nth_frag_page_no(
-    /*======================*/
     fseg_inode_t *inode, /*!< in: segment inode */
     ulint n,             /*!< in: slot index */
     mtr_t *mtr MY_ATTRIBUTE((unused)))
@@ -2030,15 +1979,12 @@ page_no_t fseg_get_nth_frag_page_no(
   return (mach_read_from_4(inode + FSEG_FRAG_ARR + n * FSEG_FRAG_SLOT_SIZE));
 }
 
-/**********************************************************************/ /**
- Sets the page number in the nth fragment page slot. */
+/** Sets the page number in the nth fragment page slot. */
 UNIV_INLINE
-void fseg_set_nth_frag_page_no(
-    /*======================*/
-    fseg_inode_t *inode, /*!< in: segment inode */
-    ulint n,             /*!< in: slot index */
-    page_no_t page_no,   /*!< in: page number to set */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
+void fseg_set_nth_frag_page_no(fseg_inode_t *inode, /*!< in: segment inode */
+                               ulint n,             /*!< in: slot index */
+                               page_no_t page_no, /*!< in: page number to set */
+                               mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   ut_ad(inode && mtr);
   ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
@@ -2049,11 +1995,9 @@ void fseg_set_nth_frag_page_no(
                    MLOG_4BYTES, mtr);
 }
 
-/**********************************************************************/ /**
- Finds a fragment page slot which is free.
+/** Finds a fragment page slot which is free.
  @return slot index; ULINT_UNDEFINED if none found */
 static ulint fseg_find_free_frag_page_slot(
-    /*==========================*/
     fseg_inode_t *inode, /*!< in: segment inode */
     mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
@@ -2073,11 +2017,9 @@ static ulint fseg_find_free_frag_page_slot(
   return (ULINT_UNDEFINED);
 }
 
-/**********************************************************************/ /**
- Finds a fragment page slot which is used and last in the array.
+/** Finds a fragment page slot which is used and last in the array.
  @return slot index; ULINT_UNDEFINED if none found */
 static ulint fseg_find_last_used_frag_page_slot(
-    /*===============================*/
     fseg_inode_t *inode, /*!< in: segment inode */
     mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
@@ -2098,11 +2040,9 @@ static ulint fseg_find_last_used_frag_page_slot(
   return (ULINT_UNDEFINED);
 }
 
-/**********************************************************************/ /**
- Calculates reserved fragment page slots.
+/** Calculates reserved fragment page slots.
  @return number of fragment pages */
 static ulint fseg_get_n_frag_pages(
-    /*==================*/
     fseg_inode_t *inode, /*!< in: segment inode */
     mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
@@ -2120,12 +2060,10 @@ static ulint fseg_get_n_frag_pages(
   return (count);
 }
 
-/**********************************************************************/ /**
- Creates a new segment.
+/** Creates a new segment.
  @return the block where the segment header is placed, x-latched, NULL
  if could not create segment because of lack of space */
 buf_block_t *fseg_create_general(
-    /*================*/
     space_id_t space_id, /*!< in: space id */
     page_no_t page,      /*!< in: page where the segment header is
                          placed: if this is != 0, the page must belong
@@ -2258,12 +2196,10 @@ funct_exit:
   DBUG_RETURN(block);
 }
 
-/**********************************************************************/ /**
- Creates a new segment.
+/** Creates a new segment.
  @return the block where the segment header is placed, x-latched, NULL
  if could not create segment because of lack of space */
 buf_block_t *fseg_create(
-    /*========*/
     space_id_t space,  /*!< in: space id */
     page_no_t page,    /*!< in: page where the segment header is
                        placed: if this is != 0, the page must belong
@@ -2277,12 +2213,10 @@ buf_block_t *fseg_create(
   return (fseg_create_general(space, page, byte_offset, FALSE, mtr));
 }
 
-/**********************************************************************/ /**
- Calculates the number of pages reserved by a segment, and how many pages are
+/** Calculates the number of pages reserved by a segment, and how many pages are
  currently used.
  @return number of reserved pages */
 static ulint fseg_n_reserved_pages_low(
-    /*======================*/
     fseg_inode_t *inode, /*!< in: segment inode */
     ulint *used,         /*!< out: number of pages used (not
                          more than reserved) */
@@ -2305,12 +2239,10 @@ static ulint fseg_n_reserved_pages_low(
   return (ret);
 }
 
-/**********************************************************************/ /**
- Calculates the number of pages reserved by a segment, and how many pages are
+/** Calculates the number of pages reserved by a segment, and how many pages are
  currently used.
  @return number of reserved pages */
 ulint fseg_n_reserved_pages(
-    /*==================*/
     fseg_header_t *header, /*!< in: segment header */
     ulint *used,           /*!< out: number of pages used (<= reserved) */
     mtr_t *mtr)            /*!< in/out: mini-transaction */
@@ -2807,8 +2739,7 @@ got_hinted_page:
                           mtr, init_mtr));
 }
 
-/**********************************************************************/ /**
- Allocates a single free page from a segment. This function implements
+/** Allocates a single free page from a segment. This function implements
  the intelligent allocation strategy which tries to minimize file space
  fragmentation.
  @retval NULL if no page could be allocated
@@ -2816,7 +2747,6 @@ got_hinted_page:
  (init_mtr == mtr, or the page was not previously freed in mtr)
  @retval block (not allocated or initialized) otherwise */
 buf_block_t *fseg_alloc_free_page_general(
-    /*=========================*/
     fseg_header_t *seg_header,  /*!< in/out: segment header */
     page_no_t hint,             /*!< in: hint of which page would be
                                 desirable */
@@ -3110,11 +3040,9 @@ uintmax_t fsp_get_available_space_in_free_extents(const fil_space_t *space) {
           (page_size.physical() / 1024));
 }
 
-/********************************************************************/ /**
- Marks a page used. The page must reside within the extents of the given
+/** Marks a page used. The page must reside within the extents of the given
  segment. */
 static void fseg_mark_page_used(
-    /*================*/
     fseg_inode_t *seg_inode, /*!< in: segment inode */
     page_no_t page,          /*!< in: page offset */
     xdes_t *descr,           /*!< in: extent descriptor */
@@ -3292,16 +3220,13 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
   DBUG_VOID_RETURN;
 }
 
-/**********************************************************************/ /**
- Frees a single page of a segment. */
-void fseg_free_page(
-    /*===========*/
-    fseg_header_t *seg_header, /*!< in: segment header */
-    space_id_t space_id,       /*!< in: space id */
-    page_no_t page,            /*!< in: page offset */
-    bool ahi,                  /*!< in: whether we may need to drop
-                               the adaptive hash index */
-    mtr_t *mtr)                /*!< in/out: mini-transaction */
+/** Frees a single page of a segment. */
+void fseg_free_page(fseg_header_t *seg_header, /*!< in: segment header */
+                    space_id_t space_id,       /*!< in: space id */
+                    page_no_t page,            /*!< in: page offset */
+                    bool ahi,   /*!< in: whether we may need to drop
+                                the adaptive hash index */
+                    mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   DBUG_ENTER("fseg_free_page");
   fseg_inode_t *seg_inode;
@@ -3327,14 +3252,11 @@ void fseg_free_page(
   DBUG_VOID_RETURN;
 }
 
-/**********************************************************************/ /**
- Checks if a single page of a segment is free.
+/** Checks if a single page of a segment is free.
  @return true if free */
-bool fseg_page_is_free(
-    /*==============*/
-    fseg_header_t *seg_header, /*!< in: segment header */
-    space_id_t space_id,       /*!< in: space id */
-    page_no_t page)            /*!< in: page offset */
+bool fseg_page_is_free(fseg_header_t *seg_header, /*!< in: segment header */
+                       space_id_t space_id,       /*!< in: space id */
+                       page_no_t page)            /*!< in: page offset */
 {
   mtr_t mtr;
   ibool is_free;
@@ -3436,14 +3358,12 @@ static void fseg_free_extent(fseg_inode_t *seg_inode, space_id_t space,
 #endif /* UNIV_DEBUG */
 }
 
-/**********************************************************************/ /**
- Frees part of a segment. This function can be used to free a segment by
+/** Frees part of a segment. This function can be used to free a segment by
  repeatedly calling this function in different mini-transactions. Doing
  the freeing in a single mini-transaction might result in too big a
  mini-transaction.
  @return true if freeing completed */
 ibool fseg_free_step(
-    /*===========*/
     fseg_header_t *header, /*!< in, own: segment header; NOTE: if the header
                            resides on the first page of the frag list
                            of the segment, this pointer becomes obsolete
@@ -3525,12 +3445,10 @@ ibool fseg_free_step(
   DBUG_RETURN(FALSE);
 }
 
-/**********************************************************************/ /**
- Frees part of a segment. Differs from fseg_free_step because this function
+/** Frees part of a segment. Differs from fseg_free_step because this function
  leaves the header page unfreed.
  @return true if freeing completed, except the header page */
 ibool fseg_free_step_not_header(
-    /*======================*/
     fseg_header_t *header, /*!< in: segment header which must reside on
                            the first fragment page of the segment */
     bool ahi,              /*!< in: whether we may need to drop
@@ -3624,12 +3542,9 @@ static xdes_t *fseg_get_first_extent(fseg_inode_t *inode, space_id_t space_id,
 }
 
 #ifdef UNIV_BTR_PRINT
-/*******************************************************************/ /**
- Writes info of a segment. */
-static void fseg_print_low(
-    /*===========*/
-    fseg_inode_t *inode, /*!< in: segment inode */
-    mtr_t *mtr)          /*!< in/out: mini-transaction */
+/** Writes info of a segment. */
+static void fseg_print_low(fseg_inode_t *inode, /*!< in: segment inode */
+                           mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   space_id_t space;
   ulint n_used;
@@ -3667,12 +3582,9 @@ static void fseg_print_low(
   ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 }
 
-/*******************************************************************/ /**
- Writes info of a segment. */
-void fseg_print(
-    /*=======*/
-    fseg_header_t *header, /*!< in: segment header */
-    mtr_t *mtr)            /*!< in/out: mini-transaction */
+/** Writes info of a segment. */
+void fseg_print(fseg_header_t *header, /*!< in: segment header */
+                mtr_t *mtr)            /*!< in/out: mini-transaction */
 {
   fseg_inode_t *inode;
   space_id_t space_id;

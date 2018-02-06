@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/os0numa.h
+/** @file include/os0numa.h
  NUMA API wrapper over various operating system specific APIs.
 
  The os_numa*() functions in this file mimic the numa*() Linux API that is

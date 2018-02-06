@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/data0type.h
+/** @file include/data0type.h
  Data types
 
  Created 1/16/1996 Heikki Tuuri
@@ -280,20 +279,15 @@ the underling datatype of GEOMETRY(not DATA_POINT) data. */
 #define CHAR_COLL_MASK MAX_CHAR_COLL_NUM
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************/ /**
- Gets the MySQL type code from a dtype.
+/** Gets the MySQL type code from a dtype.
  @return MySQL type code; this is NOT an InnoDB type code! */
 UNIV_INLINE
-ulint dtype_get_mysql_type(
-    /*=================*/
-    const dtype_t *type); /*!< in: type struct */
-/*********************************************************************/ /**
- Determine how many bytes the first n characters of the given string occupy.
+ulint dtype_get_mysql_type(const dtype_t *type); /*!< in: type struct */
+/** Determine how many bytes the first n characters of the given string occupy.
  If the string is shorter than n characters, returns the number of bytes
  the characters in the string occupy.
  @return length of the prefix, in bytes */
 ulint dtype_get_at_most_n_mbchars(
-    /*========================*/
     ulint prtype,      /*!< in: precise type */
     ulint mbminmaxlen, /*!< in: minimum and maximum length of
                        a multi-byte character */
@@ -304,32 +298,24 @@ ulint dtype_get_at_most_n_mbchars(
     const char *str);  /*!< in: the string whose prefix
                        length is being determined */
 #endif                 /* !UNIV_HOTBACKUP */
-/*********************************************************************/ /**
- Checks if a data main type is a string type. Also a BLOB is considered a
+/** Checks if a data main type is a string type. Also a BLOB is considered a
  string type.
  @return true if string type */
 ibool dtype_is_string_type(
-    /*=================*/
     ulint mtype); /*!< in: InnoDB main data type code: DATA_CHAR, ... */
-/*********************************************************************/ /**
- Checks if a type is a binary string type. Note that for tables created with
+/** Checks if a type is a binary string type. Note that for tables created with
  < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
  those DATA_BLOB columns this function currently returns FALSE.
  @return true if binary string type */
-ibool dtype_is_binary_string_type(
-    /*========================*/
-    ulint mtype,   /*!< in: main data type */
-    ulint prtype); /*!< in: precise type */
-/*********************************************************************/ /**
- Checks if a type is a non-binary string type. That is, dtype_is_string_type is
- TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
+ibool dtype_is_binary_string_type(ulint mtype,   /*!< in: main data type */
+                                  ulint prtype); /*!< in: precise type */
+/** Checks if a type is a non-binary string type. That is, dtype_is_string_type
+ is TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
  with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
  For those DATA_BLOB columns this function currently returns TRUE.
  @return true if non-binary string type */
-ibool dtype_is_non_binary_string_type(
-    /*============================*/
-    ulint mtype,   /*!< in: main data type */
-    ulint prtype); /*!< in: precise type */
+ibool dtype_is_non_binary_string_type(ulint mtype,   /*!< in: main data type */
+                                      ulint prtype); /*!< in: precise type */
 
 /** Sets a data type structure.
 @param[in]	type	type struct to init
@@ -345,20 +331,14 @@ void dtype_set(dtype_t *type, ulint mtype, ulint prtype, ulint len);
 UNIV_INLINE
 void dtype_copy(dtype_t *type1, const dtype_t *type2);
 
-/*********************************************************************/ /**
- Gets the SQL main data type.
+/** Gets the SQL main data type.
  @return SQL main data type */
 UNIV_INLINE
-ulint dtype_get_mtype(
-    /*============*/
-    const dtype_t *type); /*!< in: data type */
-/*********************************************************************/ /**
- Gets the precise data type.
+ulint dtype_get_mtype(const dtype_t *type); /*!< in: data type */
+/** Gets the precise data type.
  @return precise data type */
 UNIV_INLINE
-ulint dtype_get_prtype(
-    /*=============*/
-    const dtype_t *type); /*!< in: data type */
+ulint dtype_get_prtype(const dtype_t *type); /*!< in: data type */
 
 /** Compute the mbminlen and mbmaxlen members of a data type structure.
 @param[in]	mtype		main type
@@ -369,55 +349,38 @@ UNIV_INLINE
 void dtype_get_mblen(ulint mtype, ulint prtype, ulint *mbminlen,
                      ulint *mbmaxlen);
 
-/*********************************************************************/ /**
- Gets the MySQL charset-collation code for MySQL string types.
+/** Gets the MySQL charset-collation code for MySQL string types.
  @return MySQL charset-collation code */
 UNIV_INLINE
-ulint dtype_get_charset_coll(
-    /*===================*/
-    ulint prtype); /*!< in: precise data type */
-/*********************************************************************/ /**
- Forms a precise type from the < 4.1.2 format precise type plus the
+ulint dtype_get_charset_coll(ulint prtype); /*!< in: precise data type */
+/** Forms a precise type from the < 4.1.2 format precise type plus the
  charset-collation code.
  @return precise type, including the charset-collation code */
 ulint dtype_form_prtype(
-    /*==============*/
     ulint old_prtype,    /*!< in: the MySQL type code and the flags
                          DATA_BINARY_TYPE etc. */
     ulint charset_coll); /*!< in: MySQL charset-collation code */
-/*********************************************************************/ /**
- Determines if a MySQL string type is a subset of UTF-8.  This function
+/** Determines if a MySQL string type is a subset of UTF-8.  This function
  may return false negatives, in case further character-set collation
  codes are introduced in MySQL later.
  @return true if a subset of UTF-8 */
 UNIV_INLINE
-ibool dtype_is_utf8(
-    /*==========*/
-    ulint prtype); /*!< in: precise data type */
-/*********************************************************************/ /**
- Gets the type length.
+ibool dtype_is_utf8(ulint prtype); /*!< in: precise data type */
+/** Gets the type length.
  @return fixed length of the type, in bytes, or 0 if variable-length */
 UNIV_INLINE
-ulint dtype_get_len(
-    /*==========*/
-    const dtype_t *type); /*!< in: data type */
+ulint dtype_get_len(const dtype_t *type); /*!< in: data type */
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************/ /**
- Gets the minimum length of a character, in bytes.
+/** Gets the minimum length of a character, in bytes.
  @return minimum length of a char, in bytes, or 0 if this is not a
  character type */
 UNIV_INLINE
-ulint dtype_get_mbminlen(
-    /*===============*/
-    const dtype_t *type); /*!< in: type */
-/*********************************************************************/ /**
- Gets the maximum length of a character, in bytes.
+ulint dtype_get_mbminlen(const dtype_t *type); /*!< in: type */
+/** Gets the maximum length of a character, in bytes.
  @return maximum length of a char, in bytes, or 0 if this is not a
  character type */
 UNIV_INLINE
-ulint dtype_get_mbmaxlen(
-    /*===============*/
-    const dtype_t *type); /*!< in: type */
+ulint dtype_get_mbmaxlen(const dtype_t *type); /*!< in: type */
 
 /** Sets the minimum and maximum length of a character, in bytes.
 @param[in,out]	type		type
@@ -507,12 +470,9 @@ char *dtype_sql_name(unsigned mtype, unsigned prtype, unsigned len, char *name,
                      unsigned name_sz);
 #endif /* !UNIV_HOTBACKUP */
 
-/*********************************************************************/ /**
- Validates a data type structure.
+/** Validates a data type structure.
  @return true if ok */
-ibool dtype_validate(
-    /*===========*/
-    const dtype_t *type); /*!< in: type struct to validate */
+ibool dtype_validate(const dtype_t *type); /*!< in: type struct to validate */
 #ifdef UNIV_DEBUG
 /** Print a data type structure.
 @param[in]	type	data type */

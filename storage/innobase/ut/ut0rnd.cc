@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/***************************************************************/ /**
- @file ut/ut0rnd.cc
+/** @file ut/ut0rnd.cc
  Random numbers and hashing
 
  Created 5/11/1994 Heikki Tuuri
@@ -42,13 +41,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 thread_local ulint ut_rnd_ulint_counter = 0;
 
-/***********************************************************/ /**
- Looks for a prime number slightly greater than the given argument.
+/** Looks for a prime number slightly greater than the given argument.
  The prime is chosen so that it is not near any power of 2.
  @return prime */
-ulint ut_find_prime(
-    /*==========*/
-    ulint n) /*!< in: positive number > 100 */
+ulint ut_find_prime(ulint n) /*!< in: positive number > 100 */
 {
   ulint pow2;
   ulint i;

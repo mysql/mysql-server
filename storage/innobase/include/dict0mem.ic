@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/dict0mem.ic
+/** @file include/dict0mem.ic
  Data dictionary memory object creation
 
  Created 1/8/1996 Heikki Tuuri
@@ -35,12 +34,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "fil0fil.h"
 
-/**********************************************************************/ /**
- This function poplulates a dict_index_t index memory structure with
+/** This function poplulates a dict_index_t index memory structure with
  supplied information. */
 UNIV_INLINE
 void dict_mem_fill_index_struct(
-    /*=======================*/
     dict_index_t *index,    /*!< out: index to be filled */
     mem_heap_t *heap,       /*!< in: memory heap */
     const char *table_name, /*!< in: table name */

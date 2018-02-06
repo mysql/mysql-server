@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -27,8 +27,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_compiler.h"
 #include "my_inttypes.h"
 
-/********************************************************************/ /**
- @file rem/rec.h
+/** @file rem/rec.h
  Record manager
 
  Created 5/30/1994 Heikki Tuuri
@@ -165,12 +164,10 @@ this position, and following positions hold the end offsets of
 the fields. */
 #define rec_offs_base(offsets) (offsets + REC_OFFS_HEADER_SIZE)
 
-/******************************************************/ /**
- The following function determines the offsets to each field
+/** The following function determines the offsets to each field
  in the record.	It can reuse a previously allocated array.
  @return the new offsets */
 ulint *rec_get_offsets_func(
-    /*=================*/
     const rec_t *rec,          /*!< in: physical record */
     const dict_index_t *index, /*!< in: record descriptor */
     ulint *offsets,            /*!< in/out: array consisting of
@@ -187,11 +184,9 @@ ulint *rec_get_offsets_func(
     mem_heap_t **heap) /*!< in/out: memory heap */
     MY_ATTRIBUTE((warn_unused_result));
 
-/******************************************************/ /**
- The following function determines the offsets to each field
+/** The following function determines the offsets to each field
  in the record.  It can reuse a previously allocated array. */
 void rec_get_offsets_reverse(
-    /*====================*/
     const byte *extra,         /*!< in: the extra bytes of a
                                compact record in reverse order,
                                excluding the fixed-size
@@ -202,11 +197,9 @@ void rec_get_offsets_reverse(
     ulint *offsets);           /*!< in/out: array consisting of
                               offsets[0] allocated elements */
 
-/******************************************************/ /**
- Gets a bit field from within 1 byte. */
+/** Gets a bit field from within 1 byte. */
 UNIV_INLINE
 ulint rec_get_bit_field_1(
-    /*================*/
     const rec_t *rec, /*!< in: pointer to record origin */
     ulint offs,       /*!< in: offset from the origin down */
     ulint mask,       /*!< in: mask used to filter bits */
@@ -217,11 +210,9 @@ ulint rec_get_bit_field_1(
   return ((mach_read_from_1(rec - offs) & mask) >> shift);
 }
 
-/******************************************************/ /**
- Gets a bit field from within 2 bytes. */
+/** Gets a bit field from within 2 bytes. */
 UNIV_INLINE
 ulint rec_get_bit_field_2(
-    /*================*/
     const rec_t *rec, /*!< in: pointer to record origin */
     ulint offs,       /*!< in: offset from the origin down */
     ulint mask,       /*!< in: mask used to filter bits */
@@ -232,12 +223,10 @@ ulint rec_get_bit_field_2(
   return ((mach_read_from_2(rec - offs) & mask) >> shift);
 }
 
-/******************************************************/ /**
- The following function retrieves the status bits of a new-style record.
+/** The following function retrieves the status bits of a new-style record.
  @return status bits */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_get_status(
-    /*===========*/
-    const rec_t *rec) /*!< in: physical record */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+    rec_get_status(const rec_t *rec) /*!< in: physical record */
 {
   ulint ret;
 
@@ -250,13 +239,11 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_get_status(
   return (ret);
 }
 
-/******************************************************/ /**
- The following function is used to get the number of fields
+/** The following function is used to get the number of fields
  in an old-style record.
  @return number of data fields */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_get_n_fields_old(
-    /*=================*/
-    const rec_t *rec) /*!< in: physical record */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+    rec_get_n_fields_old(const rec_t *rec) /*!< in: physical record */
 {
   ulint ret;
 
@@ -270,15 +257,12 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_get_n_fields_old(
   return (ret);
 }
 
-/******************************************************/ /**
- The following function is used to get the number of fields
+/** The following function is used to get the number of fields
  in a record.
  @return number of data fields */
 UNIV_INLINE
-ulint rec_get_n_fields(
-    /*=============*/
-    const rec_t *rec,          /*!< in: physical record */
-    const dict_index_t *index) /*!< in: record descriptor */
+ulint rec_get_n_fields(const rec_t *rec,          /*!< in: physical record */
+                       const dict_index_t *index) /*!< in: record descriptor */
 {
   ut_ad(rec);
   ut_ad(index);
@@ -317,12 +301,10 @@ bool rec_n_fields_is_sane(dict_index_t *index, const rec_t *rec,
               rec_get_n_fields(rec, index) == dtuple_get_n_fields(entry) - 1));
 }
 
-/**********************************************************/ /**
- The following function returns the number of allocated elements
+/** The following function returns the number of allocated elements
  for an array of offsets.
  @return number of elements */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_get_n_alloc(
-    /*=================*/
     const ulint *offsets) /*!< in: array for rec_get_offsets() */
 {
   ulint n_alloc;
@@ -333,15 +315,12 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_get_n_alloc(
   return (n_alloc);
 }
 
-/**********************************************************/ /**
- The following function sets the number of allocated elements
+/** The following function sets the number of allocated elements
  for an array of offsets. */
 UNIV_INLINE
-void rec_offs_set_n_alloc(
-    /*=================*/
-    ulint *offsets, /*!< out: array for rec_get_offsets(),
-                    must be allocated */
-    ulint n_alloc)  /*!< in: number of elements */
+void rec_offs_set_n_alloc(ulint *offsets, /*!< out: array for rec_get_offsets(),
+                                          must be allocated */
+                          ulint n_alloc)  /*!< in: number of elements */
 {
   ut_ad(offsets);
   ut_ad(n_alloc > REC_OFFS_HEADER_SIZE);
@@ -349,14 +328,11 @@ void rec_offs_set_n_alloc(
   offsets[0] = n_alloc;
 }
 
-/**********************************************************/ /**
- The following function sets the number of fields in offsets. */
+/** The following function sets the number of fields in offsets. */
 UNIV_INLINE
-void rec_offs_set_n_fields(
-    /*==================*/
-    ulint *offsets, /*!< in/out: array returned by
-                    rec_get_offsets() */
-    ulint n_fields) /*!< in: number of fields */
+void rec_offs_set_n_fields(ulint *offsets, /*!< in/out: array returned by
+                                           rec_get_offsets() */
+                           ulint n_fields) /*!< in: number of fields */
 {
   ut_ad(offsets);
   ut_ad(n_fields > 0);
@@ -365,11 +341,9 @@ void rec_offs_set_n_fields(
   offsets[1] = n_fields;
 }
 
-/**********************************************************/ /**
- The following function returns the number of fields in a record.
+/** The following function returns the number of fields in a record.
  @return number of fields */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_n_fields(
-    /*==============*/
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
   ulint n_fields;
@@ -381,8 +355,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_n_fields(
   return (n_fields);
 }
 
-/******************************************************/ /**
- The following function determines the offsets to each field in the
+/** The following function determines the offsets to each field in the
  record.	 The offsets are written to a previously allocated array of
  ulint, where rec_offs_n_fields(offsets) has been initialized to the
  number of fields in the record.	 The rest of the array will be
@@ -395,19 +368,15 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_n_fields(
  is set (REC_OFFS_SQL_NULL), the field i is NULL.  When the second
  high-order bit of the offset at [i+1] is set (REC_OFFS_EXTERNAL), the
  field i is being stored externally. */
-void rec_init_offsets(
-    /*=============*/
-    const rec_t *rec,          /*!< in: physical record */
-    const dict_index_t *index, /*!< in: record descriptor */
-    ulint *offsets);           /*!< in/out: array of offsets;
-                              in: n=rec_offs_n_fields(offsets) */
+void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
+                      const dict_index_t *index, /*!< in: record descriptor */
+                      ulint *offsets);           /*!< in/out: array of offsets;
+                                                in: n=rec_offs_n_fields(offsets) */
 
 #ifdef UNIV_DEBUG
-/************************************************************/ /**
- Validates offsets returned by rec_get_offsets().
+/** Validates offsets returned by rec_get_offsets().
  @return true if valid */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
-    /*==============*/
     const rec_t *rec,          /*!< in: record or NULL */
     const dict_index_t *index, /*!< in: record descriptor or NULL */
     const ulint *offsets)      /*!< in: array returned by
@@ -455,12 +424,10 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
   return (TRUE);
 }
 
-/************************************************************/ /**
- Updates debug data in offsets, in order to avoid bogus
+/** Updates debug data in offsets, in order to avoid bogus
  rec_offs_validate() failures. */
 UNIV_INLINE
 void rec_offs_make_valid(
-    /*================*/
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: record descriptor */
     ulint *offsets)            /*!< in: array returned by
@@ -477,13 +444,11 @@ void rec_offs_make_valid(
 #define rec_offs_make_valid(rec, index, offsets) ((void)0)
 #endif /* UNIV_DEBUG */
 
-/******************************************************/ /**
- Determine the offset to each field in a leaf-page record
+/** Determine the offset to each field in a leaf-page record
  in ROW_FORMAT=COMPACT.  This is a special case of
  rec_init_offsets() and rec_get_offsets_func(). */
 UNIV_INLINE
 void rec_init_offsets_comp_ordinary(
-    /*===========================*/
     const rec_t *rec,          /*!< in: physical record in
                                ROW_FORMAT=COMPACT */
     bool temp,                 /*!< in: whether to use the
@@ -585,13 +550,11 @@ void rec_init_offsets_comp_ordinary(
   *rec_offs_base(offsets) = (rec - (lens + 1)) | REC_OFFS_COMPACT | any_ext;
 }
 
-/******************************************************/ /**
- The following function is used to test whether the data offsets in the record
- are stored in one-byte or two-byte format.
+/** The following function is used to test whether the data offsets in the
+ record are stored in one-byte or two-byte format.
  @return true if 1-byte form */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_get_1byte_offs_flag(
-    /*====================*/
-    const rec_t *rec) /*!< in: physical record */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool
+    rec_get_1byte_offs_flag(const rec_t *rec) /*!< in: physical record */
 {
 #if TRUE != 1
 #error "TRUE != 1"
@@ -601,15 +564,13 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_get_1byte_offs_flag(
                               REC_OLD_SHORT_SHIFT));
 }
 
-/******************************************************/ /**
- Returns the offset of nth field end if the record is stored in the 1-byte
+/** Returns the offset of nth field end if the record is stored in the 1-byte
  offsets form. If the field is SQL null, the flag is ORed in the returned
  value.
  @return offset of the start of the field, SQL null flag ORed */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_1_get_field_end_info(
-    /*=====================*/
-    const rec_t *rec, /*!< in: record */
-    ulint n)          /*!< in: field index */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+    rec_1_get_field_end_info(const rec_t *rec, /*!< in: record */
+                             ulint n)          /*!< in: field index */
 {
   ut_ad(rec_get_1byte_offs_flag(rec));
   ut_ad(n < rec_get_n_fields_old(rec));
@@ -617,16 +578,14 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_1_get_field_end_info(
   return (mach_read_from_1(rec - (REC_N_OLD_EXTRA_BYTES + n + 1)));
 }
 
-/******************************************************/ /**
- Returns the offset of nth field end if the record is stored in the 2-byte
+/** Returns the offset of nth field end if the record is stored in the 2-byte
  offsets form. If the field is SQL null, the flag is ORed in the returned
  value.
  @return offset of the start of the field, SQL null flag and extern
  storage flag ORed */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_2_get_field_end_info(
-    /*=====================*/
-    const rec_t *rec, /*!< in: record */
-    ulint n)          /*!< in: field index */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+    rec_2_get_field_end_info(const rec_t *rec, /*!< in: record */
+                             ulint n)          /*!< in: field index */
 {
   ut_ad(!rec_get_1byte_offs_flag(rec));
   ut_ad(n < rec_get_n_fields_old(rec));

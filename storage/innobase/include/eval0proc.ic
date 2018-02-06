@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/eval0proc.ic
+/** @file include/eval0proc.ic
  Executes SQL stored procedures and their control structures
 
  Created 1/20/1998 Heikki Tuuri
@@ -35,13 +34,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "que0que.h"
 
-/**********************************************************************/ /**
- Performs an execution step of a procedure node.
+/** Performs an execution step of a procedure node.
  @return query thread to run next or NULL */
 UNIV_INLINE
-que_thr_t *proc_step(
-    /*======*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *proc_step(que_thr_t *thr) /*!< in: query thread */
 {
   proc_node_t *node;
 
@@ -69,13 +65,10 @@ que_thr_t *proc_step(
   return (thr);
 }
 
-/**********************************************************************/ /**
- Performs an execution step of a procedure call node.
+/** Performs an execution step of a procedure call node.
  @return query thread to run next or NULL */
 UNIV_INLINE
-que_thr_t *proc_eval_step(
-    /*===========*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *proc_eval_step(que_thr_t *thr) /*!< in: query thread */
 {
   func_node_t *node;
 

@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file gis/gis0sea.cc
+/** @file gis/gis0sea.cc
  InnoDB R-tree search interfaces
 
  Created 2014/01/16 Jimmy Yang
@@ -57,11 +56,9 @@ static bool rtr_cur_restore_position(
     ulint level,       /*!< in: index level */
     mtr_t *mtr);       /*!< in: mtr */
 
-/*************************************************************/ /**
- Pop out used parent path entry, until we find the parent with matching
+/** Pop out used parent path entry, until we find the parent with matching
  page number */
 static void rtr_adjust_parent_path(
-    /*===================*/
     rtr_info_t *rtr_info, /* R-Tree info struct */
     page_no_t page_no)    /* page number to look for */
 {
@@ -79,12 +76,10 @@ static void rtr_adjust_parent_path(
   }
 }
 
-/*************************************************************/ /**
- Find the next matching record. This function is used by search
+/** Find the next matching record. This function is used by search
  or record locating during index delete/update.
  @return true if there is suitable record found, otherwise false */
 static bool rtr_pcur_getnext_from_path(
-    /*=======================*/
     const dtuple_t *tuple, /*!< in: data tuple */
     page_cur_mode_t mode,  /*!< in: cursor search mode */
     btr_cur_t *btr_cur,    /*!< in: persistent cursor; NOTE that the
@@ -475,11 +470,9 @@ bool rtr_pcur_move_to_next(const dtuple_t *tuple, page_cur_mode_t mode,
                                      cursor->latch_mode, false, mtr));
 }
 
-/*************************************************************/ /**
- Check if the cursor holds record pointing to the specified child page
+/** Check if the cursor holds record pointing to the specified child page
  @return	true if it is (pointing to the child page) false otherwise */
 static bool rtr_compare_cursor_rec(
-    /*===================*/
     dict_index_t *index, /*!< in: index */
     btr_cur_t *cursor,   /*!< in: Cursor to check */
     page_no_t page_no,   /*!< in: desired child page number */
@@ -495,11 +488,9 @@ static bool rtr_compare_cursor_rec(
   return (btr_node_ptr_get_child_page_no(rec, offsets) == page_no);
 }
 
-/**************************************************************/ /**
- Initializes and opens a persistent cursor to an index tree. It should be
+/** Initializes and opens a persistent cursor to an index tree. It should be
  closed with btr_pcur_close. Mainly called by row_search_index_entry() */
 void rtr_pcur_open_low(
-    /*==============*/
     dict_index_t *index,   /*!< in: index */
     ulint level,           /*!< in: level in the rtree */
     const dtuple_t *tuple, /*!< in: tuple on which search done */
@@ -710,12 +701,10 @@ void rtr_page_get_father(dict_index_t *index, buf_block_t *block, mtr_t *mtr,
   mem_heap_free(heap);
 }
 
-/************************************************************/ /**
- Returns the father block to a page. It is assumed that mtr holds
+/** Returns the father block to a page. It is assumed that mtr holds
  an X or SX latch on the tree.
  @return rec_get_offsets() of the node pointer record */
 ulint *rtr_page_get_father_block(
-    /*======================*/
     ulint *offsets,      /*!< in: work area for the return value */
     mem_heap_t *heap,    /*!< in: memory heap to use */
     dict_index_t *index, /*!< in: b-tree index */
@@ -733,11 +722,9 @@ ulint *rtr_page_get_father_block(
   return (rtr_page_get_father_node_ptr(offsets, heap, sea_cur, cursor, mtr));
 }
 
-/********************************************************************/ /**
- Returns the upper level node pointer to a R-Tree page. It is assumed
+/** Returns the upper level node pointer to a R-Tree page. It is assumed
  that mtr holds an x-latch on the tree. */
 void rtr_get_father_node(
-    /*================*/
     dict_index_t *index,   /*!< in: index */
     ulint level,           /*!< in: the tree level of search */
     const dtuple_t *tuple, /*!< in: data tuple; NOTE: n_fields_cmp in
@@ -836,8 +823,7 @@ func_exit:
   }
 }
 
-/*******************************************************************/ /**
- Create a RTree search info structure */
+/** Create a RTree search info structure */
 rtr_info_t *rtr_create_rtr_info(
     /******************/
     bool need_prdt,      /*!< in: Whether predicate lock
@@ -884,8 +870,7 @@ rtr_info_t *rtr_create_rtr_info(
   return (rtr_info);
 }
 
-/*******************************************************************/ /**
- Update a btr_cur_t with rtr_info */
+/** Update a btr_cur_t with rtr_info */
 void rtr_info_update_btr(
     /******************/
     btr_cur_t *cursor,    /*!< in/out: tree cursor */
@@ -897,8 +882,7 @@ void rtr_info_update_btr(
   cursor->rtr_info = rtr_info;
 }
 
-/*******************************************************************/ /**
- Initialize a R-Tree Search structure */
+/** Initialize a R-Tree Search structure */
 void rtr_init_rtr_info(
     /****************/
     rtr_info_t *rtr_info, /*!< in: rtr_info to set to the
@@ -951,12 +935,9 @@ void rtr_init_rtr_info(
   mutex_exit(&index->rtr_track->rtr_active_mutex);
 }
 
-/**************************************************************/ /**
- Clean up R-Tree search structure */
-void rtr_clean_rtr_info(
-    /*===============*/
-    rtr_info_t *rtr_info, /*!< in: RTree search info */
-    bool free_all)        /*!< in: need to free rtr_info itself */
+/** Clean up R-Tree search structure */
+void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
+                        bool free_all) /*!< in: need to free rtr_info itself */
 {
   dict_index_t *index;
   bool initialized = false;
@@ -1027,10 +1008,8 @@ void rtr_clean_rtr_info(
   }
 }
 
-/**************************************************************/ /**
- Rebuilt the "path" to exclude the removing page no */
+/** Rebuilt the "path" to exclude the removing page no */
 static void rtr_rebuild_path(
-    /*=============*/
     rtr_info_t *rtr_info, /*!< in: RTree search info */
     page_no_t page_no)    /*!< in: need to free rtr_info itself */
 {
@@ -1086,10 +1065,8 @@ static void rtr_rebuild_path(
   }
 }
 
-/**************************************************************/ /**
- Check whether a discarding page is in anyone's search path */
+/** Check whether a discarding page is in anyone's search path */
 void rtr_check_discard_page(
-    /*===================*/
     dict_index_t *index, /*!< in: index */
     btr_cur_t *cursor,   /*!< in: cursor on the page to discard: not on
                          the root page */
@@ -1287,10 +1264,8 @@ search_again:
   return (ret);
 }
 
-/****************************************************************/ /**
- Copy the leaf level R-tree record, and push it to matched_rec in rtr_info */
+/** Copy the leaf level R-tree record, and push it to matched_rec in rtr_info */
 static void rtr_leaf_push_match_rec(
-    /*====================*/
     const rec_t *rec,     /*!< in: record to copy */
     rtr_info_t *rtr_info, /*!< in/out: search stack */
     ulint *offsets,       /*!< in: offsets */
@@ -1324,11 +1299,9 @@ static void rtr_leaf_push_match_rec(
   ut_ad(match_rec->used < UNIV_PAGE_SIZE);
 }
 
-/**************************************************************/ /**
- Store the parent path cursor
+/** Store the parent path cursor
  @return number of cursor stored */
 ulint rtr_store_parent_path(
-    /*==================*/
     const buf_block_t *block, /*!< in: block of the page */
     btr_cur_t *btr_cur,       /*!< in/out: persistent cursor */
     ulint latch_mode,
@@ -1365,10 +1338,8 @@ ulint rtr_store_parent_path(
 
   return (num_stored);
 }
-/**************************************************************/ /**
- push a nonleaf index node to the search path for insertion */
+/** push a nonleaf index node to the search path for insertion */
 static void rtr_non_leaf_insert_stack_push(
-    /*===========================*/
     dict_index_t *index,      /*!< in: index descriptor */
     rtr_node_path_t *path,    /*!< in/out: search path */
     ulint level,              /*!< in: index page level */
@@ -1431,11 +1402,9 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   ut_d(new (&matches->block.debug_latch) rw_lock_t(block->debug_latch));
 }
 
-/****************************************************************/ /**
- Generate a shadow copy of the page block header to save the
+/** Generate a shadow copy of the page block header to save the
  matched records */
 static void rtr_init_match(
-    /*===========*/
     matched_rec_t *matches,   /*!< in/out: match to initialize */
     const buf_block_t *block, /*!< in: buffer block */
     const page_t *page)       /*!< in: buffer page */
@@ -1458,13 +1427,10 @@ static void rtr_init_match(
 #endif /* RTR_SEARCH_DIAGNOSTIC */
 }
 
-/****************************************************************/ /**
- Get the bounding box content from an index record */
-void rtr_get_mbr_from_rec(
-    /*=================*/
-    const rec_t *rec,     /*!< in: data tuple */
-    const ulint *offsets, /*!< in: offsets array */
-    rtr_mbr_t *mbr)       /*!< out MBR */
+/** Get the bounding box content from an index record */
+void rtr_get_mbr_from_rec(const rec_t *rec,     /*!< in: data tuple */
+                          const ulint *offsets, /*!< in: offsets array */
+                          rtr_mbr_t *mbr)       /*!< out MBR */
 {
   ulint rec_f_len;
   const byte *data;
@@ -1474,12 +1440,9 @@ void rtr_get_mbr_from_rec(
   rtr_read_mbr(data, mbr);
 }
 
-/****************************************************************/ /**
- Get the bounding box content from a MBR data record */
-void rtr_get_mbr_from_tuple(
-    /*===================*/
-    const dtuple_t *dtuple, /*!< in: data tuple */
-    rtr_mbr *mbr)           /*!< out: mbr to fill */
+/** Get the bounding box content from a MBR data record */
+void rtr_get_mbr_from_tuple(const dtuple_t *dtuple, /*!< in: data tuple */
+                            rtr_mbr *mbr)           /*!< out: mbr to fill */
 {
   const dfield_t *dtuple_field;
   ulint dtuple_f_len;
@@ -1494,10 +1457,8 @@ void rtr_get_mbr_from_tuple(
   rtr_read_mbr(data, mbr);
 }
 
-/****************************************************************/ /**
- Searches the right position in rtree for a page cursor. */
+/** Searches the right position in rtree for a page cursor. */
 bool rtr_cur_search_with_match(
-    /*======================*/
     const buf_block_t *block, /*!< in: buffer block */
     dict_index_t *index,      /*!< in: index descriptor */
     const dtuple_t *tuple,    /*!< in: data tuple */

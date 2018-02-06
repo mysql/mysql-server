@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/mem0mem.h
+/** @file include/mem0mem.h
  The memory management
 
  Created 6/9/1994 Heikki Tuuri
@@ -270,12 +269,9 @@ The size of the element must be given. */
 UNIV_INLINE
 void mem_heap_free_top(mem_heap_t *heap, ulint n);
 
-/*****************************************************************/ /**
- Returns the space in bytes occupied by a memory heap. */
+/** Returns the space in bytes occupied by a memory heap. */
 UNIV_INLINE
-ulint mem_heap_get_size(
-    /*==============*/
-    mem_heap_t *heap); /*!< in: heap */
+ulint mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
 
 /** Duplicates a NUL-terminated string.
 @param[in]	str	string to be copied
@@ -305,35 +301,28 @@ memory heap.
 UNIV_INLINE
 char *mem_heap_strdupl(mem_heap_t *heap, const char *str, ulint len);
 
-/**********************************************************************/ /**
- Concatenate two strings and return the result, using a memory heap.
+/** Concatenate two strings and return the result, using a memory heap.
  @return own: the result */
 char *mem_heap_strcat(
-    /*============*/
     mem_heap_t *heap, /*!< in: memory heap where string is allocated */
     const char *s1,   /*!< in: string 1 */
     const char *s2);  /*!< in: string 2 */
 
-/**********************************************************************/ /**
- Duplicate a block of data, allocated from a memory heap.
+/** Duplicate a block of data, allocated from a memory heap.
  @return own: a copy of the data */
 void *mem_heap_dup(
-    /*=========*/
     mem_heap_t *heap, /*!< in: memory heap where copy is allocated */
     const void *data, /*!< in: data to be copied */
     ulint len);       /*!< in: length of data, in bytes */
 
-/****************************************************************/ /**
- A simple sprintf replacement that dynamically allocates the space for the
+/** A simple sprintf replacement that dynamically allocates the space for the
  formatted string from the given heap. This supports a very limited set of
  the printf syntax: types 's' and 'u' and length modifier 'l' (which is
  required for the 'u' type).
  @return heap-allocated formatted string */
-char *mem_heap_printf(
-    /*============*/
-    mem_heap_t *heap,   /*!< in: memory heap */
-    const char *format, /*!< in: format string */
-    ...) MY_ATTRIBUTE((format(printf, 2, 3)));
+char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
+                      const char *format, /*!< in: format string */
+                      ...) MY_ATTRIBUTE((format(printf, 2, 3)));
 
 /** Checks that an object is a memory heap (or a block of it)
 @param[in]	heap	Memory heap to check */

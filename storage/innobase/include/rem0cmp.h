@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*******************************************************************/ /**
- @file include/rem0cmp.h
+/** @file include/rem0cmp.h
  Comparison services for records
 
  Created 7/1/1994 Heikki Tuuri
@@ -45,14 +44,11 @@ namespace dd {
 class Spatial_reference_system;
 }
 
-/*************************************************************/ /**
- Returns TRUE if two columns are equal for comparison purposes.
+/** Returns TRUE if two columns are equal for comparison purposes.
  @return true if the columns are considered equal in comparisons */
-ibool cmp_cols_are_equal(
-    /*===============*/
-    const dict_col_t *col1, /*!< in: column 1 */
-    const dict_col_t *col2, /*!< in: column 2 */
-    ibool check_charsets);
+ibool cmp_cols_are_equal(const dict_col_t *col1, /*!< in: column 1 */
+                         const dict_col_t *col2, /*!< in: column 2 */
+                         ibool check_charsets);
 /*!< in: whether to check charsets */
 /** Compare two data fields.
 @param[in]	mtype	main type
@@ -89,10 +85,9 @@ int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
 @param[in] mode compare mode
 @param[in] srs Spatial reference system of R-tree
 @retval negative if dtuple is less than rec */
-int cmp_dtuple_rec_with_gis(
-    /*====================*/
-    const dtuple_t *dtuple, const rec_t *rec, const ulint *offsets,
-    page_cur_mode_t mode, const dd::Spatial_reference_system *srs);
+int cmp_dtuple_rec_with_gis(const dtuple_t *dtuple, const rec_t *rec,
+                            const ulint *offsets, page_cur_mode_t mode,
+                            const dd::Spatial_reference_system *srs);
 
 /** Compare a GIS data tuple to a physical record in rtree non-leaf node.
 We need to check the page number field, since we don't store pk field in
@@ -169,7 +164,6 @@ none of which are stored externally.
 @retval negative if rec1 (including non-ordering columns) is less than rec2
 @retval 0 if rec1 is a duplicate of rec2 */
 int cmp_rec_rec_simple(
-    /*===============*/
     const rec_t *rec1,         /*!< in: physical record */
     const rec_t *rec2,         /*!< in: physical record */
     const ulint *offsets1,     /*!< in: rec_get_offsets(rec1, ...) */

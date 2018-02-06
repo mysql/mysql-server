@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file fut/fut0lst.cc
+/** @file fut/fut0lst.cc
  File-based list utilities
 
  Created 11/28/1995 Heikki Tuuri
@@ -37,10 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_inttypes.h"
 #include "page0page.h"
 
-/********************************************************************/ /**
- Adds a node to an empty list. */
+/** Adds a node to an empty list. */
 static void flst_add_to_empty(
-    /*==============*/
     flst_base_node_t *base, /*!< in: pointer to base node of
                             empty list */
     flst_node_t *node,      /*!< in: node to add */
@@ -73,27 +70,21 @@ static void flst_add_to_empty(
   mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/********************************************************************/ /**
- Inserts a node after another in a list. */
+/** Inserts a node after another in a list. */
 void flst_insert_after(
-    /*==============*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node1,     /*!< in: node to insert after */
     flst_node_t *node2,     /*!< in: node to add */
     mtr_t *mtr);            /*!< in: mini-transaction handle */
-/********************************************************************/ /**
- Inserts a node before another in a list. */
+/** Inserts a node before another in a list. */
 void flst_insert_before(
-    /*===============*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node2,     /*!< in: node to insert */
     flst_node_t *node3,     /*!< in: node to insert before */
     mtr_t *mtr);            /*!< in: mini-transaction handle */
 
-/********************************************************************/ /**
- Adds a node as the last node in a list. */
+/** Adds a node as the last node in a list. */
 void flst_add_last(
-    /*==========*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node,      /*!< in: node to add */
     mtr_t *mtr)             /*!< in: mini-transaction handle */
@@ -136,10 +127,8 @@ void flst_add_last(
   }
 }
 
-/********************************************************************/ /**
- Adds a node as the first node in a list. */
+/** Adds a node as the first node in a list. */
 void flst_add_first(
-    /*===========*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node,      /*!< in: node to add */
     mtr_t *mtr)             /*!< in: mini-transaction handle */
@@ -181,10 +170,8 @@ void flst_add_first(
   }
 }
 
-/********************************************************************/ /**
- Inserts a node after another in a list. */
+/** Inserts a node after another in a list. */
 void flst_insert_after(
-    /*==============*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node1,     /*!< in: node to insert after */
     flst_node_t *node2,     /*!< in: node to add */
@@ -239,10 +226,8 @@ void flst_insert_after(
   mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/********************************************************************/ /**
- Inserts a node before another in a list. */
+/** Inserts a node before another in a list. */
 void flst_insert_before(
-    /*===============*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node2,     /*!< in: node to insert */
     flst_node_t *node3,     /*!< in: node to insert before */
@@ -297,10 +282,8 @@ void flst_insert_before(
   mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
 
-/********************************************************************/ /**
- Removes a node. */
+/** Removes a node. */
 void flst_remove(
-    /*========*/
     flst_base_node_t *base, /*!< in: pointer to base node of list */
     flst_node_t *node2,     /*!< in: node to remove */
     mtr_t *mtr)             /*!< in: mini-transaction handle */
@@ -370,11 +353,9 @@ void flst_remove(
   mlog_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES, mtr);
 }
 
-/********************************************************************/ /**
- Validates a file-based list.
+/** Validates a file-based list.
  @return true if ok */
 ibool flst_validate(
-    /*==========*/
     const flst_base_node_t *base, /*!< in: pointer to base node of list */
     mtr_t *mtr1)                  /*!< in: mtr */
 {

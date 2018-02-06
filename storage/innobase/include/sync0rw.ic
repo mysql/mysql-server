@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -31,8 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/sync0rw.ic
+/** @file include/sync0rw.ic
  The read-write lock (for threads)
 
  Created 9/11/1995 Heikki Tuuri
@@ -40,56 +39,43 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "os0event.h"
 
-/******************************************************************/ /**
- Lock an rw-lock in shared mode for the current thread. If the rw-lock is
+/** Lock an rw-lock in shared mode for the current thread. If the rw-lock is
  locked in exclusive mode, or there is an exclusive lock request waiting,
  the function spins a preset time (controlled by srv_n_spin_wait_rounds),
  waiting for the lock before suspending the thread. */
 void rw_lock_s_lock_spin(
-    /*================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
     const char *file_name, /*!< in: file name where lock requested */
     ulint line);           /*!< in: line where requested */
 #ifdef UNIV_DEBUG
-/******************************************************************/ /**
- Inserts the debug information for an rw-lock. */
+/** Inserts the debug information for an rw-lock. */
 void rw_lock_add_debug_info(
-    /*===================*/
     rw_lock_t *lock,       /*!< in: rw-lock */
     ulint pass,            /*!< in: pass value */
     ulint lock_type,       /*!< in: lock type */
     const char *file_name, /*!< in: file where requested */
     ulint line);           /*!< in: line where requested */
-/******************************************************************/ /**
- Removes a debug information struct for an rw-lock. */
-void rw_lock_remove_debug_info(
-    /*======================*/
-    rw_lock_t *lock,  /*!< in: rw-lock */
-    ulint pass,       /*!< in: pass value */
-    ulint lock_type); /*!< in: lock type */
-#endif                /* UNIV_DEBUG */
+/** Removes a debug information struct for an rw-lock. */
+void rw_lock_remove_debug_info(rw_lock_t *lock,  /*!< in: rw-lock */
+                               ulint pass,       /*!< in: pass value */
+                               ulint lock_type); /*!< in: lock type */
+#endif                                           /* UNIV_DEBUG */
 
-/********************************************************************/ /**
- Check if there are threads waiting for the rw-lock.
+/** Check if there are threads waiting for the rw-lock.
  @return 1 if waiters, 0 otherwise */
 UNIV_INLINE
-ulint rw_lock_get_waiters(
-    /*================*/
-    const rw_lock_t *lock) /*!< in: rw-lock */
+ulint rw_lock_get_waiters(const rw_lock_t *lock) /*!< in: rw-lock */
 {
   return (lock->waiters);
 }
 
-/********************************************************************/ /**
- Sets lock->waiters to 1. It is not an error if lock->waiters is already
+/** Sets lock->waiters to 1. It is not an error if lock->waiters is already
  1. On platforms where ATOMIC builtins are used this function enforces a
  memory barrier. */
 UNIV_INLINE
-void rw_lock_set_waiter_flag(
-    /*====================*/
-    rw_lock_t *lock) /*!< in/out: rw-lock */
+void rw_lock_set_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
   (void)os_compare_and_swap_ulint(&lock->waiters, 0, 1);
@@ -99,14 +85,11 @@ void rw_lock_set_waiter_flag(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/********************************************************************/ /**
- Resets lock->waiters to 0. It is not an error if lock->waiters is already
+/** Resets lock->waiters to 0. It is not an error if lock->waiters is already
  0. On platforms where ATOMIC builtins are used this function enforces a
  memory barrier. */
 UNIV_INLINE
-void rw_lock_reset_waiter_flag(
-    /*======================*/
-    rw_lock_t *lock) /*!< in/out: rw-lock */
+void rw_lock_reset_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
   (void)os_compare_and_swap_ulint(&lock->waiters, 1, 0);
@@ -116,14 +99,11 @@ void rw_lock_reset_waiter_flag(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/******************************************************************/ /**
- Returns the write-status of the lock - this function made more sense
+/** Returns the write-status of the lock - this function made more sense
  with the old rw_lock implementation.
  @return RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_X_WAIT, RW_LOCK_SX */
 UNIV_INLINE
-ulint rw_lock_get_writer(
-    /*===============*/
-    const rw_lock_t *lock) /*!< in: rw-lock */
+ulint rw_lock_get_writer(const rw_lock_t *lock) /*!< in: rw-lock */
 {
   lint lock_word = lock->lock_word;
 
@@ -147,13 +127,10 @@ ulint rw_lock_get_writer(
   }
 }
 
-/******************************************************************/ /**
- Returns the number of readers (s-locks).
+/** Returns the number of readers (s-locks).
  @return number of readers */
 UNIV_INLINE
-ulint rw_lock_get_reader_count(
-    /*=====================*/
-    const rw_lock_t *lock) /*!< in: rw-lock */
+ulint rw_lock_get_reader_count(const rw_lock_t *lock) /*!< in: rw-lock */
 {
   lint lock_word = lock->lock_word;
   ut_ad(lock_word <= X_LOCK_DECR);
@@ -183,21 +160,14 @@ ulint rw_lock_get_reader_count(
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 UNIV_INLINE
-ib_mutex_t *rw_lock_get_mutex(
-    /*==============*/
-    rw_lock_t *lock) {
-  return (&(lock->mutex));
-}
+ib_mutex_t *rw_lock_get_mutex(rw_lock_t *lock) { return (&(lock->mutex)); }
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
-/******************************************************************/ /**
- Returns the value of writer_count for the lock. Does not reserve the lock
+/** Returns the value of writer_count for the lock. Does not reserve the lock
  mutex, so the caller must be sure it is not changed during the call.
  @return value of writer_count */
 UNIV_INLINE
-ulint rw_lock_get_x_lock_count(
-    /*=====================*/
-    const rw_lock_t *lock) /*!< in: rw-lock */
+ulint rw_lock_get_x_lock_count(const rw_lock_t *lock) /*!< in: rw-lock */
 {
   lint lock_copy = lock->lock_word;
   ut_ad(lock_copy <= X_LOCK_DECR);
@@ -221,14 +191,11 @@ ulint rw_lock_get_x_lock_count(
   }
 }
 
-/******************************************************************/ /**
- Returns the number of sx-lock for the lock. Does not reserve the lock
+/** Returns the number of sx-lock for the lock. Does not reserve the lock
  mutex, so the caller must be sure it is not changed during the call.
  @return value of sx-lock count */
 UNIV_INLINE
-ulint rw_lock_get_sx_lock_count(
-    /*======================*/
-    const rw_lock_t *lock) /*!< in: rw-lock */
+ulint rw_lock_get_sx_lock_count(const rw_lock_t *lock) /*!< in: rw-lock */
 {
 #ifdef UNIV_DEBUG
   lint lock_copy = lock->lock_word;
@@ -249,19 +216,16 @@ ulint rw_lock_get_sx_lock_count(
 #endif /* UNIV_DEBUG */
 }
 
-/******************************************************************/ /**
- Two different implementations for decrementing the lock_word of a rw_lock:
+/** Two different implementations for decrementing the lock_word of a rw_lock:
  one for systems supporting atomic operations, one for others. This does
  does not support recusive x-locks: they should be handled by the caller and
  need not be atomic since they are performed by the current lock holder.
  Returns true if the decrement was made, false if not.
  @return true if decr occurs */
 ALWAYS_INLINE
-bool rw_lock_lock_word_decr(
-    /*===================*/
-    rw_lock_t *lock, /*!< in/out: rw-lock */
-    ulint amount,    /*!< in: amount to decrement */
-    lint threshold)  /*!< in: threshold of judgement */
+bool rw_lock_lock_word_decr(rw_lock_t *lock, /*!< in/out: rw-lock */
+                            ulint amount,    /*!< in: amount to decrement */
+                            lint threshold)  /*!< in: threshold of judgement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
   lint local_lock_word;
@@ -288,14 +252,11 @@ bool rw_lock_lock_word_decr(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/******************************************************************/ /**
- Increments lock_word the specified amount and returns new value.
+/** Increments lock_word the specified amount and returns new value.
  @return lock->lock_word after increment */
 UNIV_INLINE
-lint rw_lock_lock_word_incr(
-    /*===================*/
-    rw_lock_t *lock, /*!< in/out: rw-lock */
-    ulint amount)    /*!< in: amount of increment */
+lint rw_lock_lock_word_incr(rw_lock_t *lock, /*!< in/out: rw-lock */
+                            ulint amount)    /*!< in: amount of increment */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
   return (os_atomic_increment_lint(&lock->lock_word, amount));
@@ -313,8 +274,7 @@ lint rw_lock_lock_word_incr(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/******************************************************************/ /**
- This function sets the lock->writer_thread and lock->recursive fields.
+/** This function sets the lock->writer_thread and lock->recursive fields.
  For platforms where we are using atomic builtins instead of lock->mutex
  it sets the lock->writer_thread field using atomics to ensure memory
  ordering. Note that it is assumed that the caller of this function
@@ -324,7 +284,6 @@ lint rw_lock_lock_word_incr(
  lock->recursive flag is set. */
 UNIV_INLINE
 void rw_lock_set_writer_id_and_recursion_flag(
-    /*=====================================*/
     rw_lock_t *lock, /*!< in/out: lock to work on */
     bool recursive)  /*!< in: true if recursion
                      allowed */
@@ -357,13 +316,11 @@ void rw_lock_set_writer_id_and_recursion_flag(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
-/******************************************************************/ /**
- Low-level function which tries to lock an rw-lock in s-mode. Performs no
+/** Low-level function which tries to lock an rw-lock in s-mode. Performs no
  spinning.
  @return TRUE if success */
 ALWAYS_INLINE
 ibool rw_lock_s_lock_low(
-    /*===============*/
     rw_lock_t *lock, /*!< in: pointer to rw-lock */
     ulint pass MY_ATTRIBUTE((unused)),
     /*!< in: pass value; != 0, if the lock will be
@@ -386,15 +343,13 @@ ibool rw_lock_s_lock_low(
   return (TRUE); /* locking succeeded */
 }
 
-/******************************************************************/ /**
- NOTE! Use the corresponding macro, not directly this function! Lock an
+/** NOTE! Use the corresponding macro, not directly this function! Lock an
  rw-lock in shared mode for the current thread. If the rw-lock is locked
  in exclusive mode, or there is an exclusive lock request waiting, the
  function spins a preset time (controlled by srv_n_spin_wait_rounds), waiting
  for the lock, before suspending the thread. */
 UNIV_INLINE
 void rw_lock_s_lock_func(
-    /*================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -422,14 +377,12 @@ void rw_lock_s_lock_func(
   }
 }
 
-/******************************************************************/ /**
- NOTE! Use the corresponding macro, not directly this function! Lock an
+/** NOTE! Use the corresponding macro, not directly this function! Lock an
  rw-lock in exclusive mode for the current thread if the lock can be
  obtained immediately.
  @return true if success */
 UNIV_INLINE
 ibool rw_lock_x_lock_func_nowait(
-    /*=======================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
@@ -486,11 +439,9 @@ ibool rw_lock_x_lock_func_nowait(
   return (TRUE);
 }
 
-/******************************************************************/ /**
- Releases a shared mode lock. */
+/** Releases a shared mode lock. */
 UNIV_INLINE
 void rw_lock_s_unlock_func(
-/*==================*/
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the lock may have
                      been passed to another thread to unlock */
@@ -516,11 +467,9 @@ void rw_lock_s_unlock_func(
   ut_ad(rw_lock_validate(lock));
 }
 
-/******************************************************************/ /**
- Releases an exclusive mode lock. */
+/** Releases an exclusive mode lock. */
 UNIV_INLINE
 void rw_lock_x_unlock_func(
-/*==================*/
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the lock may have
                      been passed to another thread to unlock */
@@ -573,11 +522,9 @@ void rw_lock_x_unlock_func(
   ut_ad(rw_lock_validate(lock));
 }
 
-/******************************************************************/ /**
- Releases a sx mode lock. */
+/** Releases a sx mode lock. */
 UNIV_INLINE
 void rw_lock_sx_unlock_func(
-/*===================*/
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the lock may have
                      been passed to another thread to unlock */
@@ -622,13 +569,11 @@ void rw_lock_sx_unlock_func(
 
 #ifdef UNIV_PFS_RWLOCK
 
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_create_func().
+/** Performance schema instrumented wrap function for rw_lock_create_func().
  NOTE! Please use the corresponding macro rw_lock_create(), not directly
  this function! */
 UNIV_INLINE
 void pfs_rw_lock_create_func(
-    /*====================*/
     mysql_pfs_key_t key, /*!< in: key registered with
                          performance schema */
     rw_lock_t *lock,     /*!< in/out: pointer to memory */
@@ -651,13 +596,11 @@ void pfs_rw_lock_create_func(
 #endif /* UNIV_DEBUG */
                       cfile_name, cline);
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_x_lock_func()
+/** Performance schema instrumented wrap function for rw_lock_x_lock_func()
  NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
  this function! */
 UNIV_INLINE
 void pfs_rw_lock_x_lock_func(
-    /*====================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -684,15 +627,13 @@ void pfs_rw_lock_x_lock_func(
     rw_lock_x_lock_func(lock, pass, file_name, line);
   }
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for
+/** Performance schema instrumented wrap function for
  rw_lock_x_lock_func_nowait()
  NOTE! Please use the corresponding macro rw_lock_x_lock_func(),
  not directly this function!
  @return true if success */
 UNIV_INLINE
 ibool pfs_rw_lock_x_lock_func_nowait(
-    /*===========================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock
                          requested */
@@ -722,14 +663,11 @@ ibool pfs_rw_lock_x_lock_func_nowait(
 
   return (ret);
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_free_func()
+/** Performance schema instrumented wrap function for rw_lock_free_func()
  NOTE! Please use the corresponding macro rw_lock_free(), not directly
  this function! */
 UNIV_INLINE
-void pfs_rw_lock_free_func(
-    /*==================*/
-    rw_lock_t *lock) /*!< in: pointer to rw-lock */
+void pfs_rw_lock_free_func(rw_lock_t *lock) /*!< in: pointer to rw-lock */
 {
   if (lock->pfs_psi != NULL) {
     PSI_RWLOCK_CALL(destroy_rwlock)(lock->pfs_psi);
@@ -738,13 +676,11 @@ void pfs_rw_lock_free_func(
 
   rw_lock_free_func(lock);
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_s_lock_func()
+/** Performance schema instrumented wrap function for rw_lock_s_lock_func()
  NOTE! Please use the corresponding macro rw_lock_s_lock(), not
  directly this function! */
 ALWAYS_INLINE
 void pfs_rw_lock_s_lock_func(
-    /*====================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -771,13 +707,11 @@ void pfs_rw_lock_s_lock_func(
     rw_lock_s_lock_func(lock, pass, file_name, line);
   }
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_sx_lock_func()
+/** Performance schema instrumented wrap function for rw_lock_sx_lock_func()
  NOTE! Please use the corresponding macro rw_lock_sx_lock(), not
  directly this function! */
 UNIV_INLINE
 void pfs_rw_lock_sx_lock_func(
-    /*====================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -804,14 +738,12 @@ void pfs_rw_lock_sx_lock_func(
     rw_lock_sx_lock_func(lock, pass, file_name, line);
   }
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_s_lock_func()
+/** Performance schema instrumented wrap function for rw_lock_s_lock_func()
  NOTE! Please use the corresponding macro rw_lock_s_lock(), not
  directly this function!
  @return true if success */
 UNIV_INLINE
 ibool pfs_rw_lock_s_lock_low(
-    /*===================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -841,14 +773,12 @@ ibool pfs_rw_lock_s_lock_low(
 
   return (ret);
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_sx_lock_nowait()
+/** Performance schema instrumented wrap function for rw_lock_sx_lock_nowait()
  NOTE! Please use the corresponding macro, not
  directly this function!
  @return true if success */
 UNIV_INLINE
 ibool pfs_rw_lock_sx_lock_low(
-    /*====================*/
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -879,13 +809,11 @@ ibool pfs_rw_lock_sx_lock_low(
 
   return (ret);
 }
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_x_unlock_func()
+/** Performance schema instrumented wrap function for rw_lock_x_unlock_func()
  NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
  this function! */
 UNIV_INLINE
 void pfs_rw_lock_x_unlock_func(
-/*======================*/
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the
                      lock may have been passed to another
@@ -905,13 +833,11 @@ void pfs_rw_lock_x_unlock_func(
       lock);
 }
 
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
+/** Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
  NOTE! Please use the corresponding macro rw_lock_sx_unlock(), not directly
  this function! */
 UNIV_INLINE
 void pfs_rw_lock_sx_unlock_func(
-/*======================*/
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the
                      lock may have been passed to another
@@ -931,13 +857,11 @@ void pfs_rw_lock_sx_unlock_func(
       lock);
 }
 
-/******************************************************************/ /**
- Performance schema instrumented wrap function for rw_lock_s_unlock_func()
+/** Performance schema instrumented wrap function for rw_lock_s_unlock_func()
  NOTE! Please use the corresponding macro pfs_rw_lock_s_unlock(), not
  directly this function! */
 ALWAYS_INLINE
 void pfs_rw_lock_s_unlock_func(
-/*======================*/
 #ifdef UNIV_DEBUG
     ulint pass,      /*!< in: pass value; != 0, if the
                      lock may have been passed to another

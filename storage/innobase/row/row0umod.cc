@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file row/row0umod.cc
+/** @file row/row0umod.cc
  Undo modify of a row
 
  Created 2/27/1997 Heikki Tuuri
@@ -81,11 +80,9 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
-/***********************************************************/ /**
- Undoes a modify in a clustered index record.
+/** Undoes a modify in a clustered index record.
  @return DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
-    /*===================*/
     undo_node_t *node, /*!< in: row undo node */
     ulint **offsets,   /*!< out: rec_get_offsets() on the record */
     mem_heap_t **offsets_heap,
@@ -157,15 +154,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
   DBUG_RETURN(err);
 }
 
-/***********************************************************/ /**
- Purges a clustered index record after undo if possible.
+/** Purges a clustered index record after undo if possible.
  This is attempted when the record was inserted by updating a
  delete-marked record and there no longer exist transactions
  that would see the delete-marked record.
  @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space
  */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
-    /*==========================*/
     undo_node_t *node, /*!< in: row undo node */
     mtr_t *mtr,        /*!< in/out: mini-transaction */
     ulint mode)        /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
@@ -244,14 +239,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
   return (err);
 }
 
-/***********************************************************/ /**
- Undoes a modify in a clustered index record. Sets also the node state for the
- next round of undo.
+/** Undoes a modify in a clustered index record. Sets also the node state for
+ the next round of undo.
  @return DB_SUCCESS or error code: we may run out of file space */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust(
-    /*===============*/
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_clust(undo_node_t *node, /*!< in: row undo node */
+                       que_thr_t *thr)    /*!< in: query thread */
 {
   btr_pcur_t *pcur;
   mtr_t mtr;
@@ -373,12 +366,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust(
   return (err);
 }
 
-/***********************************************************/ /**
- Delete marks or removes a secondary index entry if found.
+/** Delete marks or removes a secondary index entry if found.
  @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_undo_mod_del_mark_or_remove_sec_low(
-        /*====================================*/
         undo_node_t *node,   /*!< in: row undo node */
         que_thr_t *thr,      /*!< in: query thread */
         dict_index_t *index, /*!< in: index */
@@ -521,8 +512,7 @@ func_exit_no_pcur:
   return (err);
 }
 
-/***********************************************************/ /**
- Delete marks or removes a secondary index entry if found.
+/** Delete marks or removes a secondary index entry if found.
  NOTE that if we updated the fields of a delete-marked secondary index record
  so that alphabetically they stayed the same, e.g., 'abc' -> 'aBc', we cannot
  return to the original values because we do not know them. But this should
@@ -532,7 +522,6 @@ func_exit_no_pcur:
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_undo_mod_del_mark_or_remove_sec(
-        /*================================*/
         undo_node_t *node,   /*!< in: row undo node */
         que_thr_t *thr,      /*!< in: query thread */
         dict_index_t *index, /*!< in: index */
@@ -551,8 +540,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   return (err);
 }
 
-/***********************************************************/ /**
- Delete unmarks a secondary index entry which must be found. It might not be
+/** Delete unmarks a secondary index entry which must be found. It might not be
  delete-marked at the moment, but it does not harm to unmark it anyway. We also
  need to update the fields of the secondary index record if we updated its
  fields but alphabetically they stayed the same, e.g., 'abc' -> 'aBc'.
@@ -563,7 +551,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
          and an insert would lead to a duplicate exists */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_undo_mod_del_unmark_sec_and_undo_update(
-        /*========================================*/
         ulint mode,          /*!< in: search mode: BTR_MODIFY_LEAF or
                              BTR_MODIFY_TREE */
         que_thr_t *thr,      /*!< in: query thread */
@@ -757,10 +744,8 @@ func_exit_no_pcur:
   return (err);
 }
 
-/***********************************************************/ /**
- Flags a secondary index corrupted. */
+/** Flags a secondary index corrupted. */
 static void row_undo_mod_sec_flag_corrupted(
-    /*============================*/
     trx_t *trx,          /*!< in/out: transaction */
     dict_index_t *index) /*!< in: secondary index */
 {
@@ -780,13 +765,11 @@ static void row_undo_mod_sec_flag_corrupted(
   }
 }
 
-/***********************************************************/ /**
- Undoes a modify in secondary indexes when undo record type is UPD_DEL.
+/** Undoes a modify in secondary indexes when undo record type is UPD_DEL.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_upd_del_sec(
-    /*=====================*/
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_upd_del_sec(undo_node_t *node, /*!< in: row undo node */
+                             que_thr_t *thr)    /*!< in: query thread */
 {
   mem_heap_t *heap;
   dberr_t err = DB_SUCCESS;
@@ -842,13 +825,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_upd_del_sec(
   return (err);
 }
 
-/***********************************************************/ /**
- Undoes a modify in secondary indexes when undo record type is DEL_MARK.
+/** Undoes a modify in secondary indexes when undo record type is DEL_MARK.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_del_mark_sec(
-    /*======================*/
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_del_mark_sec(undo_node_t *node, /*!< in: row undo node */
+                              que_thr_t *thr)    /*!< in: query thread */
 {
   mem_heap_t *heap;
   dberr_t err = DB_SUCCESS;
@@ -906,13 +887,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_del_mark_sec(
   return (err);
 }
 
-/***********************************************************/ /**
- Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
+/** Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_upd_exist_sec(
-    /*=======================*/
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_upd_exist_sec(undo_node_t *node, /*!< in: row undo node */
+                               que_thr_t *thr)    /*!< in: query thread */
 {
   mem_heap_t *heap;
   dberr_t err = DB_SUCCESS;
@@ -1101,13 +1080,10 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
   }
 }
 
-/***********************************************************/ /**
- Undoes a modify operation on a row of a table.
+/** Undoes a modify operation on a row of a table.
  @return DB_SUCCESS or error code */
-dberr_t row_undo_mod(
-    /*=========*/
-    undo_node_t *node, /*!< in: row undo node */
-    que_thr_t *thr)    /*!< in: query thread */
+dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
+                     que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err;
   MDL_ticket *mdl = nullptr;

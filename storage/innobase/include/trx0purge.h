@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/trx0purge.h
+/** @file include/trx0purge.h
  Purge old versions
 
  Created 3/26/1996 Heikki Tuuri
@@ -50,31 +49,24 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** The global data structure coordinating a purge */
 extern trx_purge_t *purge_sys;
 
-/********************************************************************/ /**
- Calculates the file address of an undo log header when we have the file
+/** Calculates the file address of an undo log header when we have the file
  address of its history list node.
  @return file address of the log */
 UNIV_INLINE
 fil_addr_t trx_purge_get_log_from_hist(
-    /*========================*/
     fil_addr_t node_addr); /*!< in: file address of the history
                            list node of the log */
-/********************************************************************/ /**
- Creates the global purge system control structure and inits the history
+/** Creates the global purge system control structure and inits the history
  mutex. */
 void trx_purge_sys_create(
-    /*=================*/
     ulint n_purge_threads,    /*!< in: number of purge threads */
     purge_pq_t *purge_queue); /*!< in/own: UNDO log min binary heap*/
-/********************************************************************/ /**
- Frees the global purge system control structure. */
+/** Frees the global purge system control structure. */
 void trx_purge_sys_close(void);
-/*======================*/
 /************************************************************************
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
 void trx_purge_add_update_undo_to_history(
-    /*=================================*/
     trx_t *trx,               /*!< in: transaction */
     trx_undo_ptr_t *undo_ptr, /*!< in: update undo log. */
     page_t *undo_page,        /*!< in: update undo log header page,
@@ -84,24 +76,17 @@ void trx_purge_add_update_undo_to_history(
     len else skip updating it. */
     ulint n_added_logs, /*!< in: number of logs added */
     mtr_t *mtr);        /*!< in: mtr */
-/*******************************************************************/ /**
- This function runs a purge batch.
+/** This function runs a purge batch.
  @return number of undo log pages handled in the batch */
-ulint trx_purge(
-    /*======*/
-    ulint n_purge_threads, /*!< in: number of purge tasks to
-                           submit to task queue. */
-    ulint limit,           /*!< in: the maximum number of
-                           records to purge in one batch */
-    bool truncate);        /*!< in: truncate history if true */
-/*******************************************************************/ /**
- Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
+ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks to
+                                       submit to task queue. */
+                ulint limit,           /*!< in: the maximum number of
+                                       records to purge in one batch */
+                bool truncate);        /*!< in: truncate history if true */
+/** Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
 void trx_purge_stop(void);
-/*================*/
-/*******************************************************************/ /**
- Resume purge, move to PURGE_STATE_RUN. */
+/** Resume purge, move to PURGE_STATE_RUN. */
 void trx_purge_run(void);
-/*================*/
 
 /** Purge states */
 enum purge_state_t {
@@ -112,11 +97,9 @@ enum purge_state_t {
   PURGE_STATE_DISABLED /*!< Purge was never started */
 };
 
-/*******************************************************************/ /**
- Get the purge state.
+/** Get the purge state.
  @return purge state. */
 purge_state_t trx_purge_state(void);
-/*=================*/
 
 // Forward declaration
 struct TrxUndoRsegsIterator;

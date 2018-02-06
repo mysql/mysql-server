@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -25,8 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ***********************************************************************/
 
-/**************************************************/ /**
- @file include/srv0mon.h
+/** @file include/srv0mon.h
  Server monitor counter related defines
 
  Created 12/15/2009	Jimmy Yang
@@ -769,81 +768,61 @@ compensated by mon_last_value if accumulated value is required. */
                                      MONITOR_FIELD(monitor, mon_start_value) + \
                                      MONITOR_FIELD(monitor, mon_last_value)))
 
-/****************************************************************/ /**
- Get monitor's monitor_info_t by its monitor id (index into the
+/** Get monitor's monitor_info_t by its monitor id (index into the
  innodb_counter_info array
  @return Point to corresponding monitor_info_t, or NULL if no such
  monitor */
 monitor_info_t *srv_mon_get_info(
-    /*=============*/
     monitor_id_t monitor_id); /*!< id index into the
                               innodb_counter_info array */
-/****************************************************************/ /**
- Get monitor's name by its monitor id (index into the
+/** Get monitor's name by its monitor id (index into the
  innodb_counter_info array
  @return corresponding monitor name, or NULL if no such
  monitor */
 const char *srv_mon_get_name(
-    /*=============*/
     monitor_id_t monitor_id); /*!< id index into the
                               innodb_counter_info array */
 
-/****************************************************************/ /**
- Turn on/off/reset monitor counters in a module. If module_value
+/** Turn on/off/reset monitor counters in a module. If module_value
  is NUM_MONITOR then turn on all monitor counters. */
 void srv_mon_set_module_control(
-    /*=======================*/
     monitor_id_t module_id,   /*!< in: Module ID as in
                               monitor_counter_id. If it is
                               set to NUM_MONITOR, this means
                               we shall turn on all the counters */
     mon_option_t set_option); /*!< in: Turn on/off reset the
                               counter */
-/****************************************************************/ /**
- This function consolidates some existing server counters used
+/** This function consolidates some existing server counters used
  by "system status variables". These existing system variables do not have
  mechanism to start/stop and reset the counters, so we simulate these
  controls by remembering the corresponding counter values when the
  corresponding monitors are turned on/off/reset, and do appropriate
  mathematics to deduct the actual value. */
 void srv_mon_process_existing_counter(
-    /*=============================*/
     monitor_id_t monitor_id,  /*!< in: the monitor's ID as in
                               monitor_counter_id */
     mon_option_t set_option); /*!< in: Turn on/off reset the
                               counter */
-/*************************************************************/ /**
- This function is used to calculate the maximum counter value
+/** This function is used to calculate the maximum counter value
  since the start of monitor counter
  @return max counter value since start. */
 UNIV_INLINE
 mon_type_t srv_mon_calc_max_since_start(
-    /*=========================*/
     monitor_id_t monitor); /*!< in: monitor id */
-/*************************************************************/ /**
- This function is used to calculate the minimum counter value
+/** This function is used to calculate the minimum counter value
  since the start of monitor counter
  @return min counter value since start. */
 UNIV_INLINE
 mon_type_t srv_mon_calc_min_since_start(
-    /*=========================*/
     monitor_id_t monitor); /*!< in: monitor id*/
-/*************************************************************/ /**
- Reset a monitor, create a new base line with the current monitor
+/** Reset a monitor, create a new base line with the current monitor
  value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
-void srv_mon_reset(
-    /*==========*/
-    monitor_id_t monitor); /*!< in: monitor id*/
-/*************************************************************/ /**
- This function resets all values of a monitor counter */
+void srv_mon_reset(monitor_id_t monitor); /*!< in: monitor id*/
+/** This function resets all values of a monitor counter */
 UNIV_INLINE
-void srv_mon_reset_all(
-    /*==============*/
-    monitor_id_t monitor); /*!< in: monitor id*/
-/*************************************************************/ /**
- Turn on monitor counters that are marked as default ON. */
+void srv_mon_reset_all(monitor_id_t monitor); /*!< in: monitor id*/
+/** Turn on monitor counters that are marked as default ON. */
 void srv_mon_default_on(void);
-/*====================*/
 
 #include "srv0mon.ic"
 #else /* !UNIV_HOTBACKUP */

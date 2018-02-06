@@ -664,8 +664,7 @@ is consistent between KEY info from mysql and that from innodb index.
 bool innobase_match_index_columns(const KEY *key_info,
                                   const dict_index_t *index_info);
 
-/*********************************************************************/ /**
- This function checks each index name for a table against reserved
+/** This function checks each index name for a table against reserved
  system default primary index name 'GEN_CLUST_INDEX'. If a name
  matches, this function pushes an warning message to the client,
  and returns true.
@@ -973,7 +972,6 @@ class innobase_basic_ddl {
 Initialize the table FTS stopword list
 @return true if success */
 ibool innobase_fts_load_stopword(
-    /*=======================*/
     dict_table_t *table, /*!< in: Table has the FTS */
     trx_t *trx,          /*!< in: transaction */
     THD *thd)            /*!< in: current thread */

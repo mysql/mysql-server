@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file arch/arch0arch.cc
+/** @file arch/arch0arch.cc
  Common implementation for redo log and dirty page archiver system
 
  *******************************************************/

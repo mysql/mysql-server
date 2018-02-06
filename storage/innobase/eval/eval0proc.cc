@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file eval/eval0proc.cc
+/** @file eval/eval0proc.cc
  Executes SQL stored procedures and their control structures
 
  Created 1/20/1998 Heikki Tuuri
@@ -35,12 +34,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stddef.h>
 
-/**********************************************************************/ /**
- Performs an execution step of an if-statement node.
+/** Performs an execution step of an if-statement node.
  @return query thread to run next or NULL */
-que_thr_t *if_step(
-    /*====*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *if_step(que_thr_t *thr) /*!< in: query thread */
 {
   if_node_t *node;
   elsif_node_t *elsif_node;
@@ -105,12 +101,9 @@ que_thr_t *if_step(
   return (thr);
 }
 
-/**********************************************************************/ /**
- Performs an execution step of a while-statement node.
+/** Performs an execution step of a while-statement node.
  @return query thread to run next or NULL */
-que_thr_t *while_step(
-    /*=======*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *while_step(que_thr_t *thr) /*!< in: query thread */
 {
   while_node_t *node;
 
@@ -138,12 +131,9 @@ que_thr_t *while_step(
   return (thr);
 }
 
-/**********************************************************************/ /**
- Performs an execution step of an assignment statement node.
+/** Performs an execution step of an assignment statement node.
  @return query thread to run next or NULL */
-que_thr_t *assign_step(
-    /*========*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *assign_step(que_thr_t *thr) /*!< in: query thread */
 {
   assign_node_t *node;
 
@@ -163,12 +153,9 @@ que_thr_t *assign_step(
   return (thr);
 }
 
-/**********************************************************************/ /**
- Performs an execution step of a for-loop node.
+/** Performs an execution step of a for-loop node.
  @return query thread to run next or NULL */
-que_thr_t *for_step(
-    /*=====*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *for_step(que_thr_t *thr) /*!< in: query thread */
 {
   for_node_t *node;
   que_node_t *parent;
@@ -219,12 +206,9 @@ que_thr_t *for_step(
   return (thr);
 }
 
-/**********************************************************************/ /**
- Performs an execution step of an exit statement node.
+/** Performs an execution step of an exit statement node.
  @return query thread to run next or NULL */
-que_thr_t *exit_step(
-    /*======*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *exit_step(que_thr_t *thr) /*!< in: query thread */
 {
   exit_node_t *node;
   que_node_t *loop_node;
@@ -249,12 +233,9 @@ que_thr_t *exit_step(
   return (thr);
 }
 
-/**********************************************************************/ /**
- Performs an execution step of a return-statement node.
+/** Performs an execution step of a return-statement node.
  @return query thread to run next or NULL */
-que_thr_t *return_step(
-    /*========*/
-    que_thr_t *thr) /*!< in: query thread */
+que_thr_t *return_step(que_thr_t *thr) /*!< in: query thread */
 {
   return_node_t *node;
   que_node_t *parent;

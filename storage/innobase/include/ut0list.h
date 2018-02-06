@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,15 +24,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*******************************************************************/ /**
- @file include/ut0list.h
+/** @file include/ut0list.h
  A double-linked list
 
  Created 4/26/2006 Osku Salerma
  ************************************************************************/
 
-/*******************************************************************/ /**
- A double-linked list. This differs from the one in ut0lst.h in that in this
+/** A double-linked list. This differs from the one in ut0lst.h in that in this
  one, each list node contains a pointer to the data, whereas the one in
  ut0lst.h uses a strategy where the list pointers are embedded in the data
  items themselves.
@@ -59,56 +57,39 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct ib_list_t;
 struct ib_list_node_t;
 
-/****************************************************************/ /**
- Create a new list using mem_alloc. Lists created with this function must be
+/** Create a new list using mem_alloc. Lists created with this function must be
  freed with ib_list_free.
  @return list */
 ib_list_t *ib_list_create(void);
-/*=================*/
 
-/****************************************************************/ /**
- Free a list. */
-void ib_list_free(
-    /*=========*/
-    ib_list_t *list); /*!< in: list */
+/** Free a list. */
+void ib_list_free(ib_list_t *list); /*!< in: list */
 
-/****************************************************************/ /**
- Add the data to the end of the list.
+/** Add the data to the end of the list.
  @return new list node */
 ib_list_node_t *ib_list_add_last(
-    /*=============*/
     ib_list_t *list,   /*!< in: list */
     void *data,        /*!< in: data */
     mem_heap_t *heap); /*!< in: memory heap to use */
 
-/****************************************************************/ /**
- Remove the node from the list. */
-void ib_list_remove(
-    /*===========*/
-    ib_list_t *list,       /*!< in: list */
-    ib_list_node_t *node); /*!< in: node to remove */
+/** Remove the node from the list. */
+void ib_list_remove(ib_list_t *list,       /*!< in: list */
+                    ib_list_node_t *node); /*!< in: node to remove */
 
-/****************************************************************/ /**
- Get the first node in the list.
+/** Get the first node in the list.
  @return first node, or NULL */
 UNIV_INLINE
-ib_list_node_t *ib_list_get_first(
-    /*==============*/
-    ib_list_t *list); /*!< in: list */
+ib_list_node_t *ib_list_get_first(ib_list_t *list); /*!< in: list */
 
-/****************************************************************/ /**
- Get the last node in the list.
+/** Get the last node in the list.
  @return last node, or NULL */
 UNIV_INLINE
-ib_list_node_t *ib_list_get_last(
-    /*=============*/
-    ib_list_t *list); /*!< in: list */
+ib_list_node_t *ib_list_get_last(ib_list_t *list); /*!< in: list */
 
 /********************************************************************
 Check if list is empty. */
 UNIV_INLINE
 ibool ib_list_is_empty(
-    /*=============*/
     /* out: TRUE if empty else  */
     const ib_list_t *list); /* in: list */
 

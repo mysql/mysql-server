@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/checksum.cc
+/** @file buf/checksum.cc
  Buffer pool checksum functions, also linked from /extra/innochecksum.cc
 
  Created Aug 11, 2011 Vasil Dimov
@@ -89,14 +88,11 @@ uint32_t buf_calc_page_crc32(const byte *page,
   return (c1 ^ c2);
 }
 
-/********************************************************************/ /**
- Calculates a page checksum which is stored to the page when it is written
+/** Calculates a page checksum which is stored to the page when it is written
  to a file. Note that we must be careful to calculate the same value on
  32-bit and 64-bit architectures.
  @return checksum */
-ulint buf_calc_page_new_checksum(
-    /*=======================*/
-    const byte *page) /*!< in: buffer page */
+ulint buf_calc_page_new_checksum(const byte *page) /*!< in: buffer page */
 {
   ulint checksum;
 
@@ -118,17 +114,14 @@ ulint buf_calc_page_new_checksum(
   return (checksum);
 }
 
-/********************************************************************/ /**
- In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
+/** In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
  looked at the first few bytes of the page. This calculates that old
  checksum.
  NOTE: we must first store the new formula checksum to
  FIL_PAGE_SPACE_OR_CHKSUM before calculating and storing this old checksum
  because this takes that field as an input!
  @return checksum */
-ulint buf_calc_page_old_checksum(
-    /*=======================*/
-    const byte *page) /*!< in: buffer page */
+ulint buf_calc_page_old_checksum(const byte *page) /*!< in: buffer page */
 {
   ulint checksum;
 
@@ -139,11 +132,9 @@ ulint buf_calc_page_old_checksum(
   return (checksum);
 }
 
-/********************************************************************/ /**
- Return a printable string describing the checksum algorithm.
+/** Return a printable string describing the checksum algorithm.
  @return algorithm name */
 const char *buf_checksum_algorithm_name(
-    /*========================*/
     srv_checksum_algorithm_t algo) /*!< in: algorithm */
 {
   switch (algo) {

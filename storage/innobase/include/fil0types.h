@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/fil0types.h
+/** @file include/fil0types.h
  The low-level file system page header & trailer offsets
 
  Created 10/25/1995 Heikki Tuuri

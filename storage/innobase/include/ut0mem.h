@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/*******************************************************************/ /**
- @file include/ut0mem.h
+/** @file include/ut0mem.h
  Memory primitives
 
  Created 5/30/1994 Heikki Tuuri
@@ -88,21 +87,17 @@ ulint ut_strlen(const char *str);
 UNIV_INLINE
 int ut_strcmp(const char *str1, const char *str2);
 
-/**********************************************************************/ /**
- Copies up to size - 1 characters from the NUL-terminated string src to
+/** Copies up to size - 1 characters from the NUL-terminated string src to
  dst, NUL-terminating the result. Returns strlen(src), so truncation
  occurred if the return value >= size.
  @return strlen(src) */
-ulint ut_strlcpy(
-    /*=======*/
-    char *dst,       /*!< in: destination buffer */
-    const char *src, /*!< in: source buffer */
-    ulint size);     /*!< in: size of destination buffer */
+ulint ut_strlcpy(char *dst,       /*!< in: destination buffer */
+                 const char *src, /*!< in: source buffer */
+                 ulint size);     /*!< in: size of destination buffer */
 
 /********************************************************************
 Concatenate 3 strings.*/
 char *ut_str3cat(
-    /*=======*/
     /* out, own: concatenated string, must be
     freed with ut_free() */
     const char *s1,  /* in: string 1 */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/fts0plugin.h
+/** @file include/fts0plugin.h
  Full text search plugin header file
 
  Created 2013/06/04 Shaohua Wang
@@ -49,15 +48,12 @@ struct fts_ast_state_t;
     parser->deinit(arg);           \
   }
 
-/******************************************************************/ /**
- fts parse query by plugin parser.
+/** fts parse query by plugin parser.
  @return 0 if parse successfully, or return non-zero. */
-int fts_parse_by_parser(
-    /*================*/
-    ibool mode,               /*!< in: query boolean mode */
-    uchar *query,             /*!< in: query string */
-    ulint len,                /*!< in: query string length */
-    st_mysql_ftparser *parse, /*!< in: fts plugin parser */
-    fts_ast_state_t *state);  /*!< in: query parser state */
+int fts_parse_by_parser(ibool mode,   /*!< in: query boolean mode */
+                        uchar *query, /*!< in: query string */
+                        ulint len,    /*!< in: query string length */
+                        st_mysql_ftparser *parse, /*!< in: fts plugin parser */
+                        fts_ast_state_t *state);  /*!< in: query parser state */
 
 #endif /* INNOBASE_FTS0PLUGIN_H */

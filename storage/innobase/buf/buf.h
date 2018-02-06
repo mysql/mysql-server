@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file buf/buf.h
+/** @file buf/buf.h
  The database buffer pool high-level routines
 
  Created 11/5/1995 Heikki Tuuri

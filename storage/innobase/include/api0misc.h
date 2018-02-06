@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/api0misc.h
+/** @file include/api0misc.h
  InnoDB Native API
 
  3/20/2011 Jimmy Yang extracted from Embedded InnoDB
@@ -82,7 +81,6 @@ ibool ib_handle_errors(dberr_t *new_err, trx_t *trx, que_thr_t *thr,
 Sets a lock on a table.
 @return error code or DB_SUCCESS */
 dberr_t ib_trx_lock_table_with_retry(
-    /*=========================*/
     trx_t *trx,           /*!< in/out: transaction */
     dict_table_t *table,  /*!< in: table to lock */
     enum lock_mode mode); /*!< in: lock mode */

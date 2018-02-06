@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,45 +24,33 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/handler0alter.h
+/** @file include/handler0alter.h
  Smart ALTER TABLE
  *******************************************************/
 
 #ifndef handler0alter_h
 #define handler0alter_h
 
-/*************************************************************/ /**
- Copies an InnoDB record to table->record[0]. */
-void innobase_rec_to_mysql(
-    /*==================*/
-    struct TABLE *table,       /*!< in/out: MySQL table */
-    const rec_t *rec,          /*!< in: record */
-    const dict_index_t *index, /*!< in: index */
-    const ulint *offsets);     /*!< in: rec_get_offsets(
-                              rec, index, ...) */
+/** Copies an InnoDB record to table->record[0]. */
+void innobase_rec_to_mysql(struct TABLE *table, /*!< in/out: MySQL table */
+                           const rec_t *rec,    /*!< in: record */
+                           const dict_index_t *index, /*!< in: index */
+                           const ulint *offsets);     /*!< in: rec_get_offsets(
+                                                     rec, index, ...) */
 
-/*************************************************************/ /**
- Copies an InnoDB index entry to table->record[0]. */
+/** Copies an InnoDB index entry to table->record[0]. */
 void innobase_fields_to_mysql(
-    /*=====================*/
     struct TABLE *table,       /*!< in/out: MySQL table */
     const dict_index_t *index, /*!< in: InnoDB index */
     const dfield_t *fields);   /*!< in: InnoDB index fields */
 
-/*************************************************************/ /**
- Copies an InnoDB row to table->record[0]. */
-void innobase_row_to_mysql(
-    /*==================*/
-    struct TABLE *table,      /*!< in/out: MySQL table */
-    const dict_table_t *itab, /*!< in: InnoDB table */
-    const dtuple_t *row);     /*!< in: InnoDB row */
+/** Copies an InnoDB row to table->record[0]. */
+void innobase_row_to_mysql(struct TABLE *table,      /*!< in/out: MySQL table */
+                           const dict_table_t *itab, /*!< in: InnoDB table */
+                           const dtuple_t *row);     /*!< in: InnoDB row */
 
-/*************************************************************/ /**
- Resets table->record[0]. */
-void innobase_rec_reset(
-    /*===============*/
-    struct TABLE *table); /*!< in/out: MySQL table */
+/** Resets table->record[0]. */
+void innobase_rec_reset(struct TABLE *table); /*!< in/out: MySQL table */
 
 /** Generate the next autoinc based on a snapshot of the session
 auto_increment_increment and auto_increment_offset variables. */

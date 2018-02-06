@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************/ /**
- @file mem/memory.cc
+/** @file mem/memory.cc
  The memory management
 
  Created 6/9/1994 Heikki Tuuri
@@ -52,11 +51,9 @@ char *mem_heap_strdup(mem_heap_t *heap, const char *str) {
   return (static_cast<char *>(mem_heap_dup(heap, str, strlen(str) + 1)));
 }
 
-/**********************************************************************/ /**
- Duplicate a block of data, allocated from a memory heap.
+/** Duplicate a block of data, allocated from a memory heap.
  @return own: a copy of the data */
 void *mem_heap_dup(
-    /*=========*/
     mem_heap_t *heap, /*!< in: memory heap where copy is allocated */
     const void *data, /*!< in: data to be copied */
     ulint len)        /*!< in: length of data, in bytes */
@@ -64,11 +61,9 @@ void *mem_heap_dup(
   return (memcpy(mem_heap_alloc(heap, len), data, len));
 }
 
-/**********************************************************************/ /**
- Concatenate two strings and return the result, using a memory heap.
+/** Concatenate two strings and return the result, using a memory heap.
  @return own: the result */
 char *mem_heap_strcat(
-    /*============*/
     mem_heap_t *heap, /*!< in: memory heap where string is allocated */
     const char *s1,   /*!< in: string 1 */
     const char *s2)   /*!< in: string 2 */
@@ -87,11 +82,9 @@ char *mem_heap_strcat(
   return (s);
 }
 
-/****************************************************************/ /**
- Helper function for mem_heap_printf.
+/** Helper function for mem_heap_printf.
  @return length of formatted string, including terminating NUL */
 static ulint mem_heap_printf_low(
-    /*================*/
     char *buf,          /*!< in/out: buffer to store formatted string
                         in, or NULL to just calculate length */
     const char *format, /*!< in: format string */
@@ -193,17 +186,14 @@ static ulint mem_heap_printf_low(
   return (len);
 }
 
-/****************************************************************/ /**
- A simple sprintf replacement that dynamically allocates the space for the
+/** A simple sprintf replacement that dynamically allocates the space for the
  formatted string from the given heap. This supports a very limited set of
  the printf syntax: types 's' and 'u' and length modifier 'l' (which is
  required for the 'u' type).
  @return heap-allocated formatted string */
-char *mem_heap_printf(
-    /*============*/
-    mem_heap_t *heap,   /*!< in: memory heap */
-    const char *format, /*!< in: format string */
-    ...) {
+char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
+                      const char *format, /*!< in: format string */
+                      ...) {
   va_list ap;
   char *str;
   ulint len;
@@ -253,12 +243,10 @@ void mem_heap_validate(const mem_heap_t *heap) {
 }
 #endif /* UNIV_DEBUG */
 
-/***************************************************************/ /**
- Creates a memory heap block where data can be allocated.
+/** Creates a memory heap block where data can be allocated.
  @return own: memory heap block, NULL if did not succeed (only possible
  for MEM_HEAP_BTR_SEARCH type heaps) */
 mem_block_t *mem_heap_create_block_func(
-    /*=======================*/
     mem_heap_t *heap, /*!< in: memory heap or NULL if first block
                       should be created */
     ulint n,          /*!< in: number of bytes needed for user data */
@@ -359,14 +347,11 @@ mem_block_t *mem_heap_create_block_func(
   return (block);
 }
 
-/***************************************************************/ /**
- Adds a new block to a memory heap.
+/** Adds a new block to a memory heap.
  @return created block, NULL if did not succeed (only possible for
  MEM_HEAP_BTR_SEARCH type heaps) */
-mem_block_t *mem_heap_add_block(
-    /*===============*/
-    mem_heap_t *heap, /*!< in: memory heap */
-    ulint n)          /*!< in: number of bytes user needs */
+mem_block_t *mem_heap_add_block(mem_heap_t *heap, /*!< in: memory heap */
+                                ulint n) /*!< in: number of bytes user needs */
 {
   mem_block_t *block;
   mem_block_t *new_block;
@@ -410,12 +395,9 @@ mem_block_t *mem_heap_add_block(
   return (new_block);
 }
 
-/******************************************************************/ /**
- Frees a block from a memory heap. */
-void mem_heap_block_free(
-    /*================*/
-    mem_heap_t *heap,   /*!< in: heap */
-    mem_block_t *block) /*!< in: block to free */
+/** Frees a block from a memory heap. */
+void mem_heap_block_free(mem_heap_t *heap,   /*!< in: heap */
+                         mem_block_t *block) /*!< in: block to free */
 {
 #ifndef UNIV_LIBRARY
   buf_block_t *buf_block;
@@ -466,11 +448,8 @@ void mem_heap_block_free(
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
-/******************************************************************/ /**
- Frees the free_block field from a memory heap. */
-void mem_heap_free_block_free(
-    /*=====================*/
-    mem_heap_t *heap) /*!< in: heap */
+/** Frees the free_block field from a memory heap. */
+void mem_heap_free_block_free(mem_heap_t *heap) /*!< in: heap */
 {
   if (UNIV_LIKELY_NULL(heap->free_block)) {
 #ifdef UNIV_DEBUG_VALGRIND

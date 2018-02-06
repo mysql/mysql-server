@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/dict0stats_bg.ic
+/** @file include/dict0stats_bg.ic
  Code used for background table and index stats gathering.
 
  Created Feb 8, 2013 Marko Makela
@@ -34,14 +33,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "dict0mem.h"
 
-/*****************************************************************/ /**
- Request the background collection of statistics to stop for a table.
+/** Request the background collection of statistics to stop for a table.
  @retval true when no background process is active
  @retval false when it is not safe to modify the table definition */
 UNIV_INLINE
-bool dict_stats_stop_bg(
-    /*===============*/
-    dict_table_t *table) /*!< in/out: table */
+bool dict_stats_stop_bg(dict_table_t *table) /*!< in/out: table */
 {
   ut_ad(!srv_read_only_mode);
   ut_ad(mutex_own(&dict_sys->mutex));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/page0types.h
+/** @file include/page0types.h
  Index page routines
 
  Created 2/2/1994 Heikki Tuuri
@@ -247,20 +246,16 @@ extern page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 /** Statistics on compression, indexed by dict_index_t::id */
 extern page_zip_stat_per_index_t page_zip_stat_per_index;
 
-/**********************************************************************/ /**
- Write the "deleted" flag of a record on a compressed page.  The flag must
+/** Write the "deleted" flag of a record on a compressed page.  The flag must
  already have been written on the uncompressed page. */
 void page_zip_rec_set_deleted(
-    /*=====================*/
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     const byte *rec,          /*!< in: record on the uncompressed page */
     ulint flag);              /*!< in: the deleted flag (nonzero=TRUE) */
 
-/**********************************************************************/ /**
- Write the "owned" flag of a record on a compressed page.  The n_owned field
+/** Write the "owned" flag of a record on a compressed page.  The n_owned field
  must already have been written on the uncompressed page. */
 void page_zip_rec_set_owned(
-    /*===================*/
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     const byte *rec,          /*!< in: record on the uncompressed page */
     ulint flag);              /*!< in: the owned flag (nonzero=TRUE) */
@@ -275,10 +270,8 @@ void page_zip_dir_delete(page_zip_des_t *page_zip, byte *rec,
                          dict_index_t *index, const ulint *offsets,
                          const byte *free);
 
-/**********************************************************************/ /**
- Add a slot to the dense page directory. */
+/** Add a slot to the dense page directory. */
 void page_zip_dir_add_slot(
-    /*==================*/
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     bool is_clustered);       /*!< in: nonzero for clustered index,
                               zero for others */

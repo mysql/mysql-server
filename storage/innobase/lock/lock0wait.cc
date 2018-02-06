@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file lock/lock0wait.cc
+/** @file lock/lock0wait.cc
  The transaction lock system
 
  Created 25/5/2010 Sunny Bains
@@ -48,11 +47,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0start.h"
 
-/*********************************************************************/ /**
- Print the contents of the lock_sys_t::waiting_threads array. */
-static void lock_wait_table_print(void)
-/*=======================*/
-{
+/** Print the contents of the lock_sys_t::waiting_threads array. */
+static void lock_wait_table_print(void) {
   ut_ad(lock_wait_mutex_own());
 
   const srv_slot_t *slot = lock_sys->waiting_threads;
@@ -67,11 +63,9 @@ static void lock_wait_table_print(void)
   }
 }
 
-/*********************************************************************/ /**
- Release a slot in the lock_sys_t::waiting_threads. Adjust the array last
+/** Release a slot in the lock_sys_t::waiting_threads. Adjust the array last
  pointer if there are empty slots towards the end of the table. */
 static void lock_wait_table_release_slot(
-    /*=========================*/
     srv_slot_t *slot) /*!< in: slot to release */
 {
 #ifdef UNIV_DEBUG
@@ -127,11 +121,9 @@ static void lock_wait_table_release_slot(
   lock_wait_mutex_exit();
 }
 
-/*********************************************************************/ /**
- Reserves a slot in the thread table for the current user OS thread.
+/** Reserves a slot in the thread table for the current user OS thread.
  @return reserved slot */
 static srv_slot_t *lock_wait_table_reserve_slot(
-    /*=========================*/
     que_thr_t *thr,     /*!< in: query thread associated
                         with the user OS thread */
     ulong wait_timeout) /*!< in: lock wait timeout value */
@@ -181,14 +173,12 @@ static srv_slot_t *lock_wait_table_reserve_slot(
   return (NULL);
 }
 
-/***************************************************************/ /**
- Puts a user OS thread to wait for a lock to be released. If an error
+/** Puts a user OS thread to wait for a lock to be released. If an error
  occurs during the wait trx->error_state associated with thr is
  != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
  are possible errors. DB_DEADLOCK is returned if selective deadlock
  resolution chose this transaction as a victim. */
 void lock_wait_suspend_thread(
-    /*=====================*/
     que_thr_t *thr) /*!< in: query thread associated with the
                     user OS thread */
 {
@@ -378,11 +368,9 @@ void lock_wait_suspend_thread(
   }
 }
 
-/********************************************************************/ /**
- Releases a user OS thread waiting for a lock to be released, if the
+/** Releases a user OS thread waiting for a lock to be released, if the
  thread is already suspended. */
 void lock_wait_release_thread_if_suspended(
-    /*==================================*/
     que_thr_t *thr) /*!< in: query thread associated with the
                     user OS thread	 */
 {
@@ -408,11 +396,9 @@ void lock_wait_release_thread_if_suspended(
   }
 }
 
-/*********************************************************************/ /**
- Check if the thread lock wait has timed out. Release its locks if the
+/** Check if the thread lock wait has timed out. Release its locks if the
  wait has actually timed out. */
 static void lock_wait_check_and_cancel(
-    /*=======================*/
     const srv_slot_t *slot) /*!< in: slot reserved by a user
                             thread when the wait started */
 {

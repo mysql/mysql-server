@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 *****************************************************************************/
 
-/**************************************************/ /**
- @file gis0geo.h
+/** @file gis0geo.h
  The r-tree define from MyISAM
  *******************************************************/
 
@@ -48,22 +47,18 @@ struct rtr_split_node_t {
   double *coords; /* mbr. */
 };
 
-/*************************************************************/ /**
- Inline function for reserving coords */
+/** Inline function for reserving coords */
 inline static double *reserve_coords(double **d_buffer, /*!< in/out: buffer. */
                                      int n_dim)         /*!< in: dimensions. */
-/*===========*/
 {
   double *coords = *d_buffer;
   (*d_buffer) += n_dim * 2;
   return coords;
 }
 
-/*************************************************************/ /**
- Split rtree nodes.
+/** Split rtree nodes.
  Return which group the first rec is in.  */
 int split_rtree_node(
-    /*=============*/
     rtr_split_node_t *node,                   /*!< in: split nodes.*/
     int n_entries,                            /*!< in: entries number.*/
     int all_size,                             /*!< in: total key's size.*/
@@ -76,8 +71,7 @@ int split_rtree_node(
     uchar *first_rec,                         /*!< in: the first rec. */
     const dd::Spatial_reference_system *srs); /*!< in: SRS of R-tree */
 
-/*************************************************************/ /**
- Compares two keys a and b depending on nextflag
+/** Compares two keys a and b depending on nextflag
  nextflag can contain these flags:
     MBR_INTERSECT(a,b)  a overlaps b
     MBR_CONTAIN(a,b)    a contains b

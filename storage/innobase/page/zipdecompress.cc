@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,8 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file page/zipdecompress.cc
+/** @file page/zipdecompress.cc
  Page Decompression interface
 
  Created June 2005 by Marko Makela
@@ -54,17 +53,14 @@ independently of any UNIV_ debugging conditions. */
 #include <stdarg.h>
 
 MY_ATTRIBUTE((format(printf, 1, 2)))
-/**********************************************************************/ /**
- Report a failure to decompress or compress.
+/** Report a failure to decompress or compress.
  @return number of characters printed */
 #ifndef UNIV_HOTBACKUP
 static
 #endif /* !UNIV_HOTBACKUP */
     int
-    page_zip_fail_func(
-        /*===============*/
-        const char *fmt, /*!< in: printf(3) format string */
-        ...)             /*!< in: arguments corresponding to fmt */
+    page_zip_fail_func(const char *fmt, /*!< in: printf(3) format string */
+                       ...) /*!< in: arguments corresponding to fmt */
 {
   int res;
   va_list ap;
@@ -88,31 +84,24 @@ static
 
 extern "C" {
 
-/**********************************************************************/ /**
- Allocate memory for zlib. */
-static void *page_zip_zalloc(
-    /*============*/
-    void *opaque, /*!< in/out: memory heap */
-    uInt items,   /*!< in: number of items to allocate */
-    uInt size)    /*!< in: size of an item in bytes */
+/** Allocate memory for zlib. */
+static void *page_zip_zalloc(void *opaque, /*!< in/out: memory heap */
+                             uInt items, /*!< in: number of items to allocate */
+                             uInt size)  /*!< in: size of an item in bytes */
 {
   return (mem_heap_zalloc(static_cast<mem_heap_t *>(opaque), items * size));
 }
 
-/**********************************************************************/ /**
- Deallocate memory for zlib. */
+/** Deallocate memory for zlib. */
 static void page_zip_free(
-    /*==========*/
     void *opaque MY_ATTRIBUTE((unused)),  /*!< in: memory heap */
     void *address MY_ATTRIBUTE((unused))) /*!< in: object to free */
 {}
 
 } /* extern "C" */
 
-/**********************************************************************/ /**
- Deallocate the index information initialized by page_zip_fields_decode(). */
+/** Deallocate the index information initialized by page_zip_fields_decode(). */
 static void page_zip_fields_free(
-    /*=================*/
     dict_index_t *index) /*!< in: dummy index to be freed */
 {
   if (index) {
@@ -126,12 +115,9 @@ static void page_zip_fields_free(
   }
 }
 
-/**********************************************************************/ /**
- Configure the zlib allocator to use the given memory heap. */
-void page_zip_set_alloc(
-    /*===============*/
-    void *stream,     /*!< in/out: zlib stream */
-    mem_heap_t *heap) /*!< in: memory heap to use */
+/** Configure the zlib allocator to use the given memory heap. */
+void page_zip_set_alloc(void *stream,     /*!< in/out: zlib stream */
+                        mem_heap_t *heap) /*!< in: memory heap to use */
 {
   z_stream *strm = static_cast<z_stream *>(stream);
 
@@ -140,11 +126,9 @@ void page_zip_set_alloc(
   strm->opaque = heap;
 }
 
-/**********************************************************************/ /**
- Populate the sparse page directory from the dense directory.
+/** Populate the sparse page directory from the dense directory.
  @return true on success, false on failure */
 static MY_ATTRIBUTE((warn_unused_result)) ibool page_zip_dir_decode(
-    /*================*/
     const page_zip_des_t *page_zip, /*!< in: dense page directory on
                                    compressed page */
     page_t *page,                   /*!< in: compact page with valid header;
@@ -345,12 +329,10 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
   return (index);
 }
 
-/**********************************************************************/ /**
- Apply the modification log to a record containing externally stored
+/** Apply the modification log to a record containing externally stored
  columns.  Do not copy the fields that are stored separately.
  @return pointer to modification log, or NULL on failure */
 static const byte *page_zip_apply_log_ext(
-    /*===================*/
     rec_t *rec,           /*!< in/out: record */
     const ulint *offsets, /*!< in: rec_get_offsets(rec) */
     ulint trx_id_col,     /*!< in: position of of DB_TRX_ID */
@@ -421,12 +403,10 @@ static const byte *page_zip_apply_log_ext(
   return (data);
 }
 
-/**********************************************************************/ /**
- Apply the modification log to an uncompressed page.
+/** Apply the modification log to an uncompressed page.
  Do not copy the fields that are stored separately.
  @return pointer to end of modification log, or NULL on failure */
 static const byte *page_zip_apply_log(
-    /*===============*/
     const byte *data, /*!< in: modification log */
     ulint size,       /*!< in: maximum length of the log, in bytes */
     rec_t **recs,     /*!< in: dense page directory,
@@ -611,12 +591,10 @@ static const byte *page_zip_apply_log(
   }
 }
 
-/**********************************************************************/ /**
- Set the heap_no in a record, and skip the fixed-size record header
+/** Set the heap_no in a record, and skip the fixed-size record header
  that is not included in the d_stream.
  @return true on success, false if d_stream does not end at rec */
 static ibool page_zip_decompress_heap_no(
-    /*========================*/
     z_stream *d_stream, /*!< in/out: compressed page stream */
     rec_t *rec,         /*!< in/out: record */
     ulint &heap_status) /*!< in/out: heap_no and status bits */
@@ -635,11 +613,9 @@ static ibool page_zip_decompress_heap_no(
   return (TRUE);
 }
 
-/**********************************************************************/ /**
- Decompress the records of a node pointer page.
+/** Decompress the records of a node pointer page.
  @return true on success, false on failure */
 static ibool page_zip_decompress_node_ptrs(
-    /*==========================*/
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     z_stream *d_stream,       /*!< in/out: compressed page stream */
     rec_t **recs,             /*!< in: dense page directory
@@ -815,11 +791,9 @@ zlib_done:
   return (TRUE);
 }
 
-/**********************************************************************/ /**
- Decompress the records of a leaf node of a secondary index.
+/** Decompress the records of a leaf node of a secondary index.
  @return true on success, false on failure */
 static ibool page_zip_decompress_sec(
-    /*====================*/
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     z_stream *d_stream,       /*!< in/out: compressed page stream */
     rec_t **recs,             /*!< in: dense page directory
@@ -944,11 +918,9 @@ zlib_done:
   return (TRUE);
 }
 
-/**********************************************************************/ /**
- Initialize the REC_N_NEW_EXTRA_BYTES of each record.
+/** Initialize the REC_N_NEW_EXTRA_BYTES of each record.
  @return true on success, false on failure */
 static ibool page_zip_set_extra_bytes(
-    /*=====================*/
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     page_t *page,                   /*!< in/out: uncompressed page */
     ulint info_bits)                /*!< in: REC_INFO_MIN_REC_FLAG or 0 */
@@ -1035,12 +1007,10 @@ static ibool page_zip_set_extra_bytes(
   return (TRUE);
 }
 
-/**********************************************************************/ /**
- Decompress a record of a leaf node of a clustered index that contains
+/** Decompress a record of a leaf node of a clustered index that contains
  externally stored columns.
  @return true on success */
 static ibool page_zip_decompress_clust_ext(
-    /*==========================*/
     z_stream *d_stream,   /*!< in/out: compressed page stream */
     rec_t *rec,           /*!< in/out: record */
     const ulint *offsets, /*!< in: rec_get_offsets(rec) */
@@ -1140,11 +1110,9 @@ static ibool page_zip_decompress_clust_ext(
   return (TRUE);
 }
 
-/**********************************************************************/ /**
- Compress the records of a leaf node of a clustered index.
+/** Compress the records of a leaf node of a clustered index.
  @return true on success, false on failure */
 static ibool page_zip_decompress_clust(
-    /*======================*/
     page_zip_des_t *page_zip, /*!< in/out: compressed page */
     z_stream *d_stream,       /*!< in/out: compressed page stream */
     rec_t **recs,             /*!< in: dense page directory
@@ -1414,13 +1382,11 @@ zlib_done:
   return (TRUE);
 }
 
-/**********************************************************************/ /**
- Decompress a page.  This function should tolerate errors on the compressed
+/** Decompress a page.  This function should tolerate errors on the compressed
  page.  Instead of letting assertions fail, it will return FALSE if an
  inconsistency is detected.
  @return true on success, false on failure */
 ibool page_zip_decompress_low(
-    /*====================*/
     page_zip_des_t *page_zip, /*!< in: data, ssize;
                              out: m_start, m_end, m_nonempty, n_blobs */
     page_t *page,             /*!< out: uncompressed page, may be trashed */

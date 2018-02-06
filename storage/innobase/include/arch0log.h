@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/arch0log.h
+/** @file include/arch0log.h
  Innodb interface for log archive
 
  *******************************************************/

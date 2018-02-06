@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -27,8 +27,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 #include "my_inttypes.h"
 
-/**************************************************/ /**
- @file dict/dict0stats.cc
+/** @file dict/dict0stats.cc
  Code used for calculating and manipulating table statistics.
 
  Created Jan 06, 2010 Vasil Dimov
@@ -155,16 +154,13 @@ typedef std::map<const char *, dict_index_t *, ut_strcmp_functor,
                  index_map_t_allocator>
     index_map_t;
 
-/*********************************************************************/ /**
- Checks whether an index should be ignored in stats manipulations:
+/** Checks whether an index should be ignored in stats manipulations:
  * stats fetch
  * stats recalc
  * stats save
  @return true if exists and all tables are ok */
 UNIV_INLINE
-bool dict_stats_should_ignore_index(
-    /*===========================*/
-    const dict_index_t *index) /*!< in: index */
+bool dict_stats_should_ignore_index(const dict_index_t *index) /*!< in: index */
 {
   return ((index->type & DICT_FTS) || index->is_corrupted() ||
           dict_index_is_spatial(index) || index->to_be_dropped ||
@@ -228,8 +224,7 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
   return (err);
 }
 
-/*********************************************************************/ /**
- Duplicate a table object and its indexes.
+/** Duplicate a table object and its indexes.
  This function creates a dummy dict_table_t object and initializes the
  following table and index members:
  dict_table_t::id (copied)
@@ -258,7 +253,6 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
  when no longer needed.
  @return incomplete table object */
 static dict_table_t *dict_stats_table_clone_create(
-    /*==========================*/
     const dict_table_t *table) /*!< in: table whose stats to copy */
 {
   size_t heap_size;
@@ -370,25 +364,20 @@ static dict_table_t *dict_stats_table_clone_create(
   return (t);
 }
 
-/*********************************************************************/ /**
- Free the resources occupied by an object returned by
+/** Free the resources occupied by an object returned by
  dict_stats_table_clone_create(). */
 static void dict_stats_table_clone_free(
-    /*========================*/
     dict_table_t *t) /*!< in: dummy table object to free */
 {
   dict_table_stats_latch_destroy(t);
   mem_heap_free(t->heap);
 }
 
-/*********************************************************************/ /**
- Write all zeros (or 1 where it makes sense) into an index
+/** Write all zeros (or 1 where it makes sense) into an index
  statistics members. The resulting stats correspond to an empty index.
  The caller must own index's table stats latch in X mode
  (dict_table_stats_lock(table, RW_X_LATCH)) */
-static void dict_stats_empty_index(
-    /*===================*/
-    dict_index_t *index) /*!< in/out: index */
+static void dict_stats_empty_index(dict_index_t *index) /*!< in/out: index */
 {
   ut_ad(!(index->type & DICT_FTS));
   ut_ad(!dict_index_is_ibuf(index));
@@ -405,12 +394,9 @@ static void dict_stats_empty_index(
   index->stat_n_leaf_pages = 1;
 }
 
-/*********************************************************************/ /**
- Write all zeros (or 1 where it makes sense) into a table and its indexes'
+/** Write all zeros (or 1 where it makes sense) into a table and its indexes'
  statistics members. The resulting stats correspond to an empty table. */
-static void dict_stats_empty_table(
-    /*===================*/
-    dict_table_t *table) /*!< in/out: table */
+static void dict_stats_empty_table(dict_table_t *table) /*!< in/out: table */
 {
   /* Zero the stats members */
 
@@ -439,10 +425,8 @@ static void dict_stats_empty_table(
   dict_table_stats_unlock(table, RW_X_LATCH);
 }
 
-/*********************************************************************/ /**
- Check whether index's stats are initialized (assert if they are not). */
+/** Check whether index's stats are initialized (assert if they are not). */
 static void dict_stats_assert_initialized_index(
-    /*================================*/
     const dict_index_t *index) /*!< in: index */
 {
   UNIV_MEM_ASSERT_RW_ABORT(
@@ -464,10 +448,8 @@ static void dict_stats_assert_initialized_index(
                            sizeof(index->stat_n_leaf_pages));
 }
 
-/*********************************************************************/ /**
- Check whether table's stats are initialized (assert if they are not). */
+/** Check whether table's stats are initialized (assert if they are not). */
 static void dict_stats_assert_initialized(
-    /*==========================*/
     const dict_table_t *table) /*!< in: table */
 {
   ut_a(table->stat_initialized);
@@ -509,14 +491,11 @@ static void dict_stats_assert_initialized(
   ((i1) != NULL && (i2) != NULL && (i1)->space == (i2)->space && \
    (i1)->id == (i2)->id && strcmp((i1)->name, (i2)->name) == 0)
 
-/*********************************************************************/ /**
- Copy table and index statistics from one table to another, including index
+/** Copy table and index statistics from one table to another, including index
  stats. Extra indexes in src are ignored and extra indexes in dst are
  initialized to correspond to an empty index. */
-static void dict_stats_copy(
-    /*============*/
-    dict_table_t *dst,       /*!< in/out: destination table */
-    const dict_table_t *src) /*!< in: source table */
+static void dict_stats_copy(dict_table_t *dst, /*!< in/out: destination table */
+                            const dict_table_t *src) /*!< in: source table */
 {
   dst->stats_last_recalc = src->stats_last_recalc;
   dst->stat_n_rows = src->stat_n_rows;
@@ -629,23 +608,19 @@ static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
   return (t);
 }
 
-/*********************************************************************/ /**
- Free the resources occupied by an object returned by
+/** Free the resources occupied by an object returned by
  dict_stats_snapshot_create(). */
 static void dict_stats_snapshot_free(
-    /*=====================*/
     dict_table_t *t) /*!< in: dummy table object to free */
 {
   dict_stats_table_clone_free(t);
 }
 
-/*********************************************************************/ /**
- Calculates new estimates for index statistics. This function is
+/** Calculates new estimates for index statistics. This function is
  relatively quick and is used to calculate transient statistics that
  are not saved on disk. This was the only way to calculate statistics
  before the Persistent Statistics feature was introduced. */
 static void dict_stats_update_transient_for_index(
-    /*==================================*/
     dict_index_t *index) /*!< in/out: index */
 {
   if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO &&
@@ -698,14 +673,12 @@ static void dict_stats_update_transient_for_index(
   }
 }
 
-/*********************************************************************/ /**
- Calculates new estimates for table and index statistics. This function
+/** Calculates new estimates for table and index statistics. This function
  is relatively quick and is used to calculate transient statistics that
  are not saved on disk.
  This was the only way to calculate statistics before the
  Persistent Statistics feature was introduced. */
 static void dict_stats_update_transient(
-    /*========================*/
     dict_table_t *table) /*!< in/out: table */
 {
   dict_index_t *index;
@@ -782,8 +755,7 @@ dict_stats_analyze_index()
       dict_stats_analyze_index_below_cur()
 @} */
 
-/*********************************************************************/ /**
- Find the total number and the number of distinct keys on a given level in
+/** Find the total number and the number of distinct keys on a given level in
  an index. Each of the 1..n_uniq prefixes are looked up and the results are
  saved in the array n_diff[0] .. n_diff[n_uniq - 1]. The total number of
  records on the level is saved in total_recs.
@@ -791,7 +763,6 @@ dict_stats_analyze_index()
  in n_diff_boundaries[0..n_uniq - 1], records indexing starts from the leftmost
  record on the level and continues cross pages boundaries, counting from 0. */
 static void dict_stats_analyze_index_level(
-    /*===========================*/
     dict_index_t *index,             /*!< in: index */
     ulint level,                     /*!< in: level */
     ib_uint64_t *n_diff,             /*!< out: array for number of
@@ -1628,12 +1599,10 @@ void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
   }
 }
 
-/*********************************************************************/ /**
- Calculates new statistics for a given index and saves them to the index
+/** Calculates new statistics for a given index and saves them to the index
  members stat_n_diff_key_vals[], stat_n_sample_sizes[], stat_index_size and
  stat_n_leaf_pages. This function could be slow. */
 static void dict_stats_analyze_index(
-    /*=====================*/
     dict_index_t *index) /*!< in/out: index to analyze */
 {
   ulint root_level;
@@ -1914,13 +1883,11 @@ static void dict_stats_analyze_index(
   DBUG_VOID_RETURN;
 }
 
-/*********************************************************************/ /**
- Calculates new estimates for table and index statistics. This function
+/** Calculates new estimates for table and index statistics. This function
  is relatively slow and is used to calculate persistent statistics that
  will be saved on disk.
  @return DB_SUCCESS or error code */
 static dberr_t dict_stats_update_persistent(
-    /*=========================*/
     dict_table_t *table) /*!< in/out: table */
 {
   dict_index_t *index;
@@ -2252,14 +2219,12 @@ end:
   return (ret);
 }
 
-/*********************************************************************/ /**
- Called for the row that is selected by
+/** Called for the row that is selected by
  SELECT ... FROM mysql.innodb_table_stats WHERE table='...'
  The second argument is a pointer to the table and the fetched stats are
  written to it.
  @return non-NULL dummy */
 static ibool dict_stats_fetch_table_stats_step(
-    /*==============================*/
     void *node_void,  /*!< in: select node */
     void *table_void) /*!< out: table */
 {
@@ -2336,8 +2301,7 @@ struct index_fetch_t {
                least one index stats were modified */
 };
 
-/*********************************************************************/ /**
- Called for the rows that are selected by
+/** Called for the rows that are selected by
  SELECT ... FROM mysql.innodb_index_stats WHERE table='...'
  The second argument is a pointer to the table and the fetched stats are
  written to its indexes.
@@ -2354,7 +2318,6 @@ struct index_fetch_t {
  simpler N^2 algorithm.
  @return non-NULL dummy */
 static ibool dict_stats_fetch_index_stats_step(
-    /*==============================*/
     void *node_void, /*!< in: select node */
     void *arg_void)  /*!< out: table + a flag that tells if we
                      modified anything */
@@ -2569,11 +2532,9 @@ static ibool dict_stats_fetch_index_stats_step(
   return (TRUE);
 }
 
-/*********************************************************************/ /**
- Read table's statistics from the persistent statistics storage.
+/** Read table's statistics from the persistent statistics storage.
  @return DB_SUCCESS or error code */
 static dberr_t dict_stats_fetch_from_ps(
-    /*=====================*/
     dict_table_t *table) /*!< in/out: table */
 {
   index_fetch_t index_fetch_arg;
@@ -2692,11 +2653,8 @@ static dberr_t dict_stats_fetch_from_ps(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Fetches or calculates new estimates for index statistics. */
-void dict_stats_update_for_index(
-    /*========================*/
-    dict_index_t *index) /*!< in/out: index */
+/** Fetches or calculates new estimates for index statistics. */
+void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
 {
   DBUG_ENTER("dict_stats_update_for_index");
 
@@ -2718,14 +2676,11 @@ void dict_stats_update_for_index(
   DBUG_VOID_RETURN;
 }
 
-/*********************************************************************/ /**
- Calculates new estimates for table and index statistics. The statistics
+/** Calculates new estimates for table and index statistics. The statistics
  are used in query optimization.
  @return DB_SUCCESS or error code */
-dberr_t dict_stats_update(
-    /*==============*/
-    dict_table_t *table, /*!< in/out: table */
-    dict_stats_upd_option_t stats_upd_option)
+dberr_t dict_stats_update(dict_table_t *table, /*!< in/out: table */
+                          dict_stats_upd_option_t stats_upd_option)
 /*!< in: whether to (re) calc
 the stats or to fetch them from
 the persistent statistics
@@ -2880,8 +2835,7 @@ storage */
   return (DB_SUCCESS);
 }
 
-/*********************************************************************/ /**
- Removes the information for a particular index's stats from the persistent
+/** Removes the information for a particular index's stats from the persistent
  storage if it exists and if there is data stored for this index.
  This function creates its own trx and commits it.
  A note from Marko why we cannot edit user and sys_* tables in one trx:
@@ -2892,7 +2846,6 @@ storage */
  transactions and opened the SYS_* records for the *.ibd files.
  @return DB_SUCCESS or error code */
 dberr_t dict_stats_drop_index(
-    /*==================*/
     const char *db_and_table, /*!< in: db and table, e.g. 'db/table' */
     const char *iname,        /*!< in: index name */
     char *errstr,             /*!< out: error message if != DB_SUCCESS
@@ -2962,15 +2915,13 @@ dberr_t dict_stats_drop_index(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Executes
+/** Executes
  DELETE FROM mysql.innodb_table_stats
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t dict_stats_delete_from_table_stats(
-    /*===============================*/
     const char *database_name, /*!< in: database name, e.g. 'db' */
     const char *table_name)    /*!< in: table name, e.g. 'table' */
 {
@@ -2997,15 +2948,13 @@ dberr_t dict_stats_delete_from_table_stats(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Executes
+/** Executes
  DELETE FROM mysql.innodb_index_stats
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t dict_stats_delete_from_index_stats(
-    /*===============================*/
     const char *database_name, /*!< in: database name, e.g. 'db' */
     const char *table_name)    /*!< in: table name, e.g. 'table' */
 {
@@ -3032,13 +2981,11 @@ dberr_t dict_stats_delete_from_index_stats(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Removes the statistics for a table and all of its indexes from the
+/** Removes the statistics for a table and all of its indexes from the
  persistent statistics storage if it exists and if there is data stored for
  the table. This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
 dberr_t dict_stats_drop_table(
-    /*==================*/
     const char *db_and_table, /*!< in: db and table, e.g. 'db/table' */
     char *errstr,             /*!< out: error message
                               if != DB_SUCCESS is returned */
@@ -3105,8 +3052,7 @@ dberr_t dict_stats_drop_table(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Executes
+/** Executes
  UPDATE mysql.innodb_table_stats SET
  database_name = '...', table_name = '...'
  WHERE database_name = '...' AND table_name = '...';
@@ -3114,7 +3060,6 @@ dberr_t dict_stats_drop_table(
  @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t dict_stats_rename_table_in_table_stats(
-    /*===================================*/
     const char *old_dbname_utf8,    /*!< in: database name, e.g. 'olddb' */
     const char *old_tablename_utf8, /*!< in: table name, e.g. 'oldtable' */
     const char *new_dbname_utf8,    /*!< in: database name, e.g. 'newdb' */
@@ -3148,8 +3093,7 @@ dberr_t dict_stats_rename_table_in_table_stats(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Executes
+/** Executes
  UPDATE mysql.innodb_index_stats SET
  database_name = '...', table_name = '...'
  WHERE database_name = '...' AND table_name = '...';
@@ -3157,7 +3101,6 @@ dberr_t dict_stats_rename_table_in_table_stats(
  @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t dict_stats_rename_table_in_index_stats(
-    /*===================================*/
     const char *old_dbname_utf8,    /*!< in: database name, e.g. 'olddb' */
     const char *old_tablename_utf8, /*!< in: table name, e.g. 'oldtable' */
     const char *new_dbname_utf8,    /*!< in: database name, e.g. 'newdb' */
@@ -3191,12 +3134,10 @@ dberr_t dict_stats_rename_table_in_index_stats(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Renames a table in InnoDB persistent stats storage.
+/** Renames a table in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
 dberr_t dict_stats_rename_table(
-    /*====================*/
     const char *old_name, /*!< in: old name, e.g. 'db/table' */
     const char *new_name, /*!< in: new name, e.g. 'db/table' */
     char *errstr,         /*!< out: error string if != DB_SUCCESS
@@ -3323,13 +3264,11 @@ dberr_t dict_stats_rename_table(
   return (ret);
 }
 
-/*********************************************************************/ /**
- Renames an index in InnoDB persistent stats storage.
+/** Renames an index in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
  if the persistent stats do not exist. */
 dberr_t dict_stats_rename_index(
-    /*====================*/
     const dict_table_t *table,  /*!< in: table whose index
                                 is renamed */
     const char *old_index_name, /*!< in: old index name */

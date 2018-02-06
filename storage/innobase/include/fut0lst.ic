@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************/ /**
- @file include/fut0lst.ic
+/** @file include/fut0lst.ic
  File-based list utilities
 
  Created 11/28/1995 Heikki Tuuri
@@ -55,14 +54,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
           last element of the list; undefined  \
           if empty list */
 
-/********************************************************************/ /**
- Writes a file address. */
+/** Writes a file address. */
 UNIV_INLINE
-void flst_write_addr(
-    /*============*/
-    fil_faddr_t *faddr, /*!< in: pointer to file faddress */
-    fil_addr_t addr,    /*!< in: file address */
-    mtr_t *mtr)         /*!< in: mini-transaction handle */
+void flst_write_addr(fil_faddr_t *faddr, /*!< in: pointer to file faddress */
+                     fil_addr_t addr,    /*!< in: file address */
+                     mtr_t *mtr)         /*!< in: mini-transaction handle */
 {
   ut_ad(faddr && mtr);
   ut_ad(mtr_memo_contains_page_flagged(
@@ -74,12 +70,10 @@ void flst_write_addr(
   mlog_write_ulint(faddr + FIL_ADDR_BYTE, addr.boffset, MLOG_2BYTES, mtr);
 }
 
-/********************************************************************/ /**
- Reads a file address.
+/** Reads a file address.
  @return file address */
 UNIV_INLINE
 fil_addr_t flst_read_addr(
-    /*===========*/
     const fil_faddr_t *faddr, /*!< in: pointer to file faddress */
     mtr_t *mtr)               /*!< in: mini-transaction handle */
 {
@@ -94,13 +88,10 @@ fil_addr_t flst_read_addr(
   return (addr);
 }
 
-/********************************************************************/ /**
- Initializes a list base node. */
+/** Initializes a list base node. */
 UNIV_INLINE
-void flst_init(
-    /*======*/
-    flst_base_node_t *base, /*!< in: pointer to base node */
-    mtr_t *mtr)             /*!< in: mini-transaction handle */
+void flst_init(flst_base_node_t *base, /*!< in: pointer to base node */
+               mtr_t *mtr)             /*!< in: mini-transaction handle */
 {
   ut_ad(mtr_memo_contains_page_flagged(
       mtr, base, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
@@ -118,48 +109,40 @@ ulint flst_get_len(const flst_base_node_t *base) {
   return (mach_read_from_4(base + FLST_LEN));
 }
 
-/********************************************************************/ /**
- Gets list first node address.
+/** Gets list first node address.
  @return file address */
 UNIV_INLINE
 fil_addr_t flst_get_first(
-    /*===========*/
     const flst_base_node_t *base, /*!< in: pointer to base node */
     mtr_t *mtr)                   /*!< in: mini-transaction handle */
 {
   return (flst_read_addr(base + FLST_FIRST, mtr));
 }
 
-/********************************************************************/ /**
- Gets list last node address.
+/** Gets list last node address.
  @return file address */
 UNIV_INLINE
 fil_addr_t flst_get_last(
-    /*==========*/
     const flst_base_node_t *base, /*!< in: pointer to base node */
     mtr_t *mtr)                   /*!< in: mini-transaction handle */
 {
   return (flst_read_addr(base + FLST_LAST, mtr));
 }
 
-/********************************************************************/ /**
- Gets list next node address.
+/** Gets list next node address.
  @return file address */
 UNIV_INLINE
 fil_addr_t flst_get_next_addr(
-    /*===============*/
     const flst_node_t *node, /*!< in: pointer to node */
     mtr_t *mtr)              /*!< in: mini-transaction handle */
 {
   return (flst_read_addr(node + FLST_NEXT, mtr));
 }
 
-/********************************************************************/ /**
- Gets list prev node address.
+/** Gets list prev node address.
  @return file address */
 UNIV_INLINE
 fil_addr_t flst_get_prev_addr(
-    /*===============*/
     const flst_node_t *node, /*!< in: pointer to node */
     mtr_t *mtr)              /*!< in: mini-transaction handle */
 {

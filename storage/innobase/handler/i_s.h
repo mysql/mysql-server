@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file handler/i_s.h
+/** @file handler/i_s.h
  InnoDB INFORMATION SCHEMA tables interface to MySQL.
 
  Created July 18, 2007 Vasil Dimov

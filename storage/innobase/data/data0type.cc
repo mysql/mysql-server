@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file data/data0type.cc
+/** @file data/data0type.cc
  Data types
 
  Created 1/16/1996 Heikki Tuuri
@@ -44,13 +43,11 @@ charset-collation code for them. */
 
 ulint data_mysql_default_charset_coll;
 
-/*********************************************************************/ /**
- Determine how many bytes the first n characters of the given string occupy.
+/** Determine how many bytes the first n characters of the given string occupy.
  If the string is shorter than n characters, returns the number of bytes
  the characters in the string occupy.
  @return length of the prefix, in bytes */
 ulint dtype_get_at_most_n_mbchars(
-    /*========================*/
     ulint prtype,      /*!< in: precise type */
     ulint mbminmaxlen, /*!< in: minimum and maximum length of
                        a multi-byte character */
@@ -80,12 +77,10 @@ ulint dtype_get_at_most_n_mbchars(
   return (data_len);
 }
 
-/*********************************************************************/ /**
- Checks if a data main type is a string type. Also a BLOB is considered a
+/** Checks if a data main type is a string type. Also a BLOB is considered a
  string type.
  @return true if string type */
 ibool dtype_is_string_type(
-    /*=================*/
     ulint mtype) /*!< in: InnoDB main data type code: DATA_CHAR, ... */
 {
   if (mtype <= DATA_BLOB || mtype == DATA_MYSQL || mtype == DATA_VARMYSQL) {
@@ -95,15 +90,12 @@ ibool dtype_is_string_type(
   return (FALSE);
 }
 
-/*********************************************************************/ /**
- Checks if a type is a binary string type. Note that for tables created with
+/** Checks if a type is a binary string type. Note that for tables created with
  < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
  those DATA_BLOB columns this function currently returns FALSE.
  @return true if binary string type */
-ibool dtype_is_binary_string_type(
-    /*========================*/
-    ulint mtype,  /*!< in: main data type */
-    ulint prtype) /*!< in: precise type */
+ibool dtype_is_binary_string_type(ulint mtype,  /*!< in: main data type */
+                                  ulint prtype) /*!< in: precise type */
 {
   if ((mtype == DATA_FIXBINARY) || (mtype == DATA_BINARY) ||
       (mtype == DATA_BLOB && (prtype & DATA_BINARY_TYPE))) {
@@ -113,16 +105,13 @@ ibool dtype_is_binary_string_type(
   return (FALSE);
 }
 
-/*********************************************************************/ /**
- Checks if a type is a non-binary string type. That is, dtype_is_string_type is
- TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
+/** Checks if a type is a non-binary string type. That is, dtype_is_string_type
+ is TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
  with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
  For those DATA_BLOB columns this function currently returns TRUE.
  @return true if non-binary string type */
-ibool dtype_is_non_binary_string_type(
-    /*============================*/
-    ulint mtype,  /*!< in: main data type */
-    ulint prtype) /*!< in: precise type */
+ibool dtype_is_non_binary_string_type(ulint mtype,  /*!< in: main data type */
+                                      ulint prtype) /*!< in: precise type */
 {
   if (dtype_is_string_type(mtype) == TRUE &&
       dtype_is_binary_string_type(mtype, prtype) == FALSE) {
@@ -132,12 +121,10 @@ ibool dtype_is_non_binary_string_type(
   return (FALSE);
 }
 
-/*********************************************************************/ /**
- Forms a precise type from the < 4.1.2 format precise type plus the
+/** Forms a precise type from the < 4.1.2 format precise type plus the
  charset-collation code.
  @return precise type, including the charset-collation code */
 ulint dtype_form_prtype(
-    /*==============*/
     ulint old_prtype,   /*!< in: the MySQL type code and the flags
                         DATA_BINARY_TYPE etc. */
     ulint charset_coll) /*!< in: MySQL charset-collation code */
@@ -148,12 +135,9 @@ ulint dtype_form_prtype(
   return (old_prtype + (charset_coll << 16));
 }
 
-/*********************************************************************/ /**
- Validates a data type structure.
+/** Validates a data type structure.
  @return true if ok */
-ibool dtype_validate(
-    /*===========*/
-    const dtype_t *type) /*!< in: type struct to validate */
+ibool dtype_validate(const dtype_t *type) /*!< in: type struct to validate */
 {
   ut_a(type);
   ut_a(type->mtype >= DATA_VARCHAR);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file include/row0row.ic
+/** @file include/row0row.ic
  General row routines
 
  Created 4/20/1996 Heikki Tuuri
@@ -35,13 +34,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0rec.h"
 #include "trx0undo.h"
 
-/*********************************************************************/ /**
- Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
+/** Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
  a clustered index record.
  @return offset of DATA_TRX_ID */
 UNIV_INLINE
 ulint row_get_trx_id_offset(
-    /*==================*/
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: record offsets */
 {
@@ -61,12 +58,10 @@ ulint row_get_trx_id_offset(
   return (offset);
 }
 
-/*********************************************************************/ /**
- Reads the trx id field from a clustered index record.
+/** Reads the trx id field from a clustered index record.
  @return value of the field */
 UNIV_INLINE
 trx_id_t row_get_rec_trx_id(
-    /*===============*/
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
@@ -85,12 +80,10 @@ trx_id_t row_get_rec_trx_id(
   return (trx_read_trx_id(rec + offset));
 }
 
-/*********************************************************************/ /**
- Reads the roll pointer field from a clustered index record.
+/** Reads the roll pointer field from a clustered index record.
  @return value of the field */
 UNIV_INLINE
 roll_ptr_t row_get_rec_roll_ptr(
-    /*=================*/
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
@@ -109,15 +102,13 @@ roll_ptr_t row_get_rec_roll_ptr(
   return (trx_read_roll_ptr(rec + offset + DATA_TRX_ID_LEN));
 }
 
-/*****************************************************************/ /**
- When an insert or purge to a table is performed, this function builds
+/** When an insert or purge to a table is performed, this function builds
  the entry to be inserted into or purged from an index on the table.
  @return index entry which should be inserted or purged, or NULL if the
  externally stored columns in the clustered index record are
  unavailable and ext != NULL */
 UNIV_INLINE
 dtuple_t *row_build_index_entry(
-    /*==================*/
     const dtuple_t *row,  /*!< in: row which should be
                           inserted or purged */
     const row_ext_t *ext, /*!< in: externally stored column
@@ -135,12 +126,10 @@ dtuple_t *row_build_index_entry(
   return (entry);
 }
 
-/*******************************************************************/ /**
- Builds from a secondary index record a row reference with which we can
+/** Builds from a secondary index record a row reference with which we can
  search the clustered index record. */
 UNIV_INLINE
 void row_build_row_ref_fast(
-    /*===================*/
     dtuple_t *ref,        /*!< in/out: typed data tuple where the
                           reference is built */
     const ulint *map,     /*!< in: array of field numbers in rec

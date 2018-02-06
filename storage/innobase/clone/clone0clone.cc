@@ -24,8 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************/ /**
- @file clone/clone0clone.cc
+/** @file clone/clone0clone.cc
  Innodb Clone System
 
  *******************************************************/
