@@ -287,8 +287,7 @@ Blob Handshake_client::process_data(const Blob &data) {
 /**********************************************************************/
 
 /**
-  @page
-  page_protocol_connection_phase_authentication_methods_authentication_windows
+  @page page_protocol_conn_auth_methods_auth_windows
   Windows Native Authentication
 
   Authentication::WindowsAuth:
@@ -310,17 +309,15 @@ Blob Handshake_client::process_data(const Blob &data) {
   [Negotiate
   SSP]("http://msdn.microsoft.com/en-us/library/windows/desktop/aa378748(v=VS.85).aspx")
   in the Auth Phase protocol which either means
-  @ref
-  sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm
+  @ref sect_protocol_conn_auth_methods_auth_windows_ntlm
   or
-  @ref
-  sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego
+  @ref sect_protocol_conn_auth_methods_auth_windows_spnego
   are used as underlying protocol.
 
   Due to the implementation details the Windows Native Authentication method
-  doesn't use the fast path of the @ref page_protocol_connection_phase, but is
+  doesn't use the fast path of the @ref page_protocol_conn, but is
   only triggered on request as part of the
-  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
+  @ref page_protocol_conn_packets_protocol_auth_switch_request
   packet.
 
 
@@ -332,10 +329,8 @@ Blob Handshake_client::process_data(const Blob &data) {
   Also following windows authentication packets don't get split.
 
   The client will send either a
-  @ref
-  sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego
-  or a @ref
-  sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm
+  @ref sect_protocol_conn_auth_methods_auth_windows_spnego
+  or a @ref sect_protocol_conn_auth_methods_auth_windows_ntlm
   packet as a next packet.
 
   To implement the protocol one can use several existing implementations:
@@ -356,8 +351,7 @@ Blob Handshake_client::process_data(const Blob &data) {
   @sa win_auth_handshake_client
 
 
-  @section
-  sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm
+  @section sect_protocol_conn_auth_methods_auth_windows_ntlm
   NTLM
 
   @note [Removed in Windows Vista and
@@ -375,8 +369,7 @@ Blob Handshake_client::process_data(const Blob &data) {
   @enduml
 
 
-  @section
-  sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego
+  @section sect_protocol_conn_auth_methods_auth_windows_spnego
   SPNEGO
 
   Uses GSS-API as protocol and negotiates the proper auth-method automatically.

@@ -580,11 +580,11 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
 
   It is enabled if:
     - the server announces ::CLIENT_COMPRESS in its
-      @ref page_protocol_connection_phase_packets_protocol_handshake and
+      @ref page_protocol_conn_packets_protocol_handshake and
     - the client requests it too in its
-      @ref page_protocol_connection_phase_packets_protocol_handshake_response
+      @ref page_protocol_conn_packets_protocol_handshake_response
       packet and
-    - After the server finishes the @ref page_protocol_connection_phase
+    - After the server finishes the @ref page_protocol_conn
       with an @ref page_protocol_basic_ok_packet.
 
    @subpage page_protocol_basic_compression_packet

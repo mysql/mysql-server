@@ -58,9 +58,9 @@ chomp ($gen_revision);
 
 while (<>) {
   $line = $_;
-  $line =~ s/\${DOXYGEN_GENERATION_DATE}/$gen_date/g;
-  $line =~ s/\${DOXYGEN_GENERATION_BRANCH}/$gen_branch/g;
-  $line =~ s/\${DOXYGEN_GENERATION_REVISION}/$gen_revision/g;
+  $line =~ s/\$\{DOXYGEN_GENERATION_DATE\}/$gen_date/g;
+  $line =~ s/\$\{DOXYGEN_GENERATION_BRANCH\}/$gen_branch/g;
+  $line =~ s/\$\{DOXYGEN_GENERATION_REVISION\}/$gen_revision/g;
   print $line;
 }
 
