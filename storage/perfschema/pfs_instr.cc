@@ -619,7 +619,9 @@ PFS_thread *find_thread(ulonglong thread_id) {
   do {
     pfs = it.scan_next(&index);
     if (pfs != NULL) {
-      if (pfs->m_thread_internal_id == thread_id) return pfs;
+      if (pfs->m_thread_internal_id == thread_id) {
+        return pfs;
+      }
     }
   } while (pfs != NULL);
 
@@ -934,8 +936,9 @@ void find_and_rename_file(PFS_thread *thread, const char *old_filename,
     memcpy(safe_buffer, old_filename, FN_REFLEN - 1);
     safe_buffer[FN_REFLEN - 1] = 0;
     safe_filename = safe_buffer;
-  } else
+  } else {
     safe_filename = old_filename;
+  }
 
   char buffer[FN_REFLEN];
   char dirbuffer[FN_REFLEN];
@@ -961,8 +964,12 @@ void find_and_rename_file(PFS_thread *thread, const char *old_filename,
   /* Append the unresolved file name to the resolved path */
   char *ptr = buffer + strlen(buffer);
   char *buf_end = &buffer[sizeof(buffer) - 1];
-  if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) *ptr++ = FN_LIBCHAR;
-  if (buf_end > ptr) strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) {
+    *ptr++ = FN_LIBCHAR;
+  }
+  if (buf_end > ptr) {
+    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  }
   *buf_end = '\0';
 
   normalized_filename = buffer;
@@ -972,9 +979,9 @@ void find_and_rename_file(PFS_thread *thread, const char *old_filename,
   entry = reinterpret_cast<PFS_file **>(lf_hash_search(
       &filename_hash, pins, normalized_filename, normalized_length));
 
-  if (entry && (entry != MY_LF_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR)) {
     pfs = *entry;
-  else {
+  } else {
     lf_hash_search_unpin(pins);
     return;
   }
@@ -988,8 +995,9 @@ void find_and_rename_file(PFS_thread *thread, const char *old_filename,
     memcpy(safe_buffer, new_filename, FN_REFLEN - 1);
     safe_buffer[FN_REFLEN - 1] = 0;
     safe_filename = safe_buffer;
-  } else
+  } else {
     safe_filename = new_filename;
+  }
 
   dirlen = dirname_length(safe_filename);
   if (dirlen == 0) {
@@ -1009,8 +1017,12 @@ void find_and_rename_file(PFS_thread *thread, const char *old_filename,
   /* Append the unresolved file name to the resolved path */
   ptr = buffer + strlen(buffer);
   buf_end = &buffer[sizeof(buffer) - 1];
-  if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) *ptr++ = FN_LIBCHAR;
-  if (buf_end > ptr) strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  if ((buf_end > ptr) && (*(ptr - 1) != FN_LIBCHAR)) {
+    *ptr++ = FN_LIBCHAR;
+  }
+  if (buf_end > ptr) {
+    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  }
   *buf_end = '\0';
 
   normalized_filename = buffer;
@@ -1023,9 +1035,9 @@ void find_and_rename_file(PFS_thread *thread, const char *old_filename,
   int res;
   res = lf_hash_insert(&filename_hash, pins, &pfs);
 
-  if (likely(res == 0))
+  if (likely(res == 0)) {
     return;
-  else {
+  } else {
     global_file_container.deallocate(pfs);
     global_file_container.m_lost++;
     return;

@@ -1182,8 +1182,10 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
   return 0;
 }
 
-#define FIND_CLASS_BODY(KEY, COUNT, ARRAY)      \
-  if ((KEY == 0) || (KEY > COUNT)) return NULL; \
+#define FIND_CLASS_BODY(KEY, COUNT, ARRAY) \
+  if ((KEY == 0) || (KEY > COUNT)) {       \
+    return NULL;                           \
+  }                                        \
   return &ARRAY[KEY - 1]
 
 /**
@@ -1982,7 +1984,9 @@ void update_program_share_derived_flags(PFS_thread *thread) {
 }
 
 ulonglong gtid_monitoring_getsystime() {
-  if (pfs_enabled) return my_getsystime();
+  if (pfs_enabled) {
+    return my_getsystime();
+  }
   return 0;
 }
 

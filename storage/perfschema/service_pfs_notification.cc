@@ -93,15 +93,25 @@ struct PFS_notification_node {
 std::uint32_t PFS_notification_node::set_callback_map() {
   std::uint32_t map = 0;
 
-  if (m_cb.thread_create != nullptr) map |= EVENT_THREAD_CREATE;
+  if (m_cb.thread_create != nullptr) {
+    map |= EVENT_THREAD_CREATE;
+  }
 
-  if (m_cb.thread_destroy != nullptr) map |= EVENT_THREAD_DESTROY;
+  if (m_cb.thread_destroy != nullptr) {
+    map |= EVENT_THREAD_DESTROY;
+  }
 
-  if (m_cb.session_connect != nullptr) map |= EVENT_SESSION_CONNECT;
+  if (m_cb.session_connect != nullptr) {
+    map |= EVENT_SESSION_CONNECT;
+  }
 
-  if (m_cb.session_disconnect != nullptr) map |= EVENT_SESSION_DISCONNECT;
+  if (m_cb.session_disconnect != nullptr) {
+    map |= EVENT_SESSION_DISCONNECT;
+  }
 
-  if (m_cb.session_change_user != nullptr) map |= EVENT_SESSION_CHANGE_USER;
+  if (m_cb.session_change_user != nullptr) {
+    map |= EVENT_SESSION_CHANGE_USER;
+  }
 
   return map;
 }
@@ -134,10 +144,14 @@ struct PFS_notification_registry {
     @return handle of the node
   */
   int add(PFS_notification_node *new_node, bool use_ref_count) {
-    if (new_node == nullptr) return 0;
+    if (new_node == nullptr) {
+      return 0;
+    }
 
     /* At least one callback required. */
-    if (new_node->m_cb_map == 0) return 0;
+    if (new_node->m_cb_map == 0) {
+      return 0;
+    }
 
     new_node->m_handle = ++m_count; /* atomic */
     new_node->m_use_ref_count = use_ref_count;
@@ -145,15 +159,17 @@ struct PFS_notification_registry {
 
     /* New node becomes the head of the list. */
     if (local_head == nullptr)
-      if (m_head.compare_exchange_strong(local_head, new_node))
+      if (m_head.compare_exchange_strong(local_head, new_node)) {
         return new_node->m_handle;
+      }
 
     while (true) {
       local_head = m_head.load();
       new_node->m_next = local_head;
 
-      if (m_head.compare_exchange_strong(local_head, new_node))
+      if (m_head.compare_exchange_strong(local_head, new_node)) {
         return new_node->m_handle;
+      }
     }
   }
 
@@ -173,7 +189,9 @@ struct PFS_notification_registry {
         node->m_cb_map.store(0);
 
         /* Permanent registrations can only be disabled. */
-        if (!node->m_use_ref_count) return 0;
+        if (!node->m_use_ref_count) {
+          return 0;
+        }
 
         /* Get the ref count, mark as FREE. */
         auto refs = node->m_refs.fetch_or(FREE_MASK);
@@ -181,7 +199,9 @@ struct PFS_notification_registry {
         /* Wait a maximum of 2 seconds for all references to complete. */
         int attempts = 0;
         while ((refs & REFS_MASK)) {
-          if (++attempts > max_attempts) return 1;
+          if (++attempts > max_attempts) {
+            return 1;
+          }
           my_sleep(timeout);
           refs = node->m_refs.load();
         }
@@ -208,13 +228,17 @@ struct PFS_notification_registry {
 
       if ((cb_map & event_type) != 0) {
         /* No ref count for permanent registrations. */
-        if (!node->m_use_ref_count) return node;
+        if (!node->m_use_ref_count) {
+          return node;
+        }
 
         /* Bump ref count, decrement in get_next(). */
         auto refs = node->m_refs.fetch_add(1);
 
         /* Verify that node is still enabled. */
-        if ((refs & FREE_MASK) == 0) return node;
+        if ((refs & FREE_MASK) == 0) {
+          return node;
+        }
 
         node->m_refs.fetch_add(-1);
       }
@@ -236,7 +260,9 @@ struct PFS_notification_registry {
     /* Get the next node, decrement ref count for the current node. */
     auto next = current->m_next.load();
 
-    if (current->m_use_ref_count) current->m_refs.fetch_add(-1);
+    if (current->m_use_ref_count) {
+      current->m_refs.fetch_add(-1);
+    }
 
     while (next != nullptr) {
       /* Is a callback registered for this event? */
@@ -244,13 +270,17 @@ struct PFS_notification_registry {
 
       if ((cb_map & event_type) != 0) {
         /* No ref count for permanent registrations. */
-        if (!next->m_use_ref_count) return next;
+        if (!next->m_use_ref_count) {
+          return next;
+        }
 
         /* Bump ref count, decrement in next call to get_next(). */
         auto refs = next->m_refs.fetch_add(1);
 
         /* Verify that node is still enabled. */
-        if ((refs & FREE_MASK) == 0) return next;
+        if ((refs & FREE_MASK) == 0) {
+          return next;
+        }
 
         next->m_refs.fetch_add(-1);
       }
@@ -281,7 +311,9 @@ static PFS_notification_registry pfs_notification_registry;
 */
 int pfs_register_notification(const PSI_notification *callbacks,
                               bool with_ref_count) {
-  if (unlikely(callbacks == nullptr)) return 0;
+  if (unlikely(callbacks == nullptr)) {
+    return 0;
+  }
 
   return pfs_notification_registry.add(new PFS_notification_node(*callbacks),
                                        with_ref_count);
@@ -305,16 +337,21 @@ int pfs_unregister_notification(int handle) {
 */
 void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
-  if (node == nullptr) return;
+  if (node == nullptr) {
+    return;
+  }
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
     return;
+  }
 
   while (node != nullptr) {
     auto callback = *node->m_cb.thread_create;
-    if (callback != NULL) callback(&thread_attrs);
+    if (callback != NULL) {
+      callback(&thread_attrs);
+    }
     node = pfs_notification_registry.get_next(node, EVENT_THREAD_CREATE);
   }
 }
@@ -327,16 +364,21 @@ void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 */
 void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
-  if (node == nullptr) return;
+  if (node == nullptr) {
+    return;
+  }
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
     return;
+  }
 
   while (node != nullptr) {
     auto callback = *node->m_cb.thread_destroy;
-    if (callback != NULL) callback(&thread_attrs);
+    if (callback != NULL) {
+      callback(&thread_attrs);
+    }
     node = pfs_notification_registry.get_next(node, EVENT_THREAD_DESTROY);
   }
 }
@@ -348,16 +390,21 @@ void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 */
 void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CONNECT);
-  if (node == nullptr) return;
+  if (node == nullptr) {
+    return;
+  }
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
     return;
+  }
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_connect;
-    if (callback != NULL) callback(&thread_attrs);
+    if (callback != NULL) {
+      callback(&thread_attrs);
+    }
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_CONNECT);
   }
 }
@@ -369,16 +416,21 @@ void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 */
 void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_DISCONNECT);
-  if (node == nullptr) return;
+  if (node == nullptr) {
+    return;
+  }
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
     return;
+  }
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_disconnect;
-    if (callback != NULL) callback(&thread_attrs);
+    if (callback != NULL) {
+      callback(&thread_attrs);
+    }
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_DISCONNECT);
   }
 }
@@ -390,16 +442,21 @@ void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 */
 void pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
-  if (node == nullptr) return;
+  if (node == nullptr) {
+    return;
+  }
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0) {
     return;
+  }
 
   while (node != nullptr) {
     auto callback = *node->m_cb.session_change_user;
-    if (callback != NULL) callback(&thread_attrs);
+    if (callback != NULL) {
+      callback(&thread_attrs);
+    }
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_CHANGE_USER);
   }
 }
@@ -429,7 +486,9 @@ int register_pfs_notification_service() {
   int result = 0;
 
   r = mysql_plugin_registry_acquire();
-  if (!r) return 1;
+  if (!r) {
+    return 1;
+  }
 
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);
@@ -453,7 +512,9 @@ int unregister_pfs_notification_service() {
   int result = 0;
 
   r = mysql_plugin_registry_acquire();
-  if (!r) return 1;
+  if (!r) {
+    return 1;
+  }
 
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);

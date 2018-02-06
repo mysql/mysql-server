@@ -254,7 +254,9 @@ static int write_row(PFS_engine_table *pfs_table, TABLE *table,
     if (bitmap_is_set(table->write_set, f->field_index)) {
       result = temp->m_st_table->write_column_value(
           temp->plugin_table_handle, (PSI_field *)f, f->field_index);
-      if (result) return result;
+      if (result) {
+        return result;
+      }
     }
   }
 
@@ -514,17 +516,19 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
  **************************************/
 void set_field_tinyint_v1(PSI_field *f, PSI_tinyint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_tiny(f_ptr, value.val);
+  }
 }
 void set_field_utinyint_v1(PSI_field *f, PSI_utinyint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_utiny(f_ptr, value.val);
+  }
 }
 void get_field_tinyint_v1(PSI_field *f, PSI_tinyint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -542,17 +546,19 @@ void get_field_tinyint_v1(PSI_field *f, PSI_tinyint *value) {
  **************************************/
 void set_field_smallint_v1(PSI_field *f, PSI_smallint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_short(f_ptr, value.val);
+  }
 }
 void set_field_usmallint_v1(PSI_field *f, PSI_usmallint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_ushort(f_ptr, value.val);
+  }
 }
 void get_field_smallint_v1(PSI_field *f, PSI_smallint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -570,17 +576,19 @@ void get_field_smallint_v1(PSI_field *f, PSI_smallint *value) {
  **************************************/
 void set_field_mediumint_v1(PSI_field *f, PSI_mediumint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_medium(f_ptr, value.val);
+  }
 }
 void set_field_umediumint_v1(PSI_field *f, PSI_umediumint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_umedium(f_ptr, value.val);
+  }
 }
 void get_field_mediumint_v1(PSI_field *f, PSI_mediumint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -598,17 +606,19 @@ void get_field_mediumint_v1(PSI_field *f, PSI_mediumint *value) {
  **************************************/
 void set_field_integer_v1(PSI_field *f, PSI_int value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_long(f_ptr, value.val);
+  }
 }
 void set_field_uinteger_v1(PSI_field *f, PSI_uint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_ulong(f_ptr, value.val);
+  }
 }
 void get_field_integer_v1(PSI_field *f, PSI_int *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -626,17 +636,19 @@ void get_field_integer_v1(PSI_field *f, PSI_int *value) {
  **************************************/
 void set_field_bigint_v1(PSI_field *f, PSI_bigint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_longlong(f_ptr, value.val);
+  }
 }
 void set_field_ubigint_v1(PSI_field *f, PSI_ubigint value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_ulonglong(f_ptr, value.val);
+  }
 }
 void get_field_bigint_v1(PSI_field *f, PSI_bigint *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -654,10 +666,11 @@ void get_field_bigint_v1(PSI_field *f, PSI_bigint *value) {
  **************************************/
 void set_field_decimal_v1(PSI_field *f, PSI_double value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_decimal(f_ptr, value.val);
+  }
 }
 void get_field_decimal_v1(PSI_field *f, PSI_double *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -675,10 +688,11 @@ void get_field_decimal_v1(PSI_field *f, PSI_double *value) {
  **************************************/
 void set_field_float_v1(PSI_field *f, PSI_double value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_float(f_ptr, value.val);
+  }
 }
 void get_field_float_v1(PSI_field *f, PSI_double *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -696,10 +710,11 @@ void get_field_float_v1(PSI_field *f, PSI_double *value) {
  **************************************/
 void set_field_double_v1(PSI_field *f, PSI_double value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_double(f_ptr, value.val);
+  }
 }
 void get_field_double_v1(PSI_field *f, PSI_double *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -717,10 +732,11 @@ void get_field_double_v1(PSI_field *f, PSI_double *value) {
  **************************************/
 void set_field_char_utf8_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_char_utf8(f_ptr, value, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 void get_field_char_utf8_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -740,18 +756,20 @@ void get_field_char_utf8_v1(PSI_field *f, char *val, uint *len) {
  **************************************/
 void set_field_varchar_utf8_len_v1(PSI_field *f, const char *str, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_varchar_utf8(f_ptr, str, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 
 void set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_varchar_utf8mb4(f_ptr, str, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 
 void set_field_varchar_utf8_v1(PSI_field *f, const char *str) {
@@ -782,10 +800,11 @@ void get_field_varchar_utf8_v1(PSI_field *f, char *val, uint *len) {
  **************************************/
 void set_field_blob_v1(PSI_field *f, const char *val, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_blob(f_ptr, val, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 void get_field_blob_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -805,10 +824,11 @@ void get_field_blob_v1(PSI_field *f, char *val, uint *len) {
  **************************************/
 void set_field_enum_v1(PSI_field *f, PSI_enum value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_enum(f_ptr, value.val);
+  }
 }
 void get_field_enum_v1(PSI_field *f, PSI_enum *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -826,10 +846,11 @@ void get_field_enum_v1(PSI_field *f, PSI_enum *value) {
  **************************************/
 void set_field_date_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_date(f_ptr, value, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 void get_field_date_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -849,10 +870,11 @@ void get_field_date_v1(PSI_field *f, char *val, uint *len) {
  **************************************/
 void set_field_time_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_time(f_ptr, value, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 void get_field_time_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -872,10 +894,11 @@ void get_field_time_v1(PSI_field *f, char *val, uint *len) {
  **************************************/
 void set_field_datetime_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_datetime(f_ptr, value, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 void get_field_datetime_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -895,10 +918,11 @@ void get_field_datetime_v1(PSI_field *f, char *val, uint *len) {
  **************************************/
 void set_field_timestamp_v1(PSI_field *f, const char *value, uint len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (len > 0)
+  if (len > 0) {
     set_field_timestamp(f_ptr, value, len);
-  else
+  } else {
     f_ptr->set_null();
+  }
 }
 void get_field_timestamp_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
@@ -918,10 +942,11 @@ void get_field_timestamp_v1(PSI_field *f, char *val, uint *len) {
  **************************************/
 void set_field_year_v1(PSI_field *f, PSI_year value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
-  if (value.is_null)
+  if (value.is_null) {
     f_ptr->set_null();
-  else
+  } else {
     set_field_year(f_ptr, value.val);
+  }
 }
 void get_field_year_v1(PSI_field *f, PSI_year *value) {
   Field *f_ptr = reinterpret_cast<Field *>(f);

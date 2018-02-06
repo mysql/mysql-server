@@ -161,7 +161,9 @@ void pfs_print_error(const char *format, ...)
   intptr offset;                                           \
   if ((&ARRAY[0] <= UNSAFE) && (UNSAFE < &ARRAY[MAX])) {   \
     offset = ((intptr)UNSAFE - (intptr)ARRAY) % sizeof(T); \
-    if (offset == 0) return UNSAFE;                        \
+    if (offset == 0) {                                     \
+      return UNSAFE;                                       \
+    }                                                      \
   }                                                        \
   return NULL
 

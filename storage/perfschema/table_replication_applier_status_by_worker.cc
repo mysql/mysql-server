@@ -239,11 +239,17 @@ int table_replication_applier_status_by_worker::rnd_next(void) {
        m_pos.next_channel()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index_1);
 
-    if (mi == nullptr) continue;
+    if (mi == nullptr) {
+      continue;
+    }
 
-    if (!mi->host[0]) continue;
+    if (!mi->host[0]) {
+      continue;
+    }
 
-    if (mi->rli == nullptr) continue;
+    if (mi->rli == nullptr) {
+      continue;
+    }
 
     wc = mi->rli->get_worker_count();
 
@@ -352,11 +358,17 @@ int table_replication_applier_status_by_worker::index_next(void) {
        m_pos.next_channel()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index_1);
 
-    if (mi == nullptr) continue;
+    if (mi == nullptr) {
+      continue;
+    }
 
-    if (!mi->host[0]) continue;
+    if (!mi->host[0]) {
+      continue;
+    }
 
-    if (mi->rli == nullptr) continue;
+    if (mi->rli == nullptr) {
+      continue;
+    }
 
     wc = mi->rli->get_worker_count();
 

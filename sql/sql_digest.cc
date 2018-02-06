@@ -153,7 +153,9 @@ inline void store_token_identifier(sql_digest_storage *digest_storage,
     dest[2] = id_length & 0xff;
     dest[3] = (id_length >> 8) & 0xff;
     /* Write the string data */
-    if (id_length > 0) memcpy((char *)(dest + 4), id_name, id_length);
+    if (id_length > 0) {
+      memcpy((char *)(dest + 4), id_name, id_length);
+    }
     digest_storage->m_byte_count += bytes_needed;
   } else {
     digest_storage->m_full = true;
@@ -220,8 +222,9 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
     current_byte = read_token(digest_storage, current_byte, &tok);
 
     if (tok <= 0 || tok >= array_elements(lex_token_array) ||
-        current_byte > max_digest_length)
+        current_byte > max_digest_length) {
       return;
+    }
 
     tok_data = &lex_token_array[tok];
 
@@ -274,7 +277,9 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
 
         /* Copy the converted identifier into the digest string. */
         digest_output->append("`", 1);
-        if (id_length > 0) digest_output->append(id_string, id_length);
+        if (id_length > 0) {
+          digest_output->append(id_string, id_length);
+        }
         if (tok == TOK_IDENT_AT)  // No space before @ in "table@query_block".
         {
           digest_output->append("`", 1);
@@ -388,7 +393,9 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
     Stop collecting further tokens if digest storage is full or
     if END token is received.
   */
-  if (digest_storage->m_full || token == END_OF_INPUT) return NULL;
+  if (digest_storage->m_full || token == END_OF_INPUT) {
+    return NULL;
+  }
 
   /*
     Take last_token 2 tokens collected till now. These tokens will be used
@@ -586,7 +593,9 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
         We unify both to always print the same digest text,
         and always have the same digest hash.
       */
-      if (token != TOK_IDENT_AT) token = TOK_IDENT;
+      if (token != TOK_IDENT_AT) {
+        token = TOK_IDENT;
+      }
       /* Add this token and identifier string to digest storage. */
       store_token_identifier(digest_storage, token, yylen, yytext);
 
@@ -595,11 +604,15 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
       break;
     }
     case 0: {
-      if (digest_storage->m_byte_count < SIZE_OF_A_TOKEN) break;
+      if (digest_storage->m_byte_count < SIZE_OF_A_TOKEN) {
+        break;
+      }
       unsigned int temp_tok;
       read_token(digest_storage, digest_storage->m_byte_count - SIZE_OF_A_TOKEN,
                  &temp_tok);
-      if (temp_tok == ';') digest_storage->m_byte_count -= SIZE_OF_A_TOKEN;
+      if (temp_tok == ';') {
+        digest_storage->m_byte_count -= SIZE_OF_A_TOKEN;
+      }
       break;
     }
     default: {
@@ -621,7 +634,9 @@ sql_digest_state *digest_reduce_token(sql_digest_state *state, uint token_left,
   /*
     Stop collecting further tokens if digest storage is full.
   */
-  if (digest_storage->m_full) return NULL;
+  if (digest_storage->m_full) {
+    return NULL;
+  }
 
   uint last_token;
   uint last_token2;

@@ -84,7 +84,9 @@ PFS_prepared_stmt *create_prepared_stmt(
     /* Do the assignments. */
     pfs->m_identity = identity;
     /* Set query text if available, else it will be set later. */
-    if (sqltext_length > 0) strncpy(pfs->m_sqltext, sqltext, sqltext_length);
+    if (sqltext_length > 0) {
+      strncpy(pfs->m_sqltext, sqltext, sqltext_length);
+    }
 
     pfs->m_sqltext_length = sqltext_length;
 

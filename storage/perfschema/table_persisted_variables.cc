@@ -44,7 +44,9 @@
 
 bool PFS_index_persisted_variables::match(const System_variable *pfs) {
   if (m_fields >= 1) {
-    if (!m_key.match(pfs)) return false;
+    if (!m_key.match(pfs)) {
+      return false;
+    }
   }
 
   return true;
@@ -87,10 +89,11 @@ PFS_engine_table *table_persisted_variables::create(PFS_engine_table_share *) {
 
 ha_rows table_persisted_variables::get_row_count(void) {
   Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
-  if (pv)
+  if (pv) {
     return pv->get_persisted_variables()->size();
-  else
+  } else {
     return 0;
+  }
 }
 
 table_persisted_variables::table_persisted_variables()
@@ -204,10 +207,13 @@ int table_persisted_variables::index_next(void) {
 
 int table_persisted_variables::make_row(const System_variable *system_var) {
   if (m_row.m_variable_name.make_row(system_var->m_name,
-                                     system_var->m_name_length))
+                                     system_var->m_name_length)) {
     return HA_ERR_RECORD_DELETED;
+  }
 
-  if (m_row.m_variable_value.make_row(system_var)) return HA_ERR_RECORD_DELETED;
+  if (m_row.m_variable_value.make_row(system_var)) {
+    return HA_ERR_RECORD_DELETED;
+  }
 
   return 0;
 }

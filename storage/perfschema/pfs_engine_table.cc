@@ -929,12 +929,15 @@ int PFS_engine_table::index_next_same(const uchar *, uint) {
 */
 PFS_engine_table_share *PFS_dynamic_table_shares::find_share(
     const char *table_name, bool is_dead_too) {
-  if (!opt_initialize) mysql_mutex_assert_owner(&LOCK_pfs_share_list);
+  if (!opt_initialize) {
+    mysql_mutex_assert_owner(&LOCK_pfs_share_list);
+  }
 
   for (auto it : shares_vector) {
     if ((compare_table_names(table_name, it->m_table_def->get_name()) == 0) &&
-        (it->m_in_purgatory == false || is_dead_too))
+        (it->m_in_purgatory == false || is_dead_too)) {
       return it;
+    }
   }
   return NULL;
 }

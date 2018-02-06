@@ -3157,9 +3157,13 @@ int set_thread_resource_group(PFS_thread *pfs, const char *group_name,
   int result = 0;
   pfs_dirty_state dirty_state;
 
-  if (unlikely(pfs == NULL || group_name_len <= 0)) return 1;
+  if (unlikely(pfs == NULL || group_name_len <= 0)) {
+    return 1;
+  }
 
-  if ((size_t)group_name_len > sizeof(pfs->m_groupname)) return 1;
+  if ((size_t)group_name_len > sizeof(pfs->m_groupname)) {
+    return 1;
+  }
 
   pfs->m_session_lock.allocated_to_dirty(&dirty_state);
 
@@ -3192,7 +3196,9 @@ int pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
                                            int group_name_len,
                                            void *user_data) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
-  if (pfs == NULL) pfs = find_thread(thread_id);
+  if (pfs == NULL) {
+    pfs = find_thread(thread_id);
+  }
   return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
 }
 
@@ -3217,7 +3223,9 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
   static_assert(PSI_USERNAME_LENGTH == USERNAME_LENGTH, "");
   static_assert(PSI_HOSTNAME_LENGTH == HOSTNAME_LENGTH, "");
 
-  if (unlikely(pfs == NULL)) return 1;
+  if (unlikely(pfs == NULL)) {
+    return 1;
+  }
 
   if (!current_thread) {
     /* Protect this reader against a thread delete. */
@@ -3234,29 +3242,37 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
 
   DBUG_ASSERT(pfs->m_sock_addr_len <= sizeof(PSI_thread_attrs::m_sock_addr));
   thread_attrs->m_sock_addr_length = pfs->m_sock_addr_len;
-  if (thread_attrs->m_sock_addr_length > 0)
+  if (thread_attrs->m_sock_addr_length > 0) {
     memcpy(&thread_attrs->m_sock_addr, &pfs->m_sock_addr, pfs->m_sock_addr_len);
+  }
 
   DBUG_ASSERT(pfs->m_username_length <= sizeof(PSI_thread_attrs::m_username));
   thread_attrs->m_username_length = pfs->m_username_length;
-  if (pfs->m_username_length > 0)
+  if (pfs->m_username_length > 0) {
     memcpy(thread_attrs->m_username, pfs->m_username, pfs->m_username_length);
+  }
 
   DBUG_ASSERT(pfs->m_hostname_length <= sizeof(PSI_thread_attrs::m_hostname));
   thread_attrs->m_hostname_length = pfs->m_hostname_length;
-  if (pfs->m_hostname_length > 0)
+  if (pfs->m_hostname_length > 0) {
     memcpy(thread_attrs->m_hostname, pfs->m_hostname, pfs->m_hostname_length);
+  }
 
   DBUG_ASSERT(pfs->m_groupname_length <= sizeof(PSI_thread_attrs::m_groupname));
   thread_attrs->m_groupname_length = pfs->m_groupname_length;
-  if (pfs->m_groupname_length > 0)
+  if (pfs->m_groupname_length > 0) {
     memcpy(thread_attrs->m_groupname, pfs->m_groupname,
            pfs->m_groupname_length);
+  }
 
   if (!current_thread) {
-    if (!pfs->m_session_lock.end_optimistic_lock(&session_lock)) result = 1;
+    if (!pfs->m_session_lock.end_optimistic_lock(&session_lock)) {
+      result = 1;
+    }
 
-    if (!pfs->m_lock.end_optimistic_lock(&lock)) result = 1;
+    if (!pfs->m_lock.end_optimistic_lock(&lock)) {
+      result = 1;
+    }
   }
 
   return result;
@@ -3279,7 +3295,9 @@ int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
                                          ulonglong thread_id,
                                          PSI_thread_attrs *thread_attrs) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
-  if (pfs == NULL) pfs = find_thread(thread_id);
+  if (pfs == NULL) {
+    pfs = find_thread(thread_id);
+  }
   return get_thread_attributes(pfs, false, thread_attrs);
 }
 

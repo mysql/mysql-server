@@ -124,7 +124,9 @@ static bool iter_storage_engines_register(THD *, plugin_ref plugin, void *arg) {
       hton->collect_hton_log_info) {
     Instance_log_resource *resource;
     resource = Instance_log_resource_factory::get_wrapper(hton, vargs->json);
-    if (!(result = !resource)) vargs->resources->push_back(resource);
+    if (!(result = !resource)) {
+      vargs->resources->push_back(resource);
+    }
   }
   return result;
 }
@@ -254,7 +256,9 @@ int table_instance_log_status::make_row() {
   }
 
   /* Lock all resources */
-  for (it = resources.begin(); it != resources.end(); ++it) (*it)->lock();
+  for (it = resources.begin(); it != resources.end(); ++it) {
+    (*it)->lock();
+  }
 
   DBUG_SIGNAL_WAIT_FOR(thd, "pause_collecting_instance_logs_info",
                        "reached_collecting_instance_logs_info",
@@ -274,8 +278,9 @@ int table_instance_log_status::make_row() {
 
 err_unlock:
   /* Unlock all resources */
-  for (rit = resources.rbegin(); rit != resources.rend(); ++rit)
+  for (rit = resources.rbegin(); rit != resources.rend(); ++rit) {
     (*rit)->unlock();
+  }
 
 end:
   /* Delete all wrappers */
