@@ -1391,7 +1391,7 @@ INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1009,"gems",447,2374
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1010,"clinker",512,786542,76234234);
 --enable_query_log
 
-create temporary table tmp engine = myisam select * from t3;
+create temporary table tmp select * from t3;
 
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
@@ -1432,7 +1432,7 @@ select distinct fld5 from t2 limit 10;
 #
 
 select distinct fld3,count(*) from t2 group by companynr asc,fld3 asc limit 10;
-SET BIG_TABLES=1; # Force use of MyISAM
+SET BIG_TABLES=1;
 select distinct fld3,count(*) from t2 group by companynr asc,fld3 asc limit 10;
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
@@ -1515,7 +1515,7 @@ create table t4 (
   companyname char(30) NOT NULL default '',
   PRIMARY KEY (companynr),
   UNIQUE KEY companyname(companyname)
-) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
+) MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 
 --disable_query_log
 INSERT INTO t4 (companynr, companyname) VALUES (29,'company 1');
@@ -1856,7 +1856,7 @@ CREATE TABLE t1 (
   KEY mcbs_aufnr(mcbs_aufnr),
   KEY kundentyp(kundentyp),
   KEY p_nr(p_nr,suffix)
-) ENGINE=MyISAM;
+);
 SET sql_mode = default;
 INSERT INTO t1 VALUES (3359356,405,3359356,'Mustermann Musterfrau',52500,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1485525,2122316,'+','','N',1909160,'MobilComSuper92000D2',NULL,NULL,'MS9ND2',3,24,'MobilCom Shop Koeln',52500,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359357,468,3359357,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1503580,2139699,'+','','P',1909171,'MobilComSuper9D1T10SFreisprech(Akquise)',NULL,NULL,'MS9NS1',327,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
