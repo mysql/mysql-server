@@ -5776,7 +5776,7 @@ int mysqld_main(int argc, char **argv)
     }
 
     my_getopt_skip_unknown = 0;
-    LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
+    LogErr(INFORMATION_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
     log_error_dest = "stderr";
     flush_error_log_messages();
     unireg_abort(MYSQLD_SUCCESS_EXIT);
