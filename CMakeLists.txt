@@ -684,6 +684,7 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+ADD_DEFINITIONS(-DHAVE_OPENSSL)            # TODO: remove #ifdef from C++ code
 ADD_DEFINITIONS(-DRAPIDJSON_NO_SIZETYPEDEFINE)
 ADD_DEFINITIONS(-D__STDC_LIMIT_MACROS)     # Enable C99 limit macros
 ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros

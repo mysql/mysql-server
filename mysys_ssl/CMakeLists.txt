@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(SSL_DEFINES)
-ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
-
 IF(WITH_SSL STREQUAL "wolfssl")
   SET(MYSYS_AES_IMPLEMENTATION my_aes_wolfssl.cc)
 ELSE()
