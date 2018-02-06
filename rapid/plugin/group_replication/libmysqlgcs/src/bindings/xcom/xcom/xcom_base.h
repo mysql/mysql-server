@@ -191,7 +191,7 @@ void set_xcom_exit_cb(xcom_state_change_cb x);
  Registers a callback that is called right after
  the accept routine returns.
  */
-typedef int (*xcom_socket_accept_cb)(int fd);
+typedef int (*xcom_socket_accept_cb)(int fd, site_def const *xcom_config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
 connection_descriptor *xcom_open_client_connection(char *server,
