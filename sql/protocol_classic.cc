@@ -228,12 +228,12 @@
   @page page_protocol_connection_lifecycle Connection Lifecycle
 
   The MySQL protocol is a stateful protocol. When a connection is established
-  the server initiates a \ref page_protocol_connection_phase. Once that is
+  the server initiates a \ref page_protocol_conn. Once that is
   performed the connection enters the \ref page_protocol_command_phase. The
   \ref page_protocol_command_phase ends when the connection terminates.
 
   Further reading:
-  - @subpage page_protocol_connection_phase
+  - @subpage page_protocol_conn
   - @subpage page_protocol_command_phase
 */
 
@@ -514,8 +514,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
       <td>human readable status information</td></tr>
   <tr><td colspan="3">  if status_flags @& ::SERVER_SESSION_STATE_CHANGED
   {</td></tr> <tr><td>@ref sect_protocol_basic_dt_string_le
-  "string&lt;lenenc&gt;"</td> <td>session state info</td> <td>@anchor
-  a_protocol_basic_ok_packet_sessinfo
+  "string&lt;lenenc&gt;"</td> <td>session state info</td>
+  <td>@anchor a_protocol_basic_ok_packet_sessinfo
           @ref sect_protocol_basic_ok_packet_sessinfo</td></tr>
   <tr><td colspan="3">  }</td></tr>
   <tr><td colspan="3">} else {</td></tr>
@@ -568,8 +568,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   Interpretation of the data field depends on the type value:
 
-  @subsection
-  sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SYSTEM_VARIABLES
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SYSTEM_VAR
   SESSION_TRACK_SYSTEM_VARIABLES
 
   <table>
@@ -1469,8 +1468,9 @@ int Protocol_classic::read_packet() {
   <td>End of metadata</td>
   <td>Marker to set the end of metadata</td></tr>
   <tr><td colspan="3">}</td></tr>
-  <tr><td>One or more @subpage
-  page_protocol_com_query_response_text_resultset_row</td> <td>The row data</td>
+  <tr><td>One or more
+  @subpage page_protocol_com_query_response_text_resultset_row</td>
+  <td>The row data</td>
   <td>each @ref page_protocol_com_query_response_text_resultset_row contains
   `column_count` values</td></tr> <tr><td colspan="3">if (error processing)
   {</td></tr> <tr><td>@ref page_protocol_basic_err_packet</td>

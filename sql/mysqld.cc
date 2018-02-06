@@ -197,7 +197,7 @@
   The protocol supports these features:
     - Transparent encryption using SSL
     - Transparent compression
-    - A @ref page_protocol_connection_phase where capabilities and
+    - A @ref page_protocol_conn where capabilities and
       authentication data are exchanged
     - A @ref page_protocol_command_phase which accepts commands
       from the client and executes them

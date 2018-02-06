@@ -3239,11 +3239,11 @@ error:
 }
 
 /**
-  @page page_protocol_connection_phase_packets_protocol_ssl_request
+  @page page_protocol_conn_packets_protocol_ssl_request
   Protocol::SSLRequest:
 
   SSL Connection Request Packet. It is like
-  @ref page_protocol_connection_phase_packets_protocol_handshake_response but is
+  @ref page_protocol_conn_packets_protocol_handshake_response but is
   truncated right before username field. If server supports ::CLIENT_SSL
   capability, client can send this packet to request a secure SSL connection.
   The ::CLIENT_SSL capability flag must be set inside the SSL Connection Request
@@ -3287,7 +3287,7 @@ error:
   @param       buff_size The max size of the buffer. Used in debug only.
   @return                one past to where the buffer is filled
 
-  @sa page_protocol_connection_phase_packets_protocol_ssl_request
+  @sa page_protocol_conn_packets_protocol_ssl_request
   send_client_reply_packet()
 */
 static char *mysql_fill_packet_header(MYSQL *mysql, char *buff,
@@ -3484,18 +3484,18 @@ error:
 #define MAX_CONNECTION_ATTR_STORAGE_LENGTH 65536
 
 /**
-  @page page_protocol_connection_phase_packets_protocol_handshake_response
+  @page page_protocol_conn_packets_protocol_handshake_response
   Protocol::HandshakeResponse:
 
   Depending on the servers support for the ::CLIENT_PROTOCOL_41 capability and
   the clients understanding of that flag the client has to send either
-  a @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
+  a @ref sect_protocol_conn_packets_protocol_handshake_response320
   or
-  @ref sect_protocol_connection_phase_packets_protocol_handshake_response41.
+  @ref sect_protocol_conn_packets_protocol_handshake_response41.
 
   @sa send_client_reply_packet
 
-  @section sect_protocol_connection_phase_packets_protocol_handshake_response320
+  @section sect_protocol_conn_packets_protocol_handshake_response320
   Protocol::HandshakeResponse320
 
   Old Handshake Response Packet used by old clients or if the server doesn't
@@ -3541,15 +3541,15 @@ error:
   @note If auth-response is followed by a database field it must be
   NULL terminated.
 
-  @section sect_protocol_connection_phase_packets_protocol_handshake_response41
+  @section sect_protocol_conn_packets_protocol_handshake_response41
   Protocol::HandshakeResponse41
 
   Handshake Response Packet sent by 4.1+ clients supporting
   ::CLIENT_PROTOCOL_41 @ref group_cs_capabilities_flags flag,
   if the server announced it in its
-  @ref page_protocol_connection_phase_packets_protocol_handshake.
+  @ref page_protocol_conn_packets_protocol_handshake.
   Otherwise (talking to an old server) the
-  @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
+  @ref sect_protocol_conn_packets_protocol_handshake_response320
   packet must be used.
 
 
@@ -3648,9 +3648,9 @@ error:
 
   @note If client wants to have a secure SSL connection and sets
   CLIENT_SSL flag it should first send the
-  @ref page_protocol_connection_phase_packets_protocol_ssl_request packet
+  @ref page_protocol_conn_packets_protocol_ssl_request packet
   and only then, after establishing the secure connection, it should send
-  the @ref page_protocol_connection_phase_packets_protocol_handshake_response
+  the @ref page_protocol_conn_packets_protocol_handshake_response
   packet.
 */
 
@@ -3664,7 +3664,7 @@ error:
   @retval 1 error
 
   @sa mysql_fill_packet_header()
-  page_protocol_connection_phase_packets_protocol_handshake_response
+  page_protocol_conn_packets_protocol_handshake_response
 */
 static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
                                     int data_len) {
@@ -6180,8 +6180,7 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 }
 
 /**
-  @page
-  page_protocol_connection_phase_authentication_methods_clear_text_password
+  @page page_protocol_conn_auth_methods_clear_text_password
   Clear text client plugin
 
   <ul>
@@ -6197,7 +6196,7 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   Client side requires nothing from the server. But the server generates
   and sends a 20-byte
   @ref
-  page_protocol_connection_phase_authentication_methods_native_password_authentication
+  page_protocol_conn_auth_methods_native_password_authentication
   compatible scramble.
   </li>
   <li>
@@ -6213,12 +6212,12 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   @note
   Sending the scramble is not necessary for the clear text
   method, but, since the server always initiates the exchange by
-  sending @ref page_protocol_connection_phase_packets_protocol_handshake
+  sending @ref page_protocol_conn_packets_protocol_handshake
   and that one has a placeholder for authentication plugin dependent data the
   server does fill that space with a scramble should it come to pass that
   it will back down to
   @ref
-  page_protocol_connection_phase_authentication_methods_native_password_authentication.
+  page_protocol_conn_auth_methods_native_password_authentication.
   This is also why it's OK no to specifically read this in
   @ref clear_password_auth_client since it's already read as a part of
   the initial exchange.

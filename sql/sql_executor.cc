@@ -841,7 +841,6 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
   @brief Setup write_func of QEP_tmp_table object
 
   @param tab QEP_TAB of a tmp table
-  @param phase which tmp table phase we are determining a write func for
   @param trace Opt_trace_object to add to
   @details
   Function sets up write_func according to how QEP_tmp_table object that
@@ -4041,7 +4040,6 @@ bool process_wfs_needing_card(
 
   @param thd                    Current thread
   @param param                  Current temporary table
-  @param out_table              Results of this windowing step go here
   @param new_partition_or_eof   True if (we are about to start a new partition
                                 and there was a previous partition) or eof
   @param[out] output_row_ready  True if there is a row record ready to write
