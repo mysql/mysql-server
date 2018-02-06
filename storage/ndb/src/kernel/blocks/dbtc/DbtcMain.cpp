@@ -12239,6 +12239,7 @@ void Dbtc::releaseTakeOver(Signal* signal, ApiConnectRecordPtr const apiConnectp
 void Dbtc::setupFailData(Signal* signal, ApiConnectRecord* const regApiPtr)
 {
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
+ndbrequire(!regApiPtr->tcConnect.isEmpty());
   ndbrequire(tcConList.first(tcConnectptr));
   do {
     switch (tcConnectptr.p->tcConnectstate) {
