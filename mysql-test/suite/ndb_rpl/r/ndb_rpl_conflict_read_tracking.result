@@ -581,6 +581,10 @@ a	b
 update test.t1 set b="Initial data 1" where a=1;
 update test.t1 set b="Initial data 2" where a=2;
 update test.t2 set b="Initial data 3" where a=3;
+Sync all changes
+---------------------------------------
+delete from test.t1$EX;
+delete from test.t2$EX;
 Test 4, read-read conflict with read tracking
 Stopping secondary slave
 stop slave;
@@ -633,7 +637,7 @@ start slave;
 select * from test.t1 order by a;
 a	b
 1	Initial data 1
-2	Primary first change 2
+2	Initial data 2
 3	Initial data 3
 4	Initial data 4
 5	Initial data 5
@@ -680,11 +684,11 @@ a	b
 9	Initial data 9
 10	Initial data 10
 ndb_conflict_fn_epoch_trans
-2
+1
 ndb_conflict_fn_epoch2_trans
 0
 ndb_conflict_trans_row_conflict_count
-2
+1
 ndb_conflict_trans_row_reject_count
 2
 ndb_conflict_trans_reject_count
@@ -702,7 +706,7 @@ READ_ROW	Initial data 1	Initial data 1	TRANS_IN_CONFLICT
 select NDB$OP_TYPE, b$old, b$new, NDB$CFT_CAUSE from test.t2$EX
 order by a;
 NDB$OP_TYPE	b$old	b$new	NDB$CFT_CAUSE
-UPDATE_ROW	Secondary first change 3	Secondary first change 3	TRANS_IN_CONFLICT
+UPDATE_ROW	Initial data 3	Secondary first change 3	TRANS_IN_CONFLICT
 starting secondary slave
 start slave;
 Secondary should have been realigned to Primary
