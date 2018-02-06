@@ -10007,7 +10007,7 @@ inline int create_index(
     size_t geom_col_idx;
     for (geom_col_idx = 0; geom_col_idx < dd_index->elements().size();
          ++geom_col_idx) {
-      if (!dd_index->elements()[geom_col_idx]->column().is_hidden()) break;
+      if (!dd_index->elements()[geom_col_idx]->column().is_se_hidden()) break;
     }
     const dd::Column &col = dd_index->elements()[geom_col_idx]->column();
     has_srid = col.srs_id().has_value();
@@ -12385,7 +12385,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     } else {
       /* Add hidden FTS_DOC_ID column */
       dd::Column *col = dd_table->add_column();
-      col->set_hidden(true);
+      col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
       col->set_name(FTS_DOC_ID_COL_NAME);
       col->set_type(dd::enum_column_types::LONGLONG);
       col->set_nullable(false);
@@ -12468,7 +12468,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
 
   for (const dd::Column *c :
        const_cast<const dd::Table *>(dd_table)->columns()) {
-    if (c->is_hidden() || c->is_virtual()) {
+    if (c->is_se_hidden() || c->is_virtual()) {
       continue;
     }
 

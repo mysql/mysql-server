@@ -107,7 +107,8 @@ Columns::Columns() {
                          "generation_expression_utf8 LONGTEXT");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment VARCHAR(2048) NOT NULL");
-  m_target_def.add_field(FIELD_HIDDEN, "FIELD_HIDDEN", "hidden BOOL NOT NULL");
+  m_target_def.add_field(FIELD_HIDDEN, "FIELD_HIDDEN",
+                         "hidden ENUM('Visible', 'SE', 'SQL') NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
   m_target_def.add_field(FIELD_SE_PRIVATE_DATA, "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");

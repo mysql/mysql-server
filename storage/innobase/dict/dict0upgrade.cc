@@ -370,7 +370,7 @@ static bool dd_upgrade_match_cols(const TABLE *srv_table,
     if (strcmp(ib_col_name, col_obj->name().c_str()) == 0) {
       /* Skip matching hidden fields like DB_ROW_ID, DB_TRX_ID because
       these don't exist in TABLE* object of server. */
-      if (!col_obj->is_hidden()) {
+      if (!col_obj->is_se_hidden()) {
         /* Match col object and field */
         Field *field = dd_upgrade_get_field(srv_table, ib_col_name);
         ut_ad(field != NULL);

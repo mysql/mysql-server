@@ -1582,7 +1582,7 @@ void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table) {
 
   /* Add hidden FTS_DOC_ID column */
   dd::Column *col = new_table.add_column();
-  col->set_hidden(true);
+  col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
   col->set_name(FTS_DOC_ID_COL_NAME);
   col->set_type(dd::enum_column_types::LONGLONG);
   col->set_nullable(false);
@@ -1799,7 +1799,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
     size_t geom_col_idx;
     for (geom_col_idx = 0; geom_col_idx < dd_index->elements().size();
          ++geom_col_idx) {
-      if (!dd_index->elements()[geom_col_idx]->column().is_hidden()) break;
+      if (!dd_index->elements()[geom_col_idx]->column().is_se_hidden()) break;
     }
     const dd::Column &col = dd_index->elements()[geom_col_idx]->column();
     bool srid_has_value = col.srs_id().has_value();
@@ -2155,7 +2155,7 @@ inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
 
   /* Need to add FTS_DOC_ID column if it is not defined by user,
   since TABLE_SHARE::fields does not contain it if it is a hidden col */
-  if (has_doc_id && doc_col->is_hidden()) {
+  if (has_doc_id && doc_col->is_se_hidden()) {
 #ifdef UNIV_DEBUG
     ulint doc_id_col;
     ut_ad(!create_table_check_doc_id_col(m_thd, m_form, &doc_id_col));
@@ -3921,7 +3921,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   dict_col_t *t_col;
   ulint pos;
   ulint v_pos = 0;
-  bool is_hidden;
+  dd::Column::enum_hidden_type hidden;
   bool is_virtual;
   dict_v_col_t *vcol = nullptr;
 
@@ -3936,8 +3936,8 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
-  is_hidden = mach_read_from_1(field) & 0x01;
-  if (is_hidden) {
+  hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
+  if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE) {
     mtr_commit(mtr);
     return (false);
   }
@@ -4070,7 +4070,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   ulint len;
   const byte *field;
   ulint origin_pos;
-  bool is_hidden;
+  dd::Column::enum_hidden_type hidden;
   bool is_virtual;
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
@@ -4094,8 +4094,8 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
-  is_hidden = mach_read_from_1(field) & 0x01;
-  if (is_hidden) {
+  hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
+  if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE) {
     mtr_commit(mtr);
     return (false);
   }

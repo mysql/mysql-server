@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ Key_column_usage::Key_column_usage() {
   first_select->add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
   first_select->add_where(
       "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
-      "col.hidden OR idx.hidden OR icu.hidden)");
+      "col.hidden <> 'Visible' OR idx.hidden OR icu.hidden)");
 
   // Second SELECT for UNION
 
@@ -127,8 +127,7 @@ Key_column_usage::Key_column_usage() {
 
   second_select->add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
   second_select->add_where(
-      "AND IS_VISIBLE_DD_OBJECT("
-      "tbl.hidden, col.hidden)");
+      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')");
 }
 
 }  // namespace system_views
