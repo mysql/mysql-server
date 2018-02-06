@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 
 #include "simset.h"
 #include "task_debug.h"
-#include "xcom_proto_enum.h"
+#include "xcom_vp.h"
 #include "task.h"
 #include "task_os.h"
 
