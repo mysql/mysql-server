@@ -19,7 +19,7 @@ a
 fc86ab9f4e4275ef861733844e3b2710313376a3a632204f99eecf8ce0855f4d
 SELECT * FROM test.t2;
 a
-SELECT * FROM `foo` 
+SELECT * FROM `foo`
 # Clean up
 DROP TABLE test.t1;
 DROP TABLE test.t2;
