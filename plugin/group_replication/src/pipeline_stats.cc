@@ -66,7 +66,7 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
     int32 transactions_waiting_certification, int32 transactions_waiting_apply,
     int64 transactions_certified, int64 transactions_applied,
     int64 transactions_local, int64 transactions_negative_certified,
-    int64 transactions_rows_in_validation,
+    int64 transactions_rows_in_validation, bool transaction_gtids,
     const std::string &transactions_all_committed,
     const std::string &transactions_last_conflict_free,
     int64 transactions_local_rollback, Flow_control_mode mode)
@@ -78,6 +78,7 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
       m_transactions_local(transactions_local),
       m_transactions_negative_certified(transactions_negative_certified),
       m_transactions_rows_validating(transactions_rows_in_validation),
+      m_transaction_gtids_present(transaction_gtids),
       m_transactions_committed_all_members(transactions_all_committed),
       m_transaction_last_conflict_free(transactions_last_conflict_free),
       m_transactions_local_rollback(transactions_local_rollback),
@@ -93,6 +94,7 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
       m_transactions_local(0),
       m_transactions_negative_certified(0),
       m_transactions_rows_validating(0),
+      m_transaction_gtids_present(false),
       m_transactions_committed_all_members(""),
       m_transaction_last_conflict_free(""),
       m_transactions_local_rollback(0),
@@ -137,6 +139,10 @@ int64 Pipeline_stats_member_message::get_transactions_negative_certified() {
 int64 Pipeline_stats_member_message::get_transactions_rows_validating() {
   DBUG_ENTER("Pipeline_stats_member_message::get_transactions_rows_validating");
   DBUG_RETURN(m_transactions_rows_validating);
+}
+
+bool Pipeline_stats_member_message::get_transation_gtids_present() const {
+  return m_transaction_gtids_present;
 }
 
 int64 Pipeline_stats_member_message::get_transactions_local_rollback() {
@@ -198,17 +204,13 @@ void Pipeline_stats_member_message::encode_payload(
   encode_payload_item_int8(buffer, PIT_TRANSACTIONS_ROWS_VALIDATING,
                            transactions_rows_validating_aux);
 
-  if (!m_transactions_committed_all_members.empty()) {
-    encode_payload_item_string(buffer, PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS,
-                               m_transactions_committed_all_members.c_str(),
-                               m_transactions_committed_all_members.length());
-  }
+  encode_payload_item_string(buffer, PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS,
+                             m_transactions_committed_all_members.c_str(),
+                             m_transactions_committed_all_members.length());
 
-  if (!m_transaction_last_conflict_free.empty()) {
-    encode_payload_item_string(buffer, PIT_TRANSACTION_LAST_CONFLICT_FREE,
-                               m_transaction_last_conflict_free.c_str(),
-                               m_transaction_last_conflict_free.length());
-  }
+  encode_payload_item_string(buffer, PIT_TRANSACTION_LAST_CONFLICT_FREE,
+                             m_transaction_last_conflict_free.c_str(),
+                             m_transaction_last_conflict_free.length());
 
   uint64 transactions_local_rollback_aux =
       (uint64)m_transactions_local_rollback;
@@ -218,6 +220,10 @@ void Pipeline_stats_member_message::encode_payload(
   char flow_control_mode_aux = static_cast<char>(flow_control_mode_var);
   encode_payload_item_char(buffer, PIT_FLOW_CONTROL_MODE,
                            flow_control_mode_aux);
+
+  char aux_transaction_gtids_present = m_transaction_gtids_present ? '1' : '0';
+  encode_payload_item_char(buffer, PIT_TRANSACTION_GTIDS_PRESENT,
+                           aux_transaction_gtids_present);
 
   DBUG_VOID_RETURN;
 }
@@ -309,6 +315,15 @@ void Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
           unsigned char flow_control_mode_aux = *slider;
           slider += payload_item_length;
           m_flow_control_mode = (Flow_control_mode)flow_control_mode_aux;
+        }
+        break;
+
+      case PIT_TRANSACTION_GTIDS_PRESENT:
+        if (slider + payload_item_length <= end) {
+          unsigned char aux_transaction_gtids_present = *slider;
+          slider += payload_item_length;
+          m_transaction_gtids_present =
+              (aux_transaction_gtids_present == '1') ? true : false;
         }
         break;
     }
@@ -427,10 +442,6 @@ void Pipeline_stats_member_collector::send_stats_member_message(
     my_free(committed_transactions_buf);
     cert_interface->get_last_conflict_free_transaction(
         &last_conflict_free_transaction);
-    send_transaction_identifiers = false;
-  } else {
-    last_conflict_free_transaction.clear();
-    committed_transactions.clear();
   }
 
   Pipeline_stats_member_message message(
@@ -440,14 +451,16 @@ void Pipeline_stats_member_collector::send_stats_member_message(
       (cert_interface != NULL) ? cert_interface->get_negative_certified() : 0,
       (cert_interface != NULL) ? cert_interface->get_certification_info_size()
                                : 0,
-      committed_transactions, last_conflict_free_transaction,
-      m_transactions_local_rollback.load(), mode);
+      send_transaction_identifiers, committed_transactions,
+      last_conflict_free_transaction, m_transactions_local_rollback.load(),
+      mode);
 
   enum_gcs_error msg_error = gcs_module->send_message(message, true);
   if (msg_error != GCS_OK) {
     LogPluginErr(INFORMATION_LEVEL,
                  ER_GRP_RPL_SEND_STATS_ERROR); /* purecov: inspected */
   }
+  send_transaction_identifiers = false;
 }
 
 Pipeline_member_stats::Pipeline_member_stats()
@@ -516,12 +529,15 @@ void Pipeline_member_stats::update_member_stats(
 
   m_transactions_rows_validating = msg.get_transactions_rows_validating();
 
-  if (!msg.get_transaction_committed_all_members().empty()) {
+  /*
+    Only update the transaction GTIDs if the current stats message contains
+    these GTIDs, i.e. if they are "dirty" and in need of an update. Currently
+    these updates are sent in 30 sec periods, while the stats message itself is
+    sent at 1 sec period (for flow control purposes).
+   */
+  if (msg.get_transation_gtids_present()) {
     m_transactions_committed_all_members =
         msg.get_transaction_committed_all_members();
-  }
-
-  if (!msg.get_transaction_last_conflict_free().empty()) {
     m_transaction_last_conflict_free = msg.get_transaction_last_conflict_free();
   }
 
@@ -643,8 +659,8 @@ void Flow_control_module::flow_control_step(
   member->send_stats_member_message(fcm);
 
   DBUG_EXECUTE_IF("flow_control_simulate_delayed_members", {
-    Pipeline_stats_member_message message(1000, 100000, 500, 500, 500, 0, 0, "",
-                                          "", 0, FCM_QUOTA);
+    Pipeline_stats_member_message message(1000, 100000, 500, 500, 500, 0, 0,
+                                          false, "", "", 0, FCM_QUOTA);
     Pipeline_member_stats stats;
     stats.update_member_stats(message, 1);
 

@@ -202,11 +202,9 @@ bool get_group_member_stats(
       std::string last_conflict_free_transaction;
       cert_module->get_last_conflict_free_transaction(
           &last_conflict_free_transaction);
-      if (!last_conflict_free_transaction.empty()) {
-        callbacks.set_last_conflict_free_transaction(
-            callbacks.context, *last_conflict_free_transaction.c_str(),
-            last_conflict_free_transaction.length());
-      }
+      callbacks.set_last_conflict_free_transaction(
+          callbacks.context, *last_conflict_free_transaction.c_str(),
+          last_conflict_free_transaction.length());
     } else  // Fetch network received information for remote members
     {
       Pipeline_member_stats *pipeline_stats = NULL;

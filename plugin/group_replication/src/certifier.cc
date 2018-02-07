@@ -140,8 +140,6 @@ void Certifier_broadcast_thread::dispatcher() {
 
   struct timespec abstime;
   while (!aborted) {
-    broadcast_counter++;
-
     // Broadcast Transaction identifiers every 30 seconds
     if (broadcast_counter % 30 == 0) {
       applier_module->get_pipeline_stats_member_collector()
@@ -169,6 +167,8 @@ void Certifier_broadcast_thread::dispatcher() {
     */
     if (broadcast_counter % 300 == 0)
       observer_trans_clear_io_cache_unused_list(); /* purecov: inspected */
+
+    broadcast_counter++;
   }
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
