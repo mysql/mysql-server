@@ -8158,9 +8158,11 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       a warning message. We are taking care of avoiding transaction boundary
       issues, but it can happen.
 
-      Transaction boundary errors might happen only because of bad master
+      Transaction boundary errors might happen mostly because of bad master
       positioning in 'CHANGE MASTER TO' (or bad manipulation of master.info)
-      when GTID auto positioning is off.
+      when GTID auto positioning is off. Errors can also happen when using
+      cross-version replication, replicating from a master that supports more
+      event types than this slave.
 
       The IO thread will keep working and queuing events regardless of the
       transaction parser error, but we will throw another warning message to
@@ -8171,8 +8173,6 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       "An unexpected event sequence was detected by the IO thread while "
       "queuing the event received from master '%s' binary log file, at "
       "position %llu.", mi->get_master_log_name(), mi->get_master_log_pos());
-
-    DBUG_ASSERT(!mi->is_auto_position());
   }
 
   if (mi->get_mi_description_event()->binlog_version < 4 &&
