@@ -8036,9 +8036,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
                               0, true);
       if (cache_mngr->trx_cache.finalize(thd, &end_evt))
         DBUG_RETURN(RESULT_ABORTED);
-
-      if (xs != nullptr && !xs->is_binlogged())
-        thd->get_transaction()->xid_state()->set_binlogged();
     }
     trx_stuff_logged = true;
   }
