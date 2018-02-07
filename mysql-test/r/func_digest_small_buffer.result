@@ -20,7 +20,7 @@ UNION
 SELECT statement_digest_text( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
-SELECT 	YES
+SELECT	YES
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL;
@@ -34,7 +34,7 @@ UNION
 SELECT statement_digest_text( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" ), 'YES'
 FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
-SELECT 	YES
+SELECT	YES
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
@@ -49,4 +49,4 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 SELECT statement_digest_text( 'SELECT 1' );
 statement_digest_text( 'SELECT 1' )
-SELECT 
+SELECT

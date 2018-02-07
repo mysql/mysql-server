@@ -4,8 +4,8 @@
 1
 0 rows affected
 SCHEMA_NAME	DIGEST_TEXT	COUNT_STAR
-null	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
-null	SELECT ? 	1
+null	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest`	1
+null	SELECT ?	1
 0 rows affected
 
 1 rows affected
