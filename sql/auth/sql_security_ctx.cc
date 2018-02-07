@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -45,6 +45,8 @@
 #include "sql/current_thd.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
+
+extern bool initialized;
 
 void Security_context::init() {
   DBUG_ENTER("Security_context::init");
@@ -477,6 +479,8 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db) {
 
 std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                                          size_t priv_len) {
+  /* server started with --skip-grant-tables */
+  if (!initialized) return std::make_pair(true, true);
   std::string privilege(priv, priv_len);
   if (m_acl_map == 0) {
     Acl_cache_lock_guard acl_cache_lock(current_thd,
