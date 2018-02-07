@@ -2223,7 +2223,13 @@ dberr_t dict_index_add_to_cache(dict_table_t *table, dict_index_t *index,
   return (dict_index_add_to_cache_w_vcol(table, index, NULL, page_no, strict));
 }
 
+/** Clears the virtual column's index list before index is being freed.
+@param[in]  index   Index being freed */
 void dict_index_remove_from_v_col_list(dict_index_t *index) {
+  /* Index is not completely formed */
+  if (!index->cached) {
+    return;
+  }
   if (dict_index_has_virtual(index)) {
     const dict_col_t *col;
     const dict_v_col_t *vcol;
