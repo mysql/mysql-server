@@ -2438,6 +2438,9 @@ index for FTS index */
         DBUG_ASSERT(got_default_clust);
         DBUG_ASSERT(altered_table->s->primary_key == 0);
         primary_key_number = 0;
+      } else if (ha_alter_info->handler_flags &
+                 Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE) {
+        primary_key_number = altered_table->s->primary_key;
       } else {
         primary_key_number = *add;
       }
