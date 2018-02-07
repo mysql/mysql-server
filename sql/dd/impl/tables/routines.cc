@@ -158,6 +158,9 @@ Routines::Routines() {
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment TEXT NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
+  m_target_def.add_field(
+      FIELD_EXTERNAL_LANGUAGE, "FIELD_EXTERNAL_LANGUAGE",
+      "external_language VARCHAR(64) NOT NULL DEFAULT 'SQL'");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY(id)");
   m_target_def.add_index(INDEX_UK_SCHEMA_ID_TYPE_NAME,

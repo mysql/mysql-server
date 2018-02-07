@@ -530,6 +530,7 @@ routines	CREATE TABLE `routines` (
   `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `comment` text COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
+  `external_language` varchar(64) COLLATE utf8_bin NOT NULL DEFAULT 'SQL',
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`type`,`name`),
   KEY `result_collation_id` (`result_collation_id`),

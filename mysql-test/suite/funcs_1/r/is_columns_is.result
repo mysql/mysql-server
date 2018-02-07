@@ -231,7 +231,7 @@ def	information_schema	ROUTINES	DTD_IDENTIFIER	14	NULL	YES	longtext	4294967295	4
 def	information_schema	ROUTINES	ROUTINE_BODY	15		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ROUTINES	ROUTINE_DEFINITION	16	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
 def	information_schema	ROUTINES	EXTERNAL_NAME	17	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	18	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	ROUTINES	EXTERNAL_LANGUAGE	18	SQL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	ROUTINES	PARAMETER_STYLE	19		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ROUTINES	IS_DETERMINISTIC	20		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ROUTINES	SQL_DATA_ACCESS	21	NULL	NO	enum	17	51	NULL	NULL	NULL	utf8	utf8_bin	enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')			select			NULL
@@ -666,7 +666,7 @@ NULL	information_schema	ROUTINES	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(
 3.0000	information_schema	ROUTINES	ROUTINE_BODY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 1.0000	information_schema	ROUTINES	ROUTINE_DEFINITION	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 NULL	information_schema	ROUTINES	EXTERNAL_NAME	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	ROUTINES	EXTERNAL_LANGUAGE	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	ROUTINES	EXTERNAL_LANGUAGE	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	ROUTINES	PARAMETER_STYLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ROUTINES	IS_DETERMINISTIC	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ROUTINES	SQL_DATA_ACCESS	enum	17	51	utf8	utf8_bin	enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA')

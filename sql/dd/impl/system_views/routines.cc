@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,8 @@ Routines::Routines() {
       "IF (CAN_ACCESS_ROUTINE(sch.name, rtn.name, rtn.type, rtn.definer, TRUE),"
       "    rtn.definition_utf8, NULL)");
   m_target_def.add_field(FIELD_EXTERNAL_NAME, "EXTERNAL_NAME", "NULL");
-  m_target_def.add_field(FIELD_EXTERNAL_LANGUAGE, "EXTERNAL_LANGUAGE", "NULL");
+  m_target_def.add_field(FIELD_EXTERNAL_LANGUAGE, "EXTERNAL_LANGUAGE",
+                         "rtn.external_language");
   m_target_def.add_field(FIELD_PARAMETER_STYLE, "PARAMETER_STYLE", "'SQL'");
   m_target_def.add_field(FIELD_IS_DETERMINISTIC, "IS_DETERMINISTIC",
                          "IF(rtn.is_deterministic=0, 'NO', 'YES')");

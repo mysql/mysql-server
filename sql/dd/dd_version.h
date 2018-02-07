@@ -114,6 +114,8 @@
     COLLATION IS THE DEFAU"
     Added a new column 'is_explicit_collation' to the 'columns' DD table.
 
+  - BUG#27309116: Add a new column `external_language` to `mysql`.`routines`
+    and update `information_schema`.`routines` to reflect this column.
 
   If a new DD version is published in a MRU, that version may or may not
   be possible to downgrade to previous MRUs within the same GA. If
