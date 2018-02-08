@@ -3238,16 +3238,15 @@ error:
   return res;
 }
 
+/* clang-format off */
 /**
-  @page page_protocol_conn_packets_protocol_ssl_request
-  Protocol::SSLRequest:
+  @page page_protocol_connection_phase_packets_protocol_ssl_request Protocol::SSLRequest:
 
   SSL Connection Request Packet. It is like
-  @ref page_protocol_conn_packets_protocol_handshake_response but is
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response but is
   truncated right before username field. If server supports ::CLIENT_SSL
   capability, client can send this packet to request a secure SSL connection.
-  The ::CLIENT_SSL capability flag must be set inside the SSL Connection Request
-  Packet.
+  The ::CLIENT_SSL capability flag must be set inside the SSL Connection Request Packet.
 
   <table>
   <caption>Payload</caption>
@@ -3261,10 +3260,11 @@ error:
     <td>maximum packet size</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
     <td>character_set</td>
-    <td>client charset \ref a_protocol_character_set, only the lower
-  8-bits</td></tr> <tr><td>@ref sect_protocol_basic_dt_string_fix
-  "string[23]"</td> <td>filler</td> <td>filler to the size of the handhshake
-  response packet. All 0s.</td></tr> <tr><td colspan="3">} else {</td></tr>
+    <td>client charset \ref a_protocol_character_set, only the lower 8-bits</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[23]"</td>
+    <td>filler</td>
+    <td>filler to the size of the handhshake response packet. All 0s.</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
     <td>client_flag</td>
     <td>\ref group_cs_capabilities_flags, only the lower 16 bits</td></tr>
@@ -3276,6 +3276,7 @@ error:
 
   @sa int2store(), int3store(), int4store(), mysql_fill_packet_header()
 */
+/* clang-format on */
 /**
   Fill in the beginning of the client reply packet.
 
@@ -3483,20 +3484,18 @@ error:
 
 #define MAX_CONNECTION_ATTR_STORAGE_LENGTH 65536
 
+/* clang-format off */
 /**
-  @page page_protocol_conn_packets_protocol_handshake_response
-  Protocol::HandshakeResponse:
+  @page page_protocol_connection_phase_packets_protocol_handshake_response Protocol::HandshakeResponse:
 
   Depending on the servers support for the ::CLIENT_PROTOCOL_41 capability and
   the clients understanding of that flag the client has to send either
-  a @ref sect_protocol_conn_packets_protocol_handshake_response320
-  or
-  @ref sect_protocol_conn_packets_protocol_handshake_response41.
+  a @ref sect_protocol_connection_phase_packets_protocol_handshake_response320 or
+  @ref sect_protocol_connection_phase_packets_protocol_handshake_response41.
 
   @sa send_client_reply_packet
 
-  @section sect_protocol_conn_packets_protocol_handshake_response320
-  Protocol::HandshakeResponse320
+  @section sect_protocol_connection_phase_packets_protocol_handshake_response320 Protocol::HandshakeResponse320
 
   Old Handshake Response Packet used by old clients or if the server doesn't
   support ::CLIENT_PROTOCOL_41 @ref group_cs_capabilities_flags flag.
@@ -3506,11 +3505,12 @@ error:
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
     <td>client_flag</td>
-    <td>\ref group_cs_capabilities_flags, only the lower 16 bits.
-  ::CLIENT_PROTOCOL_41 should never be set</td></tr> <tr><td>@ref
-  a_protocol_type_int3 "int&lt;3&gt;"</td> <td>max_packet_size</td> <td>maximum
-  packet size, 0xFFFFFF max</td></tr> <tr><td>@ref
-  sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td> <td>username</td>
+    <td>\ref group_cs_capabilities_flags, only the lower 16 bits. ::CLIENT_PROTOCOL_41 should never be set</td></tr>
+  <tr><td>@ref a_protocol_type_int3 "int&lt;3&gt;"</td>
+    <td>max_packet_size</td>
+    <td>maximum packet size, 0xFFFFFF max</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>username</td>
       <td>login user name</td></tr>
   <tr><td colspan="3">if capabilities @& ::CLIENT_CONNECT_WITH_DB {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
@@ -3541,15 +3541,14 @@ error:
   @note If auth-response is followed by a database field it must be
   NULL terminated.
 
-  @section sect_protocol_conn_packets_protocol_handshake_response41
-  Protocol::HandshakeResponse41
+  @section sect_protocol_connection_phase_packets_protocol_handshake_response41 Protocol::HandshakeResponse41
 
   Handshake Response Packet sent by 4.1+ clients supporting
   ::CLIENT_PROTOCOL_41 @ref group_cs_capabilities_flags flag,
   if the server announced it in its
-  @ref page_protocol_conn_packets_protocol_handshake.
+  @ref page_protocol_connection_phase_packets_protocol_handshake.
   Otherwise (talking to an old server) the
-  @ref sect_protocol_conn_packets_protocol_handshake_response320
+  @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
   packet must be used.
 
 
@@ -3558,24 +3557,27 @@ error:
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
     <td>client_flag</td>
-    <td>\ref group_cs_capabilities_flags, ::CLIENT_PROTOCOL_41 always
-  set.</td></tr> <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>\ref group_cs_capabilities_flags, ::CLIENT_PROTOCOL_41 always set.</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
     <td>max_packet_size</td>
     <td>maximum packet size</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
     <td>character_set</td>
-    <td>client charset \ref a_protocol_character_set, only the lower
-  8-bits</td></tr> <tr><td>@ref sect_protocol_basic_dt_string_fix
-  "string[23]"</td> <td>filler</td> <td>filler to the size of the handhshake
-  response packet. All 0s.</td></tr> <tr><td>@ref
-  sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td> <td>username</td>
+    <td>client charset \ref a_protocol_character_set, only the lower 8-bits</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[23]"</td>
+    <td>filler</td>
+    <td>filler to the size of the handhshake response packet. All 0s.</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>username</td>
       <td>login user name</td></tr>
-  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA
-  {</td></tr> <tr><td>@ref sect_protocol_basic_dt_string_le
-  "string&lt;length&gt;"</td> <td>auth_response</td> <td>opaque authentication
-  response data generated by Authentication Method indicated by the plugin name
-  field. </td></tr> <tr><td colspan="3">} else {</td></tr> <tr><td>@ref
-  a_protocol_type_int1 "int&lt;1&gt;"</td> <td>auth_response_length</td>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;length&gt;"</td>
+      <td>auth_response</td>
+      <td>opaque authentication response data generated by
+      Authentication Method indicated by the plugin name field. </td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>auth_response_length</td>
     <td>length of auth_response</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;length&gt;"</td>
       <td>auth_response</td>
@@ -3605,16 +3607,15 @@ error:
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>value1</td>
       <td>Value of the 1st client attribute</td></tr>
-  <tr><td colspan="3">.. (if more data in length of all key-values, more keys
-  and values parts)</td></tr> <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">.. (if more data in length of all key-values, more keys and values parts)</td></tr>
+  <tr><td colspan="3">}</td></tr>
   </table>
 
   Example
   ========
 
-  On MySQL 5.5.8 with ::CLIENT_PROTOCOL_41 ::CLIENT_PLUGIN_AUTH,
-  CLIENT_SECURE_CONNECTION (removed in 8.0), and ::CLIENT_CONNECT_WITH_DB set,
-  it may look like:
+  On MySQL 5.5.8 with ::CLIENT_PROTOCOL_41 ::CLIENT_PLUGIN_AUTH, CLIENT_SECURE_CONNECTION (removed in 8.0),
+  and ::CLIENT_CONNECT_WITH_DB set, it may look like:
 
   ~~~~~~~~~~~~~~~~~~~~~
   54 00 00 01 8d a6 0f 00    00 00 00 01 08 00 00 00    T...............
@@ -3648,11 +3649,12 @@ error:
 
   @note If client wants to have a secure SSL connection and sets
   CLIENT_SSL flag it should first send the
-  @ref page_protocol_conn_packets_protocol_ssl_request packet
+  @ref page_protocol_connection_phase_packets_protocol_ssl_request packet
   and only then, after establishing the secure connection, it should send
-  the @ref page_protocol_conn_packets_protocol_handshake_response
+  the @ref page_protocol_connection_phase_packets_protocol_handshake_response
   packet.
 */
+/* clang-format on */
 
 /**
   sends a client authentication packet (second packet in the 3-way handshake)
@@ -6179,15 +6181,14 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   DBUG_RETURN(CR_OK);
 }
 
+/* clang-format off */
 /**
-  @page page_protocol_conn_auth_methods_clear_text_password
-  Clear text client plugin
+  @page page_protocol_connection_phase_authentication_methods_clear_text_password Clear text client plugin
 
   <ul>
   <li>
   This client side plugin is used by a number of server plugins:
-  LDAP (*authentication_ldap_simple*) and PAM (*authentication_pam*) to name a
-  few.
+  LDAP (*authentication_ldap_simple*) and PAM (*authentication_pam*) to name a few.
   </li>
   <li>
   The client name is *mysql_clear_password*
@@ -6195,8 +6196,7 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   <li>
   Client side requires nothing from the server. But the server generates
   and sends a 20-byte
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   compatible scramble.
   </li>
   <li>
@@ -6212,12 +6212,11 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   @note
   Sending the scramble is not necessary for the clear text
   method, but, since the server always initiates the exchange by
-  sending @ref page_protocol_conn_packets_protocol_handshake
+  sending @ref page_protocol_connection_phase_packets_protocol_handshake
   and that one has a placeholder for authentication plugin dependent data the
   server does fill that space with a scramble should it come to pass that
   it will back down to
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication.
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication.
   This is also why it's OK no to specifically read this in
   @ref clear_password_auth_client since it's already read as a part of
   the initial exchange.
@@ -6225,7 +6224,8 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   @sa ::clear_password_auth_client, ::server_mpvio_write_packet,
     ::send_server_handshake_packet
- */
+*/
+/* clang-format on */
 
 /**
   The main function of the mysql_clear_password authentication plugin.

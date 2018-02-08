@@ -115,8 +115,9 @@ struct MEM_ROOT;
    MySQL authentication plugins.
 */
 
+/* clang-format off */
 /**
-  @page page_protocol_conn Connection Phase
+  @page page_protocol_connection_phase Connection Phase
 
   The Connection Phase performs these tasks:
     - exchange the capabilities of client and server
@@ -150,32 +151,26 @@ struct MEM_ROOT;
   "Client Response" --> "Authentication exchange continuation"
   "Client Response" --> [ Insufficient client capabilities] ERR
 
-  "Authentication method switch" --> [ Client does not know requested auth
-  method ] DISCONNECT "Authentication method switch" --> "Authentication
-  exchange continuation"
+  "Authentication method switch" --> [ Client does not know requested auth method ] DISCONNECT
+  "Authentication method switch" --> "Authentication exchange continuation"
 
   "Authentication exchange continuation" --> OK
   "Authentication exchange continuation" --> ERR
   @enduml
 
-  @section sect_protocol_conn_initial_handshake Initial Handshake
+  @section sect_protocol_connection_phase_initial_handshake Initial Handshake
 
   The initial handshake starts with the server sending the
-  @ref page_protocol_conn_packets_protocol_handshake packet.
+  @ref page_protocol_connection_phase_packets_protocol_handshake packet.
   After this, optionally, the client can request an SSL connection to be
-  established with the @ref
-  page_protocol_conn_packets_protocol_ssl_request packet and then
-  the client sends the
-  @ref page_protocol_conn_packets_protocol_handshake_response
-  packet.
+  established with the @ref page_protocol_connection_phase_packets_protocol_ssl_request
+  packet and then the client sends the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response packet.
 
-  @subsection sect_protocol_conn_initial_handshake_plain_handshake
-  Plain Handshake
+  @subsection sect_protocol_connection_phase_initial_handshake_plain_handshake Plain Handshake
 
-  1. Server sending @ref
-  page_protocol_conn_packets_protocol_handshake.
-  2. Client replying with @ref
-  page_protocol_conn_packets_protocol_handshake_response
+  1. Server sending @ref page_protocol_connection_phase_packets_protocol_handshake.
+  2. Client replying with @ref page_protocol_connection_phase_packets_protocol_handshake_response
 
   @startuml
   Server -> Client: Initial Handshake Packet
@@ -183,16 +178,12 @@ struct MEM_ROOT;
   Server -> Server: Check client capabilities and authentication method to use
   @enduml
 
-  @subsection sect_protocol_conn_initial_handshake_ssl_handshake SSL
-  Handshake
+  @subsection sect_protocol_connection_phase_initial_handshake_ssl_handshake SSL Handshake
 
-  1. Server sending @ref
-  page_protocol_conn_packets_protocol_handshake
-  2. Client replying with @ref
-  page_protocol_conn_packets_protocol_ssl_request
+  1. Server sending @ref page_protocol_connection_phase_packets_protocol_handshake
+  2. Client replying with @ref page_protocol_connection_phase_packets_protocol_ssl_request
   3. The usual SSL exchange leading to establishing SSL connection
-  4. Client sends @ref
-  page_protocol_conn_packets_protocol_handshake_response
+  4. Client sends @ref page_protocol_connection_phase_packets_protocol_handshake_response
 
   @startuml
   Server -> Client: Initial Handshake Packet
@@ -202,36 +193,33 @@ struct MEM_ROOT;
   Server -> Server: Check client capabilities and authentication method to use
   @enduml
 
-  @subsection sect_protocol_conn_initial_handshake_capabilities
-  Capability Negotiation
+  @subsection sect_protocol_connection_phase_initial_handshake_capabilities Capability Negotiation
 
   To permit an old client to connect to newer servers,
-  the @ref page_protocol_conn_packets_protocol_handshake contains
+  the @ref page_protocol_connection_phase_packets_protocol_handshake contains
 
   * the MySQL Server version
   * the server's @ref group_cs_capabilities_flags
 
   The client should only announce the capabilities in the
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
   that it has in common with the server.
 
   They can agree on:
   * use of @ref CLIENT_TRANSACTIONS "status flags"
   * use of @ref CLIENT_PROTOCOL_41 "SQL states for error codes"
-  * @ref sect_protocol_conn_initial_handshake_auth_method
-  "authentication methods"
+  * @ref sect_protocol_connection_phase_initial_handshake_auth_method "authentication methods"
   * @ref CLIENT_SSL "SSL Support"
   * @ref CLIENT_COMPRESS "Compression"
 
-  @subsection sect_protocol_conn_initial_handshake_auth_method
-  Determining Authentication Method
+  @subsection sect_protocol_connection_phase_initial_handshake_auth_method Determining Authentication Method
 
   Method used for authentication is tied to the user account and stored in
   the plugin column of mysql.user table. Client informs about the user
   account it wants to log into in the
-  @ref page_protocol_conn_packets_protocol_handshake_response
-  packet. Only then server can look up the mysql.user table and find the
-  authentication method to be used.
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response packet.
+  Only then server can look up the mysql.user table and find the authentication
+  method to be used.
 
   However, to save round-trips, server and client start authentication exchange
   already in the initial handshake using an optimistic guess of the
@@ -239,61 +227,56 @@ struct MEM_ROOT;
 
   Server uses its default authentication method @ref default_auth_plugin to
   produce initial authentication data payload and sends it to the client inside
-  @ref page_protocol_conn_packets_protocol_handshake, together with
+  @ref page_protocol_connection_phase_packets_protocol_handshake, together with
   the name of the method used.
 
   Client can include in the
-  @ref page_protocol_conn_packets_protocol_handshake_response packet
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response packet
   its reply to the authentication data sent by the server.
 
   When including authentication reply in the
-  @ref page_protocol_conn_packets_protocol_handshake_response,
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response,
   client is not obligated to use the same authentication method that was used
   by the server in the
-  @ref page_protocol_conn_packets_protocol_handshake packet.
+  @ref page_protocol_connection_phase_packets_protocol_handshake packet.
   The name of the authentication method used by the client is stored in the
   packet. If the guessed authentication method used either by the client or
   the server in the initial handshake was not correct, server informs client
   which authentication method should be used using
-  @ref page_protocol_conn_packets_protocol_auth_switch_request.
-  See section @ref sect_protocol_conn_auth_method_mismatch for
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request.
+  See section @ref sect_protocol_connection_phase_auth_method_mismatch for
   more details.
 
   Up to MySQL 4.0 the MySQL protocol only supported the
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication.
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication.
   In MySQL 4.1 the
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
-  method was added and in MySQL 5.5 arbitrtary authentication methods can be
-  implemented by means of authentication plugins.
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  method was added and in MySQL 5.5 arbitrtary authentication methods can be implemented
+  by means of authentication plugins.
 
   If the client or server do no support pluggable authentication
   (i.e. @ref CLIENT_PLUGIN_AUTH capability flag is not set) then
   authentication method used is inherited from client and server
   capabilities as follows:
     * The method used is
-    @ref
-  page_protocol_conn_auth_methods_old_password_authentication
-    if @ref CLIENT_PROTOCOL_41 or @ref CLIENT_RESERVED2
-  "CLIENT_SECURE_CONNECTION" are not set.
+    @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
+    if @ref CLIENT_PROTOCOL_41 or @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION"
+    are not set.
     * The method used is
-    @ref
-  page_protocol_conn_auth_methods_native_password_authentication
-    if both @ref CLIENT_PROTOCOL_41 and @ref CLIENT_RESERVED2
-  "CLIENT_SECURE_CONNECTION" are set, but @ref CLIENT_PLUGIN_AUTH is not set.
+    @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+    if both @ref CLIENT_PROTOCOL_41 and @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION"
+    are set, but @ref CLIENT_PLUGIN_AUTH is not set.
 
-  @section sect_protocol_conn_fast_path Authentication Phase Fast
-  Path
+  @section sect_protocol_connection_phase_fast_path Authentication Phase Fast Path
 
   Assume the client wants to log in via user account U and that user account
   is defined to use authentication method `server_method`. The fast
   authentication path is used when:
   <ul>
   <li>the server used `server_method` to generate authentication data in the
-    @ref page_protocol_conn_packets_protocol_handshake packet.</li>
+    @ref page_protocol_connection_phase_packets_protocol_handshake packet.</li>
   <li>the client used a `client_authentication_method` in
-    @ref page_protocol_conn_packets_protocol_handshake_response
+    @ref page_protocol_connection_phase_packets_protocol_handshake_response
     that is compatible with the `server_method` used by the server.</li>
   </ul>
 
@@ -302,19 +285,17 @@ struct MEM_ROOT;
   `server_method`, further authentication can be exchanged until the server
   either accepts or refuses the authentication.
 
-  @subsection sect_protocol_conn_fast_path_success Successful
-  Authentication
+  @subsection sect_protocol_connection_phase_fast_path_success Successful Authentication
 
   A successful fast authentication path looks as follows:
 
   1. The client connects to the server
-  2. The server sends @ref
-  page_protocol_conn_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
-     @ref page_protocol_conn_packets_protocol_handshake_response
-  4. Client and server possibly exchange further packets as required by the
-  server authentication method for the user account the client is trying to
-  authenticate against.
+     @ref page_protocol_connection_phase_packets_protocol_handshake_response
+  4. Client and server possibly exchange further packets as required by the server
+     authentication method for the user account the client is trying to authenticate
+     against.
   5. The server responds with an @ref page_protocol_basic_ok_packet
 
   @startuml
@@ -322,8 +303,7 @@ struct MEM_ROOT;
   Server -> Client: Initial Handshake Packet
   Client -> Server: Handshake Response Packet
 
-  == Client and server possibly exchange further authentication method packets
-  ==
+  == Client and server possibly exchange further authentication method packets ==
 
   Server -> Client: OK packet
 
@@ -331,33 +311,31 @@ struct MEM_ROOT;
   @enduml
 
   The packets the server sends in step 4 are a
-  @ref page_protocol_conn_packets_protocol_auth_more_data packet
-  prefixed with 0x01 to distinguish them from @ref
-  page_protocol_basic_err_packet and @ref page_protocol_basic_ok_packet
+  @ref page_protocol_connection_phase_packets_protocol_auth_more_data packet
+  prefixed with 0x01 to distinguish them from @ref page_protocol_basic_err_packet
+  and @ref page_protocol_basic_ok_packet
 
   @note Many authentication methods, including the mysql_native_password method
-  consist of a single challenge-response exchange. In that case no extra packet
-  are exchanged in step 4 and the server sends an
-  @ref page_protocol_basic_ok_packet directly after receiving the
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  consist of a single challenge-response exchange. In that case no extra packet are
+  exchanged in step 4 and the server sends an @ref page_protocol_basic_ok_packet
+  directly after receiving the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
   packet (provided the authentication was successful).
 
-  @subsection sect_protocol_conn_fast_path_fails Authentication
-  Fails
+  @subsection sect_protocol_connection_phase_fast_path_fails Authentication Fails
 
-  It goes exactly like @ref sect_protocol_conn_fast_path_success
+  It goes exactly like @ref sect_protocol_connection_phase_fast_path_success
   , but if the server decides that it won't authenticate the user it replies
   with an @ref page_protocol_basic_err_packet instead of
   @ref page_protocol_basic_ok_packet.
 
   1. The client connects to the server
-  2. The server sends @ref
-  page_protocol_conn_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
-  @ref page_protocol_conn_packets_protocol_handshake_response
-  4. Client and server possibly exchange further packets as required by the
-  server authentication method for the user account the client is trying to
-  authenticate against.
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
+  4. Client and server possibly exchange further packets as required by the server
+  authentication method for the user account the client is trying to authenticate
+  against.
   5. The server responds with an @ref page_protocol_basic_err_packet
 
   @startuml
@@ -365,29 +343,27 @@ struct MEM_ROOT;
   Server -> Client: Initial Handshake Packet
   Client -> Server: Handshake Response Packet
 
-  == Client and server possibly exchange further authentication method packets
-  ==
+  == Client and server possibly exchange furhter authentication method packets ==
 
   Server -> Client: ERR packet
 
   == Client and server close connection ==
   @enduml
 
-  Again, the @ref page_protocol_conn_packets_protocol_auth_more_data
+  Again, the @ref page_protocol_connection_phase_packets_protocol_auth_more_data
   packets sent by the server during step 4 start with 0x01 byte and thus can
   never be confused with the @ref page_protocol_basic_err_packet.
 
-  @section sect_protocol_conn_auth_method_mismatch Authentication
-  Method Mismatch
+  @section sect_protocol_connection_phase_auth_method_mismatch Authentication Method Mismatch
 
   Assume that client wants to log in as user U and that user account uses
   uthentication method M. If:
 
   1. Server's default method used to generate authentication payload for
-  @ref page_protocol_conn_packets_protocol_handshake was different
+  @ref page_protocol_connection_phase_packets_protocol_handshake was different
   from M or
   2. Method used by the client to generate authentication reply in
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
   was not compatible with M
 
   then there is an authentication method mismatch and authentication exchange
@@ -398,25 +374,23 @@ struct MEM_ROOT;
   authentication methods in the intial handshake, but the method the server
   used was different from the method required by the user account.
   2. In the 4.1-5.7 server and client the default authentication method is
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication.
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication.
   3. In 8.0 server and client the default authentication method is
   @ref page_caching_sha2_authentication_exchanges.
-  4. The client and the server can change their default authentication method
-  via the
+  4. The client and the server can change their default authentication method via the
   `--default-auth` option.
   5. A sensibe thing to do for a client would be to see the server's default
   authentication method announced in the
-  @ref page_protocol_conn_packets_protocol_handshake packet and
-  infer the authentication method from it instead of using the client default
-  authentication method when producing
-  @ref page_protocol_conn_packets_protocol_handshake_response.
+  @ref page_protocol_connection_phase_packets_protocol_handshake packet and infer the
+  authentication method from it instead of using the client default authentication
+  method when producing
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response.
   But since there can be one to many server to client plugins and the clients
   generally do not know the mapping from server authentication methods to client
   authentication methods this is not implemented in the client mysql library.
 
   If authentication method missmatch happens, server sends to client the
-  @ref page_protocol_conn_packets_protocol_auth_switch_request
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
   which contains the name of the client authentication method to be used and
   the first authentication payload generated by the new method. Client should
   switch to the requested authentication method and continue the exchange as
@@ -424,20 +398,18 @@ struct MEM_ROOT;
 
   If the client does not know the requested method it should disconnect.
 
-  @subsection sect_protocol_conn_auth_method_mismatch_method_change
-  Authentication Method Change
+  @subsection sect_protocol_connection_phase_auth_method_mismatch_method_change Authentication Method Change
 
   1. The client connects to the server
-  2. The server sends @ref
-  page_protocol_conn_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. The server sends the
-  @ref page_protocol_conn_packets_protocol_auth_switch_request to
-  tell the client that it needs to switch to a new authentication method.
-  5. Client and server possibly exchange further packets as required by the
-  server authentication method for the user account the client is trying to
-  authenticate against.
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request to tell
+  the client that it needs to switch to a new authentication method.
+  5. Client and server possibly exchange further packets as required by the server
+  authentication method for the user account the client is trying to authenticate
+  against.
   6. The server responds with an @ref page_protocol_basic_ok_packet or rejects
     with @ref page_protocol_basic_err_packet
 
@@ -447,14 +419,12 @@ struct MEM_ROOT;
   Client -> Server: Handshake Response Packet
   Server -> Client: Authentication Switch Request Packet
 
-  == Client and server possibly exchange further authentication method packets
-  ==
+  == Client and server possibly exchange furhter authentication method packets ==
 
   Server -> Client: ERR packet or OK packet
   @enduml
 
-  @subsection sect_protocol_conn_auth_method_mismatch_insufficient_client
-  Insufficient Client Capabilities
+  @subsection sect_protocol_connection_phase_auth_method_mismatch_insuficcient_client Insufficient Client Capabilities
 
   Server will reject with @ref page_protocol_basic_err_packet if it discovers
   that client capabilities are not sufficient to complete authentication.
@@ -464,8 +434,7 @@ struct MEM_ROOT;
   <li>A client which does not support pluggable authentication
   (@ref CLIENT_PLUGIN_AUTH flag not set) connects to an account which uses
   authentication method different from
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   </li>
   <li>
   A client which does not support secure authentication (
@@ -473,10 +442,9 @@ struct MEM_ROOT;
   to connect.
   </li>
   <li>Server's default authentication method used to generate authentication
-  data in @ref page_protocol_conn_packets_protocol_handshake is
+  data in @ref page_protocol_connection_phase_packets_protocol_handshake is
   incomaptible with
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   and client does not support pluggable authentication (@ref CLIENT_PLUGIN_AUTH
   flag is not set).
   </li>
@@ -485,10 +453,9 @@ struct MEM_ROOT;
   In either of these cases authentication phase will look as follows:
 
   1. The client connects to the server
-  2. The server sends @ref
-  page_protocol_conn_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. The server recognizes that the client does not have enough capabilities
   to handle the required authentication method, sends
   @ref page_protocol_basic_err_packet and closes the connection.
@@ -502,24 +469,22 @@ struct MEM_ROOT;
   == server disconnects ==
   @enduml
 
-  @subsection sect_protocol_conn_auth_method_mismatch_unknown_auth_method
-  New Authentication Method Not Known by Client
+  @subsection sect_protocol_connection_phase_auth_method_mismatch_unknown_auth_method New Authentication Method Not Known by Client
 
   Even if client supports external authentication (@ref CLIENT_PLUGIN_AUTH flag
   is set) the new authentication method indicated in
-  @ref page_protocol_conn_packets_protocol_auth_switch_request might
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request might
   not be known to it. In that case the client simply disconnects.
 
   1. The client connects to the server
-  2. The server sends @ref
-  page_protocol_conn_packets_protocol_handshake
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
   3. The client respons with
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. The server sends the
-  @ref page_protocol_conn_packets_protocol_auth_switch_request to
-  tell the client that it needs to switch to a new authentication method.
-  5. client discovers that it does not know the authentication method requested
-  by the server - it disconnects.
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request to tell
+  the client that it needs to switch to a new authentication method.
+  5. client discovers that it does not know the authentication method requested by
+  the server - it disconnects.
 
   @startuml
   Client -> Server: Connect
@@ -531,12 +496,10 @@ struct MEM_ROOT;
   @enduml
 
 
-  @subsection sect_protocol_conn_auth_method_mismatch_non_client_plugin_auth
-  Non-CLIENT_PLUGIN_AUTH Clients
+  @subsection sect_protocol_connection_phase_auth_method_mismatch_non_client_plugin_auth Non-CLIENT_PLUGIN_AUTH Clients
 
   @note This can only happen on pre-8.0 servers. 8.0 has the
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   removed.
 
   The only situation where server will request authentication method change from
@@ -544,28 +507,24 @@ struct MEM_ROOT;
   conditions hold:
 
   1. The client uses
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
-  for the @ref
-  page_protocol_conn_packets_protocol_handshake_response packet.
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
+  for the @ref page_protocol_connection_phase_packets_protocol_handshake_response
+  packet.
   2. The client supports secure authentication
   (@ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION" is set)
   3. Server's default authentication method is
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
 
   In this case server sends
-  @ref page_protocol_conn_packets_protocol_old_auth_switch_request.
+  @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request.
   This packet does not contain a new authenticartion method name because it's
   implicitly assumed to be
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   and it does not contain authentication data.
-  Client replies with @ref
-  sect_protocol_conn_packets_protocol_handshake_response320. To
-  generate a password hash the client should re-use the random bytes sent by the
-  server in the
-  @ref page_protocol_conn_packets_protocol_handshake.
+  Client replies with @ref sect_protocol_connection_phase_packets_protocol_handshake_response320.
+  To generate a password hash the client should re-use the random bytes sent by
+  the server in the
+  @ref page_protocol_connection_phase_packets_protocol_handshake.
 
   @startuml
   Client -> Server: Connect
@@ -577,17 +536,16 @@ struct MEM_ROOT;
   @enduml
 
 
-  @section sect_protocol_conn_com_change_user_auth Authentication
-  After COM_CHANGE_USER Command
+  @section sect_protocol_connection_phase_com_change_user_auth Authentication After COM_CHANGE_USER Command
 
   During @ref page_protocol_command_phase a client can send a ::COM_CHANGE_USER
   command which will trigger authenticating into a new account via a full
   authentication handshake.
 
-  Similarly to the @ref page_protocol_conn the server may reply
+  Similarly to the @ref page_protocol_connection_phase the server may reply
   with a @ref page_protocol_basic_err_packet or
   @ref page_protocol_basic_ok_packet for the usual fast-path or with
-  @ref page_protocol_conn_packets_protocol_auth_switch_request
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
   containing the authentication method to be used for the new account
   and the first authentication data payload to be consumed by the client.
   Further handshake continues as usual, as defined by the authentication
@@ -597,7 +555,7 @@ struct MEM_ROOT;
 
   1. The client sends ::COM_CHANGE_USER packet
   2. The server responds with the
-    @ref page_protocol_conn_packets_protocol_auth_switch_request
+    @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
     which initiates authentication handshake using the correct authentication
     method
   3. Client and server exchange further packets as required by the
@@ -613,16 +571,13 @@ struct MEM_ROOT;
   Server -> Client: ERR packet or OK packet
   @enduml
 
-  @subsection sect_protocol_conn_com_change_user_auth_non_plugin
-  COM_CHANGE_USER and Non-CLIENT_PLUGIN_AUTH Clients
+  @subsection sect_protocol_connection_phase_com_change_user_auth_non_plugin COM_CHANGE_USER and Non-CLIENT_PLUGIN_AUTH Clients
 
   Clients which do not support pluggable authentication can send
   ::COM_CHANGE_USER command for accounts which use
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   or
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication.
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication.
   In this case it is assumed that server has already sent the authentication
   challenge - the same which was sent when the client connected for the first
   time - and client's reply to that challenge, i.e. the hash of the new
@@ -630,11 +585,9 @@ struct MEM_ROOT;
 
   1. The client sends ::COM_CHANGE_USER packet with authentication response
   (hash of the password) for
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   (post 4.1 clients) or
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   (pre 4.1 clients) method.
   2. The server responds with an @ref page_protocol_basic_ok_packet and returns
   to @ref page_protocol_command_phase or with an
@@ -647,22 +600,18 @@ struct MEM_ROOT;
 
   As during normal connection, it is also possible that a post 4.1 client which
   does not support pluggable authentication connects to an account which uses
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   In that case server will send
-  @ref page_protocol_conn_packets_protocol_old_auth_switch_request
+  @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request
   and expect the client to reply with
-  @ref sect_protocol_conn_packets_protocol_handshake_response320
+  @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
 
   1. The client sends ::COM_CHANGE_USER packet with response for
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   2. The server replies with
-  @ref page_protocol_conn_packets_protocol_old_auth_switch_request
-  (0xFE byte)
+  @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request (0xFE byte)
   3. The client sends response again, this time in the form required by
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   4. The server responds with an @ref page_protocol_basic_ok_packet and returns
   to @ref page_protocol_command_phase or an @ref page_protocol_basic_err_packet
   and disconnects
@@ -675,9 +624,10 @@ struct MEM_ROOT;
   @enduml
 
   @sa group_cs_capabilities_flags
-  @subpage page_protocol_conn_packets
-  @subpage page_protocol_conn_auth_methods
+  @subpage page_protocol_connection_phase_packets
+  @subpage page_protocol_connection_phase_authentication_methods
 */
+
 
 /**
   @page page_protocol_basic_expired_passwords Expired Password
@@ -704,7 +654,7 @@ struct MEM_ROOT;
   If a client is not setting that capability and it tries to login with an
   account that has an expired password, the server will return an
   @ref page_protocol_basic_err_packet for the
-  @ref page_protocol_conn or the ::COM_CHANGE_USER request.
+  @ref page_protocol_connection_phase or the ::COM_CHANGE_USER request.
 
   The idea is to block any activity until the password is reset.
 
@@ -713,23 +663,22 @@ struct MEM_ROOT;
   acl_authenticate
 */
 
-/**
-   @page page_protocol_conn_auth_methods Authenticatrion
-   Methods
 
-   To authenticate a user against the server the client server protocol employs
-   one of several authentication methods.
+/**
+   @page page_protocol_connection_phase_authentication_methods Authenticatrion Methods
+
+   To authenticate a user against the server the client server protocol employs one of
+   several authentication methods.
 
    As of MySQL 5.5 the authentication method to be used to authenticate
-   connections to a particular MySQL account is indicated in the mysql.user
-   table. For earlier servers it's always mysql native authentication or old
-   password authentication depending on the @ref CLIENT_RESERVED2
-   "CLIENT_SECURE_CONNECTION" flag.
+   connections to a particular MySQL account is indicated in the mysql.user table.
+   For earlier servers it's always mysql native authentication or
+   old password authentication depending on
+   the @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION" flag.
 
-   Client and server negotiate what types of authentication they support as part
-   of the
-   @ref page_protocol_conn and
-   @ref sect_protocol_conn_initial_handshake_auth_method.
+   Client and server negotiate what types of authentication they support as part of the
+   @ref page_protocol_connection_phase and
+   @ref sect_protocol_connection_phase_initial_handshake_auth_method.
 
    Each authentication method consists of
      * a client plugin name
@@ -737,14 +686,13 @@ struct MEM_ROOT;
      * a specific exchange
 
    The exchanged input and output data may either be sent as part of the
-   @ref page_protocol_conn_packets_protocol_handshake and the
-   @ref page_protocol_conn_packets_protocol_handshake_response
+   @ref page_protocol_connection_phase_packets_protocol_handshake and the
+   @ref page_protocol_connection_phase_packets_protocol_handshake_response
    or as a part of the
-   @ref page_protocol_conn_packets_protocol_auth_switch_request
+   @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
    and following packets. The structure is usually the same.
 
-   @section page_protocol_conn_auth_methods_limitations
-   Limitations
+   @section page_protocol_connection_phase_authentication_methods_limitations Limitations
 
    While the overall exchange of data is free-form there are some limitations
    in the initial handshake of the amount of data that can be exchanged without
@@ -753,22 +701,19 @@ struct MEM_ROOT;
    <ul>
    <li>
    The `auth_plugin_data` field in
-   @ref page_protocol_conn_packets_protocol_handshake packet can
-   only carry 255 bytes max (see @ref CLIENT_RESERVED2
-   "CLIENT_SECURE_CONNECTION").
+   @ref page_protocol_connection_phase_packets_protocol_handshake packet can
+   only carry 255 bytes max (see @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION").
    </li><li>
    The `auth_reponse_data` field in
-   @ref page_protocol_conn_packets_protocol_handshake_response
+   @ref page_protocol_connection_phase_packets_protocol_handshake_response
    packet can only carry 255 bytes max too if
    @ref CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA is not set.
    </li><li>
-   The client-side plugin may not receive its initial data in the initial
-   handshake
+   The client-side plugin may not receive its initial data in the initial handshake
    </li>
    </ul>
 
-   @section page_protocol_conn_auth_methods_old_password_authentication
-   Old Password Authentication
+   @section page_protocol_connection_phase_authentication_methods_old_password_authentication Old Password Authentication
 
    Authentication::Old:
 
@@ -788,12 +733,10 @@ struct MEM_ROOT;
    </ul>
 
    @note If the server announces
-   @ref
-   page_protocol_conn_auth_methods_native_password_authentication
+   @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
    in the
-   @ref page_protocol_conn_packets_protocol_handshake packet
-   the client may use the first 8 bytes of its 20-byte auth_plugin_data as
-   input.
+   @ref page_protocol_connection_phase_packets_protocol_handshake packet
+   the client may use the first 8 bytes of its 20-byte auth_plugin_data as input.
 
    @startuml
    Client->Server: 8 byte random data
@@ -803,15 +746,14 @@ struct MEM_ROOT;
    @warning The hashing algorithm used for this auth method is *broken* as
    shown in CVE-2000-0981.
 
-   @subpage page_protocol_conn_auth_methods_native_password_authentication
+   @subpage page_protocol_connection_phase_authentication_methods_native_password_authentication
    @subpage page_caching_sha2_authentication_exchanges
-   @subpage page_protocol_conn_auth_methods_clear_text_password
-   @subpage page_protocol_conn_auth_methods_auth_windows
+   @subpage page_protocol_connection_phase_authentication_methods_clear_text_password
+   @subpage page_protocol_connection_phase_authentication_methods_authentication_windows
 */
 
 /**
-  @page page_protocol_conn_packets_protocol_handshake
-  Protocol::Handshake
+  @page page_protocol_connection_phase_packets_protocol_handshake Protocol::Handshake
 
   Initial Handshake %Packet
 
@@ -822,24 +764,25 @@ struct MEM_ROOT;
   To permit the server to add support for newer protocols, the first byte
   defines the protocol version.
 
-  Since 3.21.0 the @ref
-  page_protocol_conn_packets_protocol_handshake_v10 is sent.
+  Since 3.21.0 the @ref page_protocol_connection_phase_packets_protocol_handshake_v10
+  is sent.
 
-  * @subpage page_protocol_conn_packets_protocol_handshake_v9
-  * @subpage page_protocol_conn_packets_protocol_handshake_v10
+  * @subpage page_protocol_connection_phase_packets_protocol_handshake_v9
+  * @subpage page_protocol_connection_phase_packets_protocol_handshake_v10
 */
 
 /**
-  @page page_protocol_conn_packets Connection Phase Packets
+  @page page_protocol_connection_phase_packets Connection Phase Packets
 
-  @subpage page_protocol_conn_packets_protocol_handshake
-  @subpage page_protocol_conn_packets_protocol_ssl_request
-  @subpage page_protocol_conn_packets_protocol_handshake_response
-  @subpage page_protocol_conn_packets_protocol_auth_switch_request
-  @subpage page_protocol_conn_packets_protocol_old_auth_switch_request
-  @subpage page_protocol_conn_packets_protocol_auth_switch_response
-  @subpage page_protocol_conn_packets_protocol_auth_more_data
+  @subpage page_protocol_connection_phase_packets_protocol_handshake
+  @subpage page_protocol_connection_phase_packets_protocol_ssl_request
+  @subpage page_protocol_connection_phase_packets_protocol_handshake_response
+  @subpage page_protocol_connection_phase_packets_protocol_auth_switch_request
+  @subpage page_protocol_connection_phase_packets_protocol_old_auth_switch_request
+  @subpage page_protocol_connection_phase_packets_protocol_auth_switch_response
+  @subpage page_protocol_connection_phase_packets_protocol_auth_more_data
 */
+/* clang-format on */
 
 LEX_CSTRING native_password_plugin_name = {
     C_STRING_WITH_LEN("mysql_native_password")};
@@ -1199,9 +1142,9 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
   }
 }
 
+/* clang-format off */
 /**
-  @page page_protocol_conn_packets_protocol_handshake_v9
-  Protocol::HandshakeV9:
+  @page page_protocol_connection_phase_packets_protocol_handshake_v9 Protocol::HandshakeV9:
 
   Initial handshake packet for protocol version 9.
 
@@ -1219,17 +1162,16 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
     <td>a.k.a. connection id</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
     <td>scramble</td>
-    <td>Authentication plugin data for @ref
-  page_protocol_conn_auth_methods_old_password_authentication</td></tr>
+    <td>Authentication plugin data for @ref page_protocol_connection_phase_authentication_methods_old_password_authentication</td></tr>
   </table>
 
-  @returns @ref
-  sect_protocol_conn_packets_protocol_handshake_response320
+  @returns @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
 */
 
+
+
 /**
-  @page page_protocol_conn_packets_protocol_handshake_v10
-  Protocol::HandshakeV10
+  @page page_protocol_connection_phase_packets_protocol_handshake_v10 Protocol::HandshakeV10
 
   Initial handshake packet for protocol version 10.
 
@@ -1256,8 +1198,8 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
     <td>The lower 2 bytes of the \ref group_cs_capabilities_flags</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
     <td>character_set</td>
-    <td>default server \ref a_protocol_character_set, only the lower
-  8-bits</td></tr> <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>default server \ref a_protocol_character_set, only the lower 8-bits</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
     <td>status_flags</td>
     <td>\ref SERVER_STATUS_flags_enum</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
@@ -1266,9 +1208,10 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
   <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
     <td>auth_plugin_data_len</td>
-    <td>length of the combined auth_plugin_data (scramble), if
-  auth_plugin_data_len is &gt; 0</td></tr> <tr><td colspan="3">} else
-  {</td></tr> <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td> <td>00</td>
+    <td>length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is &gt; 0</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>00</td>
     <td>constant 0x00</td></tr>
   <tr><td colspan="3">}</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_fix "string[10]"</td>
@@ -1276,10 +1219,10 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
     <td>reserved. All 0s.</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
     <td>auth-plugin-data-part-2</td>
-    <td>Rest of the plugin provided data (scramble), $len=MAX(13, length of
-  auth-plugin-data - 8)</td></tr> <tr><td colspan="3">if capabilities @&
-  ::CLIENT_PLUGIN_AUTH {</td></tr> <tr><td>@ref
-  sect_protocol_basic_dt_string_null "NULL"</td> <td>auth_plugin_name</td>
+    <td>Rest of the plugin provided data (scramble), $len=MAX(13, length of auth-plugin-data - 8)</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "NULL"</td>
+    <td>auth_plugin_name</td>
     <td>name of the auth_method that the auth_plugin_data belongs to</td></tr>
   <tr><td colspan="3">}</td></tr>
   </table>
@@ -1287,21 +1230,22 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
   If the client supports SSL (\ref group_cs_capabilities_flags @& ::CLIENT_SSL
   is on and the \ref mysql_ssl_mode of the client is not ::SSL_MODE_DISABLED)
   a short package called
-  @ref page_protocol_conn_packets_protocol_ssl_request is sent,
+  @ref page_protocol_connection_phase_packets_protocol_ssl_request is sent,
   causing the server to establish an SSL layer and wait for the next package
   from the client.
 
   Client then returns
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
 
   At any time, at any error, the client will just disconnect.
 
   @sa send_server_handshake_packet mysql_real_connect
 */
+/* clang-format on */
 
 /**
   Sends a server @ref
-  page_protocol_conn_packets_protocol_handshake_v10
+  page_protocol_connection_phase_packets_protocol_handshake_v10
 
   @retval 0 ok
   @retval 1 error
@@ -1398,15 +1342,14 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   DBUG_RETURN(res);
 }
 
+/* clang-format off */
 /**
-  @page page_protocol_conn_packets_protocol_auth_switch_request
-  Protocol::AuthSwitchRequest:
+  @page page_protocol_connection_phase_packets_protocol_auth_switch_request Protocol::AuthSwitchRequest:
 
   Authentication method Switch Request Packet
 
   If both server and the client support @ref CLIENT_PLUGIN_AUTH capability,
-  server can send this packet tp ask client to use another authentication
-  method.
+  server can send this packet tp ask client to use another authentication method.
 
   <table>
   <caption>Payload</caption>
@@ -1422,31 +1365,26 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
     <td>Initial authentication data for that client plugin</td></tr>
   </table>
 
-  @return @ref
-  page_protocol_conn_packets_protocol_auth_switch_response or
-  closing the connection.
+  @return @ref page_protocol_connection_phase_packets_protocol_auth_switch_response
+  or closing the connection.
 
   @sa send_plugin_request_packet(), client_mpvio_read_packet()
 */
 
-/**
-  @page page_protocol_conn_packets_protocol_old_auth_switch_request
-  Protocol::OldAuthSwitchRequest:
 
-  @warning *Deprecated*. Newer servers should never send this since they don't
-  support
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+/**
+  @page page_protocol_connection_phase_packets_protocol_old_auth_switch_request Protocol::OldAuthSwitchRequest:
+
+  @warning *Deprecated*. Newer servers should never send this since they don't support
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   and they support @ref CLIENT_PLUGIN_AUTH.
   Newer clients should not support it since they should not support
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication.
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication.
   and they should support @ref CLIENT_PLUGIN_AUTH.
 
   Old Authentication Method Switch Request Packet consisting of
   a single 0xfe byte. It is sent by server to request client to switch to
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   if @ref CLIENT_PLUGIN_AUTH capability flag is not supported (by either the
   client or the server).
 
@@ -1458,22 +1396,20 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
     <td>status tag</td></tr>
   </table>
 
-  @return @ref
-  page_protocol_conn_packets_protocol_auth_switch_response with an
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+  @return @ref page_protocol_connection_phase_packets_protocol_auth_switch_response
+  with an
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
   hash or closing the connection.
 
   @sa client_mpvio_read_packet()
  */
 
 /**
-  @page page_protocol_conn_packets_protocol_auth_switch_response
-  Protocol::AuthSwitchResponse:
+  @page page_protocol_connection_phase_packets_protocol_auth_switch_response Protocol::AuthSwitchResponse:
 
   Authentication Method Switch Response Packet which contains response data
   generated by the authenticatication method requested in
-  @ref page_protocol_conn_packets_protocol_old_auth_switch_request
+  @ref page_protocol_connection_phase_packets_protocol_old_auth_switch_request
   packet. This data is opaque to the protocol.
 
   <table>
@@ -1484,21 +1420,18 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
     <td>authentication response data</td></tr>
   </table>
 
-  @return @ref page_protocol_conn_packets_protocol_auth_more_data,
+  @return @ref page_protocol_connection_phase_packets_protocol_auth_more_data,
     @ref page_protocol_basic_err_packet or @ref page_protocol_basic_ok_packet
 
   Example:
 
   If the client sends a @ref page_caching_sha2_authentication_exchanges and
   the server has a
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   for that user it will ask the client to switch to
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   and the client will reply from the
-  @ref
-  page_protocol_conn_auth_methods_native_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
   plugin:
 
   <table>
@@ -1526,19 +1459,18 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 */
 
 /**
-  @page page_protocol_conn_packets_protocol_auth_more_data
-  Protocol::AuthMoreData:
+  @page page_protocol_connection_phase_packets_protocol_auth_more_data Protocol::AuthMoreData:
 
 
   We need to make sure that when sending plugin supplied data to the client they
   are not considered a special out-of-band command, like e.g.
   @ref page_protocol_basic_err_packet,
-  @ref page_protocol_conn_packets_protocol_auth_switch_request
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
   or @ref page_protocol_basic_ok_packet.
   To avoid this the server will send all plugin data packets "wrapped"
   in a command \1.
   Note that the client will continue sending its replies unrwapped:
-  @ref page_protocol_conn_packets_protocol_auth_switch_response
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_response
 
 
   <table>
@@ -1555,15 +1487,16 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   @sa wrap_plguin_data_into_proper_command, server_mpvio_write_packet,
   client_mpvio_read_packet
 */
+/* clang-format on */
 
 /**
   Sends a @ref
-  page_protocol_conn_packets_protocol_auth_switch_request packet.
+  page_protocol_connection_phase_packets_protocol_auth_switch_request
 
   Used by the server to reequest that a client should restart authentication
   using a different authentication plugin.
 
-  See @ref page_protocol_conn_packets_protocol_auth_switch_request
+  See @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
   for more details.
 
   @retval false ok
@@ -1896,6 +1829,7 @@ bool sha256_rsa_auth_status() {
 #endif /* !HAVE_OPENSSL || HAVE_WOLFSSL */
 }
 
+/* clang-format off */
 /**
   @page page_protocol_com_change_user COM_CHANGE_USER
 
@@ -1908,11 +1842,10 @@ bool sha256_rsa_auth_status() {
   - ... and others
 
   It is going through the same states as the
-  @ref sect_protocol_conn_initial_handshake
+  @ref sect_protocol_connection_phase_initial_handshake
 
-  @return @ref
-  page_protocol_conn_packets_protocol_auth_switch_request or @ref
-  page_protocol_basic_err_packet
+  @return @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
+    or @ref page_protocol_basic_err_packet
 
   <table>
   <caption>Payload</caption>
@@ -1923,11 +1856,13 @@ bool sha256_rsa_auth_status() {
   <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
       <td>user</td>
       <td>user name</td></tr>
-  <tr><td colspan="3">if capabilities @& @ref CLIENT_RESERVED2
-  "CLIENT_SECURE_CONNECTION" {</td></tr> <tr><td>@ref a_protocol_type_int1
-  "int&lt;1&gt;"</td> <td>auth_plugin_data_len</td> <td>length of
-  auth_response</td></tr> <tr><td>@ref sect_protocol_basic_dt_string_le
-  "$length"</td> <td>auth_plugin_data</td> <td>authentication data</td></tr>
+  <tr><td colspan="3">if capabilities @& @ref CLIENT_RESERVED2 "CLIENT_SECURE_CONNECTION" {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>auth_plugin_data_len</td>
+      <td>length of auth_response</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+      <td>auth_plugin_data</td>
+      <td>authentication data</td></tr>
   <tr><td colspan="3">} else {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
       <td>auth_plugin_data</td>
@@ -1940,32 +1875,34 @@ bool sha256_rsa_auth_status() {
   <tr><td colspan="3">if capabilities @& ::CLIENT_PROTOCOL_41 {</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>character_set</td>
-      <td>new connection character set. See @ref
-  page_protocol_basic_character_set</td></tr> <tr><td colspan="3">} --
-  ::CLIENT_PROTOCOL_41</td></tr> <tr><td colspan="3">if capabilities @&
-  ::CLIENT_PLUGIN_AUTH {</td></tr> <tr><td>@ref
-  sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>new connection character set. See @ref page_protocol_basic_character_set</td></tr>
+  <tr><td colspan="3">} -- ::CLIENT_PROTOCOL_41</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
       <td>auth_plugin_name</td>
-      <td>client authentication plugin name used to generate
-  auth_plugin_data</td></tr> <tr><td colspan="3">} --
-  ::CLIENT_PLUGIN_AUTH</td></tr> <tr><td colspan="3">if capabilities @&
-  ::CLIENT_CONNECT_ATTRS {</td></tr> <tr><td>@ref sect_protocol_basic_dt_int_le
-  "int&lt;lenenc&gt;"</td> <td>connection_attributes_length</td> <td>length in
-  bytes of the following block of key-value pairs</td></tr> <tr><td>@ref
-  sect_protocol_basic_dt_string_le "$length"</td> <td>key</td> <td>Key
-  name</td></tr> <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+      <td>client authentication plugin name used to generate auth_plugin_data</td></tr>
+  <tr><td colspan="3">} -- ::CLIENT_PLUGIN_AUTH</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_CONNECT_ATTRS {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>connection_attributes_length</td>
+      <td>length in bytes of the following block of key-value pairs</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+      <td>key</td>
+      <td>Key name</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
       <td>value</td>
       <td>value of key</td></tr>
-  <tr><td colspan="3">more key/value pairs until connection_attributes_length is
-  depleted</td></tr> <tr><td colspan="3">} -- ::CLIENT_CONNECT_ATTRS</td></tr>
+  <tr><td colspan="3">more key/value pairs until connection_attributes_length is depleted</td></tr>
+  <tr><td colspan="3">} -- ::CLIENT_CONNECT_ATTRS</td></tr>
   <tr><td colspan="3">} -- more data available</td></tr>
   </table>
 
-  Please also read @ref sect_protocol_conn_com_change_user_auth
+  Please also read @ref sect_protocol_connection_phase_com_change_user_auth
 
   @sa mysql_change_user, send_change_user_packet, parse_com_change_user_packet,
   acl_authenticate, dispatch_command
 */
+/* clang-format on */
 
 /**
   @brief Parses a @ref page_protocol_com_change_user
@@ -2616,7 +2553,7 @@ skip_to_ssl:
 /**
   Wrap the extra auth data sent so that they can pass in the protocol.
 
-  Check @ref page_protocol_conn_packets_protocol_auth_more_data
+  Check @ref page_protocol_connection_phase_packets_protocol_auth_more_data
   for the format description.
 
   @retval 0 ok
@@ -3539,9 +3476,9 @@ static int compare_native_password_with_hash(const char *hash,
   DBUG_RETURN(result);
 }
 
+/* clang-format off */
 /**
-  @page page_protocol_conn_auth_methods_native_password_authentication
-  Native Authentication
+  @page page_protocol_connection_phase_authentication_methods_native_password_authentication Native Authentication
 
   Authentication::Native41:
 
@@ -3569,8 +3506,7 @@ static int compare_native_password_with_hash(const char *hash,
   @enduml
 
   This method fixes a 2 short-comings of the
-  @ref
-  page_protocol_conn_auth_methods_old_password_authentication
+  @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
 
   1. using a tested, crypto-graphic hashing function (SHA1)
   2. knowning the content of the hash in the mysql.user table isn't enough
@@ -3578,8 +3514,7 @@ static int compare_native_password_with_hash(const char *hash,
 
   The network packet content for the password is calculated by:
   ~~~~~
-  SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1(
-  SHA1( password ) ) )
+  SHA1( password ) XOR SHA1( "20-bytes random data from server" <concat> SHA1( SHA1( password ) ) )
   ~~~~~
 
   The following is stored into mysql.user.authentication_string
@@ -3591,6 +3526,7 @@ static int compare_native_password_with_hash(const char *hash,
   native_password_client_plugin, native_password_handler,
   check_scramble_sha1, compute_two_stage_sha1_hash, make_password_from_salt
 */
+/* clang-format on */
 
 /**
   MySQL Server Password Authentication Plugin

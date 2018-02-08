@@ -41,6 +41,7 @@
 #include "mysql/psi/mysql_socket.h"
 #include "vio/vio_priv.h"
 
+/* clang-format off */
 /**
   @page page_protocol_basic_tls TLS
 
@@ -50,12 +51,12 @@
   the network layer.
 
   The TLS suppport is announced in
-  @ref page_protocol_conn_packets_protocol_handshake sent by the
+  @ref page_protocol_connection_phase_packets_protocol_handshake sent by the
   server via ::CLIENT_SSL and is enabled if the client returns the same
   capability.
 
   For an unencrypted connection the server starts with its
-  @ref page_protocol_conn_packets_protocol_handshake :
+  @ref page_protocol_connection_phase_packets_protocol_handshake :
 
   ~~~~~~~
   36 00 00 00 0a 35 2e 35    2e 32 2d 6d 32 00 52 00    6....5.5.2-m2.R.
@@ -65,7 +66,7 @@
   ~~~~~~~
 
   ... and the client returns its
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
 
   ~~~~~~~
   3a 00 00 01 05 a6 03 00    00 00 00 01 08 00 00 00    :...............
@@ -75,7 +76,7 @@
   ~~~~~~~
 
   If client wants to do TLS and the server supports it, it would send a
-  @ref page_protocol_conn_packets_protocol_ssl_request with
+  @ref page_protocol_connection_phase_packets_protocol_ssl_request with
   ::CLIENT_SSL capability enabled.
 
   ~~~~~~~
@@ -96,18 +97,18 @@
   ~~~~~~~
 
   The preceding packet is from SSL_connect() which does the
-  [TLS
-  handshake](https://en.wikipedia.org/wiki/Transport_Layer_Security#TLS_handshake)
+  [TLS handshake](https://en.wikipedia.org/wiki/Transport_Layer_Security#TLS_handshake)
 
   Once the TLS tunnel is established the normal communication continues
   starting with the client sending the
-  @ref page_protocol_conn_packets_protocol_handshake_response
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
 
-  See @ref sect_protocol_conn_initial_handshake_ssl_handshake
+  See @ref sect_protocol_connection_phase_initial_handshake_ssl_handshake
   for a diagram of the exchange.
 
   @sa cli_establish_ssl, parse_client_handshake_packet
 */
+/* clang-format on */
 
 #ifdef HAVE_OPENSSL
 
