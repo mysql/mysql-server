@@ -19165,7 +19165,6 @@ void Dbtc::executeIndexOperation(Signal* signal,
    */
   TcConnectRecordPtr tmp;
   tmp.i = indexOp->indexReadTcConnect;
-  releaseIndexOperation(regApiPtr, indexOp);
 
   tcConnectRecord.getPtr(tmp);
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
@@ -19194,6 +19193,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
     regApiPtr->immediateTriggerId = triggerId;
     regApiPtr->m_executing_trigger_ops++;
   }
+  releaseIndexOperation(regApiPtr, indexOp);
 
   /* Execute TCKEYREQ now - it is now responsible for freeing
    * the KeyInfo and AttrInfo sections 
