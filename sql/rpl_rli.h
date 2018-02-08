@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -841,7 +841,9 @@ public:
      Coordinator notifies Workers about this event. Coordinator and Workers
      maintain a bitmap of executed group that is reset with a new checkpoint. 
   */
-  void reset_notified_checkpoint(ulong, time_t, bool);
+  void reset_notified_checkpoint(ulong count, time_t new_ts,
+                                 bool need_data_lock,
+                                 bool update_timestamp= false);
 
   /**
      Called when gaps execution is ended so it is crash-safe
