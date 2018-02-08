@@ -27,6 +27,8 @@
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "mysql/plugin.h"          // thd_get_thread_id
+#include "sql/ndb_log.h"
+#include "sql/ndb_thd.h"
 #include "sql/sql_error.h"
 
 /*
@@ -226,6 +228,16 @@ static void push_condition(THD* thd,
   vsnprintf(msg_buf, sizeof(msg_buf), fmt, args);
 
   push_warning(thd, severity, code, msg_buf);
+
+  // Workaround problem where Ndb_local_connection can't access the
+  // warnings produced when running a SQL query, instead detect
+  // if this a binlog thread and print the warning also to log.
+  // NOTE! This can be removed when BUG#27507543 has been implemented
+  // and instead log these warnings in a more controlled/selective manner
+  // in Ndb_local_connection.
+  if (ndb_thd_is_binlog_thread(thd)) {
+    ndb_log_warning("%s", msg_buf);
+  }
 }
 
 void Thd_ndb::push_warning(const char* fmt, ...) const {

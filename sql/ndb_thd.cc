@@ -25,6 +25,7 @@
 #include "sql/ndb_thd.h"
 
 #include "my_dbug.h"
+#include "mysql/thread_type.h"
 #include "sql/ndb_thd_ndb.h"
 #include "sql/sql_class.h"
 
@@ -92,3 +93,8 @@ thd_unmasked_server_id(const THD* thd)
 const char* ndb_thd_query(const THD* thd) { return thd->query().str; }
 
 size_t ndb_thd_query_length(const THD* thd) { return thd->query().length; }
+
+bool ndb_thd_is_binlog_thread(const THD* thd)
+{
+  return thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+}

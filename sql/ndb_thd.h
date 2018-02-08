@@ -78,4 +78,11 @@ const char* ndb_thd_query(const THD* thd);
 */
 size_t ndb_thd_query_length(const THD* thd);
 
+/*
+ @brief Check if THD is the "binlog injector thread"
+
+ @return true if thread matches condition
+*/
+bool ndb_thd_is_binlog_thread(const class THD* thd);
+
 #endif
