@@ -3148,6 +3148,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   /* The tablespace may already be open. */
   if (fil_space_exists_in_mem(table->space, space_name, false, true, heap,
                               table->id)) {
+    dd_get_and_save_data_dir_path(table, dd_table, true);
     ut_free(shared_space_name);
     return;
   }
