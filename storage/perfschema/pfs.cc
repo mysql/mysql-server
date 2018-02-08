@@ -783,7 +783,7 @@ inline_mysql_mutex_lock(mysql_mutex_t *that,
   @code
   BEGIN_COMPONENT_REQUIRES(pfs_example)
     REQUIRES_SERVICE(mysql_mutex_v1)
-  END_COMPONENT_REQUIRES()
+  END_COMPONENT_REQUIRES();
   @endcode
 
   When the component is loaded:
@@ -8217,42 +8217,36 @@ PSI_engine_data_lock_inspector *g_data_lock_inspector[COUNT_DATA_LOCK_ENGINES] =
     {NULL};
 unsigned int g_data_lock_inspector_count = 0;
 
-/* clang-format off */
 BEGIN_COMPONENT_PROVIDES(performance_schema)
-  PROVIDES_SERVICE(performance_schema, psi_cond_v1)
-  PROVIDES_SERVICE(performance_schema, psi_error_v1)
-  PROVIDES_SERVICE(performance_schema, psi_file_v1)
-  PROVIDES_SERVICE(performance_schema, psi_idle_v1)
-  PROVIDES_SERVICE(performance_schema, psi_mdl_v1)
-  PROVIDES_SERVICE(performance_schema, psi_memory_v1)
-  PROVIDES_SERVICE(performance_schema, psi_mutex_v1)
-  PROVIDES_SERVICE(performance_schema, psi_rwlock_v1)
-  PROVIDES_SERVICE(performance_schema, psi_socket_v1)
-  PROVIDES_SERVICE(performance_schema, psi_stage_v1)
-  PROVIDES_SERVICE(performance_schema, psi_statement_v1)
-  PROVIDES_SERVICE(performance_schema, psi_table_v1)
-  PROVIDES_SERVICE(performance_schema, psi_thread_v1)
-  PROVIDES_SERVICE(performance_schema, psi_transaction_v1)
-  PROVIDES_SERVICE(performance_schema, pfs_plugin_table)
-END_COMPONENT_PROVIDES()
+PROVIDES_SERVICE(performance_schema, psi_cond_v1),
+    PROVIDES_SERVICE(performance_schema, psi_error_v1),
+    PROVIDES_SERVICE(performance_schema, psi_file_v1),
+    PROVIDES_SERVICE(performance_schema, psi_idle_v1),
+    PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
+    PROVIDES_SERVICE(performance_schema, psi_memory_v1),
+    PROVIDES_SERVICE(performance_schema, psi_mutex_v1),
+    PROVIDES_SERVICE(performance_schema, psi_rwlock_v1),
+    PROVIDES_SERVICE(performance_schema, psi_socket_v1),
+    PROVIDES_SERVICE(performance_schema, psi_stage_v1),
+    PROVIDES_SERVICE(performance_schema, psi_statement_v1),
+    PROVIDES_SERVICE(performance_schema, psi_table_v1),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v1),
+    PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
+    PROVIDES_SERVICE(performance_schema, pfs_plugin_table),
+    END_COMPONENT_PROVIDES();
 
-static BEGIN_COMPONENT_REQUIRES(performance_schema)
-END_COMPONENT_REQUIRES()
+static BEGIN_COMPONENT_REQUIRES(performance_schema) END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(performance_schema)
-  METADATA("mysql.author", "Oracle Corporation")
-  METADATA("mysql.license", "GPL")
-END_COMPONENT_METADATA()
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(performance_schema, "mysql:pfs")
-  /* There are no initialization/deinitialization functions, they will not be
-     called as this component is not a regular one. */
-  NULL,
-  NULL
-END_DECLARE_COMPONENT()
-    /* clang-format on */
+/* There are no initialization/deinitialization functions, they will not be
+   called as this component is not a regular one. */
+NULL, NULL END_DECLARE_COMPONENT();
 
-    bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg) {
+bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg) {
   int inx = 0;
 
   for (;;) {
