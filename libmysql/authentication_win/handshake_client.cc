@@ -286,9 +286,9 @@ Blob Handshake_client::process_data(const Blob &data) {
 
 /**********************************************************************/
 
+/* clang-format off */
 /**
-  @page page_protocol_conn_auth_methods_auth_windows
-  Windows Native Authentication
+  @page page_protocol_connection_phase_authentication_methods_authentication_windows Windows Native Authentication
 
   Authentication::WindowsAuth:
 
@@ -306,19 +306,16 @@ Blob Handshake_client::process_data(const Blob &data) {
   and back than the old handshake permitted.
 
   Basically it wraps the output of the
-  [Negotiate
-  SSP]("http://msdn.microsoft.com/en-us/library/windows/desktop/aa378748(v=VS.85).aspx")
+  [Negotiate SSP]("http://msdn.microsoft.com/en-us/library/windows/desktop/aa378748(v=VS.85).aspx")
   in the Auth Phase protocol which either means
-  @ref sect_protocol_conn_auth_methods_auth_windows_ntlm
-  or
-  @ref sect_protocol_conn_auth_methods_auth_windows_spnego
+  @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm or
+  @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego
   are used as underlying protocol.
 
   Due to the implementation details the Windows Native Authentication method
-  doesn't use the fast path of the @ref page_protocol_conn, but is
+  doesn't use the fast path of the @ref page_protocol_connection_phase, but is
   only triggered on request as part of the
-  @ref page_protocol_conn_packets_protocol_auth_switch_request
-  packet.
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request packet.
 
 
   @note Due to implementation details (again) the first packet sent from the
@@ -329,16 +326,15 @@ Blob Handshake_client::process_data(const Blob &data) {
   Also following windows authentication packets don't get split.
 
   The client will send either a
-  @ref sect_protocol_conn_auth_methods_auth_windows_spnego
-  or a @ref sect_protocol_conn_auth_methods_auth_windows_ntlm
+  @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego
+  or a @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm
   packet as a next packet.
 
   To implement the protocol one can use several existing implementations:
   <ul>
   <li>MS Windows provides
   [InitializeSecurityContextW](http://msdn.microsoft.com/en-us/library/windows/desktop/aa375509(v=VS.85).aspx)
-  and
-  [AcceptSecurityContext](http://msdn.microsoft.com/en-us/library/aa374703.aspx)
+  and [AcceptSecurityContext](http://msdn.microsoft.com/en-us/library/aa374703.aspx)
   </li>
   <li>A open source implemenation of NTML, SPNEGO and Kerberos5 are provided by
   [Heimdal](http://www.h5l.org/)
@@ -351,14 +347,11 @@ Blob Handshake_client::process_data(const Blob &data) {
   @sa win_auth_handshake_client
 
 
-  @section sect_protocol_conn_auth_methods_auth_windows_ntlm
-  NTLM
+  @section sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm NTLM
 
-  @note [Removed in Windows Vista and
-  2008](http://msdn.microsoft.com/en-us/library/aa480152.aspx#appcomp_topic16)
+  @note [Removed in Windows Vista and 2008](http://msdn.microsoft.com/en-us/library/aa480152.aspx#appcomp_topic16)
 
-  @note Documented in
-  [MSDN](https://msdn.microsoft.com/en-us/library/cc207842.aspx)
+  @note Documented in [MSDN](https://msdn.microsoft.com/en-us/library/cc207842.aspx)
 
   @startuml
   Client->Server: NTLM request
@@ -369,8 +362,7 @@ Blob Handshake_client::process_data(const Blob &data) {
   @enduml
 
 
-  @section sect_protocol_conn_auth_methods_auth_windows_spnego
-  SPNEGO
+  @section sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego SPNEGO
 
   Uses GSS-API as protocol and negotiates the proper auth-method automatically.
   @par Tip
@@ -401,6 +393,7 @@ Blob Handshake_client::process_data(const Blob &data) {
   @enduml
 
 */
+/* clang-format on */
 
 /**
   Perform authentication handshake from client side.

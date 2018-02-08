@@ -25,25 +25,22 @@
   MySQL server daemon.
 */
 
+/* clang-format off */
 /**
   @mainpage Welcome
 
   Welcome to the MySQL source code documentation.
 
   The order chosen to present the content is to start with low level components,
-  and build upon previous sections, so that code is presented in a logical
-  order.
+  and build upon previous sections, so that code is presented in a logical order.
 
-  For some sections, a full article (Doxygen 'page') presents the component in
-  detail.
+  For some sections, a full article (Doxygen 'page') presents the component in detail.
 
-  For other sections, only links are provided, as a starting point into the
-  component.
+  For other sections, only links are provided, as a starting point into the component.
 
   For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
 
-  For the internals manual, see
-  https://dev.mysql.com/doc/internals/en/index.html
+  For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
 
   Document generated on: ${DOXYGEN_GENERATION_DATE},
   branch: ${DOXYGEN_GENERATION_BRANCH},
@@ -75,8 +72,7 @@
   - #my_message_sql
   - #dispatch_command
 
-  Replace 'main.parser' with another test script, or write your own, to debug a
-  specific area.
+  Replace 'main.parser' with another test script, or write your own, to debug a specific area.
 */
 
 /**
@@ -84,8 +80,7 @@
 
   This section shows the guidelines that MySQL developers
   follow when writing new code. In general, MySQL development
-  uses the Google coding style (See
-  https://google.github.io/styleguide/cppguide.html):
+  uses the Google coding style (See https://google.github.io/styleguide/cppguide.html):
 
   - For new projects/components, use Google coding style wherever
     possible.
@@ -197,7 +192,7 @@
   The protocol supports these features:
     - Transparent encryption using SSL
     - Transparent compression
-    - A @ref page_protocol_conn where capabilities and
+    - A @ref page_protocol_connection_phase where capabilities and
       authentication data are exchanged
     - A @ref page_protocol_command_phase which accepts commands
       from the client and executes them
@@ -252,6 +247,7 @@
   @subpage PAGE_TEMPTABLE
 */
 
+
 /**
   @page PAGE_REPLICATION Replication
 
@@ -270,6 +266,7 @@
 
   @subpage AUTHORIZATION_PAGE
 */
+
 
 /**
   @page PAGE_MONITORING Monitoring
@@ -339,17 +336,20 @@
   To learn how to create these user defined functions see @subpage page_ext_udf
 */
 
+
 /**
   @page PAGE_CLIENT_TOOLS Client tools
 
   See mysqldump.cc mysql.cc
 */
 
+
 /**
   @page PAGE_TESTING_TOOLS Testing Tools
 
   - @subpage PAGE_MYSQL_TEST_RUN
 */
+
 
 /**
   @page PAGE_SQL_Optimizer SQL Optimizer
@@ -370,6 +370,7 @@
   - @ref PAGE_OPT_TRACE
   - @ref AGGREGATE_CHECKS
 */
+/* clang-format on */
 
 #define LOG_SYSTEM_TAG "mysqld"
 

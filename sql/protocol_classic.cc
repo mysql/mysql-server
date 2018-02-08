@@ -27,6 +27,7 @@
   The actual communication is handled by the net_xxx functions in net_serv.cc
 */
 
+/* clang-format off */
 /**
   @page page_protocol_basics Protocol Basics
 
@@ -39,6 +40,7 @@
   - @subpage page_protocol_basic_tls
   - @subpage page_protocol_basic_expired_passwords
 */
+
 
 /**
   @page page_protocol_basic_data_types Basic Data Types
@@ -175,6 +177,7 @@
   @sa ::dispatch_command
 */
 
+
 /**
    @page page_protocol_command_phase_utility Utility Commands
 
@@ -190,6 +193,7 @@
    - @subpage page_protocol_com_change_user
    - @subpage page_protocol_com_reset_connection
 */
+
 
 /**
    @page page_protocol_command_phase_text Text Protocol
@@ -228,12 +232,12 @@
   @page page_protocol_connection_lifecycle Connection Lifecycle
 
   The MySQL protocol is a stateful protocol. When a connection is established
-  the server initiates a \ref page_protocol_conn. Once that is
+  the server initiates a \ref page_protocol_connection_phase. Once that is
   performed the connection enters the \ref page_protocol_command_phase. The
   \ref page_protocol_command_phase ends when the connection terminates.
 
   Further reading:
-  - @subpage page_protocol_conn
+  - @subpage page_protocol_connection_phase
   - @subpage page_protocol_command_phase
 */
 
@@ -278,6 +282,7 @@
   Fields:
      - charset_nr (2) -- number of the character set and collation
 */
+/* clang-format on */
 
 /**
   @defgroup group_cs Client/Server Protocol
@@ -475,6 +480,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   DBUG_RETURN(error);
 }
 
+/* clang-format off */
 /**
   @page page_protocol_basic_ok_packet OK_Packet
 
@@ -503,8 +509,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>warnings</td>
       <td>number of warnings</td></tr>
-  <tr><td colspan="3">} else if capabilities @& ::CLIENT_TRANSACTIONS
-  {</td></tr> <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+  <tr><td colspan="3">} else if capabilities @& ::CLIENT_TRANSACTIONS {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>status_flags</td>
       <td>@ref SERVER_STATUS_flags_enum</td></tr>
   <tr><td colspan="3">}</td></tr>
@@ -512,10 +518,10 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>info</td>
       <td>human readable status information</td></tr>
-  <tr><td colspan="3">  if status_flags @& ::SERVER_SESSION_STATE_CHANGED
-  {</td></tr> <tr><td>@ref sect_protocol_basic_dt_string_le
-  "string&lt;lenenc&gt;"</td> <td>session state info</td>
-  <td>@anchor a_protocol_basic_ok_packet_sessinfo
+  <tr><td colspan="3">  if status_flags @& ::SERVER_SESSION_STATE_CHANGED {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>session state info</td>
+      <td>@anchor a_protocol_basic_ok_packet_sessinfo
           @ref sect_protocol_basic_ok_packet_sessinfo</td></tr>
   <tr><td colspan="3">  }</td></tr>
   <tr><td colspan="3">} else {</td></tr>
@@ -568,8 +574,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   Interpretation of the data field depends on the type value:
 
-  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SYSTEM_VAR
-  SESSION_TRACK_SYSTEM_VARIABLES
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SYSTEM_VARIABLES SESSION_TRACK_SYSTEM_VARIABLES
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
@@ -595,8 +600,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   ~~~~~~~~~~~~~~~~~~~~~
   </td></tr></table>
 
-  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SCHEMA
-  SESSION_TRACK_SCHEMA
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SCHEMA SESSION_TRACK_SCHEMA
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
@@ -620,8 +624,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   ~~~~~~~~~~~~~~~~~~~~~
   </td></tr></table>
 
-  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_STATE_CHANGE
-  SESSION_TRACK_STATE_CHANGE
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_STATE_CHANGE SESSION_TRACK_STATE_CHANGE
 
   A flag byte that indicates whether session state changes occurred.
   This flag is represented as an ASCII value.
@@ -650,6 +653,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   See also net_send_ok()
 */
+/* clang-format on */
 
 /**
   Return OK to the client.
@@ -785,6 +789,7 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
 
 static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
 
+/* clang-format off */
 /**
   @page page_protocol_basic_eof_packet EOF_Packet
 
@@ -840,6 +845,7 @@ static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
 
   @sa net_send_eof().
 */
+/* clang-format on */
 
 /**
   Send eof (= end of result set) to the client.
@@ -920,6 +926,7 @@ static bool write_eof_packet(THD *thd, NET *net, uint server_status,
   return error;
 }
 
+/* clang-format off */
 /**
   @page page_protocol_basic_err_packet ERR_Packet
 
@@ -967,6 +974,7 @@ static bool write_eof_packet(THD *thd, NET *net, uint server_status,
 
   @sa net_send_error_packet()
 */
+/* clang-format on */
 
 /**
   @param thd          Thread handler
@@ -1233,6 +1241,7 @@ int Protocol_classic::read_packet() {
   return ret;
 }
 
+/* clang-format off */
 /**
   @page page_protocol_com_quit COM_QUIT
 
@@ -1248,6 +1257,7 @@ int Protocol_classic::read_packet() {
 
   Server closes the connection or returns @ref page_protocol_basic_err_packet.
 */
+
 
 /**
   @page page_protocol_com_init_db COM_INIT_DB
@@ -1274,6 +1284,7 @@ int Protocol_classic::read_packet() {
   05 00 00 00 02 74 65 73    74                         .....test
   ~~~~~~~~~
 */
+
 
 /**
   @page page_protocol_com_query COM_QUERY
@@ -1306,6 +1317,7 @@ int Protocol_classic::read_packet() {
   @sa Protocol_classic::parse_packet, dispatch_command,
     mysql_parse, alloc_query, THD::set_query
 */
+
 
 /**
   @page page_protocol_com_query_response COM_QUERY Response
@@ -1354,12 +1366,11 @@ int Protocol_classic::read_packet() {
   @sa cli_read_query_result, mysql_send_query, mysql_execute_command
 */
 
-/**
-  @page page_protocol_com_query_response_local_infile_request LOCAL INFILE
-  Request
 
-  If the client wants to `LOAD DATA` from a `LOCAL` file into the server it
-  sends:
+/**
+  @page page_protocol_com_query_response_local_infile_request LOCAL INFILE Request
+
+  If the client wants to `LOAD DATA` from a `LOCAL` file into the server it sends:
 
   ~~~~~
   LOAD DATA LOCAL INFILE '<filename>' INTO TABLE <table>;
@@ -1401,11 +1412,12 @@ int Protocol_classic::read_packet() {
   Sql_cmd_load_table::execute_inner
 */
 
+
 /**
   @page page_protocol_com_query_response_local_infile_data LOCAL INFILE Data
 
-  If the client has data to send, it sends in one or more non-empty packets AS
-  IS followed by a empty packet.
+  If the client has data to send, it sends in one or more non-empty packets AS IS
+  followed by a empty packet.
 
   If the file is empty or there is a error while reading the file only the empty
   packet is sent.
@@ -1421,6 +1433,7 @@ int Protocol_classic::read_packet() {
   @sa handle_local_infile, mysql_set_local_infile_handler, net_request_file,
   Sql_cmd_load_table::execute_inner
 */
+
 
 /**
   @page page_protocol_com_query_response_text_resultset Text Resultset
@@ -1440,44 +1453,40 @@ int Protocol_classic::read_packet() {
   Each row is a packet, too. The rows are terminated by another
   @ref page_protocol_basic_eof_packet. In case the query could generate the
   @ref page_protocol_com_query_response_text_resultset_column_definition set,
-  but generating the rows afterwards failed, a @ref
-  page_protocol_basic_err_packet may be sent instead of the last @ref
-  page_protocol_basic_eof_packet.
+  but generating the rows afterwards failed, a @ref page_protocol_basic_err_packet
+  may be sent instead of the last @ref page_protocol_basic_eof_packet.
 
   <table>
   <caption>Payload</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-  <tr><td colspan="3">if capabilities @& ::CLIENT_OPTIONAL_RESULTSET_METADATA
-  {</td></tr> <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_OPTIONAL_RESULTSET_METADATA {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
   <td>metadata_follows</td>
-  <td>Flag specifying if metadata are skipped or not. See @ref
-  enum_resultset_metadata</td></tr> <tr><td colspan="3">}</td></tr> <tr><td>@ref
-  sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td> <td>column_count</td>
-      <td>Number of @ref
-  page_protocol_com_query_response_text_resultset_column_definition to
-  follow</td></tr> <tr><td colspan="3">if (not (capabilities @&
-  ::CLIENT_OPTIONAL_RESULTSET_METADATA)) or `metadata_follows` ==
-  ::RESULTSET_METADATA_FULL {</td></tr> <tr><td>`column_count` x @ref
-  page_protocol_com_query_response_text_resultset_column_definition</td>
+  <td>Flag specifying if metadata are skipped or not. See @ref enum_resultset_metadata</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>column_count</td>
+      <td>Number of @ref page_protocol_com_query_response_text_resultset_column_definition to follow</td></tr>
+  <tr><td colspan="3">if (not (capabilities @& ::CLIENT_OPTIONAL_RESULTSET_METADATA))
+                          or `metadata_follows` == ::RESULTSET_METADATA_FULL {</td></tr>
+  <tr><td>`column_count` x @ref page_protocol_com_query_response_text_resultset_column_definition</td>
       <td>Field metadata</td>
-      <td>one @ref
-  page_protocol_com_query_response_text_resultset_column_definition for each
-  field up to `column_count`</td></tr> <tr><td colspan="3">}</td></tr> <tr><td
-  colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF) {</td></tr>
+      <td>one @ref page_protocol_com_query_response_text_resultset_column_definition for each field up to `column_count`</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF) {</td></tr>
   <tr><td>@ref page_protocol_basic_eof_packet</td>
   <td>End of metadata</td>
   <td>Marker to set the end of metadata</td></tr>
   <tr><td colspan="3">}</td></tr>
-  <tr><td>One or more
-  @subpage page_protocol_com_query_response_text_resultset_row</td>
+  <tr><td>One or more @subpage page_protocol_com_query_response_text_resultset_row</td>
   <td>The row data</td>
-  <td>each @ref page_protocol_com_query_response_text_resultset_row contains
-  `column_count` values</td></tr> <tr><td colspan="3">if (error processing)
-  {</td></tr> <tr><td>@ref page_protocol_basic_err_packet</td>
+  <td>each @ref page_protocol_com_query_response_text_resultset_row contains `column_count` values</td></tr>
+  <tr><td colspan="3">if (error processing) {</td></tr>
+  <tr><td>@ref page_protocol_basic_err_packet</td>
   <td>terminator</td>
   <td>Error details</td></tr>
-  <tr><td colspan="3">} else if capabilities @& ::CLIENT_DEPRECATE_EOF
-  {</td></tr> <tr><td>@ref page_protocol_basic_ok_packet</td>
+  <tr><td colspan="3">} else if capabilities @& ::CLIENT_DEPRECATE_EOF {</td></tr>
+  <tr><td>@ref page_protocol_basic_ok_packet</td>
   <td>terminator</td>
   <td>All the execution details</td></tr>
   <tr><td colspan="3">} else {</td></tr>
@@ -1613,6 +1622,7 @@ int Protocol_classic::read_packet() {
   @sa dispatch_command, handle_reload_request, mysql_refresh
 */
 
+
 /**
   @page page_protocol_com_statistics COM_STATISTICS
 
@@ -1635,6 +1645,7 @@ int Protocol_classic::read_packet() {
   @sa cli_read_statistics, mysql_stat, dispatch_command, calc_sum_of_all_status
 */
 
+
 /**
   @page page_protocol_com_process_info COM_PROCESS_INFO
 
@@ -1656,6 +1667,7 @@ int Protocol_classic::read_packet() {
 
   @sa mysql_list_processes, dispatch_command, mysqld_list_processes
 */
+
 
 /**
   @page page_protocol_com_process_kill COM_PROCESS_KILL
@@ -1690,8 +1702,7 @@ int Protocol_classic::read_packet() {
 
   @brief Dump debug info to server's stdout
 
-  COM_DEBUG triggers a dump on internal debug info to stdout of the
-  mysql-server.
+  COM_DEBUG triggers a dump on internal debug info to stdout of the mysql-server.
 
   The ::SUPER_ACL privilege is required for this operation.
 
@@ -1818,8 +1829,8 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>warning_count</td>
       <td>Number of warnings</td></tr>
-  <tr><td colspan="3">if capabilities @& ::CLIENT_OPTIONAL_RESULTSET_METADATA
-  {</td></tr> <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_OPTIONAL_RESULTSET_METADATA {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>metadata_follows</td>
       <td>Flag specifying if metadata are skipped or not.
       See @ref enum_resultset_metadata</td></tr>
@@ -1836,10 +1847,9 @@ int Protocol_classic::read_packet() {
   <caption>Parameter definition block</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td colspan="3">`num_params` *
-    @ref
-  page_protocol_com_query_response_text_resultset_column_definition</td></tr>
-  <tr><td colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF)
-  {</td></tr> <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
+    @ref page_protocol_com_query_response_text_resultset_column_definition</td></tr>
+  <tr><td colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF) {</td></tr>
+  <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
   <tr><td colspan="3">} --::CLIENT_DEPRECATE_EOF</td></tr>
   </table>
 
@@ -1852,16 +1862,14 @@ int Protocol_classic::read_packet() {
   <caption>Column definition block</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td colspan="3">`num_columns` *
-  @ref
-  page_protocol_com_query_response_text_resultset_column_definition</td></tr>
-  <tr><td colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF)
-  {</td></tr> <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
+  @ref page_protocol_com_query_response_text_resultset_column_definition</td></tr>
+  <tr><td colspan="3">if (not capabilities @& ::CLIENT_DEPRECATE_EOF) {</td></tr>
+  <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
   <tr><td colspan="3">} --::CLIENT_DEPRECATE_EOF</td></tr>
   </table>
 
   @par Example
-  for a prepared query like  SELECT CONCAT(?, ?) AS col1 and no
-  ::CLIENT_OPTIONAL_RESULTSET_METADATA
+  for a prepared query like  SELECT CONCAT(?, ?) AS col1 and no ::CLIENT_OPTIONAL_RESULTSET_METADATA
   ~~~~~~~~~~~
   0c 00 00 01 00 01 00 00    00 01 00 02 00 00 00 00|   ................
   17 00 00 02 03 64 65 66    00 00 00 01 3f 00 0c 3f    .....def....?..?
@@ -1874,8 +1882,7 @@ int Protocol_classic::read_packet() {
   ~~~~~~~~~~~
 
   @par Example
-  for a a query without parameters and resultset like DO 1 and no
-  ::CLIENT_OPTIONAL_RESULTSET_METADATA :
+  for a a query without parameters and resultset like DO 1 and no ::CLIENT_OPTIONAL_RESULTSET_METADATA :
   ~~~~~~~~~~~
   0c 00 00 01 00 01 00 00    00 00 00 00 00 00 00 00
   ~~~~~~~~~~~
@@ -1951,8 +1958,8 @@ int Protocol_classic::read_packet() {
       <td>Flags. See ::enum_cursor_type</td></tr>
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
       <td>iteration_count</td>
-      <td>Number of times to execute the statement. Currently
-  always 1.</td></tr> <tr><td colspan="3">if num_params > 0 {</td></tr>
+      <td>Number of times to execute the statement. Currently always 1.</td></tr>
+  <tr><td colspan="3">if num_params > 0 {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>null_bitmap</td>
       <td>NULL bitmap, length= (num_params + 7) / 8</td></tr>
@@ -2006,8 +2013,7 @@ int Protocol_classic::read_packet() {
     <td>column_count</td>
     <td>always grater than 0</td></tr>
   <tr><td colspan="3">`column_count` *
-    @ref
-  page_protocol_com_query_response_text_resultset_column_definition</td></tr>
+    @ref page_protocol_com_query_response_text_resultset_column_definition</td></tr>
   <tr><td colspan="3">None or many
     @ref sect_protocol_binary_resultset_row</td></tr>
   <tr><td colspan="3">@ref page_protocol_basic_eof_packet</td></tr>
@@ -2094,8 +2100,7 @@ int Protocol_classic::read_packet() {
 
   @par Example
   ~~~~~~~~~~
-  Resultset Row, 9 fields, 9th field is a NULL (9th field -> field-index == 8,
-  offset == 2)
+  Resultset Row, 9 fields, 9th field is a NULL (9th field -> field-index == 8, offset == 2)
 
   nulls -> [00] [00]
 
@@ -2110,14 +2115,7 @@ int Protocol_classic::read_packet() {
 
   @section sect_protocol_binary_resultset_row_value Binary Protocol Value
 
-  @subsection sect_protocol_binary_resultset_row_value_string
-  ProtocolBinary::MYSQL_TYPE_STRING, ProtocolBinary::MYSQL_TYPE_VARCHAR,
-  ProtocolBinary::MYSQL_TYPE_VAR_STRING, ProtocolBinary::MYSQL_TYPE_ENUM,
-  ProtocolBinary::MYSQL_TYPE_SET, ProtocolBinary::MYSQL_TYPE_LONG_BLOB,
-  ProtocolBinary::MYSQL_TYPE_MEDIUM_BLOB, ProtocolBinary::MYSQL_TYPE_BLOB,
-  ProtocolBinary::MYSQL_TYPE_TINY_BLOB, ProtocolBinary::MYSQL_TYPE_GEOMETRY,
-  ProtocolBinary::MYSQL_TYPE_BIT, ProtocolBinary::MYSQL_TYPE_DECIMAL,
-  ProtocolBinary::MYSQL_TYPE_NEWDECIMAL:
+  @subsection sect_protocol_binary_resultset_row_value_string ProtocolBinary::MYSQL_TYPE_STRING, ProtocolBinary::MYSQL_TYPE_VARCHAR, ProtocolBinary::MYSQL_TYPE_VAR_STRING, ProtocolBinary::MYSQL_TYPE_ENUM, ProtocolBinary::MYSQL_TYPE_SET, ProtocolBinary::MYSQL_TYPE_LONG_BLOB, ProtocolBinary::MYSQL_TYPE_MEDIUM_BLOB, ProtocolBinary::MYSQL_TYPE_BLOB, ProtocolBinary::MYSQL_TYPE_TINY_BLOB, ProtocolBinary::MYSQL_TYPE_GEOMETRY, ProtocolBinary::MYSQL_TYPE_BIT, ProtocolBinary::MYSQL_TYPE_DECIMAL, ProtocolBinary::MYSQL_TYPE_NEWDECIMAL:
 
   <table>
   <caption>::MYSQL_TYPE_STRING</caption>
@@ -2132,8 +2130,7 @@ int Protocol_classic::read_packet() {
   03 66 6f 6f -- string = "foo"
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_longlong
-  ProtocolBinary::MYSQL_TYPE_LONGLONG
+  @subsection sect_protocol_binary_resultset_row_value_longlong ProtocolBinary::MYSQL_TYPE_LONGLONG
 
   <table>
   <caption>::MYSQL_TYPE_LONGLONG</caption>
@@ -2148,8 +2145,7 @@ int Protocol_classic::read_packet() {
   01 00 00 00 00 00 00 00 -- int64 = 1
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_long
-  ProtocolBinary::MYSQL_TYPE_LONG, ProtocolBinary::MYSQL_TYPE_INT24
+  @subsection sect_protocol_binary_resultset_row_value_long ProtocolBinary::MYSQL_TYPE_LONG, ProtocolBinary::MYSQL_TYPE_INT24
 
   <table>
   <caption>::MYSQL_TYPE_LONG, ::MYSQL_TYPE_INT24</caption>
@@ -2164,8 +2160,7 @@ int Protocol_classic::read_packet() {
   01 00 00 00 -- int32 = 1
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_short
-  ProtocolBinary::MYSQL_TYPE_SHORT, ProtocolBinary::MYSQL_TYPE_YEAR
+  @subsection sect_protocol_binary_resultset_row_value_short ProtocolBinary::MYSQL_TYPE_SHORT, ProtocolBinary::MYSQL_TYPE_YEAR
 
   <table>
   <caption>::MYSQL_TYPE_SHORT, ::MYSQL_TYPE_YEAR</caption>
@@ -2180,8 +2175,7 @@ int Protocol_classic::read_packet() {
   01 00 -- int16 = 1
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_tiny
-  ProtocolBinary::MYSQL_TYPE_TINY
+  @subsection sect_protocol_binary_resultset_row_value_tiny ProtocolBinary::MYSQL_TYPE_TINY
 
   <table>
   <caption>::MYSQL_TYPE_TINY</caption>
@@ -2196,8 +2190,7 @@ int Protocol_classic::read_packet() {
   01 -- int8 = 1
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_double
-  ProtocolBinary::MYSQL_TYPE_DOUBLE
+  @subsection sect_protocol_binary_resultset_row_value_double ProtocolBinary::MYSQL_TYPE_DOUBLE
 
   MYSQL_TYPE_DOUBLE stores a floating point in IEEE 754 double precision format.
 
@@ -2216,8 +2209,7 @@ int Protocol_classic::read_packet() {
   66 66 66 66 66 66 24 40 -- double = 10.2
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_float
-  ProtocolBinary::MYSQL_TYPE_FLOAT
+  @subsection sect_protocol_binary_resultset_row_value_float ProtocolBinary::MYSQL_TYPE_FLOAT
 
   MYSQL_TYPE_FLOAT stores a floating point in IEEE 754 single precision format.
 
@@ -2234,9 +2226,7 @@ int Protocol_classic::read_packet() {
   33 33 23 41 -- float = 10.2
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_date
-  ProtocolBinary::MYSQL_TYPE_DATE, ProtocolBinary::MYSQL_TYPE_DATETIME,
-  ProtocolBinary::MYSQL_TYPE_TIMESTAMP:
+  @subsection sect_protocol_binary_resultset_row_value_date ProtocolBinary::MYSQL_TYPE_DATE, ProtocolBinary::MYSQL_TYPE_DATETIME, ProtocolBinary::MYSQL_TYPE_TIMESTAMP:
 
   Type to store a ::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and
   ::MYSQL_TYPE_TIMESTAMP fields in the binary protocol.
@@ -2251,8 +2241,7 @@ int Protocol_classic::read_packet() {
 
 
   <table>
-  <caption>::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and
-  ::MYSQL_TYPE_TIMESTAMP</caption>
+  <caption>::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and ::MYSQL_TYPE_TIMESTAMP</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
     <td>length</td>
@@ -2287,8 +2276,7 @@ int Protocol_classic::read_packet() {
   0b da 07 0a 11 13 1b 1e 01 00 00 00 -- timestamp
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_time
-  ProtocolBinary::MYSQL_TYPE_TIME
+  @subsection sect_protocol_binary_resultset_row_value_time ProtocolBinary::MYSQL_TYPE_TIME
 
   Type to store a ::MYSQL_TYPE_TIME field in the binary protocol.
 
@@ -2300,8 +2288,7 @@ int Protocol_classic::read_packet() {
 
 
   <table>
-  <caption>::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and
-  ::MYSQL_TYPE_TIMESTAMP</caption>
+  <caption>::MYSQL_TYPE_DATE, ::MYSQL_TYPE_DATETIME and ::MYSQL_TYPE_TIMESTAMP</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
   <td>length</td>
@@ -2333,8 +2320,7 @@ int Protocol_classic::read_packet() {
   01                                     -- time     0d 00:00:00
   ~~~~~~~~
 
-  @subsection sect_protocol_binary_resultset_row_value_null
-  ProtocolBinary::MYSQL_TYPE_NULL
+  @subsection sect_protocol_binary_resultset_row_value_null ProtocolBinary::MYSQL_TYPE_NULL
 
   stored in the @ref sect_protocol_binary_resultset_row_null_bitmap only
  */
@@ -2343,9 +2329,11 @@ int Protocol_classic::read_packet() {
   @page page_protocol_com_stmt_reset COM_STMT_RESET
 */
 
+
 /**
   @page page_protocol_com_stmt_close COM_STMT_CLOSE
 */
+/* clang-format on */
 
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd) {
@@ -2695,16 +2683,14 @@ bool Protocol_classic::end_result_metadata() {
   DBUG_RETURN(false);
 }
 
+/* clang-format off */
 /**
-  @page page_protocol_com_query_response_text_resultset_column_definition Column
-  Definition
+  @page page_protocol_com_query_response_text_resultset_column_definition Column Definition
 
-  if ::CLIENT_PROTOCOL_41 is set @ref
-  sect_protocol_com_query_response_text_resultset_column_definition_41 is used,
-  @ref sec_protocol_com_query_response_text_resultset_column_definition_320
+  if ::CLIENT_PROTOCOL_41 is set @ref sect_protocol_com_query_response_text_resultset_column_definition_41
+  is used, @ref sec_protocol_com_query_response_text_resultset_column_definition_320
 
-  @section sect_protocol_com_query_response_text_resultset_column_definition_41
-  Protocol::ColumnDefinition41:
+  @section sect_protocol_com_query_response_text_resultset_column_definition_41 Protocol::ColumnDefinition41:
 
   <table>
   <caption>Payload</caption>
@@ -2732,10 +2718,11 @@ bool Protocol_classic::end_result_metadata() {
       <td>[0x0c]</td></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>character_set</td>
-      <td>the column character set as defined in @ref
-  page_protocol_basic_character_set</td></tr> <tr><td>@ref a_protocol_type_int4
-  "int&lt;4&gt;"</td> <td>column_length</td> <td>maximum length of the
-  field</td></tr> <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>the column character set as defined in @ref page_protocol_basic_character_set</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>column_length</td>
+      <td>maximum length of the field</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>type</td>
       <td>type of the column as defined in ::enum_field_types</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;2&gt;"</td>
@@ -2754,8 +2741,7 @@ bool Protocol_classic::end_result_metadata() {
   @note `decimals` and `column_length` can be used for text output formatting
 
 
-  @section sec_protocol_com_query_response_text_resultset_column_definition_320
-  Protocol::ColumnDefinition320:
+  @section sec_protocol_com_query_response_text_resultset_column_definition_320 Protocol::ColumnDefinition320:
 
   <table>
   <caption>Payload</caption>
@@ -2805,6 +2791,7 @@ bool Protocol_classic::end_result_metadata() {
 
   @sa Protocol_classic::send_field_metadata
 */
+/* clang-format on */
 
 /**
   Sends a single column metadata

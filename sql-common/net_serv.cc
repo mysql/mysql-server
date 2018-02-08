@@ -243,6 +243,7 @@ static bool net_should_retry(NET *net,
   return retry;
 }
 
+/* clang-format off */
 /**
   @page page_protocol_basic_packets MySQL Packets
 
@@ -334,6 +335,7 @@ static bool net_should_retry(NET *net,
   If a field has a fixed value, its description shows it as a hex value in
   brackets like this: `[00]`
 */
+/* clang-format on */
 
 /*****************************************************************************
 ** Write something to server/client buffer
@@ -569,6 +571,7 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   return count != 0;
 }
 
+/* clang-format off */
 /**
   @page page_protocol_basic_compression Compression
 
@@ -580,11 +583,11 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
 
   It is enabled if:
     - the server announces ::CLIENT_COMPRESS in its
-      @ref page_protocol_conn_packets_protocol_handshake and
+      @ref page_protocol_connection_phase_packets_protocol_handshake and
     - the client requests it too in its
-      @ref page_protocol_conn_packets_protocol_handshake_response
+      @ref page_protocol_connection_phase_packets_protocol_handshake_response
       packet and
-    - After the server finishes the @ref page_protocol_conn
+    - After the server finishes the @ref page_protocol_connection_phase
       with an @ref page_protocol_basic_ok_packet.
 
    @subpage page_protocol_basic_compression_packet
@@ -593,15 +596,13 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
 /**
   @page page_protocol_basic_compression_packet Compressed Packet
 
-  The compressed packet consists of a @ref
-  sect_protocol_basic_compression_packet_header and a payload which is either a
-  @ref sect_protocol_basic_compression_packet_compressed_payload or @ref
-  sect_protocol_basic_compression_packet_uncompressed_payload.
+  The compressed packet consists of a @ref sect_protocol_basic_compression_packet_header
+  and a payload which is either a @ref sect_protocol_basic_compression_packet_compressed_payload
+  or @ref sect_protocol_basic_compression_packet_uncompressed_payload.
 
   @sa ::compress_packet, ::CLIENT_COMPRESS
 
-  @section sect_protocol_basic_compression_packet_header Compressed Packet
-  Header
+  @section sect_protocol_basic_compression_packet_header Compressed Packet Header
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
@@ -612,12 +613,10 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
   <td>compressed sequence id</td>
   <td>Sequence ID of the compressed packets, reset in the same way as the
-     @ref sect_protocol_basic_packets_packet, but incremented
-  independently</td></tr>
+     @ref sect_protocol_basic_packets_packet, but incremented independently</td></tr>
   </table>
 
-  @section sect_protocol_basic_compression_packet_compressed_payload Compressed
-  Payload
+  @section sect_protocol_basic_compression_packet_compressed_payload Compressed Payload
 
   If the length of *length of payload before compression* is more than 0 the
   @ref sect_protocol_basic_compression_packet_header is followed by the
@@ -637,8 +636,7 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   MySQL Packets. The client or server may bundle several MySQL packets,
   compress it and send it as one compressed packet.
 
-  @subsection sect_protocol_basic_compression_packet_compressed_payload_single
-  Example: One MySQL Packet
+  @subsection sect_protocol_basic_compression_packet_compressed_payload_single Example: One MySQL Packet
 
   A ::COM_QUERY for `select "012345678901234567890123456789012345"` without
   ::CLIENT_COMPRESS has a *payload length* of 46 bytes and looks like:
@@ -659,9 +657,8 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   ~~~~~~~~~~~~~
 
   <table>
-  <tr><th>comp-length</th><th>seq-id</th><th>uncomp-len</th><th>Compressed
-  Payload</th></tr> <tr><td>`22 00 00`</td><td>`00`</td><td>`32 00
-  00`</td><td>compress("\x2e\x00\x00\x00\x03select ...")`</td></td>
+  <tr><th>comp-length</th><th>seq-id</th><th>uncomp-len</th><th>Compressed Payload</th></tr>
+  <tr><td>`22 00 00`</td><td>`00`</td><td>`32 00 00`</td><td>compress("\x2e\x00\x00\x00\x03select ...")`</td></td>
   </table>
 
   The compressed packet is 41 bytes long and splits into:
@@ -673,11 +670,9 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   uncompressed payload length = 32 00 00 -> 50
   ~~~~~~~~~~~~~~
 
-  @subsection sect_protocol_basic_compression_packet_compressed_payload_multi
-  Example: Several MySQL Packets
+  @subsection sect_protocol_basic_compression_packet_compressed_payload_multi Example: Several MySQL Packets
 
-  Executing `SELECT repeat("a", 50)` results in uncompressed
-  ProtocolText::Resultset like:
+  Executing `SELECT repeat("a", 50)` results in uncompressed  ProtocolText::Resultset like:
   ~~~~~~~~~~~~~
   01 00 00 01 01 25 00 00    02 03 64 65 66 00 00 00    .....%....def...
   0f 72 65 70 65 61 74 28    22 61 22 2c 20 35 30 29    .repeat("a", 50)
@@ -692,8 +687,7 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   which consists of 5 @ref sect_protocol_basic_packets_packet :
 
   - `01 00 00 01 01`
-  - `25 00 00 02 03 64 65 66 00 00 00 0f 72 65 70 65 61 74 28 22 61 22 2c 20 35
-  30 29 00 0c 08 00 32 00 00 00 fd 01 00 1f 00 00`
+  - `25 00 00 02 03 64 65 66 00 00 00 0f 72 65 70 65 61 74 28 22 61 22 2c 20 35 30 29 00 0c 08 00 32 00 00 00 fd 01 00 1f 00 00`
   - `05 00 00 03 fe 00 00 02 00`
   - `33 00 00 04 32 61 61 61 61 ...`
   - `05 00 00 05 fe 00 00 02 00`
@@ -726,28 +720,24 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   which can not be represented in one compressed packet.
   Instead two or more packets have to be sent.
 
-  @section sect_protocol_basic_compression_packet_uncompressed_payload
-  Uncompressed Payload
+  @section sect_protocol_basic_compression_packet_uncompressed_payload Uncompressed Payload
 
   For small packets it may be to costly to compress the packet:
   - compressing the packet may lead to more data and sending the
     data uncompressed
   - CPU overhead may be not worth to compress the data
     @par Tip
-    Usually payloads less than 50 bytes (::MIN_COMPRESS_LENGTH) aren't
-  compressed.
+    Usually payloads less than 50 bytes (::MIN_COMPRESS_LENGTH) aren't compressed.
 
 
   To send an @ref sect_protocol_basic_compression_packet_uncompressed_payload :
   - set *length of payload before compression* in
     @ref sect_protocol_basic_compression_packet_header to 0
   - The @ref sect_protocol_basic_compression_packet_compressed_payload contains
-    the @ref sect_protocol_basic_compression_packet_uncompressed_payload
-  instead.
+    the @ref sect_protocol_basic_compression_packet_uncompressed_payload instead.
 
-  Sending a `SELECT 1` query as @ref
-  sect_protocol_basic_compression_packet_uncompressed_payload to the server
-  looks like:
+  Sending a `SELECT 1` query as @ref sect_protocol_basic_compression_packet_uncompressed_payload
+  to the server looks like:
   ~~~~~~~~~~~~~~
   0d 00 00 00 00 00 00 09    00 00 00 03 53 45 4c 45    ............SELE
   43 54 20 31                                           CT 1
@@ -767,6 +757,7 @@ static bool net_write_raw_loop(NET *net, const uchar *buf, size_t count) {
   09 00 00 00 03 53 45 4c 45 43 54 20 31 -- SELECT 1
   ~~~~~~~~~~~~~~
 */
+/* clang-format on */
 
 /**
   Compress and encapsulate a packet into a compressed packet.

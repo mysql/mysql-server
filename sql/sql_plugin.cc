@@ -112,6 +112,7 @@
 #include "thr_mutex.h"
 #include "typelib.h"
 
+/* clang-format off */
 /**
   @page page_ext_plugins Plugins
 
@@ -281,6 +282,7 @@
   @sa plugin_add, plugin_del, plugin_dl_add, plugin_dl_del, list_of_services,
     st_service_ref
 */
+/* clang-format on */
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
