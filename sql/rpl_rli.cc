@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -270,15 +270,18 @@ void Relay_log_info::reset_notified_relay_log_change()
 
     New seconds_behind_master timestamp is installed.
 
-   @param shift          number of bits to shift by Worker due to the
-                         current checkpoint change.
-   @param new_ts         new seconds_behind_master timestamp value
-                         unless zero. Zero could be due to FD event
-                         or fake rotate event.
-   @param need_data_lock False if caller has locked @c data_lock
+   @param shift            number of bits to shift by Worker due to the
+                           current checkpoint change.
+   @param new_ts           new seconds_behind_master timestamp value
+                           unless zero. Zero could be due to FD event
+                           or fake rotate event.
+   @param need_data_lock   False if caller has locked @c data_lock
+   @param update_timestamp if true, this function will update the
+                           rli->last_master_timestamp.
 */
 void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
-                                               bool need_data_lock)
+                                               bool need_data_lock,
+                                               bool update_timestamp)
 {
   /*
     If this is not a parallel execution we return immediately.
@@ -324,7 +327,7 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
              "checkpoint_seqno --> %u.", shift, checkpoint_seqno));
 
-  if (new_ts)
+  if (update_timestamp)
   {
     if (need_data_lock)
       mysql_mutex_lock(&data_lock);
