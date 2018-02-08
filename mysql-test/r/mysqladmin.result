@@ -21,6 +21,22 @@ mysqld is alive
 # Using --defaults-extra-file option with 'cnf_file'.
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+mysqld is alive
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+mysqld is alive
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+mysqld is alive
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+mysqld is alive
+CREATE USER testadmin_user1;
+FLUSH PRIVILEGES;
+mysqld is alive
+DROP USER testadmin_user1;
+CREATE USER tester@localhost IDENTIFIED WITH caching_sha2_password BY 'abcd';
+mysqld is alive
+mysqld is alive
+DROP USER tester@localhost;
 #
 # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 #

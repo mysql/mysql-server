@@ -1,4 +1,6 @@
 use test;
+@@binlog_format
+MIXED
 Database
 information_schema
 mtr
