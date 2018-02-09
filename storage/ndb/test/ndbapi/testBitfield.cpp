@@ -1,4 +1,3 @@
-<<<<<<< HEAD
  /*
    Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
