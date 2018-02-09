@@ -16,19 +16,21 @@ exec $MYSQLD --defaults-file=/path/with/no/extension --print-defaults 2>&1;
 --error 1
 exec $MYSQLD --defaults-file=/path/with.ext --print-defaults 2>&1;
 
---replace_result mysqld-debug mysqld $MYSQL_TEST_DIR MYSQL_TEST_DIR
+# Using $MYSQL_TEST_DIR_ABS which contains canonical path to the
+# test directory since --print-default prints the absolute path.
+--replace_result mysqld-debug mysqld $MYSQL_TEST_DIR_ABS MYSQL_TEST_DIR
 --error 1
 exec $MYSQLD --defaults-file=relative/path/with.ext --print-defaults 2>&1;
 
---replace_result mysqld-debug mysqld $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result mysqld-debug mysqld $MYSQL_TEST_DIR_ABS MYSQL_TEST_DIR
 --error 1
 exec $MYSQLD --defaults-file=relative/path/without/extension --print-defaults 2>&1;
 
---replace_result mysqld-debug mysqld $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result mysqld-debug mysqld $MYSQL_TEST_DIR_ABS MYSQL_TEST_DIR
 --error 1
 exec $MYSQLD --defaults-file=with.ext --print-defaults 2>&1;
 
---replace_result mysqld-debug mysqld $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result mysqld-debug mysqld $MYSQL_TEST_DIR_ABS MYSQL_TEST_DIR
 --error 1
 exec $MYSQLD --defaults-file=no_extension --print-defaults 2>&1;
 
