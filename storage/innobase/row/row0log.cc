@@ -2646,6 +2646,11 @@ row_log_table_apply_op(
 		if (num_v) {
 			ulint		o_v_size = 0;
 			ulint		n_v_size = 0;
+
+			if (next_mrec + 2 > mrec_end) {
+				return(NULL);
+			}
+
 			n_v_size = mach_read_from_2(next_mrec);
 			next_mrec += n_v_size;
 			if (next_mrec > mrec_end) {
