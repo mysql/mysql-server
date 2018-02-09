@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -216,7 +216,7 @@ FUNCTION(WIX_DESCRIBE_COMPONENTS dir prefix)
 			FILE(TO_NATIVE_PATH ${exe} exe_native)
 			SAPPEND_VA(CPACK_WIX_COMPONENT_GROUPS "      <ComponentRef Id='${cid}'/>\n")			
 			SAPPEND_VA(CPACK_WIX_COMPONENTS 
-				"${prefix}  <Component Id='${cid}' Guid='*' ${Win64}>\n"
+				"${prefix}  <Component Id='${cid}' Guid='*' Win64='yes'>\n"
 				"${prefix}    <File Id='F${id}' KeyPath='yes' Source='${exe_native}'/>\n"
 				"${prefix}  </Component>\n")
 		ENDFOREACH()
@@ -227,7 +227,7 @@ FUNCTION(WIX_DESCRIBE_COMPONENTS dir prefix)
 				OUTPUT_STRIP_TRAILING_WHITESPACE)
 			SET(cid "${CGRP_NAME}.${d_id}.files")				
 			SAPPEND_VA(CPACK_WIX_COMPONENTS 
-				"${prefix}  <Component Guid='${guid}' Id='${cid}' ${Win64}>\n")
+				"${prefix}  <Component Guid='${guid}' Id='${cid}' Win64='yes'>\n")
 			FOREACH(non_dir ${non_dir_list})
 				INCR(id)
 				FILE(RELATIVE_PATH rpnondirname ${CGRP_ABS} ${non_dir})

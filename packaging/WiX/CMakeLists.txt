@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,55 +24,9 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
-IF(MSVC_VERSION LESS 1910)
-  SET(WIX_REQUIRED_VERSION "V3.10")
-ELSE()
-  SET(WIX_REQUIRED_VERSION "V3.11")
-ENDIF()
-
-# Need an extra indirection to access ENV(ProgramFiles(x86))
-SET(MYENV "ProgramFiles(x86)")
-
-# Look in various paths for 'heat.exe'
-# Different installations have different layouts.
-MACRO(FIND_WIX_PATH VERSION)
-  FOREACH(path
-      "$ENV{ProgramFiles}/WiX Toolset ${VERSION}"
-      "$ENV{ProgramFiles}/WiX Toolset ${VERSION}/bin"
-      "$ENV{${MYENV}}/WiX Toolset ${VERSION}"
-      "$ENV{${MYENV}}/WiX Toolset ${VERSION}/bin")
-    FIND_PATH(WIX_DIR heat.exe "${path}")
-    MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
-    IF(WIX_DIR)
-      BREAK()
-    ENDIF()
-  ENDFOREACH()
-ENDMACRO()
-
-FIND_WIX_PATH(${WIX_REQUIRED_VERSION})
-IF(MSVC_VERSION EQUAL 1900 AND NOT WIX_DIR)
-  FIND_WIX_PATH("V3.11")
-ENDIF()
-
-# Finally, look in environment
-IF(NOT WIX_DIR)
-  FIND_PATH(WIX_DIR heat.exe "$ENV{WIX}")
-  MESSAGE(STATUS "WIX_DIR ${WIX_DIR} looked at $ENV{WIX}\n")
-ENDIF()
-
-IF(NOT WIX_DIR)
-  IF(NOT _WIX_DIR_CHECKED)
-    SET(_WIX_DIR_CHECKED 1 CACHE INTERNAL "")
-    MESSAGE(STATUS "Cannot find wix 3, installer project will not be generated")
-  ENDIF()
-  RETURN()
-ENDIF()
+include(wix_setup.cmake)
 
 ADD_SUBDIRECTORY(ca)
-
-FIND_PROGRAM(HEAT_EXECUTABLE heat ${WIX_DIR})
-FIND_PROGRAM(CANDLE_EXECUTABLE candle ${WIX_DIR})
-FIND_PROGRAM(LIGHT_EXECUTABLE light ${WIX_DIR})
 
 # WiX wants the license text as rtf; if there is no rtf license, 
 # we create a fake one from the plain text LICENSE file.
@@ -93,12 +47,7 @@ ENDIF()
 
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
 SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
-
-IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  SET(WixWin64 " Win64='yes'")
-ELSE()
-  SET(WixWin64 " Win64='no'")
-ENDIF()
+SET(CPACK_MSI_SETUP ${CMAKE_CURRENT_SOURCE_DIR}/cpack_msi_setup.cmake)
 
 IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "This is Cluster build")
@@ -125,9 +74,8 @@ ADD_CUSTOM_TARGET(
   -DWIXCA_LOCATION=$<TARGET_FILE:wixca>
   -DMAJOR_VERSION=${MAJOR_VERSION}
   -DMINOR_VERSION=${MINOR_VERSION}
-  -DWixWin64=${WixWin64}
   -P ${CMAKE_CURRENT_SOURCE_DIR}/configure_file.cmake
-  )
+)
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
@@ -136,7 +84,6 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
 IF(CMAKE_GENERATOR MATCHES "Visual Studio")
  SET(CONFIG_PARAM "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_CFG_INTDIR}")
 ENDIF()
-
 
 ADD_CUSTOM_TARGET(
   MSI

@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
-       Platform='@Platform@'
+       Platform='x64'
        InstallScope="perMachine"/>
   
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
@@ -72,7 +72,7 @@
     </InstallExecuteSequence>
 
 
-    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" AND "@BUNDLE_RUNTIME_LIBRARIES@"="OFF" ?>
       <Property Id="VS14REDIST">
         <RegistrySearch Id="FindRedistVS14"
             Root="HKLM"
@@ -102,7 +102,7 @@
     <Property Id="GETINSTALLDIR">
       <RegistrySearch Id="FindInstallLocation"
           Root="HKLM"
-          @Win64@
+          Win64="yes"
           Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
           Name="InstallLocation"
           Type="raw" />
@@ -114,7 +114,7 @@
     <Property Id="OLDERVERSION"> 
       <RegistrySearch Id="FindOlderVersion"
         Root="HKLM"
-        @Win64@
+        Win64="yes"
         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\[OLDERVERSIONBEINGUPGRADED]"
         Name="DisplayVersion"
         Type="raw" />
@@ -191,7 +191,7 @@
 
     <!-- Installation root-->
     <Directory Id='TARGETDIR' Name='SourceDir'>
-      <Directory Id='@PlatformProgramFilesFolder@'>
+      <Directory Id='ProgramFiles64Folder'>
         <Directory Id='directory.MySQL' Name='MySQL'>
           <Directory Id='INSTALLDIR' Name='@PRODUCT_NAME@ @MAJOR_VERSION@.@MINOR_VERSION@'>
           </Directory>
