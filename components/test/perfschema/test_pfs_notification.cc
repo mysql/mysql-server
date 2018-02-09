@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -524,22 +524,23 @@ mysql_service_status_t test_pfs_notification_deinit() {
 
 /* Empty list--no service provided. */
 BEGIN_COMPONENT_PROVIDES(test_pfs_notification)
-END_COMPONENT_PROVIDES();
+END_COMPONENT_PROVIDES()
 
 /* Required services for this test component. */
 BEGIN_COMPONENT_REQUIRES(test_pfs_notification)
-REQUIRES_SERVICE(pfs_notification), REQUIRES_SERVICE(pfs_resource_group),
-    END_COMPONENT_REQUIRES();
+REQUIRES_SERVICE(pfs_notification)
+REQUIRES_SERVICE(pfs_resource_group)
+END_COMPONENT_REQUIRES()
 
 BEGIN_COMPONENT_METADATA(test_pfs_notification)
-METADATA("mysql.author", "Oracle Corporation"),
-    METADATA("mysql.license", "GPL"), METADATA("test_pfs_notification", "1"),
-    END_COMPONENT_METADATA();
+METADATA("mysql.author", "Oracle Corporation")
+METADATA("mysql.license", "GPL")
+METADATA("test_pfs_notification", "1")
+END_COMPONENT_METADATA()
 
 DECLARE_COMPONENT(test_pfs_notification, "mysql:test_pfs_notification")
-test_pfs_notification_init,
-    test_pfs_notification_deinit END_DECLARE_COMPONENT();
+test_pfs_notification_init, test_pfs_notification_deinit END_DECLARE_COMPONENT()
 
-/* Components contained in this library. */
-DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_pfs_notification)
-    END_DECLARE_LIBRARY_COMPONENTS
+    /* Components contained in this library. */
+    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_pfs_notification)
+        END_DECLARE_LIBRARY_COMPONENTS

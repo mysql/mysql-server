@@ -1753,33 +1753,37 @@ success:
 BEGIN_SERVICE_IMPLEMENTATION(log_filter_dragnet, log_service)
 log_service_imp::run, log_service_imp::flush, nullptr, nullptr,
     log_service_imp::variable_check,
-    log_service_imp::variable_update END_SERVICE_IMPLEMENTATION();
+    log_service_imp::variable_update END_SERVICE_IMPLEMENTATION()
 
-/* component provides: just the log_filter service, for now */
-BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)
-PROVIDES_SERVICE(log_filter_dragnet, log_service), END_COMPONENT_PROVIDES();
+    /* component provides: just the log_filter service, for now */
+    BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)
+        PROVIDES_SERVICE(log_filter_dragnet, log_service)
+            END_COMPONENT_PROVIDES()
 
-/* component requires: pluggable system variables, log-builtins */
-BEGIN_COMPONENT_REQUIRES(log_filter_dragnet)
-REQUIRES_SERVICE(component_sys_variable_register),
-    REQUIRES_SERVICE(component_sys_variable_unregister),
-    REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
-    REQUIRES_SERVICE(log_builtins_filter), REQUIRES_SERVICE(log_builtins_tmp),
-    END_COMPONENT_REQUIRES();
+    /* component requires: pluggable system variables, log-builtins */
+    BEGIN_COMPONENT_REQUIRES(log_filter_dragnet)
+        REQUIRES_SERVICE(component_sys_variable_register)
+            REQUIRES_SERVICE(component_sys_variable_unregister)
+                REQUIRES_SERVICE(log_builtins)
+                    REQUIRES_SERVICE(log_builtins_string)
+                        REQUIRES_SERVICE(log_builtins_filter)
+                            REQUIRES_SERVICE(log_builtins_tmp)
+                                END_COMPONENT_REQUIRES()
 
-/* component description */
-BEGIN_COMPONENT_METADATA(log_filter_dragnet)
-METADATA("mysql.author", "Oracle Corporation"),
-    METADATA("mysql.license", "GPL"), METADATA("log_service_type", "filter"),
-    END_COMPONENT_METADATA();
+    /* component description */
+    BEGIN_COMPONENT_METADATA(log_filter_dragnet)
+        METADATA("mysql.author", "Oracle Corporation")
+            METADATA("mysql.license", "GPL")
+                METADATA("log_service_type", "filter") END_COMPONENT_METADATA()
 
-/* component declaration */
-DECLARE_COMPONENT(log_filter_dragnet, "mysql:log_filter_dragnet")
-log_filter_init, log_filter_exit END_DECLARE_COMPONENT();
+    /* component declaration */
+    DECLARE_COMPONENT(log_filter_dragnet,
+                      "mysql:log_filter_dragnet") log_filter_init,
+    log_filter_exit END_DECLARE_COMPONENT()
 
-/* components contained in this library.
-   for now assume that each library will have exactly one component. */
-DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(log_filter_dragnet)
-    END_DECLARE_LIBRARY_COMPONENTS
+    /* components contained in this library.
+       for now assume that each library will have exactly one component. */
+    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(log_filter_dragnet)
+        END_DECLARE_LIBRARY_COMPONENTS
 
     /* EOT */

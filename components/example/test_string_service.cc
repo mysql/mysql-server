@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -313,7 +313,7 @@ mysql_service_status_t test_string_service_deinit() { return false; }
 
 /* An empty list as no service is provided. */
 BEGIN_COMPONENT_PROVIDES(test_string_service)
-END_COMPONENT_PROVIDES();
+END_COMPONENT_PROVIDES()
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_converter);
@@ -325,25 +325,27 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_string_ctype);
 
 /* A list of required services. */
 BEGIN_COMPONENT_REQUIRES(test_string_service)
-REQUIRES_SERVICE(mysql_string_factory),
-    REQUIRES_SERVICE(mysql_string_converter),
-    REQUIRES_SERVICE(mysql_string_character_access),
-    REQUIRES_SERVICE(mysql_string_byte_access),
-    REQUIRES_SERVICE(mysql_string_case),
-    REQUIRES_SERVICE(mysql_string_iterator),
-    REQUIRES_SERVICE(mysql_string_ctype), END_COMPONENT_REQUIRES();
+REQUIRES_SERVICE(mysql_string_factory)
+REQUIRES_SERVICE(mysql_string_converter)
+REQUIRES_SERVICE(mysql_string_character_access)
+REQUIRES_SERVICE(mysql_string_byte_access)
+REQUIRES_SERVICE(mysql_string_case)
+REQUIRES_SERVICE(mysql_string_iterator)
+REQUIRES_SERVICE(mysql_string_ctype)
+END_COMPONENT_REQUIRES()
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(test_string_service)
-METADATA("mysql.author", "Oracle Corporation"),
-    METADATA("mysql.license", "GPL"), METADATA("test_string_service", "1"),
-    END_COMPONENT_METADATA();
+METADATA("mysql.author", "Oracle Corporation")
+METADATA("mysql.license", "GPL")
+METADATA("test_string_service", "1")
+END_COMPONENT_METADATA()
 
 /* Declaration of the Component. */
 DECLARE_COMPONENT(test_string_service, "mysql:test_string_service")
-test_string_service_init, test_string_service_deinit END_DECLARE_COMPONENT();
+test_string_service_init, test_string_service_deinit END_DECLARE_COMPONENT()
 
-/* Defines list of Components contained in this library. Note that for now
-  we assume that library will have exactly one Component. */
-DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_string_service)
-    END_DECLARE_LIBRARY_COMPONENTS
+    /* Defines list of Components contained in this library. Note that for now
+      we assume that library will have exactly one Component. */
+    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_string_service)
+        END_DECLARE_LIBRARY_COMPONENTS
