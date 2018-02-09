@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -890,17 +890,17 @@ static mysql_service_status_t validate_password_deinit() {
    only. */
 BEGIN_SERVICE_IMPLEMENTATION(validate_password, validate_password)
 validate_password_imp::validate,
-    validate_password_imp::get_strength END_SERVICE_IMPLEMENTATION()
+    validate_password_imp::get_strength END_SERVICE_IMPLEMENTATION();
 
-    /* component provides: the validate_password service */
-    BEGIN_COMPONENT_PROVIDES(validate_password)
-        PROVIDES_SERVICE(validate_password, validate_password)
-            END_COMPONENT_PROVIDES()
+/* component provides: the validate_password service */
+BEGIN_COMPONENT_PROVIDES(validate_password)
+PROVIDES_SERVICE(validate_password, validate_password),
+    END_COMPONENT_PROVIDES();
 
-    /* A block for specifying dependencies of this Component. Note that for each
-      dependency we need to have a placeholder, a extern to placeholder in
-      header file of the Component, and an entry on requires list below. */
-    REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
+/* A block for specifying dependencies of this Component. Note that for each
+  dependency we need to have a placeholder, a extern to placeholder in
+  header file of the Component, and an entry on requires list below. */
+REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_factory);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_string_case);
@@ -918,35 +918,31 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
    component load time and disposes off them at unload.
 */
 BEGIN_COMPONENT_REQUIRES(validate_password)
-REQUIRES_SERVICE(registry)
-REQUIRES_SERVICE(log_builtins)
-REQUIRES_SERVICE(log_builtins_string)
-REQUIRES_SERVICE(mysql_string_factory)
-REQUIRES_SERVICE(mysql_string_case)
-REQUIRES_SERVICE(mysql_string_converter)
-REQUIRES_SERVICE(mysql_string_iterator)
-REQUIRES_SERVICE(mysql_string_ctype)
-REQUIRES_SERVICE(component_sys_variable_register)
-REQUIRES_SERVICE(component_sys_variable_unregister)
-REQUIRES_SERVICE(status_variable_registration)
-REQUIRES_SERVICE(mysql_thd_security_context)
-REQUIRES_SERVICE(mysql_security_context_options)
-REQUIRES_PSI_MEMORY_SERVICE
-REQUIRES_MYSQL_RWLOCK_SERVICE
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(registry), REQUIRES_SERVICE(log_builtins),
+    REQUIRES_SERVICE(log_builtins_string),
+    REQUIRES_SERVICE(mysql_string_factory), REQUIRES_SERVICE(mysql_string_case),
+    REQUIRES_SERVICE(mysql_string_converter),
+    REQUIRES_SERVICE(mysql_string_iterator),
+    REQUIRES_SERVICE(mysql_string_ctype),
+    REQUIRES_SERVICE(component_sys_variable_register),
+    REQUIRES_SERVICE(component_sys_variable_unregister),
+    REQUIRES_SERVICE(status_variable_registration),
+    REQUIRES_SERVICE(mysql_thd_security_context),
+    REQUIRES_SERVICE(mysql_security_context_options),
+    REQUIRES_PSI_MEMORY_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
+    END_COMPONENT_REQUIRES();
 
 /* component description */
 BEGIN_COMPONENT_METADATA(validate_password)
-METADATA("mysql.author", "Oracle Corporation")
-METADATA("mysql.license", "GPL")
-METADATA("validate_password_service", "1")
-END_COMPONENT_METADATA()
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"),
+    METADATA("validate_password_service", "1"), END_COMPONENT_METADATA();
 
 /* component declaration */
 DECLARE_COMPONENT(validate_password, "mysql:validate_password")
-validate_password_init, validate_password_deinit END_DECLARE_COMPONENT()
+validate_password_init, validate_password_deinit END_DECLARE_COMPONENT();
 
-    /* components contained in this library.
-       for now assume that each library will have exactly one component. */
-    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(validate_password)
-        END_DECLARE_LIBRARY_COMPONENTS
+/* components contained in this library.
+   for now assume that each library will have exactly one component. */
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(validate_password)
+    END_DECLARE_LIBRARY_COMPONENTS

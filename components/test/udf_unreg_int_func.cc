@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -50,21 +50,19 @@ static mysql_service_status_t init() {
 static mysql_service_status_t deinit() { return false; }
 
 BEGIN_COMPONENT_PROVIDES(test_udf_registration)
-END_COMPONENT_PROVIDES()
+END_COMPONENT_PROVIDES();
 
 BEGIN_COMPONENT_REQUIRES(test_udf_registration)
-REQUIRES_SERVICE(udf_registration)
-REQUIRES_SERVICE(udf_registration_aggregate)
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(udf_registration),
+    REQUIRES_SERVICE(udf_registration_aggregate), END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(test_udf_registration)
-METADATA("mysql.author", "Oracle Corporation")
-METADATA("mysql.license", "GPL")
-METADATA("test_property", "1")
-END_COMPONENT_METADATA()
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"), METADATA("test_property", "1"),
+    END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(test_udf_registration, "mysql:test_udf_registration")
-init, deinit END_DECLARE_COMPONENT()
+init, deinit END_DECLARE_COMPONENT();
 
-          DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_udf_registration)
-              END_DECLARE_LIBRARY_COMPONENTS
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_udf_registration)
+    END_DECLARE_LIBRARY_COMPONENTS

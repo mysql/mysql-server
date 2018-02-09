@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -230,29 +230,27 @@ error:
 
 /* pfs_example_component_population doesn't provide any service */
 BEGIN_COMPONENT_PROVIDES(pfs_example_component_population)
-END_COMPONENT_PROVIDES()
+END_COMPONENT_PROVIDES();
 
 /* pfs_example_component requires/uses pfs_plugin_table service */
 REQUIRES_SERVICE_PLACEHOLDER(pfs_plugin_table);
 
 BEGIN_COMPONENT_REQUIRES(pfs_example_component_population)
-REQUIRES_SERVICE(pfs_plugin_table)
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(pfs_plugin_table), END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(pfs_example_component_population)
-METADATA("mysql.author", "Oracle Corporation")
-METADATA("mysql.license", "GPL")
-METADATA("test_property", "1")
-END_COMPONENT_METADATA()
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"), METADATA("test_property", "1"),
+    END_COMPONENT_METADATA();
 
 /* Declaration of the Component. */
 DECLARE_COMPONENT(pfs_example_component_population,
                   "mysql:pfs_example_component_population")
 pfs_example_component_population_init,
-    pfs_example_component_population_deinit END_DECLARE_COMPONENT()
+    pfs_example_component_population_deinit END_DECLARE_COMPONENT();
 
-    /* Defines list of Components contained in this library. Note that for now
-      we assume that library will have exactly one Component. */
-    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(pfs_example_component_population)
-        END_DECLARE_LIBRARY_COMPONENTS
+/* Defines list of Components contained in this library. Note that for now
+  we assume that library will have exactly one Component. */
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(pfs_example_component_population)
+    END_DECLARE_LIBRARY_COMPONENTS

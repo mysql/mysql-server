@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -114,27 +114,25 @@ static mysql_service_status_t test_system_variable_source_deinit() {
 
 /* An empty list as no service is provided. */
 BEGIN_COMPONENT_PROVIDES(test_system_variable_source)
-END_COMPONENT_PROVIDES()
+END_COMPONENT_PROVIDES();
 
 /* A list of required services. */
 BEGIN_COMPONENT_REQUIRES(test_system_variable_source)
-REQUIRES_SERVICE(system_variable_source)
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(system_variable_source), END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(test_system_variable_source)
-METADATA("mysql.author", "Oracle Corporation")
-METADATA("mysql.license", "GPL")
-METADATA("test_system_variable_source", "1")
-END_COMPONENT_METADATA()
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"),
+    METADATA("test_system_variable_source", "1"), END_COMPONENT_METADATA();
 
 /* Declaration of the Component. */
 DECLARE_COMPONENT(test_system_variable_source,
                   "mysql:test_system_variable_source")
 test_system_variable_source_init,
-    test_system_variable_source_deinit END_DECLARE_COMPONENT()
+    test_system_variable_source_deinit END_DECLARE_COMPONENT();
 
-    /* Defines list of Components contained in this library. Note that for now
-      we assume that library will have exactly one Component. */
-    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_system_variable_source)
-        END_DECLARE_LIBRARY_COMPONENTS
+/* Defines list of Components contained in this library. Note that for now
+  we assume that library will have exactly one Component. */
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_system_variable_source)
+    END_DECLARE_LIBRARY_COMPONENTS
