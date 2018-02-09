@@ -226,9 +226,11 @@ static ndb_mgm_configuration* load_configuration();
 
 int
 main(int argc, char** argv){
+  NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage_extra);
   bool print_headers = false;
+
   if (opts.handle_options())
     exit(255);
 

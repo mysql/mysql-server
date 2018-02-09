@@ -1274,6 +1274,7 @@ check_data_truncations(const TableS * table)
 int
 main(int argc, char** argv)
 {
+  NDB_INIT(argv[0]);
   const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
   Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
 

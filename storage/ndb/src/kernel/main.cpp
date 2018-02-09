@@ -136,9 +136,9 @@ static void short_usage_sub(void)
 int
 real_main(int argc, char** argv)
 {
-  Ndb_opts::release();
+  NDB_INIT(argv[0]);
+  Ndb_opts::release();  // because ndbd can fork and call real_main() again
   Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
-  opts.set_usage_funcs(short_usage_sub);
 
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
@@ -152,6 +152,8 @@ real_main(int argc, char** argv)
 
   // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
+
+  opts.set_usage_funcs(short_usage_sub);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndbd.trace";

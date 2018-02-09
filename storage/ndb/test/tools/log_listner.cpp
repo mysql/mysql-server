@@ -53,9 +53,8 @@ int
 main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv, &alloc);
+  Ndb_opts opts(argc, argv, my_long_options);
+
   int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/eventlog.trace";
@@ -67,8 +66,7 @@ main(int argc, char** argv)
   signal(SIGUSR1, catch_signal);
 #endif
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, 
-			       ndb_std_get_one_option)))
+  if ((ho_error=opts.handle_options()))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   NdbMgmHandle handle= ndb_mgm_create_handle();
