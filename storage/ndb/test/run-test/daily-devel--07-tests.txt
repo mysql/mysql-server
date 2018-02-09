@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -117,4 +117,8 @@ cmd: testRedo
 args: -n CheckNextRedoFileOpened T1
 max-time: 1440
 
+
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_slow_nostart T1
+max-time: 1800
 
