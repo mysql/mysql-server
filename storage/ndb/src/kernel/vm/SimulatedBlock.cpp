@@ -4077,16 +4077,16 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
     bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
     if (unlikely(!ok))
       return 0;
-    Uint32 xmul = cs->strxfrm_multiply;
-    if (xmul == 0)
-      xmul = 1;
-    /*
-     * Varchar end-spaces are ignored in comparisons.  To get same hash
-     * we blank-pad to maximum length via strnxfrm.
-     */
-    Uint32 dstLen = xmul * (srcBytes - lb);
-    ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-    int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+
+    // remLen: Remaining dst-buffer length
+    // len:    Actual length of 'src'
+    // defLen: Max defined length of src data 
+    const unsigned remLen = ((dstSize - dstPos) << 2);
+    const unsigned defLen = srcBytes - lb;
+    int n = NdbSqlUtil::strnxfrm(cs,
+                                 dstPtr, remLen, 
+                                 srcPtr + lb, len, defLen);
+    
     if (unlikely(n == -1))
       return 0;
     while ((n & 3) != 0) 

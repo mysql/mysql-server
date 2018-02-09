@@ -991,6 +991,8 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
 }
 
 /**
+ * Backward bug compatible implementation of strnxfrm.
+ *
  * Even if bug#7284: 'strnxfrm generates different results for equal strings'
  * is fixed long ago, we still have to keep this method:
  * The suggested fix for that bug was:
@@ -1004,10 +1006,10 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
  *
  * So we still have to handle the 'unlikely' case 'n3 < (int)dstLen'.
  */
-int
-NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
-                             unsigned char* dst, unsigned dstLen,
-                             const unsigned char*src, unsigned srcLen)
+static inline int
+strnxfrm_bug7284(const CHARSET_INFO* cs,
+                 uchar* dst, unsigned dstLen,
+                 const uchar*src, unsigned srcLen)
 {
   // strxfrm argument string - returns no error indication
   const int n3 = (int)(*cs->coll->strnxfrm)(cs,
@@ -1045,6 +1047,78 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs,
 
   // no check for partial last
   return dstLen;
+}
+
+int
+NdbSqlUtil::strnxfrm(const CHARSET_INFO* cs,
+                     uchar* dst, unsigned bufLen,
+                     const uchar* src, unsigned srcLen,
+		     unsigned maxLen)
+{
+  if (cs->strxfrm_multiply == 0)
+  {
+    /**
+     * Temporary workaround to avoid massive test failures.
+     * Will be replaced in later patches.
+     *
+     * New Unicode-9.0 collations are default in MySQL-8.0.
+     * However, these return 'strxfrm_multiply == 0', which
+     * we previously interpreted as '1'. In reality these
+     * collations all produced a fairly large xfrm'ed string.
+     * So effectively '1', introduced a truncation of the
+     * xfrm'ed string.
+     *
+     * For now we keep this incorrect convention
+     */
+    assert(cs->pad_attribute == NO_PAD); //Is a U-900 collation
+    const Uint32 dstLen = maxLen;
+    return strnxfrm_bug7284(cs, dst, dstLen, src, srcLen);
+  }
+  else if (likely(cs->strxfrm_multiply > 0))
+  {
+    /**
+     * Old transformation, pre-8.0 unicode-9.0 charset:
+     *
+     * Varchar end-spaces are ignored in comparisons.  To get same hash
+     * we blank-pad to maximum 'dstLen' via strnxfrm.
+     */
+    const Uint32 dstLen = cs->strxfrm_multiply * maxLen;
+
+    // Sufficient buffer space should always be provided.
+    if (likely(dstLen <= bufLen))
+    {
+      return strnxfrm_bug7284(cs, dst, dstLen, src, srcLen);
+    }
+  }
+
+  // Fall through, should never happen
+  return -1;
+}
+
+/**
+ * Get maximum length needed by the xfrm'ed string
+ * as produced by strnxfrm().
+ *
+ *  cs:     The Character set definition
+ *  maxLen: The maximim (padded) length of the string
+ */
+Uint32
+NdbSqlUtil::strnxfrm_len(const CHARSET_INFO* cs,
+                         unsigned maxLen)
+{
+  if (cs->strxfrm_multiply == 0)
+  {
+    // Temp workaround, see srnxfrm() comments.
+    return maxLen;  
+  }
+  else if (likely(cs->strxfrm_multiply > 0))
+  {
+    // The full space-padded string will be produced
+    return cs->strxfrm_multiply * maxLen;
+  }
+
+  // Fall through, should never happen.
+  return 0;
 }
 
 #if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)

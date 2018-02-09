@@ -749,17 +749,19 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
   CHARSET_INFO* cs = regTabPtr->charsetArray[i];
 
   Uint32 lb, len;
-  bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
-  Uint32 xmul = cs->strxfrm_multiply;
-  if (xmul == 0)
-    xmul = 1;
-  Uint32 dstLen = xmul * (maxBytes - lb);
-  Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
+  const bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+  const unsigned defLen = maxBytes - lb;
+  const Uint32 maxDstLen = NdbSqlUtil::strnxfrm_len(cs, defLen);
+  const Uint32 maxIndexBuf = indexBuf + (maxDstLen >> 2);
   if (maxIndexBuf <= maxRead && ok) 
   {
     thrjamDebug(req_struct->jamBuffer);
-    int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, 
-                                         (const Uint8*)srcPtr + lb, len);
+    // len:    Actual length of 'src'
+    // defLen: Max defined length of src data 
+    const unsigned defLen = maxBytes - lb;
+    const int n = NdbSqlUtil::strnxfrm(cs,
+                                       dstPtr, maxRead-indexBuf, 
+                                       (const uchar*)srcPtr + lb, len, defLen);
     ndbrequire(n != -1);
     zero32(dstPtr, n);
     ahOut->setByteSize(n);
