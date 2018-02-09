@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ class trp_client;
 extern "C" {
   void* runSendRequest_C(void*);
   void* runReceiveResponse_C(void*);
+  void* runWakeupThread_C(void*);
 }
 
 class TransporterFacade :
@@ -318,17 +319,42 @@ private:
   // Declarations for the receive and send thread
   int  theStopReceive;
   int  theStopSend;
+  int  theStopWakeup;
   Uint32 sendThreadWaitMillisec;
 
   void threadMainSend(void);
   NdbThread* theSendThread;
   void threadMainReceive(void);
   NdbThread* theReceiveThread;
+
+#define MAX_NUM_WAKEUPS 128
+
+  bool transfer_responsibility(trp_client * const *arr,
+                               Uint32 cnt_woken,
+                               Uint32 cnt);
+  void wakeup_and_unlock_calls();
+  void init_cpu_usage(NDB_TICKS currTime);
+  void check_cpu_usage(NDB_TICKS currTime);
+  void calc_recv_thread_wakeup();
+  void remove_trp_client_from_wakeup_list(trp_client*);
+  void threadMainWakeup(void);
+  NdbThread* theWakeupThread;
+
+  NDB_TICKS m_last_cpu_usage_check;
+  Uint64 m_last_recv_thread_cpu_usage_in_micros;
+  Uint32 m_recv_thread_cpu_usage_in_percent;
+  Uint32 m_recv_thread_wakeup;
+  Uint32 m_wakeup_clients_cnt;
+  trp_client *m_wakeup_clients[MAX_NO_THREADS];
+  NdbMutex *m_wakeup_thread_mutex;
+  NdbCondition *m_wakeup_thread_cond;
+
   trp_client* recv_client;
   bool raise_thread_prio();
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
+  friend void* runWakeupThread_C(void*);
 
   bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
 
@@ -537,6 +563,7 @@ private:
   {
     return m_send_buffers[node].m_current_send_buffer_size;
   }
+
   void wakeup_send_thread(void);
   NdbMutex * m_send_thread_mutex;
   NdbCondition * m_send_thread_cond;
