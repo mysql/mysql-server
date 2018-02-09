@@ -1220,9 +1220,20 @@ protected:
 		  Uint32 *dst, Uint32 dstSize,
 		  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
 
-  Uint32 xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
+  Uint32 xfrm_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
                    const Uint32* src, Uint32 & srcPos,
                    Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
+
+
+  /*******************
+   * Compare either a full (non-NULL) key, or a single attr.
+   * return '<0', '==0' or '>0' for 's1<s2', s1==s2, 's2>s2' resp.
+   */
+  int cmp_key(Uint32 tab, const Uint32* s1, const Uint32 *s2) const;
+
+  int cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+	       const Uint32 *s1, Uint32 s1Len,
+	       const Uint32 *s2, Uint32 s2Len) const;
   
   /**
    *

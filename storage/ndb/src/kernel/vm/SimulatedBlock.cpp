@@ -3988,6 +3988,49 @@ SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
 
 #endif
 
+int
+SimulatedBlock::cmp_key(Uint32 tab, const Uint32 *s1, const Uint32 *s2) const
+{
+  const KeyDescriptor * desc = g_key_descriptor_pool.getPtr(tab);
+  const Uint32 noOfKeyAttr = desc->noOfKeyAttr;
+
+  for (Uint32 i = 0; i < noOfKeyAttr; i++)
+  {
+    const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
+    const Uint32 attrDesc = keyAttr.attributeDescriptor;
+    const Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(attrDesc);
+
+    const int res = cmp_attr(attrDesc, keyAttr.charsetInfo,
+			     s1, srcBytes, s2, srcBytes);    
+    if (res != 0)
+      return res;
+
+    if (i+1 < noOfKeyAttr) //Optimization; skip if last keyAttr
+    {
+      const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
+      Uint32 lb, len;
+      ndbrequire(NdbSqlUtil::get_var_length(typeId, s1, srcBytes, lb, len));
+      s1 += ((len+lb+3) >> 2);
+
+      ndbrequire(NdbSqlUtil::get_var_length(typeId, s2, srcBytes, lb, len));
+      s2 += ((len+lb+3) >> 2);
+    }
+  }
+  // Fall through: Compared equal
+  return 0;
+}
+
+inline int
+SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+			 const Uint32 *s1, Uint32 s1Len,
+			 const Uint32 *s2, Uint32 s2Len) const
+{
+  const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
+  const NdbSqlUtil::Cmp *cmp = NdbSqlUtil::getType(typeId).m_cmp;
+  return (*cmp)(cs, s1, s1Len, s2, s1Len);
+}
+
+
 Uint32
 SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src, 
 			 Uint32 *dst, Uint32 dstSize,
@@ -4022,7 +4065,7 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
 }
 
 Uint32
-SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
+SimulatedBlock::xfrm_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
                           const Uint32* src, Uint32 & srcPos,
                           Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const
 {
