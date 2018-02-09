@@ -264,7 +264,7 @@ ANALYZE TABLE tab;
 SELECT  json_extract(j1, '$[0]') FROM tab;
 
 --echo # Check pattern for LOB partial update exist
-let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/blob_partial_update.err;
 
 let SEARCH_PATTERN= LOB partial update;
 --source include/search_pattern.inc
