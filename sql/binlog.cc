@@ -2250,6 +2250,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
   int error = 0;
   bool stuff_logged = false;
   binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
+  bool is_empty = false;
 
   DBUG_ENTER("MYSQL_BIN_LOG::rollback(THD *thd, bool all)");
   DBUG_PRINT("enter",
@@ -2290,6 +2291,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     unless XA-ROLLBACK that yet to run rollback_low().
   */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty()) {
+    is_empty = true;
     goto end;
   }
 
@@ -2461,8 +2463,17 @@ end:
   /* Deferred xa rollback to engines */
   if (!error && thd->lex->sql_command == SQLCOM_XA_ROLLBACK) {
     error = ha_rollback_low(thd, all);
-    /* Successful XA-rollback commits the new gtid_state */
-    gtid_state->update_on_commit(thd);
+    /*
+      XA-rollback ignores the gtid_state, if the transaciton
+      is empty.
+    */
+    if (is_empty) gtid_state->update_on_rollback(thd);
+    /*
+      XA-rollback commits the new gtid_state, if transaction
+      is not empty.
+    */
+    else
+      gtid_state->update_on_commit(thd);
   }
   /*
     When a statement errors out on auto-commit mode it is rollback
