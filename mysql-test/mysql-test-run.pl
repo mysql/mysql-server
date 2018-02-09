@@ -2751,10 +2751,10 @@ sub environment_setup {
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= using_extern();
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
-  $ENV{'ABS_MYSQL_TEST_DIR'}= getcwd();
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  $ENV{'MYSQL_TEST_DIR_ABS'}= getcwd();
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
