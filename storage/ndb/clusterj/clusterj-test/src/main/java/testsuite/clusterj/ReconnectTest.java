@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.Query;
@@ -51,7 +50,6 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         return false;
     }
 
-    private long sleepBeforeReconnectMillis = 1;
     private int numberOfThreads = 30;
     private int numberOfNewCustomersPerThread = 5;
     private int numberOfNewOrdersPerNewCustomer = 5;
@@ -72,6 +70,30 @@ public class ReconnectTest extends AbstractClusterJModelTest {
     private int numberOfDeletedOrderLines = 0;
 
     private ThreadGroup threadGroup;
+
+    // member variables for synchronization between threads
+    private int numberOfThreadsReady = 0;
+    final private Object numberOfThreadsReadySync = new Object();
+
+    private void incrementNumberOfThreadsReady() {
+        synchronized (numberOfThreadsReadySync) {
+            numberOfThreadsReady++;
+            numberOfThreadsReadySync.notify();
+        }
+    }
+
+    private void waitUntilAtleastNumberOfThreadsReady(int value) {
+        synchronized (numberOfThreadsReadySync) {
+            while(numberOfThreadsReady < value) {
+                logger.warn("Waiting on " + value);
+                try {
+                    numberOfThreadsReadySync.wait();
+                } catch (InterruptedException ie) {
+                    ie.printStackTrace();
+                }
+            }
+        }
+    }
 
     /** Customers */
     List<Customer> customers = new ArrayList<Customer>();
@@ -143,9 +165,11 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         // create uncaught exception handler
         MyUncaughtExceptionHandler uncaughtExceptionHandler = new MyUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler(uncaughtExceptionHandler);
-        // create the thread that misbehaves
+        // create and start the thread that misbehaves
         Thread misbehaving = new Thread(threadGroup, new Misbehaving());
-        threads.add(misbehaving);
+        misbehaving.start();
+        // wait for it to begin
+        waitUntilAtleastNumberOfThreadsReady(1);
         // create all normal threads
         for (int i = 0; i < numberOfThreads ; ++i) {
             Thread thread = new Thread(threadGroup, new StuffToDo());
@@ -155,10 +179,12 @@ public class ReconnectTest extends AbstractClusterJModelTest {
         for (Thread thread: threads) {
             thread.start();
         }
+        // wait until atleast one StuffToDo thread is ready
+        waitUntilAtleastNumberOfThreadsReady(2);
         // tell the SessionFactory to reconnect
-        sleep(sleepBeforeReconnectMillis);
         sessionFactory.reconnect(5);
         // wait until all threads have finished
+        threads.add(misbehaving);
         for (Thread t: threads) {
             try {
                 t.join();
@@ -243,6 +269,8 @@ public class ReconnectTest extends AbstractClusterJModelTest {
             session.currentTransaction().begin();
             boolean done = false;
             QueryDomainType<OrderLine> queryOrderType;
+            // increment status to indicate we are running
+            incrementNumberOfThreadsReady();
             while (!done) {
                 try {
                 queryOrderType = session.getQueryBuilder().createQueryDefinition(OrderLine.class);
@@ -292,27 +320,25 @@ public class ReconnectTest extends AbstractClusterJModelTest {
                     }
                 }
             }
+            // tell that this thread is ready
+            incrementNumberOfThreadsReady();
             int i = 0;
             while (i < numberOfNewCustomersPerThread) {
                 // create a new customer
                 try (Session localSession = sessionFactory.getSession()) {
-                    Customer customer = null;
-                    List<Customer> newCustomers = new ArrayList<Customer>(numberOfNewCustomersPerThread);
-                    Order order = null;
-                    List<Order> newOrders = new ArrayList<Order>(
-                            numberOfNewCustomersPerThread * numberOfNewOrdersPerNewCustomer);
+                    Customer newCustomer = null;
+                    List<Order> newOrders = new ArrayList<Order>(numberOfNewOrdersPerNewCustomer);
                     localSession.currentTransaction().begin();
-                    customer = createCustomer(localSession, String.valueOf(Thread.currentThread().getId()));
-                    newCustomers.add(customer);
-                    int customerId = customer.getId();
+                    newCustomer = createCustomer(localSession, String.valueOf(Thread.currentThread().getId()));
+                    int customerId = newCustomer.getId();
                     for (int j = 0; j < numberOfNewOrdersPerNewCustomer ; ++j) {
                             // create a new order for the customer
                             newOrders.add(createOrder(localSession, customerId, myRandom));
                     }
                     ++i;
                     localSession.currentTransaction().commit();
-                    // add new customers and orders only if successful
-                    addCustomers(newCustomers);
+                    // add new customer and orders only if successful
+                    addCustomer(newCustomer);
                     addOrders(newOrders);
                 } catch (ClusterJUserException cjue) {
                     if (getDebug()) { System.out.println("StuffToDo: create customer caught " + cjue.getMessage()); }
@@ -351,12 +377,10 @@ public class ReconnectTest extends AbstractClusterJModelTest {
                     localSession.currentTransaction().commit();
                     done = true;
                 } catch (ClusterJUserException cjue) {
+                    if (getDebug()) { System.out.println("StuffToDo: delete order caught " + cjue.getMessage()); }
                     if (cjue.getMessage().contains("SessionFactory is not open")) {
-                        if (getDebug()) { System.out.println("StuffToDo: delete order caught " + cjue.getMessage()); }
                         incrementRetryCount();
                         sleep(300);
-                    } else {
-                        System.out.println("deleteOrder threw " + cjue.getMessage());
                     }
                 }
             }
@@ -527,15 +551,6 @@ public class ReconnectTest extends AbstractClusterJModelTest {
     private void addCustomer(Customer customer) {
         synchronized(customers) {
             customers.add(customer);
-        }
-    }
-
-    /** Add new customers to the list of customers (multithread safe)
-     * @param newCustomers the customers to add
-     */
-    private void addCustomers(Collection<Customer> newCustomers) {
-        synchronized(customers) {
-            customers.addAll(newCustomers);
         }
     }
 
