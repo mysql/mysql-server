@@ -1262,7 +1262,7 @@ fi
 %files backup
 %defattr(-, root, root, -)
 %doc %{src_dir}/packaging/meb/LICENSE.meb
-%doc %{src_dir}/packaging/meb/LICENSE.third_party
+%doc %{src_dir}/packaging/meb/README.meb
 %attr(755, root, root) %{_bindir}/mysqlbackup
 %endif
 

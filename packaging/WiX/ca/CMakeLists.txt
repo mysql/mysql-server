@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,20 @@ ELSE()
   # When next VS is out, add the correct version here
   MESSAGE(FATAL_ERROR "Unknown VS version")
 ENDIF()
+
+IF(BUNDLE_RUNTIME_LIBRARIES)
+  FOREACH(flag
+      CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO
+      CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT
+      CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
+    # When bundling CRT libraries we accept that the user
+    # doesn't have the redist installed. We can't control
+    # the current working directory for all our actions, so
+    # we want to embedd CRT with /MT.
+    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+  ENDFOREACH()
+ENDIF() 
 
 # Installed directory layout
 IF(IS_DIRECTORY ${WIX_DIR}/../SDK/${WIX_MSVC_DIR})

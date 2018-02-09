@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts")
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;Meb;MebReadme")
 
 IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "This is Cluster build, append additional components")
@@ -63,6 +63,13 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  SET(CPACK_COMPONENT_CLIENT_DISPLAY_NAME "Client Programs")
  SET(CPACK_COMPONENT_CLIENT_DESCRIPTION 
    "Various helpful (commandline) tools including the mysql command line client" )
+
+ # Subfeature "Meb" 
+ SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+ SET(CPACK_COMPONENT_MEB_GROUP "AlwaysInstall")
+ # Subfeature "MebReadme" 
+ SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+ SET(CPACK_COMPONENT_MEBREADME_GROUP "AlwaysInstall")
     
  #Subfeature "Data Files" 
  SET(CPACK_COMPONENT_DATAFILES_GROUP "MySQLServer")
