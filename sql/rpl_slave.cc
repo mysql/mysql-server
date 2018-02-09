@@ -7220,9 +7220,11 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       a warning message. We are taking care of avoiding transaction boundary
       issues, but it can happen.
 
-      Transaction boundary errors might happen only because of bad master
+      Transaction boundary errors might happen mostly because of bad master
       positioning in 'CHANGE MASTER TO' (or bad manipulation of master.info)
-      when GTID auto positioning is off.
+      when GTID auto positioning is off. Errors can also happen when using
+      cross-version replication, replicating from a master that supports more
+      event types than this slave.
 
       The IO thread will keep working and queuing events regardless of the
       transaction parser error, but we will throw another warning message to
@@ -7232,8 +7234,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     LogErr(WARNING_LEVEL,
            ER_RPL_SLAVE_IO_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE,
            mi->get_master_log_name(), mi->get_master_log_pos());
-
-    DBUG_ASSERT(!mi->is_auto_position());
   }
 
   switch (event_type) {
