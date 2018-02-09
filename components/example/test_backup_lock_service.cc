@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,26 +56,28 @@ mysql_service_status_t test_backup_lock_service_deinit() {
 
 /* An empty list as no service is provided. */
 BEGIN_COMPONENT_PROVIDES(test_backup_lock_service)
-END_COMPONENT_PROVIDES();
+END_COMPONENT_PROVIDES()
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_backup_lock);
 
 /* A list of required services. */
 BEGIN_COMPONENT_REQUIRES(test_backup_lock_service)
-REQUIRES_SERVICE(mysql_backup_lock), END_COMPONENT_REQUIRES();
+REQUIRES_SERVICE(mysql_backup_lock)
+END_COMPONENT_REQUIRES()
 
 /* A list of metadata to describe the Component. */
 BEGIN_COMPONENT_METADATA(test_backup_lock_service)
-METADATA("mysql.author", "Oracle Corporation"),
-    METADATA("mysql.license", "GPL"), METADATA("test_backup_lock_service", "1"),
-    END_COMPONENT_METADATA();
+METADATA("mysql.author", "Oracle Corporation")
+METADATA("mysql.license", "GPL")
+METADATA("test_backup_lock_service", "1")
+END_COMPONENT_METADATA()
 
 /* Declaration of the Component. */
 DECLARE_COMPONENT(test_backup_lock_service, "mysql:test_backup_lock_service")
 test_backup_lock_service_init,
-    test_backup_lock_service_deinit END_DECLARE_COMPONENT();
+    test_backup_lock_service_deinit END_DECLARE_COMPONENT()
 
-/* Defines list of Components contained in this library. Note that for now
-  we assume that library will have exactly one Component. */
-DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_backup_lock_service)
-    END_DECLARE_LIBRARY_COMPONENTS
+    /* Defines list of Components contained in this library. Note that for now
+      we assume that library will have exactly one Component. */
+    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_backup_lock_service)
+        END_DECLARE_LIBRARY_COMPONENTS

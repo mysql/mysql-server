@@ -960,31 +960,32 @@ DEFINE_METHOD(int, log_service_imp::close,
 BEGIN_SERVICE_IMPLEMENTATION(log_sink_test, log_service)
 log_service_imp::run, log_service_imp::flush, log_service_imp::open,
     log_service_imp::close, log_service_imp::variable_check,
-    log_service_imp::variable_update END_SERVICE_IMPLEMENTATION();
+    log_service_imp::variable_update END_SERVICE_IMPLEMENTATION()
 
-/* component provides: just the log_service service, for now */
-BEGIN_COMPONENT_PROVIDES(log_sink_test)
-PROVIDES_SERVICE(log_sink_test, log_service), END_COMPONENT_PROVIDES();
+    /* component provides: just the log_service service, for now */
+    BEGIN_COMPONENT_PROVIDES(log_sink_test)
+        PROVIDES_SERVICE(log_sink_test, log_service) END_COMPONENT_PROVIDES()
 
-/* component requires: log-builtins */
-BEGIN_COMPONENT_REQUIRES(log_sink_test)
-REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
-    REQUIRES_SERVICE(log_builtins_filter),
-    REQUIRES_SERVICE(log_builtins_filter_debug), END_COMPONENT_REQUIRES();
+    /* component requires: log-builtins */
+    BEGIN_COMPONENT_REQUIRES(log_sink_test) REQUIRES_SERVICE(log_builtins)
+        REQUIRES_SERVICE(log_builtins_string)
+            REQUIRES_SERVICE(log_builtins_filter)
+                REQUIRES_SERVICE(log_builtins_filter_debug)
+                    END_COMPONENT_REQUIRES()
 
-/* component description */
-BEGIN_COMPONENT_METADATA(log_sink_test)
-METADATA("mysql.author", "Oracle Corporation"),
-    METADATA("mysql.license", "GPL"), METADATA("log_service_type", "sink"),
-    END_COMPONENT_METADATA();
+    /* component description */
+    BEGIN_COMPONENT_METADATA(log_sink_test)
+        METADATA("mysql.author", "Oracle Corporation")
+            METADATA("mysql.license", "GPL")
+                METADATA("log_service_type", "sink") END_COMPONENT_METADATA()
 
-/* component declaration */
-DECLARE_COMPONENT(log_sink_test, "mysql:log_sink_test")
-log_service_init, log_service_exit END_DECLARE_COMPONENT();
+    /* component declaration */
+    DECLARE_COMPONENT(log_sink_test, "mysql:log_sink_test") log_service_init,
+    log_service_exit END_DECLARE_COMPONENT()
 
-/* components contained in this library.
-   for now assume that each library will have exactly one component. */
-DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(log_sink_test)
-    END_DECLARE_LIBRARY_COMPONENTS
+    /* components contained in this library.
+       for now assume that each library will have exactly one component. */
+    DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(log_sink_test)
+        END_DECLARE_LIBRARY_COMPONENTS
 
     /* EOT */
