@@ -6271,7 +6271,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   if (ib_table->is_intrinsic()) {
     ut_ad(open_flags & HA_OPEN_INTERNAL_TABLE);
 
-    m_prebuilt->m_temp_read_shared = table_share->ref_count >= 2;
+    m_prebuilt->m_temp_read_shared = table_share->ref_count() >= 2;
 
     if (m_prebuilt->m_temp_read_shared) {
       if (ib_table->temp_prebuilt == NULL) {

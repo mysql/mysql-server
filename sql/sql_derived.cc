@@ -209,7 +209,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
                             0, t, false, nullptr))
     return nullptr; /* purecov: inspected */
   DBUG_ASSERT(t->s == first->s && t != first && t->file != first->file);
-  t->s->ref_count++;
+  t->s->increment_ref_count();
 
   // In case this clone is used to fill the materialized table:
   bitmap_set_all(t->write_set);

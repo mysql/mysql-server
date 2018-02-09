@@ -409,7 +409,7 @@ static bool close_cached_connection_tables(THD *thd,
     if (share->m_open_in_progress) continue;
 
     /* Ignore if table is not open or does not have a connect_string */
-    if (!share->connect_string.length || !share->ref_count) continue;
+    if (!share->connect_string.length || share->ref_count() == 0) continue;
 
     /* Compare the connection string */
     if (connection_string &&

@@ -494,9 +494,9 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
     DBUG_RETURN(NULL);
   }
 
-  ++share->ref_count;
+  share->increment_ref_count();
 
-  if (share->ref_count == 1 && share->prev) {
+  if (share->ref_count() == 1 && share->prev) {
     /*
       Share was not used before and it was in the old_unused_share list
       Unlink share from this list
@@ -512,7 +512,7 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
   while (table_def_cache->size() > table_def_size && oldest_unused_share->next)
     table_def_cache->erase(to_string(oldest_unused_share->table_cache_key));
 
-  DBUG_PRINT("exit", ("share: %p ref_count: %u", share, share->ref_count));
+  DBUG_PRINT("exit", ("share: %p ref_count: %u", share, share->ref_count()));
   DBUG_RETURN(share);
 }
 
@@ -694,7 +694,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
     and TABLE_SHARE::wait_for_old_version. We must also set
     m_open_in_progress to indicate allocated but incomplete share.
   */
-  share->ref_count++;                // Mark in use
+  share->increment_ref_count();      // Mark in use
   share->m_open_in_progress = true;  // Mark being opened
 
   /*
@@ -785,7 +785,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
   */
   if (open_table_err) {
     share->error = true;  // Allow waiters to detect the error
-    share->ref_count--;
+    share->decrement_ref_count();
     table_def_cache->erase(to_string(share->table_cache_key));
 #if defined(ENABLED_DEBUG_SYNC)
     if (!thd->is_attachable_ro_transaction_active())
@@ -801,7 +801,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
   share->m_psi = NULL;
 #endif
 
-  DBUG_PRINT("exit", ("share: %p  ref_count: %u", share, share->ref_count));
+  DBUG_PRINT("exit", ("share: %p  ref_count: %u", share, share->ref_count()));
 
   /* If debug, assert that the share is actually present in the cache */
 #ifndef DBUG_OFF
@@ -906,12 +906,12 @@ void release_table_share(TABLE_SHARE *share) {
   DBUG_ENTER("release_table_share");
   DBUG_PRINT("enter", ("share: %p  table: %s.%s  ref_count: %u  version: %lu",
                        share, share->db.str, share->table_name.str,
-                       share->ref_count, share->version));
+                       share->ref_count(), share->version));
 
   mysql_mutex_assert_owner(&LOCK_open);
 
-  DBUG_ASSERT(share->ref_count);
-  if (!--share->ref_count) {
+  DBUG_ASSERT(share->ref_count() != 0);
+  if (share->decrement_ref_count() == 0) {
     if (share->has_old_version() || table_def_shutdown_in_progress)
       table_def_cache->erase(to_string(share->table_cache_key));
     else {
@@ -3105,7 +3105,7 @@ retry_share : {
     */
     mysql_mutex_lock(&LOCK_open);
     tc->unlock();
-    share->ref_count++;
+    share->increment_ref_count();
     goto share_found;
   } else {
     /*
@@ -4664,7 +4664,7 @@ static bool open_and_process_routine(
           */
           mysql_mutex_lock(&LOCK_open);
           tc->unlock();
-          share->ref_count++;
+          share->increment_ref_count();
           mysql_mutex_unlock(&LOCK_open);
 
           /*
@@ -9406,7 +9406,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       shares with m_open_in_progress == true, since such shares don't
       have any TABLE objects associated.
     */
-    if (share->ref_count) {
+    if (share->ref_count() > 0) {
       /*
         Set share's version to zero in order to ensure that it gets
         automatically deleted once it is no longer referenced.

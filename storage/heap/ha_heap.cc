@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
 int ha_heap::open(const char *name, int mode, uint test_if_locked,
                   const dd::Table *) {
   const bool delete_on_close = test_if_locked & HA_OPEN_INTERNAL_TABLE;
-  single_instance = delete_on_close && table_share->ref_count == 1;
+  single_instance = delete_on_close && table_share->ref_count() == 1;
   /*
     (1) if single instance it cannot possibly exist, create it.
     (2) otherwise it may exist, try to open it, if not found, create it

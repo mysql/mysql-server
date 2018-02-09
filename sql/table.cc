@@ -498,6 +498,25 @@ Key_map TABLE_SHARE::usable_indexes(const THD *thd) const {
   return usable_indexes;
 }
 
+#ifndef DBUG_OFF
+/**
+  Assert that the #LOCK_open mutex is held when the reference count of
+  a TABLE_SHARE is accessed.
+
+  @param share the TABLE_SHARE
+  @return true if the assertion holds, terminates the process otherwise
+*/
+bool assert_ref_count_is_locked(const TABLE_SHARE *share) {
+  // The mutex is not needed while the TABLE_SHARE is being
+  // constructed, or if it is for a temporary table.
+  if (share->table_category != TABLE_UNKNOWN_CATEGORY &&
+      share->tmp_table == NO_TMP_TABLE) {
+    mysql_mutex_assert_owner(&LOCK_open);
+  }
+  return true;
+}
+#endif
+
 /**
   Release resources (plugins) used by the share and free its memory.
   TABLE_SHARE is self-contained -- it's stored in its own MEM_ROOT.
@@ -568,7 +587,7 @@ void TABLE_SHARE::destroy() {
 void free_table_share(TABLE_SHARE *share) {
   DBUG_ENTER("free_table_share");
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
-  DBUG_ASSERT(share->ref_count == 0);
+  DBUG_ASSERT(share->ref_count() == 0);
 
   if (share->m_flush_tickets.is_empty()) {
     /*
@@ -2687,7 +2706,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uint records, i, bitmap_size;
   bool error_reported = false;
   const bool internal_tmp = share->table_category == TABLE_CATEGORY_TEMPORARY;
-  DBUG_ASSERT(!internal_tmp || share->ref_count != 0);
+  DBUG_ASSERT(!internal_tmp || share->ref_count() != 0);
   uchar *record, *bitmaps;
   Field **field_ptr, **vfield_ptr = NULL;
   Field *fts_doc_id_field = NULL;
@@ -3733,7 +3752,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     up to date and the share is referenced. Otherwise our
     thread will never be woken up from wait.
   */
-  DBUG_ASSERT(version != refresh_version && ref_count != 0);
+  DBUG_ASSERT(version != refresh_version && ref_count() != 0);
 
   m_flush_tickets.push_front(&ticket);
 
@@ -3756,7 +3775,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
 
   m_flush_tickets.remove(&ticket);
 
-  if (m_flush_tickets.is_empty() && ref_count == 0) {
+  if (m_flush_tickets.is_empty() && ref_count() == 0) {
     /*
       If our thread was the last one using the share,
       we must destroy it here.
@@ -3823,7 +3842,13 @@ Blob_mem_storage::~Blob_mem_storage() { free_root(&storage, MYF(0)); }
 */
 
 void TABLE::init(THD *thd, TABLE_LIST *tl) {
-  DBUG_ASSERT(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+#ifndef DBUG_OFF
+  if (s->tmp_table == NO_TMP_TABLE) {
+    mysql_mutex_lock(&LOCK_open);
+    DBUG_ASSERT(s->ref_count() > 0);
+    mysql_mutex_unlock(&LOCK_open);
+  }
+#endif
 
   if (thd->lex->need_correct_ident())
     alias_name_used =
@@ -3917,7 +3942,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
 
   share->blob_field = blob_fld;
   share->db_low_byte_first = 1;  // True for HEAP and MyISAM
-  share->ref_count++;
+  share->increment_ref_count();
   share->primary_key = MAX_KEY;
   share->visible_indexes.init();
   share->keys_for_keyread.init();

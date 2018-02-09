@@ -2145,7 +2145,7 @@ static bool alloc_record_buffers(TABLE *table) {
 }
 
 bool open_tmp_table(TABLE *table) {
-  DBUG_ASSERT(table->s->ref_count == 1 ||          // not shared, or:
+  DBUG_ASSERT(table->s->ref_count() == 1 ||        // not shared, or:
               table->s->db_type() == heap_hton ||  // using right engines
               table->s->db_type() == temptable_hton ||
               table->s->db_type() == innodb_hton);
@@ -2472,7 +2472,7 @@ void free_tmp_table(THD *thd, TABLE *entry) {
 
   filesort_free_buffers(entry, true);
 
-  DBUG_ASSERT(entry->s->tmp_handler_count <= entry->s->ref_count);
+  DBUG_ASSERT(entry->s->tmp_handler_count <= entry->s->ref_count());
 
   if (entry->is_created()) {
     DBUG_ASSERT(entry->s->tmp_handler_count >= 1);
@@ -2493,8 +2493,8 @@ void free_tmp_table(THD *thd, TABLE *entry) {
 
   DBUG_ASSERT(entry->mem_root.allocated_size() == 0);
 
-  DBUG_ASSERT(entry->s->ref_count >= 1);
-  if (--entry->s->ref_count == 0)  // no more TABLE objects
+  DBUG_ASSERT(entry->s->ref_count() >= 1);
+  if (entry->s->decrement_ref_count() == 0)  // no more TABLE objects
   {
     plugin_unlock(0, entry->s->db_plugin);
     /*

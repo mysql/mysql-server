@@ -120,6 +120,8 @@ typedef int64 query_id_t;
 
 enum class enum_json_diff_operation;
 
+bool assert_ref_count_is_locked(const TABLE_SHARE *);
+
 #define store_record(A, B) \
   memcpy((A)->B, (A)->record[0], (size_t)(A)->s->reclength)
 #define restore_record(A, B) \
@@ -743,8 +745,6 @@ struct TABLE_SHARE {
   enum row_type real_row_type;  // Initialized in the constructor.
   tmp_table_type tmp_table{NO_TMP_TABLE};
 
-  /// How many TABLE objects use this.
-  uint ref_count{0};
   /**
     Only for internal temporary tables.
     Count of TABLEs (having this TABLE_SHARE) which have a "handler"
@@ -1068,6 +1068,40 @@ struct TABLE_SHARE {
 
   /** Release resources and free memory occupied by the table share. */
   void destroy();
+
+  /**
+    How many TABLE objects use this TABLE_SHARE.
+    @return the reference count
+  */
+  unsigned int ref_count() const {
+    DBUG_ASSERT(assert_ref_count_is_locked(this));
+    return m_ref_count;
+  }
+
+  /**
+    Increment the reference count by one.
+    @return the new reference count
+  */
+  unsigned int increment_ref_count() {
+    DBUG_ASSERT(assert_ref_count_is_locked(this));
+    DBUG_ASSERT(!m_open_in_progress);
+    return ++m_ref_count;
+  }
+
+  /**
+    Decrement the reference count by one.
+    @return the new reference count
+  */
+  unsigned int decrement_ref_count() {
+    DBUG_ASSERT(assert_ref_count_is_locked(this));
+    DBUG_ASSERT(!m_open_in_progress);
+    DBUG_ASSERT(m_ref_count > 0);
+    return --m_ref_count;
+  }
+
+ private:
+  /// How many TABLE objects use this TABLE_SHARE.
+  unsigned int m_ref_count{0};
 };
 
 /**
