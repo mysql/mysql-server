@@ -176,6 +176,7 @@ connection default;
 # 9) Restart mysqld of mtr
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
+--source include/wait_until_connected_again.inc
 
 # 10) Clean-up
 --remove_file $BOOTSTRAP_SQL
