@@ -300,7 +300,7 @@ s1 CHAR(5) CHARACTER SET latin1 COLLATE latin1_german2_ci
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` char(5) COLLATE latin1_german2_ci DEFAULT NULL
+  `s1` char(5) CHARACTER SET latin1 COLLATE latin1_german2_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
 INSERT INTO t1 VALUES ('Ü');
 INSERT INTO t1 VALUES ('ue');

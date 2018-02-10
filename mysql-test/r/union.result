@@ -1326,8 +1326,8 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') CHARACTER SET utf8 NOT NULL DEFAULT 'ü',
-  `b` enum('one','two') CHARACTER SET utf8 DEFAULT NULL,
+  `a` enum('ä','ö','ü') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'ü',
+  `b` enum('one','two') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `c` enum('one','two') DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);

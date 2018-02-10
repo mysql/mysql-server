@@ -411,7 +411,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('aaaa','проба') CHARACTER SET utf8 DEFAULT NULL
+  `a` enum('aaaa','проба') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 insert into t1 values ('проба');
 select * from t1;
@@ -557,7 +557,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING HASH
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
@@ -595,7 +595,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');

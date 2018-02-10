@@ -10366,6 +10366,17 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         it to the list for the new table.
       */
       def = new (*THR_MALLOC) Create_field(field, field);
+
+      // Mark if collation was specified explicitly by user for the column.
+      const dd::Table *obj =
+          (table->s->tmp_table ? table->s->tmp_table_def : src_table);
+      // In case of upgrade, we do not have src_table.
+      if (!obj)
+        def->is_explicit_collation = false;
+      else
+        def->is_explicit_collation =
+            obj->get_column(field->field_name)->is_explicit_collation();
+
       new_create_list.push_back(def);
 
       // Change the column default OR rename just the column name.

@@ -75,9 +75,10 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/table.h"  // dd::Table
-#include "sql/debug_sync.h"      // DEBUG_SYNC
-#include "sql/derror.h"          // ER_THD
+#include "sql/dd/types/column.h"  // dd::Column
+#include "sql/dd/types/table.h"   // dd::Table
+#include "sql/debug_sync.h"       // DEBUG_SYNC
+#include "sql/derror.h"           // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"          // Field
@@ -1262,6 +1263,17 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   */
   old_map = tmp_use_all_columns(table, table->read_set);
 
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *table_obj = nullptr;
+  if (share->tmp_table)
+    table_obj = table->s->tmp_table_def;
+  else {
+    if (thd->dd_client()->acquire(dd::String_type(share->db.str),
+                                  dd::String_type(share->table_name.str),
+                                  &table_obj))
+      DBUG_RETURN(true);
+  }
+
   for (ptr = table->field; (field = *ptr); ptr++) {
     uint flags = field->flags;
     enum_field_types field_type = field->real_type();
@@ -1289,16 +1301,29 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       type.append(" /* 5.5 binary format */");
     packet->append(type.ptr(), type.length(), system_charset_info);
 
+    bool column_has_explicit_collation = false;
+    /* We may not have a table_obj for schema_tables. */
+    if (table_obj)
+      column_has_explicit_collation =
+          table_obj->get_column(field->field_name)->is_explicit_collation();
+
     if (field->has_charset()) {
-      if (field->charset() != share->table_charset) {
+      /*
+        For string types dump charset name only if field charset is same as
+        table charset or was explicitly assigned.
+      */
+      if (field->charset() != share->table_charset ||
+          column_has_explicit_collation) {
         packet->append(STRING_WITH_LEN(" CHARACTER SET "));
         packet->append(field->charset()->csname);
       }
       /*
         For string types dump collation name only if
         collation is not primary for the given charset
+        or was explicitly assigned.
       */
-      if (!(field->charset()->state & MY_CS_PRIMARY)) {
+      if (!(field->charset()->state & MY_CS_PRIMARY) ||
+          column_has_explicit_collation) {
         packet->append(STRING_WITH_LEN(" COLLATE "));
         packet->append(field->charset()->name);
       }

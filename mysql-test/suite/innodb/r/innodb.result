@@ -2422,7 +2422,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8 DEFAULT NULL
+  `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
@@ -2477,7 +2477,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8
+  `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 SET sql_mode = default;

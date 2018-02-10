@@ -87,6 +87,7 @@ Column_impl::Column_impl()
       m_table(NULL),
       m_elements(),
       m_collation_id(INVALID_OBJECT_ID),
+      m_is_explicit_collation(false),
       m_column_key(CK_NONE) {}
 
 Column_impl::Column_impl(Abstract_table_impl *table)
@@ -112,6 +113,7 @@ Column_impl::Column_impl(Abstract_table_impl *table)
       m_table(table),
       m_elements(),
       m_collation_id(INVALID_OBJECT_ID),
+      m_is_explicit_collation(false),
       m_column_key(CK_NONE) {}
 
 Column_impl::~Column_impl() {}
@@ -244,6 +246,7 @@ bool Column_impl::restore_attributes(const Raw_record &r) {
       r.read_str(Columns::FIELD_GENERATION_EXPRESSION_UTF8, "");
 
   m_collation_id = r.read_ref_id(Columns::FIELD_COLLATION_ID);
+  m_is_explicit_collation = r.read_bool(Columns::FIELD_IS_EXPLICIT_COLLATION);
 
   // Special cases dealing with NULL values for nullable fields
 
@@ -294,6 +297,8 @@ bool Column_impl::store_attributes(Raw_record *r) {
          r->store(Columns::FIELD_DATETIME_PRECISION, m_datetime_precision,
                   m_datetime_precision_null) ||
          r->store_ref_id(Columns::FIELD_COLLATION_ID, m_collation_id) ||
+         r->store(Columns::FIELD_IS_EXPLICIT_COLLATION,
+                  m_is_explicit_collation) ||
          r->store(Columns::FIELD_HAS_NO_DEFAULT, m_has_no_default) ||
          r->store(Columns::FIELD_DEFAULT_VALUE, m_default_value,
                   m_default_value_null) ||
@@ -365,6 +370,7 @@ void Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write(w, m_column_type_utf8, STRING_WITH_LEN("column_type_utf8"));
   serialize_each(wctx, w, m_elements, STRING_WITH_LEN("elements"));
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
+  write(w, m_is_explicit_collation, STRING_WITH_LEN("is_explicit_collation"));
   w->EndObject();
 }
 
@@ -414,6 +420,7 @@ bool Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   deserialize_each(rctx, [this]() { return add_element(); }, val, "elements");
 
   read(&m_collation_id, val, "collation_id");
+  read(&m_is_explicit_collation, val, "is_explicit_collation");
 
   track_object(rctx, this);
 
@@ -439,6 +446,7 @@ void Column_impl::debug_print(String_type &outb) const {
      << "m_datetime_precision: " << m_datetime_precision << "; "
      << "m_datetime_precision_null: " << m_datetime_precision_null << "; "
      << "m_collation_id: {OID: " << m_collation_id << "}; "
+     << "m_is_explicit_collation: " << m_is_explicit_collation << "; "
      << "m_has_no_default: " << m_has_no_default << "; "
      << "m_default_value: <excluded from output>"
      << "; "
@@ -525,6 +533,7 @@ Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
       m_elements(),
       m_column_type_utf8(src.m_column_type_utf8),
       m_collation_id(src.m_collation_id),
+      m_is_explicit_collation(src.m_is_explicit_collation),
       m_column_key(src.m_column_key),
       m_srs_id(src.m_srs_id) {
   m_elements.deep_copy(src.m_elements, this);

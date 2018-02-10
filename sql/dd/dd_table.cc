@@ -601,6 +601,9 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     // Collation ID
     col_obj->set_collation_id(field->charset->number);
 
+    // Was collation supplied explicitly ?
+    col_obj->set_is_explicit_collation(field->is_explicit_collation);
+
     /*
       Store numeric scale for types relying on this info (old and new decimal
       and floating point types). Also store 0 for integer types to simplify I_S

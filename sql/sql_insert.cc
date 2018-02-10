@@ -55,11 +55,13 @@
 #include "sql/auth/auth_common.h"  // check_grant_all_columns
 #include "sql/binlog.h"
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"          // dd::get_dictionary
-#include "sql/dd/dictionary.h"  // dd::Dictionary
-#include "sql/dd_sql_view.h"    // update_referencing_views_metadata
-#include "sql/debug_sync.h"     // DEBUG_SYNC
-#include "sql/derror.h"         // ER_THD
+#include "sql/dd/dd.h"            // dd::get_dictionary
+#include "sql/dd/dictionary.h"    // dd::Dictionary
+#include "sql/dd/types/column.h"  // dd::Column
+#include "sql/dd/types/table.h"   // dd::Table
+#include "sql/dd_sql_view.h"      // update_referencing_views_metadata
+#include "sql/debug_sync.h"       // DEBUG_SYNC
+#include "sql/derror.h"           // ER_THD
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -2358,7 +2360,30 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
     if (!cr_field) DBUG_RETURN(NULL);
 
+    // Mark if collation was specified explicitly by user for the column.
+    if (item->type() == Item::FIELD_ITEM) {
+      TABLE *table = table_field->orig_table;
+      DBUG_ASSERT(table);
+      const dd::Table *table_obj =
+          table->s->tmp_table ? table->s->tmp_table_def : nullptr;
+
+      if (!table_obj && table->s->table_category != TABLE_UNKNOWN_CATEGORY) {
+        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+        if (thd->dd_client()->acquire(table->s->db.str,
+                                      table->s->table_name.str, &table_obj))
+          DBUG_RETURN(NULL);
+      }
+
+      cr_field->is_explicit_collation = false;
+      if (table_obj) {
+        const dd::Column *c = table_obj->get_column(table_field->field_name);
+        if (c) cr_field->is_explicit_collation = c->is_explicit_collation();
+      }
+    }
+
     if (item->maybe_null) cr_field->flags &= ~NOT_NULL_FLAG;
+
     alter_info->create_list.push_back(cr_field);
   }
 

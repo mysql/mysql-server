@@ -728,7 +728,7 @@ INSERT INTO t1 ( a ) VALUES ( 'abc' );
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` text CHARACTER SET utf16,
+  `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
   `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT HEX(b) FROM t1;
@@ -744,7 +744,7 @@ HEX(b)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` text CHARACTER SET utf16,
+  `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
   `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT

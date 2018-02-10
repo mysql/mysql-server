@@ -283,15 +283,15 @@ let $assert_cond= "[SELECT COUNT(*) FROM ddse_table_names
 --echo # deterministic when running mtr. Mask collations that
 --echo # depend on the lower case table names setting.
 --echo ########################################################################
-replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 SHOW CREATE TABLE mysql.catalogs;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 SHOW CREATE TABLE mysql.character_sets;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 SHOW CREATE TABLE mysql.collations;
-replace_regex /`schema_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/`schema_name` varchar(64) <LCTN dependent collation> NOT NULL/
-              /`table_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/`table_name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`schema_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`schema_name` varchar(64) <LCTN dependent collation> NOT NULL/
+              /`table_name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`table_name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 SHOW CREATE TABLE mysql.column_statistics;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
@@ -304,7 +304,7 @@ SHOW CREATE TABLE mysql.dd_properties;
 SHOW CREATE TABLE mysql.events;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 SHOW CREATE TABLE mysql.foreign_key_column_usage;
-replace_regex /(`referenced_table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+replace_regex /(`referenced_table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 SHOW CREATE TABLE mysql.foreign_keys;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
@@ -331,7 +331,7 @@ SHOW CREATE TABLE mysql.parameters;
 SHOW CREATE TABLE mysql.resource_groups;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 SHOW CREATE TABLE mysql.routines;
-replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 SHOW CREATE TABLE mysql.schemata;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
@@ -342,7 +342,7 @@ SHOW CREATE TABLE mysql.table_partition_values;
 SHOW CREATE TABLE mysql.table_partitions;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 SHOW CREATE TABLE mysql.table_stats;
-replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
+replace_regex /`name` varchar\(64\) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/`name` varchar(64) <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 SHOW CREATE TABLE mysql.tables;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
@@ -351,11 +351,11 @@ SHOW CREATE TABLE mysql.tablespace_files;
 SHOW CREATE TABLE mysql.tablespaces;
 --replace_regex / AUTO_INCREMENT=[0-9]+//
 SHOW CREATE TABLE mysql.triggers;
-replace_regex /(`routine_catalog` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
-              /(`routine_schema` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+replace_regex /(`routine_catalog` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+              /(`routine_schema` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 SHOW CREATE TABLE mysql.view_routine_usage;
-replace_regex /(`table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
+replace_regex /(`table_[a-z]+` varchar\(64\)) (CHARACTER SET utf8 COLLATE utf8_tolower_ci|CHARACTER SET utf8 COLLATE utf8_bin) NOT NULL/\1 <LCTN dependent collation> NOT NULL/
               / AUTO_INCREMENT=[0-9]+//;
 SHOW CREATE TABLE mysql.view_table_usage;
 
@@ -546,10 +546,10 @@ INSERT INTO dd_published_schema
     'f607ab08b2d2b2d93d8867ad75116655d9c942647245d7846be440ec916c440f');
 INSERT INTO dd_published_schema
   VALUES ('80005', 0,
-    'f0d678bb96e41ff98f048ef93deb35931fd316bcb745055b52e9bce1a86be915');
+    'a307fb7747474d342dee7f0cf2d6ef3aa9e05e2308e585dba1e48356c2178825');
 INSERT INTO dd_published_schema
   VALUES ('80005', 1,
-    'b023f3a67ce6861a930a369948870c5ceab2b836c3a12c0d3ef82d11d8b30b3c');
+    '9675b7571e42e4f901bb7f55c40016592ac544855629158403c7fbcf68f88d05');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),

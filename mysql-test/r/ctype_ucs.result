@@ -688,7 +688,7 @@ create table t1 (a enum('x','y','z') character set ucs2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z') CHARACTER SET ucs2 DEFAULT NULL
+  `a` enum('x','y','z') CHARACTER SET ucs2 COLLATE ucs2_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('x');
 insert into t1 values ('y');
@@ -702,7 +702,7 @@ alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set uc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET ucs2 DEFAULT NULL
+  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET ucs2 COLLATE ucs2_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('D');
 insert into t1 values ('E ');
@@ -724,7 +724,7 @@ create table t1 (a set ('x','y','z','ä','ö','ü') character set ucs2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` set('x','y','z','ä','ö','ü') CHARACTER SET ucs2 DEFAULT NULL
+  `a` set('x','y','z','ä','ö','ü') CHARACTER SET ucs2 COLLATE ucs2_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('x');
 insert into t1 values ('y');

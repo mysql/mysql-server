@@ -8,22 +8,22 @@ koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default ''
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) CHARACTER SET latin1 NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT ''
+  `comment` char(32) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=latin5
 ALTER TABLE t1 CHANGE comment comment CHAR(32) CHARACTER SET latin2 NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) CHARACTER SET latin2 NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT ''
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=latin5
 ALTER TABLE t1 ADD latin5_f CHAR(32) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) CHARACTER SET latin2 NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT '',
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT '',
   `latin5_f` char(32) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin5
 ALTER TABLE t1 DEFAULT CHARSET=latin2;
@@ -31,8 +31,8 @@ ALTER TABLE t1 ADD latin2_f CHAR(32) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT '',
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT '',
   `latin5_f` char(32) CHARACTER SET latin5 NOT NULL,
   `latin2_f` char(32) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin2
@@ -40,8 +40,8 @@ ALTER TABLE t1 DROP latin2_f, DROP latin5_f;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) NOT NULL,
-  `koi8_ru_f` char(32) CHARACTER SET koi8r NOT NULL DEFAULT ''
+  `comment` char(32) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL,
+  `koi8_ru_f` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL DEFAULT ''
 ) ENGINE=ENGINE DEFAULT CHARSET=latin2
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('a','LAT SMALL A');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('b','LAT SMALL B');

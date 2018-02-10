@@ -1645,7 +1645,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` char(3) DEFAULT NULL,
-  `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
+  `n` char(20) CHARACTER SET utf8 COLLATE utf8_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 CREATE TABLE `t1` (
@@ -1775,3 +1775,60 @@ SHOW COLUMNS FROM t1 LIKE 'f2';
 Field	Type	Null	Key	Default	Extra
 f2	int(11)	YES		NULL	NULL
 DROP TABLE t1;
+#
+# Bug#11754608 MYSQL DOESN'T SHOW WHAT COLLATION WAS USED IF THAT
+# COLLATION IS THE DEFAU
+#
+CREATE TABLE t1 (f1 CHAR(1),
+f2 CHAR(1) COLLATE UTF8_BIN,
+f3 CHAR(1) CHARSET UTF8MB3,
+f4 CHAR(1) CHARSET UTF8MB4);
+# The SHOW command should show the utf8mb4 charset for f4 after ALTER.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+ALTER TABLE t1 ADD COLUMN f5 CHAR(1);
+ALTER TABLE t1 ADD COLUMN f6 CHAR(1) CHARSET UTF8MB4;
+# The SHOW command should show the utf8mb4 charset for f6 after ALTER.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `f5` char(1) DEFAULT NULL,
+  `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# Check if we retain the property after CREATE SELECT.
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `f5` char(1) DEFAULT NULL,
+  `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# Check if we retain the property after CREATE LIKE.
+CREATE TABLE t3 LIKE t1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `f5` char(1) DEFAULT NULL,
+  `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
