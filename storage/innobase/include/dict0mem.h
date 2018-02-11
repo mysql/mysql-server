@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1565,13 +1565,27 @@ struct dict_table_t {
 
 	/** Get reference count.
 	@return current value of n_ref_count */
-	inline ulint get_ref_count() const;
+	inline uint64_t get_ref_count() const;
 
 	/** Acquire the table handle. */
 	inline void acquire();
 
 	/** Release the table handle. */
 	inline void release();
+
+	/** Lock the table handle. */
+	inline void lock();
+
+	/** Unlock the table handle. */
+	inline void unlock();
+
+#ifndef UNIV_HOTBACKUP
+	/** Mutex of the table for concurrency access. */
+	ib_mutex_t*				mutex;
+
+	/** Creation state of mutex. */
+	volatile os_once::state_t		mutex_created;
+#endif /* !UNIV_HOTBACKUP */
 
 	/** Id of the table. */
 	table_id_t				id;
@@ -1978,7 +1992,7 @@ private:
 	/** Count of how many handles are opened to this table. Dropping of the
 	table is NOT allowed until this count gets to zero. MySQL does NOT
 	itself check the number of open handles at DROP. */
-	ulint					n_ref_count;
+	std::atomic<uint64_t>			n_ref_count;
 
 public:
 #ifndef UNIV_HOTBACKUP
@@ -2033,6 +2047,10 @@ public:
 	mysql/columns, mysql/tablespaces, etc. This flag is used
 	to do non-locking reads on DD tables. */
 	bool					is_dd_table;
+
+	/** true if this table is explicitly put to non-LRU list
+	during table creation */
+	bool					explicitly_non_lru;
 
 	/** @return the clustered index */
 	const dict_index_t* first_index() const
@@ -2571,6 +2589,36 @@ struct dict_foreign_add_to_referenced_table {
 		}
 	}
 };
+
+/** Request for lazy creation of the mutex of a given table.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose mutex is to be created */
+inline
+void
+dict_table_mutex_create_lazy(
+	dict_table_t*	table)
+{
+	table->mutex = nullptr;
+	table->mutex_created = os_once::NEVER_DONE;
+}
+
+/** Destroy the mutex of a given table.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose mutex is to be created */
+inline
+void
+dict_table_mutex_destroy(
+	dict_table_t*	table)
+{
+	if (table->mutex_created == os_once::DONE) {
+		if (table->mutex != nullptr) {
+			mutex_free(table->mutex);
+			UT_DELETE(table->mutex);
+		}
+	}
+}
 
 /** Destroy the autoinc latch of the given table.
 This function is only called from either single threaded environment

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,40 @@ Asynchronous_channels_state_observer()
 int Asynchronous_channels_state_observer::
 thread_start(Binlog_relay_IO_param* param)
 {
+  /*
+    If server is auto starting on non bootstrap member,
+    then block all slave threads till member comes ONLINE.
+  */
+  if (is_plugin_auto_starting_on_non_bootstrap_member() &&
+      strcmp(param->channel_name, "group_replication_recovery") != 0 &&
+      strcmp(param->channel_name, "group_replication_applier") != 0)
+  {
+    initiate_wait_on_start_process();
+
+    if (group_member_mgr &&
+        local_member_info->get_recovery_status() ==
+                            Group_member_info::MEMBER_ONLINE)
+    {
+      log_message(MY_INFORMATION_LEVEL,
+                  "The slave IO thread of channel '%s' is unblocked as the"
+                  " member is declared ONLINE now.", param->channel_name);
+    }
+    else if (group_member_mgr &&
+             (local_member_info->get_recovery_status() ==
+                            Group_member_info::MEMBER_ERROR ||
+              local_member_info->get_recovery_status() ==
+                            Group_member_info::MEMBER_OFFLINE))
+    {
+      log_message(MY_ERROR_LEVEL, "The slave IO thread of channel '%s'"
+                                  " will error out as the member failed to come"
+                                  " ONLINE.", param->channel_name);
+      return 1;
+    }
+  }
+
   /* Can't start slave relay io thread when group replication is running on
-     single primary-mode on secondary */
-  if (plugin_is_group_replication_running() &&
+     single-primary mode on secondary */
+  if (is_plugin_configured_and_starting() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
       strcmp(param->channel_name, "group_replication_applier") != 0 &&
       group_member_mgr &&
@@ -45,18 +76,19 @@ thread_start(Binlog_relay_IO_param* param)
 
     if (m_uuid == "UNDEFINED")
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave IO THREAD when group"
-                                  " replication is running with single"
-                                  " primary-mode and the primary member is"
-                                  " not known.");
+      log_message(MY_ERROR_LEVEL, "Can't start slave IO THREAD of channel '%s'"
+                                  " when group replication is running with"
+                                  " single-primary mode and the primary member"
+                                  " is not known.", param->channel_name);
       return 1;
     }
 
     if (m_uuid != local_member_info->get_uuid())
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave IO THREAD when group"
-                                  " replication is running with single"
-                                  " primary-mode on a secondary member.");
+      log_message(MY_ERROR_LEVEL, "Can't start slave IO THREAD of channel '%s'"
+                                  " when group replication is running with"
+                                  " single-primary mode on a secondary member.",
+                                  param->channel_name);
       return 1;
     }
   }
@@ -72,9 +104,40 @@ int Asynchronous_channels_state_observer::thread_stop(Binlog_relay_IO_param*)
 int Asynchronous_channels_state_observer::
 applier_start(Binlog_relay_IO_param *param)
 {
+  /*
+    If server is auto starting on non bootstrap member,
+    then block all slave threads till member comes ONLINE.
+  */
+  if (is_plugin_auto_starting_on_non_bootstrap_member() &&
+      strcmp(param->channel_name, "group_replication_recovery") != 0 &&
+      strcmp(param->channel_name, "group_replication_applier") != 0)
+  {
+    initiate_wait_on_start_process();
+
+    if (group_member_mgr &&
+        local_member_info->get_recovery_status() ==
+                            Group_member_info::MEMBER_ONLINE)
+    {
+      log_message(MY_INFORMATION_LEVEL,
+                  "The slave applier thread of channel '%s' is unblocked as the"
+                  " member is declared ONLINE now.", param->channel_name);
+    }
+    else if (group_member_mgr &&
+             (local_member_info->get_recovery_status() ==
+                            Group_member_info::MEMBER_ERROR ||
+              local_member_info->get_recovery_status() ==
+                            Group_member_info::MEMBER_OFFLINE))
+    {
+      log_message(MY_ERROR_LEVEL, "The slave applier thread of channel '%s'"
+                                  " will error out as the member failed to come"
+                                  " ONLINE.", param->channel_name);
+      return 1;
+    }
+  }
+
   /* Can't start slave relay sql thread when group replication is running on
-     single primary-mode on secondary */
-  if (plugin_is_group_replication_running() &&
+     single-primary mode on secondary */
+  if (is_plugin_configured_and_starting() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
       strcmp(param->channel_name, "group_replication_applier") != 0 &&
       group_member_mgr &&
@@ -85,18 +148,19 @@ applier_start(Binlog_relay_IO_param *param)
 
     if (m_uuid == "UNDEFINED")
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave SQL THREAD when group"
-                                  " replication is running with single"
-                                  " primary-mode and the primary member is"
-                                  " not known.");
+      log_message(MY_ERROR_LEVEL, "Can't start slave SQL THREAD of channel '%s'"
+                                  " when group replication is running with"
+                                  " single-primary mode and the primary member"
+                                  " is not known.", param->channel_name);
       return 1;
     }
 
     if (m_uuid != local_member_info->get_uuid())
     {
-      log_message(MY_ERROR_LEVEL, "Can't start slave SQL THREAD when group"
-                                  " replication is running with single"
-                                  " primary-mode on a secondary member.");
+      log_message(MY_ERROR_LEVEL, "Can't start slave SQL THREAD of channel '%s'"
+                                  " when group replication is running with"
+                                  " single-primary mode on a secondary member.",
+                                  param->channel_name);
       return 1;
     }
   }
@@ -148,41 +212,48 @@ applier_log_event(Binlog_relay_IO_param*,
 {
   out= 0;
 
-  /*
-    Cycle through all involved tables to assess if they all
-    comply with the plugin runtime requirements. For now:
-    - The table must be from a transactional engine
-    - It must contain at least one primary key
-    - It should not contain 'ON DELETE/UPDATE CASCADE' referential action
-  */
-  for (uint table=0; table < trans_param->number_of_tables; table++)
+  if (is_plugin_configured_and_starting() ||
+      (group_member_mgr &&
+       local_member_info->get_recovery_status() ==
+         Group_member_info::MEMBER_ONLINE))
   {
-    if (trans_param->tables_info[table].db_type != DB_TYPE_INNODB)
+    /*
+      Cycle through all involved tables to assess if they all
+      comply with the plugin runtime requirements. For now:
+      - The table must be from a transactional engine
+      - It must contain at least one primary key
+      - It should not contain 'ON DELETE/UPDATE CASCADE' referential action
+    */
+    for (uint table=0; table < trans_param->number_of_tables; table++)
     {
-      log_message(MY_ERROR_LEVEL, "Table %s does not use the InnoDB storage "
-                                  "engine. This is not compatible with Group "
-                                  "Replication.",
-                                  trans_param->tables_info[table].table_name);
-      out++;
-    }
+      if (trans_param->tables_info[table].db_type != DB_TYPE_INNODB)
+      {
+        log_message(MY_ERROR_LEVEL, "Table %s does not use the InnoDB storage "
+                                    "engine. This is not compatible with Group "
+                                    "Replication.",
+                                    trans_param->tables_info[table].table_name);
+        out++;
+      }
 
-    if (trans_param->tables_info[table].number_of_primary_keys == 0)
-    {
-      log_message(MY_ERROR_LEVEL, "Table %s does not have any PRIMARY KEY."
-                                  " This is not compatible with Group "
-                                  "Replication.",
-                                  trans_param->tables_info[table].table_name);
-      out++;
-    }
+      if (trans_param->tables_info[table].number_of_primary_keys == 0)
+      {
+        log_message(MY_ERROR_LEVEL, "Table %s does not have any PRIMARY KEY."
+                                    " This is not compatible with Group "
+                                    "Replication.",
+                                    trans_param->tables_info[table].table_name);
+        out++;
+      }
 
-    if (local_member_info->has_enforces_update_everywhere_checks() &&
-        trans_param->tables_info[table].has_cascade_foreign_key)
-    {
-      log_message(MY_ERROR_LEVEL, "Table %s has a foreign key with 'CASCADE'"
-                                  " clause. This is not compatible with "
-                                  "Group Replication.",
-                                  trans_param->tables_info[table].table_name);
-      out++;
+      if (is_plugin_configured_and_starting() &&
+          local_member_info->has_enforces_update_everywhere_checks() &&
+          trans_param->tables_info[table].has_cascade_foreign_key)
+      {
+        log_message(MY_ERROR_LEVEL, "Table %s has a foreign key with 'CASCADE'"
+                                    " clause. This is not compatible with "
+                                    "Group Replication.",
+                                    trans_param->tables_info[table].table_name);
+        out++;
+      }
     }
   }
 

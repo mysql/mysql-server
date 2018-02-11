@@ -394,16 +394,16 @@ SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST_ONLY innodb_read_io_threads= 16;
 SET PERSIST long_query_time= 8.3452;
-SET PERSIST_ONLY innodb_log_file_size= 4194304, log_slave_updates= 1;
+SET PERSIST_ONLY innodb_log_file_size= 4194304, ft_query_expansion_limit= 80;
 SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
 ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
 'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
-'log_slave_updates');
+'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	COMPILED	root
 innodb_log_file_size	EXPLICIT	root
 innodb_read_io_threads	COMPILED	bug25677422
-log_slave_updates	COMPILED	root
 long_query_time	DYNAMIC	root
 max_heap_table_size	DYNAMIC	bug25677422
 slave_net_timeout	DYNAMIC	bug25677422
@@ -412,11 +412,11 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
 ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
 'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
-'log_slave_updates');
+'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	COMPILED	root
 innodb_log_file_size	EXPLICIT	root
 innodb_read_io_threads	COMPILED	bug25677422
-log_slave_updates	COMPILED	root
 long_query_time	DYNAMIC	root
 max_heap_table_size	DYNAMIC	bug25677422
 slave_net_timeout	DYNAMIC	bug25677422
@@ -426,9 +426,9 @@ sort_buffer_size	DYNAMIC	bug25677422
 SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE
 VARIABLE_SOURCE = 'PERSISTED';
 VARIABLE_NAME
+ft_query_expansion_limit
 innodb_log_file_size
 innodb_read_io_threads
-log_slave_updates
 long_query_time
 max_heap_table_size
 slave_net_timeout
@@ -437,11 +437,11 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
 ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
 'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
-'log_slave_updates');
+'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	PERSISTED	root
 innodb_log_file_size	PERSISTED	root
 innodb_read_io_threads	PERSISTED	bug25677422
-log_slave_updates	PERSISTED	root
 long_query_time	PERSISTED	root
 max_heap_table_size	PERSISTED	bug25677422
 slave_net_timeout	PERSISTED	bug25677422
@@ -450,11 +450,11 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE, SET_USER
 FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
 ('sort_buffer_size', 'max_heap_table_size', 'slave_net_timeout',
 'long_query_time', 'innodb_read_io_threads', 'innodb_log_file_size',
-'log_slave_updates');
+'ft_query_expansion_limit');
 VARIABLE_NAME	VARIABLE_SOURCE	SET_USER
+ft_query_expansion_limit	PERSISTED	root
 innodb_log_file_size	PERSISTED	root
 innodb_read_io_threads	PERSISTED	bug25677422
-log_slave_updates	PERSISTED	root
 long_query_time	PERSISTED	root
 max_heap_table_size	PERSISTED	bug25677422
 slave_net_timeout	PERSISTED	bug25677422

@@ -508,23 +508,6 @@ public:
 };
 
 
-class Item_func_roles_graphml final : public Item_str_func
-{
-private:
-  String m_str;
-public:
-  public:
-  Item_func_roles_graphml(const POS &pos)
-    : Item_str_func(pos)
-  {}
-
-  String *val_str(String *) override;
-  bool fix_fields(THD *thd, Item **ref) override;
-  const char *func_name() const override { return "ROLES_GRAPHML"; }
-  void print(String *str, enum_query_type query_type) override;
-  bool resolve_type(THD *) override { return false; }
-};
-
 class Item_func_trim : public Item_str_func
 {
 public:
@@ -1379,16 +1362,76 @@ public:
 };
 
 
-class Item_func_current_role final : public Item_str_func
+class Item_func_current_role final : public Item_func_sysconst
 {
-  typedef Item_str_func super;
-  String m_active_role;
+  typedef Item_func_sysconst super;
 public:
-  explicit Item_func_current_role(const POS &pos) : Item_str_func(pos) {}
+  Item_func_current_role() :
+    super(), value_cache_set(false) {}
+  explicit Item_func_current_role(const POS &pos) :
+    super(pos), value_cache_set(false) {}
   const char *func_name() const override { return "current_role"; }
-  bool resolve_type(THD *) override { return false; }
-  bool fix_fields(THD *thd, Item **ref) override;
-  String *val_str(String *str) override;
+  void cleanup() override;
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(MAX_BLOB_WIDTH, system_charset_info);
+    return false;
+  }
+  const Name_string fully_qualified_func_name() const override
+  {
+    return NAME_STRING("current_role()");
+  }
+protected:
+  void set_current_role(THD *thd);
+  /** a flag whether @ref value_cache is set or not */
+  bool value_cache_set;
+  /**
+    @brief Cache for the result value
+
+    Set by init(). And consumed by val_str().
+    Needed to avoid re-calculation of the current_roles() in the
+    course of the query.
+  */
+  String value_cache;
+};
+
+
+class Item_func_roles_graphml final : public Item_func_sysconst
+{
+  typedef Item_func_sysconst super;
+public:
+  Item_func_roles_graphml() : super(), value_cache_set(false) {}
+  explicit Item_func_roles_graphml(const POS &pos) :
+    super(pos), value_cache_set(false) {}
+  String *val_str(String *) override;
+  void cleanup() override;
+
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(MAX_BLOB_WIDTH, system_charset_info);
+    return false;
+  }
+
+  const char *func_name() const override { return "roles_graphml"; }
+
+  const Name_string fully_qualified_func_name() const override
+  {
+    return NAME_STRING("roles_graphml()");
+  }
+protected:
+  bool calculate_graphml(THD *thd);
+  /**
+    @brief Cache for the result value
+
+    Set by init(). And consumed by val_str().
+    Needed to avoid re-calculation of the current_roles() in the
+    course of the query.
+  */
+  String value_cache;
+
+  /** Set to true if @ref value_cache is set */
+  bool value_cache_set;
 };
 
 

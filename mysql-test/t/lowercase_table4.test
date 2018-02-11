@@ -1,3 +1,4 @@
+--source include/big_test.inc
 --source include/have_case_insensitive_file_system.inc
 --source include/have_lowercase2.inc
 

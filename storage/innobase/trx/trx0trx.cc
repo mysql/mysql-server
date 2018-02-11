@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1920,6 +1920,12 @@ trx_erase_lists(
 	}
 
 	trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
+
+	/* Set minimal active trx id. */
+	trx_id_t min_id = trx_sys->rw_trx_ids.empty()
+		? trx_sys->max_trx_id : trx_sys->rw_trx_ids.front();
+
+	trx_sys->min_active_id.store(min_id);
 
 	trx_sys_mutex_exit();
 }

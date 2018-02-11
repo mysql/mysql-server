@@ -12,7 +12,7 @@
 #
 # --let $wait_for_status_value = UNSIGNED INT[,NEXT[,NEXT...]]
 # --let $wait_for_status_variable = 'STATUS VARIABLE NAME'[,NEXT[,NEXT...]]
-# --source ../include/connection_test_helpers.inc
+# --source ../include/wait_for_status_variables.inc
 #
 
 if (!$wait_for_status_variable)

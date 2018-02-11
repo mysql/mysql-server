@@ -2,6 +2,8 @@
 --echo # WL#9763: Support option to RESET PERSIST
 --echo #
 
+--source include/have_debug_sync.inc
+
 --echo # Syntax check for RESET PERSIST
 RESET PERSIST;
 --error ER_VAR_DOES_NOT_EXIST
@@ -54,5 +56,43 @@ SET GLOBAL long_query_time= DEFAULT,
            slave_net_timeout= DEFAULT, sort_buffer_size= DEFAULT,
            join_buffer_size= DEFAULT;
 #cleanup
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug #27264789: CONCURRENT EXECUTION OF SET/RESET PERSIST CALL CRASHES SERVER
+--echo #
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection conn1;
+# Acquiring LOCK_persist_variables
+SET DEBUG_SYNC='in_set_persist_variables SIGNAL set WAIT_FOR go';
+--send SET PERSIST max_connections= 38;
+
+connection conn2;
+SET DEBUG_SYNC='now WAIT_FOR set';
+--send RESET PERSIST IF EXISTS max_connections;
+
+connection default;
+# reset persist operation will wait until set persist operation is complete.
+SET DEBUG_SYNC='now SIGNAL go';
+
+connection conn1;
+--reap
+
+connection conn2;
+--reap
+
+connection default;
+# return 0
+SELECT count(*) FROM performance_schema.persisted_variables
+  WHERE variable_name = 'max_connections';
+SET DEBUG_SYNC='RESET';
+disconnect conn1;
+disconnect conn2;
+
+#cleanup
+SET GLOBAL max_connections=DEFAULT;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 

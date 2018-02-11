@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1621,7 +1621,8 @@ private:
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
   bool resolve_rollup(THD *thd);
-  bool change_group_ref(THD *thd, Item_func *expr, bool *changed);
+  bool change_func_or_wf_group_ref(THD *thd, Item *func,
+                                   bool *changed);
 public:
   bool flatten_subqueries();
   void set_sj_candidates(Mem_root_array<Item_exists_subselect*> *sj_cand)
@@ -1632,13 +1633,12 @@ public:
 
 private:
   bool setup_wild(THD *thd);
-  bool setup_order_final(THD *thd, int hidden_order_field_count);
+  bool setup_order_final(THD *thd);
   bool setup_group(THD *thd);
   void remove_redundant_subquery_clauses(THD *thd,
-                                         int hidden_group_field_count,
-                                         int hidden_order_field_count);
+                                         int hidden_group_field_count);
   void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list);
-  void empty_order_list(int hidden_order_field_count);
+  void empty_order_list(SELECT_LEX *sl);
   bool setup_join_cond(THD *thd, List<TABLE_LIST> *tables, bool in_update);
   bool find_common_table_expr(THD *thd, Table_ident *table_id,
                               TABLE_LIST *tl, Parse_context *pc,
@@ -1651,6 +1651,9 @@ private:
   */
   Mem_root_array<Item_exists_subselect*> *sj_candidates;
 public:
+  /// How many expressions are part of the order by but not select list.
+  int hidden_order_field_count;
+
   bool fix_inner_refs(THD *thd);
   bool setup_conds(THD *thd);
   bool prepare(THD *thd);

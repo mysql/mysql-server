@@ -27,8 +27,14 @@ SET GLOBAL slave_parallel_workers = 4;
 
 select CHANNEL_NAME, WORKER_ID, THREAD_ID
   from performance_schema.replication_applier_status_by_worker
-  limit 1
+  where WORKER_ID = 1
   into @c_name, @w_id, @t_id;
+
+# Make sure we found data to look at.
+select @c_name, @w_id, @t_id is not null;
+
+# Debug
+# select * from performance_schema.replication_applier_status_by_worker;
 
 --enable_warnings
 

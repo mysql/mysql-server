@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 #include "plugin/x/client/message_holder.h"
 #include "plugin/x/client/mysqlxclient/xrow.h"
-
+#include "plugin/x/client/xcontext.h"
 
 namespace xcl {
 
@@ -42,7 +42,7 @@ class XRow_impl: public XRow {
   using Metadata = std::vector<Column_metadata>;
 
  public:
-  explicit XRow_impl(Metadata *metadata);
+  explicit XRow_impl(Metadata *metadata, Context *context);
   ~XRow_impl() override = default;
 
   int32_t get_number_of_fields() const override;
@@ -89,6 +89,7 @@ class XRow_impl: public XRow {
 
   std::unique_ptr<Row> m_row;
   Metadata *m_metadata;
+  Context *m_context;
 };
 
 }  // namespace xcl

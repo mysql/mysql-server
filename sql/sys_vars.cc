@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3820,10 +3820,16 @@ bool Sys_var_charptr::global_update(THD*, set_var *var)
 }
 
 
-bool Sys_var_enum_binlog_checksum::global_update(THD*, set_var *var)
+bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
   bool check_purge= false;
 
+  /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
@@ -3991,6 +3997,12 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
   bool ret= true;
 
   /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
+  /*
     Hold lock_log so that:
     - other transactions are not flushed while gtid_mode is changed;
     - gtid_mode is not changed while some other thread is rotating
@@ -4011,14 +4023,23 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
     any of the other locks, but want to read gtid_mode, don't need
     to take the other locks.
   */
-  gtid_mode_lock->wrlock();
+
+  enum_gtid_mode new_gtid_mode=
+    (enum_gtid_mode)var->save_result.ulonglong_value;
+
+  if (gtid_mode_lock->trywrlock())
+  {
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0),
+             get_gtid_mode_string(new_gtid_mode),
+             "there is a concurrent operation that disallows changes to @@GLOBAL.GTID_MODE");
+    DBUG_RETURN(ret);
+  }
+
   channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   global_sid_lock->wrlock();
   int lock_count= 4;
 
-  enum_gtid_mode new_gtid_mode=
-    (enum_gtid_mode)var->save_result.ulonglong_value;
   enum_gtid_mode old_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
   DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
 
@@ -4495,13 +4516,9 @@ static Sys_var_charptr Sys_ssl_capath(
 
 static Sys_var_charptr Sys_tls_version(
        "tls_version",
-       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2(Only for openssl)",
+       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2",
        READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
-#ifdef HAVE_YASSL
-       IN_FS_CHARSET, "TLSv1,TLSv1.1");
-#else
        IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
-#endif
 
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
@@ -4530,7 +4547,7 @@ static Sys_var_charptr Sys_ssl_crlpath(
        READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
 static Sys_var_bool Sys_auto_generate_certs(
        "auto_generate_certs",
        "Auto generate SSL certificates at server startup if --ssl is set to "
@@ -4544,7 +4561,7 @@ static Sys_var_bool Sys_auto_generate_certs(
        ON_CHECK(NULL),
        ON_UPDATE(NULL),
        NULL);
-#endif /* HAVE_OPENSSL && !HAVE_YASSL */
+#endif /* HAVE_OPENSSL && !HAVE_WOLFSSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
@@ -5659,6 +5676,16 @@ static Sys_var_bool Sys_relay_log_recovery(
        "starts re-fetching from the master right after the last transaction "
        "processed",
         READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_ulong Sys_rpl_read_size(
+       "rpl_read_size",
+       "The size for reads done from the binlog and relay log. "
+       "It must be a multiple of 4kb. Making it larger might help with IO "
+       "stalls while reading these files when they are not in the OS buffer "
+       "cache",
+       GLOBAL_VAR(rpl_read_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE * 2, ULONG_MAX), DEFAULT(IO_SIZE * 2),
+       BLOCK_SIZE(IO_SIZE));
 
 static Sys_var_bool Sys_slave_allow_batching(
        "slave_allow_batching", "Allow slave to batch requests",

@@ -1,5 +1,5 @@
 #
-# Test case to verify that group replication on single primary-mode can be
+# Test case to verify that group replication on single-primary mode can be
 # started while asynchronous replication channels are running in primary member
 #
 # Test:

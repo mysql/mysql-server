@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1272,7 +1272,7 @@ ssize_t vio_pending(Vio *vio)
   }
 
   /*
-    SSL not checked due to a yaSSL bug in SSL_pending that
+    SSL not checked due to a wolfSSL bug in SSL_pending that
     causes it to attempt to read from the socket.
   */
 

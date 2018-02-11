@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,27 +41,14 @@
 #include "mysql/client_authentication.h"
 #include "sql_common.h"
 #include "sql_string.h"
-#if !defined(HAVE_YASSL)
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
-
-#else
-#include <openssl/ssl.h>
-using yaSSL::PEM_read_RSAPrivateKey;
-using yaSSL::PEM_read_RSA_PUBKEY;
-using yaSSL::PEM_read_mem_RSA_PUBKEY;
-using yaSSL::RSA_private_decrypt;
-using yaSSL::RSA_public_encrypt;
-using yaSSL::RSA_size;
-using yaSSL::RSA;
-using yaSSL::RSA_PKCS1_PADDING;
-using yaSSL::SSL_CTX;
-using yaSSL::BIO;
-#endif
+#include <wolfssl_fix_namespace_pollution.h>
 #include "mysql/plugin.h"
 #include "sha2.h"
 
@@ -83,7 +70,6 @@ int sha256_password_deinit(void)
   mysql_mutex_destroy(&g_public_key_mutex);
   return 0;
 }
-
 
 /**
   Reads and parse RSA public key data from a file.
@@ -137,7 +123,7 @@ static RSA *rsa_init(MYSQL *mysql)
   fclose(pub_key_file);
   if (g_public_key == NULL)
   {
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
     ERR_clear_error();
 #endif
     my_message_local(WARNING_LEVEL, "Public key is not in PEM format: '%s'",
@@ -163,7 +149,7 @@ extern "C"
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 {
   bool uses_password= mysql->passwd[0] != 0;
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key= '\1';
   RSA *public_key= NULL;
@@ -202,7 +188,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure)
   {
- #if !defined(HAVE_YASSL)
+ #if !defined(HAVE_WOLFSSL)
     public_key= rsa_init(mysql);
 #endif
   }
@@ -220,7 +206,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     unsigned int passwd_len= static_cast<unsigned int>(strlen(mysql->passwd) + 1);
     if (!connection_is_secure)
     {
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
       /*
         If no public key; request one from the server.
       */
@@ -453,18 +439,14 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
         if ((pkt_len= vio->read_packet(vio, &pkt)) <= 0)
           DBUG_RETURN(CR_ERROR);
-#ifndef HAVE_YASSL
         BIO* bio= BIO_new_mem_buf(pkt, pkt_len);
         public_key= PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
-#else /* HAVE _YASSL */
-        public_key= PEM_read_mem_RSA_PUBKEY(pkt, pkt_len);
-#endif /* !HAVE_YASSL */
         if (public_key == 0)
         {
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
           ERR_clear_error();
-#endif /* !HAVE_YASSL */
+#endif /* !HAVE_WOLFSSL */
           DBUG_PRINT("info",("Failed to parse public key"));
           DBUG_RETURN(CR_ERROR);
         }
@@ -500,9 +482,9 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         int cipher_length= RSA_size(public_key);
         /*
            When using RSA_PKCS1_OAEP_PADDING the password length must be less
-           than RSA_size(rsa) - 11.
+           than RSA_size(rsa) - 41.
          */
-        if (passwd_len + 11 >= (unsigned) cipher_length)
+        if (passwd_len + 41 >= (unsigned) cipher_length)
         {
           /* password message is to long */
           if (got_public_key_from_server)
@@ -512,7 +494,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
           DBUG_RETURN(CR_ERROR);
         }
         RSA_public_encrypt(passwd_len, (unsigned char *) passwd_scramble,
-                           encrypted_password, public_key, RSA_PKCS1_PADDING);
+                           encrypted_password, public_key, RSA_PKCS1_OAEP_PADDING);
         if (got_public_key_from_server)
           RSA_free(public_key);
 

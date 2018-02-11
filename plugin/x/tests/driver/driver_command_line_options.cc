@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "plugin/x/tests/driver/driver_command_line_options.h"
 
+#include <cctype>
 #include <iostream>
 
 #include "plugin/x/generated/mysqlx_version.h"
@@ -41,7 +42,7 @@ void Driver_command_line_options::print_help() {
   print_version();
   std::cout << (ORACLE_WELCOME_COPYRIGHT_NOTICE("2015")) << std::endl;
 
-  std::cout << "mysqlxtest <options>\n";
+  std::cout << "mysqlxtest <options> [SCHEMA]\n";
   std::cout << "Options:\n";
   std::cout << "-f, --file=<file>     Reads input from file\n";
   std::cout << "-I, --import=<dir>    Reads macro files from dir; required "
@@ -238,6 +239,15 @@ Driver_command_line_options::Driver_command_line_options(
       print_version();
       exit_code = 1;
     } else if (exit_code == 0) {
+      const auto index_of_last_argument = argc - 1;
+
+      if (index_of_last_argument == i &&
+          std::isalnum(argv[i][0])) {
+        m_connection_options.schema = argv[i];
+
+        break;
+      }
+
       std::cerr << argv[0] << ": unknown option " << argv[i] << "\n";
       exit_code = 1;
       break;

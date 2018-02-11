@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -827,6 +827,13 @@ static void prepare_new_connection_state(THD* thd)
       !(sctx->check_access(SUPER_ACL) ||
         sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first))
   {
+    if (sctx->password_expired())
+    {
+      LogErr(WARNING_LEVEL, ER_CONN_INIT_CONNECT_IGNORED,
+             sctx->priv_user().str, sctx->priv_host().str);
+      return;
+    }
+
     execute_init_command(thd, &opt_init_connect, &LOCK_sys_init_connect);
     if (thd->is_error())
     {

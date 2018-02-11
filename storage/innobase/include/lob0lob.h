@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -171,7 +171,8 @@ reference is at the end of the 'locally' stored part of the field.  'Locally'
 means storage in the index record. We store locally a long enough prefix of
 each column so that we can determine the ordering parts of each index record
 without looking into the externally stored part. */
-struct ref_t {
+struct ref_t
+{
 private:
 
 	/** If the LOB size is equal to or above this limit (in physical page
@@ -179,7 +180,7 @@ private:
 	in this case LOB index needs to be built. */
 	static const ulint LOB_BIG_THRESHOLD_SIZE = 2;
 
- public:
+public:
 
 	/** Constructor.
 	@param[in]	ptr	Pointer to the external field reference. */
@@ -227,6 +228,14 @@ private:
 		obj.m_null = is_null();
 		obj.m_owner = is_owner();
 		obj.m_inherit = is_inherited();
+	}
+
+	/** Copy the LOB reference into the given memory location.
+	@param[out]	field_ref	write LOB reference in this
+					location.*/
+	void copy(byte* field_ref) const
+	{
+		memcpy(field_ref, m_ref, SIZE);
 	}
 
 	/** Check whether the stored external field reference is equal to the
@@ -610,7 +619,8 @@ blob_free(
 	mtr_t*		mtr);
 
 /** The B-tree context under which the LOB operation is done. */
-class BtrContext {
+class BtrContext
+{
 public:
 	/** Default Constructor */
 	BtrContext()

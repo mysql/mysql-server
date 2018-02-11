@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@
 #include "sql/sql_prepare.h"  // mysql_stmt_execute
 #include "sql/sql_profile.h"
 #include "sql/sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
-#include "sql/sql_reload.h"   // reload_acl_and_cache
+#include "sql/sql_reload.h"   // handle_reload_request
 #include "sql/sql_rename.h"   // mysql_rename_tables
 #include "sql/sql_rewrite.h"  // mysql_rewrite_query
 #include "sql/sql_select.h"   // handle_query
@@ -327,6 +327,8 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
   case SQLCOM_SET_OPTION:
     /* Implicitly commit a transaction started by a SET statement */
     DBUG_RETURN(lex->autocommit);
+  case SQLCOM_RESET:
+    DBUG_RETURN(lex->option_type != OPT_PERSIST);
   default:
     DBUG_RETURN(true);
   }
@@ -1970,15 +1972,15 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       */
       bool res;
       current_thd= nullptr;
-      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
-                                NULL, &not_used);
+      res= handle_reload_request(NULL, options | REFRESH_FAST,
+                                 NULL, &not_used);
       current_thd= thd;
       if (res)
         break;
     }
     else
 #endif
-    if (reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+    if (handle_reload_request(thd, options, (TABLE_LIST*) 0, &not_used))
       break;
     if (trans_commit_implicit(thd))
       break;
@@ -2560,14 +2562,14 @@ static inline void binlog_gtid_end_transaction(THD *thd)
     thd->lex->sql_command == SQLCOM_* clause; for temporary
     tables they match only thd->lex->sql_command == SQLCOM_*.)
   */
-  if ((thd->lex->sql_command == SQLCOM_COMMIT ||
-       (thd->slave_thread &&
-        (thd->lex->sql_command == SQLCOM_XA_COMMIT ||
-         thd->lex->sql_command == SQLCOM_XA_ROLLBACK)) ||
-       stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
-       ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
-         thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
-        !thd->in_multi_stmt_transaction_mode())))
+  if (thd->lex->sql_command == SQLCOM_COMMIT ||
+      thd->lex->sql_command == SQLCOM_XA_PREPARE ||
+      thd->lex->sql_command == SQLCOM_XA_COMMIT ||
+      thd->lex->sql_command == SQLCOM_XA_ROLLBACK ||
+      stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
+      ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+        thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
+       !thd->in_multi_stmt_transaction_mode()))
     (void) mysql_bin_log.gtid_end_transaction(thd);
 
   DBUG_VOID_RETURN;
@@ -4084,10 +4086,10 @@ mysql_execute_command(THD *thd, bool first_level)
     }
 
     /*
-      reload_acl_and_cache() will tell us if we are allowed to write to the
+      handle_reload_request() will tell us if we are allowed to write to the
       binlog or not.
     */
-    if (!reload_acl_and_cache(thd, lex->type, first_table, &write_to_binlog))
+    if (!handle_reload_request(thd, lex->type, first_table, &write_to_binlog))
     {
       /*
         We WANT to write and we CAN write.
@@ -4105,7 +4107,7 @@ mysql_execute_command(THD *thd, bool first_level)
       {
         /* 
            We should not write, but rather report error because 
-           reload_acl_and_cache binlog interactions failed 
+           handle_reload_request binlog interactions failed 
          */
         res= 1;
       } 

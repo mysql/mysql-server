@@ -657,4 +657,34 @@ connection default;
 disable_connect_log;
 SET GLOBAL regexp_time_limit = DEFAULT;
 
+
+--echo #
+--echo # Bug#27252630: REGEXP FUNCTIONS IGNORE NULLS
+--echo #
+
+SELECT regexp_instr ( 'a', 'a', NULL );
+SELECT regexp_instr ( 'a', 'a', 1, NULL );
+SELECT regexp_instr ( 'a', 'a', 1, 0, NULL );
+SELECT regexp_instr ( 'a', 'a', 1, 0, 0, NULL );
+
+SELECT regexp_like ( 'a', 'a', NULL );
+
+SELECT regexp_replace ( 'a', 'a', 'a', NULL );
+SELECT regexp_replace ( 'a', 'a', 'a', 1, NULL );
+SELECT regexp_replace ( 'a', 'a', 'a', 1, 0, NULL );
+
+SELECT regexp_substr ( 'a', 'a', NULL );
+SELECT regexp_substr ( 'a', 'a', 1, NULL );
+SELECT regexp_substr ( 'a', 'a', 1, 0, NULL );
+
+--echo #
+--echo # Bug#27232647: REGEX: ASSERTION FAILED: !STR || STR != M_PTR
+--echo #
+
+SELECT regexp_like( reverse(''), 123 );
+SELECT regexp_like( soundex(@v1), 'abc' );
+SELECT regexp_like( password(@v1), 'abc' );
+SELECT regexp_like( left('', ''), 'abc' );
+SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
+
 --source ../mysql-test/include/cleanup_icu_utils.inc

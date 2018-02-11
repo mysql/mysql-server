@@ -82,7 +82,7 @@ PFS_engine_table_share table_replication_connection_configuration::m_share = {
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_connection_configuration::get_row_count, /* records */
-  sizeof(PFS_simple_index),                                  /* ref length */
+  sizeof(pos_t),                                  /* ref length */
   &m_table_lock,
   &m_table_def,
   true, /* perpetual */
@@ -103,7 +103,7 @@ PFS_index_rpl_connection_config::match(Master_info *mi)
       mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
-    if (!m_key.match(row.channel_name, row.channel_name_length))
+    if (!m_key.match_not_null(row.channel_name, row.channel_name_length))
     {
       return false;
     }
@@ -175,7 +175,7 @@ table_replication_connection_configuration::rnd_next(void)
 
 int
 table_replication_connection_configuration::rnd_pos(
-  const void *pos MY_ATTRIBUTE((unused)))
+  const void *pos)
 {
   int res = HA_ERR_RECORD_DELETED;
 
@@ -342,10 +342,10 @@ table_replication_connection_configuration::make_row(Master_info *mi)
 
 int
 table_replication_connection_configuration::read_row_values(
-  TABLE *table MY_ATTRIBUTE((unused)),
+  TABLE *table,
   unsigned char *,
-  Field **fields MY_ATTRIBUTE((unused)),
-  bool read_all MY_ATTRIBUTE((unused)))
+  Field **fields,
+  bool read_all)
 {
   Field *f;
 

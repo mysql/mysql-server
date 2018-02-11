@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,9 @@ PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_write_lock_protection,
                key_GR_LOCK_pipeline_stats_flow_control,
                key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
-               key_GR_LOCK_trx_unlocking;
+               key_GR_LOCK_trx_unlocking,
+               key_GR_LOCK_plugin_online,
+               key_GR_LOCK_channel_observation_removal;
 
 PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_applier_module_suspend,
@@ -73,7 +75,8 @@ PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_session_thread_method_exec,
                key_GR_COND_session_thread_run,
                key_GR_COND_pipeline_stats_flow_control,
-               key_GR_COND_write_lock_protection;
+               key_GR_COND_write_lock_protection,
+               key_GR_COND_plugin_online;
 
 PSI_thread_key key_GR_THD_applier_module_receiver,
                key_GR_THD_cert_broadcast,
@@ -118,7 +121,9 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[]=
   {&key_GR_LOCK_write_lock_protection, "LOCK_write_lock_protection", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   {&key_GR_LOCK_pipeline_stats_transactions_waiting_apply, "LOCK_pipeline_stats_transactions_waiting_apply", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  {&key_GR_LOCK_trx_unlocking, "LOCK_transaction_unblocking", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
+  {&key_GR_LOCK_trx_unlocking, "LOCK_transaction_unblocking", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  {&key_GR_LOCK_plugin_online, "LOCK_plugin_online", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  {&key_GR_LOCK_channel_observation_removal, "LOCK_channel_observation_removal", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_info all_group_replication_psi_condition_keys[]=
@@ -143,6 +148,7 @@ static PSI_cond_info all_group_replication_psi_condition_keys[]=
   {&key_GR_COND_session_thread_run, "COND_session_thread_run", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   {&key_GR_COND_pipeline_stats_flow_control, "COND_pipeline_stats_flow_control", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   {&key_GR_COND_write_lock_protection, "COND_write_lock_protection", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  {&key_GR_COND_plugin_online, "COND_plugin_online", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 static PSI_thread_info all_group_replication_psi_thread_keys[]=

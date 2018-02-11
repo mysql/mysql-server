@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -665,12 +665,15 @@ private:
 		const char*	table_name);
 
 	/** Delete log record by id
-	@param[in]	trx	transaction instance
-	@param[in]	id	log id
+	@param[in]	trx		transaction instance
+	@param[in]	id		log id
+	@param[in]	dict_locked	true if dict_sys mutex is held,
+					otherwise false
 	@return DB_SUCCESS or error */
 	dberr_t	delete_by_id(
 		trx_t*		trx,
-		uint64_t	id);
+		uint64_t	id,
+		bool		dict_locked);
 
 	/** Scan, replay and delete log records by thread id
 	@param[in]	thread_id	thread id

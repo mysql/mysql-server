@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -845,6 +845,16 @@ dd_table_discard_tablespace(
 			index = index->next();
 		}
 
+		/* Set new table id for dd columns when it's importing
+		tablespace. */
+		if (!discard) {
+			for (auto dd_column : *table_def->columns()) {
+				dd_column->se_private_data().set_uint64(
+					dd_index_key_strings[DD_TABLE_ID],
+					table->id);
+			}
+		}
+
 		/* Set discard flag. */
 		dd::Properties& p = table_def->se_private_data();
 		p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
@@ -1678,8 +1688,8 @@ dd_set_table_options(
 	const dict_table_t*	table)
 {
 	dd::Table*			dd_table_def = &(dd_table->table());
-	enum row_type			type;
-	dd::Table::enum_row_format	format;
+	enum row_type			type = ROW_TYPE_DEFAULT;
+	dd::Table::enum_row_format	format = dd::Table::RF_DYNAMIC;
 	dd::Properties& options = dd_table_def->options();
 
 	switch (dict_tf_get_rec_format(table->flags)) {
@@ -1700,7 +1710,7 @@ dd_set_table_options(
 		type = ROW_TYPE_DYNAMIC;
 		break;
 	default:
-		ut_ad(0);
+		ut_a(0);
 	}
 
 	if (!dd_table_is_partitioned(*dd_table_def)) {
@@ -1867,6 +1877,7 @@ dd_fill_one_dict_index(
 	unsigned		n_uniq		= n_fields;
 	std::bitset<REC_MAX_N_FIELDS>	indexed;
 
+	ut_ad(!mutex_own(&dict_sys->mutex));
 	/* This name cannot be used for a non-primary index */
 	ut_ad(key_num == form->primary_key
 	      || my_strcasecmp(system_charset_info,
@@ -2164,6 +2175,8 @@ dd_fill_dict_index(
 {
 	int		error = 0;
 
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
 	/* Create the keys */
 	if (m_form->s->keys == 0 || m_form->s->primary_key == MAX_KEY) {
 		/* Create an index which is used as the clustered index;
@@ -2299,12 +2312,16 @@ dd_fill_dict_index(
 		}
 	} else {
 dd_error:
+		mutex_enter(&dict_sys->mutex);
+
 		for (dict_index_t* f_index = UT_LIST_GET_LAST(m_table->indexes);
 		     f_index != nullptr;
 		     f_index = UT_LIST_GET_LAST(m_table->indexes)) {
 
 			dict_index_remove_from_cache(m_table, f_index);
 		}
+
+		mutex_exit(&dict_sys->mutex);
 
 		dict_mem_table_free(m_table);
 	}
@@ -3766,12 +3783,10 @@ dd_open_table_one(
 	}
 
 	/* Create dict_index_t for the table */
-	mutex_enter(&dict_sys->mutex);
 	int	ret;
 	ret = dd_fill_dict_index(
 		dd_table->table(), table, m_table, NULL, zip_allowed,
 		strict, thd);
-	mutex_exit(&dict_sys->mutex);
 
 	if (ret != 0) {
 		return(nullptr);
@@ -3919,6 +3934,11 @@ dd_open_table_one(
 		m_table = exist;
 	} else {
 		dict_table_add_to_cache(m_table, TRUE, heap);
+
+		if (m_table->fts &&
+		    dict_table_has_fts_index(m_table)) {
+			fts_optimize_add_table(m_table);
+		}
 
 		if (dict_sys->dynamic_metadata != nullptr) {
 			dict_table_load_dynamic_metadata(m_table);
@@ -4373,7 +4393,10 @@ dd_process_dd_columns_rec(
 	const byte*	field;
 	dict_col_t*	t_col;
 	ulint		pos;
+	ulint		v_pos = 0;
 	bool		is_hidden;
+	bool		is_virtual;
+	dict_v_col_t*	vcol = nullptr;
 
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
@@ -4395,6 +4418,10 @@ dd_process_dd_columns_rec(
 	/* Get the position. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
 	pos = mach_read_from_4(field) - 1;
+
+	/* Get the is_virtual attribute. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 21, &len);
+	is_virtual = mach_read_from_1(field) & 0x01;
 
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 27, &len);
@@ -4427,16 +4454,47 @@ dd_process_dd_columns_rec(
 		table = dd_table_open_on_id(*table_id, thd, &mdl, true, true);
 
 		if (!table) {
+			delete p;
 			return(false);
 		}
 
-		t_col = table->get_col(pos);
+		if (is_virtual) {
+			vcol = dict_table_get_nth_v_col_mysql(table, pos);
 
-		/* Copy info. */
-		col->ind = t_col->ind;
-		col->mtype = t_col->mtype;
-		col->prtype = t_col->prtype;
-		col->len = t_col->len;
+			if (vcol == nullptr) {
+				dd_table_close(table, thd, &mdl, true);
+				delete p;
+				return(false);
+			}
+
+			/* Copy info. */
+			col->ind = vcol->m_col.ind;
+			col->mtype = vcol->m_col.mtype;
+			col->prtype = vcol->m_col.prtype;
+			col->len = vcol->m_col.len;
+
+			v_pos = dict_create_v_col_pos(vcol->v_pos,
+						      vcol->m_col.ind);
+		} else {
+			if (table->n_v_cols == 0) {
+				t_col = table->get_col(pos);
+			} else {
+				ulint	col_nr;
+
+				col_nr = dict_table_has_column(table,
+							       *col_name,
+							       pos);
+				t_col = table->get_col(col_nr);
+				ut_ad(t_col);
+			}
+
+			/* Copy info. */
+			col->ind = t_col->ind;
+			col->mtype = t_col->mtype;
+			col->prtype = t_col->prtype;
+			col->len = t_col->len;
+
+		}
 
 		dd_table_close(table, thd, &mdl, true);
 		delete p;
@@ -4448,7 +4506,13 @@ dd_process_dd_columns_rec(
 
 	/* Report the virtual column number */
 	if (col->prtype & DATA_VIRTUAL) {
-		*nth_v_col = dict_get_v_col_pos(col->ind);
+		ut_ad(vcol != nullptr);
+		ut_ad(v_pos != 0);
+		ut_ad(is_virtual);
+
+		*nth_v_col = dict_get_v_col_pos(v_pos);
+	} else {
+		*nth_v_col = ULINT_UNDEFINED;
 	}
 
 	return(true);
@@ -4978,7 +5042,7 @@ dd_set_fts_table_options(
 	dd_table->set_hidden(dd::Abstract_table::HT_HIDDEN_SE);
 	dd_table->set_collation_id(my_charset_bin.number);
 
-	dd::Table::enum_row_format row_format;
+	dd::Table::enum_row_format row_format = dd::Table::RF_DYNAMIC;
 	switch (dict_tf_get_rec_format(table->flags)) {
 	case REC_FORMAT_REDUNDANT:
 		row_format = dd::Table::RF_REDUNDANT;
@@ -4993,7 +5057,7 @@ dd_set_fts_table_options(
 		row_format = dd::Table::RF_DYNAMIC;
 		break;
 	default:
-		ut_ad(0);
+		ut_a(0);
 	}
 
 	dd_table->set_row_format(row_format);

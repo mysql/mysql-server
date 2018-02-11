@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,24 +28,20 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
-#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_murmur3.h"    // murmur3_32
-#include "my_stacktrace.h" // my_safe_itoa
-#include "my_sys.h"
-#include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/field.h"     // Field
 #include "sql/handler.h"
 #include "sql/key.h"
-#include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_transaction_write_set_ctx.h"
 #include "sql/session_tracker.h"
@@ -57,7 +53,6 @@
 #include "sql/transaction_info.h"
 #include "sql_string.h"
 
-#define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"
 
 const char *transaction_write_set_hashing_algorithms[]=
@@ -97,37 +92,24 @@ template <class type> uint64 calc_hash(ulong algorithm, type T, size_t len)
   needed to be checked to get the hash of the field value in the foreign
   table.
 
+  This function is meant to be only called by add_pke() function, some
+  conditions are check there for performance optimization.
+
   @param[in] table - TABLE object
   @param[in] thd - THD object pointing to current thread.
 
   @param[out] foreign_key_map - a standard map which keeps track of the
                                 foreign key fields.
 */
-static void check_foreign_key(TABLE *table, THD *thd,
+static void check_foreign_key(TABLE *table,
+#ifndef DBUG_OFF
+                              THD *thd,
+#endif
                               std::map<std::string,std::string> &foreign_key_map)
 {
   DBUG_ENTER("check_foreign_key");
-  /*
-    OPTION_NO_FOREIGN_KEY_CHECKS bit in options_bits is set at two places
-
-    1) If the user executed 'SET foreign_key_checks= 0' on the local session
-    before executing the query.
-    or
-    2) We are applying a RBR event (i.e., the event is from a remote server)
-    and logic in Rows_log_event::do_apply_event found out that the event is
-    generated from a remote server session that disabled foreign_key_checks
-    (using 'SET foreign_key_checks=0').
-
-    In either of the above cases (i.e., the foreign key check is disabled for
-    the current query/current event), we should ignore generating
-    the foreign key information as they should not participate
-    in the conflicts detecting algorithm.
-  */
-  if (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)
-    DBUG_VOID_RETURN;
-
-  if (0 == table->s->foreign_keys)
-    DBUG_VOID_RETURN;
+  DBUG_ASSERT(!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS));
+  DBUG_ASSERT(table->s->foreign_keys > 0);
 
   TABLE_SHARE_FOREIGN_KEY_INFO *fk= table->s->foreign_key;
   std::string pke_prefix;
@@ -362,65 +344,24 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
   @param[in] thd - THD object pointing to current thread.
 */
 
-static void generate_hash_pke(std::string pke, THD* thd)
+static void generate_hash_pke(const std::string &pke, THD* thd)
 {
   DBUG_ENTER("generate_hash_pke");
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
               HASH_ALGORITHM_OFF);
-  const char* string_pke=NULL;
-  string_pke= (char *)pke.c_str();
-  DBUG_PRINT("info", ("The hashed value is %s for %u", string_pke,
-                      thd->thread_id()));
+
   uint64 hash= calc_hash<const char *>(thd->variables.transaction_write_set_extraction,
-                                       string_pke, pke.size());
-  Rpl_transaction_write_set_ctx *transaction_write_set_ctc=
-    thd->get_transaction()->get_transaction_write_set_ctx();
-  transaction_write_set_ctc->add_write_set(hash);
+                                       pke.c_str(), pke.size());
+  thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash);
+
+  DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
   DBUG_VOID_RETURN;
 }
+
 
 void add_pke(TABLE *table, THD *thd)
 {
   DBUG_ENTER("add_pke");
-  std::string pke;
-  std::string temporary_pke;
-
-  // Fetching the foreign key value of the table and storing it in a map.
-  std::map<std::string,std::string> foreign_key_map;
-  check_foreign_key(table, thd, foreign_key_map);
-
-  // The database name of the table in the transaction is fetched here.
-  const char* database_name= table->s->db.str;
-  uint length_database= strlen(database_name);
-  char *buffer_db= (char*) my_malloc(
-                                key_memory_write_set_extraction,
-                                length_database, MYF(0));
-  const char *char_length_database= my_safe_itoa(10, length_database,
-                                                 &buffer_db[length_database-1]);
-  temporary_pke.append(database_name);
-  temporary_pke.append(HASH_STRING_SEPARATOR);
-  temporary_pke.append(char_length_database);
-  my_free(buffer_db);
-
-  // The table name of the table in the transaction is fetched here.
-  const char* table_name= table->s->table_name.str;
-  uint length_table= strlen(table_name);
-  char *buffer_table= (char*) my_malloc(
-                                key_memory_write_set_extraction,
-                                length_table, MYF(0));
-  const char *char_length_table= my_safe_itoa(10, length_table, &buffer_table[length_table-1]);
-  temporary_pke.append(table_name);
-  temporary_pke.append(HASH_STRING_SEPARATOR);
-  temporary_pke.append(char_length_table);
-
-  my_free(buffer_table);
-
-  // Finalizing the first part of the string to be hashed and storing it in
-  // the pke.
-  const char* temp_pke= NULL;
-  temp_pke= (char *)temporary_pke.c_str();
-  pke.append(temp_pke);
-
   /*
     The next section extracts the primary key equivalent of the rows that are
     changing during the current transaction.
@@ -457,28 +398,42 @@ void add_pke(TABLE *table, THD *thd)
   */
   Rpl_transaction_write_set_ctx* ws_ctx=
     thd->get_transaction()->get_transaction_write_set_ctx();
-  std::vector<std::string> key_list_to_hash;
-  bitmap_set_all(table->read_set);
-  int writeset_hashes_added= 0;
+  bool writeset_hashes_added= false;
 
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
+    std::string pke_schema_table;
+    pke_schema_table.reserve(NAME_LEN * 3);
+    pke_schema_table.append(HASH_STRING_SEPARATOR);
+    pke_schema_table.append(table->s->db.str, table->s->db.length);
+    pke_schema_table.append(HASH_STRING_SEPARATOR);
+    pke_schema_table.append(std::to_string(table->s->db.length));
+    pke_schema_table.append(table->s->table_name.str, table->s->table_name.length);
+    pke_schema_table.append(HASH_STRING_SEPARATOR);
+    pke_schema_table.append(std::to_string(table->s->table_name.length));
+
+    std::string pke;
+    pke.reserve(NAME_LEN * 5);
+
+#ifndef DBUG_OFF
+    std::vector<std::string> write_sets;
+#endif
+
     for (uint key_number=0; key_number < table->s->keys; key_number++)
     {
       // Skip non unique.
       if (!((table->key_info[key_number].flags & (HA_NOSAME )) == HA_NOSAME))
         continue;
 
-      std::string unhashed_string;
-      unhashed_string.append(table->key_info[key_number].name);
-      unhashed_string.append(HASH_STRING_SEPARATOR);
-      unhashed_string.append(pke);
+      pke.clear();
+      pke.append(table->key_info[key_number].name);
+      pke.append(pke_schema_table);
+
       uint i= 0;
       for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts; i++)
       {
-        // read the primary key field values in str.
+        /* Get the primary key field index. */
         int index= table->key_info[key_number].key_part[i].fieldnr;
-        size_t length= 0;
 
         /* Ignore if the value is NULL. */
         if (table->field[index-1]->is_null())
@@ -487,29 +442,21 @@ void add_pke(TABLE *table, THD *thd)
         const CHARSET_INFO* cs= table->field[index-1]->charset();
         int max_length= cs->coll->strnxfrmlen(cs,
                                    table->field[index-1]->pack_length());
-
-        char* pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                          max_length+1, MYF(MY_ZEROFILL));
+        std::unique_ptr<uchar[]> pk_value(new uchar[max_length+1]());
 
         /*
           convert to normalized string and store so that it can be
           sorted using binary comparison functions like memcmp.
         */
-        length= table->field[index-1]->make_sort_key((uchar*)pk_value,
-                                                     max_length);
+        size_t length= table->field[index-1]->make_sort_key(pk_value.get(),
+                                                            max_length);
         pk_value[length]= 0;
 
-        // buffer to be used for my_safe_itoa.
-        char *buf= (char*) my_malloc(key_memory_write_set_extraction,
-                                     length, MYF(0));
-        const char *lenStr = my_safe_itoa(10, length, &buf[length-1]);
-
-        unhashed_string.append(pk_value, length);
-        unhashed_string.append(HASH_STRING_SEPARATOR);
-        unhashed_string.append(lenStr);
-        my_free(buf);
-        my_free(pk_value);
+        pke.append(pointer_cast<char*>(pk_value.get()), length);
+        pke.append(HASH_STRING_SEPARATOR);
+        pke.append(std::to_string(length));
       }
+
       /*
         If any part of the key is NULL, ignore adding it to hash keys.
         NULL cannot conflict with any value.
@@ -520,77 +467,101 @@ void add_pke(TABLE *table, THD *thd)
       */
       if (i == table->key_info[key_number].user_defined_key_parts)
       {
-        key_list_to_hash.push_back(unhashed_string);
+        generate_hash_pke(pke, thd);
+        writeset_hashes_added= true;
+
+#ifndef DBUG_OFF
+        write_sets.push_back(pke);
+#endif
       }
       else
       {
         /* This is impossible to happen in case of primary keys */
         DBUG_ASSERT(key_number !=0);
       }
-      unhashed_string.clear();
     }
 
-    // This part takes care of the previously fetched foreign key values of
-    // the referenced table adds it to the write set.
-    for(uint i=0; i < table->s->fields; i++)
+    /*
+      Foreign keys handling.
+      We check the foreign keys existence here and not at check_foreign_key()
+      function to avoid allocate foreign_key_map when it is not needed.
+
+      OPTION_NO_FOREIGN_KEY_CHECKS bit in options_bits is set at two places
+
+      1) If the user executed 'SET foreign_key_checks= 0' on the local session
+      before executing the query.
+      or
+      2) We are applying a RBR event (i.e., the event is from a remote server)
+      and logic in Rows_log_event::do_apply_event found out that the event is
+      generated from a remote server session that disabled foreign_key_checks
+      (using 'SET foreign_key_checks=0').
+
+      In either of the above cases (i.e., the foreign key check is disabled for
+      the current query/current event), we should ignore generating
+      the foreign key information as they should not participate
+      in the conflicts detecting algorithm.
+    */
+    if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) &&
+        table->s->foreign_keys > 0)
     {
-      std::string referenced_FQTN=
-        foreign_key_map[table->s->field[i]->field_name];
-      if (referenced_FQTN.size() > 0)
+      std::map<std::string,std::string> foreign_key_map;
+      check_foreign_key(table,
+#ifndef DBUG_OFF
+                        thd,
+#endif
+                        foreign_key_map);
+
+      if (!foreign_key_map.empty())
       {
-        size_t length= 0;
+        for (uint i=0; i < table->s->fields; i++)
+        {
+          /* Ignore if the value is NULL. */
+          if (table->field[i]->is_null())
+            continue;
 
-        /* Ignore if the value is NULL. */
-        if (table->field[i]->is_null())
-          continue;
+          std::map<std::string,std::string>::iterator it=
+              foreign_key_map.find(table->s->field[i]->field_name);
+          if (foreign_key_map.end() != it)
+          {
+            std::string pke_prefix= it->second;
 
-        const CHARSET_INFO* cs= table->field[i]->charset();
-        int max_length= cs->coll->strnxfrmlen(cs,
-                                    table->field[i]->pack_length());
+            const CHARSET_INFO* cs= table->field[i]->charset();
+            int max_length= cs->coll->strnxfrmlen(cs,
+                                        table->field[i]->pack_length());
+            std::unique_ptr<uchar[]> pk_value(new uchar[max_length+1]());
 
-        char* pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                          max_length+1, MYF(MY_ZEROFILL));
+            /*
+              convert to normalized string and store so that it can be
+              sorted using binary comparison functions like memcmp.
+            */
+            size_t length= table->field[i]->make_sort_key(pk_value.get(),
+                                                                max_length);
+            pk_value[length]= 0;
 
-        /*
-          convert to normalized string and store so that it can be
-          sorted using binary comparison functions like memcmp.
-        */
-        length= table->field[i]->make_sort_key((uchar*)pk_value, max_length);
+            pke_prefix.append(pointer_cast<char*>(pk_value.get()), length);
+            pke_prefix.append(HASH_STRING_SEPARATOR);
+            pke_prefix.append(std::to_string(length));
 
-        pk_value[length]= 0;
+            generate_hash_pke(pke_prefix, thd);
+            writeset_hashes_added= true;
 
-        // buffer to be used for my_safe_itoa.
-        char *buf= (char*) my_malloc(key_memory_write_set_extraction,
-                                     length, MYF(0));
-        const char *lenStr = my_safe_itoa(10, length, &buf[length-1]);
-
-        referenced_FQTN.append(pk_value, length);
-        referenced_FQTN.append(HASH_STRING_SEPARATOR);
-        referenced_FQTN.append(lenStr);
-
-        my_free(buf);
-        my_free(pk_value);
-        key_list_to_hash.push_back(referenced_FQTN);
+#ifndef DBUG_OFF
+            write_sets.push_back(pke_prefix);
+#endif
+          }
+        }
       }
     }
 
-    if (table->file->referenced_by_foreign_key())
+    if (table->s->foreign_key_parents > 0)
       ws_ctx->set_has_related_foreign_keys();
 
 #ifndef DBUG_OFF
-    debug_check_for_write_sets(key_list_to_hash);
+    debug_check_for_write_sets(write_sets);
 #endif
-
-    while(key_list_to_hash.size())
-    {
-      std::string prepared_string= key_list_to_hash.back();
-      key_list_to_hash.pop_back();
-      generate_hash_pke(prepared_string, thd);
-      writeset_hashes_added++;
-    }
   }
 
-  if (writeset_hashes_added == 0)
+  if (!writeset_hashes_added)
     ws_ctx->set_has_missing_keys();
 
   DBUG_VOID_RETURN;

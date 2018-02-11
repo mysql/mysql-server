@@ -15,7 +15,7 @@ RESET MASTER;
 Test case1
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 flush logs;
-ERROR HY000: Binary logging not possible. Message: Can't open file: './binlog.index' (errno: 1 - Operation not permitted), while rotating the binlog. Aborting the server
+ERROR HY000: Binary logging not possible. Message: Can't open file: 'binlog.index' (errno: 1 - Operation not permitted), while rotating the binlog. Aborting the server
 Test case2
 SET SESSION debug="+d,fault_injection_updating_index";
 SET GLOBAL binlog_error_action= ABORT_SERVER;

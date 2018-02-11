@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -499,13 +499,13 @@ Ha_innopart_share::close_table_parts(bool only_free)
 	if (m_ref_count != 0) {
 
 		/* Decrement dict_table_t reference count for all partitions */
-		mutex_enter(&dict_sys->mutex);
 		for (uint i = 0; i < m_tot_parts; i++) {
 			dict_table_t*	table = m_table_parts[i];
+			ut_d(uint64_t	ref_count = table->get_ref_count());
 			table->release();
-			ut_ad(table->get_ref_count() >= m_ref_count);
+			/* ref_count is got before release, so to minus 1 */
+			ut_ad(ref_count >= m_ref_count + 1);
 		}
-		mutex_exit(&dict_sys->mutex);
 
 		return;
 	}
@@ -2607,14 +2607,12 @@ ha_innopart::create(
 	char		remote_path[FN_REFLEN];
 	char		partition_name[FN_REFLEN];
 	char		tablespace_name[NAME_LEN + 1];
-	char*		table_name_end;
 	size_t		table_name_len;
 	char*		partition_name_start;
 	char		table_data_file_name[FN_REFLEN];
 	char		table_level_tablespace_name[NAME_LEN + 1];
 	const char*	table_index_file_name;
 	uint		created = 0;
-	bool		prevent_eviction = false;
 	THD*		thd = ha_thd();
 	trx_t*		trx = check_trx_exists(thd);
 
@@ -2660,13 +2658,12 @@ ha_innopart::create(
 
 	strcpy(partition_name, table_name);
 	table_name_len = strlen(table_name);
-	table_name_end = table_name + table_name_len;
 	partition_name_start = partition_name + table_name_len;
 
 	if (create_info->data_file_name != NULL) {
 		/* Strip the tablename from the path. */
 		strncpy(table_data_file_name, create_info->data_file_name,
-			FN_REFLEN-1);
+			FN_REFLEN - 1);
 		table_data_file_name[FN_REFLEN - 1] = '\0';
 		char* ptr = strrchr(table_data_file_name, OS_PATH_SEPARATOR);
 		ut_ad(ptr != NULL);
@@ -2713,27 +2710,16 @@ ha_innopart::create(
 		}
 	}
 
-	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
-	or lock waits can happen in it during a table create operation.
-	Drop table etc. do this latching in row0mysql.cc. */
-
-	row_mysql_lock_data_dictionary(trx);
-
-#ifdef UNIV_DEBUG
-	ulint	i = 0;
-#endif /* UNIV_DEBUG */
 	for (const auto dd_part : *table_def->leaf_partitions()) {
 
 		size_t	len = Ha_innopart_share::create_partition_postfix(
 			partition_name_start, FN_REFLEN - table_name_len,
 			dd_part);
 
-		/* Report error if the partition name with path separator
-		exceeds maximum path length. */
 		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
 			error = HA_ERR_INTERNAL_ERROR;
 			my_error(ER_PATH_LENGTH, MYF(0), partition_name);
-			goto cleanup;
+			break;
 		}
 
 		const dd::Properties&	options = dd_part->options();
@@ -2743,7 +2729,7 @@ ha_innopart::create(
 
 		options.get(index_file_name_key, index_file_name);
 		options.get(data_file_name_key, data_file_name);
-		ut_ad(i < tablespace_names.size());
+		ut_ad(created < tablespace_names.size());
 		tablespace_name = tablespace_names[created];
 
 		if (!data_file_name.empty()) {
@@ -2766,27 +2752,26 @@ ha_innopart::create(
 		info.flags_reset();
 		info.flags2_reset();
 
-		error = info.prepare_create_table(partition_name);
-		if (error != 0) {
-			goto cleanup;
+		if ((error = info.prepare_create_table(partition_name)) != 0) {
+			break;
 		}
 
 		info.set_remote_path_flags();
 
-		error = info.create_table(&dd_part->table());
-		if (error != 0) {
-			goto cleanup;
+		if ((error = info.create_table(&dd_part->table())) != 0) {
+			break;
 		}
 
-		if (created == 0) {
-			prevent_eviction = info.prevent_eviction();
-		} else {
-			/* All partitions should be either set to not evicted,
-			or they are already not evicted */
-			ut_d(bool prevent = )
-			info.prevent_eviction();
-			ut_ad(prevent_eviction == prevent);
+		if ((error = info.create_table_update_global_dd<dd::Partition>(
+			const_cast<dd::Partition*>(dd_part))) != 0) {
+			break;
 		}
+
+		if ((error = info.create_table_update_dict()) != 0) {
+			break;
+		}
+
+		info.detach();
 
 		++created;
 		create_info->data_file_name = table_data_file_name;
@@ -2794,71 +2779,9 @@ ha_innopart::create(
 		create_info->tablespace = table_level_tablespace_name;
 	}
 
-	row_mysql_unlock_data_dictionary(trx);
-
-	/* No need to use these now, only table_name will be used. */
-	create_info->data_file_name = NULL;
-	create_info->index_file_name = NULL;
-
-	for (const auto dd_part : *table_def->leaf_partitions()) {
-
-		size_t len = Ha_innopart_share::create_partition_postfix(
-			table_name_end, FN_REFLEN - table_name_len,
-			dd_part);
-
-		/* Report error if table_name with partition name length
-		exceeds maximum length */
-		if ((len + table_name_len) >  MAX_TABLE_UTF8_LEN)
-		{
-			my_error(ER_PATH_LENGTH, MYF(0), table_name);
-			error = HA_ERR_INTERNAL_ERROR;
-			goto end;
-		}
-
-		if ((error = info.create_table_update_global_dd<dd::Partition>(
-			const_cast<dd::Partition*>(dd_part))) != 0) {
-			goto end;
-		}
-
-		if ((error = info.create_table_update_dict()) != 0) {
-			ut_ad(0);
-			goto end;
-		}
-	}
-
-end:
-	if (prevent_eviction) {
-		for (const auto dd_part : *table_def->leaf_partitions()) {
-			Ha_innopart_share::create_partition_postfix(
-				table_name_end, FN_REFLEN - table_name_len,
-				dd_part);
-			/* Partitioned tables are not working with FTS, so
-			only base table is cared here */
-			info.detach(false, true, false);
-		}
-	}
-
-	DBUG_RETURN(error);
-
-cleanup:
-	if (prevent_eviction) {
-		uint	i = 0;
-		for (const auto dd_part : *table_def->leaf_partitions()) {
-			/** Just handle the created tables */
-			if (i++ >= created) {
-				break;
-			}
-
-			Ha_innopart_share::create_partition_postfix(
-				table_name_end, FN_REFLEN - table_name_len,
-				dd_part);
-			/* Partitioned tables are not working with FTS, so
-			only base table is cared here */
-			info.detach(false, true, true);
-		}
-	}
-
-	row_mysql_unlock_data_dictionary(trx);
+	create_info->data_file_name = nullptr;
+	create_info->index_file_name = nullptr;
+	create_info->tablespace = nullptr;
 
 	DBUG_RETURN(error);
 }
@@ -3031,20 +2954,25 @@ ha_innopart::set_dd_discard_attribute(
 		/* Get Tablespace object */
 		dd::Tablespace*		dd_space = nullptr;
 		THD*			thd = ha_thd();
-		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+		dd::cache::Dictionary_client*	client =
+			dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser
+			releaser(client);
 
-		dd::Object_id   dd_space_id = (*dd_part->indexes()->begin())->tablespace_id();
+		dd::Object_id   dd_space_id =
+			(*dd_part->indexes()->begin())->tablespace_id();
 		std::string	space_name;
 
 		dd_filename_to_spacename(table->name.m_name, &space_name);
 
-		if (dd::acquire_exclusive_tablespace_mdl(thd, space_name.c_str(),
+		if (dd::acquire_exclusive_tablespace_mdl(thd,
+							 space_name.c_str(),
 							 false)) {
 			ut_a(false);
 		}
 
-		if (client->acquire_for_modification(dd_space_id, &dd_space)) {
+		if (client->acquire_for_modification(dd_space_id,
+						     &dd_space)) {
 			ut_a(false);
 		}
 
@@ -3070,6 +2998,19 @@ ha_innopart::set_dd_discard_attribute(
 	/* Set discard flag. */
 	dd::Properties& p = table_def->table().se_private_data();
 	p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
+
+	/* Set new table id of latest partition for dd columns when
+	it's importing tablespace. */
+	if (!discard) {
+		table = m_part_share->get_table_part(m_tot_parts - 1);
+		dd::Partition* dd_part = table_def->leaf_partitions()->back();
+
+		for (auto dd_column : *dd_part->table().columns()) {
+			dd_column->se_private_data().set_uint64(
+				dd_index_key_strings[DD_TABLE_ID],
+				table->id);
+		}
+	}
 
 	DBUG_RETURN(error);
 }

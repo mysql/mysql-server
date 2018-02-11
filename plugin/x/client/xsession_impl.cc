@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -377,6 +377,10 @@ XError Session_impl::set_mysql_option(
 
     case Mysqlx_option::Connect_timeout:
       m_context->m_connection_config.m_timeout_connect = value;
+      break;
+
+    case Mysqlx_option::Datetime_length_discriminator:
+      m_context->m_datetime_length_discriminator = value;
       break;
 
     default:

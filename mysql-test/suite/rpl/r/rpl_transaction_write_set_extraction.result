@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 include/assert.inc [The value for transaction_write_set_extraction must be XXHASH64]
 CREATE TABLE t1 (a BINARY(1) PRIMARY KEY);
-SET @@GLOBAL.DEBUG= @debug_saved;
+SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_insert';
 INSERT INTO t1 VALUES(1);
 SET @@GLOBAL.DEBUG= @debug_saved;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4316,11 +4316,17 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     {
       if (!(*arg)->fixed &&
           (*arg)->fix_fields(thd, arg))
-	DBUG_RETURN(1);
+      {
+        free_udf(u_d);
+        DBUG_RETURN(true);
+      }
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
       if (item->check_cols(1))
-	DBUG_RETURN(TRUE);
+      {
+        free_udf(u_d);
+        DBUG_RETURN(true);
+      }
       /*
 	TODO: We should think about this. It is not always
 	right way just to set an UDF result to return my_charset_bin
@@ -4355,7 +4361,10 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     }
   }
   if (func->resolve_type(thd))
+  {
+    free_udf(u_d);
     DBUG_RETURN(true);
+  }
   initid.max_length=func->max_length;
   initid.maybe_null=func->maybe_null;
   initid.const_item= used_tables_cache == 0;
@@ -4434,6 +4443,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
              u_d->name.str, ER_THD(thd, ER_UNKNOWN_ERROR));
+    free_udf(u_d);
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -7481,7 +7491,10 @@ String* Item_func_get_system_var::val_str(String* str)
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
-      str->set (val_int(), collation.collation);
+      if (unsigned_flag)
+        str->set ((ulonglong)val_int(), collation.collation);
+      else
+        str->set (val_int(), collation.collation);
       break;
     case SHOW_DOUBLE:
       str->set_real (val_real(), decimals, collation.collation);

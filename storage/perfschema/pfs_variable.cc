@@ -551,6 +551,7 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
     if (pv)
     {
       vector<st_persist_var> *persist_variables = pv->get_persisted_variables();
+      pv->lock();
       for (auto iter = persist_variables->begin();
            iter != persist_variables->end();
            iter++)
@@ -589,6 +590,7 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
 
         m_cache.push_back(system_var);
       }
+      pv->unlock();
     }
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
@@ -830,6 +832,7 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
   {
     map<string, st_persist_var>*
     persist_ro_variables = pv->get_persist_ro_variables();
+    pv->lock();
     auto ro_iter = persist_ro_variables->find(m_name);
     if (ro_iter != persist_ro_variables->end())
     {
@@ -839,6 +842,7 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
       m_set_host_str_length = ro_iter->second.host.length();
       memcpy(m_set_host_str, ro_iter->second.host.c_str(), m_set_host_str_length);
     }
+    pv->unlock();
   }
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (target_thd != current_thread)

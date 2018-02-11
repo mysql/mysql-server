@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,14 +61,16 @@
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
 #endif  // WIN32
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <wolfssl_fix_namespace_pollution.h>
 #endif
 #ifdef XCOM_HAVE_OPENSSL
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_2
+#define MY_XCOM_PROTO x_1_3
 
 xcom_proto const my_min_xcom_version =
     x_1_0; /* The minimum protocol version I am able to understand */
@@ -376,7 +378,7 @@ static bool_t x_putbytes(XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)),
 #endif
 
 static u_int
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(LINUX_ALPINE)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(HAVE_TIRPC)
 x_getpostn(XDR *xdrs)
 #else
 x_getpostn(const XDR *xdrs)
@@ -595,11 +597,20 @@ static inline int old_proto_knows(xcom_proto x_proto MY_ATTRIBUTE((unused)),
 
 int serialize_msg(pax_msg *p, xcom_proto x_proto, uint32_t *buflen,
                   char **buf) {
+  int retval = 0;
+
   *buflen = 0;
   *buf = 0;
 
-  return old_proto_knows(x_proto, p->op) &&
-         serialize((void *)p, x_proto, buflen, (xdrproc_t)xdr_pax_msg, buf);
+  if (old_proto_knows(x_proto, p->op)) {
+    /* We want to send the internal xcom ID instead of the reference count,
+    so we need to save and restore the count */
+    int save = p->refcnt;
+    p->refcnt = (int)get_my_id();
+    retval = serialize((void *)p, x_proto, buflen, (xdrproc_t)xdr_pax_msg, buf);
+    p->refcnt = save;
+  }
+  return retval;
 }
 
 int deserialize_msg(pax_msg *p, xcom_proto x_proto, char *buf,
@@ -825,7 +836,8 @@ int tcp_server(task_arg arg) {
   do {
     TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
     /* Callback to check that the file descriptor is accepted. */
-    if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd)) {
+    if (xcom_socket_accept_callback &&
+        !xcom_socket_accept_callback(ep->cfd, get_site_def())) {
       shut_close_socket(&ep->cfd);
       ep->cfd = -1;
     }
@@ -2005,6 +2017,7 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp) {
       return retval;
     case x_1_1:
     case x_1_2:
+    case x_1_3:
       retval = xdr_array(xdrs, &x, (u_int *)&objp->node_list_len, NSERVERS,
                          sizeof(node_address), (xdrproc_t)xdr_node_address);
       objp->node_list_val = (node_address *)x;
@@ -2039,6 +2052,7 @@ bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp) {
         objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
       return TRUE;
     case x_1_2:
+    case x_1_3:
       return xdr_pax_msg_1_2(xdrs, objp);
     default:
       return FALSE;

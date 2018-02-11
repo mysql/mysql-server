@@ -75,6 +75,8 @@ struct st_row_group_member_stats
 /** Table PERFORMANCE_SCHEMA.REPLICATION_GROUP_MEMBER_STATS. */
 class table_replication_group_member_stats : public PFS_engine_table
 {
+  typedef PFS_simple_index pos_t;
+
 private:
   int make_row(uint index);
 
@@ -86,9 +88,9 @@ private:
   /** Current row */
   st_row_group_member_stats m_row;
   /** Current position. */
-  PFS_simple_index m_pos;
+  pos_t m_pos;
   /** Next position. */
-  PFS_simple_index m_next_pos;
+  pos_t m_next_pos;
 
 protected:
   /**

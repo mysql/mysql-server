@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -581,6 +581,111 @@ private:
   mysql_mutex_t write_lock;
   mysql_cond_t  write_lock_protection;
   bool write_lock_in_use;
+};
+
+
+class Plugin_waitlock
+{
+public:
+  /**
+    Constructor.
+    Instatiate the mutex lock, mutex condition,
+    mutex and condition key.
+
+    @param  lock  the mutex lock for access to class and condition variables
+    @param  cond  the condition variable calling thread will wait on
+    @param  lock_key mutex instrumentation key
+    @param  cond_key cond instrumentation key
+  */
+  Plugin_waitlock(mysql_mutex_t *lock, mysql_cond_t *cond,
+                  PSI_mutex_key lock_key, PSI_cond_key cond_key)
+    : wait_lock(lock), wait_cond(cond),
+      key_lock(lock_key), key_cond(cond_key),
+      wait_status(false)
+  {
+    DBUG_ENTER("Plugin_waitlock::Plugin_waitlock");
+
+    mysql_mutex_init(key_lock, wait_lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_cond, wait_cond);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Destructor.
+    Destroys the mutex and condition objects.
+  */
+  virtual ~Plugin_waitlock()
+  {
+    mysql_mutex_destroy(wait_lock);
+    mysql_cond_destroy(wait_cond);
+  }
+
+  /**
+    Set condition to block or unblock the calling threads
+
+    @param[in] status  if the thread should be blocked or not
+  */
+  void set_wait_lock(bool status)
+  {
+    mysql_mutex_lock(wait_lock);
+    wait_status= status;
+    mysql_mutex_unlock(wait_lock);
+  }
+
+  /**
+    Blocks the calling thread
+  */
+  void start_waitlock()
+  {
+    DBUG_ENTER("Plugin_waitlock::start_waitlock");
+    mysql_mutex_lock(wait_lock);
+    while (wait_status)
+    {
+      DBUG_PRINT("sleep",("Waiting in Plugin_waitlock::start_waitlock()"));
+      mysql_cond_wait(wait_cond, wait_lock);
+    }
+    mysql_mutex_unlock(wait_lock);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Release the blocked thread
+  */
+  void end_wait_lock()
+  {
+    mysql_mutex_lock(wait_lock);
+    wait_status= false;
+    mysql_cond_broadcast(wait_cond);
+    mysql_mutex_unlock(wait_lock);
+  }
+
+  /**
+    Checks whether thread should be blocked
+
+    @return
+         @retval true      thread should be blocked
+         @retval false     thread should not be blocked
+  */
+  bool is_waiting()
+  {
+    mysql_mutex_lock(wait_lock);
+    bool result= wait_status;
+    mysql_mutex_unlock(wait_lock);
+    return result;
+  }
+
+private:
+  /** the mutex lock for access to class and condition variables */
+  mysql_mutex_t *wait_lock;
+  /** the condition variable calling thread will wait on */
+  mysql_cond_t *wait_cond;
+  /** mutex instrumentation key */
+  PSI_mutex_key key_lock;
+  /** cond instrumentation key */
+  PSI_cond_key key_cond;
+  /** determine whether calling thread should be blocked or not */
+  bool wait_status;
 };
 
 #endif /* PLUGIN_UTILS_INCLUDED */

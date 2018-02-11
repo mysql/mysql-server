@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,6 +156,9 @@ bool opt_binlog_order_commits= true;
 
 const char *log_bin_index= 0;
 const char *log_bin_basename= 0;
+
+/* Size for IO_CACHE buffer for binlog & relay log */
+ulong rpl_read_size;
 
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period, WRITE_CACHE);
 
@@ -3071,7 +3074,7 @@ File open_binlog_file(IO_CACHE *log, const char *log_file_name, const char **err
     *errmsg = "Could not open log file";
     goto err;
   }
-  if (init_io_cache_ext(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
+  if (init_io_cache_ext(log, file, rpl_read_size, READ_CACHE, 0, 0,
                         MYF(MY_WME|MY_DONT_CHECK_FILESIZE), key_file_binlog_cache))
   {
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_CREATE_CACHE_FOR_LOG, log_file_name);
@@ -8815,38 +8818,13 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   {
     /* The Commit phase of the XA two phase logging. */
 
+#ifndef DBUG_OFF
     bool one_phase= get_xa_opt(thd) == XA_ONE_PHASE;
     DBUG_ASSERT(all || (thd->slave_thread && one_phase));
     DBUG_ASSERT(!skip_commit || one_phase);
+#endif
 
-    int err= 0;
     XID_STATE *xs= thd->get_transaction()->xid_state();
-
-    /*
-      XA COMMIT ONE PHASE statement which has not gone through the binary log
-      prepare phase, has to end the active XA transaction with appropriate XA
-      END followed by XA COMMIT ONE PHASE.
-
-      The state of XA transaction is changed to PREPARED after the prepare
-      phase, intermediately in ha_commit_trans code for the interest of
-      binlogger. Hence check that the XA COMMIT ONE PHASE is set to 'PREPARE'
-      and it has not already been written to binary log. For such transaction
-      write the appropriate XA END statement.
-    */
-    if (!(is_loggable_xa_prepare(thd))
-        && one_phase
-        && !(xs->is_binlogged())
-        && !cache_mngr->trx_cache.is_binlog_empty())
-    {
-      XA_prepare_log_event end_evt(thd, xs->get_xid(), one_phase);
-      err= cache_mngr->trx_cache.finalize(thd, &end_evt, xs);
-      if (err)
-      {
-        DBUG_RETURN(RESULT_ABORTED);
-      }
-      trx_stuff_logged= true;
-      thd->get_transaction()->xid_state()->set_binlogged();
-    }
     if (DBUG_EVALUATE_IF("simulate_xa_commit_log_failure", true,
                          do_binlog_xa_commit_rollback(thd, xs->get_xid(),
                                                       true)))
@@ -8877,44 +8855,70 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     const bool real_trans=
       (all || !trn_ctx->is_active(Transaction_ctx::SESSION));
 
-    /*
-      We are committing an XA transaction if it is a "real" transaction
-      and has an XID assigned (because some handlerton registered). A
-      transaction is "real" if either 'all' is true or the 'all.ha_list'
-      is empty.
+    bool one_phase= get_xa_opt(thd) == XA_ONE_PHASE;
+    bool is_loggable_xa= is_loggable_xa_prepare(thd);
+    XID_STATE *xs= thd->get_transaction()->xid_state();
 
-      Note: This is kind of strange since registering the binlog
-      handlerton will then make the transaction XA, which is not really
-      true. This occurs for example if a MyISAM statement is executed
-      with row-based replication on.
+    /*
+      Log and finalize transaction cache regarding XA PREPARE/XA COMMIT ONE
+      PHASE if one of the following statements is true:
+      - If it is a loggable XA transaction in prepare state;
+      - If it is a transaction being commited with 'XA COMMIT ONE PHASE',
+      statement and is not an empty transaction when GTID_NEXT is set to a
+      manual GTID.
+
+      For other XA COMMIT ONE PHASE statements that already have been finalized
+      or are finalizing empty transactions when GTID_NEXT is set to a manual
+      GTID, just let the execution flow get into the final 'else' branch and log
+      a final 'COMMIT;' statement.
     */
-    if (is_loggable_xa_prepare(thd))
+    if (is_loggable_xa || // XA transaction in prepare state
+        (thd->lex->sql_command == SQLCOM_XA_COMMIT && // Is a 'XA COMMIT
+         one_phase &&                                 // ONE PHASE'
+         xs != nullptr &&       // and it has not yet
+         !xs->is_binlogged() && // been logged
+         (thd->owned_gtid.sidno <= 0 ||         // and GTID_NEXT is NOT set to a
+                                                // manual GTID
+          !xs->has_state(XID_STATE::XA_NOTR)))) // and the transaction is NOT
+                                                // empty and NOT finalized in
+                                                // 'trans_xa_commit'
     {
       /* The prepare phase of XA transaction two phase logging. */
       int err= 0;
-      bool one_phase= get_xa_opt(thd) == XA_ONE_PHASE;
 
       DBUG_ASSERT(thd->lex->sql_command != SQLCOM_XA_COMMIT || one_phase);
 
-      XID_STATE *xs= thd->get_transaction()->xid_state();
       XA_prepare_log_event end_evt(thd, xs->get_xid(), one_phase);
 
-      DBUG_ASSERT(skip_commit);
+      DBUG_ASSERT(!is_loggable_xa || skip_commit);
 
       err= cache_mngr->trx_cache.finalize(thd, &end_evt, xs);
-      if (err ||
-          (DBUG_EVALUATE_IF("simulate_xa_prepare_failure_in_cache_finalize",
-                            true, false)))
-      {
+      if (err)
         DBUG_RETURN(RESULT_ABORTED);
-      }
+      if (is_loggable_xa)
+        if (DBUG_EVALUATE_IF("simulate_xa_prepare_failure_in_cache_finalize",
+                             true, false))
+          DBUG_RETURN(RESULT_ABORTED);
     }
+    /*
+      If is atomic DDL, finalize cache for DDL and no further logging is needed.
+    */
     else if ((is_atomic_ddl= cache_mngr->trx_cache.has_xid()))
     {
-      /* Cache finalization for DDL */
       if (cache_mngr->trx_cache.finalize(thd, NULL))
         DBUG_RETURN(RESULT_ABORTED);
     }
+    /*
+      We are committing a 2PC transaction if it is a "real" transaction
+      and has an XID assigned (because some handlerton registered). A
+      transaction is "real" if either 'all' is true or
+      'trn_ctx->is_active(Transaction_ctx::SESSION)' is not true.
+
+      Note: This is kind of strange since registering the binlog
+      handlerton will then make the transaction 2PC, which is not really
+      true. This occurs for example if a MyISAM statement is executed
+      with row-based replication on.
+    */
     else if (real_trans && xid && trn_ctx->rw_ha_count(trx_scope) > 1 &&
              !trn_ctx->no_2pc(trx_scope))
     {
@@ -8922,12 +8926,22 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       if (cache_mngr->trx_cache.finalize(thd, &end_evt))
         DBUG_RETURN(RESULT_ABORTED);
     }
+    /*
+      No further action needed and no special case applies, log a final
+      'COMMIT' statement and finalize the transaction cache.
+
+      Empty transactions finalized with 'XA COMMIT ONE PHASE' will be covered
+      by this branch.
+     */
     else
     {
       Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
                               true, FALSE, TRUE, 0, TRUE);
       if (cache_mngr->trx_cache.finalize(thd, &end_evt))
         DBUG_RETURN(RESULT_ABORTED);
+
+      if (xs != nullptr && !xs->is_binlogged())
+        thd->get_transaction()->xid_state()->set_binlogged();
     }
     trx_stuff_logged= true;
   }

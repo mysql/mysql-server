@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2489,6 +2489,10 @@ void Prepared_statement::close_cursor()
 
 void Prepared_statement::setup_set_params()
 {
+  DBUG_EXECUTE_IF("bug16617026_simulate_audit_log_ps",
+                  {
+                    lex->safe_to_cache_query= 0;
+                  });
   /*
     Decide if we have to expand the query (because we must write it to logs)
     or not.
@@ -2501,7 +2505,9 @@ void Prepared_statement::setup_set_params()
       opt_general_log || opt_slow_log ||
       (lex->sql_command == SQLCOM_SELECT &&
        lex->safe_to_cache_query &&
-       !lex->is_explain()))
+       !lex->is_explain())
+       || is_global_audit_mask_set()
+     )
   {
     with_log= true;
   }

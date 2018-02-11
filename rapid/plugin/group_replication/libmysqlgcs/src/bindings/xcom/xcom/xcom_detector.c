@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,26 @@ extern task_env *detector;
 extern int xcom_shutdown;
 
 /* static double	detected[NSERVERS]; */
+
+static struct{
+  int changed;
+  uint32_t id[NSERVERS];
+}id_tracker;
+
+void update_xcom_id(node_no node, uint32_t id){
+  if(node < NSERVERS && id_tracker.id[node] != id){
+    id_tracker.changed = 1;
+    id_tracker.id[node] = id;
+  }
+}
+
+static int xcom_id_changed(){
+  return id_tracker.changed;
+}
+
+static void reset_id_changed(){
+  id_tracker.changed = 0;
+}
 
 /* See if node has been suspiciously still for some time */
 int may_be_dead(detector_state const ds, node_no i, double seconds) {
@@ -311,8 +331,10 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
              NDBG(enough_live_nodes(x_site), d););
       /* Send xcom message if node has changed state */
       DBGOHK(FN; NDBG(ep->notify, d));
-      if (ep->notify && iamtheleader(x_site) && enough_live_nodes(x_site)) {
+      if ((xcom_id_changed() || ep->notify) &&
+        enough_live_nodes(x_site) && iamtheleader(x_site)) {
         ep->notify = 0;
+        reset_id_changed();
         send_my_view(x_site);
       }
     }

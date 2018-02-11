@@ -560,7 +560,6 @@ bool is_role_id(LEX_USER *authid)
 
   @see mysql_grant_role
 
-  @param thd Thread handler
   @param role A pointer to the role to be granted
   @param user A pointer to the user which will be granted
   @param with_admin_opt True if the user should have the ability to pass on the
@@ -568,8 +567,7 @@ bool is_role_id(LEX_USER *authid)
 
   @return
 */
-void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
-                                bool with_admin_opt)
+void grant_role(ACL_USER *role, const ACL_USER *user, bool with_admin_opt)
 {
   DBUG_ENTER("grant_role");
   bool is_added;
@@ -717,7 +715,7 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
         /* An invalid reference was encountered; just ignore it. */
         continue;
       }
-      grant_role(thd, acl_role, acl_user_to, ref.second);
+      grant_role(acl_role, acl_user_to, ref.second);
       Auth_id_ref authid_role= create_authid_from(acl_role);
       Auth_id_ref authid_user= create_authid_from(acl_user_to);
       ret= modify_role_edges_in_table(thd, edge_table, authid_role, authid_user,
@@ -1075,7 +1073,10 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
     {
       /* Dynamic privileges are always applied on global level */
       global.append(STRING_WITH_LEN(" ON *.* TO "));
-      append_identifier(thd, &global, role->user, strlen(role->user));
+      if (role->user != nullptr)
+        append_identifier(thd, &global, role->user, strlen(role->user));
+      else
+        global.append(STRING_WITH_LEN("''"));
       global.append('@');
       append_identifier(thd, &global, role->host.get_host(),
                         role->host.get_host_len());
@@ -1804,7 +1805,8 @@ bool check_readonly(THD *thd, bool err_if_readonly)
 void err_readonly(THD *thd)
 {
   my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-    thd->security_context()->check_access(SUPER_ACL) ?
+    thd->security_context()->check_access(SUPER_ACL) ||
+    thd->security_context()->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first ?
     "--super-read-only" : "--read-only");
 
 }
@@ -2691,17 +2693,16 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   */
   thd->lex->sql_command= backup.sql_command;
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
   {
     thd->lex->restore_backup_query_tables_list(&backup);
     DBUG_RETURN(ret != 1);                          /* purecov: deadcode */
-  }
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
   }
 
   if (!revoke_grant)
@@ -2931,6 +2932,12 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       DBUG_RETURN(TRUE);
   }
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2940,13 +2947,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
@@ -3101,17 +3101,17 @@ bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
   int ret;
   LEX_USER *role= 0;
   bool transactional_tables;
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);                          /* purecov: deadcode */
 
   table= tables[ACL_TABLES::TABLE_ROLE_EDGES].table;
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
   std::vector<Role_id > mandatory_roles;
   get_mandatory_roles(&mandatory_roles);
   while((role= roles_it++) != 0)
@@ -3239,17 +3239,16 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
   int ret;
   bool transactional_tables;
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);                          /* purecov: deadcode */
 
   table= tables[6].table;
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   while ((lex_user= users_it++) && !errors)
   {
@@ -3297,7 +3296,7 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
         DBUG_PRINT("info",("User %s@%s will inherit from %s@%s",
                            acl_user->user, acl_user->host.get_host(),
         role->user.str, role->host.str));
-        grant_role(thd, acl_role, acl_user, with_admin_opt);
+        grant_role(acl_role, acl_user, with_admin_opt);
         Auth_id_ref from_user= create_authid_from(role);
         Auth_id_ref to_user= create_authid_from(acl_user);
         errors= modify_role_edges_in_table(thd, table, from_user, to_user,
@@ -3367,6 +3366,12 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     proxied_user= str_list++;
   }
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -3376,13 +3381,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
@@ -5275,6 +5273,12 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   int ret= 0;
   DBUG_ENTER("mysql_revoke_all");
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -5284,13 +5288,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
-  }
 
   TABLE *dynpriv_table= tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
   LEX_USER *lex_user, *tmp_lex_user;
@@ -5435,15 +5432,15 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
 
-  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(result != 1);
-
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if (!acl_cache_lock.lock())
   {
-    commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
+
+  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
+    DBUG_RETURN(result != 1);
+
   /* Be sure to pop this before exiting this scope! */
   thd->push_internal_handler(&error_handler);
 
@@ -6519,21 +6516,19 @@ void get_active_roles(THD *thd, List_of_granted_roles *roles)
 /**
   Helper function for Item_func_current_role.
   @param thd Thread handler
-  @param str [out] Item_func string buffer
   @param active_role [out] Comma separated list of auth ids
 
-  @returns pointer to active role
+  @returns pointer to a string with all active roles or "NONE" if none found
  */
 
-String *func_current_role(THD *thd, String *str, String *active_role)
+void func_current_role(THD *thd, String *active_role)
 {
   List_of_granted_roles roles;
   get_active_roles(thd, &roles);
   if (roles.size() == 0)
   {
     active_role->set_ascii("NONE", 4);
-    str->copy(*active_role);
-    return str;
+    return;
   }
   std::sort(roles.begin(), roles.end());
   bool first= true;
@@ -6553,12 +6548,7 @@ String *func_current_role(THD *thd, String *str, String *active_role)
     append_identifier(thd, active_role, rid.first.host().c_str(),
                       rid.first.host().length());
   }
-  if (str != 0)
-  {
-    str->copy(*active_role);
-    return str;
-  }
-  return active_role;
+  return;
 }
 
 /**
@@ -6631,7 +6621,7 @@ bool clear_default_roles(THD *thd, TABLE *table,
   @param table An open table handler to the default_roles table
   @param default_role_policy The role name
   @param user The user name
- 
+
   @retval Error state
     @retval true An error occurred
     @retval false Success
@@ -6685,6 +6675,12 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   LEX_USER *user= nullptr;
   LEX_USER *role= nullptr;
 
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock())
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication. The binlog state will be cleared here to
@@ -6697,13 +6693,6 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   if (!table)
   {
     my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
-    DBUG_RETURN(true);
-  }
-
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock())
-  {
-    commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
 
@@ -7600,17 +7589,59 @@ bool rename_dynamic_grant(const LEX_CSTRING &old_user,
   }
   return false;
 }
+/**
+  Initialize the default role map that keeps the content from the
+  default_roles table.
+*/
+void default_roles_init()
+{
+  g_default_roles= new Default_roles;
+}
 
-void roles_init_graph()
+/**
+  Delete the default role instance
+*/
+void default_roles_delete()
+{
+  delete g_default_roles;
+}
+
+/**
+  Initialize the roles graph artifacts
+*/
+void roles_graph_init()
 {
   g_authid_to_vertex= new Role_index_map;
   g_granted_roles= new Granted_roles_graph;
 }
 
-void roles_delete_graph()
+/**
+  Delete the ACL role graph artifacts
+*/
+void roles_graph_delete()
 {
   delete g_granted_roles;
   delete g_authid_to_vertex;
+}
+
+/**
+  Initialize the roles caches that consist of the role graphs related
+  artifacts and default role map. In theory, default role map is
+  supposed to be a policy which has to be kept in sync with role graphs.
+*/
+void roles_init()
+{
+  roles_graph_init();
+  default_roles_init();
+}
+
+/**
+  Delete the role caches
+*/
+void roles_delete()
+{
+  roles_graph_delete();
+  default_roles_delete();
 }
 
 void dynamic_privileges_init()

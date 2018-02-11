@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,6 +189,11 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
       member_uuid,
       Group_member_info::MEMBER_ONLINE,
       m_notification_ctx);
+
+    /*
+      unblock threads waiting for the member to become ONLINE
+    */
+    terminate_wait_on_start_process();
 
     /**
       Disable the read mode in the server if the member is:
@@ -663,6 +668,11 @@ Plugin_gcs_events_handler::was_member_expelled_from_group(const Gcs_view& view) 
       Group_member_info::MEMBER_ERROR,
       m_notification_ctx);
 
+    /*
+      unblock threads waiting for the member to become ONLINE
+    */
+    terminate_wait_on_start_process();
+
     group_member_mgr->update_member_role(
       local_member_info->get_uuid(),
       Group_member_info::MEMBER_ROLE_SECONDARY,
@@ -1061,6 +1071,12 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
         m_notification_ctx);
       this->leave_group_on_error();
       plugin_is_setting_read_mode = false;
+
+      /*
+        unblock threads waiting for the member to become ONLINE
+      */
+      terminate_wait_on_start_process();
+
       return;
     }
     else

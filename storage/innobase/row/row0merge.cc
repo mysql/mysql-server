@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3814,6 +3814,8 @@ row_merge_create_index(
 	}
 
 	/* Create B-tree */
+	mutex_exit(&dict_sys->mutex);
+
 	dict_build_index_def(table, index, trx);
 
 	err = dict_index_add_to_cache_w_vcol(
@@ -3822,6 +3824,7 @@ row_merge_create_index(
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = err;
+		mutex_enter(&dict_sys->mutex);
 		DBUG_RETURN(NULL);
 	}
 
@@ -3830,6 +3833,8 @@ row_merge_create_index(
 	ut_ad(index != nullptr);
 
 	err = dict_create_index_tree_in_mem(index, trx);
+
+	mutex_enter(&dict_sys->mutex);
 
 	if (err != DB_SUCCESS) {
 		if ((index->type & DICT_FTS) && table->fts) {

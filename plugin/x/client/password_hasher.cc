@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,13 +29,10 @@
 #include <cstring>
 #include <stdexcept>
 
-#ifdef HAVE_YASSL
-#include <openssl/ssl.h>
-#include <sha.hpp>
-#else
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-#endif
+#include <wolfssl_fix_namespace_pollution.h>
 
 #include "my_dbug.h"
 #include "plugin/x/client/mysql41_hash.h"
@@ -122,11 +119,7 @@ std::string generate_user_salt() {
   char *buffer = &result[0];
   char *end = buffer + result.length() - 1;
 
-#ifdef HAVE_YASSL
-  yaSSL::RAND_bytes((unsigned char *)buffer, SCRAMBLE_LENGTH);
-#else
   RAND_bytes((unsigned char *)buffer, SCRAMBLE_LENGTH);
-#endif
 
   /* Sequence must be a legal UTF8 string */
   for (; buffer < end; buffer++) {

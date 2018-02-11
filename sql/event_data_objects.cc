@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
                                                // struct Time_zone
-#include "sql/auth/auth_common.h"              // EVENT_ACL, SUPER_ACL
+#include "sql/auth/auth_common.h"              // EVENT_ACL
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/dd_event.h"                   // dd::get_old_interval_type
 #include "sql/dd/string_type.h"

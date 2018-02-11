@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -34,28 +34,35 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @enum  enum_server_command
-  @brief You should add new commands to the end of this list, otherwise old
-         servers won't be able to handle them as 'unsupported'.
+
+  @brief A list of all MySQL protocol commands.
+
+  These are the top level commands the server can receive
+  while it listens for a new command in ::dispatch_command
+
+  @par Warning
+  Add new commands to the end of this list, otherwise old
+  servers won't be able to handle them as 'unsupported'.
 */
 enum enum_server_command
 {
-  COM_SLEEP,
-  COM_QUIT,
-  COM_INIT_DB,
-  COM_QUERY,
+  COM_SLEEP,          /**< Currently refused by the server. See ::dispatch_command */
+  COM_QUIT,           /**< See @ref page_protocol_com_quit */
+  COM_INIT_DB,        /**< See @ref page_protocol_com_init_db */
+  COM_QUERY,          /**< See @ref page_protocol_com_query */
   COM_FIELD_LIST,
   COM_CREATE_DB,
   COM_DROP_DB,
   COM_REFRESH,
-  COM_DEPRECATED_1,   /* deprecated, used to be COM_SHUTDOWN */
+  COM_DEPRECATED_1,   /**< deprecated, used to be COM_SHUTDOWN */
   COM_STATISTICS,
   COM_PROCESS_INFO,
-  COM_CONNECT,
+  COM_CONNECT,        /**< Currently refused by the server. */
   COM_PROCESS_KILL,
   COM_DEBUG,
   COM_PING,
-  COM_TIME,
-  COM_DELAYED_INSERT,
+  COM_TIME,           /**< Currently refused by the server. */
+  COM_DELAYED_INSERT, /**< Functionality removed. */
   COM_CHANGE_USER,
   COM_BINLOG_DUMP,
   COM_TABLE_DUMP,
@@ -74,7 +81,7 @@ enum enum_server_command
   /* don't forget to update const char *command_name[] in sql_parse.cc */
 
   /* Must be last */
-  COM_END
+  COM_END             /**< Not a real command. Refused. */
 };
 
 #endif /* _mysql_command_h */

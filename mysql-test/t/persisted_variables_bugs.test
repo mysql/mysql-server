@@ -1,0 +1,69 @@
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Bug #27016247: SET PERSIST_ONLY DOES NOT CONSIDER RUNTIME VALIDATION
+--echo #
+
+--echo # Should fail: event_scheduler does not allow setting to DISABLED at runtime
+--error ER_WRONG_VALUE_FOR_VAR
+SET PERSIST event_scheduler=DISABLED;
+
+--echo # Should fail: data type still checked even with persist_only
+--error ER_WRONG_TYPE_FOR_VAR
+SET PERSIST_ONLY event_scheduler=123.456;
+
+--echo # Should work: check not called for PERSIST_ONLY
+SET PERSIST_ONLY event_scheduler=DISABLED;
+
+--echo # cleanup
+RESET PERSIST event_scheduler;
+
+--echo #
+--echo # Bug #27374791: RESET PERSIST DOES IMPLICIT COMMIT AND DOESN'T NEED
+--echo #                RELOAD PRIVILEGES
+--echo #
+
+CREATE DATABASE bug27374791;
+USE bug27374791;
+CREATE TABLE T( i int);
+# Get rid of previous tests binlog
+--disable_query_log
+RESET MASTER;
+--enable_query_log
+--source include/show_binlog_events.inc
+BEGIN;
+INSERT INTO T values (9);
+--source include/show_binlog_events.inc
+SET PERSIST max_connections=31;
+--source include/show_binlog_events.inc
+RESET PERSIST;
+# There should be no COMMIT event in binlog
+--source include/show_binlog_events.inc
+
+# cleanup
+SET GLOBAL max_connections=DEFAULT;
+DROP DATABASE bug27374791;
+
+--echo #
+--echo # Bug #27322254: WITH PERSIST_ONLY, VARIABLE VALUE EQUALS 18446744073709547520
+--echo #                IS STORED AS -4096
+--echo #
+
+SELECT @@max_binlog_cache_size;
+SET PERSIST max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+  VARIABLE_NAME= 'max_binlog_cache_size';
+SET PERSIST_ONLY max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+  VARIABLE_NAME= 'max_binlog_cache_size';
+
+# Similar test which fixes this bug without SET PERSIST_ONLY
+SET @a=cast(@@max_binlog_cache_size as char);
+SELECT @a;
+
+# Cleanup
+RESET PERSIST;
+SET GLOBAL max_binlog_cache_size= DEFAULT;
+
+--echo # End of the 8.0 tests
+

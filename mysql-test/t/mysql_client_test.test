@@ -1,7 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
-
 --source include/no_valgrind_without_big.inc
 
 # need to have the dynamic loading turned on for the client plugin tests

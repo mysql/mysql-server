@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,7 @@ public:
   @param con     connection for communication with the peer 
   @param target  name of the target service with which we will authenticate
                  (can be NULL if not used)
+  @param len     length of target
 
   Some security packages (like Kerberos) require providing explicit name
   of the service with which a client wants to authenticate. The server-side
@@ -315,6 +316,112 @@ Blob Handshake_client::process_data(const Blob &data)
 
 /**********************************************************************/
 
+/**
+  @page page_protocol_connection_phase_authentication_methods_authentication_windows Windows Native Authentication
+
+  Authentication::WindowsAuth:
+
+  <ul>
+  <li>
+  The server name is *authentication_windows*
+  </li>
+  <li>
+  The client name is *authentication_windows_client*
+  </li>
+  </ul>
+
+  The Windows Native Authentication method is more complex than the other
+  methods and extends the auth protocol as it has to send more data forth
+  and back than the old handshake permitted.
+
+  Basically it wraps the output of the
+  [Negotiate SSP]("http://msdn.microsoft.com/en-us/library/windows/desktop/aa378748(v=VS.85).aspx")
+  in the Auth Phase protocol which either means
+  @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm or
+  @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego
+  are used as underlying protocol.
+
+  Due to the implementation details the Windows Native Authentication method
+  doesn't use the fast path of the @ref page_protocol_connection_phase, but is
+  only triggered on request as part of the
+  @ref page_protocol_connection_phase_packets_protocol_auth_switch_request packet.
+
+
+  @note Due to implementation details (again) the first packet sent from the
+  client to the server is expected to be either
+  <ul><li>254 bytes long max or</li>
+  <li>send the first 254 bytes first, appended by 1 byte with a magic value
+  plus a 2nd packet with rest of the data</li></ul>
+  Also following windows authentication packets don't get split.
+
+  The client will send either a
+  @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego
+  or a @ref sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm
+  packet as a next packet.
+
+  To implement the protocol one can use several existing implementations:
+  <ul>
+  <li>MS Windows provides
+  [InitializeSecurityContextW](http://msdn.microsoft.com/en-us/library/windows/desktop/aa375509(v=VS.85).aspx)
+  and [AcceptSecurityContext](http://msdn.microsoft.com/en-us/library/aa374703.aspx)
+  </li>
+  <li>A open source implemenation of NTML, SPNEGO and Kerberos5 are provided by
+  [Heimdal](http://www.h5l.org/)
+  </li>
+  <li>Java6 added SPNEGO support to
+  [JGSS](http://download.oracle.com/javase/6/docs/technotes/guides/security/jgss/lab/part5.html#SPNEGO)
+  which also provides the NTLM and Kerberos5 support.
+  </li></ul>
+
+  @sa win_auth_handshake_client
+
+
+  @section sect_protocol_connection_phase_authentication_methods_authentication_windows_ntlm NTLM
+
+  @note [Removed in Windows Vista and 2008](http://msdn.microsoft.com/en-us/library/aa480152.aspx#appcomp_topic16)
+
+  @note Documented in [MSDN](https://msdn.microsoft.com/en-us/library/cc207842.aspx)
+
+  @startuml
+  Client->Server: NTLM request
+  Server->Client: 0x01 + NTLM response
+  == repeat until done ==
+  Client->Server: NTLM request
+  Server->Client: OK
+  @enduml
+
+
+  @section sect_protocol_connection_phase_authentication_methods_authentication_windows_spnego SPNEGO
+
+  Uses GSS-API as protocol and negotiates the proper auth-method automatically.
+  @par Tip
+  To decode these packets by hand you need to read:
+    <ul>
+      <li>
+         [RFC2473](http://tools.ietf.org/html/rfc2743.html#page-81)
+         Section 3.1: Mechanism-independent Token Format
+      </li><li>
+         [RFC4178](http://tools.ietf.org/html/rfc4178.html#page-7)
+         Section 4: Token Defintions
+      </li><li>
+         [X.680](http://www.itu.int/ITU-T/studygroups/com17/languages/X.680-0207.pdf)
+         ASN.1
+      </li><li>
+         [X.690](http://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf)
+         DER
+      </li>
+    </ul>
+
+  @startuml
+  Client->Server: GSS-API + SPNEGO NegTokenInit
+  Server->Client: 0x01 + SPNEGO NegTokenResponse
+  Client->Server: SPNEGO NegTokenResponse
+  Server->Client: 0x01 + SPNEGO NegTokenResponse
+  == repeat until done ==
+  Server->Client: OK
+  @enduml
+
+*/
 
 /**
   Perform authentication handshake from client side.

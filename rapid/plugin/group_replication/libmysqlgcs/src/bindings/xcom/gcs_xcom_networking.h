@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include<vector>
 #include<map>
 #include<string>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
 
 /**
   This function gets all network addresses on this host and their
@@ -231,20 +233,23 @@ public:
    false otherwise.
 
    @param ip_addr a string representation of an IPv4 address.
+   @param xcom_config the latest XCom configuration.
 
    @return true if the ip should be blocked, false otherwise.
    */
-  bool shall_block(const std::string& ip_addr) const;
+  bool shall_block(const std::string& ip_addr,
+                   site_def const *xcom_config= nullptr) const;
 
   /**
    This member function SHALL return true if the IP of the given file descriptor
    is to be blocked, false otherwise.
 
    @param fd the file descriptor of the accepted socket to check.
+   @param xcom_config the latest XCom configuration.
 
    @return true if the ip should be blocked, false otherwise.
    */
-  bool shall_block(int fd) const;
+  bool shall_block(int fd, site_def const *xcom_config= nullptr) const;
 
   /**
    This member function gets the textual representation of the list as
@@ -261,9 +266,20 @@ public:
   std::string to_string() const;
 
 private:
-  bool do_check_block(struct sockaddr_storage *sa) const;
+  bool do_check_block(struct sockaddr_storage *sa,
+                      site_def const *xcom_config) const;
+  bool do_check_block_whitelist(
+    std::vector<unsigned char> const& incoming_octets) const;
+  bool do_check_block_xcom(std::vector<unsigned char> const& incoming_octets,
+                           site_def const *xcom_config) const;
   bool add_address(std::string addr, std::string mask);
 
+  /**
+   @brief Clears the contents of this Whitelist object.
+
+   It deletes all entries and clears the internal set.
+   */
+  void clear();
 private:
   Gcs_ip_whitelist(Gcs_ip_whitelist const&);
   Gcs_ip_whitelist& operator=(Gcs_ip_whitelist const&);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -436,6 +436,18 @@ XError Connection_impl::get_ssl_init_error(const int init_error_id) {
 #else
 #define SOCKET_ERROR_WIN_OR_POSIX(W, P) P
 #endif  // _WIN32
+
+#ifdef HAVE_WOLFSSL
+
+#ifdef SOCKET_EPIPE
+# undef SOCKET_EPIPE
+#endif
+
+#ifdef SOCKET_ECONNABORTED
+# undef SOCKET_ECONNABORTED
+#endif
+
+#endif // HAVE_WOLFSSL
 
 #define SOCKET_EPIPE SOCKET_ERROR_WIN_OR_POSIX(ERROR_BROKEN_PIPE, EPIPE)
 #define SOCKET_ECONNABORTED \

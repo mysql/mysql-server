@@ -127,6 +127,8 @@ private:
 /** Table PERFORMANCE_SCHEMA.TABLE_REPLICATION_CONNECTION_CONFIGURATION. */
 class table_replication_connection_configuration : public PFS_engine_table
 {
+  typedef PFS_simple_index pos_t;
+
 private:
   int make_row(Master_info *);
 
@@ -138,9 +140,9 @@ private:
   /** Current row */
   st_row_connect_config m_row;
   /** Current position. */
-  PFS_simple_index m_pos;
+  pos_t m_pos;
   /** Next position. */
-  PFS_simple_index m_next_pos;
+  pos_t m_next_pos;
 
 protected:
   /**

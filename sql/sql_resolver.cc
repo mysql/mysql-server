@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,6 @@ bool SELECT_LEX::prepare(THD *thd)
 
   // Set up the ORDER BY clause
   all_fields_count= all_fields.elements;
-  int hidden_order_field_count= 0;
   if (order_list.elements)
   {
     if (setup_order(thd, base_ref_items, get_table_list(), fields_list,
@@ -336,8 +335,7 @@ bool SELECT_LEX::prepare(THD *thd)
       first_execution &&                                   // 2)
       !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
   {
-    remove_redundant_subquery_clauses(thd, hidden_group_field_count,
-                                      hidden_order_field_count);
+    remove_redundant_subquery_clauses(thd, hidden_group_field_count);
   }
 
   /*
@@ -352,7 +350,7 @@ bool SELECT_LEX::prepare(THD *thd)
     DBUG_RETURN(true);
 
   if (order_list.elements &&
-      setup_order_final(thd, hidden_order_field_count))
+      setup_order_final(thd))
     DBUG_RETURN(true);      /* purecov: inspected */
 
   thd->want_privilege= want_privilege_saved;
@@ -2719,6 +2717,12 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
                            pointer_cast<uchar *>(&mf));
       }
     }
+    else
+    {
+      derived_select->empty_order_list(this);
+      trace_derived.add_alnum("transformations_to_derived_table",
+                              "removed_ordering");
+    }
   }
 
   // Add any full-text functions from derived table into outer query
@@ -3188,14 +3192,11 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
    @param thd               thread handler
    @param hidden_group_field_count Number of hidden group fields added
                             by setup_group().
-   @param hidden_order_field_count Number of hidden order fields added
-                            by setup_order().
 */
 
 
 void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
-                                                   int hidden_group_field_count,
-                                                   int hidden_order_field_count)
+                                                   int hidden_group_field_count)
 {
   Item_subselect *subq_predicate= master_unit()->item;
   enum change
@@ -3227,7 +3228,7 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
   if ((possible_changes & REMOVE_ORDER) && order_list.elements)
   {
     changelog|= REMOVE_ORDER;
-    empty_order_list(hidden_order_field_count);
+    empty_order_list(this);
   }
 
   if ((possible_changes & REMOVE_DISTINCT) && is_distinct())
@@ -3283,10 +3284,12 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
   Delete corresponding elements from all_fields and base_ref_items too.
   If ORDER list contain any subqueries, delete them from the query block list.
 
-  @param hidden_order_field_count Number of hidden order fields to remove
+  @param sl  Query block that possible subquery blocks in the ORDER BY clause
+             are attached to (may be different from "this" when query block has
+             been merged into an outer query block).
 */
 
-void SELECT_LEX::empty_order_list(int hidden_order_field_count)
+void SELECT_LEX::empty_order_list(SELECT_LEX *sl)
 {
   if (m_windows.elements != 0)
   {
@@ -3304,7 +3307,7 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
   {
     if (*o->item == o->item_ptr)
       (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
-                       reinterpret_cast<uchar*>(this));
+                       pointer_cast<uchar *>(sl));
   }
   order_list.empty();
   while (hidden_order_field_count-- > 0)
@@ -3654,18 +3657,16 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
   Split any aggregate functions.
 
   @param thd                      Thread handler
-  @param hidden_order_field_count Number of fields to delete from ref array
-                                  if ORDER BY clause is redundant.
 
   @returns false if success, true if error
 */
-bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
+bool SELECT_LEX::setup_order_final(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::setup_order_final");
   if (is_implicitly_grouped())
   {
     // Result will contain zero or one row - ordering is redundant
-    empty_order_list(hidden_order_field_count);
+    empty_order_list(this);
     DBUG_RETURN(false);
   }
 
@@ -3674,7 +3675,7 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
       !(braces && explicit_limit))
   {
     // Part of UNION which requires global ordering may skip local order
-    empty_order_list(hidden_order_field_count);
+    empty_order_list(this);
     DBUG_RETURN(false);
   }
 
@@ -3787,8 +3788,17 @@ bool SELECT_LEX::setup_group(THD *thd)
     This substitution is needed GROUP BY queries with ROLLUP if
     SELECT list contains expressions over group by attributes.
 
+  Similarly, replace occurrences of group by fields in arguments of a
+  windowing function with ref items.
+
+  @b EXAMPLE
+    @code
+      SELECT LAG(f1+3/2,1,1) OVER (ORDER BY f1) FROM t GROUP BY f1
+      WITH ROLLUP
+  @endcode
+
   @param thd                  reference to the context
-  @param expr                 expression to make replacement
+  @param func                 function to make replacement
   @param [out] changed  returns true if item contains a replaced field item
 
   @todo
@@ -3798,24 +3808,27 @@ bool SELECT_LEX::setup_group(THD *thd)
   @returns false if success, true if error
 
 */
-
-bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
+bool SELECT_LEX::change_func_or_wf_group_ref(THD *thd, Item *func,
+                                             bool *changed)
 {
   bool arg_changed= false;
-  const bool is_grouping_func= expr->functype() == Item_func::GROUPING_FUNC;
+  bool wf= func->m_is_window_function;
+  Item_sum *window_func= wf ? down_cast<Item_sum*>(func) : nullptr;
+  Item_func *func_item= !wf ? down_cast<Item_func*>(func) : nullptr;
+  uint argcnt= wf ? window_func->get_arg_count() : func_item->arg_count;
+  Item **args= (wf ? window_func->get_arg_ptr(0) :
+                (argcnt > 0 ? func_item->arguments() : nullptr));
+  const bool is_grouping_func=
+    (!wf ? func_item->functype() == Item_func::GROUPING_FUNC : false);
 
-  for (uint i= 0; i < expr->arg_count; i++)
+  for (uint i= 0; i < argcnt; i++)
   {
-    Item **arg= expr->arguments() + i;
-    Item *const item= *arg;
+    Item *const item= args[i];
     Item *const real_item= item->real_item();
     bool found_in_group= false;
-    /*
-      Arguments to GROUPING function must be present in the GROUP BY list.
-      Check that they are.
-    */
-    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM ||
-        is_grouping_func)
+
+    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM  ||
+        (!wf && is_grouping_func))
     {
       for (ORDER *group= group_list.first; group; group= group->next)
       {
@@ -3826,28 +3839,41 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
                                        item->item_name.ptr())))
             return true;              /* purecov: inspected */
 
-          expr->replace_argument(thd, arg, new_item);
+          if (wf)
+          {
+            window_func->set_arg(i, thd, new_item);
+          }
+          else
+          {
+            func_item->replace_argument(thd, args + i, new_item);
+            found_in_group= true;
+          }
+
           arg_changed= true;
-          found_in_group= true;
           break;
         }
       }
-
-      if (is_grouping_func && !found_in_group)
+      if (!wf && is_grouping_func && !found_in_group)
       {
         my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i+1));
         return true;
       }
     }
-    else if (item->type() == Item::FUNC_ITEM)
+    if (real_item->type() == Item::FUNC_ITEM)
     {
-      if (change_group_ref(thd, (Item_func *) item, &arg_changed))
+      if (change_func_or_wf_group_ref(thd, real_item, &arg_changed))
+        return true;
+    }
+    else if (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)
+    {
+      DBUG_ASSERT(!wf); // wfs are not not nested
+      if (change_func_or_wf_group_ref(thd, item, &arg_changed))
         return true;
     }
   }
   if (arg_changed)
   {
-    expr->maybe_null= true;
+    func->maybe_null= true;
     *changed= true;
   }
   return false;
@@ -3896,15 +3922,21 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
     {
       bool changed= false;
-      if (change_group_ref(thd, (Item_func *) item, &changed))
+      if (change_func_or_wf_group_ref(thd, item, &changed))
         DBUG_RETURN(true);       /* purecov: inspected */
       /*
         We have to prevent creation of a field in a temporary table for
         an expression that contains GROUP BY attributes.
         Marking the expression item as 'aggregated' will ensure this.
-      */ 
+      */
       if (changed)
         item->set_aggregation();
+    }
+    if (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)
+    {
+      bool changed= false;
+      if (change_func_or_wf_group_ref(thd, item, &changed))
+        DBUG_RETURN(true);       /* purecov: inspected */
     }
   }
   DBUG_RETURN(false);
