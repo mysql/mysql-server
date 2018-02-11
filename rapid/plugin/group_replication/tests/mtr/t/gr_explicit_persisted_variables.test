@@ -1,0 +1,129 @@
+##############################################################################
+# This test verifies that server shows proper variable_source.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Persist configuration on server. Check variable_source as DYNAMIC.
+# 2. Restart server. Check variable_source must be PERSISTED. Uninstall
+#    plugin.
+# 3. Restart server without plugin. Post Install plugin variable_source
+#    must be PERSISTED.
+# 4. Clean up.
+##############################################################################
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Persist configuration on server. Check variable_source
+--echo #    as DYNAMIC.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST group_replication_group_seeds= @@GLOBAL.group_replication_group_seeds
+--eval SET PERSIST group_replication_local_address= @@GLOBAL.group_replication_local_address
+SET PERSIST group_replication_start_on_boot= ON;
+SET PERSIST group_replication_bootstrap_group= ON;
+
+--echo # Start group replication
+START GROUP_REPLICATION;
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo
+--echo # There must be 5 variables shown as DYNAMIC.
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+SELECT vi.variable_name variable_name, vi.variable_source variable_source
+ FROM performance_schema.variables_info vi
+ JOIN performance_schema.persisted_variables pv
+ JOIN performance_schema.global_variables gv
+ ON vi.variable_name = pv.variable_name AND vi.variable_name = gv.variable_name;
+
+--echo
+--echo ############################################################
+--echo # 2. Restart server. Verify group is bootstraped and
+--echo #    variables are shown as PERSISTED.
+--let $allow_rpl_inited= 1
+--source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo
+--echo # There must be 5 variables shown as PERSISTED.
+SELECT vi.variable_name variable_name, vi.variable_source variable_source
+ FROM performance_schema.variables_info vi
+ JOIN performance_schema.persisted_variables pv
+ JOIN performance_schema.global_variables gv
+ ON vi.variable_name = pv.variable_name AND vi.variable_name = gv.variable_name;
+
+--let $assert_text= 'Expect 5 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 5
+--source include/assert.inc
+
+--echo # Uninstall plugin
+UNINSTALL PLUGIN group_replication;
+
+--echo
+--echo ############################################################
+--echo # 3. Restart server without plugin. Post install plugin
+--echo #    variable_source must be shown as PERSISTED.
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("unknown variable 'loose_group_replication");
+SET SESSION sql_log_bin= 1;
+
+--let $allow_rpl_inited= 1
+--let $restart_parameters="restart: --plugin-load="
+--source include/restart_mysqld.inc
+--let $restart_parameters=
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # There must be NO variable shown as PERSISTED.
+SELECT vi.variable_name variable_name, vi.variable_source variable_source
+ FROM performance_schema.variables_info vi
+ JOIN performance_schema.persisted_variables pv
+ JOIN performance_schema.global_variables gv
+ ON vi.variable_name = pv.variable_name AND vi.variable_name =
+gv.variable_name;
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo
+--echo # There must be 5 variables shown as PERSISTED.
+SELECT vi.variable_name variable_name, vi.variable_source variable_source
+ FROM performance_schema.variables_info vi
+ JOIN performance_schema.persisted_variables pv
+ JOIN performance_schema.global_variables gv
+ ON vi.variable_name = pv.variable_name AND vi.variable_name =
+gv.variable_name;
+
+--let $assert_text= 'Expect 5 persisted variables after install plugin.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 5
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+RESET PERSIST;
+SET GLOBAL group_replication_start_on_boot= OFF;
+SET GLOBAL group_replication_bootstrap_group= OFF;
+
+--let $assert_text= 'There must be 0 persisted variables after RESET PERSIST.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--source include/assert.inc
+
+--source ../inc/group_replication_end.inc

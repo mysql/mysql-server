@@ -99,7 +99,7 @@ int Sasl_client::read_method_name_from_server()
   if (rc_server_read >= 0 && rc_server_read <= max_method_name_len)
   {
     strncpy(m_mechanism, (const char*)packet, rc_server_read);
-    m_mechanism[sizeof(m_mechanism) - 1]= '\0';
+    m_mechanism[rc_server_read]= '\0';
     log_stream << "Sasl_client::read_method_name_from_server : "
                << m_mechanism;
     log_dbg(log_stream.str());

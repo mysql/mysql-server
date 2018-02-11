@@ -117,12 +117,6 @@ SET @@global.sql_mode = NO_DIR_IN_CREATE;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_ENGINE_SUBSTITUTION;
 SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_FIELD_OPTIONS;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_KEY_OPTIONS;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = NO_TABLE_OPTIONS;
-SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_UNSIGNED_SUBTRACTION;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = NO_ZERO_DATE;
@@ -138,20 +132,6 @@ SELECT @@global.sql_mode;
 SET @@global.sql_mode = STRICT_ALL_TABLES;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = STRICT_TRANS_TABLES;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = DB2;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MAXDB;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MSSQL;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MYSQL323;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = MYSQL40;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = ORACLE;
-SELECT @@global.sql_mode;
-SET @@global.sql_mode = POSTGRESQL;
 SELECT @@global.sql_mode;
 SET @@global.sql_mode = TRADITIONAL;
 SELECT @@global.sql_mode;
@@ -186,12 +166,6 @@ SET @@session.sql_mode = NO_DIR_IN_CREATE;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_ENGINE_SUBSTITUTION;
 SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_FIELD_OPTIONS;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_KEY_OPTIONS;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = NO_TABLE_OPTIONS;
-SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_UNSIGNED_SUBTRACTION;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = NO_ZERO_DATE;
@@ -207,20 +181,6 @@ SELECT @@session.sql_mode;
 SET @@session.sql_mode = STRICT_ALL_TABLES;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = STRICT_TRANS_TABLES;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = DB2;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MAXDB;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MSSQL;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MYSQL323;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = MYSQL40;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = ORACLE;
-SELECT @@session.sql_mode;
-SET @@session.sql_mode = POSTGRESQL;
 SELECT @@session.sql_mode;
 SET @@session.sql_mode = TRADITIONAL;
 SELECT @@session.sql_mode;
@@ -305,15 +265,6 @@ SELECT @@global.sql_mode;
 SET @@global.sql_mode = 3;
 SELECT @@global.sql_mode;
 
-SET @@global.sql_mode = 50000;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 500000;
-SELECT @@global.sql_mode;
-
-SET @@global.sql_mode = 4294967295;
-SELECT @@global.sql_mode;
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.sql_mode = 8589934592;
 
@@ -359,7 +310,7 @@ SELECT @@global.sql_mode;
 SET @@session.sql_mode = 'TRADITIONAL,ALLOW_INVALID_DATES,ANSI_QUOTES';
 SELECT @@session.sql_mode;
 
-SET @@global.sql_mode = 'ONLY_FULL_GROUP_BY,PIPES_AS_CONCAT,REAL_AS_FLOAT,ORACLE,POSTGRESQL';
+SET @@global.sql_mode = 'ONLY_FULL_GROUP_BY,PIPES_AS_CONCAT,REAL_AS_FLOAT';
 SELECT @@global.sql_mode;
 
 #try combining invalid mode with correct mode

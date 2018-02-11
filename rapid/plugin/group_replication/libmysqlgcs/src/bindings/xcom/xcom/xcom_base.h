@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
  Registers a callback that is called right after
  the accept routine returns.
  */
-typedef int (*xcom_socket_accept_cb)(int fd);
+typedef int (*xcom_socket_accept_cb)(int fd, site_def const *config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
 connection_descriptor *xcom_open_client_connection(char *server,
@@ -225,6 +225,7 @@ int64_t xcom_client_send_data(uint32_t size, char *data,
 int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);
+uint32_t get_my_id();
 
 static inline char *strerr_msg(char *buf, size_t len, int nr)
 {
@@ -243,7 +244,6 @@ void set_xcom_comms_cb(xcom_state_change_cb x);
 
 synode_no get_delivered_msg();
 void set_max_synode_from_unified_boot(synode_no unified_boot_synode);
-void server_push_log(server *srv, synode_no push, node_no node);
 
 #define XCOM_FSM(action, arg)                               \
   do {                                                      \

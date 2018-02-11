@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,7 +279,7 @@ void make_scrambled_password(char *to, const char *password)
 }
 
 
-/*
+/**
     Produce an obscure octet sequence from password and random
     string, received from the server. This sequence corresponds to the
     password, but password can not be easily restored from it. The sequence
@@ -287,13 +287,12 @@ void make_scrambled_password(char *to, const char *password)
     in the buf as it is not needed.
     This function is used by client to create authenticated reply to the
     server's greeting.
-  SYNOPSIS
-    scramble()
-    buf       OUT store scrambled string here. The buf must be at least
-                  SHA1_HASH_SIZE bytes long.
-    message   IN  random message, must be exactly SCRAMBLE_LENGTH long and
-                  NULL-terminated.
-    password  IN  users' password
+
+    @param[out] to   store scrambled string here. The buf must be at least
+                     SHA1_HASH_SIZE bytes long.
+    @param message   random message, must be exactly SCRAMBLE_LENGTH long and
+                     NULL-terminated.
+    @param password  users' password, NULL-terminated
 */
 
 void
@@ -313,24 +312,22 @@ scramble(char *to, const char *message, const char *password)
 }
 
 
-/*
-    Check that scrambled message corresponds to the password; the function
-    is used by server to check that received reply is authentic.
+/**
+    Check that scrambled message corresponds to the password.
+
+    The function is used by server to check that received reply is authentic.
     This function does not check lengths of given strings: message must be
     null-terminated, reply and hash_stage2 must be at least SHA1_HASH_SIZE
     long (if not, something fishy is going on).
-  SYNOPSIS
-    check_scramble_sha1()
-    scramble     clients' reply, presumably produced by scramble()
-    message      original random string, previously sent to client
-                 (presumably second argument of scramble()), must be
-                 exactly SCRAMBLE_LENGTH long and NULL-terminated.
-    hash_stage2  hex2octet-decoded database entry
-    All params are IN.
 
-  RETURN VALUE
-    false  password is correct
-    true   password is invalid
+    @param scramble_arg  clients' reply, presumably produced by scramble()
+    @param message       original random string, previously sent to client
+                         (presumably second argument of scramble()), must be
+                         exactly SCRAMBLE_LENGTH long and NULL-terminated.
+    @param hash_stage2   hex2octet-decoded database entry
+
+    @retval false  password is correct
+    Wretval true   password is invalid
 */
 
 static bool
@@ -374,12 +371,11 @@ void get_salt_from_password(uint8 *hash_stage2, const char *password)
   hex2octet(hash_stage2, password+1 /* skip '*' */, SHA1_HASH_SIZE * 2);
 }
 
-/*
-    Convert scrambled password from binary form to asciiz hex string.
-  SYNOPSIS
-    make_password_from_salt()
-    to    OUT store resulting string here, 2*SHA1_HASH_SIZE+2 bytes
-    salt  IN  password in salt format
+/**
+  Convert scrambled password from binary form to asciiz hex string.
+
+  @param [out] to     store resulting string here, 2*SHA1_HASH_SIZE+2 bytes
+  @param hash_stage2  password in salt format
 */
 
 void make_password_from_salt(char *to, const uint8 *hash_stage2)

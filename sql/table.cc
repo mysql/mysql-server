@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1669,7 +1669,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     }
     share->table_charset= default_charset_info;
   }
-  share->db_record_offset= 1;
   /* Set temporarily a good value for db_low_byte_first */
   share->db_low_byte_first= (legacy_db_type != DB_TYPE_ISAM);
   error=4;
@@ -1691,6 +1690,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     share->keys=      keys=      disk_buff[0];
     share->key_parts= key_parts= disk_buff[1];
   }
+  share->visible_indexes.init(0);
   share->keys_for_keyread.init(0);
   share->keys_in_use.init(keys);
 
@@ -2694,6 +2694,18 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
   context->table_list= save_table_list;
   context->first_name_resolution_table= save_first_table;
   context->last_name_resolution_table= save_last_table;
+
+  /*
+    Above, 'context' is either the one of unpack_gcol_info()'s temporary fresh
+    LEX 'new_lex', or the one of the top query as used in
+    TABLE::refix_gc_items(). None of them reflects where the gcol is situated
+    in the query.  Moreover, a gcol_info may be shared by N references to the
+    same gcol, each ref being in a different context (top query,
+    subquery). So, underlying items are not situated in a defined place: give
+    them a null context.
+  */
+  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
+                  nullptr);
 
   if (unlikely(error))
   {
@@ -4447,6 +4459,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->ref_count++;
   share->primary_key= MAX_KEY;
+  share->visible_indexes.init();
   share->keys_for_keyread.init();
   share->keys_in_use.init();
   share->keys= 0;
@@ -7687,7 +7700,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
     if (vfield->is_virtual_gcol() &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
-      if (vfield->type() == MYSQL_TYPE_BLOB)
+      if ((vfield->flags & BLOB_FLAG) != 0)
       {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
         (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
@@ -7762,11 +7775,11 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
     if (bitmap_is_set(bitmap, vfield->field_index))
     {
       /*
-        For a virtual generated column of blob type, we have to keep
+        For a virtual generated column based on the blob type, we have to keep
         the current blob value since this might be needed by the
         storage engine during updates.
       */
-      if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+      if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol())
       {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
         (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);

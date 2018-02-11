@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,7 @@ Item::Item():
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
   item_name(), orig_name(),
   max_length(0),
-  marker(0),
+  marker(MARKER_NONE),
   cmp_context(INVALID_RESULT),
   is_parser_item(false),
   runtime_item(false),
@@ -149,7 +149,7 @@ Item::Item(THD *thd, Item *item):
   item_name(item->item_name),
   orig_name(item->orig_name),
   max_length(item->max_length),
-  marker(0),
+  marker(MARKER_NONE),
   cmp_context(item->cmp_context),
   is_parser_item(false),
   runtime_item(false),
@@ -180,7 +180,7 @@ Item::Item(const POS &):
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
   item_name(), orig_name(),
   max_length(0),
-  marker(0),
+  marker(MARKER_NONE),
   cmp_context(INVALID_RESULT),
   is_parser_item(true),
   runtime_item(false),
@@ -801,7 +801,7 @@ void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
   fixed=0;
-  marker= 0;
+  marker= MARKER_NONE;
   if (orig_name.is_set())
     item_name= orig_name;
   DBUG_VOID_RETURN;
@@ -5877,6 +5877,12 @@ static bool is_null_on_empty_table(const LEX *lex)
   return
     lex->in_sum_func == nullptr &&                                       // 1
     current_select->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST &&  // 2
+    /*
+      It maybe be over-cautious to check for "with_sum_func" here, as it
+      denotes that the query block contains an aggregate function even
+      though this function may later be found to aggregate in an outer
+      query block.
+    */
     current_select->with_sum_func &&                                     // 3
     current_select->group_list.elements == 0;                            // 4
 }
@@ -10679,12 +10685,13 @@ uint32 Item_type_holder::display_length(Item *item)
   of UNION result.
 
   @param table  temporary table for which we create fields
+  @param strict If strict mode is on
 
   @return
     created field
 */
 
-Field *Item_type_holder::make_field_by_type(TABLE *table)
+Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict)
 {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
@@ -10702,7 +10709,7 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                  enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    return field;
+    break;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
     field= new (*THR_MALLOC) Field_set(
@@ -10712,13 +10719,26 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
       enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    return field;
+    break;
   case MYSQL_TYPE_NULL:
-    return make_string_field(table);
+    field= make_string_field(table);
+    break;
   default:
+    field= tmp_table_field_from_field_type(table, 0);
     break;
   }
-  return tmp_table_field_from_field_type(table, 0);
+  if (strict && field && field->is_temporal_with_date() &&
+      !field->real_maybe_null())
+  {
+    /*
+      This function is used for CREATE SELECT UNION [ALL] ... , and, if
+      expression is non-nullable, the resulting column is declared
+      non-nullable with a default of 0. However, in strict mode, for dates,
+      0000-00-00 is invalid; in that case, don't give any default.
+    */
+    field->flags|= NO_DEFAULT_VALUE_FLAG;
+  }
+  return field;
 }
 
 
@@ -10859,6 +10879,16 @@ Bool3 Item_ident::local_column(const SELECT_LEX *sl) const
     {
       if (depended_from == sl)
         return Bool3::true3();                    // qualifying query is 'sl'
+    }
+    else if (context == nullptr)
+    {
+      /*
+        Must be an underlying column of a generated column
+        as we've dove so deep, we know the gcol is local to 'sl', and so is
+        this column.
+      */
+      DBUG_ASSERT(t == FIELD_ITEM);
+      return Bool3::true3();
     }
     else if (context->select_lex == sl)
       return Bool3::true3();                           // qualifying query is 'sl'

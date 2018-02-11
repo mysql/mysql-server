@@ -14093,7 +14093,6 @@ ulonglong ha_ndbcluster::table_flags(void) const
 {
   THD *thd= current_thd;
   ulonglong f=
-    HA_REC_NOT_IN_SEQ |
     HA_NULL_IN_KEY |
     HA_AUTO_PART_KEY |
     HA_NO_PREFIX_CHAR_KEYS |

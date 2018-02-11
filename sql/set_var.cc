@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1025,7 +1025,7 @@ int set_var::check(THD *thd)
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  int ret= var->check(thd, this) ? -1 : 0;
+  int ret= (type != OPT_PERSIST_ONLY && var->check(thd, this)) ? -1 : 0;
 
   if (!ret && (is_global_persist()))
   {

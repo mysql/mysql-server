@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ struct Mem_compare_queue_key
 
 	/* functions defined in this file */
 
-static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
+static ha_rows read_all_rows(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *buffer_file,
                              IO_CACHE *chunk_file,
@@ -451,11 +451,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows_estimate= table->file->estimate_rows_upper_bound();
 
-  if (!(param.tmp_buffer= (char*)
-        my_malloc(key_memory_Sort_param_tmp_buffer,
-                  param.max_compare_length(), MYF(MY_WME))))
-    goto err;
-
   if (check_if_pq_applicable(trace, &param, &table->sort,
                              table, num_rows_estimate, memory_available,
                              subselect != NULL))
@@ -551,7 +546,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows_found= find_all_keys(thd, &param, tab,
+    num_rows_found= read_all_rows(thd, &param, tab,
                                   &table->sort,
                                   &chunk_file,
                                   &tempfile,
@@ -660,13 +655,12 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (num_rows_found > param.max_rows)
   {
-    // If find_all_keys() produced more results than the query LIMIT.
+    // If read_all_rows() produced more results than the query LIMIT.
     num_rows_found= param.max_rows;
   }
   error= 0;
 
  err:
-  my_free(param.tmp_buffer);
   if (!subselect || !subselect->is_uncacheable())
   {
     if (!table->sort_result.sorted_result_in_fsbuf)
@@ -984,7 +978,7 @@ static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
 /**
-  Search after sort_keys, and write them into tempfile
+  Read all rows, and write them into a temporary file
   (if we run out of space in the sort buffer).
   All produced sequences are guaranteed to be non-empty.
 
@@ -1032,7 +1026,7 @@ static const Item::enum_walk walk_subquery=
     HA_POS_ERROR on error.
 */
 
-static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
+static ha_rows read_all_rows(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *chunk_file,
                              IO_CACHE *tempfile,
@@ -1040,16 +1034,6 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                                            Mem_compare_queue_key> *pq,
                              ha_rows *found_rows)
 {
-  int error,flag;
-  uint idx,indexpos,ref_length;
-  uchar *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
-  my_off_t record;
-  TABLE *sort_form;
-  std::atomic<THD::killed_state> *killed= &thd->killed;
-  handler *file;
-  MY_BITMAP *save_read_set, *save_write_set;
-  bool skip_record;
-  ha_rows num_records= 0;
   const bool packed_addon_fields= param->using_packed_addons();
   const bool using_varlen_keys= param->using_varlen_keys();
 
@@ -1061,27 +1045,27 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
   */
   Filesort_error_handler error_handler(thd);
 
-  DBUG_ENTER("find_all_keys");
+  DBUG_ENTER("read_all_rows");
   DBUG_PRINT("info",("using: %s",
                      (qep_tab->condition() ? qep_tab->quick() ? "ranges" : "where":
                       "every row")));
 
-  idx=indexpos=0;
-  error= 0;
-  sort_form=param->sort_form;
-  file=sort_form->file;
-  ref_length=param->ref_length;
-  ref_pos= ref_buff;
-  const bool quick_select= qep_tab->quick() != NULL;
-  record=0;
+  int error= 0;
+  TABLE *sort_form= param->sort_form;
+  handler *file= sort_form->file;
+  const bool is_range_scan= qep_tab->quick() != nullptr;
   *found_rows= 0;
-  flag= ((file->ha_table_flags() & HA_REC_NOT_IN_SEQ) || quick_select);
-  if (flag)
-    ref_pos= &file->ref[0];
-  next_pos=ref_pos;
-  if (!quick_select)
+  uchar *ref_pos= &file->ref[0];
+  if (is_range_scan)
   {
-    next_pos=(uchar*) 0;			/* Find records in sequence */
+    if ((error= qep_tab->quick()->reset()))
+    {
+      file->print_error(error, MYF(0));
+      DBUG_RETURN(HA_POS_ERROR);
+    }
+  }
+  else
+  {
     DBUG_EXECUTE_IF("bug14365043_1",
                     DBUG_SET("+d,ha_rnd_init_fail"););
     if ((error= file->ha_rnd_init(1)))
@@ -1093,18 +1077,9 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
 		    thd->variables.read_buff_size);
   }
 
-  if (quick_select)
-  {
-    if ((error= qep_tab->quick()->reset()))
-    {
-      file->print_error(error, MYF(0));
-      DBUG_RETURN(HA_POS_ERROR);
-    }
-  }
-
   /* Remember original bitmaps */
-  save_read_set=  sort_form->read_set;
-  save_write_set= sort_form->write_set;
+  MY_BITMAP *save_read_set=  sort_form->read_set;
+  MY_BITMAP *save_write_set= sort_form->write_set;
   /*
     Set up temporary column read map for columns used by sort and verify
     it's not used
@@ -1135,45 +1110,44 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
   DEBUG_SYNC(thd, "after_index_merge_phase1");
+  ha_rows num_total_records= 0, num_records_this_chunk= 0;
+  uint num_written_chunks= 0;
   for (;;)
   {
-    if (quick_select)
+    if (is_range_scan)
     {
       if ((error= qep_tab->quick()->get_next()))
         break;
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, true););
     }
-    else					/* Not quick-select */
+    else
     {
       DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
       {
 	error= file->ha_rnd_next(sort_form->record[0]);
-	if (!flag)
-	{
-	  my_store_ptr(ref_pos,ref_length,record); // Position to row
-	  record+= sort_form->s->db_record_offset;
-	}
-	else if (!error)
+	if (!error)
 	  file->position(sort_form->record[0]);
       }
       if (error && error != HA_ERR_RECORD_DELETED)
 	break;
     }
 
-    if (*killed)
+    if (thd->killed)
     {
       DBUG_PRINT("info",("Sort killed by user"));
-      if (!quick_select)
+      if (!is_range_scan)
       {
         (void) file->extra(HA_EXTRA_NO_CACHE);
         file->ha_rnd_end();
       }
-      num_records= HA_POS_ERROR;
+      num_total_records= HA_POS_ERROR;
       goto cleanup;
     }
     if (error == 0)
       param->num_examined_rows++;
+
+    bool skip_record;
     if (!error && !qep_tab->skip_record(thd, &skip_record) && !skip_record)
     {
       ++(*found_rows);
@@ -1181,17 +1155,17 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
         pq->push(ref_pos);
       else
       {
-        if (fs_info->isfull())
+        if (fs_info->isfull())  // Flush chunk to disk.
         {
-          if (write_keys(param, fs_info, idx, chunk_file, tempfile))
+          if (write_keys(param, fs_info, num_records_this_chunk, chunk_file, tempfile))
           {
-            num_records= HA_POS_ERROR;
+            num_total_records= HA_POS_ERROR;
             goto cleanup;
           }
-          idx= 0;
-          indexpos++;
+          num_records_this_chunk= 0;
+          num_written_chunks++;
         }
-        if (idx == 0)
+        if (num_records_this_chunk == 0)
           fs_info->init_next_record_pointer();
         uchar *start_of_rec= fs_info->get_next_record_pointer();
 
@@ -1200,8 +1174,8 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
             rec_sz != param->max_record_length())
           fs_info->adjust_next_record_pointer(rec_sz);
 
-        idx++;
-        num_records++;
+        num_records_this_chunk++;
+        num_total_records++;
       }
     }
     /*
@@ -1214,23 +1188,22 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
     if (thd->is_error())
       break;
   }
-  if (!quick_select)
+  if (!is_range_scan)
   {
     (void) file->extra(HA_EXTRA_NO_CACHE);	/* End cacheing of records */
-    if (!next_pos)
-      file->ha_rnd_end();
+    file->ha_rnd_end();
   }
 
   if (thd->is_error())
   {
-    num_records= HA_POS_ERROR;
+    num_total_records= HA_POS_ERROR;
     goto cleanup;
   }
   
   /* Signal we should use orignal column read and write maps */
   sort_form->column_bitmaps_set(save_read_set, save_write_set);
 
-  DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
+  DBUG_PRINT("test",("error: %d  num_written_chunks: %d",error,num_written_chunks));
   if (error != HA_ERR_END_OF_FILE)
   {
     myf my_flags;
@@ -1243,27 +1216,27 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
       my_flags= MYF(ME_ERRORLOG);
     }
     file->print_error(error, my_flags);
-    num_records= HA_POS_ERROR;
+    num_total_records= HA_POS_ERROR;
     goto cleanup;
   }
-  if (indexpos && idx &&
-      write_keys(param, fs_info, idx, chunk_file, tempfile))
+  if (num_written_chunks != 0 && num_records_this_chunk != 0 &&
+      write_keys(param, fs_info, num_records_this_chunk, chunk_file, tempfile))
   {
-    num_records= HA_POS_ERROR;                            // purecov: inspected
+    num_total_records= HA_POS_ERROR;                            // purecov: inspected
     goto cleanup;
   }
 
   if (pq)
-    num_records= pq->num_elements();
+    num_total_records= pq->num_elements();
 
 cleanup:
   // Clear tmp_set so it can be used elsewhere
   bitmap_clear_all(&sort_form->tmp_set);
 
-  DBUG_PRINT("info", ("find_all_keys return %lu", (ulong) num_records));
+  DBUG_PRINT("info", ("read_all_rows return %lu", (ulong) num_total_records));
 
-  DBUG_RETURN(num_records);
-} /* find_all_keys */
+  DBUG_RETURN(num_total_records);
+} /* read_all_rows */
 
 
 /**
@@ -1463,7 +1436,7 @@ size_t make_sortkey_from_field(
 */
 size_t make_sortkey_from_item(
   Item *item, Item_result result_type, bool is_varlen,
-  size_t max_length, char *tmp_buffer, uchar *to, bool *maybe_null,
+  size_t max_length, String *tmp_buffer, uchar *to, bool *maybe_null,
   ulonglong *hash)
 {
   uchar *null_indicator= nullptr;
@@ -1493,9 +1466,7 @@ size_t make_sortkey_from_item(
 
     const CHARSET_INFO *cs=item->collation.collation;
 
-    // Allow item->str() to use some extra space for trailing zero byte.
-    String tmp((char*) to, max_length + 4, cs);
-    String *res= item->val_str(&tmp);
+    String *res= item->val_str(tmp_buffer);
     if (res == nullptr)  // Value is NULL.
     {
       DBUG_ASSERT(item->maybe_null);
@@ -1511,17 +1482,6 @@ size_t make_sortkey_from_item(
 
     uint length= static_cast<uint>(res->length());
     char *from=(char*) res->ptr();
-    if ((uchar*) from == to)
-    {
-      /*
-        We can't do strnxfrm in-place, so copy the source string to a
-        temporary buffer.
-      */
-      DBUG_ASSERT(max_length >= length);
-      set_if_smaller(length, max_length);
-      memcpy(tmp_buffer, from, length);
-      from= tmp_buffer;
-    }
 
     size_t actual_length;
     if (is_varlen)
@@ -1671,7 +1631,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
       actual_length= make_sortkey_from_item(
         item, sort_field->result_type, sort_field->is_varlen,
-        sort_field->length, tmp_buffer, to, &maybe_null, &hash);
+        sort_field->length, &tmp_buffer, to, &maybe_null, &hash);
     }
 
     /*

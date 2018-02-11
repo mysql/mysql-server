@@ -5,9 +5,6 @@
 # SQL statements, but allow DD initialization to execute
 # such statements.
 #
-# TODO: Add test of DD tablespace. This depends on
-#       WL#7141, where this functionality is implemented.
-#
 # DD schema DDL
 DROP SCHEMA mysql;
 ERROR HY000: Access to system schema 'mysql' is rejected.
@@ -15,6 +12,16 @@ CREATE SCHEMA mysql;
 ERROR HY000: Access to system schema 'mysql' is rejected.
 ALTER SCHEMA mysql DEFAULT COLLATE utf8_general_ci;
 ERROR HY000: Access to system schema 'mysql' is rejected.
+# DD tablespace DDL
+DROP TABLESPACE mysql;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+CREATE TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+ALTER TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+# Create a non- white listed table in the DD tablespace
+CREATE TABLE table_not_white_listed (pk INTEGER PRIMARY KEY) TABLESPACE mysql;
+ERROR HY000: The table 'table_not_white_listed' may not be created in the reserved tablespace 'mysql'.
 USE mysql;
 CREATE TABLE t (pk BIGINT UNSIGNED PRIMARY KEY);
 #

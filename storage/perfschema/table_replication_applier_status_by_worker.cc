@@ -89,7 +89,7 @@ PFS_engine_table_share table_replication_applier_status_by_worker::m_share = {
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_applier_status_by_worker::get_row_count, /*records*/
-  sizeof(PFS_simple_index),                                  /* ref length */
+  sizeof(pos_t),                                  /* ref length */
   &m_table_lock,
   &m_table_def,
   true, /* perpetual */
@@ -110,7 +110,44 @@ PFS_index_rpl_applier_status_by_worker_by_channel::match(Master_info *mi)
       mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
-    if (!m_key.match(row.channel_name, row.channel_name_length))
+    if (!m_key_1.match_not_null(row.channel_name, row.channel_name_length))
+    {
+      return false;
+    }
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match_not_null(0))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool
+PFS_index_rpl_applier_status_by_worker_by_channel::match(Master_info *mi, Slave_worker *worker)
+{
+  if (m_fields >= 1)
+  {
+    st_row_worker row;
+
+    /* Mutex locks not necessary for channel name. */
+    row.channel_name_length =
+      mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
+    memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
+
+    if (!m_key_1.match_not_null(row.channel_name, row.channel_name_length))
+    {
+      return false;
+    }
+  }
+
+  if (m_fields >= 2)
+  {
+    if (!m_key_2.match_not_null(worker->get_internal_id()))
     {
       return false;
     }
@@ -125,7 +162,8 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
   if (m_fields >= 1)
   {
     st_row_worker row;
-    row.thread_id_is_null = true;
+    /* NULL THREAD_ID is represented by 0 */
+    row.thread_id = 0;
 
     mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -139,36 +177,46 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
         if (pfs)
         {
           row.thread_id = pfs->m_thread_internal_id;
-          row.thread_id_is_null = false;
-        }
-      }
-      /* MTS will have to check each channel worker for a match */
-      else
-      {
-        for (int index = mi->rli->get_worker_count() - 1; index >= 0; index--)
-        {
-          Slave_worker *worker = mi->rli->get_worker(index);
-          if (worker)
-          {
-            PSI_thread *psi = thd_get_psi(worker->info_thd);
-            PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-            if (pfs && m_key.match(pfs->m_thread_internal_id))
-            {
-              row.thread_id = pfs->m_thread_internal_id;
-              row.thread_id_is_null = false;
-              break;
-            }
-          }
         }
       }
     }
 
     mysql_mutex_unlock(&mi->rli->data_lock);
 
-    if (row.thread_id_is_null)
+    if (!m_key.match(row.thread_id))
     {
       return false;
     }
+  }
+
+  return true;
+}
+
+bool
+PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi, Slave_worker *worker)
+{
+  if (m_fields >= 1)
+  {
+    st_row_worker row;
+    /* NULL THREAD_ID is represented by 0 */
+    row.thread_id = 0;
+
+    mysql_mutex_lock(&mi->rli->data_lock);
+
+    if (mi->rli->slave_running)
+    {
+      if (worker)
+      {
+        PSI_thread *psi = thd_get_psi(worker->info_thd);
+        PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+        if (pfs)
+        {
+          row.thread_id = pfs->m_thread_internal_id;
+        }
+      }
+    }
+
+    mysql_mutex_unlock(&mi->rli->data_lock);
 
     if (!m_key.match(row.thread_id))
     {
@@ -189,9 +237,7 @@ table_replication_applier_status_by_worker::
   table_replication_applier_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
     m_pos(),
-    m_next_pos(),
-    m_applier_pos(0),
-    m_applier_next_pos(0)
+    m_next_pos()
 {
 }
 
@@ -205,15 +251,13 @@ table_replication_applier_status_by_worker::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
-  m_applier_pos.m_index = 0;
-  m_applier_next_pos.m_index = 0;
 }
 
 ha_rows
 table_replication_applier_status_by_worker::get_row_count()
 {
   /*
-    Return an estimate, number of master info's multipled by worker threads
+    Return an estimate, number of master info's multiplied by worker threads
   */
   return channel_map.get_max_channels() * 32;
 }
@@ -221,65 +265,80 @@ table_replication_applier_status_by_worker::get_row_count()
 int
 table_replication_applier_status_by_worker::rnd_next(void)
 {
-  int res = HA_ERR_END_OF_FILE;
-
   Slave_worker *worker;
   Master_info *mi;
+  size_t wc;
 
   channel_map.rdlock();
 
-  /*
-    For each SQL Thread in all channels get the respective Master_info and
-    construct a row to display its status in
-    'replication_applier_status_by_worker' table in case of single threaded
-    slave mode.
-  */
-  for (m_applier_pos.set_at(&m_applier_next_pos);
-       m_applier_pos.m_index < channel_map.get_max_channels();
-       m_applier_pos.next())
-  {
-    mi = channel_map.get_mi_at_pos(m_applier_pos.m_index);
-
-    if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() == 0)
-    {
-      make_row(mi);
-      m_applier_next_pos.set_after(&m_applier_pos);
-
-      channel_map.unlock();
-      return 0;
-    }
-  }
-
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_channels(channel_map.get_max_channels()) && res != 0;
+       m_pos.has_more_channels(channel_map.get_max_channels());
        m_pos.next_channel())
   {
     mi = channel_map.get_mi_at_pos(m_pos.m_index_1);
 
-    if (mi && mi->host[0])
+    if (mi == nullptr)
+      continue;
+
+    if (! mi->host[0])
+      continue;
+
+    if (mi->rli == nullptr)
+      continue;
+
+    wc = mi->rli->get_worker_count();
+
+    for (; m_pos.m_index_2 < wc + 1; m_pos.m_index_2++)
     {
-      worker = mi->rli->get_worker(m_pos.m_index_2);
-      if (worker)
+      if (m_pos.m_index_2 == 0)
       {
-        res = make_row(worker);
-        m_next_pos.set_after(&m_pos);
+        /* Looking for Single Thread Slave */
+
+        if (wc == 0)
+        {
+          if (!make_row(mi))
+          {
+            m_next_pos.set_channel_after(&m_pos);
+            channel_map.unlock();
+            return 0;
+          }
+        }
+      }
+      else
+      {
+        /* Looking for Multi Thread Slave */
+
+        if ((m_pos.m_index_2 >= 1) && (m_pos.m_index_2 <= wc))
+        {
+          worker = mi->rli->get_worker(m_pos.m_index_2 - 1);
+          if (worker)
+          {
+            if (!make_row(worker))
+            {
+              m_next_pos.set_after(&m_pos);
+              channel_map.unlock();
+              return 0;
+            }
+          }
+        }
       }
     }
   }
 
   channel_map.unlock();
 
-  return res;
+  return HA_ERR_END_OF_FILE;
 }
 
 int
 table_replication_applier_status_by_worker::rnd_pos(
-  const void *pos MY_ATTRIBUTE((unused)))
+  const void *pos)
 {
   int res = HA_ERR_RECORD_DELETED;
 
   Slave_worker *worker;
   Master_info *mi;
+  size_t wc;
 
   set_position(pos);
 
@@ -292,20 +351,28 @@ table_replication_applier_status_by_worker::rnd_pos(
     goto end;
   }
 
-  DBUG_ASSERT(m_pos.m_index_1 < mi->rli->get_worker_count());
-  /*
-    Display SQL Thread's status only in the case of single threaded mode.
-  */
-  if (mi->rli->get_worker_count() == 0)
-  {
-    res = make_row(mi);
-    goto end;
-  }
-  worker = mi->rli->get_worker(m_pos.m_index_2);
+  wc = mi->rli->get_worker_count();
 
-  if (worker != NULL)
+  if (m_pos.m_index_1 == 0)
   {
-    res = make_row(worker);
+    /* Looking for Single Thread Slave */
+    if (wc == 0)
+    {
+      res = make_row(mi);
+    }
+  }
+  else
+  {
+    /* Looking for Multi Thread Slave */
+    if ((m_pos.m_index_2 >= 1) && (m_pos.m_index_2 <= wc))
+    {
+      worker = mi->rli->get_worker(m_pos.m_index_2 - 1);
+
+      if (worker != NULL)
+      {
+        res = make_row(worker);
+      }
+    }
   }
 
 end:
@@ -316,7 +383,7 @@ end:
 
 int
 table_replication_applier_status_by_worker::index_init(
-  uint idx MY_ATTRIBUTE((unused)), bool)
+  uint idx, bool)
 {
   PFS_index_rpl_applier_status_by_worker *result = NULL;
 
@@ -340,54 +407,67 @@ table_replication_applier_status_by_worker::index_init(
 int
 table_replication_applier_status_by_worker::index_next(void)
 {
-  int res = HA_ERR_END_OF_FILE;
-
   Slave_worker *worker;
   Master_info *mi;
+  size_t wc;
 
   channel_map.rdlock();
 
-  /*
-    For each SQL Thread in all channels get the respective Master_info and
-    construct a row to display its status in
-    'replication_applier_status_by_worker' table in case of single threaded
-    slave mode.
-  */
-  for (m_applier_pos.set_at(&m_applier_next_pos);
-       m_applier_pos.m_index < channel_map.get_max_channels();
-       m_applier_pos.next())
-  {
-    mi = channel_map.get_mi_at_pos(m_applier_pos.m_index);
-
-    if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() == 0)
-    {
-      if (m_opened_index->match(mi))
-      {
-        make_row(mi);
-        m_applier_next_pos.set_after(&m_applier_pos);
-
-        channel_map.unlock();
-        return 0;
-      }
-    }
-  }
-
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_channels(channel_map.get_max_channels()) && res != 0;
+       m_pos.has_more_channels(channel_map.get_max_channels());
        m_pos.next_channel())
   {
     mi = channel_map.get_mi_at_pos(m_pos.m_index_1);
 
-    if (mi && mi->host[0])
+    if (mi == nullptr)
+      continue;
+
+    if (! mi->host[0])
+      continue;
+
+    if (mi->rli == nullptr)
+      continue;
+
+    wc = mi->rli->get_worker_count();
+
+    for (; m_pos.m_index_2 < wc + 1; m_pos.m_index_2++)
     {
-      if (m_opened_index->match(mi))
+      if (m_pos.m_index_2 == 0)
       {
-        worker = mi->rli->get_worker(m_pos.m_index_2);
-        if (worker)
+        /* Looking for Single Thread Slave */
+
+        if (wc == 0)
         {
-          make_row(worker);
-          m_next_pos.set_after(&m_pos);
-          res = 0;
+          if (m_opened_index->match(mi))
+          {
+            if (!make_row(mi))
+            {
+              m_next_pos.set_channel_after(&m_pos);
+              channel_map.unlock();
+              return 0;
+            }
+          }
+        }
+      }
+      else
+      {
+        /* Looking for Multi Thread Slave */
+
+        if ((m_pos.m_index_2 >= 1) && (m_pos.m_index_2 <= wc))
+        {
+          worker = mi->rli->get_worker(m_pos.m_index_2 - 1);
+          if (worker)
+          {
+            if (m_opened_index->match(mi, worker))
+            {
+              if (!make_row(worker))
+              {
+                m_next_pos.set_after(&m_pos);
+                channel_map.unlock();
+                return 0;
+              }
+            }
+          }
         }
       }
     }
@@ -395,7 +475,7 @@ table_replication_applier_status_by_worker::index_next(void)
 
   channel_map.unlock();
 
-  return res;
+  return HA_ERR_END_OF_FILE;
 }
 
 /**
@@ -411,6 +491,7 @@ table_replication_applier_status_by_worker::make_row(Master_info *mi)
   m_row.worker_id = 0;
 
   m_row.thread_id = 0;
+  m_row.thread_id_is_null = true;
 
   DBUG_ASSERT(mi != NULL);
   DBUG_ASSERT(mi->rli != NULL);
@@ -430,14 +511,6 @@ table_replication_applier_status_by_worker::make_row(Master_info *mi)
       m_row.thread_id = pfs->m_thread_internal_id;
       m_row.thread_id_is_null = false;
     }
-    else
-    {
-      m_row.thread_id_is_null = true;
-    }
-  }
-  else
-  {
-    m_row.thread_id_is_null = true;
   }
 
   if (mi->rli->slave_running)
@@ -480,6 +553,7 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
   m_row.worker_id = w->get_internal_id();
 
   m_row.thread_id = 0;
+  m_row.thread_id_is_null = true;
 
   m_row.channel_name_length = strlen(w->get_channel());
   memcpy(
@@ -495,14 +569,6 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
       m_row.thread_id = pfs->m_thread_internal_id;
       m_row.thread_id_is_null = false;
     }
-    else /* no instrumentation found */
-    {
-      m_row.thread_id_is_null = true;
-    }
-  }
-  else
-  {
-    m_row.thread_id_is_null = true;
   }
 
   if (w->running_status == Slave_worker::RUNNING)
@@ -574,10 +640,10 @@ table_replication_applier_status_by_worker::populate_trx_info(
 
 int
 table_replication_applier_status_by_worker::read_row_values(
-  TABLE *table MY_ATTRIBUTE((unused)),
-  unsigned char *buf MY_ATTRIBUTE((unused)),
-  Field **fields MY_ATTRIBUTE((unused)),
-  bool read_all MY_ATTRIBUTE((unused)))
+  TABLE *table,
+  unsigned char *buf,
+  Field **fields,
+  bool read_all)
 {
   Field *f;
 

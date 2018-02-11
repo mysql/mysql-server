@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ namespace gis {
 ///
 /// Used when a SQL function needs to accept Cartesian coordiates as a shorthand
 /// for geographic with some default SRS.
-static Geographic_point reinterpret_as_degrees(const Cartesian_point& g) {
+static Geographic_point reinterpret_as_degrees(const Cartesian_point &g) {
   double lon_deg = g.x();
   double lat_deg = g.y();
 
@@ -67,21 +67,21 @@ static Geographic_point reinterpret_as_degrees(const Cartesian_point& g) {
 /// Used when a SQL function needs to accept Cartesian coordiates as a shorthand
 /// for geographic with some default SRS.
 static Geographic_multipoint reinterpret_as_degrees(
-    const Cartesian_multipoint& g) {
+    const Cartesian_multipoint &g) {
   Geographic_multipoint dg{};
-  for (auto const& point : g) {
+  for (auto const &point : g) {
     dg.push_back(reinterpret_as_degrees(point));
   }
   return dg;
 }
 
-double Distance_sphere::operator()(const Geometry* g1,
-                                   const Geometry* g2) const {
+double Distance_sphere::operator()(const Geometry *g1,
+                                   const Geometry *g2) const {
   return apply(*this, g1, g2);
 }
 
-double Distance_sphere::eval(const Cartesian_point* g1,
-                             const Cartesian_point* g2) const {
+double Distance_sphere::eval(const Cartesian_point *g1,
+                             const Cartesian_point *g2) const {
   // The parser interprets SRID 0 coordinates as Cartesian. This is incorrect
   // for distance_sphere that takes spherical coordinates in degrees.
   // Convert to internal representation for geographic coordinates.
@@ -90,43 +90,43 @@ double Distance_sphere::eval(const Cartesian_point* g1,
   return eval(&rg1, &rg2);
 };
 
-double Distance_sphere::eval(const Cartesian_point* g1,
-                             const Cartesian_multipoint* g2) const {
+double Distance_sphere::eval(const Cartesian_point *g1,
+                             const Cartesian_multipoint *g2) const {
   // Distance is commutative.
   return eval(g2, g1);
 };
 
-double Distance_sphere::eval(const Cartesian_multipoint* g1,
-                             const Cartesian_point* g2) const {
+double Distance_sphere::eval(const Cartesian_multipoint *g1,
+                             const Cartesian_point *g2) const {
   Geographic_multipoint rg1 = reinterpret_as_degrees(*g1);
   Geographic_point rg2 = reinterpret_as_degrees(*g2);
   return eval(&rg1, &rg2);
 };
 
-double Distance_sphere::eval(const Cartesian_multipoint* g1,
-                             const Cartesian_multipoint* g2) const {
+double Distance_sphere::eval(const Cartesian_multipoint *g1,
+                             const Cartesian_multipoint *g2) const {
   Geographic_multipoint rg1 = reinterpret_as_degrees(*g1);
   Geographic_multipoint rg2 = reinterpret_as_degrees(*g2);
   return eval(&rg1, &rg2);
 };
 
-double Distance_sphere::eval(const Geographic_point* g1,
-                             const Geographic_point* g2) const {
+double Distance_sphere::eval(const Geographic_point *g1,
+                             const Geographic_point *g2) const {
   return bg::distance(*g1, *g2, m_strategy);
 };
 
-double Distance_sphere::eval(const Geographic_point* g1,
-                             const Geographic_multipoint* g2) const {
+double Distance_sphere::eval(const Geographic_point *g1,
+                             const Geographic_multipoint *g2) const {
   return bg::distance(*g1, *g2, m_strategy);
 };
 
-double Distance_sphere::eval(const Geographic_multipoint* g1,
-                             const Geographic_point* g2) const {
+double Distance_sphere::eval(const Geographic_multipoint *g1,
+                             const Geographic_point *g2) const {
   return bg::distance(*g1, *g2, m_strategy);
 };
 
-double Distance_sphere::eval(const Geographic_multipoint* g1,
-                             const Geographic_multipoint* g2) const {
+double Distance_sphere::eval(const Geographic_multipoint *g1,
+                             const Geographic_multipoint *g2) const {
   // Boost does not yet implement distance between two multipoints. Find
   // minumum by iterating over multipoint-point distances.
   double minimum = eval(g1, &(*g2)[0]);
@@ -137,14 +137,14 @@ double Distance_sphere::eval(const Geographic_multipoint* g1,
   return minimum;
 };
 
-double Distance_sphere::eval(const Geometry* g1, const Geometry* g2) const {
+double Distance_sphere::eval(const Geometry *g1, const Geometry *g2) const {
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
-bool distance_sphere(const dd::Spatial_reference_system* srs,
-                     const Geometry* g1, const Geometry* g2,
-                     const char* func_name, double sphere_radius,
-                     double* result, bool* result_null) noexcept {
+bool distance_sphere(const dd::Spatial_reference_system *srs,
+                     const Geometry *g1, const Geometry *g2,
+                     const char *func_name, double sphere_radius,
+                     double *result, bool *result_null) noexcept {
   try {
     DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
     DBUG_ASSERT(!srs || srs->is_cartesian() || srs->is_geographic());

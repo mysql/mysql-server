@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,8 @@
 #define UNICODE
 #endif
 
-#include <windows.h>
+#include <windows.h>  // Needs to become before several Windows system headers.
+
 #include <winreg.h>
 #include <msi.h>
 #include <msiquery.h>

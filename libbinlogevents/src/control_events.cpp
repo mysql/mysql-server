@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,8 +155,6 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        Allows us to sanity-check that all events initialized their
        events (see the end of this 'if' block).
     */
-    post_header_len.resize(number_of_event_types +
-                            BINLOG_CHECKSUM_ALG_DESC_LEN, 255);
     post_header_len.insert(post_header_len.begin(), server_event_header_length,
                             server_event_header_length + number_of_event_types);
     // Sanity-check that all post header lengths are initialized.
@@ -166,8 +164,11 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
 #endif
     break;
   }
-  default:
-    BAPI_ASSERT(0);
+  default: /* Includes binlog version < 4 */
+    /*
+      Will make the mysql-server variable *is_valid* defined in class Log_event
+      to be set to false.
+    */
     break;
   }
   calc_server_version_split();
@@ -252,7 +253,6 @@ Format_description_event(const char* buf, unsigned int event_len,
   number_of_event_types=
    event_len - (LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1);
 
-  post_header_len.resize(number_of_event_types);
   post_header_len.insert(post_header_len.begin(),
                          reinterpret_cast<const uint8_t*>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1),
                          reinterpret_cast<const uint8_t*>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
@@ -407,7 +407,20 @@ XA_prepare_event(const char* buf,
   memcpy(&temp, buf, sizeof(temp));
   my_xid.bqual_length= le32toh(temp);
   buf += sizeof(temp);
-  memcpy(my_xid.data, buf, my_xid.gtrid_length + my_xid.bqual_length);
+
+  /* Sanity check */
+  if (MY_XIDDATASIZE >= my_xid.gtrid_length + my_xid.bqual_length &&
+      my_xid.gtrid_length >=0 && my_xid.gtrid_length <= 64 &&
+      my_xid.bqual_length >=0 && my_xid.bqual_length <= 64)
+  {
+    memcpy(my_xid.data, buf, my_xid.gtrid_length + my_xid.bqual_length);
+  }
+  else
+  {
+    my_xid.formatID= -1;
+    my_xid.gtrid_length= 0;
+    my_xid.bqual_length= 0;
+  }
 }
 
 /**
@@ -601,13 +614,23 @@ Previous_gtids_event(const char *buffer, unsigned int event_len,
   in this event.
 */
 Transaction_context_event::
-Transaction_context_event(const char *buffer,
+Transaction_context_event(const char *buffer, unsigned int event_len,
                           const Format_description_event *description_event)
 : Binary_log_event(&buffer, description_event->binlog_version)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
   const char* data_head = buffer;
+  const char* buffer_start = buffer - description_event->common_header_len;
+
+  server_uuid= NULL;
+  encoded_snapshot_version= NULL;
+
+  /* Avoid reading out of buffer */
+  if (static_cast<unsigned int>(description_event->common_header_len +
+                                TRANSACTION_CONTEXT_HEADER_LEN) > event_len)
+    return;
+
   uint8_t server_uuid_len= (static_cast<unsigned int>
                            (data_head[ENCODED_SERVER_UUID_LEN_OFFSET]));
 
@@ -632,6 +655,14 @@ Transaction_context_event(const char *buffer,
   gtid_specified= (int8_t) data_head[ENCODED_GTID_SPECIFIED_OFFSET];
 
   const char *pos = data_head + TRANSACTION_CONTEXT_HEADER_LEN;
+  uint32_t remaining_buffer= 0;
+
+  /* Avoid reading out of buffer */
+  if (event_len < (TRANSACTION_CONTEXT_HEADER_LEN + server_uuid_len +
+                   encoded_snapshot_version_length +
+                   write_set_len + read_set_len))
+    goto err;
+
   server_uuid= bapi_strndup(pos, server_uuid_len);
   pos += server_uuid_len;
 
@@ -639,20 +670,24 @@ Transaction_context_event(const char *buffer,
       reinterpret_cast<const unsigned char *>(bapi_strndup(pos,
                                                            encoded_snapshot_version_length));
   pos += encoded_snapshot_version_length;
+  remaining_buffer= event_len - (pos - buffer_start);
 
-  pos= read_data_set(pos, write_set_len, &write_set);
+  pos= read_data_set(pos, write_set_len, &write_set, remaining_buffer);
   if (pos == NULL)
     goto err;
-  pos= read_data_set(pos, read_set_len, &read_set);
+  remaining_buffer= event_len - (pos - buffer_start);
+  pos= read_data_set(pos, read_set_len, &read_set, remaining_buffer);
   if (pos == NULL)
     goto err;
 
   return;
 
 err:
-  bapi_free((void*)server_uuid);
+  if (server_uuid)
+    bapi_free((void*)server_uuid);
   server_uuid= NULL;
-  bapi_free((void*)encoded_snapshot_version);
+  if (encoded_snapshot_version)
+    bapi_free((void*)encoded_snapshot_version);
   encoded_snapshot_version= NULL;
   clear_set(&write_set);
   clear_set(&read_set);
@@ -662,27 +697,35 @@ err:
 /**
   Function to read the data set for the ongoing transaction.
 
-  @param[in] pos     - postion to read from.
-  @param[in] set_len - length of the set object
-  @param[in] set     - pointer to the set object
+  @param[in] pos       - postion to read from.
+  @param[in] set_len   - length of the set object
+  @param[in] set       - pointer to the set object
+  @param[in] remaining - remaining available bytes on the buffer
 
   @retval - returns the pointer in the buffer to the end of the added hash
-            value.
+            value or NULL in case of an error.
 */
 const char* Transaction_context_event::read_data_set(const char *pos,
                                                      uint32_t set_len,
-                                                     std::list<const char*> *set)
+                                                     std::list<const char*> *set,
+                                                     uint32_t remaining)
 {
   uint16_t len= 0;
   for (uint32_t i= 0; i < set_len; i++)
   {
+    if (remaining < static_cast<uint32_t>(ENCODED_READ_WRITE_SET_ITEM_LEN))
+      return(NULL);
     memcpy(&len, pos, 2);
     len= le16toh(len);
+    remaining-= ENCODED_READ_WRITE_SET_ITEM_LEN;
     pos += ENCODED_READ_WRITE_SET_ITEM_LEN;
+    if (remaining < len)
+      return(NULL);
     const char *hash= bapi_strndup(pos, len);
     if (hash == NULL)
       return(NULL);
     pos += len;
+    remaining-= len;
     set->push_back(hash);
   }
   return(pos);
@@ -730,7 +773,7 @@ View_change_event::View_change_event(char* raw_view_id)
 }
 
 View_change_event::
-View_change_event(const char *buffer,
+View_change_event(const char *buffer, unsigned int event_len,
                   const Format_description_event *description_event)
 : Binary_log_event(&buffer, description_event->binlog_version),
   view_id(), seq_number(0), certification_info()
@@ -749,7 +792,20 @@ View_change_event(const char *buffer,
 
   char *pos = (char*) data_header + VIEW_CHANGE_HEADER_LEN;
 
-  pos= read_data_map(pos, cert_info_len, &certification_info);
+  /* Avoid reading out of buffer */
+  if (event_len < (LOG_EVENT_HEADER_LEN + VIEW_CHANGE_HEADER_LEN))
+  {
+    pos= NULL;
+  }
+  else
+  {
+    unsigned int max_cert_info_len= event_len - (LOG_EVENT_HEADER_LEN +
+                                                 VIEW_CHANGE_HEADER_LEN);
+
+    pos= read_data_map(pos, cert_info_len, &certification_info,
+                       max_cert_info_len);
+  }
+
   if (pos == NULL)
     // Make is_valid() defined in the server return false.
     view_id[0]= '\0';
@@ -763,33 +819,49 @@ View_change_event(const char *buffer,
   @param[in] pos     - start position.
   @param[in] map_len - the length of the certification info map.
   @param[in] map     - Certification info map
+  @param[in] consumable - the amount of bytes that can be read from buffer
 
   @return pointer to the snapshot version.
 */
 char* View_change_event::read_data_map(char *pos,
                                        uint32_t map_len,
-                                       std::map<std::string, std::string> *map)
+                                       std::map<std::string, std::string> *map,
+                                       uint32_t consumable)
 {
   BAPI_ASSERT(map->empty());
   uint16_t created= 0;
   uint32_t created_value= 0;
   for (uint32_t i= 0; i < map_len; i++)
   {
+    if (!consumable ||
+        consumable < static_cast<uint32_t>(ENCODED_CERT_INFO_KEY_SIZE_LEN))
+      return NULL;
     created=0;
     memcpy(&created, pos, sizeof(created));
     uint16_t key_len= (uint16_t) le16toh(created);
     pos+= ENCODED_CERT_INFO_KEY_SIZE_LEN;
+    consumable-= ENCODED_CERT_INFO_KEY_SIZE_LEN;
 
+    if (!consumable || consumable < key_len)
+      return NULL;
     std::string key(pos, key_len);
     pos+= key_len;
+    consumable-= key_len;
 
+    if (!consumable ||
+        consumable < static_cast<uint32_t>(ENCODED_CERT_INFO_VALUE_LEN))
+      return NULL;
     created_value=0;
     memcpy(&created_value, pos, sizeof(created_value));
     uint32_t value_len= le32toh(created_value);
     pos+= ENCODED_CERT_INFO_VALUE_LEN;
+    consumable-= ENCODED_CERT_INFO_VALUE_LEN;
 
+    if (!consumable || consumable < value_len)
+      return NULL;
     std::string value(pos, value_len);
     pos+= value_len;
+    consumable-= value_len;
 
     (*map)[key]= value;
   }

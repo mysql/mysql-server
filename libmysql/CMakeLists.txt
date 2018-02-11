@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -231,9 +231,9 @@ IF(MSVC)
   INSTALL_DEBUG_TARGET(mysys_ssl DESTINATION ${INSTALL_LIBDIR}/debug)
   INSTALL_DEBUG_TARGET(strings DESTINATION ${INSTALL_LIBDIR}/debug)
   INSTALL_DEBUG_TARGET(vio DESTINATION ${INSTALL_LIBDIR}/debug)
-  IF(WITH_SSL STREQUAL "bundled")
-    INSTALL_DEBUG_TARGET(taocrypt DESTINATION ${INSTALL_LIBDIR}/debug)
-    INSTALL_DEBUG_TARGET(yassl DESTINATION ${INSTALL_LIBDIR}/debug)
+  IF(WITH_SSL STREQUAL "wolfssl")
+    INSTALL_DEBUG_TARGET(wolfcrypt DESTINATION ${INSTALL_LIBDIR}/debug)
+    INSTALL_DEBUG_TARGET(wolfssl DESTINATION ${INSTALL_LIBDIR}/debug)
   ENDIF()
   IF(WITH_ZLIB STREQUAL "bundled")
     INSTALL_DEBUG_TARGET(zlib DESTINATION ${INSTALL_LIBDIR}/debug)
@@ -327,6 +327,13 @@ MYSQL_ADD_EXECUTABLE(libmysql_api_test
 SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
+    COMPILE_FLAGS -Wstrict-prototypes
+    )
 ENDIF()
 
 # We need to find both SSL .dlls and libmysql.dll, link statically on WIN32

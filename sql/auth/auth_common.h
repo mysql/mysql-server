@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -720,19 +720,18 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
                       const char *wildstr, size_t wildstr_len);
 bool hostname_requires_resolving(const char *hostname);
 bool acl_init(bool dont_read_acl_tables);
-void acl_free(bool end=0);
-bool acl_reload(THD *thd);
+void acl_free(bool end= false);
 bool check_engine_type_for_acl_table(THD *thd);
 bool grant_init(bool skip_grant_tables);
 void grant_free(void);
-bool grant_reload(THD *thd);
-bool roles_init_from_tables(THD *thd);
+bool reload_acl_caches(THD *thd, bool locked= false);
 ulong acl_get(THD *thd, const char *host, const char *ip,
               const char *user, const char *db, bool db_is_pattern);
 bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, char *user,
                  char *host, char *ip, const char *db);
 bool check_acl_tables_intact(THD *thd);
+bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables);
 void notify_flush_event(THD *thd);
 
 /* sql_authorization */
@@ -856,10 +855,10 @@ typedef enum ssl_artifacts_status
 } ssl_artifacts_status;
 
 ulong get_global_acl_cache_size();
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
 extern bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
-#endif /* HAVE_OPENSSL && !HAVE_YASSL */
+#endif /* HAVE_OPENSSL && !HAVE_WOLFSSL */
 
 #define DEFAULT_SSL_CA_CERT     "ca.pem"
 #define DEFAULT_SSL_CA_KEY      "ca-key.pem"
@@ -868,7 +867,7 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 
 void update_mandatory_roles(void);
 bool check_authorization_id_string(const char *buffer, size_t length);
-String *func_current_role(THD *thd, String *str, String *active_role);
+void func_current_role(THD *thd, String *active_role);
 
 extern volatile uint32 global_password_history, global_password_reuse_interval;
 

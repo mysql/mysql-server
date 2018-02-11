@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ protected:
     This method is used inside @c packet_processing_loop to process
     data packets received from the other end.
 
-    @param[IN]  data  data to be processed
+    @param  data  data to be processed
 
     @return A blob with data to be sent to the other end or null blob if
     no more data needs to be exchanged.

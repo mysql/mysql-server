@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3889,7 +3889,7 @@ error:
   Handshake Response Packet sent by 4.1+ clients supporting
   ::CLIENT_PROTOCOL_41 @ref group_cs_capabilities_flags flag,
   if the server announced it in its
-  @ref sect_protocol_connection_phase_packets_protocol_handshake.
+  @ref page_protocol_connection_phase_packets_protocol_handshake.
   Otherwise (talking to an old server) the
   @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
   packet must be used.
@@ -6736,8 +6736,15 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 }
 
 /**
-  client authentication plugin that does native MySQL authentication
-  using a 20-byte (4.1+) scramble
+  Client authentication plugin that does native MySQL authentication
+   using a 20-byte (4.1+) scramble
+
+   @param vio    the channel to operate on
+   @param mysql  the MYSQL structure to operate on
+
+   @retval -1    ::CR_OK : Success
+   @retval 1     ::CR_ERROR : error reading
+   @retval 2012  ::CR_SERVER_HANDSHAKE_ERR : malformed handshake data
 */
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 {
@@ -6774,6 +6781,51 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   DBUG_RETURN(CR_OK);
 }
+
+/**
+  @page page_protocol_connection_phase_authentication_methods_clear_text_password Clear text client plugin
+
+  <ul>
+  <li>
+  This client side plugin is used by a number of server plugins:
+  LDAP (*authentication_ldap_simple*) and PAM (*authentication_pam*) to name a few.
+  </li>
+  <li>
+  The client name is *mysql_clear_password*
+  </li>
+  <li>
+  Client side requires nothing from the server. But the server generates
+  and sends a 20-byte
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication
+  compatible scramble.
+  </li>
+  <li>
+  Client side sends the password in clear text to the server
+  </li>
+  </ul>
+
+  @startuml
+  Server->Client: 20 bytes of scramble to be ignored
+  Client->Server: The clear text password. null terminated.
+  @enduml
+
+  @note
+  Sending the scramble is not necessary for the clear text
+  method, but, since the server always initiates the exchange by
+  sending @ref page_protocol_connection_phase_packets_protocol_handshake
+  and that one has a placeholder for authentication plugin dependent data the
+  server does fill that space with a scramble should it come to pass that
+  it will back down to
+  @ref page_protocol_connection_phase_authentication_methods_native_password_authentication.
+  This is also why it's OK no to specifically read this in
+  @ref clear_password_auth_client since it's already read as a part of
+  the initial exchange.
+
+
+  @sa ::clear_password_auth_client, ::server_mpvio_write_packet,
+    ::send_server_handshake_packet
+ */
+
 
 /**
   The main function of the mysql_clear_password authentication plugin.

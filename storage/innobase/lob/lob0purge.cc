@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -118,31 +118,42 @@ z_rollback(
 	ulint		rec_type)
 {
 	ut_ad(ctx->m_rollback);
+	const ulint commit_freq = 1;
+	ulint n_entries = 0;
 
-	mtr_t* mtr = ctx->get_mtr();
+	mtr_t	local_mtr;
+	mtr_start(&local_mtr);
 
 	page_no_t first_page_no = ref.page_no();
 	page_id_t page_id(ref.space_id(), first_page_no);
 	page_size_t page_size(dict_table_page_size(index->table));
 
-	z_first_page_t first(mtr, index);
+	z_first_page_t first(&local_mtr, index);
 	first.load_x(page_id, page_size);
 
 	flst_base_node_t* flst = first.index_list();
-	fil_addr_t node_loc = flst_get_first(flst, mtr);
+	fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
 	while (!fil_addr_is_null(node_loc)) {
 
 		flst_node_t* node = first.addr2ptr_x(node_loc);
-		z_index_entry_t cur_entry(node, mtr, index);
+		z_index_entry_t cur_entry(node, &local_mtr, index);
 
 		if (cur_entry.can_rollback(trxid, undo_no)) {
 
 			node_loc = cur_entry.make_old_version_current(
 				index, trxid, first);
 
+			n_entries++;
+
 		} else {
 			node_loc = cur_entry.get_next();
+		}
+
+		if (n_entries % commit_freq == 0) {
+			mtr_commit(&local_mtr);
+			mtr_start(&local_mtr);
+			first.load_x(page_id, page_size);
 		}
 	}
 
@@ -162,10 +173,12 @@ z_rollback(
 	}
 
 	ut_ad(ctx->get_page_zip() != nullptr);
-
 	ref.set_page_no(FIL_NULL, 0);
 	ref.set_length(0, 0);
-	ctx->zblob_write_blobref(ctx->m_field_no, mtr);
+	ctx->x_latch_rec_page(&local_mtr);
+	ctx->zblob_write_blobref(ctx->m_field_no, &local_mtr);
+
+	mtr_commit(&local_mtr);
 
 	DBUG_EXECUTE_IF("crash_endof_zlob_rollback", DBUG_SUICIDE(););
 }
@@ -321,11 +334,7 @@ purge(
 	page_no_t first_page_no = ref.page_no();
 	page_id_t page_id(space_id, first_page_no);
 	page_size_t page_size(dict_table_page_size(index->table));
-
-	first_page_t first(mtr, index);
-	first.load_x(page_id, page_size);
-
-	page_type_t page_type = first.get_page_type();
+	page_type_t page_type = first_page_t::get_page_type(index, page_id, page_size);
 
 	if (page_type == FIL_PAGE_TYPE_ZBLOB
 	    || page_type == FIL_PAGE_TYPE_BLOB
@@ -335,6 +344,9 @@ purge(
 		free_blob.destroy();
 		DBUG_VOID_RETURN;
 	}
+
+	first_page_t first(mtr, index);
+	first.load_x(page_id, page_size);
 
 	if (page_type == FIL_PAGE_TYPE_ZLOB_FIRST) {
 		z_purge(ctx, index, trxid, undo_no, ref, rec_type);

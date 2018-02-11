@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -113,6 +113,9 @@ dict_mem_table_free(
 			fts_free(table);
 		}
 	}
+
+	dict_table_mutex_destroy(table);
+
 	dict_table_autoinc_destroy(table);
 
 	dict_table_stats_latch_destroy(table);
@@ -209,6 +212,8 @@ dict_mem_table_create(
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
+	dict_table_mutex_create_lazy(table);
+
 	/* true means that the stats latch will be enabled -
 	dict_table_stats_lock() will not be noop. */
 	dict_table_stats_latch_create(table, true);
@@ -251,6 +256,7 @@ dict_mem_table_create(
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 	table->is_dd_table = false;
+	table->explicitly_non_lru = false;
 
 	return(table);
 }

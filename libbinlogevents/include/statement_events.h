@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -201,17 +201,6 @@ const uint64_t INVALID_XID= 0xffffffffffffffffULL;
     MODE_ONLY_FULL_GROUP_BY==0x20
     MODE_NO_UNSIGNED_SUBTRACTION==0x40
     MODE_NO_DIR_IN_CREATE==0x80
-    MODE_POSTGRESQL==0x100
-    MODE_ORACLE==0x200
-    MODE_MSSQL==0x400
-    MODE_DB2==0x800
-    MODE_MAXDB==0x1000
-    MODE_NO_KEY_OPTIONS==0x2000
-    MODE_NO_TABLE_OPTIONS==0x4000
-    MODE_NO_FIELD_OPTIONS==0x8000
-    MODE_MYSQL323==0x10000
-    MODE_MYSQL323==0x20000
-    MODE_MYSQL40==0x40000
     MODE_ANSI==0x80000
     MODE_NO_AUTO_VALUE_ON_ZERO==0x100000
     MODE_NO_BACKSLASH_ESCAPES==0x200000
@@ -690,6 +679,11 @@ template <class T> T available_buffer(const char* buf_start,
                                       const char* buf_current,
                                       T buf_len)
 {
+  /* Sanity check */
+  if (buf_current < buf_start ||
+      buf_len < static_cast<T>(buf_current - buf_start))
+    return static_cast<T>(0);
+
   return static_cast<T>(buf_len - (buf_current - buf_start));
 }
 

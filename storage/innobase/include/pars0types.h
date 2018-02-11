@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,8 @@ Created 1/11/1998 Heikki Tuuri
 
 #ifndef pars0types_h
 #define pars0types_h
+
+#include "univ.i"
 
 struct pars_info_t;
 struct pars_user_func_t;

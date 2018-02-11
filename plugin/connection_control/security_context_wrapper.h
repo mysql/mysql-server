@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@ namespace connection_control
     const char * get_ip();
     bool security_context_exists();
     bool is_super_user();
+    bool is_connection_admin();
 
   private:
     bool get_property(const char *property, LEX_CSTRING *value);

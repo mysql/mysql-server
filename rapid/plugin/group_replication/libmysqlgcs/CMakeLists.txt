@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,10 +43,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
 )
-
-IF(LINUX_ALPINE)
-  INCLUDE_DIRECTORIES(SYSTEM "/usr/include/tirpc")
-ENDIF()
 
 ### SOURCES ###
 
@@ -162,8 +158,8 @@ ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
 
 ADD_CONVENIENCE_LIBRARY(${GCS_LIBRARY} ${XCOM_SOURCES} ${GCS_SOURCES})
 
-IF(LINUX_ALPINE)
-  TARGET_LINK_LIBRARIES(${GCS_LIBRARY} tirpc)
+IF(TIRPC_LIBRARY)
+  TARGET_LINK_LIBRARIES(${GCS_LIBRARY} ${TIRPC_LIBRARY})
 ENDIF()
 
 # convenience target

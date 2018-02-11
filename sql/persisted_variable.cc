@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,7 @@
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"   // DEBUG_SYNC
 #include "sql/derror.h"       // ER_THD
 #include "sql/item.h"
 #include "sql/log.h"
@@ -149,6 +150,15 @@ void my_init_persist_psi_keys(void)
 }
 #endif
 
+/** A comparison operator to sort persistent variables entries by timestamp */
+struct sort_tv_by_timestamp {
+  bool operator() (const st_persist_var x, const st_persist_var y) const
+  {
+    return x.timestamp < y.timestamp;
+  }
+};
+
+
 Persisted_variables_cache* Persisted_variables_cache::m_instance= NULL;
 
 /* Standard Constructors for st_persist_var */
@@ -158,7 +168,7 @@ st_persist_var::st_persist_var()
   if (current_thd)
   {
     timeval tv= current_thd->query_start_timeval_trunc(0);
-    timestamp= tv.tv_sec * 1000000ULL;
+    timestamp= tv.tv_sec * 1000000ULL + tv.tv_usec;
   }
   else
     timestamp= my_micro_time();
@@ -167,7 +177,7 @@ st_persist_var::st_persist_var()
 st_persist_var::st_persist_var(THD *thd)
 {
   timeval tv= thd->query_start_timeval_trunc(0);
-  timestamp= tv.tv_sec * 1000000ULL;
+  timestamp= tv.tv_sec * 1000000ULL + tv.tv_usec;
   user= thd->security_context()->user().str;
   host= thd->security_context()->host().str;
 }
@@ -247,19 +257,22 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
   free_root(&alloc, MYF(0));
 
   persisted_globals_load= persist_load;
+
+  // mysql_real_data_home must be initialized at this point
+  DBUG_ASSERT(mysql_real_data_home[0]);
+
   /*
     if datadir is set then search in this data dir else search in
     MYSQL_DATADIR
   */
-  dirs= ((datadir) ? datadir : MYSQL_DATADIR);
-  /* expand path if it is a relative path */
-  if (dirs[0] == FN_CURLIB && my_getwd(dir, sizeof(dir), MYF(0)))
+  dirs= ((datadir) ? datadir : mysql_real_data_home);
+  unpack_dirname(dir, dirs);
+  if (fn_format(datadir_buffer, MYSQL_PERSIST_CONFIG_NAME, dir, ".cnf",
+      MY_UNPACK_FILENAME | MY_SAFE_PATH) == NULL)
     return 1;
-  if (fn_format(datadir_buffer, dirs, dir, "",
-      MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH) == NULL)
-    return 1;
-  unpack_dirname(datadir_buffer, datadir_buffer);
-  m_persist_filename= string(datadir_buffer) + MYSQL_PERSIST_CONFIG_NAME + ".cnf";
+  my_realpath(dir, datadir_buffer, MYF(0));
+  unpack_dirname(datadir_buffer, dir);
+  m_persist_filename= string(dir);
 
   mysql_mutex_init(key_persist_variables,
     &m_LOCK_persist_variables, MY_MUTEX_INIT_FAST);
@@ -331,7 +344,8 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
   tmp_var.value= var_value;
 
   /* modification to in-memory must be thread safe */
-  mysql_mutex_lock(&m_LOCK_persist_variables);
+  lock();
+  DEBUG_SYNC(thd, "in_set_persist_variables");
   /* if present update variable with new value else insert into hash */
   if ((setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly()) ||
     setvar->var->is_plugin_var_read_only())
@@ -349,7 +363,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
       m_persist_variables.erase(it);
     m_persist_variables.push_back(tmp_var);
   }
-  mysql_mutex_unlock(&m_LOCK_persist_variables);
+  unlock();
 }
 
 /**
@@ -495,7 +509,7 @@ String* Persisted_variables_cache::construct_json_string(std::string name,
 */
 bool Persisted_variables_cache::flush_to_file()
 {
-  mysql_mutex_lock(&m_LOCK_persist_variables);
+  lock();
   mysql_mutex_lock(&m_LOCK_persist_file);
 
   string tmp_str(open_brace + version + colon + std::to_string(file_version) +
@@ -559,7 +573,7 @@ bool Persisted_variables_cache::flush_to_file()
 
   close_persist_file();
   mysql_mutex_unlock(&m_LOCK_persist_file);
-  mysql_mutex_unlock(&m_LOCK_persist_variables);
+  unlock();
   return ret;
 }
 
@@ -664,7 +678,12 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     thd->real_id= my_thread_self();
     new_thd= 1;
   }
-
+  /*
+   locking is not needed as this function is executed only during server
+   bootstrap, but we take the lock to be on safer side.
+  */
+  lock();
+  assert_lock_owner();
   /*
     Based on plugin_options, we decide on what options to be set. If
     plugin_options is false we set all non plugin variables and then
@@ -674,8 +693,12 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   persist_variables= (plugin_options ? &m_persist_plugin_variables:
                                        &m_persist_variables);
 
-  for (auto iter= persist_variables->begin();
-       iter != persist_variables->end(); iter++)
+  /* create a sorted set of values sorted by timestamp */
+  std::multiset <st_persist_var, sort_tv_by_timestamp>
+    sorted_vars(persist_variables->begin(), persist_variables->end());
+
+  for (auto iter= sorted_vars.begin();
+       iter != sorted_vars.end(); iter++)
   {
     Item *res= NULL;
     set_var *var= NULL;
@@ -788,6 +811,7 @@ err:
   {
     thd->lex= sav_lex;
   }
+  unlock();
   return result;
 }
 
@@ -932,10 +956,13 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
       }
       st_persist_var persist_var(var_name, var_value, timestamp, var_user,
         var_host);
+      lock();
+      assert_lock_owner();
       if (is_read_only)
         m_persist_ro_variables[var_name]= persist_var;
       else
         m_persist_variables.push_back(persist_var);
+      unlock();
     }
     var_iter.next();
   }
@@ -1048,31 +1075,26 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   char ***argv, bool plugin_options)
 {
   Prealloced_array<char *, 100> my_args(key_memory_persisted_variables);
-  TYPELIB group;
   MEM_ROOT alloc;
-  const char *type_name= "mysqld";
 
   if (*argc < 2 || no_defaults || !persisted_globals_load)
     return 0;
 
   init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
-  group.count= 1;
-  group.name= "defaults";
-  group.type_names= &type_name;
 
-  for (auto iter= m_persist_ro_variables.begin();
-       iter != m_persist_ro_variables.end(); iter++)
+  /* create a set of values sorted by timestamp */
+  std::multiset <st_persist_var, sort_tv_by_timestamp> sorted_vars;
+  for (auto iter : m_persist_ro_variables)
+    sorted_vars.insert(iter.second);
+
+  for (auto iter: sorted_vars)
   {
-    string persist_option= "--loose_" + iter->first + "=" + iter->second.value;
-    if (find_type((char *) type_name, &group, FIND_TYPE_NO_PREFIX))
-    {
-      char *tmp;
-      if ((!(tmp= (char *)
-          alloc_root(&alloc, strlen(persist_option.c_str()) + 1))) ||
-          my_args.push_back(tmp))
+    string persist_option= "--loose_" + iter.key + "=" + iter.value;
+    char *tmp;
+
+    if (NULL == (tmp= strdup_root(&alloc, persist_option.c_str()))
+        || my_args.push_back(tmp))
         return 1;
-      my_stpcpy(tmp, (const char *) persist_option.c_str());
-    }
   }
   /*
    Update existing command line options if there are any persisted
@@ -1135,6 +1157,8 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
   string var_name;
   bool reset_all= (name ? 0 : 1);
   var_name= (name ? name : string());
+  /* update on m_persist_variables/m_persist_ro_variables must be thread safe */
+  lock();
   auto it_ro= m_persist_ro_variables.find(var_name);
 
   if (reset_all)
@@ -1188,6 +1212,7 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
       }
     }
   }
+  unlock();
   if (flush)
     flush_to_file();
 

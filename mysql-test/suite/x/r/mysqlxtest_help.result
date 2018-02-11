@@ -8,7 +8,7 @@ Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
 owners.
 
-mysqlxtest <options>
+mysqlxtest <options> [SCHEMA]
 Options:
 -f, --file=<file>     Reads input from file
 -I, --import=<dir>    Reads macro files from dir; required by -->import

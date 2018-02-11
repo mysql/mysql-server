@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,16 +25,10 @@ IF(DISABLE_SHARED)
 ENDIF()
 
 INCLUDE_DIRECTORIES(
-  ${GMOCK_INCLUDE_DIRS}
 # ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/components/example
   ${CMAKE_SOURCE_DIR}/components/mysql_server
 )
-
-# GMock source use undefined symbols in #if checks
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
-ENDIF()
 
 REMOVE_DEFINITIONS(-DMYSQL_SERVER)
 

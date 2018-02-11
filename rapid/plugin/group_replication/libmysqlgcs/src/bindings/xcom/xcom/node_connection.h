@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,11 @@
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
 #endif  // WIN32
-#include <openssl/ssl.h>
-#endif
+#include <wolfssl_fix_namespace_pollution_pre.h>
 
-/* YaSSL does not have ERR_clear_error() */
-#if defined(HAVE_YASSL)
-#define ERR_clear_error()
+#include <openssl/ssl.h>
+
+#include <wolfssl_fix_namespace_pollution.h>
 #endif
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_proto.h"

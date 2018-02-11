@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,14 +62,14 @@
   @param options What should be reset/reloaded (tables, privileges, slave...)
   @param tables Tables to flush (if any)
   @param write_to_binlog < 0 if there was an error while interacting with the binary log inside
-                         reload_acl_and_cache,
+                         handle_reload_request,
                          0 if we should not write to the binary log,
                          > 0 if we can write to the binlog.
 
                
   @note Depending on 'options', it may be very bad to write the
     query to the binlog (e.g. FLUSH SLAVE); this is a
-    pointer where reload_acl_and_cache() will put 0 if
+    pointer where handle_reload_request() will put 0 if
     it thinks we really should not write to the binlog.
     Otherwise it will put 1.
 
@@ -78,8 +78,8 @@
     @retval !=0  Error; thd->killed is set or thd->is_error() is true
 */
 
-bool reload_acl_and_cache(THD *thd, unsigned long options,
-                          TABLE_LIST *tables, int *write_to_binlog)
+bool handle_reload_request(THD *thd, unsigned long options,
+                           TABLE_LIST *tables, int *write_to_binlog)
 {
   bool result=0;
   select_errors=0;				/* Write if more errors */
@@ -91,7 +91,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   {
     THD *tmp_thd= 0;
     /*
-      If reload_acl_and_cache() is called from SIGHUP handler we have to
+      If handle_reload_request() is called from SIGHUP handler we have to
       allocate temporary THD for execution of acl_reload()/grant_reload().
     */
     if (!thd && (thd= (tmp_thd= new THD)))
@@ -102,11 +102,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
     if (thd)
     {
-      bool reload_acl_failed= acl_reload(thd);
-      bool reload_grants_failed= grant_reload(thd);
+      bool reload_acl_failed= reload_acl_caches(thd);
       bool reload_servers_failed= servers_reload(thd);
       notify_flush_event(thd);
-      if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
+      if (reload_acl_failed || reload_servers_failed)
       {
         result= 1;
         /*
@@ -115,29 +114,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         */
         my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
-      else
-      {
-        /* Reload the role grant graph and rebuild index */
-        if (roles_init_from_tables(thd))
-        {
-          result= 1;
-          my_error(ER_UNKNOWN_ERROR, MYF(0));
-        }
-      }
-
-      /*
-        Check storage engine type for every ACL table and output warning
-        message in case it's different from supported one (InnoDB).
-      */
-      if (check_engine_type_for_acl_table(thd))
-        result= 1;
-
-      /*
-        Check all the ACL tables are intact and output warning message in
-        case any of the ACL tables are corrupted.
-      */
-      if (check_acl_tables_intact(thd))
-        result= 1;
     }
 
     reset_mqh(thd, (LEX_USER *)NULL, true);
@@ -182,7 +158,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if ((options & REFRESH_BINARY_LOG) || (options & REFRESH_RELAY_LOG ))
   {
     /*
-      If reload_acl_and_cache() is called from SIGHUP handler we have to
+      If handle_reload_request() is called from SIGHUP handler we have to
       allocate temporary THD for execution of binlog/relay log rotation.
      */
     THD *tmp_thd= 0;

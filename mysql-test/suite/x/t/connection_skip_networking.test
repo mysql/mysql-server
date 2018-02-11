@@ -16,58 +16,50 @@ EOF
 --disable_query_log
 --disable_result_log
 let $restart_parameters = restart: --skip-networking;
-let $restart_parameters_restore =;
 let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") != 0`)
-{
-  connect (master,localhost,x_root,,,,,PIPE);
-  let $restart_parameters = restart: --enable-named-pipe --skip-networking --loose-mysqlx-named-pipe=ON  --loose-mysqlx-socket=MySQLX_$MASTER_MYPORT;
-  let $restart_parameters_restore = --enable-named-pipe;
-  let $XPLUGIN_SOCKET=MySQLX_$MASTER_MYPORT;
-}
 
 --replace_regex /restart: .+$XPLUGIN_SOCKE/restart: --skip-networking/
---let $wait_for_tcpsocket_status = no_wait
+--let $wait_for_tcpsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --enable_query_log
 --enable_result_log
 
---echo Verify UNIX socket or Named Pipe connection that it still works
+--echo # Verify that UNIX socket connection still works
 --exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
---echo Following commands should fail
+--echo # Verify that TCP is disabled
 --replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
 --error 1
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
---echo try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
+--echo # Try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
 --replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
 --error 1
 --exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
- 
- 
+
+
  call mtr.add_suppression("Plugin mysqlx reported: .Preparation of I/O interfaces failed, X Protocol won't be accessible");
  call mtr.add_suppression("Plugin mysqlx reported: .X Plugin failed to setup .+ .., with:");
  call mtr.add_suppression("Plugin mysqlx reported: .+ path is empt");
  call mtr.add_suppression("Plugin mysqlx reported: .+ is set to empty text");
  let $restart_parameters = $restart_parameters --loose-mysqlx-socket=;
 --replace_regex /restart: .+--loose-mysqlx-socket=/restart: --skip-networking --loose-mysqlx-socket=/
---let $wait_for_tcpsocket_status = no_wait
---let $wait_for_unixsocket_status = no_wait
+--let $wait_for_tcpsocket_status = undefined_value
+--let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --disable_result_log
---echo Following commands should fail
+--echo # Verify that TCP is disabled
 --error 1
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
---echo Verify UNIX socket or Named Pipe is disabled
+--echo # Verify that UNIX socket is disabled
 --error 1
 --exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 --disable_query_log
-let $restart_parameters = restart: $restart_parameters_restore;
+let $restart_parameters = restart:;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --enable_query_log
 --enable_result_log

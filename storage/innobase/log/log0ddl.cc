@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -968,7 +968,7 @@ Log_DDL::write_free_tree_log(
 				  crash_after_free_tree_log_counter++);
 
 		/* Delete this operation if the create trx is committed */
-		err = delete_by_id(trx, id);
+		err = delete_by_id(trx, id, false);
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_delete",
@@ -998,9 +998,6 @@ Log_DDL::insert_free_tree_log(
 	}
 
 	ut_ad(trx->ddl_operation);
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	mutex_exit(&dict_sys->mutex);
 
 	DDL_Record	record;
 	record.set_id(id);
@@ -1015,8 +1012,6 @@ Log_DDL::insert_free_tree_log(
 		error = ddl_log.insert(record);
 		ut_ad(error == DB_SUCCESS);
 	}
-
-	mutex_enter(&dict_sys->mutex);
 
 	if (!has_dd_trx) {
 		trx_commit_for_mysql(trx);
@@ -1071,7 +1066,7 @@ Log_DDL::write_delete_space_log(
 		DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_log",
 				  crash_after_delete_space_log_counter++);
 
-		err = delete_by_id(trx, id);
+		err = delete_by_id(trx, id, dict_locked);
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_delete",
@@ -1173,7 +1168,7 @@ Log_DDL::write_rename_space_log(
 	DBUG_INJECT_CRASH("ddl_log_crash_after_rename_space_log",
 			  crash_after_rename_space_log_counter++);
 
-	err = delete_by_id(trx, id);
+	err = delete_by_id(trx, id, true);
 	ut_ad(err == DB_SUCCESS);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_rename_space_delete",
@@ -1308,7 +1303,7 @@ Log_DDL::write_rename_table_log(
 		id, thread_id, table->id, old_name, new_name);
 	ut_ad(err == DB_SUCCESS);
 
-	err = delete_by_id(trx, id);
+	err = delete_by_id(trx, id, true);
 	ut_ad(err == DB_SUCCESS);
 
 	return(err);
@@ -1376,7 +1371,7 @@ Log_DDL::write_remove_cache_log(
 		id, thread_id, table->id, table->name.m_name);
 	ut_ad(err == DB_SUCCESS);
 
-	err = delete_by_id(trx, id);
+	err = delete_by_id(trx, id, false);
 	ut_ad(err == DB_SUCCESS);
 
 	return(err);
@@ -1394,10 +1389,6 @@ Log_DDL::insert_remove_cache_log(
 	trx_start_internal(trx);
 	trx->ddl_operation = true;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	mutex_exit(&dict_sys->mutex);
-
 	DDL_Record	record;
 	record.set_id(id);
 	record.set_thread_id(thread_id);
@@ -1410,8 +1401,6 @@ Log_DDL::insert_remove_cache_log(
 		error = ddl_log.insert(record);
 		ut_ad(error == DB_SUCCESS);
 	}
-
-	mutex_enter(&dict_sys->mutex);
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
@@ -1426,16 +1415,18 @@ Log_DDL::insert_remove_cache_log(
 dberr_t
 Log_DDL::delete_by_id(
 	trx_t*		trx,
-	uint64_t	id)
+	uint64_t	id,
+	bool		dict_locked)
 {
 	dberr_t	error;
 
 	trx_start_if_not_started(trx, true);
 
 	ut_ad(trx->ddl_operation);
-	ut_ad(mutex_own(&dict_sys->mutex));
 
-	mutex_exit(&dict_sys->mutex);
+	if (dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	{
 		DDL_Log_Table	ddl_log(trx);
@@ -1443,7 +1434,9 @@ Log_DDL::delete_by_id(
 		ut_ad(error == DB_SUCCESS);
 	}
 
-	mutex_enter(&dict_sys->mutex);
+	if (dict_locked) {
+		mutex_enter(&dict_sys->mutex);
+	}
 
 	if (srv_print_ddl_logs) {
 		ib::info() << "DDL log delete : " << "by id " << id;

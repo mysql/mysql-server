@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -891,8 +891,6 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
     (void) mi_extra(file, HA_EXTRA_WAIT_LOCK, 0);
-  if (!table->s->db_record_offset)
-    int_table_flags|=HA_REC_NOT_IN_SEQ;
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     int_table_flags|=HA_HAS_CHECKSUM;
   
@@ -1925,7 +1923,6 @@ int ha_myisam::info(uint flag)
     share->keys_in_use.set_prefix(share->keys);
     share->keys_in_use.intersect_extended(misam_info.key_map);
     share->keys_for_keyread.intersect(share->keys_in_use);
-    share->db_record_offset= misam_info.record_offset;
     unlock_shared_ha_data();
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,

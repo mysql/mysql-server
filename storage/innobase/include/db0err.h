@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -183,6 +183,9 @@ enum dberr_t {
 	DB_NO_FK_ON_S_BASE_COL,		/*!< Cannot add foreign constrain
 					placed on the base column of
 					stored column */
+
+	DB_INVALID_ENCRYPTION_META,	/*!< Invalid encrytion metadata in
+					page 0. */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,74 @@
 #include "my_io.h"
 #include "mysql/psi/mysql_socket.h"
 #include "vio/vio_priv.h"
+
+
+/**
+  @page page_protocol_basic_tls TLS
+
+  The MySQL Protocol also supports encryption and authentication via TLS.
+  The encryption is transparent to the rest of the protocol and is applied
+  after the data is compressed right before the data is written to
+  the network layer.
+
+  The TLS suppport is announced in
+  @ref page_protocol_connection_phase_packets_protocol_handshake sent by the
+  server via ::CLIENT_SSL and is enabled if the client returns the same
+  capability.
+
+  For an unencrypted connection the server starts with its
+  @ref page_protocol_connection_phase_packets_protocol_handshake :
+
+  ~~~~~~~
+  36 00 00 00 0a 35 2e 35    2e 32 2d 6d 32 00 52 00    6....5.5.2-m2.R.
+  00 00 22 3d 4e 50 29 75    39 56 00 ff ff 08 02 00    .."=NP)u9V......
+  00 00 00 00 00 00 00 00    00 00 00 00 00 29 64 40    .............)d@
+  52 5c 55 78 7a 7c 21 29    4b 00                      R\Uxz|!)K.
+  ~~~~~~~
+
+  ... and the client returns its
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
+
+  ~~~~~~~
+  3a 00 00 01 05 a6 03 00    00 00 00 01 08 00 00 00    :...............
+  00 00 00 00 00 00 00 00    00 00 00 00 00 00 00 00    ................
+  00 00 00 00 72 6f 6f 74    00 14 14 63 6b 70 99 8a    ....root...ckp..
+  b6 9e 96 87 a2 30 9a 40    67 2b 83 38 85 4b          .....0.@g+.8.K
+  ~~~~~~~
+
+  If client wants to do TLS and the server supports it, it would send a
+  @ref page_protocol_connection_phase_packets_protocol_ssl_request with
+  ::CLIENT_SSL capability enabled.
+
+  ~~~~~~~
+  20 00 00 01 05 ae 03 00    00 00 00 01 08 00 00 00     ...............
+  00 00 00 00 00 00 00 00    00 00 00 00 00 00 00 00    ................
+  00 00 00 00                                           ....
+  ~~~~~~~
+
+  Then the rest of the communication is swithed to TLS:
+  ~~~~~~~
+  16 03 01 00 5e 01 00 00    5a 03 01 4c a3 49 2e 7a    ....^...Z..L.I.z
+  b5 06 75 68 5c 30 36 73    f1 82 79 70 58 4c 64 bb    ..uh\06s..ypXLd.
+  47 7e 90 cd 9b 30 c5 66    65 da 35 00 00 2c 00 39    G~...0.fe.5..,.9
+  00 38 00 35 00 16 00 13    00 0a 00 33 00 32 00 2f    .8.5.......3.2./
+  00 9a 00 99 00 96 00 05    00 04 00 15 00 12 00 09    ................
+  00 14 00 11 00 08 00 06    00 03 02 01 00 00 04 00    ................
+  23 00 00                                              #..
+  ~~~~~~~
+
+  The preceding packet is from SSL_connect() which does the
+  [TLS handshake](https://en.wikipedia.org/wiki/Transport_Layer_Security#TLS_handshake)
+
+  Once the TLS tunnel is established the normal communication continues
+  starting with the client sending the
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
+
+  See @ref sect_protocol_connection_phase_initial_handshake_ssl_handshake
+  for a diagram of the exchange.
+
+  @sa cli_establish_ssl, parse_client_handshake_packet
+*/
 
 #ifdef HAVE_OPENSSL
 
@@ -165,10 +233,7 @@ static bool ssl_should_retry(Vio *vio, int ret,
     /* Note: the OpenSSL error queue gets cleared in report_errors(). */
     report_errors(ssl);
 #else             /* Release build */
-# ifndef HAVE_YASSL
-    /* OpenSSL: clear the error queue. */
     ERR_clear_error();
-# endif
 #endif
     should_retry= false;
     ssl_set_sys_error(ssl_error);
@@ -180,7 +245,7 @@ static bool ssl_should_retry(Vio *vio, int ret,
   return should_retry;
 }
 
-#ifdef HAVE_YASSL
+#ifdef HAVE_WOLFSSL
 size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
 {
   // YASSL maps ETIMEOUT to EWOULDBLOCK and hence no need for retry here.
@@ -200,7 +265,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
     enum enum_vio_io_event event;
 
     /*
-      OpenSSL: check that the SSL thread's error queue is cleared. Otherwise
+      Check that the SSL thread's error queue is cleared. Otherwise
       SSL_read() returns an error from the error queue, when SSL_read() failed
       because it would block.
     */
@@ -236,14 +301,12 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
   {
     enum enum_vio_io_event event;
 
-#ifndef HAVE_YASSL
     /*
-      OpenSSL: check that the SSL thread's error queue is cleared. Otherwise
+      check that the SSL thread's error queue is cleared. Otherwise
       SSL_write() returns an error from the error queue, when SSL_write() failed
       because it would block.
     */
     DBUG_ASSERT(ERR_peek_error() == 0);
-#endif
 
     ret= SSL_write(ssl, buf, (int)size);
 
@@ -262,33 +325,6 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
   DBUG_RETURN(ret < 0 ? -1 : ret);
 }
 
-#ifdef HAVE_YASSL
-
-extern "C" {
-/* Emulate a blocking recv() call with vio_read(). */
-static long yassl_recv(void *ptr, void *buf, size_t len)
-{
-  long result= static_cast<long>(vio_read(static_cast<Vio*>(ptr),
-                                    static_cast<uchar*>(buf), len));
-  /*
-    YASSL considers ETIMEOUT as critical error. This causes
-    the connection to be invalidated.
-  */
-  if (result == -1 && vio_was_timeout(static_cast<Vio*>(ptr)))
-    errno= SOCKET_EWOULDBLOCK;
-  return result;
-}
-
-
-/* Emulate a blocking send() call with vio_write(). */
-static long yassl_send(void *ptr, const void *buf, size_t len)
-{
-  return static_cast<long>(vio_write(static_cast<Vio*>(ptr),
-                                     static_cast<const uchar*>(buf), len));
-}
-} // extern "C"
-
-#endif
 
 int vio_ssl_shutdown(Vio *vio)
 {
@@ -343,7 +379,7 @@ void vio_ssl_delete(Vio *vio)
     vio->ssl_arg= 0;
   }
 
-#ifndef HAVE_YASSL
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
@@ -383,14 +419,12 @@ static int ssl_handshake_loop(Vio *vio, SSL *ssl,
   {
     enum enum_vio_io_event event;
 
-#ifndef HAVE_YASSL
     /*
-      OpenSSL: check that the SSL thread's error queue is cleared. Otherwise
+      check that the SSL thread's error queue is cleared. Otherwise
       SSL-handshake-function returns an error from the error queue, when the
       function failed because it would block.
     */
     DBUG_ASSERT(ERR_peek_error() == 0);
-#endif
 
     ret= func(ssl);
 
@@ -421,7 +455,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(HAVE_WOLFSSL) && !defined(DBUG_OFF)
   int j, n;
 #endif
 
@@ -439,13 +473,14 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, sd);
-#if !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
+#if !defined(HAVE_WOLFSSL) && defined(SSL_OP_NO_COMPRESSION)
   SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
-#elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
+#elif !defined(HAVE_WOLFSSL) && \
+       OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(HAVE_WOLFSSL) && !defined(DBUG_OFF)
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();
@@ -472,12 +507,10 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     sockets. These functions emulate the behavior of blocking I/O
     operations by waiting for I/O to become available.
   */
-#ifdef HAVE_YASSL
+#ifdef HAVE_WOLFSSL
   /* Set first argument of the transport functions. */
-  yaSSL_transport_set_ptr(ssl, vio);
-  /* Set functions to use in order to send and receive data. */
-  yaSSL_transport_set_recv_function(ssl, yassl_recv);
-  yaSSL_transport_set_send_function(ssl, yassl_send);
+  wolfSSL_SetIOReadCtx(ssl, vio);
+  wolfSSL_SetIOWriteCtx(ssl, vio);
 #endif
 
   if ((r= ssl_handshake_loop(vio, ssl, func, ssl_errno_holder)) < 1)

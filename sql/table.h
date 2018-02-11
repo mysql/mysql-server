@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -831,7 +831,6 @@ struct TABLE_SHARE
           hander::info() time.
   */
   uint db_options_in_use{0};
-  uint db_record_offset{0};		/* if HA_REC_IN_SEQ */
   uint rowid_field_offset{0};		/* Field_nr +1 to rowid field */
   /* Primary key index number, used in TABLE::key_info[] */
   uint primary_key{0};                     

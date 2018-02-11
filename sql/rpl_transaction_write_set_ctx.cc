@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,13 @@ Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx():
   m_has_missing_keys(false), m_has_related_foreign_keys(false)
 {
   DBUG_ENTER("Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx");
+  /*
+    In order to speed-up small transactions write-set extraction,
+    we preallocate 12 elements.
+    12 is a sufficient number to hold write-sets for single
+    statement transactions, even on tables with foreign keys.
+  */
+  write_set.reserve(12);
   DBUG_VOID_RETURN;
 }
 

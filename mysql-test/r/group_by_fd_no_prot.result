@@ -2063,4 +2063,141 @@ SELECT (je+1)+count(*) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
 SELECT je+(1+count(*)) FROM (SELECT doc+1 AS je FROM coll) AS dt GROUP BY je;
 je+(1+count(*))
 DROP TABLE coll;
+#
+# Bug#27114719 FUNCTIONAL DEPENDENCY CHECK FAILS ON FIRST CALL, SUCCEEDS ON NEXT
+#
+CREATE TABLE t ( a INT, c INT GENERATED ALWAYS AS (a+2), d INT GENERATED
+ALWAYS AS (c+2) );
+SELECT t1.d FROM t as t1, t as t2 WHERE t2.d>t1.c GROUP BY t2.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.d' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT t1.d FROM t as t1, t as t2 WHERE t2.d>t1.c GROUP BY t2.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.d' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+FLUSH TABLES;
+SELECT (SELECT t1.c FROM t as t1 GROUP BY -3) FROM t as t2;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT DISTINCT t1.a FROM t as t1 ORDER BY t1.d LIMIT 1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.d' which is not in SELECT list; this is incompatible with DISTINCT
+SELECT (SELECT DISTINCT t1.a FROM t as t1 ORDER BY t1.d LIMIT 1) FROM t as t2;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.d' which is not in SELECT list; this is incompatible with DISTINCT
+DROP TABLE t;
+#
+# Bug#22279903 ISSUE WITH ONLY_FULL_GROUP_BY AND UNIQUE KEY WITH NULL VALUES
+#
+CREATE TABLE t(a INT NULL, b INT NOT NULL, c INT, UNIQUE(a,b));
+INSERT INTO t VALUES (NULL, 1, 4);
+INSERT INTO t VALUES (NULL, 1, 5);
+SELECT a,b,c FROM t GROUP BY a,b;
+ERROR 42000: Expression #3 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT a,b,c FROM t WHERE a IS NOT NULL GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE NOT (a IS NULL) GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a > 3 GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a = 3 GROUP BY b;
+a	b	c
+SELECT a,b,c FROM t WHERE a BETWEEN 3 AND 6 GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a <> 3 GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a IN (3,4) GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a IN (SELECT b FROM t) GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a IS FALSE GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE NOT(a IN (3,4)) GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a NOT IN (3,4) GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a LIKE "%abc%" GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a NOT LIKE "%abc%" GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY b;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT a,b,c FROM t WHERE a<=>NULL GROUP BY b;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT a,b,c FROM
+(SELECT * FROM t WHERE a IS NOT NULL) AS dt GROUP BY a,b;
+a	b	c
+SELECT /*+ NO_MERGE() */ a,b,c FROM
+(SELECT * FROM t WHERE a IS NOT NULL) AS dt GROUP BY a,b;
+a	b	c
+SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
+"functional_dependencies_of_GROUP_columns": {
+              "columns": [
+                "dt.a",
+                "dt.b",
+                "dt.c"
+              ] /* columns */,
+              "searched_in_materialized_tables": [
+                {
+                  "table": " `dt`",
+                  "all_columns_of_table_map_bits": [
+                    0
+                  ] /* all_columns_of_table_map_bits */,
+                  "columns": [
+                    "test.t.a",
+                    "test.t.b"
+                  ] /* columns */
+                }
+              ] /* searched_in_materialized_tables */
+            } 
+SELECT a,b,c FROM t WHERE a IS NULL GROUP BY a,b;
+ERROR 42000: Expression #3 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT a,b,c FROM t WHERE NOT(a IS NOT NULL) GROUP BY a,b;
+ERROR 42000: Expression #3 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT t.* FROM t LEFT JOIN t AS t1 ON t.a IS NOT NULL
+GROUP BY t.a,t.b;
+ERROR 42000: Expression #3 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT t.* FROM t RIGHT JOIN t AS t1 ON t.a IS NOT NULL
+GROUP BY t.a,t.b;
+a	b	c
+NULL	NULL	NULL
+DROP TABLE t;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (b INT);
+CREATE TABLE t3 (
+b INT NULL,
+c INT NULL,
+d INT NULL,
+e INT NULL,
+UNIQUE KEY (b,d,e));
+SELECT * FROM t1, t2, t3
+WHERE t2.b = t1.b AND t2.b = t3.b
+AND t3.d = 1 AND t3.e = 1 AND t3.d IS NOT NULL AND t1.a = 2
+GROUP BY t1.b;
+a	b	b	b	c	d	e
+SELECT * FROM t1, t2, t3
+WHERE t2.b = t1.b AND t2.b = t3.b
+AND t3.d = 1 AND t3.e = 1 AND t1.a = 2
+GROUP BY t1.b;
+a	b	b	b	c	d	e
+SELECT show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
+"functional_dependencies_of_GROUP_columns": {
+              "all_columns_of_table_map_bits": [
+                2
+              ] /* all_columns_of_table_map_bits */,
+              "columns": [
+                "test.t1.b",
+                "test.t2.b",
+                "test.t3.b",
+                "test.t3.d",
+                "test.t3.e",
+                "test.t1.a"
+              ] /* columns */
+            } 
+SELECT * FROM t1, t2, t3
+WHERE t2.b = t1.b AND t2.b = t3.b
+AND t3.e = 1 AND t3.d IS NOT NULL AND t1.a = 2
+GROUP BY t1.b;
+ERROR 42000: Expression #5 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t3.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1, t2, t3;
 DROP FUNCTION show_json_object;

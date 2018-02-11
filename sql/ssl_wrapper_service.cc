@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -30,18 +30,14 @@
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
 #endif  // WIN32
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/ssl.h>
+#include <wolfssl_fix_namespace_pollution.h>
 #include <string.h>
 
 #include "my_compiler.h"
 #include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
-// IWYU pragma: no_include "openssl/prefix_ssl.h"
-// IWYU pragma: no_include "violite.h"
-
-#if defined(HAVE_YASSL)
-using namespace yaSSL;
-#endif // defined(HAVE_YASSL)
-#include "mysql/service_ssl_wrapper.h"  // IWYU pragma: keep
+#include "mysql/service_ssl_wrapper.h"
 
 namespace ssl_wrappe_service
 {
@@ -51,17 +47,6 @@ dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
 
 } // namespace ssl_wrappe_service
 
-#ifdef HAVE_YASSL
-
-static char *
-my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
-{
-  if (!time)
-      return NULL;
-  return yaSSL_ASN1_TIME_to_string(time, buf, len);
-}
-
-#else /* openssl */
 
 static char *
 my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
@@ -88,8 +73,6 @@ end:
   BIO_free(bio);
   return res;
 }
-
-#endif
 
 /**
   Return version of SSL used in current connection
@@ -129,11 +112,11 @@ void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size)
   @param clipher_list              Pointer to an array of c-strings
   @param maximun_num_of_elements   Size of the pointer array
 */
-long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t maximun_num_of_elements)
+long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const long maximun_num_of_elements)
 {
   const char *cipher= NULL;
   int         index= 0;
-  size_t      element= 0;
+  long        element= 0;
 
   while(element < maximun_num_of_elements)
   {
@@ -183,7 +166,7 @@ void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer, const size_
     return;
   }
 
-  X509_NAME_oneline(X509_get_issuer_name(cert), issuer, issuer_size);
+  X509_NAME_oneline(X509_get_issuer_name(cert), issuer, (int) issuer_size);
   X509_free(cert);
 }
 
@@ -203,7 +186,7 @@ void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject, const siz
     return;
   }
 
-  X509_NAME_oneline(X509_get_subject_name(cert), subject, subject_size);
+  X509_NAME_oneline(X509_get_subject_name(cert), subject, (int) subject_size);
   X509_free(cert);
 }
 
@@ -332,10 +315,10 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl)
 */
 void ssl_wrapper_thread_cleanup()
 {
-#if !defined(HAVE_YASSL)
   ERR_clear_error();
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif // !defined(HAVE_YASSL)
+#endif
 }

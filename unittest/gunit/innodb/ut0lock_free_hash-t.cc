@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,11 @@ unittest/gunit/innodb/CMakeLists.txt */
 #define TEST_TBB 1
 #endif
 
-#if TEST_STD_MAP + TEST_STD_UNORDERED_MAP + TEST_TBB > 1
+#if (defined(TEST_STD_MAP) && \
+     (defined(TEST_STD_UNORDERED_MAP) || defined(TEST_TBB))) || \
+  (defined(TEST_STD_UNORDERED_MAP) && defined(TEST_TBB))
 #error TEST_STD_MAP, TEST_STD_UNORDERED_MAP and TEST_TBB are mutually exclusive
-#endif /* TEST_STD_MAP && TEST_STD_UNORDERED_MAP */
+#endif
 
 #ifdef TEST_STD_UNORDERED_MAP
 #include <unordered_map>

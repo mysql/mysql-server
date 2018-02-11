@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 #define SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ typedef struct rtr_mbr {
 /// @param[in] srid The spatial reference system ID to look up.
 ///
 /// @return The spatial reference system dictionary entry, or nullptr.
-dd::Spatial_reference_system* fetch_srs(gis::srid_t srid);
+dd::Spatial_reference_system *fetch_srs(gis::srid_t srid);
 
 /// Checks if one MBR covers another MBR.
 ///
@@ -74,8 +74,8 @@ dd::Spatial_reference_system* fetch_srs(gis::srid_t srid);
 ///
 /// @retval true MBR a contains MBR b.
 /// @retval false MBR a doesn't contain MBR b.
-bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                     rtr_mbr_t* b);
+bool mbr_contain_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                     rtr_mbr_t *b);
 
 /// Checks if two MBRs are equal
 ///
@@ -88,8 +88,8 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 ///
 /// @retval true The two MBRs are equal.
 /// @retval false The two MBRs aren't equal.
-bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                   rtr_mbr_t* b);
+bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                   rtr_mbr_t *b);
 
 /// Returns true.
 ///
@@ -103,7 +103,7 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 /// @param[in] b Ignored.
 ///
 /// @return Always returns true.
-bool mbr_intersect_cmp(rtr_mbr_t* a, rtr_mbr_t* b);
+bool mbr_intersect_cmp(rtr_mbr_t *a, rtr_mbr_t *b);
 
 /// Returns false.
 ///
@@ -117,7 +117,7 @@ bool mbr_intersect_cmp(rtr_mbr_t* a, rtr_mbr_t* b);
 /// @param[in] b Ignored.
 ///
 /// @return Always returns false.
-bool mbr_disjoint_cmp(rtr_mbr_t* a, rtr_mbr_t* b);
+bool mbr_disjoint_cmp(rtr_mbr_t *a, rtr_mbr_t *b);
 
 /// Checks if one MBR is covered by another MBR.
 ///
@@ -135,8 +135,8 @@ bool mbr_disjoint_cmp(rtr_mbr_t* a, rtr_mbr_t* b);
 ///
 /// @retval true MBR a is within MBR b.
 /// @retval false MBR a isn't within MBR b.
-bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
-                    rtr_mbr_t* b);
+bool mbr_within_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                    rtr_mbr_t *b);
 
 /// Expands an MBR to also cover another MBR.
 ///
@@ -149,8 +149,8 @@ bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 /// @param[in,out] a The first MBR, where the joined result will be.
 /// @param[in] b The second MBR.
 /// @param[in] n_dim Number of dimensions. Must be 2.
-void mbr_join(const dd::Spatial_reference_system* srs, double* a,
-              const double* b, int n_dim);
+void mbr_join(const dd::Spatial_reference_system *srs, double *a,
+              const double *b, int n_dim);
 
 /// Computes the combined area of two MBRs.
 ///
@@ -165,8 +165,8 @@ void mbr_join(const dd::Spatial_reference_system* srs, double* a,
 /// @param[in] n_dim Number of dimensions. Must be 2.
 ///
 /// @return The area of MBR a expanded by MBR b.
-double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
-                     const double* b, int n_dim);
+double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
+                     const double *b, int n_dim);
 
 /// Computes the area of an MBR.
 ///
@@ -178,7 +178,7 @@ double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
 /// @param[in] n_dim Number of dimensions. Must be 2.
 ///
 /// @return Are of the MBR.
-double compute_area(const dd::Spatial_reference_system* srs, const double* a,
+double compute_area(const dd::Spatial_reference_system *srs, const double *a,
                     int n_dim);
 
 /// Computes the MBR of a geometry.
@@ -203,8 +203,8 @@ double compute_area(const dd::Spatial_reference_system* srs, const double* a,
 ///
 /// @retval 0 The geometry is valid.
 /// @retval -1 The geometry is invalid.
-int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
-                       uint size, uint n_dims, double* mbr, gis::srid_t* srid);
+int get_mbr_from_store(const dd::Spatial_reference_system *srs, uchar *store,
+                       uint size, uint n_dims, double *mbr, gis::srid_t *srid);
 
 /// Computes the extra area covered if an MBR is expanded to cover another MBR.
 ///
@@ -221,9 +221,9 @@ int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
 /// @param[out] ab_area The total area of MBRs a and b combined into one MBR.
 ///
 /// @return The increase in area when expanding from MBR a to also cover MBR b.
-double rtree_area_increase(const dd::Spatial_reference_system* srs,
-                           const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
-                           double* ab_area);
+double rtree_area_increase(const dd::Spatial_reference_system *srs,
+                           const uchar *mbr_a, const uchar *mbr_b, int mbr_len,
+                           double *ab_area);
 
 /// Calculates the overlapping area between two MBRs.
 ///
@@ -233,8 +233,8 @@ double rtree_area_increase(const dd::Spatial_reference_system* srs,
 /// @param[in] mbr_len MBR length in bytes. Must be 4 * sizeof(double).
 ///
 /// @return The area of the overlapping region.
-double rtree_area_overlapping(const dd::Spatial_reference_system* srs,
-                              const uchar* mbr_a, const uchar* mbr_b,
+double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
+                              const uchar *mbr_a, const uchar *mbr_b,
                               int mbr_len);
 
 #endif  // SQL_GIS_RTREE_SUPPORT_H_INCLUDED

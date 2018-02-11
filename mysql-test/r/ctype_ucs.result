@@ -2602,7 +2602,7 @@ create table t1 as select concat(ST_GeometryType(ST_GeomFromText('Point(1 2)')))
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(20) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(15) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_AsText(ST_GeomFromText('Point(1 2)'))));
@@ -4728,3 +4728,12 @@ DROP TABLE t1;
 #
 # End of 5.6 tests
 #
+#
+# Bug#27419181 UBSAN: MY_STRNTOLL_MB2_OR_MB4 - NAUGHTY NEGATIVES
+#
+SELECT CONVERT('-9223372036854775808' USING utf16le) & 0;
+CONVERT('-9223372036854775808' USING utf16le) & 0
+0
+SELECT CONVERT('-9223372036854775808' USING utf8mb4) & 0;
+CONVERT('-9223372036854775808' USING utf8mb4) & 0
+0

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,20 +189,9 @@ enum enum_alter_inplace_result {
   situations. No separate data/index file.
 */
 #define HA_TABLE_SCAN_ON_INDEX (1 << 2)
-/*
-  The following should be set if the following is not true when scanning
-  a table with rnd_next()
-  - We will see all rows (including deleted ones)
-  - Row positions are 'table->s->db_record_offset' apart
-  If this flag is not set, filesort will do a position() call for each matched
-  row to be able to find the row later.
 
-  This flag is set for handlers that cannot guarantee that the rows are
-  returned according to incremental positions (0, 1, 2, 3...).
-  This also means that rnd_next() should return HA_ERR_RECORD_DELETED
-  if it finds a deleted row.
- */
-#define HA_REC_NOT_IN_SEQ      (1 << 3)
+/// Not in use.
+#define HA_UNUSED3 (1 << 3)
 
 /*
   Can the storage engine handle spatial data.
@@ -256,7 +245,7 @@ enum enum_alter_inplace_result {
 */
 #define HA_STATS_RECORDS_IS_EXACT (1 << 13)
 /// Not in use.
-#define HA_UNUSED  (1 << 14)
+#define HA_UNUSED14  (1 << 14)
 /*
   This parameter is set when the handler will also return the primary key
   when doing read-only-key on another index, i.e., if we get the primary

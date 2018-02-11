@@ -476,3 +476,10 @@ SET sql_mode = default;
 --echo #
 DO TRIM(-9223372036854775808) XOR '.D-';
 DO OCT(-9223372036854775808);
+
+--echo #
+--echo # Bug#27451113 UBSAN: ITEM_FUNC_MOD::INT_OP
+--echo #              NEGATION OF -9223372036854775808 !
+--echo #
+
+select -9223372036854775808 mod 9223372036854775810 as result;

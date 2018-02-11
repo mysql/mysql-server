@@ -18,6 +18,16 @@ send Mysqlx.Expect.Open {
 
 ok
 
+[Verification of Mysqlx.Crud.Find::locking_options (17.13)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "17.13"
+  }
+}
+
+ok
+
 [Verification of all features in single request]
 send Mysqlx.Expect.Open {
   cond {
@@ -27,6 +37,10 @@ send Mysqlx.Expect.Open {
   cond {
     condition_key: 2
     condition_value: "17.12"
+  }
+  cond {
+    condition_key: 2
+    condition_value: "17.13"
   }
 }
 

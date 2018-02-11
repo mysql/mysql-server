@@ -52,6 +52,7 @@ let $INDEX=$MYSQLD_DATADIR/binlog.index;
 
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--replace_regex /\.[\\\/]binlog/binlog/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 flush logs;
 --chmod 0666 $INDEX

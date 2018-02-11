@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_IS_VALID_FUNCTOR_H_INCLUDED
 #define SQL_GIS_IS_VALID_FUNCTOR_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -53,5 +53,5 @@ class Is_valid : public Unary_functor<bool> {
   bool eval(const Geographic_multilinestring &g) const;
   bool eval(const Geographic_geometrycollection &g) const;
 };
-}
+}  // namespace gis
 #endif  // SQL_GIS_IS_VALID_FUNCTOR_H_INCLUDED

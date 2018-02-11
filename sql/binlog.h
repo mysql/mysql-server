@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -988,7 +988,7 @@ int query_error_code(THD *thd, bool not_killed);
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
 extern bool opt_binlog_order_commits;
-
+extern ulong rpl_read_size;
 /**
   Turns a relative log binary log path into a full path, based on the
   opt_bin_logname or opt_relay_logname. Also trims the cr-lf at the

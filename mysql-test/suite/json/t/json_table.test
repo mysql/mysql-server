@@ -1067,6 +1067,7 @@ DROP VIEW v2;
 
 --echo #
 --echo # Bug#27189940: CREATE VIEW FAILS ON JSON_TABLE() IN SCHEMA-LESS CONNECTIONS
+--echo # BUG#27217897: JSON_TABLE() FAILS IF NO DATABASE SELECTED
 --echo #
 
 
@@ -1075,6 +1076,7 @@ connect (conn1,localhost,root,,*NO-ONE*);
 connection conn1;
 
 CREATE VIEW test.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
 
 connection default;
 disconnect conn1;

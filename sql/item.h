@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2627,18 +2627,39 @@ public:                            // Start of data fields
     - For json, the maximum size of a BLOB (it's underlying storage type).
   */
   uint32 max_length;               ///< Maximum length, in bytes
+  enum item_marker                 ///< Values for member 'marker'
+  { MARKER_NONE= 0, MARKER_CONST_PROPAG= 1,
+    MARKER_COND_ATTACH_APPLY= 2, MARKER_COND_ATTACH_OMIT= 3,
+    MARKER_BIT= 4, MARKER_FUNC_DEP_NOT_NULL= 5,
+    MARKER_DISTINCT_GROUP= 6, MARKER_ICP_COND_USES_INDEX_ONLY= 10 };
   /**
     This member has several successive meanings, depending on the phase we're
     in:
+    - when doing constant propagation (e.g. change_cond_ref_to_const(), to
+      remember that we have already processed the item).
     - when attaching conditions to tables: it says whether some condition
       needs to be attached or can be omitted (for example because it is already
       implemented by 'ref' access).
+    - when creating an internal temporary table: says how to store BIT fields
+    - when analyzing functional dependencies for only_full_group_by (says
+      whether a nullable column can be treated at not nullable)
+    - when we change DISTINCT to GROUP BY: used for book-keeping of
+      fields.
     - when pushing index conditions: it says whether a condition uses only
       indexed columns.
-    - when creating an internal temporary table: says how to store BIT fields.
-    - when we change DISTINCT to GROUP BY: used for book-keeping of fields.
+    The important property is that a phase must have a value (or few values)
+    which is reserved for this phase. If it wants to set "marked", it assigns
+    the value; it it wants to test if it is marked, it tests marker !=
+    value. If the value has been assigned and the phase wants to cancel it can
+    set marker to MARKER_NONE, which is a magic number which no phase
+    reserves.
+    A phase can expect 'marker' to be MARKER_NONE at the start of execution of
+    a normal statement, at the start of preparation of a PS, and at the start
+    of execution of a PS.
+    A phase should not expect marker's value to survive after the phase's
+    end - as a following phase may change it.
   */
-  int32 marker;
+  item_marker marker;
   Item_result cmp_context;         ///< Comparison context
 private:
   const bool is_parser_item;       ///< true if allocated directly by parser
@@ -3052,6 +3073,18 @@ protected:
   bool m_alias_of_expr; ///< if this Item's name is alias of SELECT expression
 
 public:
+  /**
+    For regularly resolved column references, 'context' points to a name
+    resolution context object belonging to the query block which simply
+    contains the reference. To further clarify, in
+    SELECT (SELECT t.a) FROM t;
+    t.a is an Item_ident whose 'context' belongs to the subquery
+    (context->select_lex == that of the subquery).
+    For column references that are part of a generated column expression,
+    'context' points to a temporary name resolution context object during
+    resolving, but is set to nullptr after resolving is done. Note that
+    Item_ident::local_column() depends on that.
+  */
   Name_resolution_context *context;
   const char *db_name;
   const char *table_name;
@@ -6047,7 +6080,7 @@ public:
     return true;
   }
   bool join_types(THD *, Item *);
-  Field *make_field_by_type(TABLE *table);
+  Field *make_field_by_type(TABLE *table, bool strict);
   static uint32 display_length(Item *item);
   static enum_field_types real_data_type(Item *);
   Field::geometry_type get_geometry_type() const override

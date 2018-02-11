@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1812,10 +1812,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Delete_rows_log_event(buf, event_len, description_event);
       break;
     case binary_log::TRANSACTION_CONTEXT_EVENT:
-      ev = new Transaction_context_log_event(buf, description_event);
+      ev = new Transaction_context_log_event(buf, event_len, description_event);
       break;
     case binary_log::VIEW_CHANGE_EVENT:
-      ev = new View_change_log_event(buf, description_event);
+      ev = new View_change_log_event(buf, event_len, description_event);
       break;
     case binary_log::XA_PREPARE_LOG_EVENT:
       ev= new XA_prepare_log_event(buf, description_event);
@@ -4810,7 +4810,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (!(fill_data_buf(data_buf, buf_len)))
     DBUG_VOID_RETURN;
 
-  if(query != 0)
+  if (query != 0 && q_len > 0)
     is_valid_param= true;
 
   DBUG_VOID_RETURN;
@@ -4957,8 +4957,17 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       (unlikely(print_event_info->sql_mode != sql_mode ||
                 !print_event_info->sql_mode_inited)))
   {
-    my_b_printf(file,"SET @@session.sql_mode=%lu%s\n",
-                (ulong)sql_mode, print_event_info->delimiter);
+    /*
+      All the SQL_MODEs included in 0x3ff00 were removed in 8.0.5. The upgrade
+      procedure clears these bits. So the bits can only be set on older binlogs.
+      Therefore, we generate this version-conditioned expression that masks out
+      the removed modes in case this is executed on 8.0.5 or later.
+    */
+    const char *mask= "";
+    if (sql_mode & 0x3ff00)
+      mask= "/*!80005 &~0x3ff00*/";
+    my_b_printf(file,"SET @@session.sql_mode=%lu%s%s\n",
+                (ulong)sql_mode, mask, print_event_info->delimiter);
     print_event_info->sql_mode= sql_mode;
     print_event_info->sql_mode_inited= 1;
   }
@@ -5136,7 +5145,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   DBUG_ENTER("Query_log_event::do_apply_event");
   int expected_error,actual_error= 0;
 
-  DBUG_PRINT("info", ("query=%s", query));
+  DBUG_PRINT("info", ("query=%s, q_len_arg=%lu",
+                      query, static_cast<unsigned long>(q_len_arg)));
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -5154,7 +5164,27 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   else
     thd->set_catalog(EMPTY_CSTR);
 
-  bool need_inc_rewrite_db_filter_counter= set_thd_db(thd, db, db_len);
+  bool need_inc_rewrite_db_filter_counter;
+  size_t valid_len;
+  bool len_error;
+  bool is_invalid_db_name= validate_string(system_charset_info, db, db_len,
+                                           &valid_len, &len_error);
+
+  DBUG_PRINT("debug",("is_invalid_db_name= %s, valid_len=%zu, len_error=%s",
+                      is_invalid_db_name ? "true" : "false",
+                      valid_len,
+                      len_error ? "true" : "false"));
+
+  if (is_invalid_db_name || len_error)
+  {
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Invalid database name in Query event.");
+    thd->is_slave_error= true;
+    goto end;
+  }
+
+  need_inc_rewrite_db_filter_counter= set_thd_db(thd, db, db_len);
 
   /*
     Setting the character set and collation of the current database thd->db.
@@ -5247,9 +5277,28 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         elsewhere (you don't want all slaves to start ignoring the dirs).
       */
       if (sql_mode_inited)
+      {
+        /*
+          All the SQL_MODEs included in 0x3ff00 were removed in 8.0.5.
+          The upgrade procedure clears these bits. So the bits can only be set
+          when replicating from an older server. We consider it safe to clear
+          the bits, because:
+          (1) all these bits except MAXDB has zero impact on replicated
+          statements, and MAXDB has minimal impact only;
+          (2) the upgrade-pre-check script warns when the bit is set, so we
+          assume users have verified that it is safe to ignore the bit.
+        */
+        if (sql_mode & ~(MODE_ALLOWED_MASK | MODE_IGNORED_MASK))
+        {
+          my_error(ER_UNSUPPORTED_SQL_MODE, MYF(0),
+                   sql_mode & ~(MODE_ALLOWED_MASK | MODE_IGNORED_MASK));
+          goto compare_errors;
+        }
+        sql_mode&= MODE_ALLOWED_MASK;
         thd->variables.sql_mode=
           (sql_mode_t) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
                        (sql_mode & ~(ulonglong) MODE_NO_DIR_IN_CREATE));
+      }
       if (charset_inited)
       {
         if (rli->cached_charset_compare(charset))
@@ -5273,6 +5322,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             goto compare_errors;
           }
           thd->update_charset(); // for the charset change to take effect
+          /*
+            We cannot ask for parsing a statement using a character set
+            without state_maps (parser internal data).
+          */
+          if (!thd->variables.character_set_client->state_maps)
+          {
+            rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                        ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                        "character_set cannot be parsed");
+            thd->is_slave_error= true;
+            goto end;
+          }
           /*
             Reset thd->query_string.cs to the newly set value.
             Note, there is a small flaw here. For a very short time frame
@@ -7432,7 +7493,12 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
+  {
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Invalid character set for User var event");
     DBUG_RETURN(1);
+  }
   double real_val;
   longlong int_val;
 
@@ -7450,12 +7516,26 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   {
     switch (type) {
     case REAL_RESULT:
+      if (val_len != 8)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        DBUG_RETURN(1);
+      }
       float8get(&real_val, val);
       it= new Item_float(real_val, 0);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
     case INT_RESULT:
+      if (val_len != 8)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        DBUG_RETURN(1);
+      }
       int_val= (longlong) uint8korr(val);
       it= new Item_int(int_val);
       val= (char*) &int_val;		// Pointer to value in native format
@@ -7463,6 +7543,13 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case DECIMAL_RESULT:
     {
+      if (val_len < 3)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        DBUG_RETURN(1);
+      }
       Item_decimal *dec= new Item_decimal((uchar*) val+2, val[0], val[1]);
       it= dec;
       val= (char *)dec->val_decimal(NULL);
@@ -8889,12 +8976,13 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
          key++,keyinfo++)
     {
       /*
-        - Skip innactive keys
-        - Skip unique keys without nullable parts
-        - Skip indices that do not support ha_index_next() e.g. full-text
-        - Skip primary keys
+        The following indexes are skipped:
+        - Inactive/invisible indexes.
+        - UNIQUE NOT NULL indexes.
+        - Indexes that do not support ha_index_next() e.g. full-text.
+        - Primary key indexes.
       */
-      if (!(table->s->keys_in_use.is_set(key)) ||
+      if (!(table->s->usable_indexes(current_thd).is_set(key)) ||
           ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           !(table->file->index_flags(key, 0, true) & HA_READ_NEXT) ||
           (key == table->s->primary_key))
@@ -9253,15 +9341,16 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
       error==0.  And when error==0, it means that the previous call to
       unpack_currrent_row was successful.  And that means
       m_curr_row_end has been set to a valid pointer.  So it is
-      impossible that both error==0 and m_curr_row_end==0.  So this is
-      dead code.
-
-      @todo: was there a valid intention to add this code?
+      impossible that both error==0 and m_curr_row_end==0 under normal
+      conditions. So this is probably a case of a corrupt event.
     */
-    /* purecov: begin deadcode */
-    DBUG_ASSERT(0);
+    const uchar *previous_m_curr_row= m_curr_row;
     error= unpack_current_row(rli, &m_cols, true/*is AI*/);
-    /* purecov: end */
+
+    if (!error && previous_m_curr_row == m_curr_row)
+    {
+      error= 1;
+    }
   }
 
   // at this moment m_curr_row_end should be set
@@ -12199,7 +12288,7 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
     {
       const char* names[8] = {
         "GEOMETRY", "POINT", "LINESTRING", "POLYGON", "MULTIPOINT",
-        "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION"
+        "MULTILINESTRING", "MULTIPOLYGON", "GEOMCOLLECTION"
       };
       if (geometry_type < 8)
         snprintf(typestr, typestr_length, "%s", names[geometry_type]);
@@ -12634,6 +12723,22 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
   /* unpack row into table->record[0] */
   if ((error= unpack_current_row(rli, &m_cols, true/*is AI*/)))
     DBUG_RETURN(error);
+
+  /*
+    When m_curr_row == m_curr_row_end, it means a row that contains nothing,
+    so all the pointers shall be pointing to the same address, or else
+    we have corrupt data and shall throw the error.
+  */
+  DBUG_PRINT("debug",("m_rows_buf= %p, m_rows_cur= %p, m_rows_end= %p",
+                      m_rows_buf, m_rows_cur, m_rows_end));
+  DBUG_PRINT("debug",("m_curr_row= %p, m_curr_row_end= %p",
+                      m_curr_row, m_curr_row_end));
+  if (m_curr_row == m_curr_row_end &&
+      !((m_rows_buf == m_rows_cur) && (m_rows_cur == m_rows_end)))
+  {
+    my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
+    DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
+  }
 
   if (m_curr_row == m_rows_buf)
   {
@@ -13365,6 +13470,7 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
     Ignorable_log_event(buf, descr_event),
     binary_log::Rows_query_event(buf, event_len, descr_event)
 {
+  is_valid_param= (m_rows_query != NULL);
 }
 
 #ifdef MYSQL_SERVER
@@ -14134,9 +14240,9 @@ err:
 #endif // MYSQL_SERVER
 
 Transaction_context_log_event::
-Transaction_context_log_event(const char *buffer,
+Transaction_context_log_event(const char *buffer, uint event_len,
                               const Format_description_event *descr_event)
-  : binary_log::Transaction_context_event(buffer, descr_event),
+  : binary_log::Transaction_context_event(buffer, event_len, descr_event),
     Log_event(header(), footer())
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
@@ -14159,9 +14265,11 @@ err:
 Transaction_context_log_event::~Transaction_context_log_event()
 {
   DBUG_ENTER("Transaction_context_log_event::~Transaction_context_log_event");
-  my_free((void*)server_uuid);
+  if (server_uuid)
+    my_free((void*)server_uuid);
   server_uuid= NULL;
-  my_free((void*) encoded_snapshot_version);
+  if (encoded_snapshot_version)
+    my_free((void*) encoded_snapshot_version);
   encoded_snapshot_version= NULL;
   delete snapshot_version;
   delete sid_map;
@@ -14372,9 +14480,9 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
 #endif
 
 View_change_log_event::
-View_change_log_event(const char *buffer,
+View_change_log_event(const char *buffer, uint event_len,
                       const Format_description_event *descr_event)
-  : binary_log::View_change_event(buffer, descr_event),
+  : binary_log::View_change_event(buffer, event_len, descr_event),
     Log_event(header(), footer())
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"

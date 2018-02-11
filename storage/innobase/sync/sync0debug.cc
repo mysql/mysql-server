@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -545,6 +545,7 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
 	LEVEL_MAP_INSERT(SYNC_DICT_HEADER);
+	LEVEL_MAP_INSERT(SYNC_TABLE);
 	LEVEL_MAP_INSERT(SYNC_STATS_AUTO_RECALC);
 	LEVEL_MAP_INSERT(SYNC_DICT_AUTOINC_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_DICT);
@@ -807,6 +808,7 @@ LatchDebug::check_order(
 	case SYNC_DICT_AUTOINC_MUTEX:
 	case SYNC_DICT_OPERATION:
 	case SYNC_DICT_HEADER:
+	case SYNC_TABLE:
 	case SYNC_TRX_I_S_RWLOCK:
 	case SYNC_TRX_I_S_LAST_READ:
 	case SYNC_IBUF_MUTEX:
@@ -1414,6 +1416,8 @@ sync_latch_meta_init()
 			 dict_persist_checkpoint_key);
 
 	LATCH_ADD_MUTEX(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
+
+	LATCH_ADD_MUTEX(DICT_TABLE, SYNC_TABLE, dict_table_mutex_key);
 
 	LATCH_ADD_MUTEX(PARSER, SYNC_PARSER, parser_mutex_key);
 

@@ -2380,7 +2380,8 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   m_agg_func_used(false),
   m_json_agg_func_used(false),
   m_empty_query(false),
-  sj_candidates(NULL)
+  sj_candidates(NULL),
+  hidden_order_field_count(0)
 {
   end_lateral_table= NULL;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -483,7 +483,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       }
     break;
   case Item::TYPE_HOLDER:  
-    result= ((Item_type_holder *)item)->make_field_by_type(table);
+    result= ((Item_type_holder *)item)->make_field_by_type(table,
+                                                           thd->is_strict_mode());
     if (!result)
       break;
     result->set_derivation(item->collation.derivation);
@@ -986,12 +987,12 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     else for (ORDER *tmp=group ; tmp ; tmp=tmp->next)
     {
       /*
-        marker == 4 means two things:
+        marker == MARKER_BIT means two things:
         - store NULLs in the key, and
         - convert BIT fields to 64-bit long, needed because MEMORY tables
           can't index BIT fields.
       */
-      (*tmp->item)->marker= 4;
+      (*tmp->item)->marker= Item::MARKER_BIT;
       const uint char_len=
         (*tmp->item)->max_length / (*tmp->item)->collation.collation->mbmaxlen;
       if (char_len > CONVERT_IF_BIGGER_TO_BLOB)
@@ -1221,7 +1222,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         write rows to the temporary table.
         We here distinguish between UNION and multi-table-updates by the fact
         that in the later case group is set to the row pointer.
-        (2) If item->marker == 4 then we force create_tmp_field
+        (2) If item->marker == MARKER_BIT then we force create_tmp_field
         to create a 64-bit longs for BIT fields because HEAP
         tables can't index BIT fields directly. We do the same
         for distinct, as we want the distinct index to be
@@ -1237,7 +1238,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                          group != 0, // (1)
                          !force_copy_fields &&
                            (not_all_columns || group !=0),
-                         item->marker == 4 || param->bit_fields_as_long, //(2)
+                         item->marker == Item::MARKER_BIT ||
+                         param->bit_fields_as_long, //(2)
                          force_copy_fields,
                          (windowing == TMP_WIN_CONDITIONAL && // (3)
                           param->m_window->frame_buffer_param() &&
@@ -1280,7 +1282,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           new_field->type() == MYSQL_TYPE_VARCHAR)
         table->s->db_create_options|= HA_OPTION_PACK_RECORD;
 
-      if (item->marker == 4 && item->maybe_null)
+      if (item->marker == Item::MARKER_BIT && item->maybe_null)
       {
 	group_null_items++;
 	new_field->flags|= GROUP_FLAG;
@@ -1758,7 +1760,6 @@ update_hidden:
 
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
-  share->db_record_offset= 1;
 
   set_real_row_type(table);
 
@@ -2022,7 +2023,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   if (thd->is_fatal_error)				// If end of memory
     goto err;
-  share->db_record_offset= 1;
 
   set_real_row_type(table);
 
@@ -2496,7 +2496,6 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     goto err;
   }
   table->in_use->inc_status_created_tmp_disk_tables();
-  share->db_record_offset= 1;
   DBUG_RETURN(0);
  err:
   DBUG_RETURN(1);
@@ -2576,7 +2575,6 @@ static bool create_tmp_table_with_fallback(TABLE *table)
     if (table->s->db_type() != temptable_hton) {
       table->in_use->inc_status_created_tmp_disk_tables();
     }
-    share->db_record_offset= 1;
     DBUG_RETURN(false);
   }
 }
@@ -2848,9 +2846,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   bool table_on_disk= false;
   DBUG_ENTER("create_ondisk_from_heap");
 
-  if ((wtable->s->db_type() != temptable_hton &&
-       wtable->s->db_type() != heap_hton) ||
-      error != HA_ERR_RECORD_FILE_FULL)
+  if ((wtable->s->db_type() != heap_hton) ||
+      (error != HA_ERR_RECORD_FILE_FULL))
   {
     /*
       We don't want this error to be converted to a warning, e.g. in case of

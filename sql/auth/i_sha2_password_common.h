@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define I_SHA2_PASSWORD_COMMON_INCLUDED
 
 #include "sha2.h"                       /* SHA256_DIGEST_LENGTH */
-#ifndef HAVE_YASSL
 #include "openssl/ossl_typ.h"
-#endif /* !HAVE_YASSL */
+#include <openssl/evp.h>
 
 #include <string>
 
@@ -94,13 +93,8 @@ namespace sha2_password
   private:
     /** Digest output buffer */
     unsigned char m_digest[CACHING_SHA2_DIGEST_LENGTH];
-#ifndef HAVE_YASSL
     /** Digest context */
     EVP_MD_CTX *md_context;
-#else
-    /** Digest context */
-    TaoCrypt::SHA256 *md_context;
-#endif // !HAVE_YASSL
     /** Status */
     bool m_ok;
   };

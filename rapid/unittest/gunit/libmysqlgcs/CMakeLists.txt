@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,10 +37,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom
   ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom
   ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit/libmysqlgcs/include)
-
-IF(LINUX_ALPINE)
-  INCLUDE_DIRECTORIES(SYSTEM "/usr/include/tirpc")
-ENDIF()
 
 IF (WIN32)
   SET (XCOM_BASEDIR

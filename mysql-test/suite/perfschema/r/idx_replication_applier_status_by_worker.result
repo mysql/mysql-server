@@ -8,8 +8,11 @@ include/start_slave.inc
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
 select CHANNEL_NAME, WORKER_ID, THREAD_ID
 from performance_schema.replication_applier_status_by_worker
-limit 1
+where WORKER_ID = 1
 into @c_name, @w_id, @t_id;
+select @c_name, @w_id, @t_id is not null;
+@c_name	@w_id	@t_id is not null
+channel_1	1	1
 
 ====================================================================
 Testing index for columns CHANNEL_NAME, WORKER_ID
@@ -51,7 +54,7 @@ from performance_schema.replication_applier_status_by_worker
 where CHANNEL_NAME = @c_name
 and WORKER_ID = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_applier_status_by_worker

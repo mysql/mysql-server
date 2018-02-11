@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -691,12 +691,61 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/rapid
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+
+# Explicit list of all -DWITH_XXX=system possibilities
+# *except* boost, which requires one specific version to be downloaded
+SET(SYSTEM_LIBRARIES
+  CURL
+  EDITLINE
+  ICU
+  LIBEVENT
+  LZ4
+# LZMA     use bundled by default here
+  PROTOBUF
+  RE2
+  SSL
+  ZLIB
+  )
+
+OPTION(WITH_SYSTEM_LIBS
+  "Use -DWITH_XXX=system for ${SYSTEM_LIBRARIES}" OFF)
+
+GET_CMAKE_PROPERTY(CACHE_VARS CACHE_VARIABLES)
+UNSET(COMMAND_LINE_VARS)
+FOREACH(CACHE_VAR ${CACHE_VARS})
+  GET_PROPERTY(CACHE_VAR_HELPSTRING CACHE ${CACHE_VAR} PROPERTY HELPSTRING)
+  IF(CACHE_VAR_HELPSTRING STREQUAL
+      "No help, variable specified on the command line."
+      )
+    LIST(APPEND COMMAND_LINE_VARS ${CACHE_VAR})
+  ENDIF()
+ENDFOREACH()
+
+# Default to "system" for all SYSTEM_LIBRARIES
+IF(WITH_SYSTEM_LIBS)
+  FOREACH(SYSTEM_LIB ${SYSTEM_LIBRARIES})
+    LIST(FIND COMMAND_LINE_VARS WITH_${SYSTEM_LIB} FOUNDIT)
+    IF(FOUNDIT LESS 0)
+      SET(WITH_${SYSTEM_LIB} "system")
+      SET(WITH_${SYSTEM_LIB} "system" CACHE STRING
+        "Use system rather than bundled" FORCE)
+      MESSAGE(STATUS "Adding -DWITH_${SYSTEM_LIB}=${WITH_${SYSTEM_LIB}}")
+    ELSE()
+      MESSAGE(STATUS
+        "Found WITH_${SYSTEM_LIB}=${WITH_${SYSTEM_LIB}} on command line")
+    ENDIF()
+  ENDFOREACH()
+  # Don't redo the system analysis on subsequent runs of cmake
+  UNSET(WITH_SYSTEM_LIBS)
+  UNSET(WITH_SYSTEM_LIBS CACHE)
+ENDIF()
+
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 IF(BUILD_BUNDLED_ZLIB)
   INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
 ENDIF()
-# Add bundled yassl/taocrypt or system openssl or custom openssl
+# Add bundled wolfssl/wolfcrypt or system openssl.
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
 

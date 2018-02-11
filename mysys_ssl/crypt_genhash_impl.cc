@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,13 +36,11 @@
 
 #ifdef HAVE_OPENSSL
 
-#ifdef HAVE_YASSL
-#include <openssl/ssl.h>
-#include <sha.hpp>
-#else
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-#endif
+#include <wolfssl_fix_namespace_pollution.h>
+
 
 #include <stdint.h>
 #include <stdio.h>
@@ -63,31 +61,11 @@
 #include <malloc.h>
 #endif
 
-#ifndef HAVE_YASSL
 #define	DIGEST_CTX	SHA256_CTX
 #define	DIGESTInit	SHA256_Init
 #define	DIGESTUpdate	SHA256_Update
 #define	DIGESTFinal	SHA256_Final
 #define	DIGEST_LEN	SHA256_DIGEST_LENGTH
-#else
-#define DIGEST_CTX TaoCrypt::SHA256
-#define DIGEST_LEN 32
-static void DIGESTInit(DIGEST_CTX *ctx)
-{
-  ctx->Init();
-}
-
-static void DIGESTUpdate(DIGEST_CTX *ctx, const void *plaintext, int len)
-{
-  ctx->Update((const TaoCrypt::byte *)plaintext, len);
-}
-
-static void DIGESTFinal(void *txt, DIGEST_CTX *ctx)
-{
-  ctx->Final((TaoCrypt::byte *)txt);
-}
-
-#endif // HAVE_YASSL
 
 static const char crypt_alg_magic[] = "$5";
 
@@ -461,15 +439,11 @@ my_crypt_genhash(char *ctbuffer,
 void generate_user_salt(char *buffer, int buffer_len)
 {
   char *end= buffer + buffer_len - 1;
-#ifdef HAVE_YASSL
-  yaSSL::RAND_bytes((unsigned char *) buffer, buffer_len);
-#else
   RAND_bytes((unsigned char *) buffer, buffer_len);
-#endif
-      
+
   /* Sequence must be a legal UTF8 string */
   for (; buffer < end; buffer++)
-  { 
+  {
     *buffer &= 0x7f;
     if (*buffer == '\0' || *buffer == '$')
       *buffer= *buffer + 1;

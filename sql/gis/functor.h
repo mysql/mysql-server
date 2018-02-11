@@ -1,6 +1,6 @@
 #ifndef SQL_GIS_FUNCTOR_H_INCLUDED
 #define SQL_GIS_FUNCTOR_H_INCLUDED
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ class not_implemented_exception : public std::exception {
       case Geometry_type::kPolygon:
         return "POLYGON";
       case Geometry_type::kGeometrycollection:
-        return "GEOMETRYCOLLECTION";
+        return "GEOMCOLLECTION";
       case Geometry_type::kMultipoint:
         return "MULTIPOINT";
       case Geometry_type::kMultilinestring:
@@ -143,7 +143,8 @@ class not_implemented_exception : public std::exception {
 
   static not_implemented_exception for_non_projected(const Geometry &g) {
     switch (g.coordinate_system()) {
-      default: DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+      default:
+        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
       case Coordinate_system::kCartesian:
         return not_implemented_exception(kCartesian, g);
       case Coordinate_system::kGeographic:
@@ -154,7 +155,8 @@ class not_implemented_exception : public std::exception {
   static not_implemented_exception for_non_projected(const Geometry &g1,
                                                      const Geometry &g2) {
     switch (g1.coordinate_system()) {
-      default: DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+      default:
+        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
       case Coordinate_system::kCartesian:
         return not_implemented_exception(kCartesian, g1, g2);
       case Coordinate_system::kGeographic:

@@ -326,7 +326,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --remove_file $server_log
 
---exec echo "restart: --ssl-capath=$CADIR_LOCATION --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CADIR_LOCATION/server-cert.pem --ssl-key=$CADIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CADIR_LOCATION/server-cert.pem --ssl-key=$CADIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

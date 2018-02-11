@@ -52,7 +52,7 @@ g	multipolygon	YES		NULL
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	
-g	geometrycollection	YES		NULL	
+g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
 fid	int(11)	NO	PRI	NULL	
@@ -337,7 +337,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	YES	UNI	NULL	
 #check the data after modify
 SELECT ST_AsText(c1) FROM tab;
@@ -376,7 +376,7 @@ tab	CREATE TABLE `tab` (
   `c4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
   KEY `idx1` (`c2`(5) DESC) USING BTREE,
@@ -397,7 +397,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	YES	UNI	NULL	
 #add primary key
 ALTER TABLE tab ADD PRIMARY KEY pk2(c8(5));
@@ -410,7 +410,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	NO	PRI	NULL	
 #drop key
 ALTER TABLE tab DROP PRIMARY KEY;
@@ -423,7 +423,7 @@ c3	polygon	YES	MUL	NULL
 c4	multipoint	YES		NULL	
 c5	multilinestring	YES		NULL	
 c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
+c7	geomcollection	YES		NULL	
 c8	geometry	NO	UNI	NULL	
 #cleanup the table
 TRUNCATE TABLE tab;
@@ -501,7 +501,7 @@ tab2	CREATE TABLE `tab2` (
   `c4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 #create a tigger and populate the values into tab2
@@ -650,7 +650,7 @@ tab3	CREATE TABLE `tab3` (
   `C4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=key_block_size
 ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;
@@ -664,7 +664,7 @@ tab3	CREATE TABLE `tab3` (
   `C4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 #check information schema for all the columns refer to 14, except POINT which is 15
@@ -794,7 +794,7 @@ tab3	CREATE TABLE `tab3` (
   `C4` multipoint DEFAULT NULL,
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
-  `c7` geometrycollection DEFAULT NULL,
+  `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL,
   UNIQUE KEY `idx2` (`c8`(5)),
   KEY `idx1` (`c2`(5) DESC) USING BTREE,
@@ -860,9 +860,9 @@ fid	ST_GeometryType(g)
 117	MULTIPOLYGON
 118	MULTIPOLYGON
 119	MULTIPOLYGON
-120	GEOMETRYCOLLECTION
-121	GEOMETRYCOLLECTION
-122	GEOMETRYCOLLECTION
+120	GEOMCOLLECTION
+121	GEOMCOLLECTION
+122	GEOMCOLLECTION
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry;
 fid	ST_IsEmpty(g)
 101	0

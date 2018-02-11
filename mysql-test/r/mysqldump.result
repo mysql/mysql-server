@@ -17,6 +17,7 @@ INSERT INTO t1 VALUES (1), (2);
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="MUL" Extra="" Comment="" />
 		<key Table="t1" Non_unique="1" Key_name="a" Seq_in_index="1" Column_name="a" Collation="A" Cardinality="filtered" Null="YES" Index_type="BTREE" Comment="" Index_comment="" Visible="YES" />
+		<options Name="t1" Engine="InnoDB" Version="10" Row_format="Compressed" Rows="2" Avg_row_length="512" Data_length="1024" Max_data_length="0" Index_length="1024" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="row_format=COMPRESSED KEY_BLOCK_SIZE=1" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -84,71 +85,6 @@ CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456);
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
-CREATE TABLE `t1` (
-  `a` decimal(10,5) DEFAULT NULL,
-  `b` float DEFAULT NULL
-);
-/*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `t1` VALUES (1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456);
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
- SET NAMES utf8mb4 ;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `t1`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
-CREATE TABLE `t1` (
-  `a` decimal(10,5) DEFAULT NULL,
-  `b` float DEFAULT NULL
-);
-/*!40101 SET character_set_client = @saved_cs_client */;
-
-LOCK TABLES `t1` WRITE;
-/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES (1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456);
-/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
-CREATE TABLE `t1` (
-  `a` decimal(10,5) DEFAULT NULL,
-  `b` float DEFAULT NULL
-);
-/*!40101 SET character_set_client = @saved_cs_client */;
-
-INSERT INTO `t1` VALUES (1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456),(1.23450,2.3456);
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
 DROP TABLE t1;
 CREATE TABLE t1(a int, b text, c varchar(3));
 INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
@@ -159,6 +95,7 @@ INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="b" Type="text" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c" Type="varchar(3)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="2" Avg_row_length="8192" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -185,6 +122,7 @@ INSERT INTO t1 VALUES ("1\""), ("\"2");
 <database name="test">
 	<table_structure name="t1">
 		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="2" Avg_row_length="8192" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -236,58 +174,6 @@ UNLOCK TABLES;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-DROP TABLE t1;
-#
-# Bug#2634 mysqldump in --compatible=mysql4
-#
-CREATE TABLE t1 (a int) ENGINE=MYISAM;
-INSERT INTO t1 VALUES (1), (2);
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL40' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `t1`;
-CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) TYPE=MyISAM;
-
-LOCK TABLES `t1` WRITE;
-/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES (1),(2);
-/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `t1`;
-CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) TYPE=MyISAM;
-
-LOCK TABLES `t1` WRITE;
-/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES (1),(2);
-/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
@@ -556,82 +442,6 @@ UNLOCK TABLES;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-#
-# Bug#8063 make test mysqldump [ fail ]
-# We cannot test this command because its output depends
-# on --default-character-set incompiled into "mysqldump" program.
-# If the future we can move this command into a separate test with
-# checking that "mysqldump" is compiled with "latin1"
-#
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `t1`;
-CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL
-) TYPE=InnoDB;
-
-LOCK TABLES `t1` WRITE;
-/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('����');
-/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `t1`;
-CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL
-) TYPE=InnoDB;
-
-LOCK TABLES `t1` WRITE;
-/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('����');
-/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `t1`;
-CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL
-) TYPE=InnoDB;
-
-LOCK TABLES `t1` WRITE;
-/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('ÄÖÜß');
-/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
@@ -1589,9 +1399,11 @@ CREATE TABLE `t2` (
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="2" Avg_row_length="8192" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_structure name="t2">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t2" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="2" Avg_row_length="8192" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 </database>
 </mysqldump>
@@ -1600,9 +1412,11 @@ CREATE TABLE `t2` (
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="2" Avg_row_length="8192" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_structure name="t2">
 		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t2" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="2" Avg_row_length="8192" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 </database>
 </mysqldump>
@@ -3591,6 +3405,7 @@ INSERT INTO t1 VALUES(1, 0xff00fef0);
 	<table_structure name="t1">
 		<field Field="f1" Type="int(10)" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="data" Type="mediumblob" Null="YES" Key="" Extra="" Comment="" />
+		<options Name="t1" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="1" Avg_row_length="16384" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -3736,7 +3551,7 @@ INSERT INTO t1 SET c1=11, c2=REPEAT('q',509);
 CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` longblob
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (11,0x7171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171717171);
 DROP TABLE t1;
@@ -3861,89 +3676,6 @@ SET character_set_client = @saved_cs_client;
 
 use test;
 drop database db42635;
-#
-# Bug#33550 mysqldump 4.0 compatibility broken
-#
-SET NAMES utf8;
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE TABLE `straße` ( f1 INT );
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `straße`;
-CREATE TABLE `straße` (
-  `f1` int(11) DEFAULT NULL
-) TYPE=InnoDB;
-
-LOCK TABLES `straße` WRITE;
-/*!40000 ALTER TABLE `straße` DISABLE KEYS */;
-/*!40000 ALTER TABLE `straße` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `stra�e`;
-CREATE TABLE `stra�e` (
-  `f1` int(11) DEFAULT NULL
-) TYPE=InnoDB;
-
-LOCK TABLES `stra�e` WRITE;
-/*!40000 ALTER TABLE `stra�e` DISABLE KEYS */;
-/*!40000 ALTER TABLE `stra�e` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-DROP TABLE `straße`;
-CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` ( f1 INT );
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `כדשגכחךלדגכחשךדגחכךלדגכ`;
-CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` (
-  `f1` int(11) DEFAULT NULL
-) TYPE=InnoDB;
-
-LOCK TABLES `כדשגכחךלדגכחשךדגחכךלדגכ` WRITE;
-/*!40000 ALTER TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` DISABLE KEYS */;
-/*!40000 ALTER TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,MYSQL323' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE `כדשגכחךלדגכחשךדגחכךלדגכ`;
-SET NAMES latin1;
 #
 # End of 5.0 tests
 #
@@ -4172,34 +3904,34 @@ set time_zone = 'UTC';
 create event ee1 on schedule at '2035-12-31 20:01:23' do set @a=5;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-first	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+first	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create event ee1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ee1		UTC	CREATE DEFINER=`root`@`localhost` EVENT `ee1` ON SCHEDULE AT '2035-12-31 20:01:23' ON COMPLETION NOT PRESERVE ENABLE DO set @a=5	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+ee1		UTC	CREATE DEFINER=`root`@`localhost` EVENT `ee1` ON SCHEDULE AT '2035-12-31 20:01:23' ON COMPLETION NOT PRESERVE ENABLE DO set @a=5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database first;
 create database second;
 use second;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-second	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+second	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create event ee1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ee1		UTC	CREATE DEFINER=`root`@`localhost` EVENT `ee1` ON SCHEDULE AT '2035-12-31 20:01:23' ON COMPLETION NOT PRESERVE ENABLE DO set @a=5	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+ee1		UTC	CREATE DEFINER=`root`@`localhost` EVENT `ee1` ON SCHEDULE AT '2035-12-31 20:01:23' ON COMPLETION NOT PRESERVE ENABLE DO set @a=5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 create event ee2 on schedule at '2018-12-31 21:01:23' do set @a=5;
 create event ee3 on schedule at '2030-12-31 22:01:23' do set @a=5;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-second	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-second	ee2	root@localhost	UTC	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-second	ee3	root@localhost	UTC	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+second	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+second	ee2	root@localhost	UTC	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+second	ee3	root@localhost	UTC	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database second;
 create database third;
 use third;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-third	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-third	ee2	root@localhost	UTC	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-third	ee3	root@localhost	UTC	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+third	ee1	root@localhost	UTC	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+third	ee2	root@localhost	UTC	ONE TIME	2018-12-31 21:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+third	ee3	root@localhost	UTC	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLED	1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop database third;
 set time_zone = 'SYSTEM';
 use test;
@@ -4259,9 +3991,9 @@ USE `mysqldump_test_db`;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;
 /*!50001 SET @saved_cs_results         = @@character_set_results */;
 /*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = latin1 */;
-/*!50001 SET character_set_results     = latin1 */;
-/*!50001 SET collation_connection      = latin1_swedish_ci */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `v1` AS select `t1`.`id` AS `id` from `t1` */;
@@ -4548,6 +4280,7 @@ CREATE TABLE `comment_table` (i INT COMMENT 'FIELD COMMENT') COMMENT = 'TABLE CO
 <database name="test">
 	<table_structure name="comment_table">
 		<field Field="i" Type="int(11)" Null="YES" Key="" Extra="" Comment="FIELD COMMENT" />
+		<options Name="comment_table" Engine="InnoDB" Version="10" Row_format="Dynamic" Rows="0" Avg_row_length="0" Data_length="16384" Max_data_length="0" Index_length="0" Data_free="0" Create_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="TABLE COMMENT" />
 	</table_structure>
 	<table_data name="comment_table">
 	</table_data>
@@ -5008,30 +4741,6 @@ CREATE DEFINER=`root`@`localhost` EVENT `e2` ON SCHEDULE EVERY 1 SECOND STARTS '
  -->
 DROP USER user1;
 DROP DATABASE BUG52792;
-# UTF-8
-CREATE DATABASE BUG52792;
-USE BUG52792;
-SET NAMES utf8;
-Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-CREATE FUNCTION `straße` ( c1 CHAR(20))
-RETURNS CHAR(50) DETERMINISTIC
-RETURN CONCAT(']]>, ', s, '!');
-<?xml version="1.0"?>
-<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-<database name="BUG52792">
-	<routines>
-		<routine Function="straße" sql_mode="" character_set_client="utf8" collation_connection="utf8_general_ci" Database_Collation="utf8mb4_0900_ai_ci">
-<![CDATA[
-CREATE DEFINER=`root`@`localhost` FUNCTION `straße`( c1 CHAR(20)) RETURNS char(50) CHARSET utf8mb4
-    DETERMINISTIC
-RETURN CONCAT(']]]]><![CDATA[>, ', s, '!')
-]]>
-		</routine>
-	</routines>
-</database>
-</mysqldump>
-DROP DATABASE BUG52792;
 SET NAMES default;
 USE test;
 SET GLOBAL EVENT_SCHEDULER = ON;
@@ -5085,38 +4794,6 @@ DELIMITER ;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
-DROP TABLE t1;
-#
-# Verify that two modes can be given in --compatible;
-# and are reflected in SET SQL_MODE in the mysqldump output.
-# Also verify that a prefix of the mode's name is enough.
-#
-CREATE TABLE t1 (a INT);
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-DROP TABLE IF EXISTS `t1`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
-CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-);
-/*!40101 SET character_set_client = @saved_cs_client */;
-
-LOCK TABLES `t1` WRITE;
-/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
-UNLOCK TABLES;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
@@ -5737,3 +5414,7 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP DATABASE bug26171967;
+#
+# WL#9465 & WL#8383 coverage tests
+#
+USE test;

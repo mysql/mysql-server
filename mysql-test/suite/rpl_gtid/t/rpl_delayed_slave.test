@@ -1,0 +1,262 @@
+# ==== Purpose ====
+#
+# Test the time-delayed replication feature, i.e.,
+# CHANGE MASTER TO MASTER_DELAY=X:
+#
+#  - Verify that slave has executed the events after but not before the
+#    delay timeout.
+#
+#  - Verify that delay is correct when slave is already lagging
+#    due to slow queries.
+#
+#  - Verify that STOP SLAVE works instantly even during a delay, and
+#    that it does not cause the waited-for event to be executed too
+#    early on slave.
+#
+#  - Verify that changing back to no delay works.
+#
+#  - Verify that RESET SLAVE sets the delay to 0.
+#
+#  - Verify that setting a bad value for the delay gives an error.
+#
+# ==== Implementation ====
+#
+# We run the slave with 10 seconds lag.
+#
+# To simulate that the slave lags due to slow queries, we invoke a
+# stored function that executes SLEEP if @@server_id==2. This requires
+# that we run with binlog_format=STATEMENT.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#344: Time-delayed replication
+# BUG#28760: Simulating a replication lag
+# [duplicate] BUG#22072: configurable delayed replication
+# [duplicate] BUG#21639: Add Replication Delay parameter
+# BUG#56442: Slave executes delayed statements when STOP SLAVE is issued
+#
+
+# Needed so that sleeps get executed in the slave SQL thread.
+--source include/have_binlog_format_statement.inc
+--source include/not_mts_slave_parallel_workers.inc
+
+--source include/master-slave.inc
+
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+--connection slave
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+--connection master
+
+
+--let $delay= 10
+--let $slave_sleep= 2
+
+
+--echo [on master]
+CREATE TABLE t1 (a VARCHAR(100), b INT);
+INSERT INTO t1 VALUES ("zero", 0);
+
+
+--echo ==== Normal setup ====
+
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+
+--disable_query_log
+eval CHANGE MASTER TO MASTER_DELAY = $delay;
+--enable_query_log
+
+--source include/start_slave.inc
+
+--let $assert_text= SHOW SLAVE STATUS should return the same delay that we set with CHANGE MASTER
+--let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = $delay
+--source include/assert.inc
+
+--echo [on master]
+--connection master
+INSERT INTO t1 VALUES ('normal setup', 1);
+
+--let $trx_num= 4
+--source extra/rpl_tests/check_slave_delay.inc
+
+
+--echo ==== Slave lags "naturally" after master ====
+
+--echo [on master]
+
+--disable_query_log
+--echo # CREATE FUNCTION delay_on_slave(time_units INT) RETURNS INT BEGIN IF @@server_id = 2 THEN RETURN SLEEP(time_units * T); ELSE RETURN 0; END IF; END
+--eval CREATE FUNCTION delay_on_slave(time_units INT) RETURNS INT BEGIN IF @@server_id = 2 THEN RETURN SLEEP(time_units * $slave_sleep); ELSE RETURN 0; END IF; END
+--enable_query_log
+
+INSERT INTO t1 SELECT delay_on_slave(3), 2;
+
+--let $trx_num= 6
+--source extra/rpl_tests/check_slave_delay.inc
+
+--save_master_pos
+INSERT INTO t1 VALUES ('slave is already lagging: this statement should execute immediately', 3);
+
+--let $trx_num= 7
+--source extra/rpl_tests/check_slave_delay.inc
+
+INSERT INTO t1 SELECT delay_on_slave(2), 4;
+
+--let $trx_num= 8
+--source extra/rpl_tests/check_slave_delay.inc
+
+
+--echo ==== STOP SLAVE / START SLAVE + DML ====
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+--disable_query_log
+eval CHANGE MASTER TO MASTER_DELAY = $delay;
+--enable_query_log
+
+--source include/start_slave.inc
+
+--echo [on master]
+--connection master
+INSERT INTO t1 VALUES ('stop slave and start slave: DML', 5);
+
+--echo [on slave]
+--connection slave
+--sleep $slave_sleep
+--let $timestamp_before_stop= `SELECT UNIX_TIMESTAMP()`
+--let $relay_log_pos_before_stop= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--source include/stop_slave.inc
+
+--let $assert_text= SQL thread position should not increase after STOP SLAVE
+--let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
+--source include/assert.inc
+
+--let $assert_text= Query should not be executed after STOP SLAVE
+--let $assert_cond= MAX(b) = 4 FROM t1
+--source include/assert.inc
+
+--let $assert_text= Status should be '' after STOP SLAVE
+--let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
+--source include/assert.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+--let $trx_num= 9
+--source extra/rpl_tests/check_slave_delay.inc
+
+
+--echo ==== STOP SLAVE / START SLAVE + DDL ====
+
+--echo This verifies BUG#56442
+
+--echo [on master]
+CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
+--source include/save_master_pos.inc
+
+--echo [on slave]
+--connection slave
+--sleep $slave_sleep
+
+--let $timestamp_before_stop= `SELECT UNIX_TIMESTAMP()`
+--let $relay_log_pos_before_stop= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1)
+--source include/stop_slave.inc
+
+--let $assert_text= SQL thread position should not increase after STOP SLAVE
+--let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] = $relay_log_pos_before_stop
+--source include/assert.inc
+
+--let $assert_text= Query should not be executed after STOP SLAVE
+--let $assert_cond= COUNT(*) = 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = "t_check_dml_not_executed_prematurely"
+--source include/assert.inc
+
+--let $assert_text= Status should be '' after STOP SLAVE
+--let $assert_cond= "[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" = ""
+--source include/assert.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+--let $trx_num= 10
+--source extra/rpl_tests/check_slave_delay.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $assert_text= DDL Query should be executed
+--let $assert_cond= COUNT(*) = 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = "t_check_dml_not_executed_prematurely"
+--source include/assert.inc
+
+--source include/check_slave_is_running.inc
+
+
+--echo ==== Change back to no delay ====
+
+--echo [on slave]
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_DELAY = 0;
+
+--let $assert_text= Delay should be 0 when we set it to 0
+--let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 0
+--source include/assert.inc
+
+
+--echo ==== Reset delay with RESET SLAVE ====
+
+CHANGE MASTER TO MASTER_DELAY = 71;
+--source include/start_slave.inc
+
+--let $assert_text= Delay should be 71 when we set it to 71
+--let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 71
+--source include/assert.inc
+
+--source include/stop_slave.inc
+RESET SLAVE;
+--source include/start_slave.inc
+
+--let $assert_text= Delay should be 0 after RESET SLAVE
+--let $assert_cond= [SHOW SLAVE STATUS, SQL_Delay, 1] = 0
+--source include/assert.inc
+
+
+--echo ==== Set an invalid value for the delay ====
+
+--source include/stop_slave.inc
+
+--echo # Expect error for setting negative delay
+--error ER_PARSE_ERROR
+CHANGE MASTER TO MASTER_DELAY = -1;
+
+--echo # Expect that it's ok to set delay of 2^31-1
+CHANGE MASTER TO MASTER_DELAY = 2147483647;
+--echo # Expect error for setting delay between 2^31 and 2^32-1
+--error ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
+CHANGE MASTER TO MASTER_DELAY = 2147483648;
+
+--echo # Expect error for setting delay to nonsense
+--error ER_PARSE_ERROR
+CHANGE MASTER TO MASTER_DELAY = blah;
+
+# todo: CHANGE MASTER TO MASTER_DELAY = 999999999999999999999999999
+# should give error
+
+CHANGE MASTER TO MASTER_DELAY = 0;
+--source include/start_slave.inc
+
+
+--echo ==== Clean up ====
+
+--echo [on master]
+--connection master
+DROP TABLE t1, t_check_dml_not_executed_prematurely;
+DROP FUNCTION delay_on_slave;
+
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

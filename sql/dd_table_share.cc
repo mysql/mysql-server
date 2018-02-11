@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -736,7 +736,6 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     }
     share->table_charset= default_charset_info;
   }
-  share->db_record_offset= 1;
 
   // Row type. First one really used by the storage engine.
   share->real_row_type= dd_get_old_row_format(tab_obj->row_format());

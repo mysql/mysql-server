@@ -1,9 +1,11 @@
 use strict;
 use warnings;
 use File::Copy;
+use MIME::Base64 qw(decode_base64);
 
 my $json_file_path = $ENV{'JSON_FILE_PATH'} or die;
 my $dir = $ENV{'MYSQLTEST_VARDIR'} or die;
+
 
 sub ibd2sdi_replace() {
   # open file in write mode
@@ -61,6 +63,11 @@ sub ibd2sdi_replace() {
     $_=~ s/#SP#/#sp#/g;
 
     $_=~ s/("default_value": ).*/$1"",/g;
+
+    # Names of SET elements in the input JSON are Base64-encoded.
+    # For the easier reading, append a fake "decoded-name": "foo" name/value pair
+    # to the output JSON, where "foo" is for a decoded SET element name.
+    $_=~ s/^ {24}"name": "([^"]+)",$/$& . ' "decoded-name": "' . decode_base64($1) . '",'/e;
 
     print OUT_FILE $_;
   }
@@ -128,6 +135,11 @@ sub ibd2sdi_replace_system() {
 
     $_=~ s/("default_value": ).*/$1"",/g;
 
+    # Names of SET elements in the input JSON are Base64-encoded.
+    # For the easier reading, append a fake "decoded-name": "foo" name/value pair
+    # to the output JSON, where "foo" is for a decoded SET element name.
+    $_=~ s/^ {24}"name": "([^"]+)",$/$& . ' "decoded-name": "' . decode_base64($1) . '",'/e;
+
     print OUT_FILE $_;
   }
   close(IN_FILE);
@@ -194,6 +206,12 @@ sub ibd2sdi_replace_mysql() {
     $_=~ s/("default_value": ).*/$1"",/g;
 
     $_=~ s/("collation_id": )[0-9]+/$1X/g;
+
+    # Names of SET elements in the input JSON are Base64-encoded.
+    # For the easier reading, append a fake "decoded-name": "foo" name/value pair
+    # to the output JSON, where "foo" is for a decoded SET element name.
+    $_=~ s/^ {24}"name": "([^"]+)",$/$& . ' "decoded-name": "' . decode_base64($1) . '",'/e;
+
 
     print OUT_FILE $_;
   }

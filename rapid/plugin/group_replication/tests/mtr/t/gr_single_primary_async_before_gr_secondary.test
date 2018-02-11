@@ -1,5 +1,5 @@
 #
-# Test case to verify that group replication on single primary-mode can not be
+# Test case to verify that group replication on single-primary mode can not be
 # started on secondary while asynchronous replication channels are running, its
 # should error out.
 #
@@ -114,7 +114,7 @@ START GROUP_REPLICATION;
 --echo # 5. Verify occurrence of error message
 --replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err
---let $grep_pattern= Can't start group replication on secondary member with single primary-mode while asynchronous replication channels are running
+--let $grep_pattern= Can't start group replication on secondary member with single-primary mode while asynchronous replication channels are running
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

@@ -1971,6 +1971,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     */
     if (all && thd->rpl_unflag_detached_engine_ha_data())
     {
+      DBUG_PRINT("info", ("query='%s'",
+                          thd->query().str));
       DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT);
       DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
@@ -3800,6 +3802,13 @@ int handler::update_auto_increment()
       (table->auto_increment_field_not_null &&
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO))
   {
+    /*
+      First test if the query was aborted due to strict mode constraints.
+    */
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_TRUNCATED_WRONG_VALUE)
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
+
     /*
       Update next_insert_id if we had already generated a value in this
       statement (case of INSERT VALUES(null),(3763),(null):
@@ -8262,7 +8271,6 @@ int binlog_log_row(TABLE* table,
   {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
     {
-      bitmap_set_all(table->read_set);
       if (before_record && after_record)
       {
         size_t length= table->s->reclength;

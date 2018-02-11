@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 // Using
 #include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+
 #include <rapidjson/document.h>     // rapidjson::Document
 #include <rapidjson/writer.h>       // rapidjson::Write
 #include <rapidjson/stringbuffer.h>

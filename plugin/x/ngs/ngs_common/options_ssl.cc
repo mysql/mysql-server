@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ std::string Options_session_ssl::ssl_version() const
 std::vector<std::string> Options_session_ssl::ssl_cipher_list() const
 {
   std::vector<std::string> result;
-  const size_t num_of_elements = 1024;
+  const long num_of_elements = 1024;
   const char *versions[num_of_elements];
 
   long number_of_items = ssl_wrapper_cipher_list(m_vio, versions, num_of_elements);

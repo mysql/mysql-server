@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,8 @@ Created 10/25/1995 Heikki Tuuri
 
 #ifndef fil0types_h
 #define fil0types_h
+
+#include "univ.i"
 
 /** The byte offsets on a file page for various variables. */
 

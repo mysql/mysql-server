@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -55,23 +55,23 @@ class Is_simple : public Unary_functor<bool> {
  public:
   Is_simple(double semi_major, double semi_minor);
 
-  bool operator()(const Geometry& g) const override;
+  bool operator()(const Geometry &g) const override;
 
-  bool eval(const Cartesian_point& g) const;
-  bool eval(const Cartesian_linestring& g) const;
-  bool eval(const Cartesian_polygon& g) const;
-  bool eval(const Cartesian_multipoint& g) const;
-  bool eval(const Cartesian_multipolygon& g) const;
-  bool eval(const Cartesian_multilinestring& g) const;
+  bool eval(const Cartesian_point &g) const;
+  bool eval(const Cartesian_linestring &g) const;
+  bool eval(const Cartesian_polygon &g) const;
+  bool eval(const Cartesian_multipoint &g) const;
+  bool eval(const Cartesian_multipolygon &g) const;
+  bool eval(const Cartesian_multilinestring &g) const;
 
-  bool eval(const Geographic_point& g) const;
-  bool eval(const Geographic_linestring& g) const;
-  bool eval(const Geographic_polygon& g) const;
-  bool eval(const Geographic_multipoint& g) const;
-  bool eval(const Geographic_multipolygon& g) const;
-  bool eval(const Geographic_multilinestring& g) const;
+  bool eval(const Geographic_point &g) const;
+  bool eval(const Geographic_linestring &g) const;
+  bool eval(const Geographic_polygon &g) const;
+  bool eval(const Geographic_multipoint &g) const;
+  bool eval(const Geographic_multipolygon &g) const;
+  bool eval(const Geographic_multilinestring &g) const;
 
-  bool eval(const Geometrycollection& g) const;
+  bool eval(const Geometrycollection &g) const;
 };
 
 }  // namespace gis

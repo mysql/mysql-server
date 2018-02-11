@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,6 +23,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
+
+#include "my_inttypes.h"
+
 class THD;
 struct TABLE;
 
@@ -35,6 +38,7 @@ extern uint32_t	dd_upgrade_indexes_num;
 
 namespace dd {
 class Table;
+class Tablespace;
 }
 
 /** Migrate table from InnoDB Dictionary (INNODB SYS_*) tables to new Data

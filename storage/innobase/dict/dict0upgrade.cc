@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -168,7 +168,7 @@ dd::Tablespace object returned.
 static dd::Tablespace* dd_upgrade_get_tablespace(THD* thd,
                                      dd::cache::Dictionary_client* dd_client,
                                      dict_table_t* ib_table) {
-  char name[MAX_FULL_NAME_LEN];
+  char name[MAX_FULL_NAME_LEN + 1];
 
   dd::Tablespace*	ts_obj = nullptr;
   ut_ad(ib_table->space != SPACE_UNKNOWN);

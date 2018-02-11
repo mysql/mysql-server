@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,14 +21,15 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 # We support different versions of SSL:
-# - "bundled" uses source code in <source dir>/extra/yassl
 # - "system"  (typically) uses headers/libraries in /usr/lib and /usr/lib64
 # - a custom installation of openssl can be used like this
 #     - cmake -DCMAKE_PREFIX_PATH=</path/to/custom/openssl> -DWITH_SSL="system"
 #   or
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
+# - "wolfssl" uses wolfssl source code in <source dir>/extra/wolfssl-<version>
 #
-# The default value for WITH_SSL is "bundled"
+# The default value for WITH_SSL is "system"
+# set in cmake/build_configurations/feature_set.cmake
 #
 # WITH_SSL="system" means: use the SSL library that comes with the operating
 # system. This typically means you have to do 'yum install openssl-devel'
@@ -44,41 +45,67 @@
 # When the package has been located, we treat it as if cmake had been
 # invoked with  -DWITH_SSL=</path/to/custom/openssl>
 
-SET(WITH_SSL_DOC "bundled (use yassl)")
+
+SET(WITH_SSL_DOC "\nsystem (use the OS openssl library)")
 SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, yes (prefer os library if present, otherwise use bundled)")
+  "${WITH_SSL_DOC}, \nyes (synonym for system)")
 SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, system (use os library)")
+  "${WITH_SSL_DOC}, \n</path/to/custom/openssl/installation>")
 SET(WITH_SSL_DOC
-  "${WITH_SSL_DOC}, </path/to/custom/installation>")
+  "${WITH_SSL_DOC}, \nwolfssl (use wolfSSL. See extra/README-wolfssl.txt on how to set this up)")
 
 MACRO (CHANGE_SSL_SETTINGS string)
   SET(WITH_SSL ${string} CACHE STRING ${WITH_SSL_DOC} FORCE)
 ENDMACRO()
 
-MACRO (MYSQL_USE_BUNDLED_SSL)
-  SET(INC_DIRS 
-    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-    ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include
+MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
+  MESSAGE(STATUS "\n${string}"
+    "\nMake sure you have specified a supported SSL version. "
+    "\nValid options are : ${WITH_SSL_DOC}\n"
+    )
+  IF(UNIX)
+    MESSAGE(FATAL_ERROR
+      "Please install the appropriate openssl developer package.\n")
+  ENDIF()
+  IF(WIN32)
+    MESSAGE(FATAL_ERROR
+      "Please see https://wiki.openssl.org/index.php/Binaries\n")
+  ENDIF()
+  IF(APPLE)
+    MESSAGE(FATAL_ERROR
+      "Please see http://brewformulas.org/Openssl\n")
+  ENDIF()
+ENDMACRO()
+
+MACRO (MYSQL_USE_WOLFSSL)
+  SET(WOLFSSL_VERSION "3.13.0")
+  SET(WOLFSSL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/extra/wolfssl-${WOLFSSL_VERSION}")
+  MESSAGE(STATUS "WOLFSSL_SOURCE_DIR = ${WOLFSSL_SOURCE_DIR}")
+
+  SET(INC_DIRS
+    ${CMAKE_SOURCE_DIR}/include
+    ${WOLFSSL_SOURCE_DIR}
+    ${WOLFSSL_SOURCE_DIR}/wolfssl
+    ${WOLFSSL_SOURCE_DIR}/wolfssl/wolfcrypt
   )
-  SET(SSL_LIBRARIES  yassl taocrypt)
+  SET(SSL_LIBRARIES  wolfssl wolfcrypt)
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
     SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
   ENDIF()
   INCLUDE_DIRECTORIES(SYSTEM ${INC_DIRS})
-  SET(SSL_INTERNAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
-  SET(SSL_DEFINES "-DHAVE_YASSL -DYASSL_PREFIX -DHAVE_OPENSSL -DMULTI_THREADED")
-  CHANGE_SSL_SETTINGS("bundled")
-  ADD_SUBDIRECTORY(extra/yassl)
-  ADD_SUBDIRECTORY(extra/yassl/taocrypt)
-  GET_TARGET_PROPERTY(src yassl SOURCES)
+  SET(SSL_INTERNAL_INCLUDE_DIRS ${WOLFSSL_SOURCE_DIR})
+  SET(SSL_DEFINES "-DWOLFSSL_MYSQL_COMPATIBLE -DHAVE_ECC -DBUILDING_WOLFSSL -DHAVE_WOLFSSL -DHAVE_OPENSSL -DOPENSSL_EXTRA -DMULTI_THREADED -DHAVE_HASHDRBG -DWOLFSSL_AES_DIRECT -DWOLFSSL_SHA384 -DWOLFSSL_SHA512 -DSESSION_CERT -DKEEP_OUR_CERT -DWOLFSSL_STATIC_RSA -DWOLFSSL_SHA224 -DWC_NO_HARDEN -DWOLFSSL_CERT_EXT -DWOLFSSL_ALLOW_TLSV10")
+  CHANGE_SSL_SETTINGS("wolfssl")
+  ADD_SUBDIRECTORY(${WOLFSSL_SOURCE_DIR})
+  ADD_SUBDIRECTORY(${WOLFSSL_SOURCE_DIR}/wolfcrypt)
+  GET_TARGET_PROPERTY(src wolfssl SOURCES)
   FOREACH(file ${src})
-    SET(SSL_SOURCES ${SSL_SOURCES} ${CMAKE_SOURCE_DIR}/extra/yassl/${file})
+    SET(SSL_SOURCES ${SSL_SOURCES} ${WOLFSSL_SOURCE_DIR}/${file})
   ENDFOREACH()
-  GET_TARGET_PROPERTY(src taocrypt SOURCES)
+  GET_TARGET_PROPERTY(src wolfcrypt SOURCES)
   FOREACH(file ${src})
     SET(SSL_SOURCES ${SSL_SOURCES}
-      ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/${file})
+      ${WOLFSSL_SOURCE_DIR}/wolfcrypt/${file})
   ENDFOREACH()
 ENDMACRO()
 
@@ -102,24 +129,32 @@ ENDMACRO()
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
-# WITH_SSL=[yes|bundled|system|<path/to/custom/installation>]
+# WITH_SSL=[yes|wolfssl|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
+
   IF(NOT WITH_SSL)
-    IF(WIN32)
-      CHANGE_SSL_SETTINGS("bundled")
-    ENDIF()
+    CHANGE_SSL_SETTINGS("system")
+  ENDIF()
+
+  IF(WITH_SSL STREQUAL "bundled")
+    MESSAGE(WARNING
+      "bundled SSL (YaSSL) is no longer supported, changed to system"
+      )
+    RESET_SSL_VARIABLES()
+    CHANGE_SSL_SETTINGS("system")
   ENDIF()
 
   # See if WITH_SSL is of the form </path/to/custom/installation>
   FILE(GLOB WITH_SSL_HEADER ${WITH_SSL}/include/openssl/ssl.h)
   IF (WITH_SSL_HEADER)
+    FILE(TO_CMAKE_PATH "${WITH_SSL}" WITH_SSL)
     SET(WITH_SSL_PATH ${WITH_SSL} CACHE PATH "path to custom SSL installation")
     SET(WITH_SSL_PATH ${WITH_SSL})
   ENDIF()
 
-  IF(WITH_SSL STREQUAL "bundled")
-    MYSQL_USE_BUNDLED_SSL()
-    # Reset some variables, in case we switch from /path/to/ssl to "bundled".
+  IF(WITH_SSL STREQUAL "wolfssl")
+    MYSQL_USE_WOLFSSL()
+    # Reset some variables, in case we switch from /path/to/ssl to "wolfssl".
     IF (WITH_SSL_PATH)
       UNSET(WITH_SSL_PATH)
       UNSET(WITH_SSL_PATH CACHE)
@@ -167,7 +202,7 @@ MACRO (MYSQL_CHECK_SSL)
         SET(WITH_SSL_PATH "${OPENSSL_ROOT_DIR}" CACHE PATH "Path to system SSL")
       ELSE()
         RESET_SSL_VARIABLES()
-        MESSAGE(SEND_ERROR "Could not find system OpenSSL")
+        FATAL_SSL_NOT_FOUND_ERROR("Could not find system OpenSSL")
       ENDIF()
     ENDIF()
 
@@ -216,18 +251,19 @@ MACRO (MYSQL_CHECK_SSL)
       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
     ENDIF()
 
-    # Verify version number. Version information looks like:
-    #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
-    # Encoded as MNNFFPPS: major minor fix patch status
-    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
-      OPENSSL_VERSION_NUMBER
-      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
-    )
-    STRING(REGEX REPLACE
-      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
-      OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-    )
-
+    IF(OPENSSL_INCLUDE_DIR)
+      # Verify version number. Version information looks like:
+      #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+      # Encoded as MNNFFPPS: major minor fix patch status
+      FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+        OPENSSL_VERSION_NUMBER
+        REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+        )
+      STRING(REGEX REPLACE
+        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+        OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+        )
+    ENDIF()
     IF(OPENSSL_INCLUDE_DIR AND
        OPENSSL_LIBRARY   AND
        CRYPTO_LIBRARY      AND
@@ -316,18 +352,14 @@ MACRO (MYSQL_CHECK_SSL)
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
       SET(SSL_DEFINES "-DHAVE_OPENSSL")
     ELSE()
-
       RESET_SSL_VARIABLES()
-
-      MESSAGE(SEND_ERROR
-        "Cannot find appropriate system libraries for SSL. "
-        "Make sure you've specified a supported SSL version. "
-        "Consult the documentation for WITH_SSL alternatives")
+      FATAL_SSL_NOT_FOUND_ERROR(
+        "Cannot find appropriate system libraries for WITH_SSL=${WITH_SSL}.")
     ENDIF()
   ELSE()
-    MESSAGE(SEND_ERROR
-      "Wrong option or path for WITH_SSL. "
-      "Valid options are : ${WITH_SSL_DOC}")
+    RESET_SSL_VARIABLES()
+    FATAL_SSL_NOT_FOUND_ERROR(
+      "Wrong option or path for WITH_SSL=${WITH_SSL}.")
   ENDIF()
 ENDMACRO()
 

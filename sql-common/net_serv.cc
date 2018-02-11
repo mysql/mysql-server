@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -269,8 +269,7 @@ net_should_retry(NET *net, uint *retry_count MY_ATTRIBUTE((unused)))
   - Splits the data into packets of size 2<sup>24</sup> bytes
   - Prepends to each chunk a packet header
 
-  Protocol::Packet
-  ----------------
+  @section sect_protocol_basic_packets_packet Protocol::Packet
 
   Data between client and server is exchanged in packets of max 16MByte size.
 
@@ -619,6 +618,191 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
   return count != 0;
 }
 
+/**
+  @page page_protocol_basic_compression Compression
+
+  Compression is:
+    - its own protocol layer
+    - transparent to the other MySQL protocol layers
+    - compressing a string of bytes (which may even be a part of
+      @ref sect_protocol_basic_packets_packet)
+
+  It is enabled if:
+    - the server announces ::CLIENT_COMPRESS in its
+      @ref page_protocol_connection_phase_packets_protocol_handshake and
+    - the client requests it too in its
+      @ref page_protocol_connection_phase_packets_protocol_handshake_response
+      packet and
+    - After the server finishes the @ref page_protocol_connection_phase
+      with an @ref page_protocol_basic_ok_packet.
+
+   @subpage page_protocol_basic_compression_packet
+*/
+
+/**
+  @page page_protocol_basic_compression_packet Compressed Packet
+
+  The compressed packet consists of a @ref sect_protocol_basic_compression_packet_header
+  and a payload which is either a @ref sect_protocol_basic_compression_packet_compressed_payload
+  or @ref sect_protocol_basic_compression_packet_uncompressed_payload.
+
+  @sa ::compress_packet, ::CLIENT_COMPRESS
+
+  @section sect_protocol_basic_compression_packet_header Compressed Packet Header
+
+  <table>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int3 "int&lt;3&gt;"</td>
+  <td>length of compressed payload</td>
+  <td>raw packet length minus the size of the compressed packet header
+     (7 bytes) itself.</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <td>compressed sequence id</td>
+  <td>Sequence ID of the compressed packets, reset in the same way as the
+     @ref sect_protocol_basic_packets_packet, but incremented independently</td></tr>
+  </table>
+
+  @section sect_protocol_basic_compression_packet_compressed_payload Compressed Payload
+
+  If the length of *length of payload before compression* is more than 0 the
+  @ref sect_protocol_basic_compression_packet_header is followed by the
+  compressed payload.
+
+  It uses the *deflate* algorithm as described in
+  [RFC 1951](http://tools.ietf.org/html/rfc1951.html) and implemented in
+  [zlib](http://zlib.org/). The header of the compressed packet has the
+  parameters of the `uncompress()` function in mind:
+
+  ~~~~~~~~~~~~~
+  ZEXTERN int ZEXPORT uncompress OF((Bytef *dest,   uLongf *destLen,
+                                 const Bytef *source, uLong sourceLen));
+  ~~~~~~~~~~~~~
+
+  The payload can be anything from a piece of a MySQL Packet to several
+  MySQL Packets. The client or server may bundle several MySQL packets,
+  compress it and send it as one compressed packet.
+
+  @subsection sect_protocol_basic_compression_packet_compressed_payload_single Example: One MySQL Packet
+
+  A ::COM_QUERY for `select "012345678901234567890123456789012345"` without
+  ::CLIENT_COMPRESS has a *payload length* of 46 bytes and looks like:
+
+  ~~~~~~~~~~~~~
+  2e 00 00 00 03 73 65 6c    65 63 74 20 22 30 31 32    .....select "012
+  33 34 35 36 37 38 39 30    31 32 33 34 35 36 37 38    3456789012345678
+  39 30 31 32 33 34 35 36    37 38 39 30 31 32 33 34    9012345678901234
+  35 22                                                 5"
+  ~~~~~~~~~~~~~
+
+  With ::CLIENT_COMPRESS the packet is:
+
+  ~~~~~~~~~~~~~
+  22 00 00 00 32 00 00 78    9c d3 63 60 60 60 2e 4e    "...2..x..c```.N
+  cd 49 4d 2e 51 50 32 30    34 32 36 31 35 33 b7 b0    .IM.QP20426153..
+  c4 cd 52 02 00 0c d1 0a    6c                         ..R.....l
+  ~~~~~~~~~~~~~
+
+  <table>
+  <tr><th>comp-length</th><th>seq-id</th><th>uncomp-len</th><th>Compressed Payload</th></tr>
+  <tr><td>`22 00 00`</td><td>`00`</td><td>`32 00 00`</td><td>compress("\x2e\x00\x00\x00\x03select ...")`</td></td>
+  </table>
+
+  The compressed packet is 41 bytes long and splits into:
+
+  ~~~~~~~~~~~~~~
+  raw packet length                      -> 41
+  compressed payload length   = 22 00 00 -> 34 (41 - 7)
+  sequence id                 = 00       ->  0
+  uncompressed payload length = 32 00 00 -> 50
+  ~~~~~~~~~~~~~~
+
+  @subsection sect_protocol_basic_compression_packet_compressed_payload_multi Example: Several MySQL Packets
+
+  Executing `SELECT repeat("a", 50)` results in uncompressed  ProtocolText::Resultset like:
+  ~~~~~~~~~~~~~
+  01 00 00 01 01 25 00 00    02 03 64 65 66 00 00 00    .....%....def...
+  0f 72 65 70 65 61 74 28    22 61 22 2c 20 35 30 29    .repeat("a", 50)
+  00 0c 08 00 32 00 00 00    fd 01 00 1f 00 00 05 00    ....2...........
+  00 03 fe 00 00 02 00 33    00 00 04 32 61 61 61 61    .......3...2aaaa
+  61 61 61 61 61 61 61 61    61 61 61 61 61 61 61 61    aaaaaaaaaaaaaaaa
+  61 61 61 61 61 61 61 61    61 61 61 61 61 61 61 61    aaaaaaaaaaaaaaaa
+  61 61 61 61 61 61 61 61    61 61 61 61 61 61 05 00    aaaaaaaaaaaaaa..
+  00 05 fe 00 00 02 00                                  .......
+  ~~~~~~~~~~~~~
+
+  which consists of 5 @ref sect_protocol_basic_packets_packet :
+
+  - `01 00 00 01 01`
+  - `25 00 00 02 03 64 65 66 00 00 00 0f 72 65 70 65 61 74 28 22 61 22 2c 20 35 30 29 00 0c 08 00 32 00 00 00 fd 01 00 1f 00 00`
+  - `05 00 00 03 fe 00 00 02 00`
+  - `33 00 00 04 32 61 61 61 61 ...`
+  - `05 00 00 05 fe 00 00 02 00`
+
+  If compression is enabled a compressed packet containing the compressed
+  version of all 5 packets is sent to the client:
+
+  ~~~~~~~~~~~~~
+  4a 00 00 01 77 00 00 78    9c 63 64 60 60 64 54 65    J...w..x.cd``dTe
+  60 60 62 4e 49 4d 63 60    60 e0 2f 4a 2d 48 4d 2c    ``bNIMc``./J-HM,
+  d1 50 4a 54 d2 51 30 35    d0 64 e0 e1 60 30 02 8a    .PJT.Q05.d..`0..
+  ff 65 64 90 67 60 60 65    60 60 fe 07 54 cc 60 cc    .ed.g``e``..T.`.
+  c0 c0 62 94 48 32 00 ea    67 05 eb 07 00 8d f9 1c    ..b.H2..g.......
+  64                                                    d
+  ~~~~~~~~~~~~~
+
+  @note sending a MySQL Packet of the size 2<sup>24</sup>-5 to 2<sup>24</sup>-1
+  via compression leads to at least one extra compressed packet.
+  If the uncompressed MySQL Packet is like
+  ~~~~~~~~~~~~~~
+  fe ff ff 03 ... -- length = 2^24-2, sequence id = 3
+  ~~~~~~~~~~~~~~
+  compressing it would result in the *length of payload before compression*
+  in the @ref sect_protocol_basic_compression_packet_header being:
+  ~~~~~~~~~~~~~~
+  length of mysql packet payload:       2^24-2
+  length of mysql packet header:        4
+  length of payload before compression: 2^24+2
+  ~~~~~~~~~~~~~~
+  which can not be represented in one compressed packet.
+  Instead two or more packets have to be sent.
+
+  @section sect_protocol_basic_compression_packet_uncompressed_payload Uncompressed Payload
+
+  For small packets it may be to costly to compress the packet:
+  - compressing the packet may lead to more data and sending the
+    data uncompressed
+  - CPU overhead may be not worth to compress the data
+    @par Tip
+    Usually payloads less than 50 bytes (::MIN_COMPRESS_LENGTH) aren't compressed.
+
+
+  To send an @ref sect_protocol_basic_compression_packet_uncompressed_payload :
+  - set *length of payload before compression* in
+    @ref sect_protocol_basic_compression_packet_header to 0
+  - The @ref sect_protocol_basic_compression_packet_compressed_payload contains
+    the @ref sect_protocol_basic_compression_packet_uncompressed_payload instead.
+
+  Sending a `SELECT 1` query as @ref sect_protocol_basic_compression_packet_uncompressed_payload
+  to the server looks like:
+  ~~~~~~~~~~~~~~
+  0d 00 00 00 00 00 00 09    00 00 00 03 53 45 4c 45    ............SELE
+  43 54 20 31                                           CT 1
+  ~~~~~~~~~~~~~~
+
+  decodes into:
+  ~~~~~~~~~~~~~~
+  raw packet length                      -> 20
+  compressed payload length   = 0d 00 00 -> 13 (20 - 7)
+  sequence id                 = 00       ->  0
+  uncompressed payload length = 00 00 00 -> uncompressed
+  ~~~~~~~~~~~~~~
+
+  ... with the *uncompressed payload* starting right after the 7 byte header:
+
+  ~~~~~~~~~~~~~~
+  09 00 00 00 03 53 45 4c 45 43 54 20 31 -- SELECT 1
+  ~~~~~~~~~~~~~~
+*/
 
 /**
   Compress and encapsulate a packet into a compressed packet.
@@ -627,9 +811,8 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
   @param          packet   The packet to compress.
   @param[in,out]  length   Length of the packet.
 
-  A compressed packet header is compromised of the packet
-  length (3 bytes), packet number (1 byte) and the length
-  of the original (uncompressed) packet.
+  See @ref sect_protocol_basic_compression_packet_header for a
+  description of the header structure.
 
   @return Pointer to the (new) compressed packet.
 */
@@ -905,7 +1088,7 @@ static size_t net_read_packet(NET *net, size_t *complen)
       The right-hand expression
       must match the size of the buffer allocated in net_realloc().
     */
-    DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
+    DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + 3 <=
                 net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE);
 
     /*

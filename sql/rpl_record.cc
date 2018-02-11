@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,18 +175,18 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
 {
   DBUG_ENTER("unpack_field");
   /*
-    For a virtual generated column of blob type, we have to keep both
-    the old and new value for the blob since this might be needed by
+    For a virtual generated column based on the blob type, we have to keep both
+    the old and new value for the blob-based field since this might be needed by
     the storage engine during updates.
 
     The reason why this needs special handling is that the virtual
     generated blobs are neither stored in the record buffers nor
-    stored by the storage engine. This special handling for blobs is
+    stored by the storage engine. This special handling for blob-based fields is
     normally taken care of in update_generated_write_fields() but this
     function is not called when applying updated records in
     replication.
   */
-  if (field->type() == MYSQL_TYPE_BLOB && field->is_virtual_gcol())
+  if ((field->flags & BLOB_FLAG) != 0 && field->is_virtual_gcol())
     (down_cast<Field_blob*>(field))->keep_old_value();
 
   if (is_partial_column)

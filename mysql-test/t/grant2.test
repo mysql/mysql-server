@@ -225,7 +225,7 @@ flush privileges;
 # End of 4.1 tests
 # Create and drop user
 #
-set sql_mode='maxdb';
+set sql_mode='NO_AUTO_CREATE_USER,ANSI';
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings

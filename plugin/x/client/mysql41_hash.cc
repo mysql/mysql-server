@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,46 +24,9 @@
 
 #include "plugin/x/client/mysql41_hash.h"
 
-#if defined(HAVE_YASSL)
-#include <sha.hpp>
-
-/**
-  Compute mysql41_hash message digest using YaSSL.
-
-  @param digest [out]  Computed mysql41_hash digest
-  @param buf    [in]   Message to be computed
-  @param len    [in]   Length of the message
-
-  @return              void
-*/
-void mysql_mysql41_hash_yassl(uint8_t *digest, const char *buf, unsigned len) {
-  TaoCrypt::SHA hasher;
-  hasher.Update((const TaoCrypt::byte *)buf, (TaoCrypt::word32)len);
-  hasher.Final((TaoCrypt::byte *)digest);
-}
-
-/**
-  Compute mysql41_hash message digest for two messages in order to
-  emulate mysql41_hash(msg1, msg2) using YaSSL.
-
-  @param digest [out]  Computed mysql41_hash digest
-  @param buf1   [in]   First message
-  @param len1   [in]   Length of first message
-  @param buf2   [in]   Second message
-  @param len2   [in]   Length of second message
-
-  @return              void
-*/
-void mysql_mysql41_hash_multi_yassl(uint8_t *digest, const char *buf1, int len1,
-                                    const char *buf2, int len2) {
-  TaoCrypt::SHA hasher;
-  hasher.Update((const TaoCrypt::byte *)buf1, len1);
-  hasher.Update((const TaoCrypt::byte *)buf2, len2);
-  hasher.Final((TaoCrypt::byte *)digest);
-}
-
-#elif defined(HAVE_OPENSSL)
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/sha.h>
+#include <wolfssl_fix_namespace_pollution.h>
 
 int mysql_mysql41_hash_reset(SHA_CTX *context) { return SHA1_Init(context); }
 
@@ -77,7 +40,6 @@ int mysql_mysql41_hash_result(SHA_CTX *context,
   return SHA1_Final(Message_Digest, context);
 }
 
-#endif /* HAVE_YASSL */
 
 /**
   Wrapper function to compute mysql41_hash message digest.
@@ -89,15 +51,11 @@ int mysql_mysql41_hash_result(SHA_CTX *context,
   @return              void
 */
 void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
-#if defined(HAVE_YASSL)
-  mysql_mysql41_hash_yassl(digest, buf, len);
-#elif defined(HAVE_OPENSSL)
   SHA_CTX mysql41_hash_context;
 
   mysql_mysql41_hash_reset(&mysql41_hash_context);
   mysql_mysql41_hash_input(&mysql41_hash_context, (const uint8_t *)buf, len);
   mysql_mysql41_hash_result(&mysql41_hash_context, digest);
-#endif /* HAVE_YASSL */
 }
 
 /**
@@ -114,14 +72,10 @@ void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
 */
 void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1, unsigned len1,
                                 const char *buf2, unsigned len2) {
-#if defined(HAVE_YASSL)
-  mysql_mysql41_hash_multi_yassl(digest, buf1, len1, buf2, len2);
-#elif defined(HAVE_OPENSSL)
   SHA_CTX mysql41_hash_context;
 
   mysql_mysql41_hash_reset(&mysql41_hash_context);
   mysql_mysql41_hash_input(&mysql41_hash_context, (const uint8_t *)buf1, len1);
   mysql_mysql41_hash_input(&mysql41_hash_context, (const uint8_t *)buf2, len2);
   mysql_mysql41_hash_result(&mysql41_hash_context, digest);
-#endif /* HAVE_YASSL */
 }

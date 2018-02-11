@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,7 @@ Note that C may only refer to columns of T1 or T2 (outer references
 are forbidden by MySQL in join conditions).
 
 Assuming that C is a conjunction (i.e. is made of one or more conditions,
-                                  "conjuncts", chained together with AND):
+"conjuncts", chained together with AND):
 - If one conjunct is of the form T1.A=constant, then {} -> {A} holds in R (the
 value of A is "the constant" in all rows of R).
 - If one conjunct is of the form T1.A=T2.B, then {T1.A} -> {T2.B} (and vice
@@ -232,11 +232,58 @@ not true, which is absurd). Thus, in r1 and r2 TW.B is NULL.
 matched for both, so TW.B in r1/r2 is equal to TW.A in r1/r2.
 - In conclusion, r1 and r2 have the same value of TW.B.
 
+If any conjunct references column T1.A and is not true if T1.A is NULL
+(e.g. conjunct is T1.A > 3), and T1 is part of TW, we can replace T1 with
+ (SELECT * FROM T1 WHERE T1.A IS NOT NULL) AS T1.
+We do not do such query rewriting, but a consequence is that we can and do
+treat T1.A as "known not nullable in T1".
+Proof: if we do this replacement, it means we remove from T1 some rows where
+T1.A is NULL. For the sake of the proof, let's broaden this to "we remove from
+and/or add to T1 rows where T1.A is NULL". By this operation,
+- the result of T2 JOIN T1 ON C is affected in the same manner (i.e. it's like
+if we remove from and/or add rows to the join's result, rows where T1.A is
+NULL).
+- the same is true for the result of T1 LEFT JOIN T2 ON C,
+- regarding the result of T2 LEFT JOIN T1 ON C, consider a row r2 from T2:
+   - if r2 had a match with a row of T1 where T1.A is not NULL, this match is
+   preserved after replacement of T1
+   - due to removed rows, matches with rows of T1 where T1.A is NULL may be
+   lost, and so NULL-complemented rows may appear
+   - due to added rows, matches with rows of T1 where T1.A is NULL may appear
+   - so in the result of the left join, it's like if we remove from
+   and/or add rows which all have T1.A is NULL.
+So, the net effect in all situations, on the join nest simply containing T1,
+is that "we remove from and/or add to the nest's result rows where T1.A is
+NULL".
+By induction we can go up the nest tree, for every nest it's like if we remove
+from and/or add to the join nest's result rows where T1.A is NULL.
+Going up, finally we come to the nest TS LEFT JOIN TW ON C where our
+NULL-rejecting conjunct is.
+If T1 belonged to TS, we could not say anything. But we have assumed T1
+belongs to TW: then the C condition eliminates added rows, and would have
+eliminated removed rows anyway. Thus the result of TS LEFT JOIN TW ON C is
+unchanged by our operation on T1. We can thus safely treat T1.A as not
+nullable _in_T1_. Thus, if T1.A is part of a unique constraint, we may treat
+this constraint as a primary key of T1 (@see WHEREEQ for an example).
+
 @subsection WHEREEQ Equality-based, in the result of a WHERE clause
 
 Same rule as the result of an inner join.
 Additionally, the rule is extended to T1.A=outer_reference, because an outer
 reference is a constant during one execution of this query.
+
+Moreoever, if any conjunct references column T1.A and is not true if T1.A is
+NULL (e.g. conjunct is T1.A > 3), we can treat T1.A as not nullable in T1.
+Proof: same as in previous section OUTEREQ.
+We can then derive FD information from a unique index on a nullable column;
+consider:
+ create table t1(a int null, b int null, unique(a));
+While
+ select a,b from t1 group by a;
+is invalid (because two null values of 'a' go in same group),
+ select a,b from t1 where 'a' is not null group by a;
+is valid: 'a' can be treated as non-nullable in t1, so the unique index is
+like "unique not null", so 'a' determines 'b'.
 
 Below we examine how functional dependencies in a table propagate to its
 containing join nest.
@@ -337,7 +384,7 @@ dependencies which exist in this result R. Let r1 be a row of R.
 - If C is deterministic and one conjunct is of the form TW.A=constant or
 TW.A=TS.B, then DJS -> {TW.A} holds in R, where DJS is the set of all columns
 of TS referenced by C. For NULL-friendliness, we need DJS to not be
-empty. Thus, we exclude the form TW.A= constant and consider only
+empty. Thus, we exclude the form TW.A=constant and consider only
 TW.A=TS.B. We suppose that in r1 DJS contains all NULLs. Conjunct is TW.A=TS.B
 then this equality is not true, so r1 is NULL-complemented: TW.A is NULL in
 r1.
@@ -386,8 +433,8 @@ to propagate, so does not need to be NULL-friendly.
 In the rest of this text, we will use the term "view" for "view or derived
 table". A view can be merged or materialized, in MySQL.
 Consider a view V defined by a query expression.
-If the query expression contains UNION or ROLLUP (which is based on UNION)
-there are no functional dependencies in this view.
+If the query expression contains UNION or ROLLUP (which is theoretically based
+on UNION) there are no functional dependencies in this view.
 So let's assume that the query expression is a query specification (let's note
 it VS):
 @verbatim
@@ -444,8 +491,8 @@ for dependencies based on keys or join conditions, we simply follow
 propagation rules of the non-view sections.
 - For expression-based dependencies (VE3 depends on VE1 and VE2, VE3
 belonging to the view SELECT list), which may not be NULL-friendly, we require
-- the same non-weak-side criterion as above
-- or that the left set of the dependency be non-empty and that if VE1 and
+ - the same non-weak-side criterion as above
+ - or that the left set of the dependency be non-empty and that if VE1 and
 VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 - The same solution is used for generated columns in a base table.
 
@@ -585,7 +632,8 @@ public:
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false),
     table(NULL), group_in_fd(~0ULL), m_root(root), fd(root),
-    whole_tables_fd(0), mat_tables(root), failed_ident(NULL)
+    whole_tables_fd(0), recheck_nullable_keys(0),
+    mat_tables(root), failed_ident(NULL)
     {}
 
   ~Group_check()
@@ -655,6 +703,8 @@ private:
   Mem_root_array<Item_ident *> fd;
   /// Map of tables for which all columns can be considered part of 'fd'.
   table_map whole_tables_fd;
+  /// Map of tables for which we discovered known-not-nullable columns.
+  table_map recheck_nullable_keys;
   /// Children Group_checks of 'this'
   Mem_root_array<Group_check *> mat_tables;
   /// Identifier which triggered an error
@@ -669,7 +719,7 @@ private:
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false), table(table_arg),
     group_in_fd(0ULL), m_root(root), fd(root), whole_tables_fd(0),
-    mat_tables(root)
+    recheck_nullable_keys(0), mat_tables(root)
     {
       DBUG_ASSERT(table);
     }
@@ -682,6 +732,7 @@ private:
   void add_to_source_of_mat_table(Item_field *item_field, TABLE_LIST *tl);
   bool is_in_fd(Item *item);
   bool is_in_fd_of_underlying(Item_ident *item);
+  Item *get_fd_equal(Item *item);
   void analyze_conjunct(Item *cond, Item *conjunct, table_map weak_tables,
                         bool weak_side_upwards);
   void analyze_scalar_eq(Item *cond, Item *left_item, Item *right_item,

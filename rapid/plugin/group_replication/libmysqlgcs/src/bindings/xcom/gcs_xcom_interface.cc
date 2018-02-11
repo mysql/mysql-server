@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
@@ -85,7 +86,7 @@ void      cb_xcom_exit(int status);
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 int       cb_xcom_get_should_exit();
 void      cb_xcom_handle_app_snap(blob *gcs_snap);
-int       cb_xcom_socket_accept(int fd);
+int       cb_xcom_socket_accept(int fd, site_def const *xcom_config);
 
 
 // XCom logging callback
@@ -123,6 +124,12 @@ void Gcs_xcom_interface::cleanup()
     interface_reference_singleton= NULL;
   }
 
+  cleanup_thread_ssl_resources();
+}
+
+
+void Gcs_xcom_interface::cleanup_thread_ssl_resources()
+{
   ::xcom_cleanup_ssl();
 }
 
@@ -1670,12 +1677,17 @@ int cb_xcom_debugger_check(const int64_t options)
 }
 
 
-int cb_xcom_socket_accept(int fd)
+/**
+  Callback function used by XCOM to check whether an incoming connection
+  should be accepted or not.
+*/
+
+int cb_xcom_socket_accept(int fd, site_def const *xcom_config)
 {
   Gcs_xcom_interface *intf=
     static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
 
   const Gcs_ip_whitelist& wl= intf->get_ip_whitelist();
 
-  return wl.shall_block(fd) ? 0 : 1;
+  return wl.shall_block(fd, xcom_config) ? 0 : 1;
 }

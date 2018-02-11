@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,6 +196,11 @@ void Recovery_module::leave_group_on_recovery_failure()
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
                                          Group_member_info::MEMBER_ERROR,
                                          ctx);
+
+  /*
+    unblock threads waiting for the member to become ONLINE
+  */
+  terminate_wait_on_start_process();
 
   /* Single state update. Notify right away. */
   notify_and_reset_ctx(ctx);
@@ -438,7 +443,8 @@ cleanup:
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  Gcs_interface_factory::cleanup(Gcs_operations::get_gcs_engine());
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+    Gcs_operations::get_gcs_engine());
 
   my_thread_end();
   my_thread_exit(0);

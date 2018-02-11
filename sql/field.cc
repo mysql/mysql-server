@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7434,9 +7434,6 @@ void Field_string::sql_type(String &res) const
 			      (has_charset() ? "char" : "binary")),
                              (int) field_length / charset()->mbmaxlen);
   res.length(length);
-  if ((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
-      has_charset() && (charset()->state & MY_CS_BINSORT))
-    res.append(STRING_WITH_LEN(" binary"));
 }
 
 
@@ -7873,7 +7870,6 @@ enum ha_base_keytype Field_varstring::key_type() const
 
 void Field_varstring::sql_type(String &res) const
 {
-  THD *thd= table->in_use;
   const CHARSET_INFO *cs=res.charset();
   size_t length;
 
@@ -7882,9 +7878,6 @@ void Field_varstring::sql_type(String &res) const
                               (has_charset() ? "varchar" : "varbinary"),
                              (int) field_length / charset()->mbmaxlen);
   res.length(length);
-  if ((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)) &&
-      has_charset() && (charset()->state & MY_CS_BINSORT))
-    res.append(STRING_WITH_LEN(" binary"));
 }
 
 
@@ -8725,7 +8718,7 @@ void Field_geom::sql_type(String &res) const
      res.set(STRING_WITH_LEN("multipolygon"), cs);
      break;
     case GEOM_GEOMETRYCOLLECTION:
-     res.set(STRING_WITH_LEN("geometrycollection"), cs);
+     res.set(STRING_WITH_LEN("geomcollection"), cs);
      break;
     default:
      res.set(STRING_WITH_LEN("geometry"), cs);

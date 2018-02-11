@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1084,7 +1084,7 @@ bool Aggregator_distinct::setup(THD *thd)
       {    
         if (item->type() == Item::FIELD_ITEM &&
             ((Item_field*)item)->field->type() == FIELD_TYPE_BIT)
-          item->marker=4;
+          item->marker= Item::MARKER_BIT;
       }    
     }    
     if (!(table= create_tmp_table(thd, tmp_table_param, list, NULL, true, false,
@@ -2890,6 +2890,20 @@ double Item_sum_variance::val_real()
   {
     if (wf_common_init())
       return 0.0;
+
+    if (m_window->dont_aggregate())
+    {
+      if (count <= sample)
+      {
+        null_value= true;
+        return 0.0;
+      }
+
+      null_value= false;
+      return  variance_fp_recurrence_result(recurrence_s, recurrence_s2, count,
+                                            sample, optimize);
+    }
+
     /*
       For a group aggregate function, add() is called by Aggregator* classes;
       for a window function, which does not use Aggregator, it has be called
@@ -5069,7 +5083,7 @@ bool Item_func_group_concat::setup(THD *thd)
     {
       if (item->type() == Item::FIELD_ITEM && 
           ((Item_field*) item)->field->type() == FIELD_TYPE_BIT)
-        item->marker= 4;
+        item->marker= Item::MARKER_BIT;
     }
   }
 
@@ -5683,7 +5697,7 @@ bool Item_first_last_value::resolve_type(THD *thd MY_ATTRIBUTE((unused)))
 {
   aggregate_type(make_array(args, 1));
   m_hybrid_type= Field::result_merge_type(data_type());
-  maybe_null= args[0]->maybe_null;
+  maybe_null= true; // if empty frame, notwithstanding nullability of arg
 
   if (m_hybrid_type == STRING_RESULT)
   {
@@ -6914,8 +6928,8 @@ bool Item_func_grouping::aggregate_check_group(uchar *arg)
 
 
 /**
-  Resets the aggregation property which was set during creation
-  of references to GROUP BY fields in SELECT_LEX::change_group_ref.
+  Resets the aggregation property which was set during creation of
+  references to GROUP BY fields in SELECT_LEX::change_func_or_wf_group_ref.
   Calls Item_int_func::cleanup() to do the rest of the cleanup.
 */
 void Item_func_grouping::cleanup()

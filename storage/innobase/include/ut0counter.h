@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,8 +36,11 @@ Created 2012/04/12 by Sunny Bains
 #define ut0counter_h
 
 #include <my_rdtsc.h>
+
 #include "univ.i"
+
 #include "os0thread.h"
+#include "ut0dbg.h"
 
 /** CPU cache line size */
 #ifdef __powerpc__

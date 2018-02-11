@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,11 @@
 
 #include <errno.h>
 #include <sys/types.h>  /* Must be before <sys/event.h> on FreeBSD. */
-#include <sys/event.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+
+#include <sys/event.h>
 
 #include "my_dbug.h"
 #include "my_sys.h"       /* my_message_local */

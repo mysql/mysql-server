@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -56,6 +51,7 @@ let $i= 255;
 let $j= 5;
 while ($j)
 {
+  ANALYZE TABLE t1;
   select * from t1 where v like 'This is a test' order by v;
   select * from t1 where v='This is a test' order by v;
   select * from t1 where v like 'S%' order by v;
@@ -70,6 +66,7 @@ let $i= 258;
 let $j= 6;
 while ($j)
 {
+  ANALYZE TABLE t1;
   select * from t1 where v like 'This is a test' order by v;
   select * from t1 where v='This is a test' order by v;
   select * from t1 where v like 'S%' order by v;

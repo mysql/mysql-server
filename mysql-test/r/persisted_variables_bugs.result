@@ -1,0 +1,58 @@
+#
+# Bug #27016247: SET PERSIST_ONLY DOES NOT CONSIDER RUNTIME VALIDATION
+#
+# Should fail: event_scheduler does not allow setting to DISABLED at runtime
+SET PERSIST event_scheduler=DISABLED;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of 'DISABLED'
+# Should fail: data type still checked even with persist_only
+SET PERSIST_ONLY event_scheduler=123.456;
+ERROR 42000: Incorrect argument type to variable 'event_scheduler'
+# Should work: check not called for PERSIST_ONLY
+SET PERSIST_ONLY event_scheduler=DISABLED;
+# cleanup
+RESET PERSIST event_scheduler;
+#
+# Bug #27374791: RESET PERSIST DOES IMPLICIT COMMIT AND DOESN'T NEED
+#                RELOAD PRIVILEGES
+#
+CREATE DATABASE bug27374791;
+USE bug27374791;
+CREATE TABLE T( i int);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+BEGIN;
+INSERT INTO T values (9);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SET PERSIST max_connections=31;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+RESET PERSIST;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SET GLOBAL max_connections=DEFAULT;
+DROP DATABASE bug27374791;
+#
+# Bug #27322254: WITH PERSIST_ONLY, VARIABLE VALUE EQUALS 18446744073709547520
+#                IS STORED AS -4096
+#
+SELECT @@max_binlog_cache_size;
+@@max_binlog_cache_size
+18446744073709547520
+SET PERSIST max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+VARIABLE_NAME= 'max_binlog_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_binlog_cache_size	18446744073709547520
+SET PERSIST_ONLY max_binlog_cache_size= @@global.max_binlog_cache_size;
+SELECT * FROM performance_schema.persisted_variables WHERE
+VARIABLE_NAME= 'max_binlog_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+max_binlog_cache_size	18446744073709547520
+SET @a=cast(@@max_binlog_cache_size as char);
+SELECT @a;
+@a
+18446744073709547520
+RESET PERSIST;
+SET GLOBAL max_binlog_cache_size= DEFAULT;
+# End of the 8.0 tests

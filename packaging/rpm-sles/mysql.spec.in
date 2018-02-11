@@ -104,6 +104,23 @@ Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
+BuildRequires:  perl(Config)
+BuildRequires:  perl(Cwd)
+BuildRequires:  perl(Data::Dumper)
+BuildRequires:  perl(File::Basename)
+BuildRequires:  perl(File::Copy)
+BuildRequires:  perl(File::Find)
+BuildRequires:  perl(File::Path)
+BuildRequires:  perl(File::Spec)
+BuildRequires:  perl(File::Spec::Functions)
+BuildRequires:  perl(File::Temp)
+BuildRequires:  perl(Getopt::Long)
+BuildRequires:  perl(IO::File)
+BuildRequires:  perl(IO::Select)
+BuildRequires:  perl(IO::Socket)
+BuildRequires:  perl(IO::Socket::INET)
+BuildRequires:  perl(JSON)
+BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  libaio-devel
 BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
@@ -282,6 +299,23 @@ MySQL database server
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
 Requires:       %{name}-server >= %{min}
+Requires:       perl(Config)
+Requires:       perl(Cwd)
+Requires:       perl(Data::Dumper)
+Requires:       perl(File::Basename)
+Requires:       perl(File::Copy)
+Requires:       perl(File::Find)
+Requires:       perl(File::Path)
+Requires:       perl(File::Spec)
+Requires:       perl(File::Spec::Functions)
+Requires:       perl(File::Temp)
+Requires:       perl(Getopt::Long)
+Requires:       perl(IO::File)
+Requires:       perl(IO::Select)
+Requires:       perl(IO::Socket)
+Requires:       perl(IO::Socket::INET)
+Requires:       perl(JSON)
+Requires:       perl(Sys::Hostname)
 %if 0%{?cluster}
 Requires:       %{name}-data-node%{?_isa} >= %{min}
 Requires:       %{name}-management-server%{?_isa} >= %{min}
@@ -627,10 +661,6 @@ rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
-rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
-rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
@@ -1237,7 +1267,7 @@ fi
 %endif
 
 %changelog
-* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+* Wed Jan 24 2018 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'
@@ -1246,6 +1276,8 @@ fi
 - Include udf_example.so in test package
 - Add component_validate_password component
 - Add License Book, remove COPYING
+- No longer need to remove obsoleted mysqltest man pages
+- Add perl modules for test subpackage
 
 * Fri Jul 28 2017 Horst Hunger <Horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin

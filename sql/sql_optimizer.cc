@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3465,7 +3465,6 @@ no_join_cache:
   If there is a test 'field = const' change all refs to 'field' to 'const'
   Remove all dummy tests 'item = item', 'const op const'.
   Remove all 'item is NULL', when item can never be null!
-  item->marker should be 0 for all items on entry
   Return in cond_value false if condition is impossible (1 = 2)
 *****************************************************************************/
 
@@ -4761,7 +4760,7 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
          functype == Item_func::EQUAL_FUNC) &&
         and_father != cond && !left_item->const_item())
     {
-      cond->marker=1;
+      cond->marker= Item::MARKER_CONST_PROPAG;
       COND_CMP *const cond_cmp= new COND_CMP(and_father,func);
       if (cond_cmp == NULL)
         return true;
@@ -4795,7 +4794,7 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
     {
       args[0]= args[1];                       // For easy check
       thd->change_item_tree(args + 1, value);
-      cond->marker=1;
+      cond->marker= Item::MARKER_CONST_PROPAG;
       COND_CMP *const cond_cmp= new COND_CMP(and_father,func);
       if (cond_cmp == NULL)
         return true;
@@ -4848,7 +4847,8 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
       }
     }
   }
-  else if (and_father != cond && !cond->marker)		// In a AND group
+  else if (and_father != cond &&
+           cond->marker != Item::MARKER_CONST_PROPAG) // In a AND group
   {
     Item_func *func;
     if (cond->type() == Item::FUNC_ITEM &&
@@ -9469,7 +9469,7 @@ make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
         considered 'expensive', and we want to delay evaluation of such 
         conditions to the execution phase.
   */
-  if (cond->marker == 3 ||                                             // 1
+  if (cond->marker == Item::MARKER_COND_ATTACH_OMIT ||                 // 1
       (cond->used_tables() & ~tables) ||                               // 2
       (!used_table && exclude_expensive_cond && cond->is_expensive())) // 3
     return NULL;
@@ -9479,7 +9479,7 @@ make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
      1. It has already been marked as applicable, or
      2. It is not a <comparison predicate> (=, <, >, <=, >=, <=>)
   */
-  if (cond->marker == 2 ||                                             // 1
+  if (cond->marker == Item::MARKER_COND_ATTACH_APPLY ||                // 1
       cond->eq_cmp_result() == Item::COND_OK)                          // 2
     return cond;
 
@@ -9513,11 +9513,11 @@ make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
         (right_item->type() == Item::FIELD_ITEM &&
          test_if_ref(root_cond, (Item_field*) right_item, left_item)))
     {
-      cond->marker= 3;                   // Condition can be omitted
+      cond->marker= Item::MARKER_COND_ATTACH_OMIT; // Condition can be omitted
       return NULL;
     }
   }
-  cond->marker= 2;                      // Mark condition as applicable
+  cond->marker= Item::MARKER_COND_ATTACH_APPLY; // Mark condition as applicable
   return cond;
 }
 
@@ -10869,8 +10869,6 @@ create_distinct_group(THD *thd,
   ORDER *order,*group,**prev;
 
   *all_order_by_fields_used= 1;
-  while ((item=li++))
-    item->marker=0;			/* Marker that field is not used */
 
   prev= &group;  group=0;
   for (order=order_list ; order; order=order->next)
@@ -10882,7 +10880,7 @@ create_distinct_group(THD *thd,
 	return 0;
       *prev=ord;
       prev= &ord->next;
-      (*ord->item)->marker=1;
+      (*ord->item)->marker= Item::MARKER_DISTINCT_GROUP;
     }
     else
       *all_order_by_fields_used= 0;
@@ -10891,7 +10889,8 @@ create_distinct_group(THD *thd,
   li.rewind();
   while ((item=li++))
   {
-    if (!item->const_item() && !item->has_aggregation() && !item->marker)
+    if (!item->const_item() && !item->has_aggregation() &&
+        item->marker != Item::MARKER_DISTINCT_GROUP)
     {
       /* 
         Don't put duplicate columns from the SELECT list into the 

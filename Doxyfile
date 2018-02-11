@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -478,7 +478,7 @@ TYPEDEF_HIDES_STRUCT   = NO
 # the optimal cache size from a speed point of view.
 # Minimum value: 0, maximum value: 9, default value: 0.
 
-LOOKUP_CACHE_SIZE      = 1
+LOOKUP_CACHE_SIZE      = 2
 
 #---------------------------------------------------------------------------
 # Build related configuration options
@@ -884,6 +884,7 @@ INPUT                  = ./client \
                          ./sql-common \
                          ./storage \
                          ./strings \
+                         ./libmysql \
                          ./vio
 
 # This tag can be used to specify the character encoding of the source files
@@ -948,8 +949,6 @@ EXCLUDE                = cmd-line-utils \
                          include/sql_state.h \
                          internal \
                          libevent \
-                         libmysql \
-                         libmysql_r \
                          plugin/innodb_memcached/daemon_memcached/include/memcached \
                          source_downloads \
                          sql/sql_hints.cc \

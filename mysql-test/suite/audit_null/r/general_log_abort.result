@@ -1,0 +1,32 @@
+INSTALL PLUGIN null_audit SONAME 'adt_null.so';
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GENERAL_LOG';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT 1;
+1
+1
+#######################################
+## ABORT GENERAL LOG WITH MY_MESSAGE ##
+#######################################
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;ABORT_RET';
+SELECT 1;
+ERROR HY000: Abort with my_message.
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SELECT 1;
+1
+1
+UNINSTALL PLUGIN null_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

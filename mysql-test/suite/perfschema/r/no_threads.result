@@ -12,7 +12,7 @@ thread_handling	no-threads
 show status like "Performance_schema_thread_instances_lost";
 Variable_name	Value
 Performance_schema_thread_instances_lost	0
-create table test.t1(a int) engine=MYISAM;
+create table test.t1(a int);
 show global variables like "performance_schema";
 Variable_name	Value
 performance_schema	ON

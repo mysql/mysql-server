@@ -39,7 +39,6 @@ do st_symdifference(
   st_makeenvelope(point(11192,-20054) , point(8128,144115188075855874))
 );
 
---error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
 do st_symdifference(
   st_makeenvelope(point(16781,8388611),point(-15032,-2251799813685244)),
   st_makeenvelope(point(-21087,31851),point(18514,20243))

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3740,6 +3740,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
   }
 
   str->length(0);
+  str->set_charset(&my_charset_latin1);
   if ((null_value= g->as_wkt(str)))
   {
     DBUG_ASSERT(maybe_null);
@@ -5192,7 +5193,7 @@ const char *Item_func_spatial_collection::func_name() const
     str= "polygon";
     break;
   case Geometry::wkb_geometrycollection:
-    str= "geometrycollection";
+    str= "geomcollection";
     break;
   default:
     DBUG_ASSERT(false);

@@ -318,22 +318,40 @@ String *Item_func_sha2::val_str_ascii(String *str)
 #ifndef OPENSSL_NO_SHA512
   case 512:
     digest_length= SHA512_DIGEST_LENGTH;
+#ifdef HAVE_WOLFSSL
+    (void) SHA_HASH512(input_ptr, input_len, digest_buf);
+#else
     (void) SHA512(input_ptr, input_len, digest_buf);
+#endif
     break;
   case 384:
     digest_length= SHA384_DIGEST_LENGTH;
+#ifdef HAVE_WOLFSSL
+    (void) SHA_HASH384(input_ptr, input_len, digest_buf);
+#else
     (void) SHA384(input_ptr, input_len, digest_buf);
+#endif
     break;
 #endif
 #ifndef OPENSSL_NO_SHA256
   case 224:
+#ifdef HAVE_WOLFSSL
+    /* sha224 not supported in wolfSSL */
+    digest_length= SHA224_DIGEST_LENGTH;
+    (void) SHA_HASH224(input_ptr, input_len, digest_buf);
+#else
     digest_length= SHA224_DIGEST_LENGTH;
     (void) SHA224(input_ptr, input_len, digest_buf);
+#endif
     break;
   case 256:
   case 0: // SHA-256 is the default
     digest_length= SHA256_DIGEST_LENGTH;
+#ifdef HAVE_WOLFSSL
+    (void) SHA_HASH256(input_ptr, input_len, digest_buf);
+#else
     (void) SHA256(input_ptr, input_len, digest_buf);
+#endif
     break;
 #endif
   default:
@@ -406,10 +424,10 @@ bool Item_func_sha2::resolve_type(THD *thd)
   case 0: // SHA-256 is the default
     set_data_type_string(SHA256_DIGEST_LENGTH * 2, default_charset());
     break;
+#endif
   case 224:
     set_data_type_string(SHA224_DIGEST_LENGTH * 2, default_charset());
     break;
-#endif
   default:
     set_data_type_string(SHA256_DIGEST_LENGTH * 2, default_charset());
     push_warning_printf(thd,
@@ -1823,35 +1841,6 @@ String *Item_func_substr_index::val_str(String *str)
   return (&tmp_value);
 }
 
-void Item_func_roles_graphml::print(String *str, enum_query_type)
-{
-  str->append(func_name());
-  str->append("()");
-}
-
-bool Item_func_roles_graphml::fix_fields(THD *thd, Item **ref)
-{
-  Item_str_func::fix_fields(thd, ref);
-  Security_context *sctx= thd->security_context();
-  if (sctx && (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
-      sctx->check_access(SUPER_ACL, false)))
-    roles_graphml(thd, &m_str);
-  else
-    m_str.set(STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                              "<graphml />"), system_charset_info);
-  return false;  
-}
-
-String *Item_func_roles_graphml::val_str(String *str)
-{
-  if (str != 0)
-  {
-    str->copy(m_str);
-    return str;
-  }
-  return &m_str;
-}
-
 /*
 ** The trim functions are extension to ANSI SQL because they trim substrings
 ** They ltrim() and rtrim() functions are optimized for 1 byte strings
@@ -2258,18 +2247,6 @@ bool Item_func_user::fix_fields(THD *thd, Item **ref)
   return (Item_func_sysconst::fix_fields(thd, ref) ||
           init(thd->m_main_security_ctx.user().str,
                thd->m_main_security_ctx.host_or_ip().str));
-}
-
-bool Item_func_current_role::fix_fields(THD *thd, Item **ref)
-{
-  Item_str_func::fix_fields(thd, ref);
-  return false;
-}
-
-String *Item_func_current_role::val_str(String* str)
-{
-  THD *thd= current_thd;
-  return func_current_role(thd, str, &m_active_role);
 }
 
 bool Item_func_current_user::itemize(Parse_context *pc, Item **res)
@@ -5535,3 +5512,66 @@ String *Item_func_convert_cpu_id_mask::val_str(String *str)
   DBUG_RETURN(str);
 }
 
+void Item_func_current_role::cleanup()
+{
+  if (value_cache_set)
+  {
+    value_cache.set((char *)NULL, 0, system_charset_info);
+    value_cache_set= false;
+  }
+}
+
+String * Item_func_current_role::val_str(String *)
+{
+  set_current_role(current_thd);
+  return &value_cache;
+}
+
+void Item_func_current_role::set_current_role(THD * thd)
+{
+  if (!value_cache_set)
+  {
+    func_current_role(thd, &value_cache);
+    value_cache_set= true;
+  }
+}
+
+/**
+ @brief Constructs and caches the graphml string
+
+ Called once per query and the result cached inside value_cache
+
+ @param         thd     The current session
+
+ @retval false success
+ @retval true failure
+ */
+
+bool Item_func_roles_graphml::calculate_graphml(THD * thd)
+{
+  Security_context *sctx = thd->security_context();
+  if (sctx && (sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first ||
+    sctx->check_access(SUPER_ACL, false)))
+    roles_graphml(thd, &value_cache);
+  else
+    value_cache.set_ascii(
+      STRING_WITH_LEN("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+      "<graphml />"));
+  value_cache_set= true;
+  return false;
+}
+
+String * Item_func_roles_graphml::val_str(String *)
+{
+  calculate_graphml(current_thd);
+  return &value_cache;
+}
+
+void Item_func_roles_graphml::cleanup()
+{
+  if (value_cache_set)
+  {
+    value_cache.set((char *)NULL, 0, system_charset_info);
+    value_cache_set= false;
+  }
+}

@@ -2,14 +2,22 @@ typedef unsigned long long my_ulonglong;
 typedef int my_socket;
 #include "binary_log_types.h"
 typedef enum enum_field_types {
-  MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-  MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
-  MYSQL_TYPE_FLOAT, MYSQL_TYPE_DOUBLE,
-  MYSQL_TYPE_NULL, MYSQL_TYPE_TIMESTAMP,
-  MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-  MYSQL_TYPE_DATE, MYSQL_TYPE_TIME,
-  MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-  MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
+  MYSQL_TYPE_DECIMAL,
+  MYSQL_TYPE_TINY,
+  MYSQL_TYPE_SHORT,
+  MYSQL_TYPE_LONG,
+  MYSQL_TYPE_FLOAT,
+  MYSQL_TYPE_DOUBLE,
+  MYSQL_TYPE_NULL,
+  MYSQL_TYPE_TIMESTAMP,
+  MYSQL_TYPE_LONGLONG,
+  MYSQL_TYPE_INT24,
+  MYSQL_TYPE_DATE,
+  MYSQL_TYPE_TIME,
+  MYSQL_TYPE_DATETIME,
+  MYSQL_TYPE_YEAR,
+  MYSQL_TYPE_NEWDATE,
+  MYSQL_TYPE_VARCHAR,
   MYSQL_TYPE_BIT,
   MYSQL_TYPE_TIMESTAMP2,
   MYSQL_TYPE_DATETIME2,
@@ -211,7 +219,7 @@ typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, unsigned char *,
                             unsigned char *);
 typedef void(*Udf_func_deinit)(UDF_INIT *);
 typedef bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
-typedef void(*Udf_func_any)();
+typedef void(*Udf_func_any)(void);
 typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, unsigned char *,
                                  unsigned char *);
 typedef long long(*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, unsigned char *,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -855,7 +855,6 @@ const char* Handler::table_type() const {
       HA_NO_BLOBS |
       HA_NO_TRANSACTIONS |
       HA_NULL_IN_KEY |
-      HA_REC_NOT_IN_SEQ |
       HA_STATS_RECORDS_IS_EXACT;
   // clang-format on
 

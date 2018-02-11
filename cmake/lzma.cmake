@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ MACRO (FIND_SYSTEM_LZMA)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_LZMA)
+  SET(WITH_LZMA "bundled" CACHE STRING "By default use bundled lzma library")
   SET(BUILD_BUNDLED_LZMA 1)
   SET(LZMA_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/lzma)
   SET(LZMA_LIBRARY lzma_lib)

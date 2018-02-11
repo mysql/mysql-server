@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,13 +71,13 @@
 class THD;
 struct SYS_VAR;
 
-#if defined(HAVE_YASSL)
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/ssl.h>
-#endif
+#include <wolfssl_fix_namespace_pollution.h>
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
 bool caching_sha2_auto_generate_rsa_keys= true;
 #endif
 Rsa_authentication_keys *g_caching_sha2_rsa_keys= 0;
@@ -1122,7 +1122,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
     /* Decrypt password */
     RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
-                        RSA_PKCS1_PADDING);
+                        RSA_PKCS1_OAEP_PADDING);
 
     plain_text[cipher_length]= '\0'; // safety
     xor_string((char *) plain_text, cipher_length,
@@ -1405,7 +1405,7 @@ static MYSQL_SYSVAR_STR(public_key_path, caching_sha2_rsa_public_key_path,
   "A fully qualified path to the public RSA key used for authentication.",
   NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
 static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_keys,
   PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
   "Auto generate RSA keys at server startup if correpsonding "
@@ -1418,7 +1418,7 @@ static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_
 static SYS_VAR* caching_sha2_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
-#if !defined(HAVE_YASSL)
+#if !defined(HAVE_WOLFSSL)
   MYSQL_SYSVAR(auto_generate_rsa_keys),
 #endif
   0

@@ -281,6 +281,21 @@ bool Dictionary_impl::is_dd_table_name(const String_type &schema_name,
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Dictionary_impl::is_system_table_name(const String_type &schema_name,
+                                           const String_type &table_name) const
+{
+  if (!is_dd_schema_name(schema_name))
+    return false;
+
+  const System_tables::Types *table_type= System_tables::instance()->
+    find_type(schema_name, table_name);
+
+  return (table_type != nullptr &&
+          (*table_type == System_tables::Types::SYSTEM));
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 int Dictionary_impl::table_type_error_code(
   const String_type &schema_name,
   const String_type &table_name) const

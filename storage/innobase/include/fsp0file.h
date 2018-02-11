@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -305,6 +305,8 @@ public:
 		expected value
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
+	@retval DB_INVALID_ENCRYPTION_META if the encrypption meta data
+	        is not readable
 	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 	dberr_t validate_first_page(
 		space_id_t	space_id,

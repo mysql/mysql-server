@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -660,7 +660,10 @@ mem_strdupl(
 {
 	char*	s = static_cast<char*>(ut_malloc_nokey(len + 1));
 	s[len] = 0;
-	return(static_cast<char*>(memcpy(s, str, len)));
+	if (len > 0) {
+		memcpy(s, str, len);
+	}
+	return s;
 }
 
 /**********************************************************************//**
@@ -677,5 +680,8 @@ mem_heap_strdupl(
 {
 	char*	s = (char*) mem_heap_alloc(heap, len + 1);
 	s[len] = 0;
-	return((char*) memcpy(s, str, len));
+	if (len > 0) {
+		memcpy(s, str, len);
+	}
+	return s;
 }

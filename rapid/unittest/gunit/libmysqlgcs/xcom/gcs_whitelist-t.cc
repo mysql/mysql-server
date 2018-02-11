@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,6 +236,47 @@ TEST_F(GcsWhitelist, ListWithUnresolvableHostname)
   xcs->cleanup();
 
   ASSERT_EQ(err, GCS_OK);
+}
+
+TEST_F(GcsWhitelist, XComMembers)
+{
+  Gcs_ip_whitelist wl;
+  char const *members[]= { "8.8.8.8:12435", "8.8.4.4:1234" };
+  char **xcom_addrs= const_cast<char **>(members);
+  node_address *xcom_names= new_node_address(2, xcom_addrs);
+  site_def *xcom_config= new_site_def();
+  init_site_def(2, xcom_names, xcom_config);
+  wl.configure(Gcs_ip_whitelist::DEFAULT_WHITELIST);
+
+  ASSERT_FALSE(wl.shall_block("127.0.0.1", xcom_config));
+  ASSERT_TRUE(wl.shall_block("::1", xcom_config));
+  ASSERT_FALSE(wl.shall_block("192.168.1.2", xcom_config));
+  ASSERT_FALSE(wl.shall_block("192.168.2.2", xcom_config));
+  ASSERT_FALSE(wl.shall_block("10.0.0.1", xcom_config));
+  ASSERT_TRUE(wl.shall_block("172.15.0.1", xcom_config));
+  ASSERT_FALSE(wl.shall_block("172.16.0.1", xcom_config));
+  ASSERT_FALSE(wl.shall_block("172.24.0.1", xcom_config));
+  ASSERT_FALSE(wl.shall_block("172.31.0.1", xcom_config));
+  ASSERT_TRUE(wl.shall_block("172.38.0.1", xcom_config));
+
+  ASSERT_FALSE(wl.shall_block("8.8.8.8", xcom_config));
+  ASSERT_FALSE(wl.shall_block("8.8.4.4", xcom_config));
+  ASSERT_TRUE(wl.shall_block("8.8.8.9", xcom_config));
+  ASSERT_TRUE(wl.shall_block("8.8.9.8", xcom_config));
+  ASSERT_TRUE(wl.shall_block("8.9.8.8", xcom_config));
+  ASSERT_TRUE(wl.shall_block("9.8.8.8", xcom_config));
+
+  delete_node_address(2, xcom_names);
+  free_site_def(xcom_config);
+}
+
+
+TEST_F(GcsWhitelist, ComparisonBetweenIPv4AndIPv6)
+{
+  Gcs_ip_whitelist wl;
+  wl.configure("ac0f:0001::/32");
+
+  ASSERT_TRUE(wl.shall_block("172.15.0.1"));
 }
 
 

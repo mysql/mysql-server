@@ -609,14 +609,29 @@ IF ($key_group == 17)
 
 IF ($key_group == 18)
 {
-  eval CALL index_test($table, "WHERE channel_name is null");
-  eval CALL index_test($table, "WHERE channel_name is not null");
-  eval CALL index_test($table, "WHERE channel_name = '$target_channel_name'");
-  #eval CALL index_test($table, "WHERE channel_name != '$target_channel_name'");
-  eval CALL index_test($table, "WHERE channel_name = 'impossible'");
-  eval CALL index_test($table, "WHERE channel_name != 'impossible' ORDER BY channel_name DESC");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME is null");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME is not null");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = $target_channel_name");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME != $target_channel_name");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = 'impossible'");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME != 'impossible' ORDER BY CHANNEL_NAME DESC");
 }
 
+# CHANNEL_NAME, WORKER_ID
 
+IF ($key_group == 18.1)
+{
+  eval CALL index_test($table, "WHERE CHANNEL_NAME is null");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME is not null");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = $target_channel_name");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME != $target_channel_name");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = 'impossible'");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME != 'impossible' ORDER BY CHANNEL_NAME DESC");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = $target_channel_name AND WORKER_ID is null");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = $target_channel_name AND WORKER_ID is not null");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = $target_channel_name AND WORKER_ID = $target_worker_id");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = $target_channel_name AND WORKER_ID != $target_worker_id");
+  eval CALL index_test($table, "WHERE CHANNEL_NAME = $target_channel_name AND WORKER_ID = 9999");
+}
 
 --enable_query_log

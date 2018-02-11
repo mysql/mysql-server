@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@
 #include "sql/item_func.h"  // agg_arg_charsets_for_comparison()
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"    // Disable_semijoin_flattening
+
+using Mysql::Nullable;
 
 /**
   Transforms a textual option string from the user to a bitmask of ICU flags.
@@ -97,9 +99,11 @@ bool Item_func_regexp::fix_fields(THD *thd, Item **arguments) {
       ((m_cmp_collation.collation->state & MY_CS_CSSORT) != 0 ||
        (m_cmp_collation.collation->state & MY_CS_BINSORT) != 0);
 
-  uint32_t icu_flags;
+  uint32_t icu_flags = 0; // Avoids compiler warning on gcc 4.8.5.
   // match_parameter overrides coercion type.
-  if (ParseRegexpOptions(match_parameter(), is_case_sensitive, &icu_flags)) {
+  auto mp = match_parameter();
+  if (mp.has_value() &&
+      ParseRegexpOptions(mp.value(), is_case_sensitive, &icu_flags)) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return true;
   }
@@ -123,7 +127,8 @@ void Item_func_regexp::cleanup() {
 bool Item_func_regexp_instr::fix_fields(THD *thd, Item **arguments) {
   if (Item_func_regexp::fix_fields(thd, arguments)) return true;
 
-  if (return_option() != 0 && return_option() != 1) {
+  if (return_option().has_value() && return_option() != 0 &&
+      return_option() != 1) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0),
              "regexp_instr: return_option must be 1 or 0.");
     return true;
@@ -135,20 +140,36 @@ bool Item_func_regexp_instr::fix_fields(THD *thd, Item **arguments) {
 longlong Item_func_regexp_instr::val_int() {
   DBUG_ENTER("Item_func_regexp_instr::val_int");
   DBUG_ASSERT(fixed);
+  Nullable<int> pos = position();
+  Nullable<int> occ = occurrence();
+  Nullable<int> retopt = return_option();
+  if (!pos.has_value() || !occ.has_value() || !retopt.has_value() ||
+      !match_parameter().has_value()) {
+    null_value = true;
+    DBUG_RETURN(0);
+  }
   if (m_facade->SetPattern(pattern())) DBUG_RETURN(0);
-  Mysql::Nullable<int32_t> result =
-      m_facade->Find(subject(), position(), occurrence(), return_option());
+  Nullable<int32_t> result =
+      m_facade->Find(subject(), pos.value(), occ.value(), retopt.value());
   if (result.has_value()) DBUG_RETURN(result.value());
   null_value = true;
   DBUG_RETURN(0);
 }
 
 longlong Item_func_regexp_like::val_int() {
-  DBUG_ASSERT(fixed);
   DBUG_ENTER("Item_func_regexp_like::val_int");
+  DBUG_ASSERT(fixed);
+  if (!match_parameter().has_value()) {
+    null_value = true;
+    DBUG_RETURN(0);
+  }
   if (m_facade->SetPattern(pattern())) DBUG_RETURN(0);
-  Mysql::Nullable<bool> result =
-      m_facade->Matches(subject(), position(), occurrence());
+  /*
+    REGEXP_LIKE() does not take position and occurence arguments, so we trust
+    that the calls to their accessors below will return the default values.
+  */
+  Nullable<bool> result =
+      m_facade->Matches(subject(), position().value(), occurrence().value());
   null_value = !result.has_value();
   if (null_value) DBUG_RETURN(0);
 
@@ -162,20 +183,26 @@ bool Item_func_regexp_replace::resolve_type(THD *thd) {
 }
 
 String *Item_func_regexp_replace::val_str(String *buf) {
+  Nullable<int> pos = position();
+  Nullable<int> occ = occurrence();
   DBUG_ASSERT(fixed);
+  if (!pos.has_value() || !occ.has_value() || !match_parameter().has_value()) {
+    null_value = true;
+    return 0;
+  }
   if (m_facade->SetPattern(pattern())) {
     null_value = true;
     return nullptr;
   }
 
-  if (position() < 1) {
+  if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
     null_value = true;
     return nullptr;
   }
 
-  String *result = m_facade->Replace(subject(), replacement(), position(),
-                                     occurrence(), buf);
+  String *result = m_facade->Replace(subject(), replacement(), pos.value(),
+                                     occ.value(), buf);
   null_value = (result == nullptr);
   return result;
 }
@@ -188,16 +215,23 @@ bool Item_func_regexp_substr::resolve_type(THD *thd) {
 
 String *Item_func_regexp_substr::val_str(String *buf) {
   DBUG_ASSERT(fixed);
+  Nullable<int> pos = position();
+  Nullable<int> occ = occurrence();
+
+  if (!pos.has_value() || !occ.has_value() || !match_parameter().has_value()) {
+    null_value = true;
+    return 0;
+  }
   if (m_facade->SetPattern(pattern())) {
     null_value = true;
     return nullptr;
   }
-  if (position() < 1) {
+  if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
     null_value = true;
     return nullptr;
   }
-  String *result = m_facade->Substr(subject(), position(), occurrence(), buf);
+  String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);
   null_value = (result == nullptr);
   return result;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,8 @@ bool check_stack_overrun(const THD *thd, long margin,
   DBUG_ASSERT(thd == current_thd);
   long stack_used= used_stack(thd->thread_stack,
                               reinterpret_cast<char*>(&stack_used));
-  if (stack_used >= static_cast<long>(my_thread_stack_size - margin))
+  if (stack_used >= static_cast<long>(my_thread_stack_size - margin) ||
+      DBUG_EVALUATE_IF("simulate_stack_overrun", true, false))
   {
     /*
       Do not use stack for the message buffer to ensure correct

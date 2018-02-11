@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,6 @@
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
-#include <rapidjson/error/en.h>
-#include <rapidjson/error/error.h>
-#include <rapidjson/memorystream.h>
-#include <rapidjson/reader.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
@@ -37,6 +32,13 @@
 #include <cmath>                // std::isfinite
 #include <functional>           // std::function
 #include <new>
+
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+
+#include <rapidjson/error/en.h>
+#include <rapidjson/error/error.h>
+#include <rapidjson/memorystream.h>
+#include <rapidjson/reader.h>
 
 #include "base64.h"
 #include "decimal.h"

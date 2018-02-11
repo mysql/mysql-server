@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3319,7 +3319,7 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 
 					ib::info()
 						<< "Page cleaner took "
-						<< us << "ms to flush"
+						<< us << "ms to flush "
 						<< n_flushed_last
 						<< " and evict "
 						<< n_evicted << " pages";

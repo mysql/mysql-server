@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -274,6 +274,7 @@ static const SYMBOL symbols[] = {
   { SYM("FUNCTION",                 FUNCTION_SYM)},
   { SYM("GENERAL",                  GENERAL)},
   { SYM("GROUP_REPLICATION",        GROUP_REPLICATION)},
+  { SYM("GEOMCOLLECTION",           GEOMETRYCOLLECTION_SYM)},
   { SYM("GEOMETRY",                 GEOMETRY_SYM)},
   { SYM("GEOMETRYCOLLECTION",       GEOMETRYCOLLECTION_SYM)},
   { SYM("GET_FORMAT",               GET_FORMAT)},

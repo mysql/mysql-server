@@ -2026,6 +2026,12 @@ PFS_key_statement_id::match(const PFS_prepared_stmt *pfs)
 }
 
 bool
+PFS_key_worker_id::match_not_null(ulonglong worker_id)
+{
+  return do_match(false, worker_id);
+}
+
+bool
 PFS_key_socket_id::match(const PFS_socket *pfs)
 {
   bool record_null = (pfs->m_fd == 0);
@@ -2321,6 +2327,18 @@ PFS_key_name::match(const char *name, size_t name_length)
 {
   bool record_null = (name_length == 0);
   return do_match(record_null, name, name_length);
+}
+
+bool
+PFS_key_name::match_not_null(const LEX_STRING *name)
+{
+  return do_match(false, name->str, name->length);
+}
+
+bool
+PFS_key_name::match_not_null(const char *name, size_t name_length)
+{
+  return do_match(false, name, name_length);
 }
 
 bool

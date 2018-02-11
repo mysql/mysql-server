@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,8 @@ Created 5/30/1994 Heikki Tuuri
 
 #ifndef rem0types_h
 #define rem0types_h
+
+#include "univ.i"
 
 /* We define the physical record simply as an array of bytes */
 typedef byte	rec_t;

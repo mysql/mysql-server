@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -125,11 +125,17 @@ message UpdateOperation {
 // :param grouping: column expression list for aggregation (GROUP BY)
 // :param grouping_criteria: filter criteria for aggregated groups
 // :param locking: perform row locking on matches
+// :param locking_options: additional options how to handle locked rows
 // :Returns: :protobuf:msg:`Mysqlx.Resultset::`
 message Find {
   enum RowLock {
     SHARED_LOCK = 1;   // Lock matching rows against updates
     EXCLUSIVE_LOCK = 2;  // Lock matching rows so no other transaction can read or write to it
+  };
+
+  enum RowLockOptions {
+    NOWAIT = 1;   // Do not wait to acquire row lock, fail with an error if a requested row is locked
+    SKIP_LOCKED = 2;  // Do not wait to acquire a row lock, remove locked rows from the result set
   };
 
   required Collection collection = 2;
@@ -143,6 +149,7 @@ message Find {
   repeated Mysqlx.Expr.Expr grouping = 8;
   optional Mysqlx.Expr.Expr grouping_criteria = 9;
   optional RowLock locking = 12;
+  optional RowLockOptions locking_options = 13;
 
   option (client_message_id) = CRUD_FIND; // comment_out_if PROTOBUF_LITE
 };

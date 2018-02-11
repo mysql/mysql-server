@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -462,6 +462,28 @@ btr_store_big_rec_extern_fields(
 			if (do_insert) {
 				error = lob::z_insert(&ctx, trx, blobref,
 					&big_rec_vec->fields[i], i);
+
+				if (op == lob::OPCODE_UPDATE
+				    && upd != nullptr) {
+
+					/* Get the corresponding upd_field_t
+					object.*/
+					upd_field_t* uf =
+						upd->get_field_by_field_no(
+							field_no, index);
+
+					if (uf != nullptr) {
+						/* Update the LOB reference
+						stored in upd_field_t */
+						dfield_t* new_val = &uf->new_val;
+
+						if (dfield_is_ext(new_val)) {
+							byte* field_ref
+								= new_val->blobref();
+							blobref.copy(field_ref);
+						}
+					}
+				}
 			}
 
 		} else {
@@ -504,6 +526,26 @@ btr_store_big_rec_extern_fields(
 
 				error = lob::insert(&ctx, trx, blobref,
 						    &big_rec_vec->fields[i], i);
+
+				if (op == lob::OPCODE_UPDATE
+				    && upd != nullptr) {
+
+					/* Get the corresponding upd_field_t
+					object.*/
+					upd_field_t* uf =
+						upd->get_field_by_field_no(
+							field_no, index);
+
+					if (uf != nullptr) {
+						/* Update the LOB reference
+						stored in upd_field_t */
+						dfield_t* new_val = &uf->new_val;
+						if (dfield_is_ext(new_val)) {
+							byte* field_ref = new_val->blobref();
+							blobref.copy(field_ref);
+						}
+					}
+				}
 			}
 		}
 

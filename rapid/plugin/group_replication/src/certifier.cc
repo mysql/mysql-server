@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,8 @@ void Certifier_broadcast_thread::dispatcher()
       observer_trans_clear_io_cache_unused_list(); /* purecov: inspected */
   }
 
-  Gcs_interface_factory::cleanup(Gcs_operations::get_gcs_engine());
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+    Gcs_operations::get_gcs_engine());
 
   thd->release_resources();
   global_thd_manager_remove_thd(thd);

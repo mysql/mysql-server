@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -413,6 +413,7 @@ bool Group_check::is_fd_on_source(Item *item)
 
   // no need to search for keys in those tables:
   table_map tested_map_for_keys= whole_tables_fd;
+  recheck_nullable_keys= 0;
   while (true)
   {
     // build En+1
@@ -436,7 +437,7 @@ bool Group_check::is_fd_on_source(Item *item)
       for (uint keyno= 0; keyno < tl->table->s->keys; keyno++)
       {
         KEY *const key_info= &tl->table->key_info[keyno];
-        if ((key_info->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME)
+        if (!(key_info->flags & HA_NOSAME))
           continue;
         uint k;
         for (k= 0; k < key_info->user_defined_key_parts; k++)
@@ -448,7 +449,10 @@ bool Group_check::is_fd_on_source(Item *item)
             Item *const item3= fd.at(l)->real_item();    // Go down view field
             if (item3->type() != Item::FIELD_ITEM)
               continue;
-            if (static_cast<Item_field *>(item3)->field == key_field)
+            if (static_cast<Item_field *>(item3)->field == key_field &&
+                // Not a nullable column, or can be treated as not nullable
+                (!key_field->real_maybe_null() ||
+                 item3->marker == Item::MARKER_FUNC_DEP_NOT_NULL))
             {
               key_field_in_fd= true;
               break;
@@ -485,7 +489,9 @@ bool Group_check::is_fd_on_source(Item *item)
     if (select->where_cond())                   // WHERE
       find_fd_in_cond(select->where_cond(), 0, false);
 
-    table_map map_of_new_fds= 0;
+    table_map map_of_new_fds= recheck_nullable_keys;
+    recheck_nullable_keys= 0;
+
     for (; last_fd < fd.size(); ++last_fd)
       map_of_new_fds|= fd.at(last_fd)->used_tables();
 
@@ -932,8 +938,28 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
 
 
 /**
+  @returns an element of 'fd' array equal to 'item', or nullptr if not found.
+  @param 'item' Item to search for.
+*/
+Item *Group_check::get_fd_equal(Item *item)
+{
+  for (uint j= 0; j < fd.size(); j++)
+  {
+    Item *const item2= fd.at(j);
+    if (item2->eq(item, 0))
+      return item2;
+    Item *const real_it2= item2->real_item();
+    if (real_it2 != item2 && real_it2->eq(item, 0))
+      return item2;
+  }
+  return nullptr;
+}
+
+
+/**
    Searches for equality-based functional dependences in an AND-ed part of a
    condition (a conjunct).
+   Search for columns which are known-not-nullable due to the conjunct.
 
    @param  cond        complete condition
    @param  conjunct    one AND-ed part of 'cond'
@@ -950,29 +976,97 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
   if (conjunct->type() != Item::FUNC_ITEM)
     return;
   const Item_func *cnj= static_cast<const Item_func *>(conjunct);
-  if (cnj->functype() != Item_func::EQ_FUNC)
-    return;
-  Item *left_item= cnj->arguments()[0];
-  Item *right_item= cnj->arguments()[1];
-  if (left_item->type() == Item::ROW_ITEM &&
-      right_item->type() == Item::ROW_ITEM)
+  if (cnj->functype() == Item_func::EQ_FUNC)
   {
-    /*
-      (a,b)=(c,d) is equivalent to 'a=c and b=d', let's iterate on pairs.
-      Note that it's not recursive: we don't handle (a,(b,c))=(d,(e,f)), the
-      Standard does not seem to require it.
-    */
-    Item_row *left_row= down_cast<Item_row*>(left_item);
-    Item_row *right_row= down_cast<Item_row*>(right_item);
-    int elem= left_row->cols();
-    while (--elem >= 0)
-      analyze_scalar_eq(cond, left_row->element_index(elem),
-                        right_row->element_index(elem),
-                        weak_tables, weak_side_upwards);
+    Item *left_item= cnj->arguments()[0];
+    Item *right_item= cnj->arguments()[1];
+    if (left_item->type() == Item::ROW_ITEM &&
+        right_item->type() == Item::ROW_ITEM)
+    {
+      /*
+        (a,b)=(c,d) is equivalent to 'a=c and b=d', let's iterate on pairs.
+        Note that it's not recursive: we don't handle (a,(b,c))=(d,(e,f)), the
+        Standard does not seem to require it.
+      */
+      Item_row *left_row= down_cast<Item_row*>(left_item);
+      Item_row *right_row= down_cast<Item_row*>(right_item);
+      int elem= left_row->cols();
+      while (--elem >= 0)
+        analyze_scalar_eq(cond, left_row->element_index(elem),
+                          right_row->element_index(elem),
+                          weak_tables, weak_side_upwards);
+    }
+    else
+      analyze_scalar_eq(cond, left_item, right_item, weak_tables,
+                        weak_side_upwards);
   }
-  else
-    analyze_scalar_eq(cond, left_item, right_item, weak_tables,
-                      weak_side_upwards);
+  /*
+    'cnj' can be a non-equality and still reject NULLs for a certain column,
+    which can help us discover known-not-null columns. @see OUTEREQ in
+    aggregate_check.h for an explanation.
+    For example: = < > <> >= <= and IS NOT NULL.
+  */
+  const table_map not_null_tables= cnj->not_null_tables();
+  if (!not_null_tables)
+    return;
+  if (cnj->functype() == Item_func::NOT_FUNC) // to handle e.g. NOT LIKE
+  {
+    conjunct= cnj->arguments()[0];
+    if (conjunct->type() != Item::FUNC_ITEM)
+      return;
+    cnj= static_cast<const Item_func *>(conjunct); // Dive in NOT's argument.
+    /*
+      We intentionally keep not_null_tables of the NOT, as we're interested in
+      what makes the NOT not true, not what makes NOT's argument not true.
+    */
+  }
+  for (Item **parg= cnj->arguments(), **parg_end= parg + cnj->argument_count();
+       parg != parg_end; parg++)
+  {
+    Item *const arg= *parg;
+    const table_map used_tables= arg->used_tables();
+    Item *arg_in_fd;
+    /*
+      Check if:
+      (1) it's a local column,
+      (2) a NULL value for this column makes the function return FALSE or
+      UNKNOWN; note that we do not dive into each argument, so will not get
+      into complicated cases like: coalesce(t1.a,2)+t1.b=3 ('cnj' is '='
+      here), and can thus be sure that not_null_tables() is a good enough
+      test; if we dove into the '+' argument, we may end up finding 'a' and
+      thinking a NULL value of 'a' makes "=" UNKNOWN (while it's a NULL
+      value of 'b' which does and explains the presence of t1 in
+      not_null_tables()). There is only one case where we dive because it's
+      easy, it's NOT.
+      (3) the condition is in WHERE, or is an outer join condition and the
+      column's table is on weak side.
+      (4) the column is represented by some Item_ident in the FD list.
+      If so, we mark the said Item as "not nullable in its base table", and
+      we ask for a re-check of unique indexes of this table.
+    */
+    if (!(used_tables & not_null_tables) ||              // (2)
+        (weak_tables && !(used_tables & weak_tables)) || // (3)
+        !local_column(arg) ||                            // (1)
+        !(arg_in_fd= get_fd_equal(arg)))                 // (4)
+      continue;
+    /*
+      Mark the item as "can be treated as not nullable in its
+      table".
+      We are not going to mark 'arg'; consider:
+       SELECT ... WHERE a IS NOT NULL GROUP BY a;
+      the Item 'a' in the IS NOT NULL predicate is not part of 'fd', it is
+      invisible to the rest of the FD-detection logic (e.g. the logic which
+      looks at unique keys); what matters is marking one copy
+      present in 'fd': 'arg_in_fd' (here the Item 'a' of GROUP BY).
+    */
+    if (arg_in_fd->marker != Item::MARKER_FUNC_DEP_NOT_NULL)
+    {
+      // If a merged view's column, mark the underlying expression too
+      arg_in_fd->marker= arg_in_fd->real_item()->marker=
+        Item::MARKER_FUNC_DEP_NOT_NULL;
+      recheck_nullable_keys|= used_tables;
+    }
+  }
 }
 
 

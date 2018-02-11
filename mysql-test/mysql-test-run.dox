@@ -322,6 +322,75 @@
         A file name of the form <b><em>test_name</em>.cnf</b> contains
         additional entries for the config file to be used for this
         test.
+
+        <ul>
+          <li>
+            During a test run, each server is started with a different
+            <b>defaults-group-suffix</b> value and this suffix value
+            can be used with a group name to specify server specific
+            options. For example, section <b>[mysqld.1]</b> is used to
+            specify options for mysqld server with suffix value
+            <b>".1"</b>.
+          </li>
+
+          <li>
+            The <b>[mysqltest]</b> section is used to specify options
+            for mysqltest client.
+          </li>
+
+          <li>
+            The <b>[ENV]</b> section is used to specify environment
+            variables for a test case.
+          </li>
+
+          <li>
+            To include the options mentioned in another <b>.cnf</b>
+            file, <b>!include path_to_cnf_file</b> is used. Path to
+            the included <b>.cnf</b> should either be an absolute path
+            or a relative path from current location or from
+            <b>mysql-test</b> directory.
+          </li>
+        </ul>
+
+        Here is a sample <b>.cnf</b> file.
+
+        @verbatim
+  !include include/default_my.cnf
+
+  [mysqld.1]
+  Options for server mysqld.1
+
+  [mysqld.2]
+  Options for server mysqld.2
+
+  [mysqltest]
+  ps-protocol
+
+  ...
+  ...
+  ...
+
+  [ENV]
+  SERVER_MYPORT_1= @mysqld.1.port
+  SERVER_MYPORT_2= @mysqld.2.port
+        @endverbatim
+      </li>
+
+      <li>
+        A file name of the form <b><em>suite</em>.opt</b> provides
+        server options to all the tests within the suite it belongs
+        to.
+
+        If a test run is started with more than one server, the
+        options specified in a <b><em>suite</em>.opt</b> are used by
+        all of them. It is also possible to pass the server options
+        needed during the server initialization in the
+        <b><em>suite</em>.opt</b> file.
+
+        The options mentioned in the <b><em>suite</em>.opt</b> file
+        are overridden by those found in a
+        <b><em>test_name</em>-master.opt</b> file or in a
+        <b><em>test_name</em>-slave.opt</b> file.
       </li>
 
       <li>
@@ -447,6 +516,38 @@
       The <b>suite</b> directory contains a set of subdirectories
       containing named test suites. Each subdirectory represents a
       test suite with the same name.
+
+      A test suite directory contains the following components:
+
+      <ul>
+        <li>
+          The <b>t</b> directory contains test cases.
+        </li>
+
+        <li>
+          The <b>r</b> directory contains test case result files.
+        </li>
+
+        <li>
+          The <b>include</b> directory contains files that are
+          included by the test cases belonging to that suite.
+        </li>
+
+        <li>
+          A file name of the form <b>combinations</b> provides section
+          of options for each test run. See @ref
+          PAGE_CONTROLLING_BINARY_LOG_FORMAT.
+        </li>
+
+        <li>
+          A file name of the form <b><em>my</em>.cnf</b> contains
+          additional entries for the config file used by all the tests
+          within the suite it belongs to.
+
+          A suite specific <b><em>my</em>.cnf</b> file is overridden
+          by a <b><em>test_name</em>.cnf</b> file.
+        </li>
+      </ul>
     </li>
 
     <li>
@@ -3217,9 +3318,7 @@
 
       The protocols permitted by the client for encrypted connections.
       The value is a comma-separated list containing one or more of
-      these protocols: TLSv1, TLSv1.1, TLSv1.2. (TLSv1.2 is supported
-      only if MySQL was compiled using OpenSSL 1.0.1 or higher. It is
-      not supported if MySQL was compiled using yaSSL).
+      these protocols: TLSv1, TLSv1.1, TLSv1.2.
     </li>
 
     <li>

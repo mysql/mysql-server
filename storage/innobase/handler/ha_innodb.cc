@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -675,6 +675,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(dict_table_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(parser_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(fil_system_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -3089,8 +3090,7 @@ ha_innobase::ha_innobase(
 	m_ds_mrr(this),
 	m_prebuilt(),
 	m_user_thd(),
-	m_int_table_flags(HA_REC_NOT_IN_SEQ
-			  | HA_NULL_IN_KEY
+	m_int_table_flags(HA_NULL_IN_KEY
 			  | HA_CAN_INDEX_BLOBS
 			  | HA_CAN_SQL_HANDLER
 			  | HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
@@ -7063,7 +7063,10 @@ ha_innobase::open(
 				ib_table = nullptr;
 				cached = true;
 			} else if (ib_table->refresh_fk) {
+				ib_table->lock();
 				ib_table->acquire();
+				ib_table->unlock();
+
 				dict_names_t    fk_tables;
 				mutex_exit(&dict_sys->mutex);
 				dd::cache::Dictionary_client*
@@ -7101,7 +7104,9 @@ reload:
 					dict_table_remove_from_cache(ib_table);
 					ib_table = nullptr;
 				} else {
+					ib_table->lock();
 					ib_table->acquire();
+					ib_table->unlock();
 				}
 			}
 
@@ -11290,10 +11295,6 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	/* If temp table, then we avoid creation of entries in SYSTEM TABLES.
-	Given that temp table lifetime is limited to connection/server lifetime
-	on re-start we don't need to restore temp-table and so no entry is
-	needed in SYSTEM tables. */
 	if (table->is_temporary()) {
 
 		if (m_create_info->compress.length > 0) {
@@ -11340,8 +11341,11 @@ err_col:
 				} else {
 					dict_table_add_system_columns(
 						table, temp_table_heap);
+
+					mutex_enter(&dict_sys->mutex);
 					dict_table_add_to_cache(
 						table, FALSE, temp_table_heap);
+					mutex_exit(&dict_sys->mutex);
 				}
 
 				DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
@@ -11463,7 +11467,13 @@ err_col:
 	}
 
 	if (err == DB_SUCCESS && (m_flags2 & DICT_TF2_FTS)) {
+		mutex_enter(&dict_sys->mutex);
 		fts_optimize_add_table(table);
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	if (err == DB_SUCCESS) {
+		m_table = table;
 	}
 
 error_ret:
@@ -12859,75 +12869,27 @@ index_bad:
 	DBUG_RETURN(true);
 }
 
-/** Prevent the created table to be evicted from cache, also all auxiliary tables.
-Call this if the DD would be updated after dict_sys mutex is released,
-since all opening table functions require metadata updated to DD.
-@return	True	The eviction of base table is changed, so detach should handle it
-@return	False	Already not evicted base table */
-bool
-create_table_info_t::prevent_eviction()
-{
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	bool	prevent;
-
-	/* With the dict_sys mutex protection, the table should
-	be in cache for now */
-	dict_table_t*	table = dd_table_open_on_name_in_mem(
-		m_table_name, true);
-	ut_ad(table != NULL);
-
-	if (table->can_be_evicted) {
-		dict_table_ddl_acquire(table);
-		prevent = true;
-	} else {
-		prevent = false;
-	}
-
-	if ((table->flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID))
-	    || table->fts != nullptr) {
-		fts_freeze_aux_tables(table);
-	}
-
-	dd_table_close(table, NULL, NULL, true);
-
-	return(prevent);
-}
-
-/** Detach the just created table and its auxiliary tables
-@param[in]	force		True if caller wants this table to be
-				not evictable and ignore 'prevented'
-@param[in]	prevented	True if the base table was prevented
-				to be evicted by prevent_eviction()
-@param[in]	dict_locked	True if dict_sys mutex is held */
+/** Detach the just created table and its auxiliary tables if exist */
 void
-create_table_info_t::detach(
-	bool	force,
-	bool	prevented,
-	bool	dict_locked)
+create_table_info_t::detach()
 {
-	if (!dict_locked) {
-		mutex_enter(&dict_sys->mutex);
+	ut_ad(!mutex_own(&dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
+
+	ut_ad(m_table != nullptr);
+	ut_ad(!m_table->can_be_evicted);
+	ut_ad(!m_table->is_temporary());
+
+	if (!m_table->explicitly_non_lru) {
+		dict_table_allow_eviction(m_table);
 	}
 
-	dict_table_t*	table = dd_table_open_on_name_in_mem(
-		m_table_name, true);
-	ut_ad(table != NULL);
-
-	if (!force && prevented && !table->can_be_evicted) {
-		dict_table_ddl_release(table);
+	if ((m_table->flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID))
+	    || m_table->fts != nullptr) {
+		fts_detach_aux_tables(m_table, true);
 	}
 
-	if ((table->flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID))
-	    || table->fts != nullptr) {
-		fts_detach_aux_tables(table, true);
-	}
-
-	dd_table_close(table, NULL, NULL, true);
-
-	if (!dict_locked) {
-		mutex_exit(&dict_sys->mutex);
-	}
+	mutex_exit(&dict_sys->mutex);
 }
 
 /** Parse MERGE_THRESHOLD value from the string.
@@ -13125,6 +13087,8 @@ create_table_info_t::initialize()
 
 	m_trx->will_lock++;
 
+	m_table = nullptr;
+
 	DBUG_RETURN(0);
 }
 
@@ -13148,7 +13112,7 @@ create_table_info_t::initialize_autoinc()
 
 	if (innobase_table == NULL) {
 		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true);
+			m_table_name, false);
 	} else {
 		innobase_table->acquire();
 		ut_ad(innobase_table->is_intrinsic());
@@ -13194,7 +13158,7 @@ create_table_info_t::initialize_autoinc()
 		dict_table_autoinc_unlock(innobase_table);
 	}
 
-	dd_table_close(innobase_table, nullptr, nullptr, true);
+	dd_table_close(innobase_table, nullptr, nullptr, false);
 }
 
 /** Prepare to create a new table to an InnoDB database.
@@ -13334,7 +13298,6 @@ create_table_info_t::create_table(
 	int		error;
 	uint		primary_key_no;
 	uint		i;
-	dict_table_t*	innobase_table = NULL;
 	const char*	stmt;
 	size_t		stmt_len;
 
@@ -13376,6 +13339,8 @@ create_table_info_t::create_table(
 		DBUG_RETURN(error);
 	}
 
+	ut_ad(m_table != nullptr);
+
 	/* Create the keys */
 
 	if (m_form->s->keys == 0 || primary_key_no == MAX_KEY) {
@@ -13404,12 +13369,6 @@ create_table_info_t::create_table(
 	if (m_flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID)) {
 		fts_doc_id_index_enum	ret;
 
-		/* The table object should be in memory */
-		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true);
-
-		ut_a(innobase_table);
-
 		/* Check whether there already exists FTS_DOC_ID_INDEX */
 		ret = innobase_fts_check_doc_id_index_in_def(
 			m_form->s->keys, m_form->key_info);
@@ -13428,13 +13387,12 @@ create_table_info_t::create_table(
 					    " make sure it is of correct"
 					    " type\n",
 					    FTS_DOC_ID_INDEX_NAME,
-					    innobase_table->name.m_name);
+					    m_table->name.m_name);
 
-			if (innobase_table->fts) {
-				fts_free(innobase_table);
+			if (m_table->fts) {
+				fts_free(m_table);
 			}
 
-			dd_table_close(innobase_table, NULL, NULL, true);
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
 			error = -1;
@@ -13445,14 +13403,12 @@ create_table_info_t::create_table(
 		}
 
 		dberr_t	err = fts_create_common_tables(
-			m_trx, innobase_table, m_table_name,
+			m_trx, m_table, m_table_name,
 			(ret == FTS_EXIST_DOC_ID_INDEX));
 
 		error = convert_error_code_to_mysql(err, 0, NULL);
 
-		DICT_TF2_FLAG_UNSET(innobase_table, DICT_TF2_FTS_ADD_DOC_ID);
-
-		dd_table_close(innobase_table, NULL, NULL, true);
+		DICT_TF2_FLAG_UNSET(m_table, DICT_TF2_FTS_ADD_DOC_ID);
 
 		if (error) {
 			DBUG_RETURN(error);
@@ -13476,16 +13432,12 @@ create_table_info_t::create_table(
 	/* Cache all the FTS indexes on this table in the FTS specific
 	structure. They are used for FTS indexed column update handling. */
 	if (m_flags2 & DICT_TF2_FTS) {
-		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true);
 
-		fts_t*	fts = innobase_table->fts;
+		fts_t*	fts = m_table->fts;
 
 		ut_a(fts != NULL);
 
-		dict_table_get_all_fts_indexes(innobase_table, fts->indexes);
-
-		dd_table_close(innobase_table, NULL, NULL, true);
+		dict_table_get_all_fts_indexes(m_table, fts->indexes);
 	}
 
 	stmt = innobase_get_stmt_unsafe(m_thd, &stmt_len);
@@ -13509,10 +13461,13 @@ create_table_info_t::create_table(
 	    dd_table->referenced_keys().empty() */
 	) {
 		dberr_t	err = DB_SUCCESS;
+
+		mutex_enter(&dict_sys->mutex);
 		err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
 			m_create_info->options & HA_LEX_CREATE_TMP_TABLE,
 			dd_table);
+		mutex_exit(&dict_sys->mutex);
 
 		switch (err) {
 
@@ -13559,17 +13514,6 @@ create_table_info_t::create_table(
 		}
 	}
 
-	if (!is_intrinsic_temp_table()) {
-		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, true);
-
-		if (innobase_table != NULL) {
-			dd_table_close(innobase_table, NULL, NULL, true);
-		}
-	} else {
-		innobase_table = NULL;
-	}
-
 	DBUG_RETURN(0);
 }
 
@@ -13578,60 +13522,53 @@ create_table_info_t::create_table(
 int
 create_table_info_t::create_table_update_dict()
 {
-	dict_table_t*	innobase_table;
-
 	DBUG_ENTER("create_table_update_dict");
 
-	innobase_table = thd_to_innodb_session(m_thd)->lookup_table_handler(
-		m_table_name);
+	DBUG_ASSERT(m_table != nullptr);
 
-	if (innobase_table == NULL) {
-		innobase_table = dd_table_open_on_name_in_mem(
-			m_table_name, false);
-		ut_ad(innobase_table);
-	} else {
-		innobase_table->acquire();
-		ut_ad(innobase_table->is_intrinsic());
+#ifdef UNIV_DEBUG
+	if (m_table->is_intrinsic()) {
+		dict_table_t*	innobase_table =
+			thd_to_innodb_session(m_thd)->lookup_table_handler(
+				m_table_name);
+		ut_ad(m_table == innobase_table);
 	}
+#endif /* UNIV_DEBUG */
 
-	DBUG_ASSERT(innobase_table != 0);
 	/* Temp table must be uncompressed and reside in tmp tablespace. */
-	ut_ad(!dict_table_is_compressed_temporary(innobase_table));
-	if (innobase_table->fts != NULL) {
-		if (innobase_table->fts_doc_id_index == NULL) {
-			innobase_table->fts_doc_id_index
+	ut_ad(!dict_table_is_compressed_temporary(m_table));
+	if (m_table->fts != NULL) {
+		if (m_table->fts_doc_id_index == NULL) {
+			m_table->fts_doc_id_index
 				= dict_table_get_index_on_name(
-					innobase_table, FTS_DOC_ID_INDEX_NAME);
-			DBUG_ASSERT(innobase_table->fts_doc_id_index != NULL);
+					m_table, FTS_DOC_ID_INDEX_NAME);
+			DBUG_ASSERT(m_table->fts_doc_id_index != NULL);
 		} else {
-			DBUG_ASSERT(innobase_table->fts_doc_id_index
+			DBUG_ASSERT(m_table->fts_doc_id_index
 				    == dict_table_get_index_on_name(
-						innobase_table,
+						m_table,
 						FTS_DOC_ID_INDEX_NAME));
 		}
 	}
 
-	DBUG_ASSERT((innobase_table->fts == NULL)
-		    == (innobase_table->fts_doc_id_index == NULL));
+	DBUG_ASSERT((m_table->fts == NULL)
+		    == (m_table->fts_doc_id_index == NULL));
 
-	innobase_copy_frm_flags_from_create_info(innobase_table, m_create_info);
+	innobase_copy_frm_flags_from_create_info(m_table, m_create_info);
 
-	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE);
+	dict_stats_update(m_table, DICT_STATS_EMPTY_TABLE);
+
+	/* Since no dict_table_close(), deinitialize it explicitly. */
+	dict_stats_deinit(m_table);
 
 	/* Load server stopword into FTS cache */
 	if (m_flags2 & DICT_TF2_FTS) {
-		if (!innobase_fts_load_stopword(innobase_table, NULL, m_thd)) {
-			dict_table_close(innobase_table, FALSE, FALSE);
+		if (!innobase_fts_load_stopword(m_table, NULL, m_thd)) {
 			DBUG_RETURN(-1);
 		}
 	}
 
-	/* Note: We can't call update_thd() as m_prebuilt will not be
-	setup at this stage and so we use thd. */
-
-	dd_table_close(innobase_table, nullptr, nullptr, false);
-
-	innobase_parse_hint_from_comment(m_thd, innobase_table, m_form->s);
+	innobase_parse_hint_from_comment(m_thd, m_table, m_form->s);
 	DBUG_RETURN(0);
 }
 
@@ -13661,43 +13598,39 @@ create_table_info_t::create_table_update_global_dd(
 	dd::cache::Dictionary_client*   client = dd::get_dd_client(m_thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-	dict_table_t*	table = dd_table_open_on_name_in_mem(
-		m_table_name, false);
-	ut_ad(table != NULL);
-	ut_ad(!table->is_temporary());
+	ut_ad(m_table != NULL);
+	ut_ad(!m_table->is_temporary());
 
-	bool		file_per_table = dict_table_is_file_per_table(table);
+	bool		file_per_table = dict_table_is_file_per_table(m_table);
 	dd::Object_id	dd_space_id = dd::INVALID_OBJECT_ID;
-	bool		is_dd_table = table->space == dict_sys_t::s_space_id;
+	bool		is_dd_table = m_table->space == dict_sys_t::s_space_id;
 
 	if (is_dd_table) {
 		dd_space_id = dict_sys_t::s_dd_space_id;
-	} else if (table->space == TRX_SYS_SPACE) {
+	} else if (m_table->space == TRX_SYS_SPACE) {
 		dd_space_id = dict_sys_t::s_dd_sys_space_id;
 	} else if (file_per_table) {
-		char* filename = fil_space_get_first_path(table->space);
+		char* filename = fil_space_get_first_path(m_table->space);
 
 		if (dd_create_implicit_tablespace(
-			client, m_thd, table->space,
-			table->name.m_name,
+			client, m_thd, m_table->space,
+			m_table->name.m_name,
 			filename, false, dd_space_id)) {
 
 			ut_free(filename);
-			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
 		ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
 		ut_free(filename);
 	} else {
-		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
+		ut_ad(DICT_TF_HAS_SHARED_SPACE(m_table->flags));
 
 		dd_space_id = dd_get_space_id(*dd_table);
 
 		const dd::Tablespace*	index_space = NULL;
 		if (client->acquire<dd::Tablespace>(
 			    dd_space_id, &index_space)) {
-			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
@@ -13706,35 +13639,31 @@ create_table_info_t::create_table_update_global_dd(
 
 		uint32	id;
 		if (index_space == NULL) {
-			dict_table_close(table, FALSE, FALSE);
 			my_error(ER_TABLESPACE_MISSING, MYF(0),
-				 table->name.m_name);
+				 m_table->name.m_name);
 			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 		} else if (index_space->se_private_data().get_uint32(
 				    dd_space_key_strings[DD_SPACE_ID], &id)
-			   || id != table->space) {
+			   || id != m_table->space) {
 			ut_ad(!"missing or incorrect tablespace id");
-			dict_table_close(table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 	}
 
-	table->dd_space_id = dd_space_id;
+	m_table->dd_space_id = dd_space_id;
 
-	dd_set_table_options(dd_table, table);
+	dd_set_table_options(dd_table, m_table);
 
-	dd_write_table(dd_space_id, dd_table, table);
+	dd_write_table(dd_space_id, dd_table, m_table);
 
 	if (m_flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID)) {
 		ut_d(bool	ret =)
-		fts_create_common_dd_tables(table);
+		fts_create_common_dd_tables(m_table);
 		ut_ad(ret);
-		fts_create_index_dd_tables(table);
+		fts_create_index_dd_tables(m_table);
 	}
 
-	ut_ad(dd_table_match(table, dd_table));
-
-	dd_table_close(table, nullptr, nullptr, false);
+	ut_ad(dd_table_match(m_table, dd_table));
 
 	DBUG_RETURN(0);
 }
@@ -13808,36 +13737,9 @@ innobase_basic_ddl::create_impl(
 		return(error);
 	}
 
-	bool	dict_locked = false;
-	bool	prevent_eviction = false;
-	bool	prevented = false;
-	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
-	or lock waits can happen in it during a table create operation.
-	Drop table etc. do this latching in row0mysql.cc.
-	Avoid locking dictionary if table is intrinsic.
-	Table Object for such table is cached in THD instead of storing it
-	to dictionary. */
-	if (!info.is_intrinsic_temp_table()) {
-		row_mysql_lock_data_dictionary(trx);
-		trx->dict_operation_lock_mode = RW_X_LATCH;
-		dict_locked = true;
-	}
-
 	if ((error = info.create_table(
 		dd_tab != nullptr ? &dd_tab->table() : nullptr))) {
 		goto cleanup;
-	}
-
-	if (!info.is_intrinsic_temp_table()) {
-		ut_ad(!srv_read_only_mode);
-
-		/* Prevent eviction before releasing dict_sys mutex */
-		prevent_eviction = info.prevent_eviction();
-		prevented = true;
-
-		row_mysql_unlock_data_dictionary(trx);
-		trx->dict_operation_lock_mode = 0;
-		dict_locked = false;
 	}
 
 	if ((error = info.create_table_update_global_dd(dd_tab))) {
@@ -13846,46 +13748,35 @@ innobase_basic_ddl::create_impl(
 
 	error = info.create_table_update_dict();
 
-	if (prevent_eviction || prevented) {
-		info.detach(!evictable, prevent_eviction, false);
+	if (evictable
+	    && !(info.is_temp_table() || info.is_intrinsic_temp_table())) {
+		info.detach();
 	}
 
 	return(error);
 
 cleanup:
-	if (prevent_eviction || prevented) {
-		info.detach(!evictable, prevent_eviction, dict_locked);
-	}
+	if (!info.is_intrinsic_temp_table() && info.is_temp_table()) {
 
-	if (!info.is_intrinsic_temp_table()) {
-		if (info.is_temp_table()) {
+		mutex_enter(&dict_sys->mutex);
 
-			if (!dict_locked) {
-				row_mysql_lock_data_dictionary(trx);
-				dict_locked = true;
+		dict_table_t*	table =
+			dict_table_check_if_in_cache_low(norm_name);
+
+		if (table != nullptr) {
+			for (dict_index_t* index = table->first_index();
+			     index != nullptr;
+			     index = index->next()) {
+				ut_ad(index->space == table->space);
+				page_no_t	root = index->page;
+				index->page = FIL_NULL;
+				dict_drop_temporary_table_index(
+					index, root);
 			}
-
-			dict_table_t*	table =
-				dict_table_check_if_in_cache_low(norm_name);
-
-			if (table != nullptr) {
-				for (dict_index_t* index = table->first_index();
-				     index != nullptr;
-				     index = index->next()) {
-					ut_ad(index->space == table->space);
-					page_no_t	root = index->page;
-					index->page = FIL_NULL;
-					dict_drop_temporary_table_index(
-						index, root);
-				}
-				dict_table_remove_from_cache(table);
-			}
+			dict_table_remove_from_cache(table);
 		}
 
-		if (dict_locked) {
-			row_mysql_unlock_data_dictionary(trx);
-			trx->dict_operation_lock_mode = 0;
-		}
+		mutex_exit(&dict_sys->mutex);
 	} else {
 		dict_table_t* intrinsic_table =
 			thd_to_innodb_session(thd)->lookup_table_handler(

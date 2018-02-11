@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,11 +34,13 @@ Database Physical Snapshot
 #define CLONE_SNAPSHOT_INCLUDE
 
 #include "univ.i"
-#include "fil0fil.h"
-#include "clone0desc.h"
+
 #include "arch0log.h"
 #include "arch0page.h"
+#include "clone0desc.h"
 #include "clone0monitor.h"
+#include "fil0fil.h"
+#include "sql/handler.h"
 
 #include <vector>
 #include <map>

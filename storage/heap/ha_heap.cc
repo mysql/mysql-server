@@ -197,8 +197,7 @@ handler *ha_heap::clone(const char*, MEM_ROOT *mem_root)
 
 const char *ha_heap::table_type() const
 {
-  return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
-    "HEAP" : "MEMORY";
+  return "MEMORY";
 }
 
 /**

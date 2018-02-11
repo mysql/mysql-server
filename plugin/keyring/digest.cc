@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/keyring/digest.h"
-
 #include <cstring>
 
 #include "my_dbug.h"
@@ -87,8 +86,12 @@ namespace keyring
   {
     //We are using SHA256 method from mysys_ssl library which symbols are exported
     //by mysqld. SHA256 is defined in both cases - when server is linked with openssl
-    //and when it is linked with yassl.
+    //and when it is linked with wolfSSL.
+#ifdef HAVE_WOLFSSL
+    (void) SHA_HASH256(memory, memory_size, value);
+#else
     (void)::SHA256(memory, memory_size, value);
-    is_empty= false;
+#endif
+    is_empty = false;
   }
 }//namespace keyring

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ public:
   const char *table_type() const { return "ARCHIVE"; }
   ulonglong table_flags() const
   {
-    return (HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_CAN_BIT_FIELD |
+    return (HA_NO_TRANSACTIONS | HA_CAN_BIT_FIELD |
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_STATS_RECORDS_IS_EXACT |
             HA_HAS_RECORDS | HA_CAN_REPAIR |

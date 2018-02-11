@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2274,7 +2274,7 @@ longlong Item_func_mod::int_op()
   uval0= (ulonglong) (val0_negative && val0 != LLONG_MIN ? -val0 : val0);
   uval1= (ulonglong) (val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 % uval1;
-  return check_integer_overflow(val0_negative ? -(longlong) res : res,
+  return check_integer_overflow(val0_negative ? -res : res,
                                 !val0_negative);
 }
 
@@ -3619,7 +3619,7 @@ bool Item_func_min_max::cmp_datetimes(longlong *value)
       return true;
     if ((null_value= args[i]->null_value))
       return true;
-    if (i == 0 || (tmp < res ? cmp_sign : -cmp_sign) > 0)
+    if (i == 0 || (tmp < res) == m_is_least_func)
       res= tmp;
   }
   *value= res;
@@ -3635,7 +3635,7 @@ bool Item_func_min_max::cmp_times(longlong *value)
     longlong tmp= args[i]->val_time_temporal();
     if ((null_value= args[i]->null_value))
       return true;
-    if (i == 0 || (tmp < res ? cmp_sign : -cmp_sign) > 0)
+    if (i == 0 || (tmp < res) == m_is_least_func)
       res= tmp;
   }
   *value= res;
@@ -3645,12 +3645,12 @@ bool Item_func_min_max::cmp_times(longlong *value)
 
 String *Item_func_min_max::str_op(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
+  null_value= false;
   if (compare_as_dates())
   {
     longlong result= 0;
-    if (cmp_datetimes(&result))
-      return nullptr;
+    if (cmp_datetimes(&result)) return nullptr;
 
     /*
       If result is greater than 0, the winning argument was successfully
@@ -3663,27 +3663,34 @@ String *Item_func_min_max::str_op(String *str)
       MYSQL_TIME ltime;
       enum_field_types field_type= temporal_item->data_type();
       TIME_from_longlong_packed(&ltime, field_type, result);
-      return (null_value= my_TIME_to_str(&ltime, str, decimals)) ?
-                          nullptr : str;
+      return (null_value= my_TIME_to_str(&ltime, str, decimals)) ? nullptr
+                                                                 : str;
     }
   }
 
   // Find the least/greatest argument based on string value.
-  String tmp_buf, *res= nullptr;
+  String *res= nullptr;
+  bool res_in_str= false;
   for (uint i= 0; i < arg_count; i++)
   {
-    String *tmp= args[i]->val_str(res == str ? &tmp_buf : str);
-    if ((null_value= args[i]->null_value))
-      return nullptr;
-    if (i == 0 || (sortcmp(tmp, res, collation.collation) < 0 ?
-                   cmp_sign : -cmp_sign) > 0)
-      res= tmp;
-  }
-  //  Result must be copied from temporary buffer to remain valid after return.
-  if (res == &tmp_buf)
-  {
-    str->copy(tmp_buf);
-    res = str;
+    /*
+      Because val_str() may reallocate the underlying buffer of its String
+      parameter, it is paramount the passed String argument do not share an
+      underlying buffer with the currently stored result against which it will
+      be compared to ensure that String comparison operates on two
+      non-overlapping buffers.
+    */
+    String *val_buf= res_in_str ? &m_string_buf : str;
+    DBUG_ASSERT(!res ||
+                (res != val_buf && !res->uses_buffer_owned_by(val_buf)));
+    String *val= args[i]->val_str(val_buf);
+    if ((null_value = args[i]->null_value)) return nullptr;
+    if (i == 0 ||
+        (sortcmp(val, res, collation.collation) < 0) == m_is_least_func)
+    {
+      res= val;
+      res_in_str= !res_in_str;
+    }
   }
   res->set_charset(collation.collation);
   return res;
@@ -3736,9 +3743,8 @@ double Item_func_min_max::real_op()
   for (uint i= 0; i < arg_count; i++)
   {
     const double tmp= args[i]->val_real();
-    if ((null_value= args[i]->null_value))
-      break;
-    if (i == 0 || (tmp < result ? cmp_sign : -cmp_sign) > 0)
+    if ((null_value= args[i]->null_value)) break;
+    if (i == 0 || (tmp < result) == m_is_least_func)
       result= tmp;
 
   }
@@ -3747,33 +3753,26 @@ double Item_func_min_max::real_op()
 
 longlong Item_func_min_max::int_op()
 {
-  DBUG_ASSERT(fixed == 1);
-  null_value= 0;
-  longlong result= 0;
+  DBUG_ASSERT(fixed);
+  null_value= false;
+  longlong res= 0;
   if (compare_as_dates())
   {
-    if (cmp_datetimes(&result))
-      return 0;
-    return longlong_from_datetime_packed(temporal_item->data_type(), result);
+    if (cmp_datetimes(&res)) return 0;
+    return longlong_from_datetime_packed(temporal_item->data_type(), res);
   }
 
   // Find the least/greatest argument based on integer value.
-  longlong res= args[0]->val_int();
-  bool val_unsigned= args[0]->unsigned_flag;
   for (uint i= 0; i < arg_count; i++)
   {
-    const longlong tmp= args[i]->val_int();
-    if ((null_value= args[i]->null_value))
-      return 0;
-    const bool tmp_unsigned= args[i]->unsigned_flag;
-    const bool tmp_is_smaller=
-        Integer_value(tmp, tmp_unsigned) < Integer_value(res, val_unsigned);
-
-    if (i == 0 || (tmp_is_smaller ? cmp_sign : -cmp_sign) > 0)
-    {
-      res= tmp;
-      val_unsigned= tmp_unsigned;
-    }
+    DBUG_ASSERT(!unsigned_flag || (unsigned_flag && args[i]->unsigned_flag));
+    const longlong val= args[i]->val_int();
+    if ((null_value= args[i]->null_value)) return 0;
+    const bool val_is_smaller=
+        unsigned_flag
+            ? static_cast<ulonglong>(val) < static_cast<ulonglong>(res)
+            : val < res;
+    if (i == 0 || val_is_smaller == m_is_least_func) res= val;
   }
   return res;
 }
@@ -3798,7 +3797,7 @@ my_decimal *Item_func_min_max::decimal_op(my_decimal *dec)
     my_decimal *tmp= args[i]->val_decimal(res == dec ? &tmp_buf : dec);
     if ((null_value= args[i]->null_value))
       return nullptr;
-    if (i == 0 || (my_decimal_cmp(tmp, res) < 0 ? cmp_sign : -cmp_sign) > 0)
+    if (i == 0 || (my_decimal_cmp(tmp, res) < 0) == m_is_least_func)
       res= tmp;
   }
   //  Result must me copied from temporary buffer to remain valid after return.
@@ -4317,11 +4316,17 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     {
       if (!(*arg)->fixed &&
           (*arg)->fix_fields(thd, arg))
-	DBUG_RETURN(1);
+      {
+        free_udf(u_d);
+        DBUG_RETURN(true);
+      }
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
       if (item->check_cols(1))
-	DBUG_RETURN(true);
+      {
+        free_udf(u_d);
+        DBUG_RETURN(true);
+      }
       /*
 	TODO: We should think about this. It is not always
 	right way just to set an UDF result to return my_charset_bin
@@ -4356,7 +4361,10 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     }
   }
   if (func->resolve_type(thd))
+  {
+    free_udf(u_d);
     DBUG_RETURN(true);
+  }
   initid.max_length=func->max_length;
   initid.maybe_null=func->maybe_null;
   initid.const_item= used_tables_cache == 0;
@@ -4435,6 +4443,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
              u_d->name.str, ER_THD(thd, ER_UNKNOWN_ERROR));
+    free_udf(u_d);
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
@@ -7482,7 +7491,10 @@ String* Item_func_get_system_var::val_str(String* str)
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
-      str->set (val_int(), collation.collation);
+      if (unsigned_flag)
+        str->set ((ulonglong)val_int(), collation.collation);
+      else
+        str->set (val_int(), collation.collation);
       break;
     case SHOW_DOUBLE:
       str->set_real (val_real(), decimals, collation.collation);

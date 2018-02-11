@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,23 @@
 #ifdef XCOM_HAVE_OPENSSL
 #include <assert.h>
 #include <stdlib.h>
+#include <wolfssl_fix_namespace_pollution_pre.h>
+
+#include <openssl/dh.h>
+#include <openssl/opensslv.h>
+
+#include <wolfssl_fix_namespace_pollution.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
+#include <wolfssl_fix_namespace_pollution_pre.h>
+
 #include "openssl/engine.h"
+
+#include <wolfssl_fix_namespace_pollution.h>
+
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
@@ -41,21 +52,11 @@ static const char *ssl_mode_options[] = {
 #define SSL_MODE_OPTIONS_COUNT \
   (sizeof(ssl_mode_options) / sizeof(*ssl_mode_options))
 
+
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
 
-#ifdef HAVE_YASSL
-static const char *tls_ciphers_list =
-    "DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:"
-    "AES128-RMD:DES-CBC3-RMD:DHE-RSA-AES256-RMD:"
-    "DHE-RSA-AES128-RMD:DHE-RSA-DES-CBC3-RMD:"
-    "AES256-SHA:RC4-SHA:RC4-MD5:DES-CBC3-SHA:"
-    "DES-CBC-SHA:EDH-RSA-DES-CBC3-SHA:"
-    "EDH-RSA-DES-CBC-SHA:AES128-SHA:AES256-RMD";
-static const char *tls_cipher_blocked =
-    "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:";
-#else
-static const char *tls_ciphers_list =
+static const char* tls_ciphers_list= 
     "ECDHE-ECDSA-AES128-GCM-SHA256:"
     "ECDHE-ECDSA-AES256-GCM-SHA384:"
     "ECDHE-RSA-AES128-GCM-SHA256:"
@@ -82,8 +83,7 @@ static const char *tls_ciphers_list =
     "DH-DSS-AES256-SHA256:ECDH-ECDSA-AES256-SHA384:AES128-SHA:"
     "DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
     "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DHE-RSA-AES256-GCM-SHA384:"
-    "DH-RSA-AES128-GCM-SHA256:ECDH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-"
-    "SHA384:"
+    "DH-RSA-AES128-GCM-SHA256:ECDH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-SHA384:"
     "ECDH-RSA-AES256-GCM-SHA384:DH-RSA-AES128-SHA256:"
     "ECDH-RSA-AES128-SHA256:DH-RSA-AES256-SHA256:"
     "ECDH-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:"
@@ -93,12 +93,11 @@ static const char *tls_ciphers_list =
     "AES128-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
     "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:"
     "ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:DES-CBC3-SHA";
-static const char *tls_cipher_blocked =
+static const char* tls_cipher_blocked=
     "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:"
     "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
     "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
     "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
-#endif
 
 /*
   Diffie-Hellman key.
@@ -176,32 +175,25 @@ SSL_CTX *client_ctx = NULL;
   considering multiple-byte characters as the original server
   code does.
 */
-static long process_tls_version(const char *tls_version) {
-  const char *separator = ", ";
-  char *token = NULL;
-#ifndef HAVE_YASSL
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
-#define TLS_VERSIONS_COUNTS \
-  (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
-  unsigned int tls_versions_count = TLS_VERSIONS_COUNTS;
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
-      SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
-  const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2";
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
-#else
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1"};
-#define TLS_VERSIONS_COUNTS \
-  (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
-  unsigned int tls_versions_count = TLS_VERSIONS_COUNTS;
-  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {SSL_OP_NO_TLSv1,
-                                                  SSL_OP_NO_TLSv1_1};
-  const char *ctx_flag_default = "TLSv1,TLSv1.1";
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
-#endif
-  unsigned int index = 0;
-  char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
-  int tls_found = 0;
-  char *saved_ctx = NULL;
+static long process_tls_version(const char *tls_version)
+{
+  const char *separator= ", ";
+  char *token= NULL;
+  const char *tls_version_name_list[]= {
+    "TLSv1", "TLSv1.1", "TLSv1.2"
+  };
+  #define TLS_VERSIONS_COUNTS \
+    (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
+  unsigned int tls_versions_count= TLS_VERSIONS_COUNTS;
+  const long tls_ctx_list[TLS_VERSIONS_COUNTS]= {
+    SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2
+  };
+  const char* ctx_flag_default= "TLSv1,TLSv1.1,TLSv1.2";
+  long tls_ctx_flag= SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
+  unsigned int index= 0;
+  char tls_version_option[TLS_VERSION_OPTION_SIZE]= "";
+  int tls_found= 0;
+  char *saved_ctx= NULL;
 
   if (!tls_version || !xcom_strcasecmp(tls_version, ctx_flag_default)) return 0;
 
@@ -251,13 +243,13 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
     goto error;
   }
 
-  ssl_ctx_options =
-      (ssl_ctx_options | ssl_ctx_flags) &
-      (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1
-#ifndef HAVE_YASSL
-       | SSL_OP_NO_TLSv1_2
-#endif
-       );
+  ssl_ctx_options= (ssl_ctx_options | ssl_ctx_flags) &
+                   (SSL_OP_NO_SSLv2 |
+                    SSL_OP_NO_SSLv3 |
+                    SSL_OP_NO_TLSv1 |
+                    SSL_OP_NO_TLSv1_1 |
+                    SSL_OP_NO_TLSv1_2
+                   );
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
 
@@ -321,9 +313,10 @@ static int configure_ssl_revocation(SSL_CTX *ssl_ctx MY_ATTRIBUTE((unused)),
                                     const char *crl_file,
                                     const char *crl_path) {
   int retval = 0;
-  if (crl_file || crl_path) {
-#ifndef HAVE_YASSL
-    X509_STORE *store = SSL_CTX_get_cert_store(ssl_ctx);
+  if (crl_file || crl_path)
+  {
+#ifndef HAVE_WOLFSSL
+    X509_STORE *store= SSL_CTX_get_cert_store(ssl_ctx);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
         X509_STORE_set_flags(
@@ -516,9 +509,11 @@ error:
 void xcom_cleanup_ssl() {
   if (!xcom_use_ssl()) return;
 
+#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif
 }
 
 void xcom_destroy_ssl() {
@@ -538,7 +533,7 @@ void xcom_destroy_ssl() {
     client_ctx = NULL;
   }
 
-#if defined(HAVE_YASSL) && defined(WITH_SSL_STANDALONE)
+#if defined(HAVE_WOLFSSL) && defined(WITH_SSL_STANDALONE)
   yaSSL_CleanUp();
 #elif defined(WITH_SSL_STANDALONE)
   ENGINE_cleanup();

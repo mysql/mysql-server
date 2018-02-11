@@ -6128,7 +6128,13 @@ Fil_shard::ibd_open_for_recovery(
 	Assign a tablespace name based on the tablespace type. */
 	dberr_t	err = df.validate_for_recovery(space_id);
 
-	ut_a(err == DB_SUCCESS);
+	ut_a(err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META);
+	if (err == DB_INVALID_ENCRYPTION_META) {
+		bool	success = fil_system->erase(space_id);
+		ut_a(success);
+		return(FIL_LOAD_NOT_FOUND);
+	}
+
 	ut_a(df.space_id() == space_id);
 
 	/* Get and test the file size. */
@@ -6279,7 +6285,6 @@ Fil_shard::ibd_open_for_recovery(
 			df.m_encryption_key, df.m_encryption_iv);
 
 		if (err != DB_SUCCESS) {
-
 			ib::error()
 				<< "Can't set encryption information for"
 				" tablespace " << space->name << "!";
@@ -11178,7 +11183,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 
 		for (auto id : space_ids) {
 
-			if (space_id != id) {
+			if (id == 0 || space_id != id) {
 
 				space_id = ULINT32_UNDEFINED;
 
@@ -11276,7 +11281,7 @@ Tablespace_dirs::duplicate_check(
 
 		} else {
 
-			ib::warn()
+			ib::info()
 				<< "Ignoring '" << phy_filename << "' invalid"
 				<< " tablespace ID in the header";
 		}
@@ -11703,7 +11708,7 @@ Fil_path::convert_to_filename_charset(std::string& name)
 	char	old_name[MAX_TABLE_NAME_LEN + 20];
 	char	filename[MAX_TABLE_NAME_LEN + 20];
 
-	strncpy(filename, name.c_str(), sizeof(filename));
+	strncpy(filename, name.c_str(), sizeof(filename) - 1);
 	strncpy(old_name, filename, sizeof(old_name));
 
 	ut_ad(strchr(filename, '/') == nullptr);

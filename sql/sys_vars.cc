@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3813,10 +3813,16 @@ bool Sys_var_charptr::global_update(THD*, set_var *var)
 }
 
 
-bool Sys_var_enum_binlog_checksum::global_update(THD*, set_var *var)
+bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
   bool check_purge= false;
 
+  /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
@@ -3984,6 +3990,12 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
   bool ret= true;
 
   /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
+  /*
     Hold lock_log so that:
     - other transactions are not flushed while gtid_mode is changed;
     - gtid_mode is not changed while some other thread is rotating
@@ -4004,14 +4016,23 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
     any of the other locks, but want to read gtid_mode, don't need
     to take the other locks.
   */
-  gtid_mode_lock->wrlock();
+
+  enum_gtid_mode new_gtid_mode=
+    (enum_gtid_mode)var->save_result.ulonglong_value;
+
+  if (gtid_mode_lock->trywrlock())
+  {
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0),
+             get_gtid_mode_string(new_gtid_mode),
+             "there is a concurrent operation that disallows changes to @@GLOBAL.GTID_MODE");
+    DBUG_RETURN(ret);
+  }
+
   channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   global_sid_lock->wrlock();
   int lock_count= 4;
 
-  enum_gtid_mode new_gtid_mode=
-    (enum_gtid_mode)var->save_result.ulonglong_value;
   enum_gtid_mode old_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
   DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
 
@@ -4343,35 +4364,6 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                 MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
   }
-  if (sql_mode & MODE_ORACLE)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS | MODE_NO_AUTO_CREATE_USER);
-  if (sql_mode & MODE_MSSQL)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_POSTGRESQL)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_DB2)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_MAXDB)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS | MODE_NO_AUTO_CREATE_USER);
-  if (sql_mode & MODE_MYSQL40)
-    sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
-  if (sql_mode & MODE_MYSQL323)
-    sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
@@ -4383,14 +4375,15 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
 }
 static bool check_sql_mode(sys_var*, THD *thd, set_var *var)
 {
-  var->save_result.ulonglong_value=
+  const sql_mode_t candidate_mode=
     expand_sql_mode(var->save_result.ulonglong_value, thd);
+  var->save_result.ulonglong_value= candidate_mode;
 
   /* Warning displayed only if the non default sql_mode is specified. */
   if (var->value)
   {
     /* Check if the NO_AUTO_CREATE_USER flag has been swapped. */
-    if ((thd->variables.sql_mode ^ var->save_result.ulonglong_value) &
+    if ((thd->variables.sql_mode ^ candidate_mode) &
         MODE_NO_AUTO_CREATE_USER)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -4398,6 +4391,15 @@ static bool check_sql_mode(sys_var*, THD *thd, set_var *var)
                           ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
     }
+  }
+
+  if (candidate_mode & ~MODE_ALLOWED_MASK)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SQLMODE,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                        "HEI HEI");
+    return true;
   }
 
   return false;
@@ -4416,14 +4418,16 @@ static bool fix_sql_mode(sys_var* self, THD *thd, enum_var_type type)
 }
 /*
   WARNING: When adding new SQL modes don't forget to update the
-  tables definitions that stores it's value (ie: mysql.event, mysql.routines)
+  tables definitions that stores it's value (ie: mysql.event, mysql.routines,
+  mysql.triggers)
 */
 static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE", ",",
   "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION", "NO_DIR_IN_CREATE",
-  "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
-  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
+  "NOT_USED_9", "NOT_USED_10", "NOT_USED_11", "NOT_USED_12", "NOT_USED_13",
+  "NOT_USED_14",
+  "NOT_USED_15", "NOT_USED_16", "NOT_USED_17", "NOT_USED_18", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
   "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE", "NO_ZERO_DATE",
   "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO", "TRADITIONAL",
@@ -4488,13 +4492,9 @@ static Sys_var_charptr Sys_ssl_capath(
 
 static Sys_var_charptr Sys_tls_version(
        "tls_version",
-       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2(Only for openssl)",
+       "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2",
        READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
-#ifdef HAVE_YASSL
-       IN_FS_CHARSET, "TLSv1,TLSv1.1");
-#else
        IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
-#endif
 
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
@@ -4523,7 +4523,7 @@ static Sys_var_charptr Sys_ssl_crlpath(
        READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
 static Sys_var_bool Sys_auto_generate_certs(
        "auto_generate_certs",
        "Auto generate SSL certificates at server startup if --ssl is set to "
@@ -4537,7 +4537,7 @@ static Sys_var_bool Sys_auto_generate_certs(
        ON_CHECK(NULL),
        ON_UPDATE(NULL),
        NULL);
-#endif /* HAVE_OPENSSL && !HAVE_YASSL */
+#endif /* HAVE_OPENSSL && !HAVE_WOLFSSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
@@ -5692,6 +5692,16 @@ static Sys_var_bool Sys_relay_log_recovery(
        "starts re-fetching from the master right after the last transaction "
        "processed",
         READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(false));
+
+static Sys_var_ulong Sys_rpl_read_size(
+       "rpl_read_size",
+       "The size for reads done from the binlog and relay log. "
+       "It must be a multiple of 4kb. Making it larger might help with IO "
+       "stalls while reading these files when they are not in the OS buffer "
+       "cache",
+       GLOBAL_VAR(rpl_read_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE * 2, ULONG_MAX), DEFAULT(IO_SIZE * 2),
+       BLOCK_SIZE(IO_SIZE));
 
 static Sys_var_bool Sys_slave_allow_batching(
        "slave_allow_batching", "Allow slave to batch requests",

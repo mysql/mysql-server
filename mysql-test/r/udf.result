@@ -608,3 +608,15 @@ ALTER TABLE mysql.func ENGINE = MYISAM;
 SELECT * FROM mysql.func;
 name	ret	dl	type
 ALTER TABLE mysql.func ENGINE = INNODB;
+#
+# Bug #27270498: DROPPING A UDF FUNCTION DOES NOT REMOVE ENTRY FROM PFS TABLE
+#
+CREATE FUNCTION is_const RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+SELECT is_const((1,2,3));
+ERROR 21000: Operand should contain 1 column(s)
+DROP FUNCTION  is_const;
+# Should return 0 rows.
+SELECT * FROM performance_schema.user_defined_functions
+WHERE udf_name = 'is_const';
+UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
+# End of the 8.0 tests

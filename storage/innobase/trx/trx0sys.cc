@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -450,6 +450,8 @@ trx_sys_create(void)
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
 
 	trx_sys->mvcc = UT_NEW_NOKEY(MVCC(1024));
+
+	trx_sys->min_active_id = 0;
 
 	new(&trx_sys->rw_trx_ids) trx_ids_t(ut_allocator<trx_id_t>(
 			mem_key_trx_sys_t_rw_trx_ids));

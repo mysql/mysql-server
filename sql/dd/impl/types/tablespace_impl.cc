@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
@@ -532,6 +533,13 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
     if (select_clos_where_key_matches
         ([&tblrefs,&tid] (Raw_record *r)
          {
+           long long int ht= r->read_int(Tables::FIELD_HIDDEN);
+           if (ht == Abstract_table::HT_HIDDEN_SE)
+           {
+             // Skip tables owned by SE. SE must ensure proper locking.
+             return false;
+           }
+
            tblrefs.push_back({tid,
                  r->read_str(Tables::FIELD_NAME),
                  r->read_ref_id(Tables::FIELD_SCHEMA_ID)});

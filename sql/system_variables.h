@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,17 +97,7 @@ enum enum_session_track_gtids {
 #define MODE_ONLY_FULL_GROUP_BY         32
 #define MODE_NO_UNSIGNED_SUBTRACTION    64
 #define MODE_NO_DIR_IN_CREATE           128
-#define MODE_POSTGRESQL                 256
-#define MODE_ORACLE                     512
-#define MODE_MSSQL                      1024
-#define MODE_DB2                        2048
-#define MODE_MAXDB                      4096
-#define MODE_NO_KEY_OPTIONS             8192
-#define MODE_NO_TABLE_OPTIONS           16384
-#define MODE_NO_FIELD_OPTIONS           32768
-#define MODE_MYSQL323                   65536L
-#define MODE_MYSQL40                    (MODE_MYSQL323*2)
-#define MODE_ANSI                       (MODE_MYSQL40*2)
+#define MODE_ANSI                       262144L
 #define MODE_NO_AUTO_VALUE_ON_ZERO      (MODE_ANSI*2)
 #define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
 #define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
@@ -133,6 +123,24 @@ enum enum_session_track_gtids {
   be truncated.
 */
 #define MODE_TIME_TRUNCATE_FRACTIONAL   (1ULL << 32)
+
+#define MODE_ALLOWED_MASK               (MODE_REAL_AS_FLOAT|MODE_PIPES_AS_CONCAT|MODE_ANSI_QUOTES|MODE_IGNORE_SPACE|MODE_NOT_USED|MODE_ONLY_FULL_GROUP_BY|MODE_NO_UNSIGNED_SUBTRACTION|MODE_NO_DIR_IN_CREATE|MODE_ANSI|MODE_NO_AUTO_VALUE_ON_ZERO|MODE_NO_BACKSLASH_ESCAPES|MODE_STRICT_TRANS_TABLES|MODE_STRICT_ALL_TABLES|MODE_NO_ZERO_IN_DATE|MODE_NO_ZERO_DATE|MODE_INVALID_DATES|MODE_ERROR_FOR_DIVISION_BY_ZERO|MODE_TRADITIONAL|MODE_NO_AUTO_CREATE_USER|MODE_HIGH_NOT_PRECEDENCE|MODE_NO_ENGINE_SUBSTITUTION|MODE_PAD_CHAR_TO_FULL_LENGTH|MODE_TIME_TRUNCATE_FRACTIONAL)
+
+/*
+  We can safely ignore and reset these obsolete mode bits while replicating:
+*/
+#define MODE_IGNORED_MASK                    \
+( 0x00100 | /* was: MODE_POSTGRESQL       */ \
+  0x00200 | /* was: MODE_ORACLE           */ \
+  0x00400 | /* was: MODE_MSSQL            */ \
+  0x00800 | /* was: MODE_DB2              */ \
+  0x01000 | /* was: MODE_MAXDB            */ \
+  0x02000 | /* was: MODE_NO_KEY_OPTIONS   */ \
+  0x04000 | /* was: MODE_NO_TABLE_OPTIONS */ \
+  0x08000 | /* was: MODE_NO_FIELD_OPTIONS */ \
+  0x10000 | /* was: MODE_MYSQL323         */ \
+  0x20000   /* was: MODE_MYSQL40          */ \
+)
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you

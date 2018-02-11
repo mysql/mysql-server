@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1421,7 +1421,7 @@ dict_check_sys_tablespaces(
 	     rec != NULL;
 	     rec = dict_getnext_system(&pcur, &mtr))
 	{
-		char		space_name[NAME_LEN];
+		char		space_name[NAME_LEN+1];
 		space_id_t	space_id = 0;
 		ulint		fsp_flags;
 
@@ -2135,8 +2135,12 @@ dict_load_indexes(
 		} else {
 			dict_load_fields(index, heap);
 
+			mutex_exit(&dict_sys->mutex);
+
 			error = dict_index_add_to_cache(
 				table, index, index->page, FALSE);
+
+			mutex_enter(&dict_sys->mutex);
 
 			/* The data dictionary tables should never contain
 			invalid index definitions.  If we ignored this error

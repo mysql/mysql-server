@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,15 +85,13 @@ Handshake::~Handshake()
 /**
   Read and process data packets from the other end of a connection.
 
-  @param[IN] con  a connection to read packets from
-
   Packets are read and processed until authentication handshake is 
   complete. It is assumed that the peer will send at least one packet. 
   Packets are processed with @c process_data() method. If new data is
   generated during packet processing, this data is sent to the peer and
   another round of packet exchange starts.
 
-  @return 0 on success.
+  @retval 0 on success.
 
   @note In case of error, appropriate error message is logged.
 */

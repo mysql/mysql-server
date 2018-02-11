@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1347,43 +1347,12 @@ public:
   bool resolve_type(THD *thd) override;
 };
 
-
 class Item_func_min_max : public Item_func_numhybrid
 {
-  // Comparison sign: -1 = GREATEST, 1 = LEAST
-  const int cmp_sign;
-  /*
-    Used for determining whether one of the arguments is of temporal type and
-    for converting arguments to a common output format if arguments are
-    compared as dates and result type is character string. For example,
-    LEAST('95-05-05', date '10-10-10') should return '1995-05-05', not
-    '95-05-05'.
-  */
-  Item *temporal_item;
-protected:
-  /**
-    Compare arguments as datetime values.
-
-    @param value Pointer to which the datetime value of the winning argument
-    is written.
-
-    @return true if error, false otherwise.
-  */
-  bool cmp_datetimes(longlong *value);
-
-  /**
-    Compare arguments as time values.
-
-    @param value Pointer to which the time value of the winning argument is
-    written.
-
-    @return true if error, false otherwise.
-  */
-  bool cmp_times(longlong *value);
 public:
-  Item_func_min_max(const POS &pos, PT_item_list *opt_list, int cmp_sign_arg)
+  Item_func_min_max(const POS &pos, PT_item_list *opt_list, bool is_least_func)
     :Item_func_numhybrid(pos, opt_list),
-    cmp_sign(cmp_sign_arg), temporal_item(nullptr)
+    m_is_least_func(is_least_func), temporal_item(nullptr)
   {}
 
   longlong val_int() override;
@@ -1417,13 +1386,45 @@ public:
 
   /// Returns true if at least one of the arguments was of temporal type.
   bool has_temporal_arg() const { return temporal_item; }
+
+private:
+  /// True if LEAST function, false if GREATEST.
+  const bool m_is_least_func;
+  String m_string_buf;
+  /*
+    Used for determining whether one of the arguments is of temporal type and
+    for converting arguments to a common output format if arguments are
+    compared as dates and result type is character string. For example,
+    LEAST('95-05-05', date '10-10-10') should return '1995-05-05', not
+    '95-05-05'.
+  */
+  Item *temporal_item;
+  /**
+    Compare arguments as datetime values.
+
+    @param value Pointer to which the datetime value of the winning argument
+    is written.
+
+    @return true if error, false otherwise.
+  */
+  bool cmp_datetimes(longlong *value);
+
+  /**
+    Compare arguments as time values.
+
+    @param value Pointer to which the time value of the winning argument is
+    written.
+
+    @return true if error, false otherwise.
+  */
+  bool cmp_times(longlong *value);
 };
 
 class Item_func_min final : public Item_func_min_max
 {
 public:
   Item_func_min(const POS &pos, PT_item_list *opt_list)
-    :Item_func_min_max(pos, opt_list, 1)
+    :Item_func_min_max(pos, opt_list, true)
   {}
   const char *func_name() const override { return "least"; }
 };
@@ -1432,7 +1433,7 @@ class Item_func_max final : public Item_func_min_max
 {
 public:
   Item_func_max(const POS &pos, PT_item_list *opt_list)
-    :Item_func_min_max(pos, opt_list, -1)
+    :Item_func_min_max(pos, opt_list, false)
   {}
   const char *func_name() const override { return "greatest"; }
 };

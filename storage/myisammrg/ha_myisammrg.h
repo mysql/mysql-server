@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ public:
   { return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_RTREE; }
   ulonglong table_flags() const
   {
-    return (HA_REC_NOT_IN_SEQ | HA_AUTO_PART_KEY | HA_NO_TRANSACTIONS |
+    return (HA_AUTO_PART_KEY | HA_NO_TRANSACTIONS |
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
 	    HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_FILE_BASED |
             HA_ANY_INDEX_MAY_BE_UNIQUE | HA_CAN_BIT_FIELD |

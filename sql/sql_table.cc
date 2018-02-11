@@ -6408,7 +6408,9 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
   @param db                  Database
   @param table_name          Table name
   @param error_table_name    The real table name in case table_name is a temporary
-                             table (ALTER). Only used for error messages.
+                             table (ALTER). Used for error messages and for
+                             checking whether the table is a white listed
+                             system table.
   @param path                Path to table (i.e. to its .FRM file without
                              the extension).
   @param create_info         Create information (like MAX_ROWS)
@@ -6645,13 +6647,27 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, db, error_table_name,
+  /* Suppress key length errors if this is a white listed table. */
+  Key_length_error_handler error_handler;
+  bool is_whitelisted_table= dd::get_dictionary()->is_dd_table_name(db,
+                                                error_table_name) ||
+                             dd::get_dictionary()->is_system_table_name(db,
+                                                error_table_name);
+  if (is_whitelisted_table)
+    thd->push_internal_handler(&error_handler);
+
+  bool prepare_error= mysql_prepare_create_table(thd, db, error_table_name,
                                  create_info, alter_info,
                                  file.get(),
                                  key_info, key_count,
                                  fk_key_info, fk_key_count,
                                  existing_fk_info, existing_fk_count,
-                                 select_field_count, find_parent_keys))
+                                 select_field_count, find_parent_keys);
+
+  if (is_whitelisted_table)
+    thd->pop_internal_handler();
+
+  if (prepare_error)
     DBUG_RETURN(true);
 
   /* Check if table already exists */
@@ -8069,6 +8085,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   DEBUG_SYNC(thd, "create_table_like_after_open");
 
+  /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
+  HA_CREATE_INFO local_create_info;
+  local_create_info.db_type= src_table->table->s->db_type();
+  local_create_info.row_type= src_table->table->s->row_type;
+  if (mysql_prepare_alter_table(thd, src_table_obj,
+                                src_table->table, &local_create_info,
+                                &local_alter_info, &local_alter_ctx))
+    DBUG_RETURN(true);
+
   /*
     During open_tables(), the target tablespace name(s) for a table being
     created or altered should be locked. However, for 'CREATE TABLE ... LIKE',
@@ -8085,6 +8110,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     the tablespace name from the table share instead of reading it from the
     .FRM file.
   */
+
+  /* Partition info is not handled by mysql_prepare_alter_table() call. */
+  if (src_table->table->part_info)
+    thd->work_part_info= src_table->table->part_info->get_clone(thd);
 
   // Add the tablespace name, if used.
   if (src_table->table->s->tablespace &&
@@ -8112,18 +8141,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   {
     DBUG_RETURN(true);
   }
-
-  /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  HA_CREATE_INFO local_create_info;
-  local_create_info.db_type= src_table->table->s->db_type();
-  local_create_info.row_type= src_table->table->s->row_type;
-  if (mysql_prepare_alter_table(thd, src_table_obj,
-                                src_table->table, &local_create_info,
-                                &local_alter_info, &local_alter_ctx))
-    DBUG_RETURN(true);
-  /* Partition info is not handled by mysql_prepare_alter_table() call. */
-  if (src_table->table->part_info)
-    thd->work_part_info= src_table->table->part_info->get_clone(thd);
 
   /*
     Adjust description of source table before using it for creation of

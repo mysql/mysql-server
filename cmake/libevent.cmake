@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,11 +21,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
+  SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent library")
   SET(LIBEVENT_LIBRARY  event)
   SET(LIBEVENT_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/extra/libevent)
   SET(LIBEVENT_FOUND  TRUE)
   ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
-  SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent")
   ADD_SUBDIRECTORY(extra/libevent)
   GET_TARGET_PROPERTY(src libevent SOURCES)
   FOREACH(file ${src})

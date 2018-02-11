@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -302,7 +302,11 @@
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
 #endif  // WIN32
+#include <wolfssl_fix_namespace_pollution_pre.h>
+
 #include <openssl/ssl.h>
+
+#include <wolfssl_fix_namespace_pollution.h>
 #endif
 
 /* {{{ Defines and constants */
@@ -403,6 +407,10 @@ static synode_no current_message; /* Current message number */
 static synode_no
     last_config_modification_id; /*Last configuration change proposal*/
 static uint64_t lsn = 0;         /* Current log sequence number */
+
+uint32_t get_my_id(){
+	return my_id;
+}
 
 synode_no get_current_message() { return current_message; }
 
@@ -3745,6 +3753,9 @@ again:
       ceptor_learner_task.
     */
     ep->srv = get_server(site, ep->p->from);
+    if(ep->rfd.x_proto > x_1_2){ /* Ignore nodes which do not send ID */
+      update_xcom_id(ep->p->from, (uint32_t)ep->p->refcnt); /* Refcnt is really uuid */
+    }
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
@@ -3896,6 +3907,9 @@ int reply_handler_task(task_arg arg) {
       TASK_CALL(read_msg(&ep->s->con, ep->reply, ep->s, &n));
       ADD_EVENTS(add_event(string_arg("ep->s->con.fd"));
                  add_event(int_arg(ep->s->con.fd)););
+      if(ep->s->con.x_proto > x_1_2){ /* Ignore nodes which do not send ID */
+        update_xcom_id(ep->reply->from, (uint32_t)ep->reply->refcnt); /* Refcnt is really uuid */
+      }
       ep->reply->refcnt = 1; /* Refcnt from other end is void here */
       if (n <= 0) {
         shutdown_connection(&ep->s->con);
@@ -4096,12 +4110,13 @@ static void send_snapshot(site_def const *s, gcs_snapshot *gcs_snap,
 }
 /* purecov: end */
 
-void server_push_log(server *srv, synode_no push, node_no node) {
+static void server_push_log(server *srv, synode_no push, node_no node) {
   site_def const *s = get_site_def();
   if (srv && s) {
     while (!synode_gt(push, get_max_synode())) {
       if (is_cached(push)) {
-        pax_machine *p = get_cache(push);
+        /* Need to clone message here since pax_machine may be re-used while message is sent */
+        pax_machine *p = get_cache_no_touch(push);
         if (pm_finished(p)) {
           pax_msg *pm = clone_pax_msg(p->learner.msg);
           ref_msg(pm);
@@ -4179,8 +4194,6 @@ static void server_handle_need_snapshot(server *srv, site_def const *s,
   synode_no app_lsn = get_app_snap(&gs->app_snap);
   if (!synode_eq(null_synode, app_lsn) && synode_lt(app_lsn, gs->log_start)) {
     gs->log_start = app_lsn;
-  } else if (!synode_eq(null_synode, last_config_modification_id)) {
-    gs->log_start = last_config_modification_id;
   }
 
   server_send_snapshot(srv, s, gs, node);
@@ -5038,10 +5051,11 @@ int xcom_client_boot(connection_descriptor *fd, node_list *nl,
 
 int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force) {
   int retval = 0;
+  int retry_count = 10; // Same as 'connection_attempts'
   pax_msg p;
   pax_msg *rp = 0;
 
-  for (;;) {
+  do {
     retval = (int)xcom_send_client_app_data(fd, a, force);
     if (retval < 0) return 0;
     memset(&p, 0, sizeof(p));
@@ -5067,7 +5081,11 @@ int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force) {
       G_WARNING("read failed");
       return 0;
     }
-  }
+  } while (--retry_count);
+  // Timeout after REQUEST_RETRY has been received 'retry_count' times
+  G_MESSAGE(
+      "Request failed: maximum number of retries (10) has been exhausted.");
+  return 0;
 }
 
 int xcom_send_cfg_wait(connection_descriptor *fd, node_list *nl,

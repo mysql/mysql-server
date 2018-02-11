@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -29,6 +30,7 @@
 #include <string>
 
 #include "decimal.h"
+#include "plugin/x/client/xrow_impl.h"
 #include "plugin/x/client/mysqlxclient/xdatetime.h"
 #include "plugin/x/client/mysqlxclient/xdecimal.h"
 #include "plugin/x/client/mysqlxclient/xrow.h"
@@ -671,6 +673,133 @@ TEST(row_builder, bit_field) {
       0xffffffffffffffffULL,
       &xcl::row_decoder::buffer_to_u64,
       *buffer);
+}
+
+TEST(row_builder, datetime_content_type_set) {
+  xcl::XRow_impl::Metadata metadata;
+  xcl::XRow_impl::Metadata::value_type metadata_row;
+  metadata_row.type = xcl::Column_type::DATETIME;
+  metadata_row.length = 19;
+  metadata_row.has_content_type = true;
+  metadata_row.content_type =
+      static_cast<uint32_t>(Mysqlx::Resultset::DATETIME);
+  metadata.push_back(metadata_row);
+
+  xcl::Context context;
+
+  ::testing::StrictMock<xcl::XRow_impl> row_mock(&metadata, &context);
+
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+
+  MYSQL_TIME time;
+  time.year = 2016; time.month = 12; time.day = 24;
+  time.hour = 13; time.minute = 55; time.second = 55; time.second_part = 999999;
+  time.time_type = MYSQL_TIMESTAMP_DATETIME;
+
+  Row_builder rb;
+  rb.start_row(obuffer.get());
+  rb.add_datetime_field(&time, 0);
+  rb.end_row();
+  ngs::unique_ptr<Mysqlx::Resultset::Row> row {
+    message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())
+  };
+  row_mock.set_row(std::move(row));
+
+  xcl::DateTime result;
+  row_mock.get_datetime(0, &result);
+  EXPECT_TRUE(result.has_time());
+  EXPECT_EQ(result.year(), time.year);
+  EXPECT_EQ(result.month(), time.month);
+  EXPECT_EQ(result.day(), time.day);
+  EXPECT_EQ(result.hour(), time.hour);
+  EXPECT_EQ(result.minutes(), time.minute);
+  EXPECT_EQ(result.seconds(), time.second);
+  EXPECT_EQ(result.useconds(), time.second_part);
+}
+
+TEST(row_builder, datetime_content_type_not_set_and_has_time_part) {
+  xcl::XRow_impl::Metadata metadata;
+  xcl::XRow_impl::Metadata::value_type metadata_row;
+  metadata_row.type = xcl::Column_type::DATETIME;
+  metadata_row.length = 19;
+  metadata_row.has_content_type = false;
+  metadata.push_back(metadata_row);
+
+  xcl::Context context;
+
+  ::testing::StrictMock<xcl::XRow_impl> row_mock(&metadata, &context);
+
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+
+  MYSQL_TIME time;
+  time.year = 2016; time.month = 12; time.day = 24;
+  time.hour = 13; time.minute = 55; time.second = 55; time.second_part = 0;
+  time.time_type = MYSQL_TIMESTAMP_DATETIME;
+
+  Row_builder rb;
+  rb.start_row(obuffer.get());
+  rb.add_datetime_field(&time, 0);
+  rb.end_row();
+  ngs::unique_ptr<Mysqlx::Resultset::Row> row {
+    message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())
+  };
+  row_mock.set_row(std::move(row));
+
+  xcl::DateTime result;
+  row_mock.get_datetime(0, &result);
+  EXPECT_EQ(row_mock.get_number_of_fields(), 1);
+  EXPECT_TRUE(result.has_time());
+  EXPECT_EQ(result.year(), time.year);
+  EXPECT_EQ(result.month(), time.month);
+  EXPECT_EQ(result.day(), time.day);
+  EXPECT_EQ(result.hour(), time.hour);
+  EXPECT_EQ(result.minutes(), time.minute);
+  EXPECT_EQ(result.seconds(), time.second);
+  EXPECT_EQ(result.useconds(), time.second_part);
+}
+
+TEST(row_builder, datetime_content_type_not_set_and_not_contains_time_part) {
+  xcl::XRow_impl::Metadata metadata;
+  xcl::XRow_impl::Metadata::value_type metadata_row;
+  metadata_row.type = xcl::Column_type::DATETIME;
+  metadata_row.length = 10;
+  metadata_row.has_content_type = false;
+  metadata.push_back(metadata_row);
+
+  xcl::Context context;
+
+  ::testing::StrictMock<xcl::XRow_impl> row_mock(&metadata, &context);
+
+  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
+  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+
+  MYSQL_TIME time;
+  time.year = 2016; time.month = 12; time.day = 24;
+  time.hour = 0; time.minute = 0; time.second = 0; time.second_part = 0;
+  time.time_type = MYSQL_TIMESTAMP_DATE;
+
+  Row_builder rb;
+  rb.start_row(obuffer.get());
+  rb.add_datetime_field(&time, 0);
+  rb.end_row();
+  ngs::unique_ptr<Mysqlx::Resultset::Row> row {
+    message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())
+  };
+  row_mock.set_row(std::move(row));
+
+  xcl::DateTime result;
+  row_mock.get_datetime(0, &result);
+  EXPECT_EQ(result.year(), time.year);
+  EXPECT_EQ(result.month(), time.month);
+  EXPECT_EQ(result.day(), time.day);
+
+  EXPECT_FALSE(result.has_time());
+  EXPECT_EQ(result.hour(), 0xFF);
+  EXPECT_EQ(result.minutes(), 0xFF);
+  EXPECT_EQ(result.seconds(), 0xFF);
+  EXPECT_EQ(result.useconds(), 0xFFFFFF);
 }
 
 } // namespace test

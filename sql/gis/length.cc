@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,9 @@ double Length::eval(const Geographic_linestring &g1) const {
   return bg::length(g1, *m_geographic_strategy);
 }
 
-double Length::eval(const Cartesian_linestring &g1) const { return bg::length(g1); }
+double Length::eval(const Cartesian_linestring &g1) const {
+  return bg::length(g1);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 

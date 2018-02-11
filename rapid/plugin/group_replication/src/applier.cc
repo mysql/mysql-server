@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,9 @@ Applier_module::purge_applier_queue_and_restart_applier_module()
     middle of applying the group of events). Hence unregister the applier channel
     observer temporarily till the required work is done.
   */
-  channel_observation_manager->unregister_channel_observer(applier_channel_observer);
+  channel_observation_manager_list
+    ->get_channel_observation_manager(GROUP_CHANNEL_OBSERVATION_MANAGER_POS)
+      ->unregister_channel_observer(applier_channel_observer);
 
   /* Stop the applier thread */
   Pipeline_action *stop_action= new Handler_stop_action();
@@ -147,7 +149,9 @@ Applier_module::purge_applier_queue_and_restart_applier_module()
   if (error)
     DBUG_RETURN(error); /* purecov: inspected */
 
-  channel_observation_manager->register_channel_observer(applier_channel_observer);
+  channel_observation_manager_list
+    ->get_channel_observation_manager(GROUP_CHANNEL_OBSERVATION_MANAGER_POS)
+      ->register_channel_observer(applier_channel_observer);
 
   /* Start the applier thread */
   Pipeline_action *start_action = new Handler_start_action();
@@ -398,7 +402,8 @@ Applier_module::applier_thread_handle()
   applier_error= setup_pipeline_handlers();
 
   applier_channel_observer= new Applier_channel_state_observer();
-  channel_observation_manager
+  channel_observation_manager_list
+    ->get_channel_observation_manager(GROUP_CHANNEL_OBSERVATION_MANAGER_POS)
       ->register_channel_observer(applier_channel_observer);
 
   if (!applier_error)
@@ -473,7 +478,8 @@ Applier_module::applier_thread_handle()
 end:
 
   //always remove the observer even the thread is no longer running
-  channel_observation_manager
+  channel_observation_manager_list
+    ->get_channel_observation_manager(GROUP_CHANNEL_OBSERVATION_MANAGER_POS)
       ->unregister_channel_observer(applier_channel_observer);
 
   //only try to leave if the applier managed to start
@@ -485,7 +491,8 @@ end:
   int local_applier_error= pipeline->handle_action(stop_action);
   delete stop_action;
 
-  Gcs_interface_factory::cleanup(Gcs_operations::get_gcs_engine());
+  Gcs_interface_factory::cleanup_thread_communication_resources(
+    Gcs_operations::get_gcs_engine());
 
   log_message(MY_INFORMATION_LEVEL, "The group replication applier thread"
                                     " was killed");
@@ -717,6 +724,11 @@ void Applier_module::leave_group_on_failure()
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
                                          Group_member_info::MEMBER_ERROR,
                                          ctx);
+
+  /*
+    unblock threads waiting for the member to become ONLINE
+  */
+  terminate_wait_on_start_process();
 
   /* Single state update. Notify right away. */
   notify_and_reset_ctx(ctx);
