@@ -12,7 +12,7 @@
 --perl
 print "\nChecking 'INFO_SRC' and 'INFO_BIN'\n";
 $dir_bin = $ENV{'MYSQL_BINDIR'};
-if ($dir_bin =~ m|/usr/|) {
+if ($dir_bin =~ m|^/usr/|) {
   # RPM package
   $dir_docs = $dir_bin;
   $dir_docs =~ s|/lib|/share/doc|;
