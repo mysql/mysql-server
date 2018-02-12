@@ -17143,7 +17143,6 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
                                            const dd::Table *, dd::Table *)
 {
   int error= 0;
-  uint i;
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= get_ndb(thd);
@@ -17269,7 +17268,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
      NDBCOL col;
 
      /* Find the new fields */
-     for (i= table->s->fields; i < altered_table->s->fields; i++)
+     for (uint i = table->s->fields; i < altered_table->s->fields; i++)
      {
        Field *field= altered_table->field[i];
        if(! field->stored_in_db)
