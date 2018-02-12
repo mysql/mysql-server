@@ -10700,6 +10700,24 @@ bool
 create_table_info_t::create_option_tablespace_is_valid()
 {
 	if (!m_use_shared_space) {
+		/* Do not allow creation of a temp table
+		with innodb_file_per_table option. */
+		if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+		    tablespace_is_file_per_table(m_create_info)) {
+			if (THDVAR(m_thd, strict_mode)) {
+				/* Return error if STRICT mode is enabled. */
+				my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: innodb_file_per_table option"
+					" not supported for temporary tables.", MYF(0));
+				return(false);
+			}
+			/* STRICT mode turned off. Proceed with the
+			execution with a warning. */
+			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: innodb_file_per_table option ignored"
+				" while creating temporary table with INNODB_STRICT_MODE=OFF.");
+		}
 		return(true);
 	}
 
