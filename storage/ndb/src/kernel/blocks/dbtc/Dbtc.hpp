@@ -343,8 +343,8 @@ public:
     2.3 RECORDS AND FILESIZES
     -------------------------
   */
-  typedef TransientPool<DataBufferSegment<11, RT_DBTC_ATTRIBUTE_BUFFER> >
-            AttributeBuffer_pool;
+  typedef DataBufferSegment<11, RT_DBTC_ATTRIBUTE_BUFFER> AttributeBufferSegment;
+  typedef TransientPool<AttributeBufferSegment> AttributeBuffer_pool;
   typedef DataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
             AttributeBuffer;
   typedef LocalDataBuffer<11, AttributeBuffer_pool, RT_DBTC_ATTRIBUTE_BUFFER>
