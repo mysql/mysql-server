@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -63,114 +63,102 @@ extern SERVICE_TYPE(mysql_rwlock_v1)
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry)
 mysql_registry_imp::acquire, mysql_registry_imp::acquire_related,
-    mysql_registry_imp::release END_SERVICE_IMPLEMENTATION()
+    mysql_registry_imp::release END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_registration)
-            mysql_registry_imp::register_service,
-    mysql_registry_imp::unregister,
-    mysql_registry_imp::set_default END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_registration)
+mysql_registry_imp::register_service, mysql_registry_imp::unregister,
+    mysql_registry_imp::set_default END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_query)
-            mysql_registry_imp::iterator_create,
-    mysql_registry_imp::iterator_get, mysql_registry_imp::iterator_next,
-    mysql_registry_imp::iterator_is_valid, mysql_registry_imp::iterator_release,
-    END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_query)
+mysql_registry_imp::iterator_create, mysql_registry_imp::iterator_get,
+    mysql_registry_imp::iterator_next, mysql_registry_imp::iterator_is_valid,
+    mysql_registry_imp::iterator_release, END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_metadata_enumerate)
-            mysql_registry_imp::metadata_iterator_create,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_metadata_enumerate)
+mysql_registry_imp::metadata_iterator_create,
     mysql_registry_imp::metadata_iterator_get,
     mysql_registry_imp::metadata_iterator_next,
     mysql_registry_imp::metadata_iterator_is_valid,
-    mysql_registry_imp::metadata_iterator_release,
-    END_SERVICE_IMPLEMENTATION()
+    mysql_registry_imp::metadata_iterator_release, END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_metadata_query)
-            mysql_registry_imp::metadata_get_value,
-    END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry_metadata_query)
+mysql_registry_imp::metadata_get_value, END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader)
-            mysql_dynamic_loader_imp::load,
-    mysql_dynamic_loader_imp::unload END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader)
+mysql_dynamic_loader_imp::load,
+    mysql_dynamic_loader_imp::unload END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader_query)
-            mysql_dynamic_loader_imp::iterator_create,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader_query)
+mysql_dynamic_loader_imp::iterator_create,
     mysql_dynamic_loader_imp::iterator_get,
     mysql_dynamic_loader_imp::iterator_next,
     mysql_dynamic_loader_imp::iterator_is_valid,
-    mysql_dynamic_loader_imp::iterator_release END_SERVICE_IMPLEMENTATION()
+    mysql_dynamic_loader_imp::iterator_release END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                                     dynamic_loader_metadata_enumerate)
-            mysql_dynamic_loader_imp::metadata_iterator_create,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader_metadata_enumerate)
+mysql_dynamic_loader_imp::metadata_iterator_create,
     mysql_dynamic_loader_imp::metadata_iterator_get,
     mysql_dynamic_loader_imp::metadata_iterator_next,
     mysql_dynamic_loader_imp::metadata_iterator_is_valid,
     mysql_dynamic_loader_imp::metadata_iterator_release
-    END_SERVICE_IMPLEMENTATION()
+    END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                                     dynamic_loader_metadata_query)
-            mysql_dynamic_loader_imp::metadata_get_value,
-    END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader_metadata_query)
+mysql_dynamic_loader_imp::metadata_get_value, END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server_path_filter,
-                                     dynamic_loader_scheme_file)
-            mysql_dynamic_loader_scheme_file_path_filter_imp::load,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server_path_filter,
+                             dynamic_loader_scheme_file)
+mysql_dynamic_loader_scheme_file_path_filter_imp::load,
     mysql_dynamic_loader_scheme_file_path_filter_imp::unload
-    END_SERVICE_IMPLEMENTATION()
+    END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader_scheme_file)
-            mysql_dynamic_loader_scheme_file_imp::load,
-    mysql_dynamic_loader_scheme_file_imp::unload END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_loader_scheme_file)
+mysql_dynamic_loader_scheme_file_imp::load,
+    mysql_dynamic_loader_scheme_file_imp::unload END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, persistent_dynamic_loader)
-            mysql_persistent_dynamic_loader_imp::load,
-    mysql_persistent_dynamic_loader_imp::unload END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, persistent_dynamic_loader)
+mysql_persistent_dynamic_loader_imp::load,
+    mysql_persistent_dynamic_loader_imp::unload END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_privilege_register)
-            dynamic_privilege_services_impl::register_privilege,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, dynamic_privilege_register)
+dynamic_privilege_services_impl::register_privilege,
     dynamic_privilege_services_impl::unregister_privilege
-    END_SERVICE_IMPLEMENTATION()
+    END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
-            dynamic_privilege_services_impl::has_global_grant
-    END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
+dynamic_privilege_services_impl::has_global_grant END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_factory)
-            mysql_string_imp::create,
-    mysql_string_imp::destroy END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_factory)
+mysql_string_imp::create,
+    mysql_string_imp::destroy END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_case)
-            mysql_string_imp::tolower,
-    mysql_string_imp::toupper END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_case)
+mysql_string_imp::tolower,
+    mysql_string_imp::toupper END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_converter)
-            mysql_string_imp::convert_from_buffer,
-    mysql_string_imp::convert_to_buffer END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_converter)
+mysql_string_imp::convert_from_buffer,
+    mysql_string_imp::convert_to_buffer END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                                     mysql_string_character_access)
-            mysql_string_imp::get_char,
-    mysql_string_imp::get_char_length END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_character_access)
+mysql_string_imp::get_char,
+    mysql_string_imp::get_char_length END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_byte_access)
-            mysql_string_imp::get_byte,
-    mysql_string_imp::get_byte_length END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_byte_access)
+mysql_string_imp::get_byte,
+    mysql_string_imp::get_byte_length END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_iterator)
-            mysql_string_imp::iterator_create,
-    mysql_string_imp::iterator_get_next,
-    mysql_string_imp::iterator_destroy END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_iterator)
+mysql_string_imp::iterator_create, mysql_string_imp::iterator_get_next,
+    mysql_string_imp::iterator_destroy END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_ctype)
-            mysql_string_imp::is_upper,
-    mysql_string_imp::is_lower,
-    mysql_string_imp::is_digit END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_ctype)
+mysql_string_imp::is_upper, mysql_string_imp::is_lower,
+    mysql_string_imp::is_digit END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
-            log_builtins_imp::wellknown_by_type,
-    log_builtins_imp::wellknown_by_name, log_builtins_imp::wellknown_get_type,
-    log_builtins_imp::wellknown_get_name,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
+log_builtins_imp::wellknown_by_type, log_builtins_imp::wellknown_by_name,
+    log_builtins_imp::wellknown_get_type, log_builtins_imp::wellknown_get_name,
 
     log_builtins_imp::item_inconsistent, log_builtins_imp::item_generic_type,
     log_builtins_imp::item_string_class, log_builtins_imp::item_numeric_class,
@@ -205,25 +193,25 @@ mysql_registry_imp::acquire, mysql_registry_imp::acquire_related,
 
     log_builtins_imp::open_errstream, log_builtins_imp::write_errstream,
     log_builtins_imp::dedicated_errstream,
-    log_builtins_imp::close_errstream END_SERVICE_IMPLEMENTATION()
+    log_builtins_imp::close_errstream END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
-            log_builtins_filter_imp::filter_ruleset_new,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
+log_builtins_filter_imp::filter_ruleset_new,
     log_builtins_filter_imp::filter_ruleset_lock,
     log_builtins_filter_imp::filter_ruleset_unlock,
     log_builtins_filter_imp::filter_ruleset_drop,
     log_builtins_filter_imp::filter_ruleset_free,
     log_builtins_filter_imp::filter_ruleset_move,
     log_builtins_filter_imp::filter_rule_init,
-    log_builtins_filter_imp::filter_run END_SERVICE_IMPLEMENTATION()
+    log_builtins_filter_imp::filter_run END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter_debug)
-            log_builtins_filter_debug_imp::filter_debug_ruleset_get
-    END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter_debug)
+log_builtins_filter_debug_imp::filter_debug_ruleset_get
+END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
-            log_builtins_string_imp::malloc,
-    log_builtins_string_imp::strndup, log_builtins_string_imp::free,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
+log_builtins_string_imp::malloc, log_builtins_string_imp::strndup,
+    log_builtins_string_imp::free,
 
     log_builtins_string_imp::length, log_builtins_string_imp::find_first,
     log_builtins_string_imp::find_last,
@@ -231,156 +219,126 @@ mysql_registry_imp::acquire, mysql_registry_imp::acquire_related,
     log_builtins_string_imp::compare,
 
     log_builtins_string_imp::substitutev,
-    log_builtins_string_imp::substitute END_SERVICE_IMPLEMENTATION()
+    log_builtins_string_imp::substitute END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_tmp)
-            log_builtins_tmp_imp::connection_loop_aborted,
-    log_builtins_tmp_imp::notify_client END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_tmp)
+log_builtins_tmp_imp::connection_loop_aborted,
+    log_builtins_tmp_imp::notify_client END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
-            log_builtins_syseventlog_imp::open,
-    log_builtins_syseventlog_imp::write,
-    log_builtins_syseventlog_imp::close END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
+log_builtins_syseventlog_imp::open, log_builtins_syseventlog_imp::write,
+    log_builtins_syseventlog_imp::close END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration)
-            mysql_udf_registration_imp::udf_register,
-    mysql_udf_registration_imp::udf_unregister END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration)
+mysql_udf_registration_imp::udf_register,
+    mysql_udf_registration_imp::udf_unregister END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
-            mysql_udf_registration_imp::udf_register_aggregate,
-    mysql_udf_registration_imp::udf_unregister END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
+mysql_udf_registration_imp::udf_register_aggregate,
+    mysql_udf_registration_imp::udf_unregister END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                                     component_sys_variable_register)
-            mysql_component_sys_variable_imp::register_variable,
-    mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
+mysql_component_sys_variable_imp::register_variable,
+    mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                                     component_sys_variable_unregister)
-            mysql_component_sys_variable_imp::unregister_variable,
-    END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_unregister)
+mysql_component_sys_variable_imp::unregister_variable,
+    END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, status_variable_registration)
-            mysql_status_variable_registration_imp::register_variable,
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, status_variable_registration)
+mysql_status_variable_registration_imp::register_variable,
     mysql_status_variable_registration_imp::unregister_variable
-    END_SERVICE_IMPLEMENTATION()
+    END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, system_variable_source)
-            mysql_system_variable_source_imp::get END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, system_variable_source)
+mysql_system_variable_source_imp::get END_SERVICE_IMPLEMENTATION();
 
-                BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_backup_lock)
-                    mysql_acquire_backup_lock,
-    mysql_release_backup_lock END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_backup_lock)
+mysql_acquire_backup_lock,
+    mysql_release_backup_lock END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
-            mysql_security_context_imp::get,
-    mysql_security_context_imp::set END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
+mysql_security_context_imp::get,
+    mysql_security_context_imp::set END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                                     mysql_security_context_factory)
-            mysql_security_context_imp::create,
-    mysql_security_context_imp::destroy,
-    mysql_security_context_imp::copy END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_security_context_factory)
+mysql_security_context_imp::create, mysql_security_context_imp::destroy,
+    mysql_security_context_imp::copy END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_SERVICE_IMPLEMENTATION(
-            mysql_server, mysql_account_database_security_context_lookup)
-            mysql_security_context_imp::lookup END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_account_database_security_context_lookup)
+mysql_security_context_imp::lookup END_SERVICE_IMPLEMENTATION();
 
-                BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                                             mysql_security_context_options)
-                    mysql_security_context_imp::get,
-    mysql_security_context_imp::set END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_security_context_options)
+mysql_security_context_imp::get,
+    mysql_security_context_imp::set END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_COMPONENT_PROVIDES(mysql_server) PROVIDES_SERVICE(mysql_server, registry) PROVIDES_SERVICE(
-            mysql_server,
-            registry_registration) PROVIDES_SERVICE(mysql_server,
-                                                    registry_query) PROVIDES_SERVICE(mysql_server,
-                                                                                     registry_metadata_enumerate)
-            PROVIDES_SERVICE(mysql_server, registry_metadata_query) PROVIDES_SERVICE(
-                mysql_server,
-                dynamic_loader) PROVIDES_SERVICE(mysql_server_path_filter,
-                                                 dynamic_loader_scheme_file) PROVIDES_SERVICE(mysql_server,
-                                                                                              persistent_dynamic_loader)
-                PROVIDES_SERVICE(mysql_server, dynamic_loader_query) PROVIDES_SERVICE(
-                    mysql_server,
-                    dynamic_loader_metadata_enumerate) PROVIDES_SERVICE(mysql_server,
-                                                                        dynamic_loader_metadata_query)
-                    PROVIDES_SERVICE(mysql_server, dynamic_loader_scheme_file) PROVIDES_SERVICE(
-                        mysql_server,
-                        dynamic_privilege_register) PROVIDES_SERVICE(mysql_server,
-                                                                     global_grants_check)
-                        PROVIDES_SERVICE(mysql_server, mysql_string_factory) PROVIDES_SERVICE(
-                            mysql_server,
-                            mysql_string_case) PROVIDES_SERVICE(mysql_server,
-                                                                mysql_string_converter)
-                            PROVIDES_SERVICE(mysql_server, mysql_string_character_access) PROVIDES_SERVICE(
-                                mysql_server,
-                                mysql_string_byte_access) PROVIDES_SERVICE(mysql_server,
-                                                                           mysql_string_iterator)
-                                PROVIDES_SERVICE(mysql_server, mysql_string_ctype) PROVIDES_SERVICE(
-                                    mysql_server,
-                                    log_builtins) PROVIDES_SERVICE(mysql_server,
-                                                                   log_builtins_filter)
-                                    PROVIDES_SERVICE(mysql_server, log_builtins_filter_debug) PROVIDES_SERVICE(
-                                        mysql_server,
-                                        log_builtins_string) PROVIDES_SERVICE(mysql_server,
-                                                                              log_builtins_tmp)
-                                        PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog) PROVIDES_SERVICE(
-                                            mysql_server,
-                                            udf_registration) PROVIDES_SERVICE(mysql_server,
-                                                                               udf_registration_aggregate)
-                                            PROVIDES_SERVICE(mysql_server, component_sys_variable_register) PROVIDES_SERVICE(
-                                                mysql_server,
-                                                component_sys_variable_unregister)
-                                                PROVIDES_SERVICE(mysql_server, mysql_cond_v1) PROVIDES_SERVICE(
-                                                    mysql_server,
-                                                    mysql_mutex_v1) PROVIDES_SERVICE(mysql_server, mysql_rwlock_v1)
-                                                    PROVIDES_SERVICE(mysql_server, status_variable_registration) PROVIDES_SERVICE(
-                                                        mysql_server,
-                                                        system_variable_source)
-                                                        PROVIDES_SERVICE(mysql_server, mysql_backup_lock) PROVIDES_SERVICE(
-                                                            mysql_server,
-                                                            mysql_thd_security_context)
-                                                            PROVIDES_SERVICE(
-                                                                mysql_server,
-                                                                mysql_security_context_factory)
-                                                                PROVIDES_SERVICE(
-                                                                    mysql_server,
-                                                                    mysql_account_database_security_context_lookup)
-                                                                    PROVIDES_SERVICE(
-                                                                        mysql_server,
-                                                                        mysql_security_context_options) END_COMPONENT_PROVIDES()
+BEGIN_COMPONENT_PROVIDES(mysql_server)
+PROVIDES_SERVICE(mysql_server, registry),
+    PROVIDES_SERVICE(mysql_server, registry_registration),
+    PROVIDES_SERVICE(mysql_server, registry_query),
+    PROVIDES_SERVICE(mysql_server, registry_metadata_enumerate),
+    PROVIDES_SERVICE(mysql_server, registry_metadata_query),
+    PROVIDES_SERVICE(mysql_server, dynamic_loader),
+    PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
+    PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
+    PROVIDES_SERVICE(mysql_server, dynamic_loader_query),
+    PROVIDES_SERVICE(mysql_server, dynamic_loader_metadata_enumerate),
+    PROVIDES_SERVICE(mysql_server, dynamic_loader_metadata_query),
+    PROVIDES_SERVICE(mysql_server, dynamic_loader_scheme_file),
+    PROVIDES_SERVICE(mysql_server, dynamic_privilege_register),
+    PROVIDES_SERVICE(mysql_server, global_grants_check),
+    PROVIDES_SERVICE(mysql_server, mysql_string_factory),
+    PROVIDES_SERVICE(mysql_server, mysql_string_case),
+    PROVIDES_SERVICE(mysql_server, mysql_string_converter),
+    PROVIDES_SERVICE(mysql_server, mysql_string_character_access),
+    PROVIDES_SERVICE(mysql_server, mysql_string_byte_access),
+    PROVIDES_SERVICE(mysql_server, mysql_string_iterator),
+    PROVIDES_SERVICE(mysql_server, mysql_string_ctype),
+    PROVIDES_SERVICE(mysql_server, log_builtins),
+    PROVIDES_SERVICE(mysql_server, log_builtins_filter),
+    PROVIDES_SERVICE(mysql_server, log_builtins_filter_debug),
+    PROVIDES_SERVICE(mysql_server, log_builtins_string),
+    PROVIDES_SERVICE(mysql_server, log_builtins_tmp),
+    PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog),
+    PROVIDES_SERVICE(mysql_server, udf_registration),
+    PROVIDES_SERVICE(mysql_server, udf_registration_aggregate),
+    PROVIDES_SERVICE(mysql_server, component_sys_variable_register),
+    PROVIDES_SERVICE(mysql_server, component_sys_variable_unregister),
+    PROVIDES_SERVICE(mysql_server, mysql_cond_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_mutex_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_rwlock_v1),
+    PROVIDES_SERVICE(mysql_server, status_variable_registration),
+    PROVIDES_SERVICE(mysql_server, system_variable_source),
+    PROVIDES_SERVICE(mysql_server, mysql_backup_lock),
+    PROVIDES_SERVICE(mysql_server, mysql_thd_security_context),
+    PROVIDES_SERVICE(mysql_server, mysql_security_context_factory),
+    PROVIDES_SERVICE(mysql_server,
+                     mysql_account_database_security_context_lookup),
+    PROVIDES_SERVICE(mysql_server, mysql_security_context_options),
+    END_COMPONENT_PROVIDES();
 
-                                                                        static BEGIN_COMPONENT_REQUIRES(
-                                                                            mysql_server) END_COMPONENT_REQUIRES()
+static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 
-                                                                            BEGIN_COMPONENT_METADATA(
-                                                                                mysql_server)
-                                                                                METADATA(
-                                                                                    "mysql.author",
-                                                                                    "Oracle Corporation")
-                                                                                    METADATA(
-                                                                                        "mysql.license",
-                                                                                        "GPL") END_COMPONENT_METADATA()
+BEGIN_COMPONENT_METADATA(mysql_server)
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
 
-                                                                                        DECLARE_COMPONENT(
-                                                                                            mysql_server,
-                                                                                            "mysql:core")
-    /* There are no initialization/deinitialization functions, they will not be
-      called as this component is not a regular one. */
-    NULL,
-    NULL END_DECLARE_COMPONENT()
+DECLARE_COMPONENT(mysql_server, "mysql:core")
+/* There are no initialization/deinitialization functions, they will not be
+  called as this component is not a regular one. */
+NULL, NULL END_DECLARE_COMPONENT();
 
-    /**
-      Bootstraps service registry and dynamic loader and make ready all basic
-      server services.
+/**
+  Bootstraps service registry and dynamic loader and make ready all basic
+  server services.
 
-      @param [out] registry A service handle to registry service. May be NULL.
-      @return Status of performed operation
-      @retval false success
-      @retval true failure
-    */
-    bool mysql_services_bootstrap(SERVICE_TYPE(registry) * *registry) {
+  @param [out] registry A service handle to registry service. May be NULL.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+bool mysql_services_bootstrap(SERVICE_TYPE(registry) * *registry) {
   /* Create the registry service suite internal structure mysql_registry. */
   registry_init();
 
