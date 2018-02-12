@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,82 +49,18 @@
 
 static char *expand_tilde(char **path);
 
-/* Pack a dirname ; Changes HOME to ~/ and current dev to ./ */
-/* from is a dirname (from dirname() ?) ending with FN_LIBCHAR */
-/* to may be == from */
+/**
+  Remove unwanted chars from dirname.
 
-void pack_dirname(char *to, const char *from) {
-  int cwd_err;
-  size_t d_length, length, buff_length = 0;
-  char *start;
-  char buff[FN_REFLEN];
-  DBUG_ENTER("pack_dirname");
+  Pre-condition: At least FN_REFLEN bytes can be stored in buffer
+  pointed to by 'to'. 'from' is a '\0'-terminated byte buffer.
 
-  (void)intern_filename(to, from); /* Change to intern name */
+  Post-condition: At most FN_REFLEN bytes will have been written to
+  'to'. If the combined length of 'from' and any expanded elements
+  exceeds FN_REFLEN-1, the result is truncated and likely not what the
+  caller expects.
 
-#ifdef FN_DEVCHAR
-  if ((start = strrchr(to, FN_DEVCHAR)) != 0) /* Skip device part */
-    start++;
-  else
-#endif
-    start = to;
-
-  if (!(cwd_err = my_getwd(buff, FN_REFLEN, MYF(0)))) {
-    buff_length = strlen(buff);
-    d_length = (size_t)(start - to);
-    if ((start == to ||
-         (buff_length == d_length && !memcmp(buff, start, d_length))) &&
-        *start != FN_LIBCHAR && *start) { /* Put current dir before */
-      bchange((uchar *)to, d_length, (uchar *)buff, buff_length,
-              strlen(to) + 1);
-    }
-  }
-
-  if ((d_length = cleanup_dirname(to, to)) != 0) {
-    length = 0;
-    if (home_dir) {
-      length = strlen(home_dir);
-      if (home_dir[length - 1] == FN_LIBCHAR)
-        length--; /* Don't test last '/' */
-    }
-    if (length > 1 && length < d_length) { /* test if /xx/yy -> ~/yy */
-      if (memcmp(to, home_dir, length) == 0 && to[length] == FN_LIBCHAR) {
-        to[0] = FN_HOMELIB; /* Filename begins with ~ */
-        (void)my_stpmov(to + 1, to + length);
-      }
-    }
-    if (!cwd_err) { /* Test if cwd is ~/... */
-      if (length > 1 && length < buff_length) {
-        if (memcmp(buff, home_dir, length) == 0 && buff[length] == FN_LIBCHAR) {
-          buff[0] = FN_HOMELIB;
-          (void)my_stpmov(buff + 1, buff + length);
-        }
-      }
-      if (is_prefix(to, buff)) {
-        length = strlen(buff);
-        if (to[length])
-          (void)my_stpmov(to, to + length); /* Remove everything before */
-        else {
-          to[0] = FN_CURLIB; /* Put ./ instead of cwd */
-          to[1] = FN_LIBCHAR;
-          to[2] = '\0';
-        }
-      }
-    }
-  }
-  DBUG_PRINT("exit", ("to: '%s'", to));
-  DBUG_VOID_RETURN;
-} /* pack_dirname */
-
-/*
-  remove unwanted chars from dirname
-
-  SYNOPSIS
-     cleanup_dirname()
-     to		Store result here
-     from	Dirname to fix.  May be same as to
-
-  IMPLEMENTATION
+  IMPLEMENTATION:
   "/../" removes prev dir
   "/~/" removes all before ~
   //" is same as "/", except on Win32 at start of a file
@@ -132,8 +68,10 @@ void pack_dirname(char *to, const char *from) {
   Unpacks home_dir if "~/.." used
   Unpacks current dir if if "./.." used
 
-  RETURN
-    #  length of new name
+  @param to     Store result here
+  @param from   Dirname to fix.  May be same as to
+
+  @return length of new name
 */
 
 size_t cleanup_dirname(char *to, const char *from) {
@@ -161,7 +99,8 @@ size_t cleanup_dirname(char *to, const char *from) {
 
   parent[0] = FN_LIBCHAR;
   length = (size_t)(my_stpcpy(parent + 1, FN_PARENTDIR) - parent);
-  for (pos = start; (*pos = *from_ptr++) != 0; pos++) {
+  const char *end = start + FN_REFLEN;
+  for (pos = start; pos < end && ((*pos = *from_ptr++) != 0); pos++) {
 #ifdef _WIN32
     uint l;
     if (use_mb(fs) && (l = my_ismbchar(fs, from_ptr - 1, from_ptr + 2))) {
@@ -226,13 +165,23 @@ size_t cleanup_dirname(char *to, const char *from) {
       }
     }
   }
+
+  buff[FN_REFLEN - 1] = '\0';
   (void)my_stpcpy(to, buff);
   DBUG_PRINT("exit", ("to: '%s'", to));
   DBUG_RETURN((size_t)(pos - buff));
 } /* cleanup_dirname */
 
 /**
-  Convert a directory name to a format which can be compared as strings
+  Convert a directory name to a format which can be compared as strings.
+
+  Pre-condition: At least FN_REFLEN bytes can be stored in buffer
+  pointed to by 'to'. 'from' is a '\0'-terminated byte buffer.
+
+  Post-condition: At most FN_REFLEN bytes will have been written to
+  'to'. If the combined length of 'from' and any expanded elements
+  exceeds FN_REFLEN-1, the result is truncated and likely not what the
+  caller expects.
 
   @param to     result buffer, FN_REFLEN chars in length; may be == from
   @param from   'packed' directory name, in whatever format
@@ -242,7 +191,7 @@ size_t cleanup_dirname(char *to, const char *from) {
   - Ensures that last char is FN_LIBCHAR, unless it is FN_DEVCHAR
   - Uses cleanup_dirname
 
-  It does *not* expand ~/ (although, see cleanup_dirname).  Nor does it do
+  @note It does *not* expand ~/ (although, see cleanup_dirname).  Nor does it do
   any case folding.  All case-insensitive normalization should be done by
   the caller.
 */
@@ -275,7 +224,15 @@ size_t normalize_dirname(char *to, const char *from) {
 }
 
 /**
-  Fixes a directory name so that can be used by open()
+  Fixes a directory name so that can be used by open().
+
+  Pre-condition: At least FN_REFLEN bytes can be stored in buffer
+  pointed to by 'to'. 'from' is a '\0'-terminated byte buffer.
+
+  Post-condition: At most FN_REFLEN bytes will have been written to
+  'to'. If the combined length of 'from' and any expanded elements
+  exceeds FN_REFLEN-1, the result is truncated and likely not what the
+  caller expects.
 
   @param to     Result buffer, FN_REFLEN characters. May be == from
   @param from   'Packed' directory name (may contain ~)
@@ -312,11 +269,16 @@ size_t unpack_dirname(char *to, const char *from) {
   DBUG_RETURN(system_filename(to, buff)); /* Fix for open */
 } /* unpack_dirname */
 
-/* Expand tilde to home or user-directory */
-/* Path is reset to point at FN_LIBCHAR after ~xxx */
+/**
+  Expand tilde to home or user-directory.
+  Path is reset to point at FN_LIBCHAR after ~xxx
+  @param path pointer to path containing tilde.
+  @return home directory.
+*/
 
 static char *expand_tilde(char **path) {
   if (path[0][0] == FN_LIBCHAR) return home_dir; /* ~/ expanded to home */
+
 #ifdef HAVE_GETPWNAM
   {
     char *str, save;
@@ -337,20 +299,23 @@ static char *expand_tilde(char **path) {
   return (char *)0;
 }
 
-/*
+/**
   Fix filename so it can be used by open, create
 
-  SYNOPSIS
-    unpack_filename()
-    to		Store result here. Must be at least of size FN_REFLEN.
-    from	Filename in unix format (with ~)
+  Pre-condition: At least FN_REFLEN bytes can be stored in buffer
+  pointed to by 'to'. 'from' is a '\0'-terminated byte buffer.
 
-  RETURN
-    # length of to
+  Post-condition: At most FN_REFLEN bytes will have been written to
+  'to'. If the combined length of 'from' and any expanded elements
+  exceeds FN_REFLEN-1, the result is truncated and likely not what the
+  caller expects.
 
-  NOTES
-    to may be == from
-    ~ will only be expanded if total length < FN_REFLEN
+  @note  to may be == from
+  @note  ~ will only be expanded if total length < FN_REFLEN
+
+  @param to   Store result here. Must be at least of size FN_REFLEN.
+  @param from Filename in unix format (with ~)
+  @return # length of to
 */
 
 size_t unpack_filename(char *to, const char *from) {
@@ -368,24 +333,54 @@ size_t unpack_filename(char *to, const char *from) {
   DBUG_RETURN(length);
 } /* unpack_filename */
 
-/* Convert filename (unix standard) to system standard */
-/* Used before system command's like open(), create() .. */
-/* Returns used length of to; total length should be FN_REFLEN */
+/**
+  Convert filename (unix standard) to system standard
+  Used before system command's like open(), create()
+
+  Pre-condition: At least FN_REFLEN bytes can be stored in buffer
+  pointed to by 'to'. 'from' is a '\0'-terminated byte buffer.
+
+  Post-condition: At most FN_REFLEN bytes will have been written to
+  'to'. If the combined length of 'from' and any expanded elements
+  exceeds FN_REFLEN-1, the result is truncated and likely not what the
+  caller expects.
+
+  @param to destination buffer.
+  @param from source string.
+  @return used length of to
+*/
 
 size_t system_filename(char *to, const char *from) {
   return (size_t)(strmake(to, from, FN_REFLEN - 1) - to);
 }
 
-/* Fix a filename to intern (UNIX format) */
+/**
+  Fix a filename to intern (UNIX format).
+
+  Pre-condition: At least FN_REFLEN bytes can be stored in buffer
+  pointed to by 'to'. 'from' is a '\0'-terminated byte buffer.
+
+  Post-condition: At most FN_REFLEN bytes will have been written to
+  'to'. If the combined length of 'from' and any expanded elements
+  exceeds FN_REFLEN-1, the result is truncated and likely not what the
+  caller expects.
+
+  @param to destination buffer.
+  @param from source string.
+  @return to (destination buffer).
+*/
 
 char *intern_filename(char *to, const char *from) {
   size_t length, to_length;
   char buff[FN_REFLEN];
+
   if (from == to) { /* Dirname may destroy from */
     (void)my_stpnmov(buff, from, FN_REFLEN);
+    buff[FN_REFLEN - 1] = '\0';  // make sure buff is valid c-string
     from = buff;
   }
   length = dirname_part(to, from, &to_length); /* Copy dirname & fix chars */
-  (void)my_stpnmov(to + to_length, from + length, FN_REFLEN - to_length);
+  (void)my_stpnmov(to + to_length, from + length, FN_REFLEN - 1 - to_length);
+  to[FN_REFLEN - 1] = '\0';  // make sure to is valid c-string
   return (to);
 } /* intern_filename */
