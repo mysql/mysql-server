@@ -94,6 +94,8 @@ $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 
 our $mysql_version_id;
 our $mysql_version_extra;
+my $mysql_base_version;
+
 our $glob_mysql_test_dir;
 our $basedir;
 our $bindir;
@@ -170,6 +172,8 @@ our @opt_mysqld_envs;
 our @opt_extra_mysqltest_opt;
 
 our @opt_extra_bootstrap_opt;
+
+our @share_locations;
 
 my $opt_stress;
 
@@ -1496,6 +1500,17 @@ sub command_line_setup {
   # build directory in out-of-source builds.
   $bindir=$ENV{MTR_BINDIR}||$basedir;
   
+  if (using_extern())
+  {
+    # Connect to the running mysqld and find out what it supports
+    collect_mysqld_features_from_running_server();
+  }
+  else
+  {
+    # Run the mysqld to find out what features are available
+    collect_mysqld_features();
+  }
+
   # Look for the client binaries directory
   if ($path_client_bindir)
   {
@@ -1513,8 +1528,12 @@ sub command_line_setup {
   $path_language= mtr_path_exists("$bindir/share/mysql",
                                   "$bindir/share");
   my $path_share= $path_language;
-  $path_charsetsdir= mtr_path_exists("$basedir/share/mysql/charsets",
-                                     "$basedir/share/charsets");
+
+  @share_locations= ("share/mysql",
+                     "share/mysql-" . $mysql_base_version,
+                     "share");
+
+  $path_charsetsdir= my_find_dir($basedir, \@share_locations, "charsets");
 
   ($auth_plugin)= find_plugin("auth_test_plugin", "plugin_output_directory");
 
@@ -1529,17 +1548,6 @@ sub command_line_setup {
 
   # --debug[-common] implies we run debug server
   $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
-
-  if (using_extern())
-  {
-    # Connect to the running mysqld and find out what it supports
-    collect_mysqld_features_from_running_server();
-  }
-  else
-  {
-    # Run the mysqld to find out what features are available
-    collect_mysqld_features();
-  }
 
   if ( $opt_comment )
   {
@@ -2238,6 +2246,9 @@ sub collect_mysqld_features {
       {
 	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
+	# Some paths might be version specific
+	$mysql_base_version= int($mysql_version_id / 10000) . "." .
+                             int(($mysql_version_id % 10000)/100);
 	#print "mysql_version_id: $mysql_version_id\n";
 	mtr_report("MySQL Version $1.$2.$3");
 	$mysql_version_extra= $4;
@@ -4119,6 +4130,7 @@ sub mysql_install_db {
 
   my $path_sql= my_find_file($install_basedir,
 			     ["mysql", "share/mysql",
+			      "share/mysql-" . $mysql_base_version,
 			      "share", "scripts"],
 			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
