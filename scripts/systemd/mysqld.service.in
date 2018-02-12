@@ -55,7 +55,7 @@ ExecStart=@libexecdir@/mysqld $MYSQLD_OPTS
 EnvironmentFile=-/etc/sysconfig/mysql
 
 # Sets open_files_limit
-LimitNOFILE = 5000
+LimitNOFILE = 10000
 
 Restart=on-failure
 
