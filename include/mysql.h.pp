@@ -241,6 +241,8 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 bool my_thread_init(void);
 void my_thread_end(void);
 unsigned long net_field_length(unsigned char **packet);
+unsigned long net_field_length_checked(unsigned char **packet,
+                                       unsigned long max_length);
 unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);

@@ -2357,14 +2357,16 @@ static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
   pos = net->read_pos;
   end_pos = pos + pkt_len;
   for (field = 0; field < fields; field++) {
-    if ((len = (ulong)net_field_length(&pos)) == NULL_LENGTH) { /* null field */
+    len = (ulong)net_field_length_checked(&pos, (ulong)(end_pos - pos));
+    if (pos > end_pos) {
+      set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
+      return -1;
+    }
+
+    if (len == NULL_LENGTH) {
       row[field] = 0;
       *lengths++ = 0;
     } else {
-      if (len > (ulong)(end_pos - pos)) {
-        set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
-        return -1;
-      }
       row[field] = (char *)pos;
       pos += len;
       *lengths++ = len;
