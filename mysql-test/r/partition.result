@@ -2132,6 +2132,7 @@ Warning	1287	The partition engine, used by table 'test.t1', is deprecated and wi
 set session sql_mode='no_table_options';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'NO_TABLE_OPTIONS' is deprecated. It will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -3726,6 +3726,22 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
                           ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
     }
+    static const sql_mode_t deprecated_mask= MODE_DB2 | MODE_MAXDB |
+      MODE_MSSQL | MODE_MYSQL323 | MODE_MYSQL40 | MODE_ORACLE |
+      MODE_POSTGRESQL | MODE_NO_FIELD_OPTIONS | MODE_NO_KEY_OPTIONS |
+      MODE_NO_TABLE_OPTIONS;
+    sql_mode_t deprecated_modes=
+      var->save_result.ulonglong_value & deprecated_mask;
+    if (deprecated_modes != 0)
+    {
+      LEX_STRING buf;
+      if (sql_mode_string_representation(thd, deprecated_modes, &buf))
+        return true; // OOM
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                          buf.str);
+    }
   }
 
   return false;

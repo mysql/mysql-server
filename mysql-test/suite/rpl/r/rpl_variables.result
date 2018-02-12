@@ -146,6 +146,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 SET @@local.sql_mode = 'NO_FIELD_OPTIONS,NO_KEY_OPTIONS,NO_TABLE_OPTIONS';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 ---- user variables ----
@@ -543,6 +544,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 EXECUTE p54;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 EXECUTE p55;
 EXECUTE p56;
 EXECUTE p57;
