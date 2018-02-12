@@ -485,9 +485,9 @@ void my_write_core(int unused) {
     // representation of DWORD value + 4 bytes for .dmp suffix +
     // 1 byte for termitated \0. Such size of output buffer guarantees
     // that there is enough space to place a result of string formatting
-    // performed by _snprintf().
-    _snprintf(dump_fname, sizeof(dump_fname), "%s.%u.dmp", module_name,
-              GetCurrentProcessId());
+    // performed by snprintf().
+    snprintf(dump_fname, sizeof(dump_fname), "%s.%u.dmp", module_name,
+             GetCurrentProcessId());
   }
   my_create_minidump(dump_fname, 0, 0);
 }

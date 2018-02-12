@@ -6627,7 +6627,8 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
                          MDL_EXCLUSIVE, MDL_STATEMENT);
         mdl_requests->push_front(mdl_request);
       } else {
-        char fk_name[NAME_LEN + 1];
+        // The below buffer should be sufficient for any generated name.
+        char fk_name[NAME_LEN + sizeof(dd::FOREIGN_KEY_NAME_SUBSTR) + 10 + 1];
 
         /*
           Note that the below code is in sync with generate_fk_name().

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ static bool rewrite_db(char **buf, ulong *buf_size, uint offset_db,
             *buf_size - (offset_db + old_db_len));
 
   // Write new_db and new_db_len.
-  strncpy((*buf) + offset_db, new_db, new_db_len);
+  memcpy((*buf) + offset_db, new_db, new_db_len);
   (*buf)[offset_len] = (char)new_db_len;
 
   // Update event length in header.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,8 @@ int main(int argc, const char **argv) {
   }
   pid = atoi(argv[1]);
 
-  _snprintf(safe_process_name, sizeof(safe_process_name), "safe_process[%d]",
-            pid);
+  snprintf(safe_process_name, sizeof(safe_process_name), "safe_process[%d]",
+           pid);
 
   /* Open the event to signal */
   while ((shutdown_event = OpenEvent(EVENT_MODIFY_STATE, FALSE,

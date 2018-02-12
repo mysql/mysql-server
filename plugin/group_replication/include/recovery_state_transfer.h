@@ -109,37 +109,37 @@ class Recovery_state_transfer {
 
   /** Set a SSL trusted certificate authorities file */
   void set_recovery_ssl_ca(const char *ssl_ca) {
-    (void)strncpy(recovery_ssl_ca, ssl_ca, strlen(ssl_ca) + 1);
+    memcpy(recovery_ssl_ca, ssl_ca, strlen(ssl_ca) + 1);
   }
 
   /** Set a folder with SSL trusted CA files */
   void set_recovery_ssl_capath(const char *ssl_capath) {
-    (void)strncpy(recovery_ssl_capath, ssl_capath, strlen(ssl_capath) + 1);
+    memcpy(recovery_ssl_capath, ssl_capath, strlen(ssl_capath) + 1);
   }
 
   /** Set a SSL certificate for connection */
   void set_recovery_ssl_cert(const char *ssl_cert) {
-    (void)strncpy(recovery_ssl_cert, ssl_cert, strlen(ssl_cert) + 1);
+    memcpy(recovery_ssl_cert, ssl_cert, strlen(ssl_cert) + 1);
   }
 
   /** Set a SSL ciphers to be used */
   void set_recovery_ssl_cipher(const char *ssl_cipher) {
-    (void)strncpy(recovery_ssl_cipher, ssl_cipher, strlen(ssl_cipher) + 1);
+    memcpy(recovery_ssl_cipher, ssl_cipher, strlen(ssl_cipher) + 1);
   }
 
   /** Set a SSL key for connections */
   void set_recovery_ssl_key(const char *ssl_key) {
-    (void)strncpy(recovery_ssl_key, ssl_key, strlen(ssl_key) + 1);
+    memcpy(recovery_ssl_key, ssl_key, strlen(ssl_key) + 1);
   }
 
   /** Set a SSL revocation list file*/
   void set_recovery_ssl_crl(const char *ssl_crl) {
-    (void)strncpy(recovery_ssl_crl, ssl_crl, strlen(ssl_crl) + 1);
+    memcpy(recovery_ssl_crl, ssl_crl, strlen(ssl_crl) + 1);
   }
 
   /** Set a folder with SSL revocation list files*/
   void set_recovery_ssl_crlpath(const char *ssl_crlpath) {
-    (void)strncpy(recovery_ssl_crlpath, ssl_crlpath, strlen(ssl_crlpath) + 1);
+    memcpy(recovery_ssl_crlpath, ssl_crlpath, strlen(ssl_crlpath) + 1);
   }
 
   /** Set if recovery shall compare the used hostname against the certificate */
@@ -159,8 +159,8 @@ class Recovery_state_transfer {
   /** Set a public key file*/
   void set_recovery_public_key_path(const char *public_key_path) {
     if (public_key_path != NULL) {
-      (void)strncpy(recovery_public_key_path, public_key_path,
-                    strlen(public_key_path) + 1);
+      memcpy(recovery_public_key_path, public_key_path,
+             strlen(public_key_path) + 1);
     }
   }
 

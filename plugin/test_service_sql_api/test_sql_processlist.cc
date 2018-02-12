@@ -264,16 +264,14 @@ static int sql_get_null(void *ctx) {
 }
 
 static int sql_get_integer(void *ctx, longlong value) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_integer");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%lld", value);
-
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]), "%lld", value);
   pctx->sql_str_len[row][col] = len;
   pctx->sql_int_value[row][col] = value;
 
@@ -281,17 +279,16 @@ static int sql_get_integer(void *ctx, longlong value) {
 }
 
 static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_longlong");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len =
-      snprintf(buffer, sizeof(buffer), is_unsigned ? "%llu" : "%lld", value);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]),
+                        is_unsigned ? "%llu" : "%lld", value);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
   pctx->sql_longlong_value[row][col] = value;
   pctx->sql_is_unsigned[row][col] = is_unsigned;
@@ -300,19 +297,16 @@ static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
 }
 
 static int sql_get_decimal(void *ctx, const decimal_t *value) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_decimal");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%s%d.%d(%d)[%s]",
-                        value->sign ? "+" : "-", value->intg, value->frac,
-                        value->len, (char *)value->buf);
-
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
-
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]),
+                        "%s%d.%d(%d)[%s]", value->sign ? "+" : "-", value->intg,
+                        value->frac, value->len, (char *)value->buf);
   pctx->sql_str_len[row][col] = len;
   pctx->sql_decimal_value[row][col].intg = value->intg;
   pctx->sql_decimal_value[row][col].frac = value->frac;
@@ -326,16 +320,15 @@ static int sql_get_decimal(void *ctx, const decimal_t *value) {
 }
 
 static int sql_get_double(void *ctx, double value, uint32 decimals) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_double");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len = snprintf(buffer, sizeof(buffer), "%3.7g", value);
+  size_t len = snprintf(pctx->sql_str_value[row][col],
+                        sizeof(pctx->sql_str_value[row][col]), "%3.7g", value);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_double_value[row][col] = value;
@@ -345,7 +338,6 @@ static int sql_get_double(void *ctx, double value, uint32 decimals) {
 }
 
 static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_date");
   uint row = pctx->num_rows;
@@ -353,10 +345,9 @@ static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
   pctx->current_col++;
 
   size_t len =
-      snprintf(buffer, sizeof(buffer), "%s%4d-%02d-%02d", value->neg ? "-" : "",
-               value->year, value->month, value->day);
-
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
+      snprintf(pctx->sql_str_value[row][col],
+               sizeof(pctx->sql_str_value[row][col]), "%s%4d-%02d-%02d",
+               value->neg ? "-" : "", value->year, value->month, value->day);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_date_value[row][col].year = value->year;
@@ -373,7 +364,6 @@ static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
 }
 
 static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_time");
   uint row = pctx->num_rows;
@@ -381,11 +371,11 @@ static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
   pctx->current_col++;
 
   size_t len = snprintf(
-      buffer, sizeof(buffer), "%s%02d:%02d:%02d", value->neg ? "-" : "",
+      pctx->sql_str_value[row][col], sizeof(pctx->sql_str_value[row][col]),
+      "%s%02d:%02d:%02d", value->neg ? "-" : "",
       value->day ? (value->day * 24 + value->hour) : value->hour, value->minute,
       value->second);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_time_value[row][col].year = value->year;
@@ -403,19 +393,17 @@ static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
 }
 
 static int sql_get_datetime(void *ctx, const MYSQL_TIME *value, uint decimals) {
-  char buffer[1024];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_ENTER("sql_get_datetime");
   uint row = pctx->num_rows;
   uint col = pctx->current_col;
   pctx->current_col++;
 
-  size_t len =
-      snprintf(buffer, sizeof(buffer), "%s%4d-%02d-%02d %02d:%02d:%02d",
-               value->neg ? "-" : "", value->year, value->month, value->day,
-               value->hour, value->minute, value->second);
+  size_t len = snprintf(
+      pctx->sql_str_value[row][col], sizeof(pctx->sql_str_value[row][col]),
+      "%s%4d-%02d-%02d %02d:%02d:%02d", value->neg ? "-" : "", value->year,
+      value->month, value->day, value->hour, value->minute, value->second);
 
-  strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col] = len;
 
   pctx->sql_datetime_value[row][col].year = value->year;
@@ -457,7 +445,8 @@ static void sql_handle_ok(void *ctx, uint server_status,
   pctx->warn_count = statement_warn_count;
   pctx->affected_rows = affected_rows;
   pctx->last_insert_id = last_insert_id;
-  if (message) strncpy(pctx->message, message, sizeof(pctx->message));
+  if (message) strncpy(pctx->message, message, sizeof(pctx->message) - 1);
+  pctx->message[sizeof(pctx->message) - 1] = '\0';
 
   DBUG_VOID_RETURN;
 }

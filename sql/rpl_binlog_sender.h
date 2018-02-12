@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -379,9 +379,8 @@ class Binlog_sender : Gtid_mode_copy {
 
   bool has_error() { return m_errno != 0; }
   void set_error(int errorno, const char *errmsg) {
-    // Need to set the final '\0' since strncpy does not do that.
-    strncpy(m_errmsg_buf, errmsg, sizeof(m_errmsg_buf) - 1);
-    m_errmsg_buf[sizeof(m_errmsg_buf) - 1] = '\0';
+    snprintf(m_errmsg_buf, sizeof(m_errmsg_buf), "%.*s", MYSQL_ERRMSG_SIZE - 1,
+             errmsg);
     m_errmsg = m_errmsg_buf;
     m_errno = errorno;
   }

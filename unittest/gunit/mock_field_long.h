@@ -1,6 +1,6 @@
 #ifndef MOCK_FIELD_LONG_INCLUDED
 #define MOCK_FIELD_LONG_INCLUDED
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ class Mock_field_long : public Field_long {
     static const char *table_name_buf = "table_name";
     table_name = &table_name_buf;
     if (name) {
-      strncpy(m_name, name, 1024);
+      snprintf(m_name, sizeof(m_name), "%.1023s", name);
       field_name = m_name;
     }
   }

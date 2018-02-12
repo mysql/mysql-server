@@ -2083,9 +2083,8 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
   if (thd->get_stmt_da()->is_error()) {
     stmt->state = Query_arena::STMT_ERROR;
     stmt->last_errno = thd->get_stmt_da()->mysql_errno();
-    size_t len = sizeof(stmt->last_error);
-    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(), len - 1);
-    stmt->last_error[len - 1] = '\0';
+    snprintf(stmt->last_error, sizeof(stmt->last_error), "%.*s",
+             MYSQL_ERRMSG_SIZE - 1, thd->get_stmt_da()->message_text());
   }
   thd->pop_diagnostics_area();
 

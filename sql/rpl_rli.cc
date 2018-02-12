@@ -747,7 +747,8 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
 
   if (level == ERROR_LEVEL) {
     m_last_error.number = err_code;
-    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    snprintf(m_last_error.message, sizeof(m_last_error.message), "%.*s",
+             MAX_SLAVE_ERRMSG - 1, buff_coord);
     m_last_error.update_timestamp();
   }
 

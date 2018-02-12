@@ -3696,8 +3696,9 @@ static void do_mkdir(struct st_command *command) {
 void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname) {
   DBUG_ENTER("do_force_rmdir");
 
-  char dir_name[FN_REFLEN];
-  strncpy(dir_name, ds_dirname->str, sizeof(dir_name));
+  char dir_name[FN_REFLEN + 1];
+  strncpy(dir_name, ds_dirname->str, sizeof(dir_name) - 1);
+  dir_name[FN_REFLEN] = '\0';
 
   /* Note that my_dir sorts the list if not given any flags */
   MY_DIR *dir_info = my_dir(ds_dirname->str, MYF(MY_DONT_SORT | MY_WANT_STAT));

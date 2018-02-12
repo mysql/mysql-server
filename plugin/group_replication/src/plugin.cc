@@ -994,7 +994,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel,
 
           *error_message =
               (char *)my_malloc(PSI_NOT_INSTRUMENTED, err_len + 1, MYF(0));
-          strncpy(*error_message, err_tmp_arr, err_len);
+          memcpy(*error_message, err_tmp_arr, err_len + 1);
         } else {
           char err_tmp_arr[] =
               "Error stopping all replication channels while"

@@ -173,10 +173,10 @@ int main(int argc, const char **argv) {
         arg = argv[j];
         if (strchr(arg, ' ') && arg[0] != '\"' && arg[strlen(arg)] != '\"') {
           /* Quote arg that contains spaces and are not quoted already */
-          to += _snprintf(to, child_args + sizeof(child_args) - to, "\"%s\" ",
-                          arg);
+          to += snprintf(to, child_args + sizeof(child_args) - to, "\"%s\" ",
+                         arg);
         } else {
-          to += _snprintf(to, child_args + sizeof(child_args) - to, "%s ", arg);
+          to += snprintf(to, child_args + sizeof(child_args) - to, "%s ", arg);
         }
       }
       break;
