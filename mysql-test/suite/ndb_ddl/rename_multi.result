@@ -1,0 +1,2 @@
+RENAME TABLE t1 to t1_new_name, t3 to ndb_ddl_test2.t3, t4 to ndb_ddl_test2.t4_new_name;
+== verify_mysql_dd.inc ==

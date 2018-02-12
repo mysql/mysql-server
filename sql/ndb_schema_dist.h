@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,22 +25,21 @@
 #ifndef NDB_SCHEMA_DIST_H
 #define NDB_SCHEMA_DIST_H
 
-#include "mysql/plugin.h"
-
+#include "my_inttypes.h"
 
 /**
   Check if schema distribution has been initialized and is
   ready. Will return true when the component is properly setup
-  to receive schema op events from the cluster.
+  to receive schema operation events from the cluster.
 */
 bool ndb_schema_dist_is_ready(void);
 
 
-/*
-  The numbers below must not change as they
-  are passed between mysql servers, and if changed
-  would break compatablility.  Add new numbers to
-  the end.
+/**
+  The numbers below must not change as they are passed
+  between MySQL servers as part of the schema distribution
+  protocol. Changes would break compatibility between versions.
+  Add new numbers to the end.
 */
 enum SCHEMA_OP_TYPE
 {
@@ -67,7 +66,7 @@ enum SCHEMA_OP_TYPE
 };
 
 
-int ndbcluster_log_schema_op(THD* thd,
+int ndbcluster_log_schema_op(class THD* thd,
                              const char *query, int query_length,
                              const char *db, const char *table_name,
                              uint32 ndb_table_id,

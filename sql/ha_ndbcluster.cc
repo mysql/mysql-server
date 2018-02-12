@@ -11348,9 +11348,10 @@ cleanup_failed:
       (void)drop_table_and_related(thd, ndb, dict, m_table,
                                    0,          // drop_flags
                                    false);     // skip_related
+      NDB_SHARE::release_reference(share, "create"); // temporary ref.
       m_table = nullptr;
       my_printf_error(ER_INTERNAL_ERROR,
-                      "Failed to to create event for table '%s'",
+                      "Failed to create event for table '%s'",
                       MYF(0), name);
       DBUG_RETURN(ER_INTERNAL_ERROR);
     }
@@ -11366,9 +11367,10 @@ cleanup_failed:
         (void)drop_table_and_related(thd, ndb, dict, m_table,
                                      0,          // drop_flags
                                      false);     // skip_related
+        NDB_SHARE::release_reference(share, "create"); // temporary ref.
         m_table = nullptr;
         my_printf_error(ER_INTERNAL_ERROR,
-                        "Failed to to create event operation for table '%s'",
+                        "Failed to create event operation for table '%s'",
                         MYF(0), name);
         DBUG_RETURN(ER_INTERNAL_ERROR);
       }
@@ -17142,7 +17144,6 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
                                            const dd::Table *, dd::Table *)
 {
   int error= 0;
-  uint i;
   THD *thd= current_thd;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= get_ndb(thd);
@@ -17268,7 +17269,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
      NDBCOL col;
 
      /* Find the new fields */
-     for (i= table->s->fields; i < altered_table->s->fields; i++)
+     for (uint i = table->s->fields; i < altered_table->s->fields; i++)
      {
        Field *field= altered_table->field[i];
        if(! field->stored_in_db)

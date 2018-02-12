@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <mysql/plugin.h>
+#include <mutex>
 
 #include "my_dbug.h"
-#include "my_sys.h"               // my_sleep.h
 #include "mysql/plugin.h"
+#include "sql/mdl.h"
 #include "sql/ndb_sleep.h"
+#include "sql/ndb_table_guard.h"
 #include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h" // thd_query_unsafe
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
-#include "storage/ndb/include/portlib/NdbTick.h"
-
 
 /**
  * There is a potential for deadlocks between MDL and GSL locks:
@@ -59,30 +58,37 @@
  * locks and retry later
  */
 
-extern mysql_mutex_t ndbcluster_mutex;
-static const THD *thd_gsl_participant= NULL; 
+static class Ndb_thd_gsl_participant {
+  std::mutex m_mutex;
+  const THD *m_thd{nullptr};
 
-static void ndb_set_gsl_participant(const THD *thd)
+ public:
+  Ndb_thd_gsl_participant &operator=(const THD *thd) {
+    std::lock_guard<std::mutex> lock_thd(m_mutex);
+    m_thd = thd;
+    return *this;
+  }
+  bool operator!=(const THD *thd) {
+    std::lock_guard<std::mutex> lock_thd(m_mutex);
+    return m_thd != thd;
+  }
+} thd_gsl_participant;
+
+static void ndb_set_gsl_participant(THD* thd)
 {
-  mysql_mutex_lock(&ndbcluster_mutex);
   thd_gsl_participant= thd;
-  mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 static bool ndb_is_gsl_participant_active()
 {
-  mysql_mutex_lock(&ndbcluster_mutex);
-  const bool state= (thd_gsl_participant != NULL);
-  mysql_mutex_unlock(&ndbcluster_mutex);
-  return state;
+  return (thd_gsl_participant != nullptr);
 }
 
-#include "sql/ndb_table_guard.h"
 
 /*
   The lock/unlock functions use the BACKUP_SEQUENCE row in SYSTAB_0
 
-  The function will retry infintely or until the THD is killed or a 
+  The function will retry infinitely or until the THD is killed or a
   GSL / MDL deadlock is detected/assumed. In the later case a
   timeout error (266) is returned. 
 
@@ -143,7 +149,7 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
      *     the coordinator already held the GSL.
      *  3) This THD holds a lock being waited for by another THD
      *
-     * Note: If we incorrectly assume a deadlock above, the calle
+     * Note: If we incorrectly assume a deadlock above, the caller
      * will still either retry indefinitely as today, (notify_alter),
      * or now be able to release locks gotten so far and retry later.
      */
@@ -187,12 +193,6 @@ gsl_unlock_ext(Ndb *ndb, NdbTransaction *trans,
   ndb->closeTransaction(trans);
   return true;
 }
-
-
-// NOTE! 'thd_proc_info' is defined in myql/plugin.h but not implemented, only
-// a #define available in sql_class.h -> include sql_class.h until
-// bug#11844974 has been fixed. 
-#include "sql/sql_class.h" 
 
 class Thd_proc_info_guard
 {
