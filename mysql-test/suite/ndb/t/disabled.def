@@ -46,7 +46,7 @@ ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABL
 # Problem with alter table which fails while copying data between tables, the
 # temporary named destination table is not dropped. Need to rewrite
 # the copying alter table code path in ndbcluster to drop the table in
-# order to be atomic
+# order to be atomic. See Bug26609059 NDB FAILS TO ROLL BACK THE FAILED CREATE TABLE
 ndb_fk_no_fk: Need WL#9185 MySQL Cluster support for new DD
 ndb_fk_db: Need WL#9185 MySQL Cluster support for new DD
 ndb_dd_alter: Need WL#9185 MySQL Cluster support for new DD
