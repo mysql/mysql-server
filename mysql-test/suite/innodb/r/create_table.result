@@ -17,3 +17,26 @@ SET DEBUG ='+d, simulate_max_char_col';
 create table t1(f1 varchar(1000))engine=innodb;
 ERROR HY000: Got error 1005 from storage engine
 SET DEBUG ='-d, simulate_max_char_col';
+#
+# Bug #27361662  ERROR NOT THROWN ON CREATING TEMPORARY TABLE IN
+# INNODB_FILE_PER_TABLE TABLESPACE
+#
+"Try creating temporary table with innodb_file_per_table option with STRICT mode"
+SET innodb_strict_mode = ON;
+CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
+ERROR HY000: InnoDB: innodb_file_per_table option not supported for temporary tables.
+SELECT COUNT(*) FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+"Try creating temporary table with innodb_file_per_table option without STRICT mode"
+SET innodb_strict_mode = OFF;
+CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
+Warnings:
+Warning	1478	InnoDB: innodb_file_per_table option ignored while creating temporary table with INNODB_STRICT_MODE=OFF.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: innodb_file_per_table option ignored while creating temporary table with INNODB_STRICT_MODE=OFF.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+DROP TABLE t1;
+SET innodb_strict_mode = default;
