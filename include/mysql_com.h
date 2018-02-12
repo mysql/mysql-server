@@ -1079,6 +1079,8 @@ void my_thread_end(void);
 
 #ifdef STDCALL
 unsigned long STDCALL net_field_length(unsigned char **packet);
+unsigned long STDCALL net_field_length_checked(unsigned char **packet,
+                                               unsigned long max_length);
 #endif
 unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
