@@ -364,6 +364,7 @@ static int accepted(pax_machine *p);
 static int started(pax_machine *p);
 static synode_no first_free_synode(synode_no msgno);
 static void free_forced_config_site_def();
+static void force_pax_machine(pax_machine *p, int enforcer);
 
 extern void bit_set_or(bit_set *x, bit_set const *y);
 
@@ -644,6 +645,8 @@ static inline node_no max_check(site_def const *site) {
 }
 
 static site_def *forced_config = 0;
+static int is_forcing_node(pax_machine const *p) { return p->enforcer; }
+static int wait_forced_config = 0;
 
 /* Definition of majority */
 static inline int majority(bit_set const *nodeset, site_def const *s, int all,
@@ -741,14 +744,14 @@ static int prop_majority(site_def const *site, pax_machine *p) {
 /* purecov: begin deadcode */
 /* Xcom thread start function */
 void *xcom_thread_main(void *cp) {
-  G_MESSAGE("Starting xcom on port %d", atoi((char *)cp));
+  G_MESSAGE("Starting xcom on port %d at %f", atoi((char *)cp), seconds());
   xcom_thread_init();
   /* Initialize task system and enter main loop */
   taskmain((xcom_port)atoi((char *)cp));
   /* Xcom is finished when we get here */
   DBGOUT(FN; STRLIT("Deconstructing xcom thread"));
   xcom_thread_deinit();
-  G_MESSAGE("Exiting xcom thread");
+  G_MESSAGE("Exiting xcom thread at %f", seconds());
   return NULL;
 }
 /* purecov: end */
@@ -1176,6 +1179,10 @@ static void push_msg_2p(site_def const *site, pax_machine *p) {
 
 static void push_msg_3p(site_def const *site, pax_machine *p, pax_msg *msg,
                         synode_no msgno, pax_msg_type msg_type) {
+  if (wait_forced_config) {
+    force_pax_machine(p, 1);
+  }
+
   assert(msgno.msgno != 0);
   prepare_push_3p(site, p, msg, msgno);
   msg->msg_type = msg_type;
@@ -1652,7 +1659,9 @@ static int proposer_task(task_arg arg) {
   }
   FINALLY
   MAY_DBG(FN; STRLIT("exit "); NDBG(ep->self, d); NDBG(task_now(), f));
-  if (ep->p) unlock_pax_machine(ep->p);
+  if (ep->p) {
+    unlock_pax_machine(ep->p);
+  }
   replace_pax_msg(&ep->prepare_msg, NULL);
   if (ep->client_msg) { /* If we get here with a client message, we have
                            failed to deliver */
@@ -2377,8 +2386,6 @@ static int executor_task(task_arg arg MY_ATTRIBUTE((unused))) {
                SYCEXP(delivered_msg); SYCEXP(executed_msg);
                SYCEXP(ep->exit_synode); NDBG(ep->exit_type, d));
         ep->p = get_cache(delivered_msg);
-        ADD_EVENTS(add_event(string_arg("executing message"));
-                   add_synode_event(ep->p->synode););
         if (LOSER(delivered_msg, x_site)) {
 #ifdef IGNORE_LOSERS
           DBGOUT(FN; debug_loser(delivered_msg); PTREXP(x_site);
@@ -2593,7 +2600,8 @@ static int ok_to_propose(pax_machine *p) {
 	int	retval = (p->synode.node == get_nodeno(s) || task_now() -p->last_modified > DETECTOR_LIVE_TIMEOUT || may_be_dead(s->detected, p->synode.node, task_now()))
 	 && !recently_active(p) && !finished(p) && !is_busy_machine(p);
 #else
-  int retval = !recently_active(p) && !finished(p) && !is_busy_machine(p);
+  int retval = (is_forcing_node(p) || !recently_active(p)) && !finished(p) &&
+               !is_busy_machine(p);
 #endif
   MAY_DBG(FN; NDBG(p->synode.node, u); NDBG(recently_active(p), d);
           NDBG(finished(p), d); NDBG(is_busy_machine(p), d); NDBG(retval, d));
@@ -2642,11 +2650,15 @@ static void propose_missing_values(int n) {
   i = 0;
   while (!synode_gt(find, end) && i < n && !too_far(find)) {
     pax_machine *p = get_cache(find);
+    if (wait_forced_config) {
+      force_pax_machine(p, 1);
+    }
     DBGOHK(FN; NDBG(ok_to_propose(p), d); TIMECEXP(task_now());
            TIMECEXP(p->last_modified); SYCEXP(find));
     if (get_nodeno(find_site_def(find)) == VOID_NODE_NO) break;
     if (ok_to_propose(p)) {
-      if (task_now() - BUILD_TIMEOUT > p->last_modified) {
+      if (is_forcing_node(p) ||
+          (task_now() - BUILD_TIMEOUT > p->last_modified)) {
         propose_noop(find, p);
       }
     }
@@ -2964,30 +2976,54 @@ static void handle_ack_accept(site_def const *site, pax_machine *p,
   }
 }
 
+static void force_pax_machine(pax_machine *p, int enforcer) {
+  if (!p->enforcer) { /* Not if already marked as forcing node */
+    if (enforcer) {   /* Only if forcing node */
+      /* Increase ballot count with a large increment without overflowing */
+      int32_t delta = (INT32_MAX - p->proposer.bal.cnt) / 3;
+      p->proposer.bal.cnt += delta;
+    }
+  }
+  p->force_delivery = 1;
+  p->enforcer = enforcer;
+}
+
 /* Configure all messages in interval start, end to be forced */
-static void force_interval(synode_no start, synode_no end) {
-  while (synode_lt(start, end)) {
+static void force_interval(synode_no start, synode_no end, int enforcer) {
+  while (!synode_gt(start, end)) {
     pax_machine *p = get_cache(start);
     if (get_nodeno(find_site_def(start)) == VOID_NODE_NO) break;
-    /* if(! finished(p)) */
-    p->force_delivery = 1;
+
+    /* The forcing node will call force_interval twice, first when
+    the new config is originally installed, and again when it
+    receives it as an xcom message. start may be the same, but
+    end will be greater the second time, since it is calculated
+    based on the message number of the incoming config. Since the forcing
+    node is the one responsible for delivering all messages until the
+    start of the new site, it is important that all instances belonging to
+    the old site are correctly marked. */
+
+    if (p->enforcer) enforcer = 1; /* Extend to new instances */
+    force_pax_machine(p, enforcer);
+
     /* Old nodesets are null and void */
     BIT_ZERO(p->proposer.prep_nodeset);
-    BIT_ZERO(p->proposer.prep_nodeset);
+    BIT_ZERO(p->proposer.prop_nodeset);
     start = incr_synode(start);
   }
 }
 
-static void start_force_config(site_def *s) {
+static void start_force_config(site_def *s, int enforcer) {
   synode_no end = add_event_horizon(s->boot_key);
 
   DBGOUT(FN; SYCEXP(executed_msg); SYCEXP(end));
   if (synode_gt(end, max_synode)) set_max_synode(end);
 
-  free_site_def(forced_config);
+  free_forced_config_site_def();
+  wait_forced_config = 0;
   forced_config = s;
-  force_interval(executed_msg,
-                 max_synode); /* Force everything in the pipeline */
+  force_interval(executed_msg, max_synode,
+                 enforcer); /* Force everything in the pipeline */
 }
 
 /* Learn this value */
@@ -3023,21 +3059,20 @@ static void handle_learn(site_def const *site, pax_machine *p, pax_msg *m) {
       switch (m->a->body.c_t) {
         case add_node_type:
           /* purecov: begin deadcode */
-          start_force_config(clone_site_def(handle_add_node(m->a)));
+          start_force_config(clone_site_def(handle_add_node(m->a)), 0);
           break;
         /* purecov: end */
         case remove_node_type:
           /* purecov: begin deadcode */
-          start_force_config(clone_site_def(handle_remove_node(m->a)));
+          start_force_config(clone_site_def(handle_remove_node(m->a)), 0);
           break;
         /* purecov: end */
         case force_config_type:
-          start_force_config(clone_site_def(install_node_group(m->a)));
+          start_force_config(clone_site_def(install_node_group(m->a)), 0);
           break;
         default:
           break;
       }
-      force_interval(executed_msg, getstart(m->a));
     }
   }
 
@@ -3422,7 +3457,8 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
         assert(get_site_def());
       }
       if (p->a && p->a->body.c_t == force_config_type) {
-        DBGOUT(FN; STRLIT("Got new config from client"); SYCEXP(p->synode););
+        DBGOUT(FN; STRLIT("Got new force config from client");
+               SYCEXP(p->synode););
         DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
         DBGOUT(STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
         assert(get_site_def());
@@ -4004,6 +4040,7 @@ app_data_ptr create_config(node_list *nl, cargo_type type) {
   app_data_ptr a = new_app_data();
   a->body.c_t = type;
   init_node_list(nl->node_list_len, nl->node_list_val, &a->body.app_u_u.nodes);
+
   return a;
 }
 /* purecov: end */
@@ -4317,6 +4354,7 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
           init_tasks();     /* Reset task variables */
           free_site_defs();
           free_forced_config_site_def();
+          wait_forced_config = 0;
           garbage_collect_servers();
           DBGOUT(FN; STRLIT("shutting down"));
           xcom_shutdown = 1;
@@ -4398,6 +4436,7 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
           init_xcom_base(); /* Reset shared variables */
           free_site_defs();
           free_forced_config_site_def();
+          wait_forced_config = 0;
           garbage_collect_servers();
           if (xcom_terminate_cb) xcom_terminate_cb(get_int_arg(fsmargs));
           goto start;
@@ -4412,7 +4451,9 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
 
           s->boot_key = executed_msg;
           invalidate_servers(get_site_def(), s);
-          start_force_config(s);
+          start_force_config(s, 1);
+          wait_forced_config =
+              1; /* Note that forced config has not yet arrived */
         }
         CO_RETURN(x_run);
       }

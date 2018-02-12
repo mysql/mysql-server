@@ -1446,7 +1446,7 @@ void ev_print(task_event te) {
         pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%s ", te.arg.val.s);
         break;
       case a_end:
-        G_TRACE(buf);
+        if (pos) G_TRACE(buf);
         pos = 0;
         break;
       default:
@@ -1484,7 +1484,7 @@ void ev_print(task_event te) {
         pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%s", te.arg.val.s);
         break;
       case a_end:
-        G_TRACE(buf);
+        if (pos) G_TRACE(buf);
         pos = 0;
         break;
       default:
