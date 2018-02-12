@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 REQUIRES_SERVICE_PLACEHOLDER(example_math);
 
 BEGIN_COMPONENT_REQUIRES(self_required_test_component)
-REQUIRES_SERVICE(example_math)
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(example_math), END_COMPONENT_REQUIRES();
 
 class example_math_imp {
  public:
@@ -39,19 +38,18 @@ class example_math_imp {
 };
 
 BEGIN_SERVICE_IMPLEMENTATION(self_required_test_component, example_math)
-example_math_imp::calculate_gcd,
-    END_SERVICE_IMPLEMENTATION()
+example_math_imp::calculate_gcd, END_SERVICE_IMPLEMENTATION();
 
-        BEGIN_COMPONENT_PROVIDES(self_required_test_component) PROVIDES_SERVICE(
-            self_required_test_component, example_math) END_COMPONENT_PROVIDES()
+BEGIN_COMPONENT_PROVIDES(self_required_test_component)
+PROVIDES_SERVICE(self_required_test_component, example_math),
+    END_COMPONENT_PROVIDES();
 
-            BEGIN_COMPONENT_METADATA(self_required_test_component)
-                END_COMPONENT_METADATA()
+BEGIN_COMPONENT_METADATA(self_required_test_component)
+END_COMPONENT_METADATA();
 
-                    DECLARE_COMPONENT(self_required_test_component,
-                                      "mysql:self_required_test_component") NULL
-    ,
-    NULL END_DECLARE_COMPONENT()
+DECLARE_COMPONENT(self_required_test_component,
+                  "mysql:self_required_test_component")
+NULL, NULL END_DECLARE_COMPONENT();
 
-        DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(self_required_test_component)
-            END_DECLARE_LIBRARY_COMPONENTS
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(self_required_test_component)
+    END_DECLARE_LIBRARY_COMPONENTS
