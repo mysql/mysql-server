@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "migrate_keyring.h"
+#include "my_default.h"  // my_getopt_use_args_separator
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld.h"
 #include "mysqld_error.h"
@@ -111,10 +112,6 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     DBUG_RETURN(true);
   }
 
-  /* Restore program name */
-  m_argc++;
-  m_argv--;
-
   /* if connect options are provided then initiate connection */
   if (migrate_connect_options) {
     ssl_start();
@@ -169,6 +166,23 @@ bool Migrate_keyring::execute() {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILURE,
            "Failed to initialize destination keyring");
     DBUG_RETURN(true);
+  }
+
+  /* skip program name */
+  m_argc--;
+  m_argv++;
+  /* check for invalid options */
+  if (m_argc > 1) {
+    struct my_option no_opts[] = {
+        {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    my_getopt_skip_unknown = 0;
+    my_getopt_use_args_separator = true;
+    if (handle_options(&m_argc, &m_argv, no_opts, NULL)) DBUG_RETURN(true);
+
+    if (m_argc > 1) {
+      LogErr(WARNING_LEVEL, ER_KEYRING_MIGRATION_EXTRA_OPTIONS);
+      DBUG_RETURN(true);
+    }
   }
 
   /* Disable access to keyring service APIs */

@@ -13962,6 +13962,9 @@ ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED
 ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED
   eng "%s variable unregistration failed."
 
+ER_KEYRING_MIGRATION_EXTRA_OPTIONS
+  eng "Please specify options specific to keyring migration. Any additional options can be ignored. NOTE: Although some options are valid, migration tool can still report error example: plugin variables for which plugin is not loaded yet."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
