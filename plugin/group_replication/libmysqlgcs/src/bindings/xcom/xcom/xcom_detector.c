@@ -36,6 +36,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
@@ -364,6 +365,21 @@ static void send_my_view(site_def const *site) {
 
 /* {{{ Alive task */
 
+/*
+   If a new configuration has been forced, the node's number assigned during
+   the reconfiguration may be invalid. Specifically, this situation may happen
+   when the network is down.
+
+   This code is used to try to fix that by calling the xcom_find_node_index.
+ */
+static void validate_update_configuration(site_def const *site,
+                                          synode_no alive_synode) {
+  if (site && get_nodeno(site) == VOID_NODE_NO) {
+    site_def *site_rw = find_site_def_rw(alive_synode);
+    site_rw->nodeno = xcom_find_node_index(&site_rw->nodes);
+  }
+}
+
 /* Send alive messages periodically */
 int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
   DECL_ENV
@@ -378,6 +394,14 @@ int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
     double sec = task_now();
     synode_no alive_synode = get_current_message();
     site_def const *site = find_site_def(alive_synode);
+
+    /*
+      If a new configuration has been forced, the site's configuration may be
+      invalid. Specifically, this function is called to verify if the site's
+      node number is valid and fix it if this is not valid.
+    */
+    validate_update_configuration(site, alive_synode);
+
     if (site && get_nodeno(site) != VOID_NODE_NO) {
       /* Send alive if we have not been active for some time */
       if (server_active(site, get_nodeno(site)) < sec - 0.5) {

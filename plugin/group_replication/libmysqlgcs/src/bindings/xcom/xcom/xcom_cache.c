@@ -352,6 +352,7 @@ static pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
   p->lock = 0;
   p->op = initial_op;
   p->force_delivery = 0;
+  p->enforcer = 0;
   return p;
 }
 

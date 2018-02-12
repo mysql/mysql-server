@@ -82,6 +82,7 @@ struct pax_machine {
   int lock; /* Busy ? */
   pax_op op;
   int force_delivery;
+  int enforcer;
 };
 
 int is_busy_machine(pax_machine *p);
