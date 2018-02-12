@@ -39,7 +39,7 @@ PermissionsStartOnly=true
 @DEB_SERVICE_SERVER_EXECPRE@
 ExecStart=/usr/sbin/mysqld
 TimeoutSec=600
-LimitNOFILE = 5000
+LimitNOFILE = 10000
 Restart=on-failure
 RestartPreventExitStatus=1
 
