@@ -7765,6 +7765,9 @@ ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
 ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
   eng "Invalid character in the host name."
 
+WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
+  eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
+
 #
 #  End of 5.7 error messages.
 #

@@ -85,6 +85,7 @@ LOAD/*!99999 special comments that do not expand */DATA/*!99999 code from the fu
 SET sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
 [slave]
 include/sync_slave_sql_with_master.inc

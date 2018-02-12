@@ -110,14 +110,20 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode = NO_FIELD_OPTIONS;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_FIELD_OPTIONS
 SET @@global.sql_mode = NO_KEY_OPTIONS;
+Warnings:
+Warning	3090	Changing sql mode 'NO_KEY_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_KEY_OPTIONS
 SET @@global.sql_mode = NO_TABLE_OPTIONS;
+Warnings:
+Warning	3090	Changing sql mode 'NO_TABLE_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_TABLE_OPTIONS
@@ -162,34 +168,46 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES
 SET @@global.sql_mode = DB2;
+Warnings:
+Warning	3090	Changing sql mode 'DB2,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,DB2,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@global.sql_mode = MAXDB;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
 SET @@global.sql_mode = MSSQL;
+Warnings:
+Warning	3090	Changing sql mode 'MSSQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MSSQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@global.sql_mode = MYSQL323;
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL323' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 MYSQL323,HIGH_NOT_PRECEDENCE
 SET @@global.sql_mode = MYSQL40;
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL40' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 MYSQL40,HIGH_NOT_PRECEDENCE
 SET @@global.sql_mode = ORACLE;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
 SET @@global.sql_mode = POSTGRESQL;
+Warnings:
+Warning	3090	Changing sql mode 'POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
@@ -266,14 +284,20 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode = NO_FIELD_OPTIONS;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_FIELD_OPTIONS
 SET @@session.sql_mode = NO_KEY_OPTIONS;
+Warnings:
+Warning	3090	Changing sql mode 'NO_KEY_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_KEY_OPTIONS
 SET @@session.sql_mode = NO_TABLE_OPTIONS;
+Warnings:
+Warning	3090	Changing sql mode 'NO_TABLE_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_TABLE_OPTIONS
@@ -318,38 +342,48 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES
 SET @@session.sql_mode = DB2;
+Warnings:
+Warning	3090	Changing sql mode 'DB2,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,DB2,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@session.sql_mode = MAXDB;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
 SET @@session.sql_mode = MSSQL;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'MSSQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,MSSQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
 SET @@session.sql_mode = MYSQL323;
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL323' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 MYSQL323,HIGH_NOT_PRECEDENCE
 SET @@session.sql_mode = MYSQL40;
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL40' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 MYSQL40,HIGH_NOT_PRECEDENCE
 SET @@session.sql_mode = ORACLE;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
 SET @@session.sql_mode = POSTGRESQL;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS
@@ -425,16 +459,21 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT
 SET @@global.sql_mode = 50000;
+Warnings:
+Warning	3090	Changing sql mode 'POSTGRESQL,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,NO_UNSIGNED_SUBTRACTION,POSTGRESQL,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
 SET @@global.sql_mode = 500000;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,POSTGRESQL,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,HIGH_NOT_PRECEDENCE
 SET @@global.sql_mode = 4294967295;
+Warnings:
+Warning	3090	Changing sql mode 'POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,,,ONLY_FULL_GROUP_BY,NO_UNSIGNED_SUBTRACTION,NO_DIR_IN_CREATE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,MYSQL323,MYSQL40,ANSI,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE,NO_ENGINE_SUBSTITUTION,PAD_CHAR_TO_FULL_LENGTH
@@ -479,6 +518,8 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 ANSI_QUOTES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ALLOW_INVALID_DATES,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode = 'ONLY_FULL_GROUP_BY,PIPES_AS_CONCAT,REAL_AS_FLOAT,ORACLE,POSTGRESQL';
+Warnings:
+Warning	3090	Changing sql mode 'POSTGRESQL,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,POSTGRESQL,ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER

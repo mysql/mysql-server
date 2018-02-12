@@ -2,6 +2,7 @@ drop table if exists t1;
 set sql_mode="MySQL40";
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'MYSQL40' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 MYSQL40,HIGH_NOT_PRECEDENCE
@@ -27,6 +28,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`i`)
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 SET @@SQL_MODE="MYSQL323";
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL323' is deprecated. It will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -34,6 +37,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`i`)
 ) TYPE=ENGINE
 SET @@SQL_MODE="MYSQL40";
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL40' is deprecated. It will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -41,6 +46,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`i`)
 ) TYPE=ENGINE
 SET @@SQL_MODE="NO_FIELD_OPTIONS";
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

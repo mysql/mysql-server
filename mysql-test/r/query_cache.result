@@ -869,6 +869,8 @@ select '1' || '3' from t1;
 1
 1
 set SQL_MODE=oracle;
+Warnings:
+Warning	3090	Changing sql mode 'ORACLE,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 select '1' || '3' from t1;
 '1' || '3'
 13
