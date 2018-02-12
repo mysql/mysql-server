@@ -495,6 +495,15 @@ IF(WIN32)
 ELSE()
   OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
 ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
+  SET(LINK_RANDOMIZE_SEED "mysql"
+    CACHE STRING "Seed to use for link randomization")
+ELSE()
+  SET(LINK_RANDOMIZE OFF)
+ENDIF()
+
 IF (USE_LD_GOLD)
   # These tests will give a false negative on some Clang versions,
   # since there is no easy way in CMake to check for a linker flag
@@ -505,18 +514,18 @@ IF (USE_LD_GOLD)
   MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
   IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT AND NOT SOLARIS)
-    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
-    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
+    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
+
+    # Seemingly --gc-sections causes problems with randomization, so only
+    # turn it on if we are not making a randomized build.
+    IF (NOT LINK_RANDOMIZE)
+      SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--gc-sections")
+      SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,--gc-sections")
+    ENDIF()
   ENDIF()
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
-  SET(LINK_RANDOMIZE_SEED "mysql"
-    CACHE STRING "Seed to use for link randomization")
-ELSE()
-  SET(LINK_RANDOMIZE OFF)
-ENDIF()
 IF(LINK_RANDOMIZE)
   SET(CMAKE_C_FLAGS_DEBUG
     "${CMAKE_C_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
