@@ -427,6 +427,7 @@ public:
   TcDefinedTriggerData_list c_theDefinedTriggers;
 
   AttributeBuffer_pool c_theAttributeBufferPool;
+  RSS_AP_SNAPSHOT(c_theAttributeBufferPool);
 
   typedef DataBufferSegment<5, RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
               CommitAckMarkerSegment;
@@ -440,7 +441,7 @@ public:
                               LocalCommitAckMarkerBuffer;
 
   CommitAckMarkerBuffer_pool c_theCommitAckMarkerBufferPool;
-
+  RSS_AP_SNAPSHOT(c_theCommitAckMarkerBufferPool);
 
   /* ********** FIRED TRIGGER DATA ********** */
   /* THIS RECORD FORMS LISTS OF FIRED         */
@@ -939,6 +940,7 @@ public:
   typedef LocalDLFifoList<ApiConTimers_pool> LocalApiConTimers_list;
 
   ApiConTimers_pool c_apiConTimersPool;
+  RSS_AP_SNAPSHOT(c_apiConTimersPool);
   LocalApiConTimers_list::Head c_apiConTimersList;
   ApiConTimers* c_currentApiConTimers;
 
@@ -1524,6 +1526,7 @@ Uint32 nextPool; // ArrayPool
   typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
   ScanFragLocation_pool m_fragLocationPool;
+  RSS_AP_SNAPSHOT(m_fragLocationPool);
 
   /**
    * There is max 16 ScanFragRec's for 
@@ -2383,6 +2386,7 @@ private:
 
 
   ApiConnectRecord_pool c_apiConnectRecordPool;
+  RSS_AP_SNAPSHOT(c_apiConnectRecordPool);
   UintR capiConnectFilesize;
 
   TcConnectRecord_pool tcConnectRecord;
@@ -2390,6 +2394,7 @@ private:
   UintR ctcConnectFailCount;
 
   CacheRecord_pool c_cacheRecordPool;
+  RSS_AP_SNAPSHOT(c_cacheRecordPool);
 
   HostRecord *hostRecord;
   HostRecordPtr hostptr;
@@ -2398,6 +2403,7 @@ private:
 
   Uint32 c_ongoing_take_over_cnt;
   GcpRecord_pool c_gcpRecordPool;
+  RSS_AP_SNAPSHOT(c_gcpRecordPool);
 
   TableRecord *tableRecord;
   UintR ctabrecFilesize;
