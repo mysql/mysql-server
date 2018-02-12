@@ -312,6 +312,7 @@ SET(TESTS
   mysys_my_rdtsc
   mysys_my_symlink
   mysys_my_write
+  mysys_pathfuncs
   nullable
   opt_recperkey
   partitioned_rwlock

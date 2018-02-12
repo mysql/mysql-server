@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,11 +39,29 @@
 #include "my_macros.h"
 #include "my_sys.h"
 
-/*
+/**
   Formats a filename with possible replace of directory of extension
   Function can handle the case where 'to' == 'name'
   For a description of the flag values, consult my_sys.h
   The arguments should be in unix format.
+
+  Pre-condition: At least FN_REFLEN bytes can be stored in buffer
+  pointed to by 'to'. 'name', 'dir' and 'extension' are
+  '\0'-terminated byte buffers (or nullptr where permitted).
+
+  Post-condition: At most FN_REFLEN bytes will have been written to
+  'to'. If the combined length of 'from' and any expanded elements
+  exceeds FN_REFLEN-1, the result is truncated and likely not what the
+  caller expects.
+
+  @param to destination buffer.
+  @param name file name component.
+  @param dir directory component.
+  @param extension filename extension
+  @param flag
+
+  @return to (destination buffer), or nullptr if overflow and
+  MY_SAFE_PATH is used.
 */
 
 char *fn_format(char *to, const char *name, const char *dir,
@@ -72,8 +90,6 @@ char *fn_format(char *to, const char *name, const char *dir,
     strmake(pos, buff, sizeof(buff) - 1 - (int)(pos - dev));
   }
 
-  if (flag & MY_PACK_FILENAME)
-    pack_dirname(dev, dev); /* Put in ./.. and ~/.. */
   if (flag & MY_UNPACK_FILENAME)
     (void)unpack_dirname(dev, dev); /* Replace ~/.. with dir */
 
@@ -122,9 +138,12 @@ char *fn_format(char *to, const char *name, const char *dir,
   DBUG_RETURN(to);
 } /* fn_format */
 
-/*
-  strlength(const string str)
-  Return length of string with end-space:s not counted.
+/**
+  Calculate the length of str not including any trailing ' '-bytes.
+
+  Pre-condition: 'str' is a '\0'-terminated byte buffer.
+  @param str input to calculate the length of.
+  @return length of string with end-space:s not counted.
 */
 
 size_t strlength(const char *str) {

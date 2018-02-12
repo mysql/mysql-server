@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,10 +139,10 @@ struct MEM_ROOT;
 #define ME_FATALERROR 1024 /* Fatal statement error */
 
 /* Bits in last argument to fn_format */
-#define MY_REPLACE_DIR 1       /* replace dir in name with 'dir' */
-#define MY_REPLACE_EXT 2       /* replace extension with 'ext' */
-#define MY_UNPACK_FILENAME 4   /* Unpack name (~ -> home) */
-#define MY_PACK_FILENAME 8     /* Pack name (home -> ~) */
+#define MY_REPLACE_DIR 1     /* replace dir in name with 'dir' */
+#define MY_REPLACE_EXT 2     /* replace extension with 'ext' */
+#define MY_UNPACK_FILENAME 4 /* Unpack name (~ -> home) */
+/* 8 Unused. Previously used for MY_PACK_FILENAME. */
 #define MY_RESOLVE_SYMLINKS 16 /* Resolve all symbolic links */
 #define MY_RETURN_REAL_PATH 32 /* return full path for file */
 #define MY_SAFE_PATH 64        /* Return NULL if too long path */
@@ -703,14 +703,12 @@ extern char *fn_same(char *toname, const char *name, int flag);
 extern char *fn_format(char *to, const char *name, const char *dir,
                        const char *form, uint flag);
 extern size_t strlength(const char *str);
-extern void pack_dirname(char *to, const char *from);
 extern size_t normalize_dirname(char *to, const char *from);
 extern size_t unpack_dirname(char *to, const char *from);
 extern size_t cleanup_dirname(char *to, const char *from);
 extern size_t system_filename(char *to, const char *from);
 extern size_t unpack_filename(char *to, const char *from);
 extern char *intern_filename(char *to, const char *from);
-extern int pack_filename(char *to, const char *name, size_t max_length);
 extern char *my_path(char *to, const char *progname,
                      const char *own_pathname_part);
 extern char *my_load_path(char *to, const char *path,
