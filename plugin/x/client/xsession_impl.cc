@@ -53,8 +53,6 @@ const char *const ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING =
     "Operation not supported after connecting";
 const char *const ER_TEXT_NOT_CONNECTED = "Not connected";
 const char *const ER_TEXT_ALREADY_CONNECTED = "Already connected";
-const char *const ER_TEXT_TLS_IS_REQUIRED =
-    "TLS was marked as \"REQUIRED\", but it was not configured";
 const char *const ER_TEXT_CA_IS_REQUIRED =
     "TLS was marked that requires \"CA\", but it was not configured";
 const char *const ER_TEXT_INVALID_IP_MODE =
