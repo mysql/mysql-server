@@ -47,6 +47,15 @@
 }
 
 {
+   semi_sync_master_plugin_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:tls_get_addr_tail
+}
+
+{
    GCC never cleans up its TLS block
    Memcheck:Leak
    fun:memalign
