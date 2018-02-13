@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,12 +47,6 @@ static char *mecab_rc_file;
 
 static const char *mecab_min_supported_version = "0.993";
 static const char *mecab_max_supported_version = "0.996";
-
-#if defined(BUNDLE_MECAB)
-static const bool bundle_mecab = true;
-#else
-static const bool bundle_mecab = false;
-#endif
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
