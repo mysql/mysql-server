@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6085,6 +6085,11 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
                            (8*sizeof(my_bitmap_map))];
   ndb_bitmap_init(b, bitbuf, n_fields);
   bitmap_copy(&b, & (share->stored_columns));
+  if(bitmap_is_clear_all(&b))
+  {
+    DBUG_PRINT("info", ("No stored columns, so do not write event to binlog"));
+    return 0;
+  }
 
   /*
    row data is already in table->record[0]
