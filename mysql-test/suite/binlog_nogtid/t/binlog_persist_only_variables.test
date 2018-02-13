@@ -11,9 +11,6 @@
 # 3. Test RESET PERSIST. Verify persisted variable settings are removed.
 # 4. Clean up.
 ################################################################################
-# This test fails on ASAN, thus disabling it.
---source include/not_asan.inc
---source include/not_valgrind.inc
 --source include/have_log_bin.inc
 --source include/have_semisync_plugin.inc
 
