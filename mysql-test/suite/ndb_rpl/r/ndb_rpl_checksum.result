@@ -67,11 +67,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
 include/wait_for_slave_io_error.inc [errno=1236]
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Slave can not handle replication events with the checksum that master is configured to log; the first event 'master-bin.000009' at XXX, the last event read from './master-bin.000010' at XXX, the last byte read from './master-bin.000010' at XXX.''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select count(*) as zero from t1;
 zero
 0
