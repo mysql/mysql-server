@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,8 +57,7 @@ class Table {
 
   ~Table();
 
-  const TABLE *mysql_table() const;
-  void mysql_table(TABLE *table);
+  const TABLE_SHARE *mysql_table_share() const;
 
   size_t mysql_row_length() const;
 
@@ -161,7 +160,7 @@ class Table {
 
   Columns m_columns;
 
-  TABLE *m_mysql_table;
+  TABLE_SHARE *m_mysql_table_share;
 };
 
 /** A container for the list of the tables. Don't allocate memory for it from
@@ -202,16 +201,14 @@ inline Table &Table::operator=(Table &&rhs) {
 
   m_columns = std::move(rhs.m_columns);
 
-  m_mysql_table = rhs.m_mysql_table;
-  rhs.m_mysql_table = nullptr;
+  m_mysql_table_share = rhs.m_mysql_table_share;
+  rhs.m_mysql_table_share = nullptr;
 
   return *this;
 }
 
-inline const TABLE *Table::mysql_table() const { return m_mysql_table; }
-
-inline void Table::mysql_table(TABLE *mysql_table) {
-  m_mysql_table = mysql_table;
+inline const TABLE_SHARE *Table::mysql_table_share() const {
+  return m_mysql_table_share;
 }
 
 inline size_t Table::mysql_row_length() const { return m_mysql_row_length; }
@@ -239,7 +236,7 @@ inline const Storage &Table::rows() const { return m_rows; }
 
 inline void Table::row(const Storage::Iterator &pos,
                        unsigned char *mysql_row) const {
-  DBUG_ASSERT(m_mysql_row_length == m_mysql_table->s->rec_buff_length);
+  DBUG_ASSERT(m_mysql_row_length == m_mysql_table_share->rec_buff_length);
 
   const Storage::Element *storage_element = *pos;
 
