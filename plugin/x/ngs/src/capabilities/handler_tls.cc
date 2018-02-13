@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,9 @@ using ::Mysqlx::Datatypes::Scalar;
 
 bool Capability_tls::is_supported() const {
   const Connection_type type = m_client.connection().connection_type();
-  const bool is_supported_connection_type =
-      Connection_tcpip == type || Connection_tls == type;
+  const bool is_supported_connection_type = Connection_tcpip == type ||
+                                            Connection_tls == type ||
+                                            Connection_unixsocket == type;
 
   return m_client.connection().options()->supports_tls() &&
          is_supported_connection_type;

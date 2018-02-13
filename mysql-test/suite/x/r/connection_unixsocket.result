@@ -5,12 +5,14 @@ CREATE USER user_all@'%' IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_localhost@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_localhost_8_8_8_8@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_localhost_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'mysql_native_password' BY '';
+CREATE USER user_requires_ssl IDENTIFIED WITH 'mysql_native_password' BY '' REQUIRE SSL;
 GRANT ALL ON *.* TO user_127_0_0_1@127.0.0.1;
 GRANT ALL ON *.* TO user_8_8_8_8@8.8.8.8;
 GRANT ALL ON *.* TO user_all@'%';
 GRANT ALL ON *.* TO user_localhost@localhost;
 GRANT ALL ON *.* TO user_localhost_8_8_8_8@8.8.8.8;
 GRANT ALL ON *.* TO user_localhost_8_8_8_8@localhost;
+GRANT ALL ON *.* TO user_requires_ssl;
 CREATE TABLE `city` (
 `ID` int(11) NOT NULL auto_increment,
 `Name` char(35) NOT NULL default '',
@@ -172,6 +174,55 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "mysqlx"
+}
+
+
+command ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+CONNECTION_TYPE
+SSL/TLS
+0 rows affected
+send Mysqlx.Crud.Find {
+  collection {
+    name: "city"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          name: "Population"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 250
+        }
+      }
+    }
+  }
+}
+
+ID	Name	CountryCode	District	Population
+2	Qandahar	AFG	Qandahar	237
+3	Herat	AFG	Herat	186
+4	Mazar-e-Sharif	AFG	Balkh	127
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 Check if mysqlx_socket has correct value
 result
 1
@@ -217,7 +268,7 @@ ok
 # Match capabilities with the result file,
 # must contain PLAIN and MYSQL41
 #
-Mysqlx.Connection.Capabilities(capabilities[0].value.array) = Mysqlx.Datatypes.Array {
+Mysqlx.Connection.Capabilities(capabilities[1].value.array) = Mysqlx.Datatypes.Array {
   value {
     type: SCALAR
     scalar {
@@ -310,7 +361,7 @@ ok
 # Match capabilities with the result file,
 # must contain PLAIN and MYSQL41
 #
-Mysqlx.Connection.Capabilities(capabilities[0].value.array) = Mysqlx.Datatypes.Array {
+Mysqlx.Connection.Capabilities(capabilities[1].value.array) = Mysqlx.Datatypes.Array {
   value {
     type: SCALAR
     scalar {
