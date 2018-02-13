@@ -6321,6 +6321,11 @@ handle_data_event(NdbEventOperation *pOp,
                            (8*sizeof(my_bitmap_map))];
   ndb_bitmap_init(b, bitbuf, table->s->fields);
   bitmap_copy(&b, &event_data->stored_columns);
+  if(bitmap_is_clear_all(&b))
+  {
+    DBUG_PRINT("info", ("No stored columns, so do not write event to binlog"));
+    return 0;
+  }
 
   /*
    row data is already in table->record[0]
