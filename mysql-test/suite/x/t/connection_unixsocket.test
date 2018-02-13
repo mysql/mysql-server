@@ -14,6 +14,7 @@ CREATE USER user_all@'%' IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_localhost@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_localhost_8_8_8_8@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_localhost_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'mysql_native_password' BY '';
+CREATE USER user_requires_ssl IDENTIFIED WITH 'mysql_native_password' BY '' REQUIRE SSL;
 
 GRANT ALL ON *.* TO user_127_0_0_1@127.0.0.1;
 GRANT ALL ON *.* TO user_8_8_8_8@8.8.8.8;
@@ -21,6 +22,7 @@ GRANT ALL ON *.* TO user_all@'%';
 GRANT ALL ON *.* TO user_localhost@localhost;
 GRANT ALL ON *.* TO user_localhost_8_8_8_8@8.8.8.8;
 GRANT ALL ON *.* TO user_localhost_8_8_8_8@localhost;
+GRANT ALL ON *.* TO user_requires_ssl;
 
 CREATE TABLE `city` (
   `ID` int(11) NOT NULL auto_increment,
@@ -105,6 +107,14 @@ EOF
 
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_localhost_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
 
+--let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+
+--let $expected_error_msg=
+--source ../include/mysqlxtest_expected_error.inc
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp --ssl-mode=REQUIRED 2>&1
+
 --echo Check if mysqlx_socket has correct value
 --disable_query_log
 --eval select @@mysqlx_socket like "$MASTER_X_MYSOCK" as 'result';
@@ -158,7 +168,7 @@ EOF
 -->echo #
 Mysqlx.Connection.CapabilitiesGet {
 }
--->recv capabilities[0].value.array
+-->recv capabilities[1].value.array
 
 -->echo #
 -->echo # Do plain authentication (must be available)

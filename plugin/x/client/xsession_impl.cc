@@ -559,10 +559,6 @@ XError Session_impl::authenticate(const char *user, const char *pass,
   }
 
   if (!connection.state().is_ssl_activated()) {
-    if (!connection.state().is_ssl_configured() &&
-        m_context->m_ssl_config.does_mode_requires_ssl())
-      return XError{CR_X_TLS_WRONG_CONFIGURATION, ER_TEXT_TLS_IS_REQUIRED};
-
     if (m_context->m_ssl_config.does_mode_requires_ca() &&
         !m_context->m_ssl_config.is_ca_configured())
       return XError{CR_X_TLS_WRONG_CONFIGURATION, ER_TEXT_CA_IS_REQUIRED};
