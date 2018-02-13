@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -480,6 +480,8 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_protocol, &LOCK_thd_protocol,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
                    MY_MUTEX_INIT_FAST);
@@ -1053,6 +1055,7 @@ THD::~THD() {
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
   mysql_mutex_destroy(&LOCK_thd_sysvar);
+  mysql_mutex_destroy(&LOCK_thd_protocol);
   mysql_mutex_destroy(&LOCK_current_cond);
   mysql_cond_destroy(&COND_thr_lock);
 #ifndef DBUG_OFF
