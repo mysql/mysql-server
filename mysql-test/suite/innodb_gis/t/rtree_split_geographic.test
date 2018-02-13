@@ -2,6 +2,7 @@
 
 --source include/big_test.inc
 --source include/not_valgrind.inc
+--source include/not_sparc_debug.inc
 --source include/have_debug.inc
 
 # Create table with R-tree index.
