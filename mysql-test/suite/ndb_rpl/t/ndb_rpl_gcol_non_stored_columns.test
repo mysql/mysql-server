@@ -1,0 +1,20 @@
+--disable_warnings
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+connection master;
+
+--source suite/gcol_ndb/inc/mtr_conditionals.inc
+--source suite/gcol/inc/gcol_init_vars.pre
+
+eval SET @@session.default_storage_engine = 'ndbcluster';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/gcol/inc/gcol_non_stored_columns.inc
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/gcol/inc/gcol_cleanup.inc
+--source include/rpl_end.inc
