@@ -33,11 +33,27 @@ SET @@global.slow_query_log= @old_slow_query_log;
 --echo # INIT_WITH_SOURCE(MDL_KEY::ENUM_MDL_NAMESPACE
 --echo #
 
---echo # Restart server with --lower-case-table-names=1
+let BASEDIR=    `select @@basedir`;
+let DDIR=       $MYSQL_TMP_DIR/lctn_test;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --lower_case_table_names=1 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+--echo # Shut server down.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart: --lower-case-table-names=1 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Create bootstrap file.
+write_file $BOOTSTRAP_SQL;
+  CREATE SCHEMA test;
+EOF
+
+--echo # First start the server with --initialize
+--exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+
+--echo # Restart the server against DDIR.
+--exec echo "restart:" --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -45,10 +61,22 @@ SET @@global.slow_query_log= @old_slow_query_log;
 --echo # Following command would crash if run without fix.
 --exec $MYSQL_CLIENT_TEST test_bug24963580 >> $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
 
---echo # Restart server without --lower-case-table-names
+--echo # Shutdown server.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
+
+--echo # Cleanup.
+--echo #   Delete \$DDIR.
+--force-rmdir $DDIR
+--echo #   Delete sql files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.sql
+--echo #   Delete log files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.log
+--echo #   Delete expect files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.expect
+
+--echo # Restart server without --lower-case-table-names
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc

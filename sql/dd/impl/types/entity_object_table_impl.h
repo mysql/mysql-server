@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,9 @@ class Entity_object_table_impl : public Object_table_impl,
                                           Entity_object **o) const;
 
   // Fix "inherits ... via dominance" warnings
+
+  virtual const String_type &name() const { return Object_table_impl::name(); }
+
   virtual Object_table_definition_impl *target_table_definition() {
     return Object_table_impl::target_table_definition();
   }
@@ -74,6 +77,15 @@ class Entity_object_table_impl : public Object_table_impl,
   virtual bool set_actual_table_definition(
       const Properties &table_def_properties) const {
     return Object_table_impl::set_actual_table_definition(table_def_properties);
+  }
+
+  virtual int field_number(int target_field_number,
+                           const String_type &field_label) const {
+    return Object_table_impl::field_number(target_field_number, field_label);
+  }
+
+  virtual int field_number(const String_type &field_label) const {
+    return Object_table_impl::field_number(field_label);
   }
 
   virtual bool populate(THD *thd) const {

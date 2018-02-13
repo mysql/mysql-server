@@ -56,23 +56,59 @@
 
   Historical version number published in the data dictionary:
 
-  1:
 
-  Introduced in MySQL 8.0.0 by WL#6378.
-  Never published in a GA version, abandoned.
+  1: Published in 8.0.3-RC.
+  -------------------------
+  Introduced in MySQL 8.0.0 by WL#6378. Never published in a GA version.
+  Last changes were:
 
-  80004:
+  - WL#6049: Removed foreign_keys.unique_constraint_id and the corresponding
+    FK constraint, added foreign_keys.unique_constraint_name.
 
-  There are so far no changes in the dictionary table definitions compared
-  to the DD version 1 that was used in MySQL 8.0.3 (RC1).
+  - Bug#2620373: Added index_stats.cached_time and table_stats.cached_time.
 
-  80005 (current):
+
+  80004: Published in 8.0.4-RC.
+  -----------------------------
+  Changes from version 1:
+
+  - WL#9059: Added collation clause for spatial_reference_systems.organization
+
+  - WL#9553: Added new 'options' column to the following DD tables:
+    catalogs, character_sets, collations, column_statistics, events,
+    foreign_keys, resource_groups, routines, schemata,
+    st_spatial_reference_systems, triggers.
+
+    (Other relevant DD tables have this column already: columns,
+     indexes, parameters, tables, tablespaces).
+
+    Also added explicit indexes for foreign keys instead of relying
+    on these to be created implicitly for the following tables/columns:
+    character_sets.default_collation_id,  collations.character_set_id,
+    columns.collation_id, columns.srs_id, events.client_collation_id,
+    events.connection_collation_id, events.schema_collation_id,
+    foreign_key_column_usage.column_id, index_column_usage.column_id,
+    index_partitions.index_id, index_partitions.tablespace_id,
+    indexes.tablespace_id, parameters.collation_id,
+    routines.result_collation_id, routines.client_collation_id,
+    routines.connection_collation_id, routines.schema_collation_id,
+    schemata.default.collation_id, table_partitions.tablespace_id,
+    tables.collation_id, tables.tablespace_id, triggers.client_collation_id,
+    triggers.connection_collation_id, triggers.schema_collation_id,
+
+
+  80005: Current, not published yet.
+  ----------------------------------
+  Changes from version 80004:
 
   - WL#8383 and WL#9465: Removed obsolete SQL modes from enums in 'events',
     'routines' and 'triggers'.
 
   - WL#10774 removed NO_AUTO_CREATE_USER as a valid sql mode value.
     As a result events, routines and triggers table are updated.
+
+  - Bug#27499518 changed the data type for the column 'hidden' in table
+    'columns' from BOOL to ENUM('Visible', 'SE', 'SQL').
 
   - Bug#11754608 "MYSQL DOESN'T SHOW WHAT COLLATION WAS USED IF THAT
     COLLATION IS THE DEFAU"

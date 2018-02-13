@@ -126,7 +126,16 @@ SET @@global.slow_query_log= @old_slow_query_log;
 # Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::
 # INIT_WITH_SOURCE(MDL_KEY::ENUM_MDL_NAMESPACE
 #
-# Restart server with --lower-case-table-names=1
+# Shut server down.
+# Create bootstrap file.
+# First start the server with --initialize
+# Restart the server against DDIR.
 # Run the single test.
 # Following command would crash if run without fix.
+# Shutdown server.
+# Cleanup.
+#   Delete $DDIR.
+#   Delete sql files.
+#   Delete log files.
+#   Delete expect files.
 # Restart server without --lower-case-table-names
