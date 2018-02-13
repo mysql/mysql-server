@@ -6215,6 +6215,13 @@ using MEB_recv_spaces =
 
 static MEB_recv_spaces recv_spaces;
 
+/** Checks if MEB has loaded this space for reovery.
+@param[in]	space_id	Tablespace ID
+@return true if the space_id is loaded */
+bool meb_is_space_loaded(const space_id_t space_id) {
+  return (recv_spaces.find(space_id) != recv_spaces.end());
+}
+
 /** Set the keys for an encrypted tablespace.
 @param[in]	space		Tablespace for which to set the key */
 static void meb_set_encryption_key(const fil_space_t *space) {
