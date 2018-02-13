@@ -1884,11 +1884,16 @@ class List_process_list : public Do_THD_Impl {
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
     LEX_CSTRING inspect_sctx_host_or_ip = inspect_sctx->host_or_ip();
 
-    if ((!inspect_thd->get_protocol()->connection_alive() &&
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_protocol);
+    if ((!(inspect_thd->get_protocol() &&
+           inspect_thd->get_protocol()->connection_alive()) &&
          !inspect_thd->system_thread) ||
         (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
-                    strcmp(inspect_sctx_user.str, m_user))))
+                    strcmp(inspect_sctx_user.str, m_user)))) {
+      mysql_mutex_unlock(&inspect_thd->LOCK_thd_protocol);
       return;
+    }
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_protocol);
 
     thread_info *thd_info = new (*THR_MALLOC) thread_info;
 

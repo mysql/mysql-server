@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1010,7 +1010,6 @@ bool Srv_session::close() {
   close_mysql_tables(&thd);
 
   thd.pop_diagnostics_area();
-  thd.pop_protocol();
 
   thd.get_stmt_da()->reset_diagnostics_area();
 
@@ -1021,6 +1020,10 @@ bool Srv_session::close() {
 #endif
 
   thd.release_resources();
+
+  mysql_mutex_lock(&thd.LOCK_thd_protocol);
+  thd.pop_protocol();
+  mysql_mutex_unlock(&thd.LOCK_thd_protocol);
 
   Global_THD_manager::get_instance()->remove_thd(&thd);
 
