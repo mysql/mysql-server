@@ -100,6 +100,8 @@ volatile bool recv_recovery_on;
 volatile bool is_online_redo_copy = true;
 volatile lsn_t backup_redo_log_flushed_lsn;
 
+extern bool meb_is_space_loaded(const space_id_t space_id);
+
 /* Re-define mutex macros to use the Mutex class defined by the MEB
 source. MEB calls the routines in "fil0fil.cc" in parallel and,
 therefore, the mutex protecting the critical sections of the tablespace
@@ -1678,7 +1680,7 @@ static byte *recv_parse_or_apply_log_rec_body(
     case MLOG_WRITE_STRING:
 
 #ifdef UNIV_HOTBACKUP
-      if (recv_recovery_on) {
+      if (recv_recovery_on && meb_is_space_loaded(space_id)) {
 #endif /* UNIV_HOTBACKUP */
         /* For encrypted tablespace, we need to get the
         encryption key information before the page 0 is
