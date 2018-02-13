@@ -11,6 +11,9 @@
 
 --echo # Connection default:
 connection default;
+    SET @page_size = @@innodb_page_size;
+    # the value must be >= than commit_freq in lob::insert
+    SET @page_count = 4;
     SET @initial_isolation = @@SESSION.transaction_isolation;
 
     SET DEBUG_SYNC='reset';
@@ -36,9 +39,9 @@ connection default;
         ) ROW_FORMAT=COMPACT;
 
     INSERT INTO t VALUES
-        (1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', REPEAT('a', 160000), '" }'), DEFAULT),
-        (2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', REPEAT('b', 160000), '" }'), DEFAULT),
-        (3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', REPEAT('c', 160000), '" }'), DEFAULT);
+        (1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', REPEAT('a', @page_size * @page_count), '" }'), DEFAULT),
+        (2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', REPEAT('b', @page_size * @page_count), '" }'), DEFAULT),
+        (3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', REPEAT('c', @page_size * @page_count), '" }'), DEFAULT);
 
 #
 # Test 1:
