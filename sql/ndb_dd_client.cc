@@ -312,19 +312,23 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
 
 bool
 Ndb_dd_client::remove_table(const char* schema_name,
-                          const char* table_name)
+                            const char* table_name)
 
 {
+  DBUG_ENTER("Ndb_dd_client::remove_table");
+  DBUG_PRINT("enter",
+             ("schema_name: '%s', table_name: '%s'", schema_name, table_name));
+
   const dd::Table *existing= nullptr;
   if (m_client->acquire(schema_name, table_name, &existing))
   {
-    return false;
+    DBUG_RETURN(false);
   }
 
   if (existing == nullptr)
   {
     // Table does not exist
-    return false;
+    DBUG_RETURN(false);
   }
 
   DBUG_PRINT("info", ("removing existing table"));
@@ -332,9 +336,9 @@ Ndb_dd_client::remove_table(const char* schema_name,
   {
     // Failed to remove existing
     DBUG_ASSERT(false); // Catch in debug, unexpected error
-    return false;
+    DBUG_RETURN(false);
   }
-  return true;
+  DBUG_RETURN(true);
 }
 
 
