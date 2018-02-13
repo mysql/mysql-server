@@ -15,8 +15,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
-  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  `pseudo` varchar(35) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
+  `email` varchar(60) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`a`),
   UNIQUE KEY `email` (`email`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
@@ -28,8 +28,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
   "a" int(11) NOT NULL AUTO_INCREMENT,
-  "pseudo" varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  "email" varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  "pseudo" varchar(35) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
+  "email" varchar(60) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   PRIMARY KEY ("a"),
   UNIQUE KEY "email" ("email") USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC

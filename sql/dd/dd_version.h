@@ -74,6 +74,11 @@
   - WL#10774 removed NO_AUTO_CREATE_USER as a valid sql mode value.
     As a result events, routines and triggers table are updated.
 
+  - Bug#11754608 "MYSQL DOESN'T SHOW WHAT COLLATION WAS USED IF THAT
+    COLLATION IS THE DEFAU"
+    Added a new column 'is_explicit_collation' to the 'columns' DD table.
+
+
   If a new DD version is published in a MRU, that version may or may not
   be possible to downgrade to previous MRUs within the same GA. If
   downgrade is supported, the constant DD_VERSION_MINOR_DOWNGRADE_THRESHOLD

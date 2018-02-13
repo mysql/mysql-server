@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,9 @@ class Column : virtual public Entity_object {
 
   virtual Object_id collation_id() const = 0;
   virtual void set_collation_id(Object_id collation_id) = 0;
+
+  virtual void set_is_explicit_collation(bool is_explicit_collation) = 0;
+  virtual bool is_explicit_collation() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // type.

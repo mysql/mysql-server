@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,6 +121,12 @@ class Column_impl : public Entity_object_impl, public Column {
   virtual void set_collation_id(Object_id collation_id) {
     m_collation_id = collation_id;
   }
+
+  virtual void set_is_explicit_collation(bool is_explicit_collation) {
+    m_is_explicit_collation = is_explicit_collation;
+  }
+
+  virtual bool is_explicit_collation() const { return m_is_explicit_collation; }
 
   /////////////////////////////////////////////////////////////////////////
   // nullable.
@@ -489,6 +495,7 @@ class Column_impl : public Entity_object_impl, public Column {
   // References to loosely-coupled objects.
 
   Object_id m_collation_id;
+  bool m_is_explicit_collation;
 
   // TODO-WIKI21 should the columns.name be defined utf8_general_cs ?
   // instead of utf8_general_ci.

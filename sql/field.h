@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4279,6 +4279,7 @@ class Create_field {
                       // Used only for UCS2 intervals
   List<String> interval_list;
   const CHARSET_INFO *charset;
+  bool is_explicit_collation;  // User exeplicitly provided charset ?
   Field::geometry_type geom_type;
   Field *field;  // For alter table
 
@@ -4332,6 +4333,7 @@ class Create_field {
 
   Create_field()
       : after(NULL),
+        is_explicit_collation(false),
         geom_type(Field::GEOM_GEOMETRY),
         maybe_null(false),
         is_zerofill(false),

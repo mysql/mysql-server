@@ -9192,6 +9192,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   field_name = fld_name;
   flags = fld_type_modifier;
   charset = fld_charset;
+  is_explicit_collation = (charset != nullptr);
   auto_flags = Field::NONE;
   maybe_null = !(fld_type_modifier & NOT_NULL_FLAG);
 
@@ -9872,6 +9873,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       key_length(old_field->key_length()),
       auto_flags(old_field->auto_flags),
       charset(old_field->charset()),  // May be NULL ptr
+      is_explicit_collation(false),
       geom_type(Field::GEOM_GEOMETRY),
       field(old_field),
       maybe_null(old_field->maybe_null()),

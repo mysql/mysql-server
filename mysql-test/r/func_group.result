@@ -762,7 +762,7 @@ latin2	2	latin2	2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) CHARACTER SET latin2 DEFAULT NULL
+  `a` char(1) CHARACTER SET latin2 COLLATE latin2_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 create table t2 select max(a),min(a) from t1;
 show create table t2;

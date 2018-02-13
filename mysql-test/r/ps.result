@@ -2860,7 +2860,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
@@ -2868,7 +2868,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
