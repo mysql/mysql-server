@@ -1,0 +1,195 @@
+# === Purpose ===
+#
+# This test ensures that replication is successful when slave server is
+# initialized by providing server-id and started without providing server-id
+# In this scenario, START SLAVE failed and fix of Bug#26730000 solved the issue
+#
+# The test also verifies the behaviour when server-id provided during
+# server initialization is different from that given during starting server
+#
+# The test also verifies that proper error is thrown on attempting to configure
+# replication on a server whose server-id is set to 0
+#
+# The test also verifies that attempting to configure replication between two
+# servers having same server-id fails
+#
+# === Implementation ===
+#
+# 0. Start two servers server-1(master) and server-2(slave) in replication
+# 1. Stop server-2 (slave)
+# 2. Initialize server-2 by specifying server id to a new data directory
+# 3. Start server-2 without specifying server id and enable replication between
+#    server-1 and server-2
+#    Verify that starting slave works and data is replicated from master to slave
+# 4. Stop server-2 and initialize server-2 by specifying server-id=0 to a
+#    new data directory
+# 5. Start server-2 by specifying a non-zero server-id, enable replication
+#    between server-1 and server-2 and verify replication works fine
+# 6. Stop server-2 and initialize server-2 by specifying a non-zero server-id
+#    to a new data directory
+# 7. Start server-2 by specifying server-id=0
+#    Try to enable replication between server-1 and server-2 and verify that
+#    proper error is thrown since server-id is set to 0
+# 8. Stop server-2 and initialize server-2 by specifying server-id=1
+#    to a new data directory
+# 9. Start server-2 by specifying server-id=1
+#    Try to enable replication between server-1 and server-2 and verify that
+#    proper error is thrown since master and slave have same server-id set
+# 10. Restart server-2 with its original data directory
+# 11. Clean up
+
+# === References ===
+#
+# BUG#26730000 : SERVER_ID LOOKS SET TO VALID VALUE STILL START SLAVE FAILS WITH
+#                ER_BAD_SLAVE
+# BUG#26862504 : ADD INITIALIZE, STARTUP RPL TEST FOR OPTION LOG-BIN & SERVER-ID
+#                COMBINATION
+
+--source include/big_test.inc
+--source include/master-slave.inc
+
+--echo
+--source include/rpl_connection_slave.inc
+# Save original datadir and basedir path of server-2
+--let ORIGINAL_MYSQLD_DATADIR= `select @@datadir`
+--let ORIGINAL_MYSQLD_BASEDIR= `select @@basedir`
+
+# Setup new datadir path
+--let NEWDATADIR=$MYSQL_TMP_DIR/rpl_initialize_serverid
+mkdir $NEWDATADIR;
+--write_file $MYSQL_TMP_DIR/bootstrap_test.sql
+CREATE DATABASE test;
+USE test;
+EOF
+
+--let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log
+--let args=--no-defaults --innodb_dedicated_server=OFF --console --basedir=$ORIGINAL_MYSQLD_BASEDIR
+
+# 1. Stop slave server so that it can be initialized by specifying server-id and
+# started without specifying server-id
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+# 2. Since server-2 has previously been initialized to a data directory by MTR,
+#    it is required to initialize again by specifying the server-id to a new
+#    data directory path
+--exec $MYSQLD $args --initialize-insecure --datadir=$NEWDATADIR --init-file=$MYSQL_TMP_DIR/bootstrap_test.sql --server-id=2 > $MYSQLD_LOG
+# Execute DDL,DML on server-1 so as to ensure that this data will be replicated
+# to server-2 once replication starts between server-1 and server-2
+--echo
+--source include/rpl_connection_master.inc
+CREATE DATABASE db;
+use db;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+--echo
+--source include/rpl_connection_slave.inc
+# 3. Once server-2 has been initialized by specifying server-id to a new data
+#    directory, start server-2 without specifying the server-id using the new
+#    data directory path.
+#    Then start replication between server-1 (master) and server-2 (slave) and
+#    verify if data on master has been replicated to slave
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --log-bin=slave-bin --datadir=$NEWDATADIR --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='localhost'
+--source include/start_slave.inc
+--echo
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:db.t1, slave:db.t1
+--source include/diff_tables.inc
+
+
+# 4. Stop server-2 and initialize server-2 by specifying server-id=0 to a
+#    new data directory
+--let NEWDATADIR_2=$MYSQL_TMP_DIR/rpl_initialize_serverid_2
+mkdir $NEWDATADIR_2;
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+--exec $MYSQLD $args --initialize-insecure --datadir=$NEWDATADIR_2 --init-file=$MYSQL_TMP_DIR/bootstrap_test.sql --server-id=0 > $MYSQLD_LOG
+# 5. Start server-2 by specifying a non-zero server-id, enable replication
+#    between server-1 and server-2 and verify replication works fine
+--echo
+--source include/rpl_connection_slave.inc
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --server-id=2 --log-bin=slave-bin --datadir=$NEWDATADIR_2 --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='localhost'
+--source include/start_slave.inc
+--echo
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $diff_tables= master:db.t1, slave:db.t1
+--source include/diff_tables.inc
+
+# 6. Stop server-2 and initialize server-2 by specifying a non-zero server-id
+#    to a new data directory
+--let NEWDATADIR_3=$MYSQL_TMP_DIR/rpl_initialize_serverid_3
+mkdir $NEWDATADIR_3;
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+--exec $MYSQLD $args --initialize-insecure --datadir=$NEWDATADIR_3 --init-file=$MYSQL_TMP_DIR/bootstrap_test.sql --server-id=2 > $MYSQLD_LOG
+# 7. Start server-2 by specifying server-id=0
+#    Try to enable replication between server-1 and server-2 and verify that
+#    proper error is thrown since server-id is set to 0
+--echo
+--source include/rpl_connection_slave.inc
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --server-id=0 --log-bin=slave-bin --datadir=$NEWDATADIR_3 --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_SLAVE_CONFIGURATION
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='localhost'
+
+# 8. Stop server-2 and initialize server-2 by specifying server-id=1 to
+#    a new data directory
+--let NEWDATADIR_4=$MYSQL_TMP_DIR/rpl_initialize_serverid_4
+mkdir $NEWDATADIR_4;
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+--exec $MYSQLD $args --initialize-insecure --datadir=$NEWDATADIR_4 --init-file=$MYSQL_TMP_DIR/bootstrap_test.sql --server-id=1 > $MYSQLD_LOG
+# 9. Start server-2 by specifying server-id=1
+#    Try to enable replication between server-1 and server-2 and verify that
+#    proper error is thrown since both master and slave have same server-id
+--echo
+--source include/rpl_connection_slave.inc
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --server-id=1 --log-bin=slave-bin --datadir=$NEWDATADIR_4 --slave-load-tmpdir=$MYSQLTEST_VARDIR/tmp --skip-slave-start=1
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='localhost'
+START SLAVE;
+# Verify that slave IO error occurs on START SLAVE
+# 1593 is the code for ER_SLAVE_FATAL_ERROR
+--let $slave_io_errno= 1593
+--source include/wait_for_slave_io_error.inc
+
+# 10. Restart server-2 with the original datadir to bring it back to
+#     original state
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --datadir=$ORIGINAL_MYSQLD_DATADIR --basedir=$ORIGINAL_MYSQLD_BASEDIR --skip-slave-start=0
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_restart_server.inc
+
+# 11. Cleanup files and new data directories created during the test
+remove_file $MYSQLD_LOG;
+remove_file $MYSQL_TMP_DIR/bootstrap_test.sql;
+--force-rmdir $NEWDATADIR
+--force-rmdir $NEWDATADIR_2
+--force-rmdir $NEWDATADIR_3
+--force-rmdir $NEWDATADIR_4
+--echo
+--source include/rpl_connection_master.inc
+DROP DATABASE db;
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--source include/rpl_end.inc
