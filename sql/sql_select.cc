@@ -2556,9 +2556,9 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
                !table->hash_field) ||
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
 
-  TABLE_LIST *tl = new (thd->mem_root)
-      TABLE_LIST(table, "", 0, name, strlen(name), name, TL_IGNORE);
+  auto tl = new (thd->mem_root) TABLE_LIST("", name, TL_IGNORE);
   if (tl == nullptr) return true; /* purecov: inspected */
+  tl->table = table;
 
   /*
     If the SJ nest is inside an outer join nest, this tmp table belongs to

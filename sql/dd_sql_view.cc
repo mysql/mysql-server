@@ -233,8 +233,6 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     // If TABLE_LIST object is already prepared for view name then skip it.
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end()) {
       // Prepare TABLE_LIST object for the view and push_back
-      TABLE_LIST *vw = new (thd->mem_root) TABLE_LIST;
-      if (vw == nullptr) return true;
 
       const char *db_name = strmake_root(thd->mem_root, schema_name.c_str(),
                                          schema_name.length());
@@ -244,9 +242,10 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
           strmake_root(thd->mem_root, view_name.c_str(), view_name.length());
       if (vw_name == nullptr) return true;
 
-      vw->init_one_table(db_name, schema_name.length(), vw_name,
-                         view_name.length(), vw_name, TL_IGNORE, MDL_EXCLUSIVE);
-      vw->updating = true;
+      auto vw = new (thd->mem_root)
+          TABLE_LIST(db_name, schema_name.length(), vw_name, view_name.length(),
+                     TL_IGNORE, MDL_EXCLUSIVE);
+      if (vw == nullptr) return true;
 
       views->push_back(vw);
       prepared_view_ids.insert(view_ids.at(idx));

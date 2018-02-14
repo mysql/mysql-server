@@ -463,7 +463,7 @@ struct RPL_TABLE_LIST : public TABLE_LIST {
   RPL_TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
                  const char *table_name_arg, size_t table_name_length_arg,
                  const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
+      : TABLE_LIST(db_name_arg, db_length_arg, table_name_arg,
                    table_name_length_arg, alias_arg, lock_type_arg) {}
 
   bool m_tabledef_valid;

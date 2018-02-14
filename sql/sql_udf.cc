@@ -195,7 +195,6 @@ void udf_init_globals() {
 */
 void udf_read_functions_table() {
   udf_func *tmp;
-  TABLE_LIST tables;
   TABLE *table;
   unique_ptr_destroy_only<RowIterator> iterator;
   int error;
@@ -223,8 +222,7 @@ void udf_read_functions_table() {
     new_thd->set_db(db_lex_cstr);
   }
 
-  tables.init_one_table(db, sizeof(db) - 1, STRING_WITH_LEN("func"), "func",
-                        TL_READ, MDL_SHARED_READ_ONLY);
+  TABLE_LIST tables(db, "func", TL_READ, MDL_SHARED_READ_ONLY);
 
   if (open_trans_system_tables_for_read(new_thd, &tables)) {
     DBUG_PRINT("error", ("Can't open udf table"));
@@ -578,7 +576,6 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
   void *dl = 0;
   int new_dl = 0;
   TABLE *table;
-  TABLE_LIST tables;
 
   DBUG_TRACE;
 
@@ -614,8 +611,7 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
     Acquire MDL SNRW for TL_WRITE type so that deadlock and
     timeout errors are avoided from the Storage Engine.
   */
-  tables.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("func"),
-                        "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  TABLE_LIST tables("mysql", "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;
@@ -708,7 +704,6 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
 
 bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   TABLE *table;
-  TABLE_LIST tables;
   udf_func *udf;
   bool error = true;
 
@@ -722,8 +717,7 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
     return error;
   }
 
-  tables.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("func"),
-                        "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  TABLE_LIST tables("mysql", "func", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
 
   if (open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
     return error;

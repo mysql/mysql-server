@@ -2441,34 +2441,34 @@ class Table_function;
 struct TABLE_LIST {
   TABLE_LIST() = default;
 
+  /**
+    Only to be used by legacy code that temporarily needs a TABLE_LIST, more
+    specifically: Query_result_create::binlog_show_create_table().
+  */
   explicit TABLE_LIST(TABLE *table_arg) : table(table_arg) {}
 
-  TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
-                   table_name_length_arg, alias_arg, lock_type_arg) {}
+  /// Constructor that can be used when the strings are null terminated.
+  TABLE_LIST(const char *db_name, const char *table_name,
+             enum thr_lock_type lock_type)
+      : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
+                   table_name, lock_type) {}
 
-  TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum thr_lock_type lock_type_arg,
-             enum enum_mdl_type mdl_request_type)
-      : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
-                   table_name_length_arg, alias_arg, lock_type_arg) {
-    mdl_request.set_type(mdl_request_type);
-  }
+  /// Constructor that can be used when the strings are null terminated.
+  TABLE_LIST(const char *db_name, const char *table_name, const char *alias,
+             enum thr_lock_type lock_type)
+      : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
+                   alias, lock_type) {}
 
-  TABLE_LIST(TABLE *table_arg, const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : db(db_name_arg),
-        table_name(table_name_arg),
+  TABLE_LIST(TABLE *table_arg, const char *alias_arg,
+             thr_lock_type lock_type_arg)
+      : db(table_arg->s->db.str),
+        table_name(table_arg->s->table_name.str),
         alias(alias_arg),
         m_map(1),
         table(table_arg),
         m_lock_descriptor{lock_type_arg},
-        db_length(db_length_arg),
-        table_name_length(table_name_length_arg) {
+        db_length(table_arg->s->db.length),
+        table_name_length(table_arg->s->table_name.length) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
@@ -2477,58 +2477,106 @@ struct TABLE_LIST {
     Sets an explicit enum_mdl_type value, without initializing
     m_lock_descriptor.
   */
-  TABLE_LIST(TABLE *table_arg, const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum_mdl_type mdl_type)
-      : db(db_name_arg),
-        table_name(table_name_arg),
+  TABLE_LIST(TABLE *table_arg, const char *alias_arg, enum_mdl_type mdl_type)
+      : db(table_arg->s->db.str),
+        table_name(table_arg->s->table_name.str),
         alias(alias_arg),
         m_map(1),
         table(table_arg),
-        db_length(db_length_arg),
-        table_name_length(table_name_length_arg) {
+        db_length(table_arg->s->db.length),
+        table_name_length(table_arg->s->table_name.length) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name, mdl_type,
                      MDL_TRANSACTION);
   }
 
-  /**
-    Do not use this function in new code. It exists only for legacy code.
-    Prepare TABLE_LIST that consists of one table instance to use in
-    simple_open_and_lock_tables
-  */
-  inline void init_one_table(const char *db_name_arg, size_t db_length_arg,
-                             const char *table_name_arg,
-                             size_t table_name_length_arg,
-                             const char *alias_arg,
-                             enum thr_lock_type lock_type_arg) {
-    *this = TABLE_LIST();
-    m_map = 1;
-    db = db_name_arg;
-    db_length = db_length_arg;
-    table_name = table_name_arg;
-    table_name_length = table_name_length_arg;
-    alias = alias_arg;
-    m_lock_descriptor.type = lock_type_arg;
+  TABLE_LIST(const char *db_name, const char *table_name_arg,
+             enum thr_lock_type lock_type_arg,
+             enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(table_name_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(strlen(db_name)),
+        table_name_length(strlen(table_name_arg)) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+    mdl_request.set_type(mdl_request_type);
   }
 
-  /**
-    Do not use this function in new code. It exists only for legacy code.
-    Auxiliary method which prepares TABLE_LIST consisting of one table instance
-    to be used in simple open_and_lock_tables and takes type of MDL lock on the
-    table as explicit parameter.
-  */
-
-  inline void init_one_table(const char *db_name_arg, size_t db_length_arg,
-                             const char *table_name_arg,
-                             size_t table_name_length_arg,
-                             const char *alias_arg,
-                             enum thr_lock_type lock_type_arg,
-                             enum enum_mdl_type mdl_request_type) {
-    init_one_table(db_name_arg, db_length_arg, table_name_arg,
-                   table_name_length_arg, alias_arg, lock_type_arg);
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             enum thr_lock_type lock_type_arg,
+             enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(table_name_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
     mdl_request.set_type(mdl_request_type);
+  }
+
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             enum thr_lock_type lock_type_arg)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(table_name_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {}
+
+  /**
+    Sets an explicit enum_mdl_type value, without initializing
+    m_lock_descriptor.
+  */
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+    mdl_request.set_type(mdl_request_type);
+  }
+
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum thr_lock_type lock_type_arg,
+             enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+    mdl_request.set_type(mdl_request_type);
+  }
+
+  TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum thr_lock_type lock_type_arg)
+      : db(db_name_arg),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
 
   /// Create a TABLE_LIST object representing a nested join

@@ -856,8 +856,8 @@ class MDL_request {
 
     - TABLE_LIST objects are sometimes default-constructed. We plan to remove
       this as there is no practical reason, the call to the default
-      constructor is always followed by either a call to
-      TABLE_LIST::init_one_table() or memberwise assignments.
+      constructor is always followed by either a call to TABLE_LIST::operator=
+      or memberwise assignments.
 
     - In some legacy cases TABLE_LIST objects are copy-assigned without
       intention to copy the TABLE_LIST::mdl_request member. In this cases they

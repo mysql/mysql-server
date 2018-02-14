@@ -425,17 +425,19 @@ int ha_myisammrg::add_children_list(void) {
     char *db;
     char *table_name;
 
-    child_l = (TABLE_LIST *)thd->alloc(sizeof(TABLE_LIST));
     db = (char *)thd->memdup(mrg_child_def->db.str,
                              mrg_child_def->db.length + 1);
     table_name = (char *)thd->memdup(mrg_child_def->name.str,
                                      mrg_child_def->name.length + 1);
 
-    if (child_l == NULL || db == NULL || table_name == NULL) return 1;
+    if (db == NULL || table_name == NULL) return 1;
 
-    child_l->init_one_table(db, mrg_child_def->db.length, table_name,
-                            mrg_child_def->name.length, table_name,
-                            parent_l->lock_descriptor().type);
+    child_l = new (thd->mem_root) TABLE_LIST(
+        db, mrg_child_def->db.length, table_name, mrg_child_def->name.length,
+        table_name, parent_l->lock_descriptor().type);
+
+    if (child_l == nullptr) return 1;
+
     /* Set parent reference. Used to detect MERGE in children list. */
     child_l->parent_l = parent_l;
     /* Copy select_lex. Used in unique_table() at least. */

@@ -130,13 +130,13 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
   return false;
 }
 
-void Import_target::init_table_list(TABLE_LIST *tlp) const {
-  tlp->init_one_table(can_schema_name()->c_str(),  // schema_name, with case
-                      can_schema_name()->length(),
-                      can_table_name()->c_str(),  // table_name, with case
-                      can_table_name()->length(),
-                      m_table_object->name().c_str(),  // alias, lower_cased
-                      TL_IGNORE);
+TABLE_LIST Import_target::make_table_list() const {
+  return TABLE_LIST(can_schema_name()->c_str(),  // schema_name, with case
+                    can_schema_name()->length(),
+                    can_table_name()->c_str(),  // table_name, with case
+                    can_table_name()->length(),
+                    m_table_object->name().c_str(),  // alias, lower_cased
+                    TL_IGNORE);
 }
 
 bool Import_target::store_in_dd(THD *thd) const {
@@ -175,8 +175,8 @@ bool Import_target::store_in_dd(THD *thd) const {
     return true;
   }
 
-  TABLE_LIST tl;
-  this->init_table_list(&tl);
+  TABLE_LIST tl = make_table_list();
+
   //   tl.init_one_table(schema->name().c_str(),
   //                     schema->name().length(),
   //                     m_table_object->name().c_str(),
@@ -215,8 +215,8 @@ bool check_privileges(THD *thd, const Import_target &t) {
   // const char *schema_name= t.can_schema_name()->c_str();
   // size_t schema_len= t.can_schema_name()->length();
 
-  TABLE_LIST tl;
-  t.init_table_list(&tl);
+  TABLE_LIST tl = t.make_table_list();
+
   //   tl.init_one_table(schema_name, schema_len, table_name, table_len,
   //                     table_name, TL_IGNORE);
 

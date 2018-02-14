@@ -82,9 +82,11 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
       thd->update_lock_default.
     */
     new (dst_table_list)
-        TABLE_LIST(table, db, db_len, table_name, table_name_len, alias,
-                   src_table_list->table->reginfo.lock_type);
+        TABLE_LIST(table, alias, src_table_list->table->reginfo.lock_type);
 
+    dst_table_list->db = db;
+    dst_table_list->table_name = table_name;
+    dst_table_list->alias = alias;
     dst_table_list->mdl_request.ticket = src_table_list->mdl_request.ticket;
 
     /* Link last into the list of tables */

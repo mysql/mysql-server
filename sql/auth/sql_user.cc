@@ -204,9 +204,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
 
   DBUG_TRACE;
   if (are_both_users_same) {
-    TABLE_LIST t1;
-    t1.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"), "user",
-                      TL_READ);
+    TABLE_LIST t1("mysql", "user", TL_READ);
     hide_password_hash =
         check_table_access(thd, SELECT_ACL, &t1, false, UINT_MAX, true);
   }

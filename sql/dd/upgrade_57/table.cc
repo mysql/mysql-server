@@ -945,11 +945,8 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
                                const String_type &db_name,
                                const String_type &view_name, MEM_ROOT *mem_root,
                                bool is_fix_view_cols_and_deps) {
-  TABLE_LIST table_list;
-
-  table_list.init_one_table(db_name.c_str(), db_name.length(),
-                            view_name.c_str(), view_name.length(),
-                            view_name.c_str(), TL_READ);
+  TABLE_LIST table_list(db_name.c_str(), db_name.length(), view_name.c_str(),
+                        view_name.length(), view_name.c_str(), TL_READ);
 
   // Initialize timestamp
   table_list.timestamp.str = table_list.timestamp_buffer;

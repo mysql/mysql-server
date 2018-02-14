@@ -5818,12 +5818,11 @@ bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
 
   for (const Key_spec *key : alter_info->key_list) {
     if (key->type == KEYTYPE_FOREIGN) {
-      TABLE_LIST parent_table;
       const Foreign_key_spec *fk_key = down_cast<const Foreign_key_spec *>(key);
 
-      parent_table.init_one_table(
-          fk_key->ref_db.str, fk_key->ref_db.length, fk_key->ref_table.str,
-          fk_key->ref_table.length, fk_key->ref_table.str, TL_IGNORE);
+      TABLE_LIST parent_table(fk_key->ref_db.str, fk_key->ref_db.length,
+                              fk_key->ref_table.str, fk_key->ref_table.length,
+                              fk_key->ref_table.str, TL_IGNORE);
 
       /*
        Check if user has REFERENCES_ACL privilege at table level on

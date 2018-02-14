@@ -12832,10 +12832,8 @@ static bool mysql_inplace_alter_table(
       Finally we can tell SE supporting atomic DDL that the changed table
       in the data-dictionary.
     */
-    TABLE_LIST table_list;
-    table_list.init_one_table(alter_ctx->new_db, strlen(alter_ctx->new_db),
-                              alter_ctx->new_name, strlen(alter_ctx->new_name),
-                              alter_ctx->new_alias, TL_READ);
+    TABLE_LIST table_list(alter_ctx->new_db, alter_ctx->new_name,
+                          alter_ctx->new_alias, TL_READ);
     table_list.mdl_request.ticket = alter_ctx->is_table_renamed()
                                         ? alter_ctx->target_mdl_request.ticket
                                         : mdl_ticket;
@@ -16471,10 +16469,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     /* Open the table since we need to copy the data. */
     if (table->s->tmp_table != NO_TMP_TABLE) {
-      TABLE_LIST tbl;
-      tbl.init_one_table(alter_ctx.new_db, strlen(alter_ctx.new_db),
-                         alter_ctx.tmp_name, strlen(alter_ctx.tmp_name),
-                         alter_ctx.tmp_name, TL_READ_NO_INSERT);
+      TABLE_LIST tbl(alter_ctx.new_db, alter_ctx.tmp_name, TL_READ_NO_INSERT);
       /* Table is in thd->temporary_tables */
       (void)open_temporary_table(thd, &tbl);
       new_table = tbl.table;
@@ -16958,10 +16953,8 @@ end_inplace_noop:
 
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL6049
   {
-    TABLE_LIST table_list;
-    table_list.init_one_table(alter_ctx.new_db, strlen(alter_ctx.new_db),
-                              alter_ctx.new_name, strlen(alter_ctx.new_name),
-                              alter_ctx.new_alias, TL_READ);
+    TABLE_LIST table_list(alter_ctx.new_db, alter_ctx.new_name,
+                          alter_ctx.new_alias, TL_READ);
     table_list.mdl_request.ticket = alter_ctx.is_table_renamed()
                                         ? alter_ctx.target_mdl_request.ticket
                                         : mdl_ticket;

@@ -72,12 +72,9 @@ Cursor::Cursor(THD *mysql_thd)
       m_table_list(NULL),
       m_is_finished(true),
       m_table_is_malformed(true) {
-  m_table_list = new TABLE_LIST;
+  m_table_list = new TABLE_LIST(db_name, strlen(db_name), table_name,
+                                strlen(table_name), "alias", TL_WRITE_DEFAULT);
   if (m_table_list == NULL) return;  // Error
-
-  // The below function will memset() the whole object with 0's.
-  m_table_list->init_one_table(db_name, strlen(db_name), table_name,
-                               strlen(table_name), "alias", TL_WRITE_DEFAULT);
 
   m_table_list->updating = true;
 

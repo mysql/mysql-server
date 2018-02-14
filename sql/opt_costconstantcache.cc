@@ -390,11 +390,8 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
   thd->store_globals();
   lex_start(thd);
 
-  TABLE_LIST tables[2] = {
-      TABLE_LIST(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("server_cost"),
-                 "server_cost", TL_READ),
-      TABLE_LIST(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("engine_cost"),
-                 "engine_cost", TL_READ)};
+  TABLE_LIST tables[2] = {TABLE_LIST("mysql", "server_cost", TL_READ),
+                          TABLE_LIST("mysql", "engine_cost", TL_READ)};
   tables[0].next_global = tables[0].next_local =
       tables[0].next_name_resolution_table = &tables[1];
 

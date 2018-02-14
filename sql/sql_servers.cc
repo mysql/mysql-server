@@ -253,15 +253,14 @@ static bool servers_load(THD *thd, TABLE *table) {
 */
 
 bool servers_reload(THD *thd) {
-  TABLE_LIST tables[1];
   bool return_val = true;
   DBUG_TRACE;
 
   DBUG_PRINT("info", ("locking servers_cache"));
   mysql_rwlock_wrlock(&THR_LOCK_servers);
 
-  tables[0].init_one_table("mysql", 5, "servers", 7, "servers", TL_READ);
-  if (open_trans_system_tables_for_read(thd, tables)) {
+  TABLE_LIST tables("mysql", "servers", TL_READ);
+  if (open_trans_system_tables_for_read(thd, &tables)) {
     /*
       Execution might have been interrupted; only print the error message
       if an error condition has been raised.
@@ -273,7 +272,7 @@ bool servers_reload(THD *thd) {
   }
 
   if ((return_val =
-           servers_load(thd, tables[0].table))) {  // Error. Revert to old list
+           servers_load(thd, tables.table))) {  // Error. Revert to old list
     /* blast, for now, we have no servers, discuss later way to preserve */
 
     DBUG_PRINT("error", ("Reverting to old privileges"));
@@ -617,8 +616,7 @@ bool Sql_cmd_common_server::check_and_open_table(THD *thd) {
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
-  TABLE_LIST tables;
-  tables.init_one_table("mysql", 5, "servers", 7, "servers", TL_WRITE);
+  TABLE_LIST tables("mysql", "servers", TL_WRITE);
 
   table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
   return (table == NULL);

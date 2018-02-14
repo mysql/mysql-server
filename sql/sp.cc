@@ -2400,32 +2400,6 @@ bool sp_check_name(LEX_STRING *ident) {
 }
 
 /**
-  Simple function for adding an explicitly named (systems) table to
-  the global table list.
-*/
-TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex, const char *db,
-                                   const char *name) {
-  TABLE_LIST *table = static_cast<TABLE_LIST *>(thd->alloc(sizeof(TABLE_LIST)));
-
-  if (!table) return NULL;
-
-  size_t db_length = strlen(db);
-  size_t table_name_length = strlen(name);
-
-  table->init_one_table(thd->strmake(db, db_length), db_length,
-                        thd->strmake(name, table_name_length),
-                        table_name_length, thd->mem_strdup(name), TL_IGNORE,
-                        MDL_SHARED_NO_WRITE);
-
-  table->select_lex = lex->current_select();
-  table->cacheable_table = 1;
-
-  lex->add_to_query_tables(table);
-
-  return table;
-}
-
-/**
   Prepare an Item for evaluation (call of fix_fields).
 
   @param thd       thread handler

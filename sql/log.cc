@@ -1138,25 +1138,27 @@ err:
 
 bool Log_to_csv_event_handler::activate_log(
     THD *thd, enum_log_table_type log_table_type) {
-  TABLE_LIST table_list;
-
   DBUG_TRACE;
+
+  const char *log_name;
+  size_t log_name_length;
 
   switch (log_table_type) {
     case QUERY_LOG_GENERAL:
-      table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                                GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
-                                GENERAL_LOG_NAME.str,
-                                TL_WRITE_CONCURRENT_INSERT);
+      log_name = GENERAL_LOG_NAME.str;
+      log_name_length = GENERAL_LOG_NAME.length;
       break;
     case QUERY_LOG_SLOW:
-      table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
-                                SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
-                                SLOW_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
+      log_name = SLOW_LOG_NAME.str;
+      log_name_length = SLOW_LOG_NAME.length;
       break;
     default:
       DBUG_ASSERT(false);
   }
+
+  TABLE_LIST table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                        log_name, log_name_length, log_name,
+                        TL_WRITE_CONCURRENT_INSERT);
 
   Open_tables_backup open_tables_backup;
   if (open_log_table(thd, &table_list, &open_tables_backup) != NULL) {

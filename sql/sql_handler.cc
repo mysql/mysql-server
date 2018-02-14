@@ -211,7 +211,8 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
     right from the start as open_tables() can't handle properly
     back-off for such locks.
   */
-  new (hash_tables) TABLE_LIST(tables->table, db, tables->db_length, name,
+  DBUG_ASSERT(tables->table == nullptr);
+  new (hash_tables) TABLE_LIST(db, tables->db_length, name,
                                tables->table_name_length, alias, MDL_SHARED);
 
   /* for now HANDLER can be used only for real TABLES */

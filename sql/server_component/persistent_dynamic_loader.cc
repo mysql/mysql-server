@@ -150,9 +150,7 @@ static Component_db_intact table_intact;
 */
 static bool open_component_table(THD *thd, enum thr_lock_type lock_type,
                                  TABLE **table, ulong acl_to_check) {
-  TABLE_LIST tables;
-
-  tables.init_one_table("mysql", 5, "component", 9, "component", lock_type);
+  TABLE_LIST tables("mysql", "component", lock_type);
 
   if (mysql_persistent_dynamic_loader_imp::initialized() && !opt_noacl &&
       check_one_table_access(thd, acl_to_check, &tables))

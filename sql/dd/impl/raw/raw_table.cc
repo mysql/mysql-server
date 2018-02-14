@@ -42,9 +42,9 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-Raw_table::Raw_table(thr_lock_type lock_type, const String_type &name) {
-  m_table_list.init_one_table(STRING_WITH_LEN("mysql"), name.c_str(),
-                              name.length(), name.c_str(), lock_type);
+Raw_table::Raw_table(thr_lock_type lock_type, const String_type &name)
+    : m_table_list(STRING_WITH_LEN("mysql"), name.c_str(), name.length(),
+                   name.c_str(), lock_type) {
   m_table_list.is_dd_ctx_table = true;
 }
 

@@ -433,16 +433,15 @@ err:
 
 bool migrate_routines_to_dd(THD *thd) {
   TABLE *proc_table;
-  TABLE_LIST tables, *table_list;
   int error = 0;
   uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
   DML_prelocking_strategy prelocking_strategy;
   MEM_ROOT records_mem_root;
   Thd_mem_root_guard root_guard(thd, &records_mem_root);
 
-  tables.init_one_table("mysql", 5, "proc", 4, "proc", TL_READ);
+  TABLE_LIST tables("mysql", "proc", TL_READ);
+  auto table_list = &tables;
 
-  table_list = &tables;
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy)) {
     LogErr(ERROR_LEVEL, ER_CANT_OPEN_TABLE_MYSQL_PROC);
     return true;

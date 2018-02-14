@@ -1850,7 +1850,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     {
       char *fields;
       /* Locked closure of all tables */
-      TABLE_LIST table_list;
       LEX_STRING table_name;
       LEX_STRING db;
       push_deprecated_warn(thd, "COM_FIELD_LIST",
@@ -1882,8 +1881,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       /* Must be before we init the table list. */
       if (lower_case_table_names && !is_infoschema_db(db.str, db.length))
         table_name.length = my_casedn_str(files_charset_info, table_name.str);
-      table_list.init_one_table(db.str, db.length, table_name.str,
-                                table_name.length, table_name.str, TL_READ);
+      TABLE_LIST table_list(db.str, db.length, table_name.str,
+                            table_name.length, table_name.str, TL_READ);
       /*
         Init TABLE_LIST members necessary when the undelrying
         table is view.

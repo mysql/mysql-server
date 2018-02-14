@@ -134,15 +134,14 @@ void *handler_open_table(
     const char *table_name, /*!< in: NUL terminated table name */
     int lock_type)          /*!< in: lock mode */
 {
-  TABLE_LIST tables;
   THD *thd = static_cast<THD *>(my_thd);
   Open_table_context table_ctx(thd, 0);
   thr_lock_type lock_mode;
 
   lock_mode = (lock_type <= HDL_READ) ? TL_READ : TL_WRITE;
 
-  tables.init_one_table(db_name, strlen(db_name), table_name,
-                        strlen(table_name), table_name, lock_mode);
+  TABLE_LIST tables(db_name, strlen(db_name), table_name, strlen(table_name),
+                    table_name, lock_mode);
 
   /* For flush, we need to request exclusive mdl lock. */
   if (lock_type == HDL_FLUSH) {

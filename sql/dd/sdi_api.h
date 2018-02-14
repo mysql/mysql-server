@@ -136,16 +136,14 @@ class Import_target {
   bool load(THD *thd, String_type *shared_buffer);
 
   /**
-    Initializes a TABLE_LIST object with info from this Import_target.
+    Constructs a TABLE_LIST object with info from this Import_target.
     TABLE_LIST::db and TABLE_LIST::table_name are initialized to the
     canonical (lowercased for lctn==2) representation,
     TABLE_LIST::alias to the native
     table_name, and TABLE_LIST::m_lock_descriptor.type is set to
     TL_IGNORE.
-
-    @param tlp object to initialize
    */
-  void init_table_list(TABLE_LIST *tlp) const;
+  TABLE_LIST make_table_list() const;
 
   /**
     Upadate the schema reference in the Table object and store

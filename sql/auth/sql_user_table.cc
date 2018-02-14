@@ -1636,45 +1636,34 @@ void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
     from SE level.
   */
 
-  tables->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"),
-                         "user", lock_type, mdl_type);
+  tables[0] = TABLE_LIST("mysql", "user", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_DB)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("db"), "db",
-                       lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_DB] = TABLE_LIST("mysql", "db", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_TABLES_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("tables_priv"),
-                       "tables_priv", lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_TABLES_PRIV] =
+      TABLE_LIST("mysql", "tables_priv", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_COLUMNS_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("columns_priv"), "columns_priv",
-                       lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_COLUMNS_PRIV] =
+      TABLE_LIST("mysql", "columns_priv", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_PROCS_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("procs_priv"),
-                       "procs_priv", lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_PROCS_PRIV] =
+      TABLE_LIST("mysql", "procs_priv", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_PROXIES_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("proxies_priv"), "proxies_priv",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_ROLE_EDGES)
-      ->init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("role_edges"),
-                       "role_edges", lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_DEFAULT_ROLES)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("default_roles"), "default_roles",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_DYNAMIC_PRIV)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("global_grants"), "global_grants",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_PASSWORD_HISTORY)
-      ->init_one_table(STRING_WITH_LEN("mysql"),
-                       STRING_WITH_LEN("password_history"), "password_history",
-                       lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_PROXIES_PRIV] =
+      TABLE_LIST("mysql", "proxies_priv", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_ROLE_EDGES] =
+      TABLE_LIST("mysql", "role_edges", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_DEFAULT_ROLES] =
+      TABLE_LIST("mysql", "default_roles", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_DYNAMIC_PRIV] =
+      TABLE_LIST("mysql", "global_grants", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_PASSWORD_HISTORY] =
+      TABLE_LIST("mysql", "password_history", lock_type, mdl_type);
+
   if (lock_type <= TL_READ_NO_INSERT) {
     /*
       tables new to 8.0 are optional when

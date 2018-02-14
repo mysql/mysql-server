@@ -1679,19 +1679,18 @@ static bool register_builtin(st_mysql_plugin *plugin, st_plugin_int *tmp,
 */
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   THD thd;
-  TABLE_LIST tables;
   TABLE *table;
   int error;
   THD *new_thd = &thd;
   bool result;
   DBUG_TRACE;
 
+  TABLE_LIST tables("mysql", "plugin", TL_READ);
   new_thd->thread_stack = (char *)&tables;
   new_thd->store_globals();
   LEX_CSTRING db_lex_cstr = {STRING_WITH_LEN("mysql")};
   new_thd->set_db(db_lex_cstr);
   thd.get_protocol_classic()->wipe_net();
-  tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
   result = open_trans_system_tables_for_read(new_thd, &tables);
 
@@ -2077,7 +2076,6 @@ bool plugin_early_load_one(int *argc, char **argv, const char *plugin) {
 
 static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
                                  const LEX_STRING *dl) {
-  TABLE_LIST tables;
   TABLE *table;
   bool error = true;
   int argc = orig_argc;
@@ -2092,7 +2090,7 @@ static bool mysql_install_plugin(THD *thd, LEX_CSTRING name,
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
+  TABLE_LIST tables("mysql", "plugin", TL_WRITE);
 
   if (!opt_noacl &&
       check_table_access(thd, INSERT_ACL, &tables, false, 1, false))
@@ -2270,7 +2268,6 @@ err:
 
 static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   TABLE *table;
-  TABLE_LIST tables;
   st_plugin_int *plugin;
   bool error = true;
   int rc = 0;
@@ -2280,7 +2277,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
 
   DBUG_TRACE;
 
-  tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
+  TABLE_LIST tables("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
   if (!opt_noacl &&
       check_table_access(thd, DELETE_ACL, &tables, false, 1, false)) {

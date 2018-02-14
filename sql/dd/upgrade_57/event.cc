@@ -538,16 +538,15 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
 
 bool migrate_events_to_dd(THD *thd) {
   TABLE *event_table;
-  TABLE_LIST tables, *table_list;
   int error = 0;
   uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
   DML_prelocking_strategy prelocking_strategy;
   MEM_ROOT records_mem_root;
   Thd_mem_root_guard root_guard(thd, &records_mem_root);
 
-  tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
+  TABLE_LIST tables("mysql", "event", TL_READ);
+  auto table_list = &tables;
 
-  table_list = &tables;
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy)) {
     LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     return true;

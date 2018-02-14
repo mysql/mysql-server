@@ -630,7 +630,6 @@ static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
 bool mysqld_help(THD *thd, const char *mask) {
   Protocol *protocol = thd->get_protocol();
   st_find_field used_fields[array_elements(init_used_fields)];
-  TABLE_LIST tables[4];
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
   int count_topics, count_categories;
@@ -640,18 +639,11 @@ bool mysqld_help(THD *thd, const char *mask) {
   SELECT_LEX *const select_lex = thd->lex->select_lex;
   DBUG_TRACE;
 
-  tables[0].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("help_topic"), "help_topic",
-                           TL_READ);
-  tables[1].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("help_category"), "help_category",
-                           TL_READ);
-  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("help_relation"), "help_relation",
-                           TL_READ);
-  tables[3].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("help_keyword"), "help_keyword",
-                           TL_READ);
+  TABLE_LIST tables[4] = {TABLE_LIST("mysql", "help_topic", TL_READ),
+                          TABLE_LIST("mysql", "help_category", TL_READ),
+                          TABLE_LIST("mysql", "help_relation", TL_READ),
+                          TABLE_LIST("mysql", "help_keyword", TL_READ)};
+
   tables[0].next_global = tables[0].next_local =
       tables[0].next_name_resolution_table = &tables[1];
   tables[1].next_global = tables[1].next_local =

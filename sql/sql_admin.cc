@@ -2021,8 +2021,7 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
     }
   } else if (strcmp(thd->security_context()->priv_user().str,
                     for_user->user.str) != 0) {
-    TABLE_LIST table;
-    table.init_one_table("mysql", 5, "user", 4, 0, TL_READ);
+    TABLE_LIST table("mysql", "user", nullptr, TL_READ);
     if (!is_granted_table_access(thd, SELECT_ACL, &table)) {
       char command[128];
       get_privilege_desc(command, sizeof(command), SELECT_ACL);

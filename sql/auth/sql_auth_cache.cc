@@ -1917,8 +1917,6 @@ static bool is_expected_or_transient_error(THD *thd) {
 */
 
 bool acl_reload(THD *thd) {
-  TABLE_LIST tables[6];
-
   MEM_ROOT old_mem;
   bool return_val = true;
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users = nullptr;
@@ -1947,42 +1945,32 @@ bool acl_reload(THD *thd) {
   };
 
   /*
-    To avoid deadlocks we should obtain table locks before
-    obtaining acl_cache->lock mutex.
+    To avoid deadlocks we should obtain table locks before obtaining
+    acl_cache->lock mutex.
   */
-  tables[0].init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"),
-                           "user", TL_READ, MDL_SHARED_READ_ONLY);
-  /*
-    For a TABLE_LIST element that is inited with a lock type TL_READ
-    the type MDL_SHARED_READ_ONLY of MDL is requested for.
-    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
-    from SE level.
-  */
-  tables[1].init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("db"),
-                           "db", TL_READ, MDL_SHARED_READ_ONLY);
+  TABLE_LIST tables[6] = {
+      TABLE_LIST("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY),
+      /*
+        For a TABLE_LIST element that is inited with a lock type TL_READ
+        the type MDL_SHARED_READ_ONLY of MDL is requested for.
+        Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+        from SE level.
+      */
+      TABLE_LIST("mysql", "db", TL_READ, MDL_SHARED_READ_ONLY),
 
-  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("proxies_priv"), "proxies_priv",
-                           TL_READ, MDL_SHARED_READ_ONLY);
+      TABLE_LIST("mysql", "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY),
 
-  tables[3].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("global_grants"), "global_grants",
-                           TL_READ, MDL_SHARED_READ_ONLY);
+      TABLE_LIST("mysql", "global_grants", TL_READ, MDL_SHARED_READ_ONLY),
 
-  tables[4].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("role_edges"), "role_edges", TL_READ,
-                           MDL_SHARED_READ_ONLY);
+      TABLE_LIST("mysql", "role_edges", TL_READ, MDL_SHARED_READ_ONLY),
 
-  tables[5].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("default_roles"), "default_roles",
-                           TL_READ, MDL_SHARED_READ_ONLY);
+      TABLE_LIST("mysql", "default_roles", TL_READ, MDL_SHARED_READ_ONLY)};
 
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;
   tables[2].next_local = tables[2].next_global = tables + 3;
   tables[3].next_local = tables[3].next_global = tables + 4;
   tables[4].next_local = tables[4].next_global = tables + 5;
-  tables[5].next_local = nullptr;
 
   tables[0].open_type = tables[1].open_type = tables[2].open_type =
       tables[3].open_type = tables[4].open_type = tables[5].open_type =
@@ -2407,7 +2395,6 @@ static bool grant_reload_procs_priv(TABLE_LIST *table) {
 */
 
 bool grant_reload(THD *thd) {
-  TABLE_LIST tables[3];
   MEM_ROOT old_mem;
   bool return_val = 1;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
@@ -2417,19 +2404,17 @@ bool grant_reload(THD *thd) {
   /* Don't do anything if running with --skip-grant-tables */
   if (!initialized) return 0;
 
-  /*
-    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
-    from SE level.
-  */
-  tables[0].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("tables_priv"), "tables_priv",
-                           TL_READ, MDL_SHARED_READ_ONLY);
-  tables[1].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("columns_priv"), "columns_priv",
-                           TL_READ, MDL_SHARED_READ_ONLY);
-  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
-                           STRING_WITH_LEN("procs_priv"), "procs_priv", TL_READ,
-                           MDL_SHARED_READ_ONLY);
+  TABLE_LIST tables[3] = {
+
+      /*
+        Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+        from SE level.
+      */
+      TABLE_LIST("mysql", "tables_priv", TL_READ, MDL_SHARED_READ_ONLY),
+
+      TABLE_LIST("mysql", "columns_priv", TL_READ, MDL_SHARED_READ_ONLY),
+
+      TABLE_LIST("mysql", "procs_priv", TL_READ, MDL_SHARED_READ_ONLY)};
 
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;
