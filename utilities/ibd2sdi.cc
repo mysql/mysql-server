@@ -174,6 +174,7 @@ struct sdi_options {
   const char *dbug_setting;
   char *dump_filename;
   ulong strict_check;
+  bool pretty;
 };
 struct sdi_options opts;
 
@@ -217,6 +218,10 @@ static struct my_option ibd2sdi_options[] = {
      GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"no-check", 'n', "Ignore the checksum verification.", &opts.no_checksum,
      &opts.no_checksum, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"pretty", 'p',
+     "Pretty format the SDI output."
+     "If false, SDI would be not human readable but it will be of less size",
+     &opts.pretty, &opts.pretty, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
 
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
@@ -334,6 +339,8 @@ extern "C" bool ibd2sdi_get_one_option(
       break;
     case 'n':
       opts.no_checksum = true;
+      break;
+    case 'p':
       break;
     case 'h':
       usage();
@@ -1658,7 +1665,7 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
         if (next_page_num == FIL_NULL) {
           goto func_exit;
         }
-        /* fall through */
+      /* fall through */
       default:
       inflate_error : {
         page_id_t page_id(space_id, page_num);
@@ -2032,11 +2039,25 @@ void ibd2sdi::dump_sdi_rec(uint64_t sdi_type, uint64_t sdi_id, byte *sdi_data,
     fprintf(out_stream, "\t\t");
     char *sdi = reinterpret_cast<char *>(sdi_data);
 
-    rapidjson::Document d;
-    d.Parse(sdi);
-    rapidjson::FileWriteStream os(out_stream, sdi, sdi_data_len);
-    rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(os);
-    d.Accept(writer);
+    if (opts.pretty) {
+      rapidjson::Document d;
+
+      rapidjson::ParseResult ok = d.Parse(sdi);
+      if (!ok) {
+        std::cerr << "JSON parse error: "
+                  << rapidjson::GetParseError_En(ok.Code()) << " (offset "
+                  << ok.Offset() << ")"
+                  << " sdi: " << sdi << std::endl;
+        exit(1);
+      }
+
+      rapidjson::StringBuffer _b;
+      rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(_b);
+      d.Accept(writer);
+      fprintf(out_stream, "%s", _b.GetString());
+    } else {
+      fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len - 1), out_stream);
+    }
   }
 
   fprintf(out_stream, "\n}\n");

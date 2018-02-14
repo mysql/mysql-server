@@ -407,7 +407,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -422,6 +422,9 @@ See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
                       Specify the strict checksum algorithm by the user.
                       Allowed values are innodb, crc32, none.
   -n, --no-check      Ignore the checksum verification.
+  -p, --pretty        Pretty format the SDI output.If false, SDI would be not
+                      human readable but it will be of less size
+                      (Defaults to on; use --skip-pretty to disable.)
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -432,6 +435,7 @@ id                                0
 type                              0
 strict-check                      crc32
 no-check                          FALSE
+pretty                            TRUE
 # 12. Print all records
 ["ibd2sdi"
 ,
@@ -817,7 +821,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -832,6 +836,9 @@ See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
                       Specify the strict checksum algorithm by the user.
                       Allowed values are innodb, crc32, none.
   -n, --no-check      Ignore the checksum verification.
+  -p, --pretty        Pretty format the SDI output.If false, SDI would be not
+                      human readable but it will be of less size
+                      (Defaults to on; use --skip-pretty to disable.)
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -842,6 +849,7 @@ id                                0
 type                              0
 strict-check                      crc32
 no-check                          FALSE
+pretty                            TRUE
 # 12. Print all records
 # 13. Retrieve explicit id & type
 ["ibd2sdi"
@@ -958,7 +966,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
-See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
+See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.
   -d, --dump-file=name 
@@ -973,6 +981,9 @@ See http://dev.mysql.com/doc/refman/9.0/en/ibd2sdi.html for usage hints.
                       Specify the strict checksum algorithm by the user.
                       Allowed values are innodb, crc32, none.
   -n, --no-check      Ignore the checksum verification.
+  -p, --pretty        Pretty format the SDI output.If false, SDI would be not
+                      human readable but it will be of less size
+                      (Defaults to on; use --skip-pretty to disable.)
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -983,6 +994,7 @@ id                                0
 type                              0
 strict-check                      crc32
 no-check                          FALSE
+pretty                            TRUE
 # 12. Print all records
 # 13. Retrieve explicit id & type
 ["ibd2sdi"
