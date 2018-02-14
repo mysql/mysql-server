@@ -24,6 +24,8 @@
 
 #include "sql/ndb_dd_client.h"
 
+#include <iostream>
+
 #include <assert.h>
 #include "my_dbug.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -35,6 +37,7 @@
 #include "sql/ndb_dd_disk_data.h"
 #include "sql/ndb_dd_sdi.h"
 #include "sql/ndb_dd_table.h"
+#include "sql/ndb_log.h"
 #include "sql/query_options.h"  // OPTION_AUTOCOMMIT
 #include "sql/sql_class.h"      // THD
 #include "sql/system_variables.h"
@@ -536,7 +539,16 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
 
   if (!store_table(install_table.get(), ndb_table_id))
   {
-    DBUG_ASSERT(false); // Failed to store
+    ndb_log_error("Failed to store table: '%s.%s'", schema_name, table_name);
+    ndb_log_error_dump("sdi for new table: %s",
+                       ndb_dd_sdi_prettify(sdi).c_str());
+    if (existing) {
+      const dd::sdi_t existing_sdi =
+          ndb_dd_sdi_serialize(m_thd, *existing, dd::String_type(schema_name));
+      ndb_log_error_dump("sdi for existing table: %s",
+                         ndb_dd_sdi_prettify(existing_sdi).c_str());
+    }
+    DBUG_ABORT();
     return false;
   }
 

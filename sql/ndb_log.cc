@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "sql/ndb_log.h"
+
+#include <stdio.h>    // vfprintf, stderr
 
 /*
   Implements a logging interface for the ndbcluster
@@ -244,4 +246,15 @@ ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
   va_start(args, fmt);
   ndb_log_print(NDB_LOG_INFORMATION_LEVEL, prefix, fmt_start, args);
   va_end(args);
+}
+
+void
+ndb_log_error_dump(const char* fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  // Dump the message verbatim to stderr
+  vfprintf(stderr, fmt, args);
+  va_end(args);
+  fprintf(stderr, "\n");
 }
