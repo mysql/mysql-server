@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2803,6 +2803,9 @@ withdraw_retry:
 					= buf_pool->n_chunks;
 				warning = true;
 				buf_pool->chunks_old = NULL;
+				for (ulint j = 0; j < buf_pool->n_chunks_new; j++) {
+					buf_pool_register_chunk(&(buf_pool->chunks[j]));
+				}
 				goto calc_buf_pool_size;
 			}
 
