@@ -1487,6 +1487,18 @@ class Item_func_st_longitude_observer final
   }
 };
 
+/// This class implements the one-parameter ST_X function which returns the X
+/// coordinate of a point.
+class Item_func_st_x_observer final : public Item_func_coordinate_observer {
+ public:
+  Item_func_st_x_observer(const POS &pos, Item *a)
+      : Item_func_coordinate_observer(pos, a, false) {}
+
+ protected:
+  const char *func_name() const override { return "st_x"; }
+  int coordinate_number(const dd::Spatial_reference_system *srs) const override;
+};
+
 /**
   This class updates the x coordinate of geometry class POINT.
   The class handles the SQL function @<geometry@>= ST_X(@<point@>, @<double@>).
@@ -1509,20 +1521,6 @@ class Item_func_set_y : public Item_geometry_func {
       : Item_geometry_func(pos, a, b) {}
   const char *func_name() const override { return "st_y"; }
   String *val_str(String *) override;
-};
-
-class Item_func_get_x : public Item_real_func {
-  String value;
-
- public:
-  Item_func_get_x(const POS &pos, Item *a) : Item_real_func(pos, a) {}
-  double val_real() override;
-  const char *func_name() const override { return "st_x"; }
-  bool resolve_type(THD *thd) override {
-    if (Item_real_func::resolve_type(thd)) return true;
-    maybe_null = true;
-    return false;
-  }
 };
 
 class Item_func_get_y : public Item_real_func {
