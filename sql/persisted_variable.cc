@@ -321,7 +321,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
   DEBUG_SYNC(thd, "in_set_persist_variables");
   /* if present update variable with new value else insert into hash */
   if ((setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly()) ||
-      setvar->var->is_plugin_var_read_only())
+      setvar->var->is_persist_readonly())
     m_persist_ro_variables[tmp_var.key] = tmp_var;
   else {
     /*

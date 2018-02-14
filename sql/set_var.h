@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,13 @@ class sys_var {
     INVISIBLE = 0x1000,   // 4096
     TRI_LEVEL = 0x2000,   // 8192 - default is neither GLOBAL nor SESSION
     NOTPERSIST = 0x4000,
-    HINT_UPDATEABLE = 0x8000  // Variable is updateable using SET_VAR hint
+    HINT_UPDATEABLE = 0x8000,  // Variable is updateable using SET_VAR hint
+    /**
+     There can be some variables which needs to be set before plugin is loaded.
+     ex: binlog_checksum needs to be set before GR plugin is loaded.
+    */
+
+    PERSIST_AS_READ_ONLY = 0x10000
   };
   static const int PARSE_EARLY = 1;
   static const int PARSE_NORMAL = 2;
@@ -207,11 +213,6 @@ class sys_var {
     timestamp = 0;
   }
   virtual bool is_non_persistent() { return flags & NOTPERSIST; }
-  /**
-    Check if plugin variable is persisted as a read only variable. For
-    server variables always return false.
-  */
-  virtual bool is_plugin_var_read_only() { return 0; }
 
   /**
      Update the system variable with the default value from either
@@ -227,6 +228,7 @@ class sys_var {
   bool is_readonly() const { return flags & READONLY; }
   bool not_visible() const { return flags & INVISIBLE; }
   bool is_trilevel() const { return flags & TRI_LEVEL; }
+  bool is_persist_readonly() const { return flags & PERSIST_AS_READ_ONLY; }
   /**
     Check if the variable can be set using SET_VAR hint.
 
