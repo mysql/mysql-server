@@ -1972,6 +1972,9 @@ withdraw_retry:
         buf_pool->n_chunks_new = buf_pool->n_chunks;
         warning = true;
         buf_pool->chunks_old = NULL;
+        for (ulint j = 0; j < buf_pool->n_chunks_new; j++) {
+          buf_pool_register_chunk(&(buf_pool->chunks[j]));
+        }
         goto calc_buf_pool_size;
       }
 

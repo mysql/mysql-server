@@ -11,6 +11,5 @@
 ##############################################################################
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
-buf_pool_resize_oom       : Bug#23593654 2017-09-26 Praveenkumar Test repeats issue reported in the Bug#23593654. Test will be enabled by the patch for the bug#23593654.
 portability_tablespace_linux: Sivert The maintainability of the zip files required by this test is not acceptable.
 portability_tablespace_windows: Sivert The maintainability of the zip files required by this test is not acceptable.
