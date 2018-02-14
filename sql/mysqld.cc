@@ -9179,8 +9179,6 @@ static void set_server_version(void) {
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end = my_stpcpy(end, "-debug");
 #endif
-  if (opt_general_log || opt_slow_log || opt_bin_log)
-    end = my_stpcpy(end, "-log");  // This may slow down system
 #ifdef HAVE_VALGRIND
   if (SERVER_VERSION_LENGTH - (end - server_version) >
       static_cast<int>(sizeof("-valgrind")))

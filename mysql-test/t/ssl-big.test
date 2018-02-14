@@ -3,6 +3,7 @@
 
 -- source include/have_ssl.inc
 -- source include/big_test.inc
+-- source include/not_sparc_debug.inc
 # Skiping this test from Valgrind execution as per Bug-14627884
 --source include/not_valgrind.inc
 

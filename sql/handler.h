@@ -2937,7 +2937,7 @@ class Ft_hints {
 
   VARIOUS EXCEPTIONS AND SPECIAL CASES
 
-  f the table has no nullable columns, then null_bytes is still
+  If the table has no nullable columns, then null_bytes is still
   present, its length is one byte <not-sure> which must be set to 0xFF
   at all times. </not-sure>
 
