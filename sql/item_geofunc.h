@@ -1567,6 +1567,18 @@ class Item_func_st_x_observer final : public Item_func_coordinate_observer {
   int coordinate_number(const dd::Spatial_reference_system *srs) const override;
 };
 
+/// This class implements the two-parameter ST_Y function which sets the Y
+/// coordinate of a point.
+class Item_func_st_y_mutator final : public Item_func_coordinate_mutator {
+ public:
+  Item_func_st_y_mutator(const POS &pos, Item *a, Item *b)
+      : Item_func_coordinate_mutator(pos, a, b, false) {}
+
+ protected:
+  const char *func_name() const override { return "st_y"; }
+  int coordinate_number(const dd::Spatial_reference_system *srs) const override;
+};
+
 /// This class implements the one-parameter ST_Y function which returns the Y
 /// coordinate of a point.
 class Item_func_st_y_observer final : public Item_func_coordinate_observer {
@@ -1577,18 +1589,6 @@ class Item_func_st_y_observer final : public Item_func_coordinate_observer {
  protected:
   const char *func_name() const override { return "st_y"; }
   int coordinate_number(const dd::Spatial_reference_system *srs) const override;
-};
-
-/**
-  This class updates the y coordinate of geometry class POINT.
-  The class handles the SQL function @<geometry@>= ST_Y(@<point@>, @<double@>).
-*/
-class Item_func_set_y : public Item_geometry_func {
- public:
-  Item_func_set_y(const POS &pos, Item *a, Item *b)
-      : Item_geometry_func(pos, a, b) {}
-  const char *func_name() const override { return "st_y"; }
-  String *val_str(String *) override;
 };
 
 class Item_func_swap_xy : public Item_geometry_func {
