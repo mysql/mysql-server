@@ -1,0 +1,63 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+[connection slave]
+include/rpl_stop_server.inc [server_number=2]
+
+[connection master]
+CREATE DATABASE db;
+use db;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+
+[connection slave]
+include/rpl_start_server.inc [server_number=2]
+CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MASTER_PORT, MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:db.t1, slave:db.t1]
+include/rpl_stop_server.inc [server_number=2]
+
+[connection slave]
+include/rpl_start_server.inc [server_number=2]
+CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MASTER_PORT, MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:db.t1, slave:db.t1]
+include/rpl_stop_server.inc [server_number=2]
+
+[connection slave]
+include/rpl_start_server.inc [server_number=2]
+CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MASTER_PORT, MASTER_HOST='localhost';
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+include/rpl_stop_server.inc [server_number=2]
+
+[connection slave]
+include/rpl_start_server.inc [server_number=2]
+CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MASTER_PORT, MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=1593]
+include/rpl_restart_server.inc [server_number=2]
+
+[connection master]
+DROP DATABASE db;
+include/sync_slave_sql_with_master.inc
+
+include/rpl_end.inc
