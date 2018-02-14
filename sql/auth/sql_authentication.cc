@@ -357,7 +357,7 @@ struct MEM_ROOT;
   @section sect_protocol_connection_phase_auth_method_mismatch Authentication Method Mismatch
 
   Assume that client wants to log in as user U and that user account uses
-  uthentication method M. If:
+  authentication method M. If:
 
   1. Server's default method used to generate authentication payload for
   @ref page_protocol_connection_phase_packets_protocol_handshake was different
@@ -1493,7 +1493,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   Sends a @ref
   page_protocol_connection_phase_packets_protocol_auth_switch_request
 
-  Used by the server to reequest that a client should restart authentication
+  Used by the server to request that a client should restart authentication
   using a different authentication plugin.
 
   See @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
@@ -1509,7 +1509,13 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   static uchar switch_plugin_request_buf[] = {254};
 
   DBUG_ENTER("send_plugin_request_packet");
-  mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
+
+  /*
+    In case of --skip-grant-tables, mpvio->status might already have set to
+    SUCCESS, don't reset it to FAILURE now.
+  */
+  if (initialized)
+    mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
 
   const char *client_auth_plugin =
       ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
@@ -1570,14 +1576,22 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
 /**
   When authentication is attempted using an unknown username a dummy user
   account with no authentication capabilites is assigned to the connection.
-  This is done increase the cost of enumerating user accounts based on
+  When server is started with -skip-grant-tables, a dummy user account
+  with authentication capabilities is assigned to the connection.
+  Dummy user authenticates with the empty authentication string.
+  This is done to decrease the cost of enumerating user accounts based on
   authentication protocol.
-*/
 
+  @param [in] username  A dummy user to be created.
+  @param [in] hostname  Host of the dummy user.
+  @param [in] mem       Memory in which the dummy ACL user will be created.
+
+  @retval A dummy ACL USER
+*/
 static ACL_USER *decoy_user(const LEX_STRING &username,
                             const LEX_STRING &hostname, MEM_ROOT *mem) {
   ACL_USER *user = (ACL_USER *)alloc_root(mem, sizeof(ACL_USER));
-  user->can_authenticate = false;
+  user->can_authenticate = !initialized;
   user->user = strdup_root(mem, username.str);
   user->user[username.length] = '\0';
   user->host.update_hostname(strdup_root(mem, hostname.str));
@@ -1618,30 +1632,33 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
   DBUG_ENTER("find_mpvio_user");
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
   DBUG_ASSERT(mpvio->acl_user == 0);
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(false)) DBUG_RETURN(true);
 
-  for (ACL_USER *acl_user_tmp = acl_users->begin();
-       acl_user_tmp != acl_users->end(); ++acl_user_tmp) {
-    if ((!acl_user_tmp->user ||
-         !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
-        acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
-      mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
+  if (likely(acl_users)) {
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+    if (!acl_cache_lock.lock(false)) DBUG_RETURN(true);
 
-      /*
-        When setting mpvio->acl_user_plugin we can save memory allocation if
-        this is a built in plugin.
-      */
-      if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
-        mpvio->acl_user_plugin = mpvio->acl_user->plugin;
-      else
-        make_lex_string_root(mpvio->mem_root, &mpvio->acl_user_plugin,
-                             acl_user_tmp->plugin.str,
-                             acl_user_tmp->plugin.length, 0);
-      break;
+    for (ACL_USER *acl_user_tmp = acl_users->begin();
+         acl_user_tmp != acl_users->end(); ++acl_user_tmp) {
+      if ((!acl_user_tmp->user ||
+           !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
+          acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
+        mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
+
+        /*
+          When setting mpvio->acl_user_plugin we can save memory allocation if
+          this is a built in plugin.
+        */
+        if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
+          mpvio->acl_user_plugin = mpvio->acl_user->plugin;
+        else
+          make_lex_string_root(mpvio->mem_root, &mpvio->acl_user_plugin,
+                               acl_user_tmp->plugin.str,
+                               acl_user_tmp->plugin.length, 0);
+        break;
+      }
     }
+    acl_cache_lock.unlock();
   }
-  acl_cache_lock.unlock();
 
   if (!mpvio->acl_user) {
     /*
@@ -2489,13 +2506,12 @@ skip_to_ssl:
     return packet_error; /* The error is set by my_strdup(). */
   mpvio->auth_info.user_name_length = user_len;
 
+  if (find_mpvio_user(thd, mpvio)) return packet_error;
+
   if (!initialized) {
     // if mysqld's been started with --skip-grant-tables option
     mpvio->status = MPVIO_EXT::SUCCESS;
-    return packet_error;
   }
-
-  if (find_mpvio_user(thd, mpvio)) return packet_error;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
@@ -3257,8 +3273,15 @@ int acl_authenticate(THD *thd, enum_server_command command) {
     */
     sctx->set_password_expired(mpvio.acl_user->password_expired ||
                                password_time_expired);
-  } else
+  } else {
     sctx->skip_grants();
+    /*
+      In case of --skip-grant-tables, we already would have set the MPVIO
+      as SUCCESS, it means we are not interested in any of the error set
+      in the diagnostic area, clear them.
+    */
+    thd->get_stmt_da()->reset_diagnostics_area();
+  }
 
   const USER_CONN *uc;
   if ((uc = thd->get_user_connect()) &&
