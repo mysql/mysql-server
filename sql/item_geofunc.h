@@ -1483,6 +1483,21 @@ class Item_func_coordinate_observer : public Item_real_func {
   bool m_geographic_only;
 };
 
+/// This class implements the two-parameter ST_Latitude function which sets the
+/// latitude of a geographic point.
+class Item_func_st_latitude_mutator final
+    : public Item_func_coordinate_mutator {
+ public:
+  Item_func_st_latitude_mutator(const POS &pos, Item *a, Item *b)
+      : Item_func_coordinate_mutator(pos, a, b, true) {}
+
+ protected:
+  const char *func_name() const override { return "st_latitude"; }
+  int coordinate_number(const dd::Spatial_reference_system *) const override {
+    return 1;
+  }
+};
+
 /// This class implements the one-parameter ST_Latitude function which returns
 /// the latitude coordinate of a geographic point.
 class Item_func_st_latitude_observer final

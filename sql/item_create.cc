@@ -832,6 +832,28 @@ class Srid_instantiator {
   }
 };
 
+class Latitude_instantiator {
+ public:
+  static const uint Min_argcount = 1;
+  static const uint Max_argcount = 2;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    switch (args->elements()) {
+      case 1:
+        return new (thd->mem_root)
+            Item_func_st_latitude_observer(POS(), (*args)[0]);
+      case 2:
+        return new (thd->mem_root)
+            Item_func_st_latitude_mutator(POS(), (*args)[0], (*args)[1]);
+      default:
+        /* purecov: begin deadcode */
+        DBUG_ASSERT(false);
+        return nullptr;
+        /* purecov: end */
+    }
+  }
+};
+
 class X_instantiator {
  public:
   static const uint Min_argcount = 1;
@@ -1505,7 +1527,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_ISSIMPLE", SQL_FN(Item_func_st_issimple, 1)},
     {"ST_ISVALID", SQL_FN(Item_func_isvalid, 1)},
     {"ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1)},
-    {"ST_LATITUDE", SQL_FN(Item_func_st_latitude_observer, 1)},
+    {"ST_LATITUDE", SQL_FACTORY(Latitude_instantiator)},
     {"ST_LENGTH", SQL_FN(Item_func_st_length, 1)},
     {"ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator)},
     {"ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator)},
