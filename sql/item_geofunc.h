@@ -1432,6 +1432,32 @@ class Item_func_dimension : public Item_int_func {
   }
 };
 
+/// The abstract superclass for all geometry coordinate mutator functions (ST_X,
+/// ST_Y, ST_Latitude and ST_Longitude with two parameters).
+///
+/// @see Item_func_coordinate_observer
+class Item_func_coordinate_mutator : public Item_geometry_func {
+ public:
+  Item_func_coordinate_mutator(const POS &pos, Item *a, Item *b,
+                               bool geographic_only)
+      : Item_geometry_func(pos, a, b), m_geographic_only(geographic_only) {}
+  String *val_str(String *) override;
+
+ protected:
+  const char *func_name() const override = 0;
+  /// Returns the coordinate number accessed by this item.
+  ///
+  /// @param[in] srs The spatial reference system of the point.
+  ///
+  /// @return The coordinate number to access.
+  virtual int coordinate_number(
+      const dd::Spatial_reference_system *srs) const = 0;
+
+ private:
+  /// Whether this item will accept only geographic geometries/SRSs.
+  bool m_geographic_only;
+};
+
 /// The abstract superclass for all geometry coordinate oberserver functions
 /// (ST_X, ST_Y, ST_Latitude, ST_Longitude with one parameter).
 ///
