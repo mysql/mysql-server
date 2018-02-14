@@ -951,9 +951,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
 
   initOpRec(req, signal->getLength());
-  // normalize key if any char attr
-  if (operationRecPtr.p->tupkeylen && fragrecptr.p->hasCharAttr)
-    xfrmKeyData(req);
 
   /*---------------------------------------------------------------*/
   /*                                                               */
@@ -1401,19 +1398,6 @@ ref:
   
   operationRecPtr = save;
   return;
-}
-
-void
-Dbacc::xfrmKeyData(AccKeyReq* signal)const
-{
-  Uint32 table = fragrecptr.p->myTableId;
-  Uint32 dst[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
-  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32* const src = signal->keyInfo;
-  Uint32 len = xfrm_key(table, src, dst, sizeof(dst) >> 2, keyPartLen);
-  ndbrequire(len); // 0 means error
-  memcpy(src, dst, len << 2);
-  operationRecPtr.p->xfrmtupkeylen = len;
 }
 
 void 
@@ -3511,8 +3495,8 @@ Dbacc::getElement(const AccKeyReq* signal,
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
   Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
   union {
-  Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
-  Uint64 keys_align;
+    Uint32 keys[2048];
+    Uint64 keys_align;
   };
   (void)keys_align;
 
@@ -3588,15 +3572,24 @@ Dbacc::getElement(const AccKeyReq* signal,
           bool found;
           if (! searchLocalKey) 
 	  {
-            const bool xfrm = fragrecptr.p->hasCharAttr;
+            const bool xfrm = false;
             Uint32 len = readTablePk(localkey.m_page_no,
                                      localkey.m_page_idx,
                                      tgeElementHeader,
                                      lockOwnerPtr,
                                      &keys[0],
                                      xfrm);
-            found = (len == operationRecPtr.p->xfrmtupkeylen) &&
-	      (memcmp(Tkeydata, &keys[0], len << 2) == 0);
+
+            if (fragrecptr.p->hasCharAttr)  //Need to consult charset library
+            {
+              const Uint32 table = fragrecptr.p->myTableId;
+              found = (cmp_key(table, Tkeydata, &keys[0]) == 0);
+            }
+            else
+            {
+              found = (len == operationRecPtr.p->tupkeylen) &&
+                      (memcmp(Tkeydata, &keys[0], len << 2) == 0);
+            }
           } else {
             jam();
             found = (localkey.m_page_no == Tkeydata[0] && Uint32(localkey.m_page_idx) == Tkeydata[1]);

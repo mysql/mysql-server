@@ -1086,9 +1086,6 @@ private:
 
   void zpagesize_error(const char* where);
 
-  // charsets
-  void xfrmKeyData(AccKeyReq* signal) const;
-
   // Initialisation
   void initData();
   void initRecords();
