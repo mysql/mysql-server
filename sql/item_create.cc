@@ -887,7 +887,7 @@ class X_instantiator {
         return new (thd->mem_root) Item_func_st_x_observer(POS(), (*args)[0]);
       case 2:
         return new (thd->mem_root)
-            Item_func_set_x(POS(), (*args)[0], (*args)[1]);
+            Item_func_st_x_mutator(POS(), (*args)[0], (*args)[1]);
       default:
         DBUG_ASSERT(false);
         return nullptr;

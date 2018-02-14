@@ -5173,6 +5173,12 @@ double Item_func_coordinate_observer::val_real() {
   return point.y();
 }
 
+int Item_func_st_x_mutator::coordinate_number(
+    const dd::Spatial_reference_system *srs) const {
+  if (srs != nullptr && srs->is_geographic() && srs->is_lat_long()) return 1;
+  return 0;
+}
+
 int Item_func_st_x_observer::coordinate_number(
     const dd::Spatial_reference_system *srs) const {
   if (srs != nullptr && srs->is_geographic() && srs->is_lat_long()) return 1;
@@ -5183,50 +5189,6 @@ int Item_func_st_y_observer::coordinate_number(
     const dd::Spatial_reference_system *srs) const {
   if (srs != nullptr && srs->is_geographic() && srs->is_lat_long()) return 0;
   return 1;
-}
-
-String *Item_func_set_x::val_str(String *str) {
-  DBUG_ASSERT(fixed);
-  String *swkb = args[0]->val_str(str);
-  double x_coordinate = args[1]->val_real();
-
-  if ((null_value = (args[0]->null_value || args[1]->null_value))) {
-    return nullptr;
-  }
-
-  if (!swkb) {
-    /*
-    We've already found out that args[0]->null_value is false.
-    Therefore, swkb should never be null.
-    */
-    DBUG_ASSERT(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
-  }
-
-  if (!std::isfinite(x_coordinate)) {
-    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), func_name());
-    return error_str();
-  }
-
-  Geometry_buffer buffer;
-  Geometry *geom;
-  if (!(geom = Geometry::construct(&buffer, swkb))) {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
-  }
-
-  if (geom->get_type() != Geometry::wkb_point) {
-    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
-             geom->get_class_info()->m_name.str, func_name());
-    return error_str();
-  }
-
-  if (verify_srid_is_defined(geom->get_srid())) return error_str();
-
-  str->copy(*swkb);
-  float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE, x_coordinate);
-  return str;
 }
 
 String *Item_func_set_y::val_str(String *str) {
