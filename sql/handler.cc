@@ -1634,6 +1634,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
       const char act[] = "now signal Reached wait_for signal.commit_continue";
       DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);
+    DEBUG_SYNC(thd, "ha_commit_trans_before_acquire_commit_lock");
     if (rw_trans && !ignore_global_read_lock) {
       /*
         Acquire a metadata lock which will ensure that COMMIT is blocked

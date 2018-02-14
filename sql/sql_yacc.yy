@@ -12821,7 +12821,22 @@ opt_if_exists_ident:
 reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
           slave_reset_options opt_channel
-        | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
+        | MASTER_SYM
+          {
+            Lex->type|= REFRESH_MASTER;
+            /*
+              Reset Master should acquire global read lock
+              in order to avoid any parallel transaction commits
+              while the reset operation is going on.
+
+              *Only if* the thread is not already acquired the global
+              read lock, server will acquire global read lock
+              during the operation and release it at the
+              end of the reset operation.
+            */
+            if (!(YYTHD)->global_read_lock.is_acquired())
+              Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK;
+          }
           master_reset_options
         ;
 

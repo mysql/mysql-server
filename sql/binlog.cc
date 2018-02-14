@@ -8917,6 +8917,7 @@ commit_stage:
     thd->commit_error, which is returned below.
   */
   (void)finish_commit(thd);
+  DEBUG_SYNC(thd, "bgc_after_commit_stage_before_rotation");
 
   /*
     If we need to rotate, we do it without commit error.
