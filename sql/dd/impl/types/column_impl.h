@@ -347,12 +347,12 @@ class Column_impl : public Entity_object_impl, public Column {
   virtual void set_comment(const String_type &comment) { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
-  // is_hidden.
+  // Hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_hidden() const { return m_hidden; }
+  virtual enum_hidden_type hidden() const { return m_hidden; }
 
-  virtual void set_hidden(bool hidden) { m_hidden = hidden; }
+  virtual void set_hidden(enum_hidden_type hidden) { m_hidden = hidden; }
 
   /////////////////////////////////////////////////////////////////////////
   // Options.
@@ -457,7 +457,7 @@ class Column_impl : public Entity_object_impl, public Column {
   bool m_is_unsigned;
   bool m_is_auto_increment;
   bool m_is_virtual;
-  bool m_hidden;
+  enum_hidden_type m_hidden;
 
   uint m_ordinal_position;
   size_t m_char_length;

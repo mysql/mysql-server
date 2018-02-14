@@ -805,7 +805,7 @@ static void fill_dd_index_elements_from_key_parts(
       int i = 0;
       for (const dd::Column *c : tab_obj->columns()) {
         // Skip hidden columns
-        if (c->is_hidden()) continue;
+        if (c->is_se_hidden()) continue;
 
         if (i == key_part->fieldnr) {
           key_col_obj = c;

@@ -2060,7 +2060,7 @@ static void innobase_create_index_def(const TABLE *altered_table,
       size_t geom_col_idx;
       for (geom_col_idx = 0; geom_col_idx < dd_index->elements().size();
            ++geom_col_idx) {
-        if (!dd_index->elements()[geom_col_idx]->column().is_hidden()) break;
+        if (!dd_index->elements()[geom_col_idx]->column().is_se_hidden()) break;
       }
       const dd::Column &col = dd_index->elements()[geom_col_idx]->column();
       bool has_value = col.srs_id().has_value();

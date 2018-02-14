@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
   // Loop over columns, count nullable and bit fields and find record length.
   for (const dd::Column *col_obj : table.columns()) {
     // Skip hidden columns
-    if (col_obj->is_hidden()) continue;
+    if (col_obj->is_se_hidden()) continue;
 
     // Check if the field may be NULL.
     if (col_obj->is_nullable()) share->null_fields++;

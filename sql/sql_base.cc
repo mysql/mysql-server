@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -533,7 +533,7 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   MDL_request_list mdl_requests;
   for (const auto column : table_def->columns()) {
-    if (column->is_hidden()) continue;
+    if (column->is_se_hidden()) continue;
 
     MDL_key mdl_key;
     dd::Column_statistics::create_mdl_key(schema->name(), table_def->name(),
@@ -549,7 +549,7 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     return true; /* purecov: deadcode */
 
   for (const auto column : table_def->columns()) {
-    if (column->is_hidden()) continue;
+    if (column->is_se_hidden()) continue;
 
     const histograms::Histogram *histogram = nullptr;
     if (histograms::find_histogram(thd, schema->name().c_str(),
