@@ -486,7 +486,7 @@ Ndb::computeHash(Uint32 *retval,
       goto emalformedkey;
     
     if (partcols[i]->m_cs != NULL)
-      len = NdbSqlUtil::strnxfrm_len(partcols[i]->m_cs, (maxlen - lb));
+      len = NdbSqlUtil::strnxfrm_hash_len(partcols[i]->m_cs, (maxlen - lb));
 
     len = (lb + len + 3) & ~(Uint32)3;
     sumlen += len;
@@ -528,7 +528,7 @@ Ndb::computeHash(Uint32 *retval,
     if ((cs = partcols[i]->m_cs))
     {
       const Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize) - lb;
-      int n = NdbSqlUtil::strnxfrm(cs,
+      int n = NdbSqlUtil::strnxfrm_hash(cs,
                                    pos, bufEnd-pos, 
                                    ((uchar*)keyData[i].ptr)+lb, len, maxlen);
 
@@ -677,7 +677,7 @@ Ndb::computeHash(Uint32 *retval,
     const CHARSET_INFO* cs = keyAttr.charset_info;
     if (cs)
     {      
-      const int n = NdbSqlUtil::strnxfrm(cs,
+      const int n = NdbSqlUtil::strnxfrm_hash(cs,
                                          pos, bufEnd-pos,
                                          src, len, maxlen);
       if (unlikely(n == -1))

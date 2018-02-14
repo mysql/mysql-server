@@ -5939,11 +5939,11 @@ Dbspj::handle_special_hash(Uint32 tableId, Uint32 dstHash[4],
   {
     hashInput = alignedWorkspace;
     keyPartLenPtr = keyPartLen;
-    inputLen = xfrm_key(tableId,
-                        (Uint32*)src,
-                        (Uint32*)alignedWorkspace,
-                        sizeof(alignedWorkspace) >> 2,
-                        keyPartLenPtr);
+    inputLen = xfrm_key_hash(tableId,
+                             (Uint32*)src,
+                             (Uint32*)alignedWorkspace,
+                             sizeof(alignedWorkspace) >> 2,
+                             keyPartLenPtr);
     if (unlikely(inputLen == 0))
     {
       return 290;  // 'Corrupt key in TC, unable to xfrm'
@@ -6059,9 +6059,9 @@ Dbspj::computePartitionHash(Signal* signal,
       if (AttributeDescriptor::getDKey(keyAttr.attributeDescriptor))
       {
         Uint32 attrLen =
-        xfrm_attr(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
-                  src, srcPos, dst, dstPos,
-                  NDB_ARRAY_SIZE(signal->theData) - 24);
+        xfrm_attr_hash(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
+                       src, srcPos, dst, dstPos,
+                       NDB_ARRAY_SIZE(signal->theData) - 24);
         if (unlikely(attrLen == 0))
         {
           DEBUG_CRASH();

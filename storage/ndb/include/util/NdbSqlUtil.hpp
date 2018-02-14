@@ -137,14 +137,14 @@ public:
    */
   static bool get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint32& lb, Uint32& len);
 
-  static int strnxfrm(const CHARSET_INFO* cs,
-                      uchar* dst, unsigned dstLen,
-                      const uchar* src, unsigned srcLen,
-                      unsigned maxLen);
+  static int strnxfrm_hash(const CHARSET_INFO* cs,
+                           uchar* dst, unsigned dstLen,
+                           const uchar* src, unsigned srcLen,
+                           unsigned maxLen);
 
-  static Uint32 strnxfrm_len(const CHARSET_INFO* cs,
-                             unsigned maxLen);
- 
+  static Uint32 strnxfrm_hash_len(
+                           const CHARSET_INFO* cs,
+                           unsigned maxLen);
   
 
   /**

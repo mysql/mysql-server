@@ -4032,7 +4032,8 @@ SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
 
 
 Uint32
-SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src, 
+SimulatedBlock::xfrm_key_hash(
+                         Uint32 tab, const Uint32* src,
 			 Uint32 *dst, Uint32 dstSize,
 			 Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const
 {
@@ -4046,7 +4047,7 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
   {
     const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
     Uint32 dstWords =
-      xfrm_attr(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
+      xfrm_attr_hash(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
                 src, srcPos, dst, dstPos, dstSize);
     keyPartLen[i++] = dstWords;
     if (unlikely(dstWords == 0))
@@ -4065,7 +4066,8 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
 }
 
 Uint32
-SimulatedBlock::xfrm_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+SimulatedBlock::xfrm_attr_hash(
+                          Uint32 attrDesc, const CHARSET_INFO* cs,
                           const Uint32* src, Uint32 & srcPos,
                           Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const
 {
@@ -4126,7 +4128,7 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
     // defLen: Max defined length of src data 
     const unsigned remLen = ((dstSize - dstPos) << 2);
     const unsigned defLen = srcBytes - lb;
-    int n = NdbSqlUtil::strnxfrm(cs,
+    int n = NdbSqlUtil::strnxfrm_hash(cs,
                                  dstPtr, remLen, 
                                  srcPtr + lb, len, defLen);
     

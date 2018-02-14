@@ -751,7 +751,7 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
   Uint32 lb, len;
   const bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
   const unsigned defLen = maxBytes - lb;
-  const Uint32 maxDstLen = NdbSqlUtil::strnxfrm_len(cs, defLen);
+  const Uint32 maxDstLen = NdbSqlUtil::strnxfrm_hash_len(cs, defLen);
   const Uint32 maxIndexBuf = indexBuf + (maxDstLen >> 2);
   if (maxIndexBuf <= maxRead && ok) 
   {
@@ -759,7 +759,7 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
     // len:    Actual length of 'src'
     // defLen: Max defined length of src data 
     const unsigned defLen = maxBytes - lb;
-    const int n = NdbSqlUtil::strnxfrm(cs,
+    const int n = NdbSqlUtil::strnxfrm_hash(cs,
                                        dstPtr, maxRead-indexBuf, 
                                        (const uchar*)srcPtr + lb, len, defLen);
     ndbrequire(n != -1);

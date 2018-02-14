@@ -991,6 +991,17 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
 }
 
 /**
+ * Normalize string for **hash**. To compare strings,
+ * use the NdbSqlUtil::cmp*() methods.
+ *
+ * xfrm'ed strings are guaranteed to be binary equal for
+ * strings defined as equal by the specified charset collation.
+ *
+ * However, the opposite is not true: unequal strings may
+ * be xfrm'ed into the same binary representation.
+ */
+
+/**
  * Backward bug compatible implementation of strnxfrm.
  *
  * Even if bug#7284: 'strnxfrm generates different results for equal strings'
@@ -1006,6 +1017,16 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
  *
  * So we still have to handle the 'unlikely' case 'n3 < (int)dstLen'.
  */
+
+#ifndef NDEBUG
+/**
+ * Used to verify that the strnxfrm is only used for hashing:
+ * zero-fill xfrm'ed string, which will give a valid hash pattern,
+ * but break any misuse in strings compare
+ */
+static const bool verify_hash_only_usage = false;
+#endif
+
 static inline int
 strnxfrm_bug7284(const CHARSET_INFO* cs,
                  uchar* dst, unsigned dstLen,
@@ -1045,15 +1066,20 @@ strnxfrm_bug7284(const CHARSET_INFO* cs,
     }
   }
 
+#ifndef NDEBUG
+  if (verify_hash_only_usage)
+    memset(dst, 0, dstLen);
+#endif
+
   // no check for partial last
   return dstLen;
 }
 
 int
-NdbSqlUtil::strnxfrm(const CHARSET_INFO* cs,
-                     uchar* dst, unsigned bufLen,
-                     const uchar* src, unsigned srcLen,
-		     unsigned maxLen)
+NdbSqlUtil::strnxfrm_hash(const CHARSET_INFO* cs,
+                          uchar* dst, unsigned bufLen,
+                          const uchar* src, unsigned srcLen,
+                          unsigned maxLen)
 {
   if (cs->strxfrm_multiply == 0)
   {
@@ -1097,18 +1123,18 @@ NdbSqlUtil::strnxfrm(const CHARSET_INFO* cs,
 
 /**
  * Get maximum length needed by the xfrm'ed string
- * as produced by strnxfrm().
+ * as produced by strnxfrm_hash().
  *
  *  cs:     The Character set definition
  *  maxLen: The maximim (padded) length of the string
  */
 Uint32
-NdbSqlUtil::strnxfrm_len(const CHARSET_INFO* cs,
-                         unsigned maxLen)
+NdbSqlUtil::strnxfrm_hash_len(const CHARSET_INFO* cs,
+                              unsigned maxLen)
 {
   if (cs->strxfrm_multiply == 0)
   {
-    // Temp workaround, see srnxfrm() comments.
+    // Temp workaround, see srnxfrm_hash() comments.
     return maxLen;  
   }
   else if (likely(cs->strxfrm_multiply > 0))
