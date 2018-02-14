@@ -859,7 +859,7 @@ class Y_instantiator {
   Item *instantiate(THD *thd, PT_item_list *args) {
     switch (args->elements()) {
       case 1:
-        return new (thd->mem_root) Item_func_get_y(POS(), (*args)[0]);
+        return new (thd->mem_root) Item_func_st_y_observer(POS(), (*args)[0]);
       case 2:
         return new (thd->mem_root)
             Item_func_set_y(POS(), (*args)[0], (*args)[1]);
