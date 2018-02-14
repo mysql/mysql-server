@@ -1,0 +1,250 @@
+################################################################################
+# Bug#27041759 RESET MASTER WHILE A TRX IN BGC(AFTER FLUSH) LEAVING SERVER IN
+#              BAD GTID TATE
+#
+# Problem: When a transaction is in Binlog group commit, (flush stage is done
+#          but third stage, commit stage, is not done yet), if some one executes
+#          RESET MASTER, binlog will not contain the transaction (it will be
+#          cleared by RESET MASTER), but after the transaction is committed,
+#          transaction gtid is added to gtid_executed. And this gtid cannot be
+#          utilized by server again even though the transaction is already
+#          cleared from the binlog. This leaves the server in bad gtid state.
+#
+# Step to reproduce:
+# ------------------
+#
+#  Step-1) Initial Setup which is required for the test.
+#  Step-2) Execute a transaction that will wait for a signal
+#          at various stages of commit. Then execute 'RESET MASTER'
+#          and observe binlog contents and GTID state. Repeat
+#          the step when 'global read lock' is already acquired
+#          by either the same thread or by some other thread
+#          before executing 'RESET MASTER'.
+#  Step-3) Test error cases
+#  Step-4) Cleanup
+################################################################################
+# Test is independent of Binlog format. One of the three formats is enough
+# for testing. Choosing 'Row' format.
+--source include/have_binlog_format_row.inc
+# Test has debug sync points.
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Some of the .incs in this test are only for gtid enabled test.
+--let $include_silent= 1
+
+--echo #
+--echo # Step-1) Initial Setup which is required for the test.
+--echo #
+RESET MASTER;
+--source include/save_binlog_position.inc
+--let $gtid_mode= `SELECT @@GLOBAL.GTID_MODE`
+--let $gtid_event= Anonymous_Gtid
+if ($gtid_mode == 'ON')
+{
+  --source include/gtid_step_reset.inc
+  --let $gtid_event= Gtid
+  --source include/gtid_utils.inc
+}
+--echo #
+--echo # Step-1.1) Create four client connections.
+--echo #
+--connect(conn1,localhost,root,,test)
+--connect(conn2,localhost,root,,test)
+--connect(conn3,localhost,root,,test)
+--connect(conn4,localhost,root,,test)
+
+--echo #
+--echo # Step-1.2) Create a sample table.
+--echo #
+CREATE TABLE t1 (i INT);
+
+--echo #
+--echo #  Step-2) Execute a simple insert transaction that will wait
+--echo #          for a signal at various stages of transaction commit.
+--echo #          Execute 'RESET MASTER' when it is waiting for the signal
+--echo #          and check binlog contents and GTID_EXECUTED (if GTID
+--echo #          enabled) that they are as expected.
+--echo #
+#  Various Stages:
+#          i = 1) Before commit takes global read lock.
+#                (ha_commit_trans_before_acquire_commit_lock)
+#          i = 2) After taking the lock, before entering into flush stage.
+#                (bgc_before_flush_stage)
+#          i = 3) After flush stage but before sync stage.
+#                (bgc_after_flush_stage_before_sync_stage)
+#          i = 4) After sync stage but before commit stage
+#                (bgc_after_sync_stage_before_commit_stage)
+#          i = 5) After commit stage is done
+#                (bgc_after_commit_stage_before_rotation)
+#
+#  Also repeat all the above steps when a thread has already acquired
+#  'FLUSH TABLES WITH READ LOCK' (either the same thread or some other thread),
+#  to make sure that 'RESET MASTER' does not give any complaints.
+#
+#          j = 1 , 'RESET MASTER' on a thread that did not execute
+#                  'FLUSH TABLES WITH READ LOCK'
+#          j = 2 , 'RESET MASTER' on a thread that already acquired
+#                  'FLUSH TABLES WITH READ LOCK'
+#          j = 3 , 'RESET MASTER' on a thread that did not execute
+#                  'FLUSH TABLES WITH READ LOCK' but some other thread
+#                  has already acquired 'FLUSH TABLES WITH READ LOCK'.
+#
+--let $j= 1
+while ($j <= 3)
+{
+  --let $i= 1
+  while ($i <= 5)
+  {
+    --let $rpl_connection_name= conn1
+    --source include/rpl_connection.inc
+    BEGIN;
+    INSERT INTO t1 VALUES (1);
+    if ($i == 1)
+    {
+      SET debug_sync="ha_commit_trans_before_acquire_commit_lock SIGNAL reached WAIT_FOR insert_continue";
+    }
+    if ($i == 2)
+    {
+      SET debug_sync="bgc_before_flush_stage SIGNAL reached WAIT_FOR insert_continue";
+    }
+    if ($i == 3)
+    {
+      SET debug_sync="bgc_after_flush_stage_before_sync_stage SIGNAL reached WAIT_FOR insert_continue";
+    }
+    if ($i == 4)
+    {
+      SET debug_sync="bgc_after_sync_stage_before_commit_stage SIGNAL reached WAIT_FOR insert_continue";
+    }
+    if ($i == 5)
+    {
+      SET debug_sync="bgc_after_commit_stage_before_rotation SIGNAL reached WAIT_FOR insert_continue";
+    }
+    --send COMMIT
+
+    #
+    #  Step-2.1) Wait till insert query reaches debug_sync point and
+    #            generates signal 'reached'.
+    #
+    --let $rpl_connection_name= conn2
+    --source include/rpl_connection.inc
+    SET debug_sync="now WAIT_FOR reached";
+
+    #
+    # Step-2.2) Now, when transaction is waiting for signal,
+    #           execute 'RESET MASTER'. If this is second iteration (j = 2)
+    #           wrap 'RESET MASTER' with 'FLUSH TABLES WITH READ LOCK'
+    #           and 'UNLOCK TABLES'.
+    if ($j == 1)
+    {
+      --send RESET MASTER
+    }
+    if ($j != 1)
+    {
+      --send FLUSH TABLES WITH READ LOCK
+    }
+    if ($i == 1)
+    {
+      --reap
+      SET debug_sync="now SIGNAL insert_continue";
+    }
+    if ($i != 1)
+    {
+      --let $rpl_connection_name= conn3
+      --source include/rpl_connection.inc
+      --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist WHERE STATE LIKE 'Waiting for commit lock'
+      --source include/wait_condition.inc
+      SET debug_sync="now SIGNAL insert_continue";
+      --let $rpl_connection_name= conn2
+      --source include/rpl_connection.inc
+      --reap
+    }
+    if ($j == 2)
+    {
+      RESET MASTER;
+      UNLOCK TABLES;
+    }
+    if ($j == 3)
+    {
+      --let $rpl_connection_name= conn4
+      --source include/rpl_connection.inc
+      RESET MASTER;
+      --let $rpl_connection_name= conn2
+      --source include/rpl_connection.inc
+      UNLOCK TABLES;
+    }
+    #
+    # Step-2.3) Wait till the transaction is finished.
+    #
+    --let $rpl_connection_name= conn1
+    --source include/rpl_connection.inc
+    --reap
+
+    #
+    # Step-2.4) Check binlog contents and GTID state (if GTID enabled)
+    #           If 'RESET MASTER' is executed before the transaction
+    #           commit acquires 'global read lock' (i = 1 iteration),
+    #           then binlog should contain the transaction events
+    #           and one GTID should be utilized.
+    #
+    #           If transaction commit is already in BGC (after acquiring
+    #           'global read lock', then 'RESET MASTER' will wait for
+    #           the transaction to complete and then will do it's work.
+    #           In this case (i = 2, 3, 4, 5), binlog should be empty
+    #           and no GTIDs are utilized.
+    if ($i == 1)
+    {
+      --let $event_sequence= $gtid_event # !Begin # !Insert # !Commit
+      --source include/assert_binlog_events.inc
+      if ($gtid_mode == 'ON')
+      {
+        --let $gtid_step_count= 1
+        --source include/gtid_step_assert.inc
+      }
+    }
+    if ($i != 1)
+    {
+      --let $event_sequence= ()
+      --source include/assert_binlog_events.inc
+      if ($gtid_mode == 'ON')
+      {
+        --let $gtid_step_count= 0
+        --source include/gtid_step_assert.inc
+      }
+    }
+    --echo #
+    --echo # Step-2.4) Reset the debug signals for the next iteration
+    --echo #
+    --let $rpl_connection_name= conn2
+    --source include/rpl_connection.inc
+    SET debug_sync="RESET";
+    --inc $i
+  }
+  --inc $j
+}
+
+--echo #
+--echo # Step-3) Check that 'RESET MASTER' fails if it is executed from a
+--echo #         session that has already acquired locks on a table.
+--echo #
+LOCK TABLE t1 READ;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RESET MASTER;
+UNLOCK TABLES;
+
+LOCK TABLE t1 WRITE;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+RESET MASTER;
+UNLOCK TABLES;
+
+--echo # Step-4) Cleanup
+--echo #
+DROP TABLE t1;
+if ($gtid_mode == 'ON')
+{
+  --source include/gtid_utils_end.inc
+}
+--disconnect conn1
+--disconnect conn2
+--disconnect conn3
+--disconnect conn4
